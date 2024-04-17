@@ -58,14 +58,19 @@ app.get("/clients", async (req, res) => {
 
 app.post("/clients/add", async (req, res) => {
   try {
-    const { username } = req.user; // Assuming you have user information available in the request
-    const currentDate = new Date();
+    // Find the highest ID in the ClientModel
+    const highestIdClient = await ClientModel.findOne().sort({ id: -1 });
 
-    // Add the current date and user information to the request body
-    req.body.adddate = currentDate;
-    req.body.adduser = username;
+    // Get the highest ID or default to 0 if no clients exist
+    const highestId = highestIdClient ? highestIdClient.id : 0;
 
-    // Create the new client with updated request body
+    // Increment the highest ID by one to get the new ID for the client
+    const newId = highestId + 1;
+
+    // Add the new ID to the request body
+    req.body.id = newId;
+
+    // Create the new client
     const newClient = await ClientModel.create(req.body);
     res.json(newClient);
   } catch (err) {
