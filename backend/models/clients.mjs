@@ -9,12 +9,10 @@ const clientConnection = mongoose.createConnection(
 const ClientSchema = new mongoose.Schema(
   {
     id: Number,
-    name: {
-      lname: String,
-      fname: String,
-      mname: String,
-      sname: String,
-    },
+    lname: String,
+    fname: String,
+    mname: String,
+    sname: String,
     title: String,
     bdate: String,
     company: String,
