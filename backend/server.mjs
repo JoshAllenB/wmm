@@ -7,6 +7,7 @@ import UserModel from "./models/users.mjs";
 import ClientModel from "./models/clients.mjs";
 import { fileURLToPath } from "url";
 import path from "path";
+import userAuthRouter from "./userAuth/userAuth.mjs";
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use("/auth", userAuthRouter);
 
 mongoose.set("debug", true);
 
@@ -37,19 +39,38 @@ app.get("/address/:id", async (req, res) => {
 });
 
 app.get("/clients", async (req, res) => {
-  const { page = 1 } = req.query;
-  const perPage = 20; // Number of items per page
-
   try {
     const clients = await ClientModel.find()
       .select(
         "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser"
       )
-      .sort({ id: 1 }) // Sort by id in ascending order
-      .skip((page - 1) * perPage)
-      .limit(perPage);
+      .sort({ id: 1 }); // Sort by id in ascending order
 
     res.json(clients);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/clients/recent", async (req, res) => {
+  const { days } = req.query;
+
+  try {
+    const currentDate = new Date();
+    const startDate = new Date(
+      currentDate.getTime() - days * 24 * 60 * 60 * 1000
+    );
+
+    const recentClients = await ClientModel.find({
+      adddate: { $gte: startDate },
+    })
+      .select(
+        "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser"
+      )
+      .sort({ adddate: -1 }); // Sort by adddate in descending order
+
+    res.json(recentClients);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -152,46 +173,6 @@ app.get("/search", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const user = await UserModel.findOne(
-      { username: username },
-      "username password"
-    ); // Projection to only fetch username and password
-    if (user) {
-      const passwordMatch = await bcrypt.compare(password, user.password); // Compare hashed password
-      if (passwordMatch) {
-        res.status(200).json("success"); // Success
-      } else {
-        res.status(401).json("Password Incorrect"); // Unauthorized
-      }
-    } else {
-      res.status(404).json("Username does not exist"); // Not Found
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json("Internal Server Error"); // Internal Server Error
-  }
-});
-
-app.post("/register", async (req, res) => {
-  try {
-    const user = await UserModel.create(req.body);
-    res.json(user);
-  } catch (err) {
-    if (err.name === "ValidationError") {
-      res
-        .status(400)
-        .json({ error: "Validation failed", details: err.message });
-    } else {
-      res
-        .status(500)
-        .json({ error: "Registration failed", details: err.message });
-    }
   }
 });
 
