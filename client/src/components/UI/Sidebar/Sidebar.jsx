@@ -26,7 +26,7 @@ export default function MenuSidebar() {
   };
 
   const backgroundColor =
-    theme.palette.mode === "dark" ? colors.blue[500] : colors.black[500];
+    theme.palette.mode === "dark" ? colors.mirage[900] : colors.mirage[100];
 
   const MenuItemStyles = {
     root: {
@@ -34,8 +34,8 @@ export default function MenuSidebar() {
     },
     button: {
       "&:hover": {
-        backgroundColor: colors.blue[400],
-        color: colors.white[500],
+        backgroundColor: colors.mirage[500],
+        color: colors.mirage[100],
       },
     },
     label: ({ open }) => ({
@@ -92,7 +92,9 @@ export default function MenuSidebar() {
               <MenuItem component={<Link to="/all-client" />}>
                 All Clients
               </MenuItem>
-              <MenuItem>Active Clients</MenuItem>
+              <MenuItem component={<Link to="/active-client" />}>
+                Active Clients
+              </MenuItem>
               <MenuItem>Inactive Clients</MenuItem>
               <MenuItem>Archived Clients</MenuItem>
             </SubMenu>
