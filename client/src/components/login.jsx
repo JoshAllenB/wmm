@@ -1,12 +1,11 @@
 import axios from "axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/userAuth.css";
-import { Button } from "./ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "./UI/ShadCN/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./UI/ShadCN/tabs";
 import RegisterPage from "./signup";
 
-const LoginPage = () => {
+const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -24,19 +23,19 @@ const LoginPage = () => {
     e.preventDefault();
 
     try {
-      const result = await axios.post("http://localhost:3001/login", {
+      const result = await axios.post("http://localhost:3001/auth/login", {
         username,
         password,
       });
 
-      if (result.data === "success") {
-        navigate("/dashboard");
+      if (result.data.token) {
+        setIsLoggedIn(true);
+        navigate("/all-client");
       } else {
-        setErrorMessage(result.data);
+        setErrorMessage(result.data.error);
       }
-
-      console.log(result);
     } catch (err) {
+      console.error("error:", err);
       if (err.response && err.response.status === 401) {
         console.error(err);
         setErrorMessage("Incorrect Password");
@@ -48,51 +47,58 @@ const LoginPage = () => {
   };
 
   return (
-    <Tabs
-      defaultValue="account"
-      className="flex min-h-full flex-1 flex-col justify-center "
-    >
-      <TabsList className="sm:mx-auto sm:w-full sm:max-w-sm space-x-3">
-        <TabsTrigger value="account">Login</TabsTrigger>
-        <TabsTrigger value="register">Register</TabsTrigger>
-      </TabsList>
-      <TabsContent value="account">
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="username">
-            <label className="block text-sm font-medium leading-6 text-gray-600">
-              Username:
-            </label>
-            <div className="mt-2">
-              <input
-                type="text"
-                value={username}
-                autoComplete={username}
-                onChange={handleUsernameChange}
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              />
+    <div className="flex min-h-full  flex-1 flex-col justify-center items-center ">
+      <Tabs defaultValue="account" className="w-[350px] h-[300px]">
+        <TabsList className="flex gap-[80px] ">
+          <TabsTrigger value="account" className="font-roboto text-xl">
+            Login
+          </TabsTrigger>
+          <TabsTrigger value="register" className="font-roboto text-xl">
+            Register
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="account" className="mt-2">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="username">
+              <label className="block text-sm font-medium leading-6 text-gray-200">
+                Username:
+              </label>
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={username}
+                  autoComplete={username}
+                  onChange={handleUsernameChange}
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                />
+              </div>
             </div>
-          </div>
-          <div className="password">
-            <label className="block text-sm font-medium leading-6 text-gray-600">
-              Password:
-            </label>
-            <div className="mt-2">
-              <input
-                type="password"
-                value={password}
-                onChange={handlePasswordChange}
-                className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              />
+            <div className="password">
+              <label className="block text-sm font-medium leading-6 text-gray-200">
+                Password:
+              </label>
+              <div className="mt-2">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={handlePasswordChange}
+                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                />
+              </div>
             </div>
-          </div>
-          <Button type="submit">Login</Button>
-          {errorMessage && <div className="error-message">{errorMessage}</div>}
-        </form>
-      </TabsContent>
-      <TabsContent value="register">
-        <RegisterPage /> {/* Render the RegisterPage component */}
-      </TabsContent>
-    </Tabs>
+            <Button type="submit" className="bg-gray-700 border">
+              Login
+            </Button>
+            {errorMessage && (
+              <div className="error-message">{errorMessage}</div>
+            )}
+          </form>
+        </TabsContent>
+        <TabsContent value="register">
+          <RegisterPage />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
