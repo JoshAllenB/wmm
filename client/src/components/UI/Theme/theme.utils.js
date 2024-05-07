@@ -75,6 +75,19 @@ const darkColors = {
     800: "#ABC4E3",
     900: "#CBDCFF",
   },
+  mirage: {
+    50: "#f5f6fa",
+    100: "#ebecf3",
+    200: "#d2d5e5",
+    300: "#aab1cf",
+    400: "#7d89b3",
+    500: "#5c699b",
+    600: "#485281",
+    700: "#3b4369",
+    800: "#343a58",
+    900: "#2f344b",
+    950: "#1b1d2b",
+  },
 };
 
 const lightColors = {
@@ -139,11 +152,24 @@ const lightColors = {
     200: "#ABC4E3",
     300: "#8BA2BD",
     400: "#6B8096",
-    500: "#4A5F70",
+    500: "# ",
     600: "#3B4D5E",
     700: "#2D3B4D",
     800: "#1E293B",
     900: "#0F172A",
+  },
+  mirage: {
+    50: "#1b1d2b",
+    100: "#2f344b",
+    200: "#343a58",
+    300: "#3b4369",
+    400: "#485281",
+    500: "#5c699b",
+    600: "#7d89b3",
+    700: "#aab1cf",
+    800: "#d2d5e5",
+    900: "#ebecf3",
+    950: "#f5f6fa",
   },
 };
 
@@ -216,73 +242,6 @@ export const themeSettings = (mode) => {
       },
     },
   };
-
-  // const palette =
-  //   mode === "dark"
-  //     ? {
-  //         // Dark mode palette
-  //         primary: { main: colors.green[500] }, // Replace with your desired primary color
-  //         secondary: { main: colors.yellow[500] }, // Replace with your desired secondary color
-  //         neutral: {
-  //           main: colors.white[500],
-  //         },
-  //         background: {
-  //           default: colors.black[300], // Replace with your desired background color
-  //           paper: colors.white[100], // Replace with your desired paper color
-  //         },
-  //       }
-  //     : {
-  //         // Light mode palette
-  //         primary: { main: colors.blue[500] }, // Replace with your desired primary color
-  //         secondary: { main: colors.yellow[500] }, // Replace with your desired secondary color
-  //         neutral: {
-  //           main: colors.grey[700],
-  //         },
-  //         background: {
-  //           default: colors.white[500], // Replace with your desired background color
-  //           paper: colors.white[100], // Replace with your desired paper color
-  //         },
-  //       };
-
-  // const typography = {
-  //   fontFamily: "'Roboto', sans-serif", // Set your desired font family
-  //   fontWeightLight: 300,
-  //   fontWeightRegular: 400,
-  //   fontWeightMedium: 500,
-  //   fontWeightBold: 700,
-  //   h1: {
-  //     // Customize typography for h1
-  //     fontSize: "2.5rem",
-  //     fontWeight: 700,
-  //   },
-  //   h2: {
-  //     // Customize typography for h2
-  //     fontSize: "2rem",
-  //     fontWeight: 500,
-  //   },
-  //   h3: {
-  //     // Customize typography for h3
-  //     fontSize: "1.75rem",
-  //     fontWeight: 500,
-  //   },
-  //   h4: {
-  //     // Customize typography for h4
-  //     fontSize: "1.5rem",
-  //     fontWeight: 500,
-  //   },
-  //   h5: {
-  //     // Customize typography for h5
-  //     fontSize: "1.25rem",
-  //     fontWeight: 500,
-  //   },
-  //   h6: {
-  //     // Customize typography for h6
-  //     fontSize: "1rem",
-  //     fontWeight: 500,
-  //   },
-  // };
-
-  // return createTheme({ palette, typography });
 };
 
 // context color mode
