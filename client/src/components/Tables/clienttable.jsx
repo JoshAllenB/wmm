@@ -21,9 +21,14 @@ import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
 import { useEffect, useState } from "react";
 import { Input } from "../UI/ShadCN/input";
 import { fetchClients } from "./Data/clientdata";
+import { useTheme } from "@mui/material";
+import { tokens } from "../UI/Theme/theme.utils";
+import HoverCard from "../UI/HoverCard";
 
 export default function ClientTable({ columns }) {
   const [data, setData] = useState([]);
+  const theme = useTheme();
+  const colors = tokens(theme.palette.mode);
 
   useEffect(() => {
     fetchClients(setData);
@@ -47,6 +52,18 @@ export default function ClientTable({ columns }) {
     onGlobalFilterChange: setFiltering,
   });
 
+  const bgColor =
+    theme.palette.mode === "dark" ? colors.mirage[500] : colors.mirage[500];
+
+  const [hoverRowMetadata, setHoverRowMetadata] = useState(null);
+
+  const handleRowHover = (rowData) => {
+    const { original } = rowData;
+    const { adduser, adddate, metadata } = original;
+
+    setHoverRowMetadata({ metadata, adduser, adddate });
+  };
+
   return (
     <>
       <Input
@@ -58,7 +75,11 @@ export default function ClientTable({ columns }) {
       />
       <ScrollArea className="rounded-md border border-secondary h-[700px]">
         <Table>
-          <TableHeader>
+          <TableHeader
+            className={
+              theme.palette.mode === "dark" ? "bg-gray-700" : "bg-gray-400"
+            }
+          >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
@@ -68,7 +89,7 @@ export default function ClientTable({ columns }) {
                   >
                     <>
                       {flexRender(
-                        header.column.columnDef.Header,
+                        header.column.columnDef.header,
                         header.getContext()
                       )}
                       {header.column.getIsSorted() === "asc" && (
@@ -85,7 +106,16 @@ export default function ClientTable({ columns }) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow
+                key={row.id}
+                className={
+                  theme.palette.mode === "dark"
+                    ? "hover:bg-gray-600 cursor-pointer"
+                    : "hover:bg-gray-300 cursor-pointer"
+                }
+                onMouseEnter={() => handleRowHover(row)}
+                onMouseLeave={() => setHoverRowMetadata(null)}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -101,17 +131,31 @@ export default function ClientTable({ columns }) {
         <Button
           disabled={!table.getCanPreviousPage}
           onClick={() => table.previousPage()}
-          className="bg-blue-300 hover:bg-blue-400 text-black"
+          style={{ backgroundColor: bgColor }}
+          className="text-white"
         >
           Previous
         </Button>
         <Button
           disabled={!table.getCanNextPage}
           onClick={() => table.nextPage()}
-          className="bg-blue-500 hover:bg-blue-600 text-black"
+          style={{
+            backgroundColor: bgColor,
+            ":hover": {
+              backgroundColor: colors.mirage[600],
+            },
+          }}
+          className="text-white"
         >
           Next
         </Button>
+        {hoverRowMetadata && (
+          <HoverCard
+            metadata={hoverRowMetadata.metadata}
+            adduser={hoverRowMetadata.adduser}
+            adddate={hoverRowMetadata.adddate}
+          />
+        )}
       </div>
     </>
   );
