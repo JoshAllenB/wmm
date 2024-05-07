@@ -44,9 +44,24 @@ app.get("/clients", async (req, res) => {
       .select(
         "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
       )
-      .sort({ id: 1 }); // Sort by id in ascending order
+      .sort({ id: -1 }); // Sort by id in ascending order
 
-    res.json(clients);
+    const clientsWithMetadata = clients.map((client) => ({
+      ...client._doc,
+
+      adduser: client.adduser,
+      adddate: client.adddate,
+      metadata: {
+        addedBy: client.metadata.addedBy,
+        addedAt: client.metadata.addedAt
+          ? new Date(client.metadata.addedAt)
+          : new Date(),
+        editedBy: client.metadata.editedBy,
+        editedAt: client.metadata.editedAt,
+      },
+    }));
+
+    res.json(clientsWithMetadata);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
