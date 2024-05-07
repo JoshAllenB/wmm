@@ -7,7 +7,14 @@ const router = express.Router();
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   const loginResult = await loginUser(username, password);
-  res.status(loginResult.error ? 401 : 200).json(loginResult);
+
+  if (loginResult.error) {
+    console.error("Login error:", loginResult.error);
+    res.status(401).json(loginResult);
+  } else {
+    console.log("Login successful, token:", loginResult.token);
+    res.status(200).json(loginResult);
+  }
 });
 
 router.post("/register", async (req, res) => {
