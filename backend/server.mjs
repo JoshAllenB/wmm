@@ -1,13 +1,13 @@
 import express from "express";
-import mongoose, { MongooseError, mongo } from "mongoose";
-import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
-import UserModel from "./models/users.mjs";
 import ClientModel from "./models/clients.mjs";
 import { fileURLToPath } from "url";
 import path from "path";
 import userAuthRouter from "./userAuth/userAuth.mjs";
+import verifyToken from "./userAuth/verifyToken.mjs";
+import UserModel from "./models/users.mjs";
 
 dotenv.config();
 
@@ -42,7 +42,7 @@ app.get("/clients", async (req, res) => {
   try {
     const clients = await ClientModel.find()
       .select(
-        "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser"
+        "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
       )
       .sort({ id: 1 }); // Sort by id in ascending order
 
@@ -53,77 +53,62 @@ app.get("/clients", async (req, res) => {
   }
 });
 
-app.get("/clients/recent", async (req, res) => {
-  const { days } = req.query;
-
+app.post("/clients/add", verifyToken, async (req, res) => {
+  console.log("Authorization header:", req.headers.authorization);
+  console.log("User ID:", req.userId);
   try {
-    const currentDate = new Date();
-    const startDate = new Date(
-      currentDate.getTime() - days * 24 * 60 * 60 * 1000
-    );
+    const user = await UserModel.findById(req.userId).select("username");
 
-    const recentClients = await ClientModel.find({
-      adddate: { $gte: startDate },
-    })
-      .select(
-        "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser"
-      )
-      .sort({ adddate: -1 }); // Sort by adddate in descending order
-
-    res.json(recentClients);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.post("/clients/add", async (req, res) => {
-  try {
-    // Find the highest ID in the ClientModel
-    const highestIdClient = await ClientModel.findOne().sort({ id: -1 });
-
-    // Get the highest ID or default to 0 if no clients exist
-    const highestId = highestIdClient ? highestIdClient.id : 0;
-
-    // Increment the highest ID by one to get the new ID for the client
-    const newId = highestId + 1;
-
-    // Add the new ID to the request body
-    req.body.id = newId;
-
-    // Create the new client
-    const newClient = await ClientModel.create(req.body);
-    res.json(newClient);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.put("/clients/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updatedClient = req.body;
-
-    // Find the client by ID and update
-    const result = await ClientModel.findByIdAndUpdate(
-      id,
-      updatedClient,
-      { new: true } // Return the updated document
-    );
-
-    if (!result) {
-      return res.status(404).json({ error: "Client not found" });
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
     }
 
-    res.json(result);
+    const highestIdClient = await ClientModel.findOne().sort({ id: -1 });
+    const highestId = highestIdClient ? highestIdClient.id : 0;
+    const newId = highestId + 1;
+
+    const newClient = await ClientModel.create({
+      ...req.body,
+      id: newId,
+      metadata: {
+        addedBy: user.username,
+        addedAt: new Date(),
+      },
+    });
+    res.json(newClient);
+    console.log("username:", user.username);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-app.delete("/clients/:id", async (req, res) => {
+app.put("/clients/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedClientData = {
+      ...req.body,
+      editedBy: req.userId,
+      editedAt: new Date(),
+    };
+
+    // Find the client by ID and update
+    const updatedClient = await ClientModel.findByIdAndUpdate(
+      id,
+      updatedClientData,
+      { new: true } // Return the updated document
+    );
+    if (!updatedClient) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+    res.json(updatedClient);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.delete("/clients/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     console.log("Received DELETE request for client ID:", id); // Log the received request
