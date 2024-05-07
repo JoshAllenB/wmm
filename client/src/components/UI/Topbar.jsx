@@ -22,7 +22,7 @@ export default function Topbar() {
   return (
     <div
       style={{ backgroundColor: colors.neutral }}
-      className="w-full p-4 flex justify-end"
+      className="w-full flex justify-end"
     >
       <IconButton onClick={handleClick} className="w-[50px]">
         {theme.palette.mode === "dark" ? (
