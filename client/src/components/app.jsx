@@ -1,28 +1,50 @@
-import React, { Suspense } from "react";
-import RegisterPage from "./signup";
+import { useState } from "react";
+import { ColorModeContext, useMode } from "./UI/Theme/theme.utils";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Topbar from "./UI/Topbar";
+import Sidebar from "./UI/Sidebar/Sidebar";
+import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "./login";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ActiveClient from "./UI/Sidebar/ActiveClient";
+// import Dashboard from "./dashboard";
 
-const LazyDashboard = React.lazy(() => import("./dashboard"));
+export default function App() {
+  const [theme, colorMode] = useMode();
+  const [isSidebar, setIsSidebar] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route
-          path="/dashboard"
-          element={
-            <Suspense fallback={<div>Loading...</div>}>
-              <LazyDashboard />
-            </Suspense>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+    <ColorModeContext.Provider value={colorMode}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <BrowserRouter>
+          <div className="app">
+            {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
+            <div className="content">
+              {isLoggedIn && <Topbar setIsSidebar={setIsSidebar} />}
+              <Routes>
+                <Route
+                  path="/"
+                  element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
+                />
+                <Route
+                  path="/all-client"
+                  element={
+                    isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
+                  }
+                />
+                <Route
+                  path="/active-client"
+                  element={
+                    isLoggedIn ? <ActiveClient /> : <Navigate to="/" replace />
+                  }
+                />
+              </Routes>
+            </div>
+          </div>
+        </BrowserRouter>
+      </ThemeProvider>
+    </ColorModeContext.Provider>
   );
 }
-
-export default App;
