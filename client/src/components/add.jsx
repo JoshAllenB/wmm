@@ -1,13 +1,12 @@
 /* eslint-disable react/prop-types */
 import { useState } from "react";
 import axios from "axios";
-import { Button } from "./ui/button";
+import { Button } from "./UI/ShadCN/button";
 import Modal from "./modal";
 import InputField from "./input";
 
 const Add = ({ fetchClients }) => {
   const [formData, setFormData] = useState({
-    idl: "",
     lname: "",
     fname: "",
     mname: "",
@@ -26,17 +25,44 @@ const Add = ({ fetchClients }) => {
     type: "",
     group: "",
     remarks: "",
-    adddate: "",
-    adduser: "",
+    subscriptionFreq: "",
+    subscriptionStart: "",
+    subscriptionEnd: "",
+    copies: "",
   });
 
   const [showModal, setShowModal] = useState(false);
 
+  const formatDate = (date) => {
+    const options = { month: "long", year: "numeric" };
+    return new Intl.DateTimeFormat("en-US", options).format(date);
+  };
+
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    if (name === "subscriptionFreq") {
+      const today = new Date();
+      const monthsToAdd = parseInt(value);
+
+      const subscriptionStart = new Date(today);
+      console.log("Subscription start:", subscriptionStart);
+
+      const subscriptionEnd = new Date(subscriptionStart);
+      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + monthsToAdd);
+      console.log("Subscription end:", subscriptionEnd);
+
+      setFormData({
+        ...formData,
+        subscriptionFreq: value,
+        subscriptionStart: formatDate(subscriptionStart),
+        subscriptionEnd: formatDate(subscriptionEnd),
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -47,7 +73,6 @@ const Add = ({ fetchClients }) => {
       fetchClients();
       setShowModal(false);
       setFormData({
-        idl: "",
         lname: "",
         fname: "",
         mname: "",
@@ -66,8 +91,10 @@ const Add = ({ fetchClients }) => {
         type: "",
         group: "",
         remarks: "",
-        adddate: "",
-        adduser: "",
+        subscriptionFreq: "",
+        subscriptionStart: "",
+        subscriptionEnd: "",
+        copies: "",
       });
     } catch (error) {
       console.error("Error adding clients!", error);
@@ -76,14 +103,23 @@ const Add = ({ fetchClients }) => {
 
   return (
     <div>
-      <Button onClick={() => setShowModal(true)}>Add Client</Button>
+      <Button
+        onClick={() => setShowModal(true)}
+        className="bg-green-600 mb-4 hover:bg-green-700"
+      >
+        Add Client
+      </Button>
 
       {showModal && (
-        <Modal onClose={() => setShowModal(false)}>
-          <h2 className="text-xl font-bold mb-4">Add Client</h2>
+        <Modal
+          onClose={() => setShowModal(false)}
+          className=" bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
+        >
+          <h2 className="text-xl font-bold mb-4 text-gray-900">Add Client</h2>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col mb-2">
+            <div className="grid grid-cols-2 gap-4 ">
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Personal Info</h1>
                 <InputField
                   label="Last Name:"
                   id="lname"
@@ -91,8 +127,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.lname}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="First Name:"
                   id="fname"
@@ -100,8 +135,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.fname}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Middle Name:"
                   id="mname"
@@ -109,8 +143,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.mname}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Suffix:"
                   id="sname"
@@ -118,8 +151,6 @@ const Add = ({ fetchClients }) => {
                   value={formData.sname}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
                 <InputField
                   label="Title:"
                   id="title"
@@ -127,8 +158,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.title}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Birth Date:"
                   id="bdate"
@@ -136,8 +166,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.bdate}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Company:"
                   id="company"
@@ -146,16 +175,9 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                 />
               </div>
-              <div className="flex flex-col mb-2">
-                <InputField
-                  label="Address:"
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="flex flex-col mb-2">
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Address Info</h1>
                 <InputField
                   label="Zip Code:"
                   id="zipcode"
@@ -163,8 +185,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.zipcode}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Area:"
                   id="area"
@@ -172,8 +193,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.area}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Area Code:"
                   id="acode"
@@ -181,8 +201,21 @@ const Add = ({ fetchClients }) => {
                   value={formData.acode}
                   onChange={handleChange}
                 />
+
+                <label className="block text-sm font-medium leading-6 text-gray-600">
+                  Address
+                </label>
+                <textarea
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 resize-none" // Add resize-none class here                  rows={6}
+                  rows={4}
+                />
               </div>
-              <div className="flex flex-col mb-2">
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Contact Info</h1>
                 <InputField
                   label="Contact Numbers:"
                   id="contactnos"
@@ -190,8 +223,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.contactnos}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Cell Number:"
                   id="cellno"
@@ -199,8 +231,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.cellno}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Office Number:"
                   id="ofcno"
@@ -208,8 +239,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.ofcno}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Email:"
                   id="email"
@@ -218,7 +248,8 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                 />
               </div>
-              <div className="flex flex-col mb-2">
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Group Info</h1>
                 <InputField
                   label="Type:"
                   id="type"
@@ -226,8 +257,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.type}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Group:"
                   id="group"
@@ -235,8 +265,7 @@ const Add = ({ fetchClients }) => {
                   value={formData.group}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
+
                 <InputField
                   label="Remarks:"
                   id="remarks"
@@ -246,22 +275,42 @@ const Add = ({ fetchClients }) => {
                 />
               </div>
               <div className="flex flex-col mb-2">
-                <label htmlFor="date">Add Date:</label>
+                <h1 className="text-black mb-2 font-bold">Subscription</h1>
+                <label htmlFor="subcriptionFreq">Subscription Frequency:</label>
+                <select
+                  id="subscriptionFreq"
+                  name="subscriptionFreq"
+                  value={formData.subscriptionFreq}
+                  onChange={handleChange}
+                  className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                >
+                  <option value="">Select Frequency</option>
+                  <option value="3">3 Months</option>
+                  <option value="6">6 Months</option>
+                  <option value="12">12 Months</option>
+                </select>
+
                 <InputField
-                  label="Add Date:"
-                  id="adddate"
-                  name="adddate"
-                  value={formData.adddate}
+                  label="Subscription Start:"
+                  id="subscriptionStart"
+                  name="subscriptionStart"
+                  value={formData.subscriptionStart}
                   onChange={handleChange}
                 />
-              </div>
-              <div className="flex flex-col mb-2">
-                <label htmlFor="adduser">Add User:</label>
+
                 <InputField
-                  label="Add User:"
-                  id="adduser"
-                  name="adduser"
-                  value={formData.adduser}
+                  label="Subscription End:"
+                  id="subscriptionEnd"
+                  name="subscriptionEnd"
+                  value={formData.subscriptionEnd}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Copies:"
+                  id="copies"
+                  name="copies"
+                  value={formData.copies}
                   onChange={handleChange}
                 />
               </div>
@@ -269,13 +318,18 @@ const Add = ({ fetchClients }) => {
           </form>
           <div className="flex gap-1">
             <Button
-              className="p-1 text-sm"
+              className="bg-red-500 hover:bg-red-800 rounded-xl"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="text-sm bg-green-600 hover:bg-green-800 rounded-xl"
               type="submit"
               onClick={handleSubmit}
             >
               Submit
             </Button>
-            <Button onClick={() => setShowModal(false)}>Cancel</Button>
           </div>
         </Modal>
       )}
