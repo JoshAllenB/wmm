@@ -14,7 +14,7 @@ export const fetchClients = async (setClientData) => {
       );
       allClients = [...allClients, ...response.data];
       currentPage++;
-      totalPages = Math.ceil(response.headers["x-total-count"] / 20); // Assuming 20 clients per page
+      totalPages = Math.ceil(response.headers["x-total-count"] / 10); // Assuming 20 clients per page
     }
 
     setClientData(allClients);
@@ -22,7 +22,6 @@ export const fetchClients = async (setClientData) => {
     console.error("Error fetching client data:", e);
   }
 };
-
 
 /** @type import ('@tanstack/react-table).ColumnDef<any>*/
 export const columns = [
@@ -47,6 +46,4 @@ export const columns = [
   { id: "type", Header: "Type", accessorFn: (row) => row.type },
   { id: "group", Header: "Group", accessorFn: (row) => row.group },
   { id: "remarks", Header: "Remarks", accessorFn: (row) => row.remarks },
-  { id: "adddate", Header: "Add Date", accessorFn: (row) => row.adddate },
-  { id: "adduser", Header: "Add User", accessorFn: (row) => row.adduser },
 ];
