@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "./ui/button";
+import { Button } from "./UI/ShadCN/button";
 
 const PreviewContent = React.forwardRef((props, ref) => (
   <div ref={ref}>

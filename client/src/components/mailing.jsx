@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import Modal from "./modal";
-import { Button } from "./ui/button";
+import { Button } from "./UI/ShadCN/button";
 
 const Mailing = ({ clientId, address }) => {
   const [editableAddress, setEditableAddress] = useState(address);
@@ -83,7 +83,10 @@ const Mailing = ({ clientId, address }) => {
                   <Button onClick={handlePrint}>Print</Button>
                 </div>
                 <div className="flex justify-between">
-                  <Button onClick={closeModal} className="bg-red-500 hover:bg-red-900">
+                  <Button
+                    onClick={closeModal}
+                    className="bg-red-500 hover:bg-red-900"
+                  >
                     Close
                   </Button>
                 </div>
