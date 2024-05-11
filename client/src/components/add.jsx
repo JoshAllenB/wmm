@@ -284,7 +284,6 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                   className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                 >
-                  <option value="">Select Frequency</option>
                   <option value="3">3 Months</option>
                   <option value="6">6 Months</option>
                   <option value="12">12 Months</option>
