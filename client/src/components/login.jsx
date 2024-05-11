@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "./UI/ShadCN/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./UI/ShadCN/tabs";
 import RegisterPage from "./signup";
+import setAuthToken from "../utils/setAuthToken";
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -29,6 +30,9 @@ const LoginPage = ({ setIsLoggedIn }) => {
       });
 
       if (result.data.token) {
+        localStorage.setItem("token", result.data.token);
+        setAuthToken(result.data.token);
+        
         setIsLoggedIn(true);
         navigate("/all-client");
       } else {
