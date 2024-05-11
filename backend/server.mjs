@@ -69,8 +69,6 @@ app.get("/clients", async (req, res) => {
 });
 
 app.post("/clients/add", verifyToken, async (req, res) => {
-  console.log("Authorization header:", req.headers.authorization);
-  console.log("User ID:", req.userId);
   try {
     const user = await UserModel.findById(req.userId).select("username");
 
@@ -88,10 +86,11 @@ app.post("/clients/add", verifyToken, async (req, res) => {
       metadata: {
         addedBy: user.username,
         addedAt: new Date(),
+        editedBy: null,
+        editedAt: null,
       },
     });
     res.json(newClient);
-    console.log("username:", user.username);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -100,16 +99,27 @@ app.post("/clients/add", verifyToken, async (req, res) => {
 
 app.put("/clients/:id", verifyToken, async (req, res) => {
   try {
+    const user = await UserModel.findById(req.userId).select("username");
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
     const { id } = req.params;
     const updatedClientData = {
       ...req.body,
-      editedBy: req.userId,
-      editedAt: new Date(),
+      metadata: {
+        ...req.body.metadata,
+        editedBy: user.username,
+        editedAt: new Date(),
+      },
     };
 
+    console.log("Updated client data:", updatedClientData); // Debugging statement
+
     // Find the client by ID and update
-    const updatedClient = await ClientModel.findByIdAndUpdate(
-      id,
+    const updatedClient = await ClientModel.findOneAndUpdate(
+      { id: id }, // Find by custom id field
       updatedClientData,
       { new: true } // Return the updated document
     );
@@ -126,17 +136,15 @@ app.put("/clients/:id", verifyToken, async (req, res) => {
 app.delete("/clients/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    console.log("Received DELETE request for client ID:", id); // Log the received request
 
     // Find the client by ID and remove
-    const result = await ClientModel.findOneAndDelete({ _id: id });
+    const result = await ClientModel.findOneAndDelete({ id: id });
 
     if (!result) {
       console.log("Client not found for ID:", id); // Log if client not found
       return res.status(404).json({ error: "Client not found" });
     }
 
-    console.log("Client deleted successfully:", result); // Log if client deleted successfully
     res.json({ message: "Client deleted successfully" });
   } catch (err) {
     console.error(err);
