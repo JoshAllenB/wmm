@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "./UI/ShadCN/button";
 
 const SearchFilter = ({ onSearch, onClear }) => {
   const [query, setQuery] = useState("");
