@@ -11,7 +11,7 @@ const InputField = ({ label, name, value, onChange, type = "text" }) => (
       type={type}
       id={name}
       name={name}
-      value={value}
+      value={value || ""}
       onChange={onChange}
       className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
     />
