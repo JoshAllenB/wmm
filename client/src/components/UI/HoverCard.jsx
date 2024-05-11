@@ -30,6 +30,8 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
 
   let addedBy = metadata.addedBy;
   let addedAt = metadata.addedAt;
+  let editedBy = metadata.editedBy;
+  let editedAt = metadata.editedAt;
 
   if (!addedBy || !addedAt) {
     addedBy = adduser;
@@ -37,6 +39,7 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
   }
 
   addedAt = addedAt ? new Date(addedAt).toLocaleString() : "No data";
+  editedAt = editedAt ? new Date(editedAt).toLocaleString() : "No data";
 
   return (
     <div
@@ -52,11 +55,10 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
           <span className="font-semibold">Added At:</span> {addedAt}
         </li>
         <li>
-          <span className="font-semibold">Edited By:</span> {metadata.editedBy}
+          <span className="font-semibold">Edited By:</span> {editedBy}
         </li>
         <li>
-          <span className="font-semibold">Edited At:</span>{" "}
-          {metadata.editedAt && new Date(metadata.editedAt).toLocaleString()}
+          <span className="font-semibold">Edited At:</span> {editedAt}
         </li>
       </ul>
     </div>
