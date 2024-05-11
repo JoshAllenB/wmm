@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,20 +16,22 @@ import {
   TableHead,
   TableHeader,
 } from "../UI/ShadCN/table";
-import { Button } from "../UI/ShadCN/button";
-import ArrowDropUpSharpIcon from "@mui/icons-material/ArrowDropUpSharp";
-import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
-import { useEffect, useState } from "react";
 import { Input } from "../UI/ShadCN/input";
+import HoverCard from "../UI/HoverCard";
+import Edit from "../edit";
 import { fetchClients } from "./Data/clientdata";
 import { useTheme } from "@mui/material";
+import ArrowDropUpSharpIcon from "@mui/icons-material/ArrowDropUpSharp";
+import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
+import { Button } from "../UI/ShadCN/button";
 import { tokens } from "../UI/Theme/theme.utils";
-import HoverCard from "../UI/HoverCard";
 
 export default function ClientTable({ columns }) {
   const [data, setData] = useState([]);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const [selectedRow, setSelectedRow] = useState();
+  const [showEditModal, setShowEditModal] = useState();
 
   useEffect(() => {
     fetchClients(setData);
@@ -62,6 +65,11 @@ export default function ClientTable({ columns }) {
     const { adduser, adddate, metadata } = original;
 
     setHoverRowMetadata({ metadata, adduser, adddate });
+  };
+
+  const handleRowClick = (rowData) => {
+    const rowValues = rowData.original;
+    setSelectedRow(rowValues);
   };
 
   return (
@@ -115,6 +123,7 @@ export default function ClientTable({ columns }) {
                 }
                 onMouseEnter={() => handleRowHover(row)}
                 onMouseLeave={() => setHoverRowMetadata(null)}
+                onClick={() => handleRowClick(row)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
@@ -149,6 +158,17 @@ export default function ClientTable({ columns }) {
         >
           Next
         </Button>
+        {selectedRow && (
+          <Edit
+            rowData={selectedRow}
+            onClose={() => {
+              setSelectedRow(null);
+              setShowEditModal(false);
+            }}
+            showModal={showEditModal}
+            setShowModal={setShowEditModal}
+          />
+        )}
         {hoverRowMetadata && (
           <HoverCard
             metadata={hoverRowMetadata.metadata}
