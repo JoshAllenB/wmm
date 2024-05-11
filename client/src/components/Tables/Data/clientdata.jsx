@@ -46,4 +46,10 @@ export const columns = [
   { id: "type", Header: "Type", accessorFn: (row) => row.type },
   { id: "group", Header: "Group", accessorFn: (row) => row.group },
   { id: "remarks", Header: "Remarks", accessorFn: (row) => row.remarks },
+  {
+    id: "Subscription",
+    Header: "Subscription",
+    accessorFn: (row) =>
+      `${row.subscriptionFreq} Months: ${row.subscriptionStart} ${row.subscriptionEnd} Copies: ${row.copies}`,
+  },
 ];
