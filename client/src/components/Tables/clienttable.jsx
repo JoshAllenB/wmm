@@ -72,6 +72,20 @@ export default function ClientTable({ columns }) {
     setSelectedRow(rowValues);
   };
 
+  const [page, setPage] = useState(1);
+
+  const handlePreviousPage = () => {
+    if (page > 1) {
+      setPage(page - 1);
+      fetchClients(setData, page - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    setPage(page + 1);
+    fetchClients(setData, page + 1);
+  };
+
   return (
     <>
       <Input
@@ -139,7 +153,7 @@ export default function ClientTable({ columns }) {
       <div className="mt-4 flex gap-2">
         <Button
           disabled={!table.getCanPreviousPage}
-          onClick={() => table.previousPage()}
+          onClick={handlePreviousPage}
           style={{ backgroundColor: bgColor }}
           className="text-white"
         >
@@ -147,7 +161,7 @@ export default function ClientTable({ columns }) {
         </Button>
         <Button
           disabled={!table.getCanNextPage}
-          onClick={() => table.nextPage()}
+          onClick={handleNextPage}
           style={{
             backgroundColor: bgColor,
             ":hover": {
