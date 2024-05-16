@@ -45,11 +45,9 @@ const Add = ({ fetchClients }) => {
       const monthsToAdd = parseInt(value);
 
       const subscriptionStart = new Date(today);
-      console.log("Subscription start:", subscriptionStart);
 
       const subscriptionEnd = new Date(subscriptionStart);
       subscriptionEnd.setMonth(subscriptionEnd.getMonth() + monthsToAdd);
-      console.log("Subscription end:", subscriptionEnd);
 
       setFormData({
         ...formData,
