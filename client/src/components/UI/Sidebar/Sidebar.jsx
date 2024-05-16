@@ -59,13 +59,7 @@ export default function MenuSidebar() {
         <Menu menuItemStyles={MenuItemStyles}>
           <MenuItem
             onClick={toggleCollapse}
-            icon={
-              isCollapsed ? (
-                <MenuSharpIcon color="secondary" />
-              ) : (
-                <MenuSharpIcon color="secondary" />
-              )
-            }
+            icon={<MenuSharpIcon color="secondary" />}
           >
             {!isCollapsed && (
               <Typography variant="h5" color="white">
@@ -91,9 +85,6 @@ export default function MenuSidebar() {
             >
               <MenuItem component={<Link to="/all-client" />}>
                 All Clients
-              </MenuItem>
-              <MenuItem component={<Link to="/active-client" />}>
-                Active Clients
               </MenuItem>
               <MenuItem>Inactive Clients</MenuItem>
               <MenuItem>Archived Clients</MenuItem>
