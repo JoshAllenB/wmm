@@ -40,11 +40,20 @@ app.get("/address/:id", async (req, res) => {
 
 app.get("/clients", async (req, res) => {
   try {
+    const { page = 1, limit = 1000 } = req.query; // Get page number and limit from query parameters
+
+    const startIndex = (page - 1) * limit;
+
+    const totalClients = await ClientModel.find().countDocuments();
+    const totalPages = Math.ceil(totalClients / limit);
+
     const clients = await ClientModel.find()
       .select(
         "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
       )
-      .sort({ id: -1 }); // Sort by id in ascending order
+      .sort({ id: -1 })
+      .limit(limit)
+      .skip(startIndex);
 
     const clientsWithMetadata = clients.map((client) => ({
       ...client._doc,
@@ -61,6 +70,9 @@ app.get("/clients", async (req, res) => {
       },
     }));
 
+    res.header("X-Total-Count", totalClients);
+    res.header("X-Current-Page", page);
+    res.header("X-Total-Pages", totalPages);
     res.json(clientsWithMetadata);
   } catch (err) {
     console.error(err);
@@ -115,8 +127,6 @@ app.put("/clients/:id", verifyToken, async (req, res) => {
       },
     };
 
-    console.log("Updated client data:", updatedClientData); // Debugging statement
-
     // Find the client by ID and update
     const updatedClient = await ClientModel.findOneAndUpdate(
       { id: id }, // Find by custom id field
@@ -141,7 +151,6 @@ app.delete("/clients/:id", verifyToken, async (req, res) => {
     const result = await ClientModel.findOneAndDelete({ id: id });
 
     if (!result) {
-      console.log("Client not found for ID:", id); // Log if client not found
       return res.status(404).json({ error: "Client not found" });
     }
 
@@ -194,6 +203,4 @@ app.get("*", function (req, res) {
 const PORT = process.env.PORT || 3001;
 const IP = "0.0.0.0";
 
-app.listen(PORT, IP, () => {
-  console.log(`Server is running on ${IP}:${PORT}`);
-});
+app.listen(PORT, IP, () => {});
