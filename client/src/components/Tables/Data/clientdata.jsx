@@ -2,20 +2,15 @@ import axios from "axios";
 
 export const clientData = []; // Initialize as empty array
 
-export const fetchClients = async (setClientData) => {
+export const fetchClients = async (setClientData, page = 1) => {
   try {
     let allClients = [];
-    let currentPage = 1;
-    let totalPages = 1;
 
-    while (currentPage <= totalPages) {
-      const response = await axios.get(
-        `http://localhost:3001/clients?page=${currentPage}`
-      );
-      allClients = [...allClients, ...response.data];
-      currentPage++;
-      totalPages = Math.ceil(response.headers["x-total-count"] / 10); // Assuming 20 clients per page
-    }
+    const response = await axios.get(
+      `http://localhost:3001/clients?page=${page}`
+    );
+    allClients = [...allClients, ...response.data];
+    page++;
 
     setClientData(allClients);
   } catch (e) {
