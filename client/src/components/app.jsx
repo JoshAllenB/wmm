@@ -6,8 +6,6 @@ import Topbar from "./UI/Topbar";
 import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "./login";
-import ActiveClient from "./UI/Sidebar/ActiveClient";
-// import Dashboard from "./dashboard";
 
 export default function App() {
   const [theme, colorMode] = useMode();
@@ -32,12 +30,6 @@ export default function App() {
                   path="/all-client"
                   element={
                     isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
-                  }
-                />
-                <Route
-                  path="/active-client"
-                  element={
-                    isLoggedIn ? <ActiveClient /> : <Navigate to="/" replace />
                   }
                 />
               </Routes>
