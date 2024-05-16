@@ -1,21 +1,19 @@
 import ClientTable from "@/components/Tables/clienttable";
-import { columns } from "@/components/Tables/Data/clientdata";
-import { fetchClients } from "@/components/Tables/Data/clientdata";
+import Add from "@/components/add";
+
+import { columns, fetchClients } from "@/components/Tables/Data/clientdata";
 import { useState, useEffect } from "react";
 
 export default function AllClient() {
   const [clientData, setClientData] = useState([]);
 
   useEffect(() => {
-    fetchData();
+    fetchClients(setClientData);
   }, []);
-
-  const fetchData = async () => {
-    await fetchClients(setClientData);
-  };
 
   return (
     <div className="m-[30px]">
+      <Add fetchClients={() => fetchClients(setClientData)} />
       <ClientTable data={clientData} columns={columns} />
     </div>
   );
