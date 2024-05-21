@@ -32,7 +32,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     copies: "",
   });
 
-  // eslint-disable-next-line no-unused-vars
   const [showModal, setShowModal] = useState(false);
 
   const formatDate = (date) => {
@@ -101,229 +100,254 @@ const Edit = ({ rowData, onDelete, onClose }) => {
 
   return (
     <>
-      <Modal onClose={() => setShowModal(false)}>
-        <h2 className="text-xl font-bold mb-4">Edit Client Information</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4 ">
-            <div className="flex flex-col mb-2 p-2">
-              <h1 className="text-black mb-2 font-bold">Personal Info</h1>
-              <InputField
-                label="Last Name:"
-                id="lname"
-                name="lname"
-                value={formData.lname}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="First Name:"
-                id="fname"
-                name="fname"
-                value={formData.fname}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Middle Name:"
-                id="mname"
-                name="mname"
-                value={formData.mname}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Suffix:"
-                id="sname"
-                name="sname"
-                value={formData.sname}
-                onChange={handleChange}
-              />
-              <InputField
-                label="Title:"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Birth Date:"
-                id="bdate"
-                name="bdate"
-                value={formData.bdate}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Company:"
-                id="company"
-                name="company"
-                value={formData.company}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="flex flex-col mb-2 p-2">
-              <h1 className="text-black mb-2 font-bold">Address Info</h1>
-              <InputField
-                label="Zip Code:"
-                id="zipcode"
-                name="zipcode"
-                value={formData.zipcode}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Area:"
-                id="area"
-                name="area"
-                value={formData.area}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Area Code:"
-                id="acode"
-                name="acode"
-                value={formData.acode}
-                onChange={handleChange}
-              />
-
-              <label className="block text-sm font-medium leading-6 text-gray-600">
-                Address
-              </label>
-              <textarea
-                id="address"
-                name="address"
-                value={formData.address}
-                onChange={handleChange}
-                className="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 resize-none" // Add resize-none class here                  rows={6}
-                rows={4}
-              />
-            </div>
-            <div className="flex flex-col mb-2 p-2">
-              <h1 className="text-black mb-2 font-bold">Contact Info</h1>
-              <InputField
-                label="Contact Numbers:"
-                id="contactnos"
-                name="contactnos"
-                value={formData.contactnos}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Cell Number:"
-                id="cellno"
-                name="cellno"
-                value={formData.cellno}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Office Number:"
-                id="ofcno"
-                name="ofcno"
-                value={formData.ofcno}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Email:"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col mb-2 p-2">
-              <h1 className="text-black mb-2 font-bold">Group Info</h1>
-              <InputField
-                label="Type:"
-                id="type"
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Group:"
-                id="group"
-                name="group"
-                value={formData.group}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Remarks:"
-                id="remarks"
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="flex flex-col mb-2">
-              <h1 className="text-black mb-2 font-bold">Subscription</h1>
-              <label htmlFor="subcriptionFreq">Subscription Frequency:</label>
-              <select
-                id="subscriptionFreq"
-                name="subscriptionFreq"
-                value={formData.subscriptionFreq}
-                onChange={handleChange}
-                className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              >
-                <option value="">Select Frequency</option>
-                <option value="3">3 Months</option>
-                <option value="6">6 Months</option>
-                <option value="12">12 Months</option>
-              </select>
-
-              <InputField
-                label="Subscription Start:"
-                id="subscriptionStart"
-                name="subscriptionStart"
-                value={formData.subscriptionStart}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Subscription End:"
-                id="subscriptionEnd"
-                name="subscriptionEnd"
-                value={formData.subscriptionEnd}
-                onChange={handleChange}
-              />
-
-              <InputField
-                label="Copies:"
-                id="copies"
-                name="copies"
-                value={formData.copies}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-        </form>
-        <div className="mt-4 flex justify-between">
-          <div className="flex gap-1">
-            <Button
-              onClick={handleSubmit}
-              className="ml-2 bg-green-500 hover:bg-green-800"
+      {showModal && (
+        <Modal onClose={() => setShowModal(false)}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Edit Client Information</h2>
+            <button
+              onClick={() => setShowModal(false)}
+              className="text-gray-500 hover:text-gray-700"
             >
-              Save
-            </Button>
-            <Button onClick={onClose}>Cancel</Button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
           </div>
-          <div className="flex gap-1">
-            <Mailing address={formData.address} />
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Personal Info</h1>
+                <InputField
+                  label="Last Name:"
+                  id="lname"
+                  name="lname"
+                  value={formData.lname}
+                  onChange={handleChange}
+                />
 
-            <Delete
-              client={formData}
-              onDelete={handleDelete}
-              onClose={onClose}
-            />
+                <InputField
+                  label="First Name:"
+                  id="fname"
+                  name="fname"
+                  value={formData.fname}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Middle Name:"
+                  id="mname"
+                  name="mname"
+                  value={formData.mname}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Suffix:"
+                  id="sname"
+                  name="sname"
+                  value={formData.sname}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Title:"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Birth Date:"
+                  id="bdate"
+                  name="bdate"
+                  value={formData.bdate}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Company:"
+                  id="company"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Address Info</h1>
+                <InputField
+                  label="Zip Code:"
+                  id="zipcode"
+                  name="zipcode"
+                  value={formData.zipcode}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Area:"
+                  id="area"
+                  name="area"
+                  value={formData.area}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Area Code:"
+                  id="acode"
+                  name="acode"
+                  value={formData.acode}
+                  onChange={handleChange}
+                />
+
+                <label className="block text-sm font-medium leading-6 text-gray-600">
+                  Address
+                </label>
+                <textarea
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 resize-none"
+                  rows={4}
+                />
+              </div>
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Contact Info</h1>
+                <InputField
+                  label="Contact Numbers:"
+                  id="contactnos"
+                  name="contactnos"
+                  value={formData.contactnos}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Cell Number:"
+                  id="cellno"
+                  name="cellno"
+                  value={formData.cellno}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Office Number:"
+                  id="ofcno"
+                  name="ofcno"
+                  value={formData.ofcno}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Email:"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Group Info</h1>
+                <InputField
+                  label="Type:"
+                  id="type"
+                  name="type"
+                  value={formData.type}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Group:"
+                  id="group"
+                  name="group"
+                  value={formData.group}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Remarks:"
+                  id="remarks"
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="flex flex-col mb-2">
+                <h1 className="text-black mb-2 font-bold">Subscription</h1>
+                <label htmlFor="subcriptionFreq">Subscription Frequency:</label>
+                <select
+                  id="subscriptionFreq"
+                  name="subscriptionFreq"
+                  value={formData.subscriptionFreq}
+                  onChange={handleChange}
+                  className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                >
+                  <option value="">Select Frequency</option>
+                  <option value="3">3 Months</option>
+                  <option value="6">6 Months</option>
+                  <option value="12">12 Months</option>
+                </select>
+
+                <InputField
+                  label="Subscription Start:"
+                  id="subscriptionStart"
+                  name="subscriptionStart"
+                  value={formData.subscriptionStart}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Subscription End:"
+                  id="subscriptionEnd"
+                  name="subscriptionEnd"
+                  value={formData.subscriptionEnd}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Copies:"
+                  id="copies"
+                  name="copies"
+                  value={formData.copies}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+          </form>
+          <div className="mt-4 flex justify-between">
+            <div className="flex gap-1">
+              <Button
+                onClick={handleSubmit}
+                className="text-sm bg-green-600 hover:bg-green-800 "
+              >
+                Save
+              </Button>
+              <Button onClick={onClose} className="bg-red-500 hover:bg-red-800">
+                Cancel
+              </Button>
+            </div>
+            <div className="flex gap-1">
+              <Mailing address={formData.address} />
+
+              <Delete
+                client={formData}
+                onDelete={handleDelete}
+                onClose={onClose}
+              />
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </>
   );
 };

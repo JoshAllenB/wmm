@@ -23,7 +23,7 @@ const Delete = ({ client, onDelete, onClose }) => {
     <>
       <Button
         onClick={() => setShowConfirmation(true)}
-        className="bg-red-500 hover:bg-red-900"
+        className="bg-red-500 hover:bg-red-800"
       >
         Delete
       </Button>
@@ -36,7 +36,7 @@ const Delete = ({ client, onDelete, onClose }) => {
           <div className="flex justify-start mt-4 gap-1">
             <Button
               onClick={() => handleDelete(client.id)}
-              className="ml-2 bg-red-500 hover:bg-red-900"
+              className="bg-red-500 hover:bg-red-800 rounded-xl"
             >
               Delete
             </Button>

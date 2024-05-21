@@ -63,24 +63,39 @@ const Mailing = ({ clientId, address }) => {
 
   return (
     <div className="flex justify-between">
-      <Button onClick={toggleModal}>Print</Button>
+      <Button
+        onClick={toggleModal}
+        className="text-sm bg-green-600 hover:bg-green-800"
+      >
+        Print
+      </Button>
       {modalOpen && (
         <Modal>
           {previewMode ? (
             <div>
-              <h2>Mailing Label Preview</h2>
+              <h2 className="text-black">Mailing Label Preview</h2>
               <textarea
                 ref={printableContentRef}
                 value={editableAddress}
                 readOnly
                 rows={5}
                 cols={50}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                className="w-full border border-black rounded-md px-3 py-2 text-black"
               />
               <div className="flex justify-between">
                 <div className="flex gap-2">
-                  <Button onClick={handleEdit}>Edit</Button>
-                  <Button onClick={handlePrint}>Print</Button>
+                  <Button
+                    onClick={handleEdit}
+                    className="bg-black hover:bg-green-700"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={handlePrint}
+                    className="bg-black hover:bg-green-700"
+                  >
+                    Print
+                  </Button>
                 </div>
                 <div className="flex justify-between">
                   <Button
@@ -94,16 +109,27 @@ const Mailing = ({ clientId, address }) => {
             </div>
           ) : (
             <div className="flex flex-col">
-              <h2 className="mb-2 mt-2">Edit Mailing Address</h2>
+              <h2 className="mb-2 mt-2 text-black">Edit Mailing Address</h2>
               <textarea
                 value={editableAddress}
                 onChange={(e) => setEditableAddress(e.target.value)}
-                cols="10"
+                cols="5"
                 rows="10"
+                className="border border-black text-black p-2"
               />
-              <div className="flex gap-2">
-                <Button onClick={handleSave}>Save</Button>
-                <Button onClick={handlePreview}>Preview</Button>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  onClick={handleSave}
+                  className="bg-green-500 hover:bg-green-700"
+                >
+                  Save
+                </Button>
+                <Button
+                  onClick={handlePreview}
+                  className="bg-black hover:bg-black"
+                >
+                  Preview
+                </Button>
               </div>
             </div>
           )}

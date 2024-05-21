@@ -48,7 +48,7 @@ export default function ClientTable({ columns }) {
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     state: {
-      sorting: sorting,
+      sorting,
       globalFilter: filtering,
     },
     onSortingChange: setSorting,
@@ -56,7 +56,7 @@ export default function ClientTable({ columns }) {
   });
 
   const bgColor =
-    theme.palette.mode === "dark" ? colors.mirage[500] : colors.mirage[500];
+    colors.mirage[500];
 
   const [hoverRowMetadata, setHoverRowMetadata] = useState(null);
 

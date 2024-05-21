@@ -30,7 +30,7 @@ export default function MenuSidebar() {
 
   const MenuItemStyles = {
     root: {
-      backgroundColor: backgroundColor,
+      backgroundColor,
     },
     button: {
       "&:hover": {
