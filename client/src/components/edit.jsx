@@ -40,7 +40,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
   };
 
   useEffect(() => {
-    console.log("rowdata:", rowData);
     setFormData(rowData);
     setShowModal(true);
   }, [rowData]);
@@ -52,11 +51,9 @@ const Edit = ({ rowData, onDelete, onClose }) => {
       const monthsToAdd = parseInt(value);
 
       const subscriptionStart = new Date(today);
-      console.log("Subscription start:", subscriptionStart);
 
       const subscriptionEnd = new Date(subscriptionStart);
       subscriptionEnd.setMonth(subscriptionEnd.getMonth() + monthsToAdd);
-      console.log("Subscription end:", subscriptionEnd);
 
       setFormData((prevData) => ({
         ...prevData,
@@ -64,17 +61,15 @@ const Edit = ({ rowData, onDelete, onClose }) => {
         subscriptionStart: formatDate(subscriptionStart),
         subscriptionEnd: formatDate(subscriptionEnd),
       }));
-    } else {
-      setFormData((prevFormData) => ({
-        ...prevFormData,
-        [name]: value || "",
-      }));
+      return;
     }
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value || "",
+    }));
   };
 
-  useEffect(() => {
-    console.log("formData:", formData);
-  }, [formData]);
+  useEffect(() => {}, [formData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -337,7 +332,17 @@ const Edit = ({ rowData, onDelete, onClose }) => {
               </Button>
             </div>
             <div className="flex gap-1">
-              <Mailing address={formData.address} />
+              <Mailing
+                address={formData.address}
+                areaCode={formData.acode}
+                zipcode={formData.zipcode}
+                lname={formData.lname}
+                fname={formData.fname}
+                mname={formData.mname}
+                contactnos={formData.contactnos}
+                cellno={formData.cellno}
+                officeno={formData.ofcno}
+              />
 
               <Delete
                 client={formData}
