@@ -16,7 +16,6 @@ import {
   TableHead,
   TableHeader,
 } from "../UI/ShadCN/table";
-import { Input } from "../UI/ShadCN/input";
 import HoverCard from "../UI/HoverCard";
 import Edit from "../edit";
 import { fetchClients } from "./Data/clientdata";
@@ -26,19 +25,26 @@ import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
 import { Button } from "../UI/ShadCN/button";
 import { tokens } from "../UI/Theme/theme.utils";
 
-export default function ClientTable({ columns }) {
+export default function ClientTable({
+  columns,
+  filtering,
+  setFiltering,
+  rowSelection,
+  setRowSelection,
+  pageSize,
+  page,
+  setPage,
+}) {
   const [data, setData] = useState([]);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
-  const [selectedRow, setSelectedRow] = useState();
-  const [showEditModal, setShowEditModal] = useState();
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [sorting, setSorting] = useState([]);
 
   useEffect(() => {
-    fetchClients(setData);
-  }, []);
-
-  const [sorting, setSorting] = useState([]);
-  const [filtering, setFiltering] = useState("");
+    fetchClients(setData, page, pageSize);
+  }, [page, pageSize]);
 
   const table = useReactTable({
     data,
@@ -47,23 +53,25 @@ export default function ClientTable({ columns }) {
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
+      rowSelection,
       globalFilter: filtering,
+      pagination: { pageIndex: page - 1, pageSize },
     },
+    getRowId: (row) => row.id,
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
   });
 
-  const bgColor =
-    colors.mirage[500];
+  const bgColor = colors.mirage[500];
 
   const [hoverRowMetadata, setHoverRowMetadata] = useState(null);
 
   const handleRowHover = (rowData) => {
     const { original } = rowData;
     const { adduser, adddate, metadata } = original;
-
     setHoverRowMetadata({ metadata, adduser, adddate });
   };
 
@@ -72,29 +80,20 @@ export default function ClientTable({ columns }) {
     setSelectedRow(rowValues);
   };
 
-  const [page, setPage] = useState(1);
-
   const handlePreviousPage = () => {
     if (page > 1) {
       setPage(page - 1);
-      fetchClients(setData, page - 1);
+      fetchClients(setData, page - 1, pageSize);
     }
   };
 
   const handleNextPage = () => {
     setPage(page + 1);
-    fetchClients(setData, page + 1);
+    fetchClients(setData, page + 1, pageSize);
   };
 
   return (
     <>
-      <Input
-        type="text"
-        value={filtering}
-        onChange={(e) => setFiltering(e.target.value)}
-        placeholder="Search Client"
-        className="w-[300px] mb-3 border-2 border-secondary"
-      />
       <ScrollArea className="rounded-md border border-secondary h-[700px]">
         <Table>
           <TableHeader
@@ -127,32 +126,43 @@ export default function ClientTable({ columns }) {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={
-                  theme.palette.mode === "dark"
-                    ? "hover:bg-gray-600 cursor-pointer"
-                    : "hover:bg-gray-300 cursor-pointer"
-                }
-                onMouseEnter={() => handleRowHover(row)}
-                onMouseLeave={() => setHoverRowMetadata(null)}
-                onClick={() => handleRowClick(row)}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className={
+                    theme.palette.mode === "dark"
+                      ? "hover:bg-gray-600 cursor-pointer"
+                      : "hover:bg-gray-300 cursor-pointer"
+                  }
+                  onMouseEnter={() => handleRowHover(row)}
+                  onMouseLeave={() => setHoverRowMetadata(null)}
+                  onClick={() => handleRowClick(row)}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length}>
+                  No data available
+                </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
         <ScrollBar orientation="horizontal" className="red-400" />
       </ScrollArea>
       <div className="mt-4 flex gap-2">
         <Button
-          disabled={!table.getCanPreviousPage}
+          disabled={!table.getCanPreviousPage()}
           onClick={handlePreviousPage}
           style={{ backgroundColor: bgColor }}
           className="text-white"
@@ -160,7 +170,7 @@ export default function ClientTable({ columns }) {
           Previous
         </Button>
         <Button
-          disabled={!table.getCanNextPage}
+          disabled={!table.getCanNextPage()}
           onClick={handleNextPage}
           style={{
             backgroundColor: bgColor,
