@@ -43,31 +43,56 @@ export const columns = [
     enableSorting: false,
     enableHiding: false,
   },
-  { id: "id", Header: "ID", accessorFn: (row) => row.id },
+  { id: "ID", Header: "ID", accessorFn: (row) => row.id },
   {
-    id: "name",
+    id: "Name",
     Header: "Name",
     accessorFn: (row) =>
       `${row.sname} ${row.lname} ${row.fname} ${row.mname} ${row.title}`,
   },
-  { id: "bdate", Header: "Birth Date", accessorFn: (row) => row.bdate },
-  { id: "company", Header: "Company", accessorFn: (row) => row.company },
-  { id: "address", Header: "Address", accessorFn: (row) => row.address },
-  { id: "zipcode", Header: "Zipcode", accessorFn: (row) => row.zipcode },
-  { id: "area", Header: "Area", accessorFn: (row) => row.area },
-  { id: "acode", Header: "Area Code", accessorFn: (row) => row.acode },
+  { id: "Birth Date", Header: "Birth Date", accessorFn: (row) => row.bdate },
+  { id: "Company", Header: "Company", accessorFn: (row) => row.company },
+  { id: "Address", Header: "Address", accessorFn: (row) => row.address },
+  { id: "Zipcode", Header: "Zipcode", accessorFn: (row) => row.zipcode },
+  { id: "Area", Header: "Area", accessorFn: (row) => row.area },
+  { id: "Area Code", Header: "Area Code", accessorFn: (row) => row.acode },
   {
-    id: "contactInfo",
+    id: "Contact Information",
     Header: "Contact Info",
     accessorFn: (row) => `${row.contactnos} ${row.cellno} ${row.ofcno}`,
   },
-  { id: "type", Header: "Type", accessorFn: (row) => row.type },
-  { id: "group", Header: "Group", accessorFn: (row) => row.group },
-  { id: "remarks", Header: "Remarks", accessorFn: (row) => row.remarks },
+  { id: "Type", Header: "Type", accessorFn: (row) => row.type },
+  { id: "Group", Header: "Group", accessorFn: (row) => row.group },
+  { id: "Remarks", Header: "Remarks", accessorFn: (row) => row.remarks },
   {
     id: "Subscription",
     Header: "Subscription",
-    accessorFn: (row) =>
-      `${row.subscriptionFreq} Months: ${row.subscriptionStart} ${row.subscriptionEnd} Copies: ${row.copies}`,
+    accessorFn: (row) => {
+      const { subscriptionFreq, subscriptionStart, subscriptionEnd, copies } =
+        row;
+
+      // Check if all data is missing
+      if (
+        !subscriptionFreq &&
+        !subscriptionStart &&
+        !subscriptionEnd &&
+        !copies
+      ) {
+        return "";
+      }
+
+      // Check if any data is missing and return empty string if true
+      if (
+        !subscriptionFreq ||
+        !subscriptionStart ||
+        !subscriptionEnd ||
+        !copies
+      ) {
+        return "";
+      }
+
+      // Return formatted string if all data is present
+      return `${subscriptionFreq} Months: ${subscriptionStart} ${subscriptionEnd} Copies: ${copies}`;
+    },
   },
 ];
