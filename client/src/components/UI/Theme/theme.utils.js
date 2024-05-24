@@ -3,8 +3,7 @@ import { createTheme } from "@mui/material";
 
 // Color Design
 export const tokens = (mode) => {
-  const colors = mode === "dark" ? darkColors : lightColors;
-  return colors;
+  return mode === "dark" ? darkColors : lightColors;
 };
 
 const darkColors = {
@@ -179,7 +178,7 @@ export const themeSettings = (mode) => {
 
   return {
     palette: {
-      mode: mode,
+      mode,
       ...(mode === "dark"
         ? {
             primary: { main: colors.green[500] }, // Replace with your desired primary color
