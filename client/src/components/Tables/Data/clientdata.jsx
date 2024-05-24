@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Checkbox } from "../../UI/ShadCN/checkbox";
 
 export const clientData = []; // Initialize as empty array
 
@@ -20,6 +21,28 @@ export const fetchClients = async (setClientData, page = 1) => {
 
 /** @type import ('@tanstack/react-table).ColumnDef<any>*/
 export const columns = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   { id: "id", Header: "ID", accessorFn: (row) => row.id },
   {
     id: "name",
