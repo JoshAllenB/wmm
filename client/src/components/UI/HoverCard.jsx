@@ -49,7 +49,6 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
         top: position.y,
       }}
     >
-      <h2 className="text-xl font-semibold mb-4">Metadata</h2>
       <ul className="text-l space-y-2">
         <li>
           <span className="font-semibold">Added By:</span> {addedBy}
