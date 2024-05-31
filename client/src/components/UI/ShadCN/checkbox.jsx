@@ -14,7 +14,9 @@ const Checkbox = React.forwardRef(({ className, ...props }, ref) => {
 
   const checkboxStyles = {
     root: {
-      border: `2px solid ${
+      width: "24px",
+      height: "24px",
+      border: `3px solid ${
         colors.mirage[theme.palette.mode === "dark" ? 500 : 100]
       }`,
       outline: "none",
