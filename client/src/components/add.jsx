@@ -55,19 +55,32 @@ const Add = ({ fetchClients }) => {
         subscriptionStart: formatDate(subscriptionStart),
         subscriptionEnd: formatDate(subscriptionEnd),
       });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
+      return;
     }
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const address = `${formData.street}, ${formData.barangay}, ${formData.city}, ${formData.zipcode}, ${formData.area}, ${formData.acode}`;
+    const submissionData = {
+      ...formData,
+      address,
+      street: undefined,
+      city: undefined,
+      barangay: undefined,
+    };
+
     try {
-      await axios.post("http://localhost:3001/clients/add", formData);
+      await axios.post(
+        "http://localhost:3001/clients/add",
+        formData,
+        submissionData
+      );
       fetchClients();
       setShowModal(false);
       setFormData({
@@ -177,6 +190,29 @@ const Add = ({ fetchClients }) => {
               <div className="flex flex-col mb-2 p-2">
                 <h1 className="text-black mb-2 font-bold">Address Info</h1>
                 <InputField
+                  label="Street:"
+                  id="street"
+                  name="street"
+                  value={formData.street}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Barangay:"
+                  id="barangay"
+                  name="barangay"
+                  value={formData.barangay}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="City:"
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                />
+
+                <InputField
                   label="Zip Code:"
                   id="zipcode"
                   name="zipcode"
@@ -198,18 +234,6 @@ const Add = ({ fetchClients }) => {
                   name="acode"
                   value={formData.acode}
                   onChange={handleChange}
-                />
-
-                <label className="block text-sm font-medium leading-6 text-gray-600">
-                  Address
-                </label>
-                <textarea
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 resize-none" // Add resize-none class here                  rows={6}
-                  rows={4}
                 />
               </div>
               <div className="flex flex-col mb-2 p-2">
@@ -303,12 +327,16 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                 />
 
-                <InputField
-                  label="Copies:"
+                <label className="block text-sm font-medium leading-6 text-gray-600">
+                  Copies:
+                </label>
+                <input
                   id="copies"
                   name="copies"
                   value={formData.copies}
                   onChange={handleChange}
+                  type="number"
+                  className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                 />
               </div>
             </div>
