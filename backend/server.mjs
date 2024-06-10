@@ -1,4 +1,6 @@
 import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -8,6 +10,7 @@ import path from "path";
 import userAuthRouter from "./userAuth/userAuth.mjs";
 import verifyToken from "./userAuth/verifyToken.mjs";
 import UserModel from "./models/users.mjs";
+import initWebSocket from "./websocket.mjs"; // New import for WebSocket logic
 
 dotenv.config();
 
@@ -16,10 +19,29 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:5173", // Allow your frontend URL
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use("/auth", userAuthRouter);
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173", // Allow your frontend URL
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  },
+});
+
 mongoose.set("debug", true);
+
+initWebSocket(io);
 
 app.get("/address/:id", async (req, res) => {
   const { id } = req.params;
@@ -31,7 +53,7 @@ app.get("/address/:id", async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    res.json({ address: client.address }); // Return the address
+    res.json({ address: client.address });
   } catch (error) {
     console.error("Error fetching address:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -40,7 +62,7 @@ app.get("/address/:id", async (req, res) => {
 
 app.get("/clients", async (req, res) => {
   try {
-    const { page = 1, limit = 1000 } = req.query; // Get page number and limit from query parameters
+    const { page = 1, limit = 1000 } = req.query;
 
     const startIndex = (page - 1) * limit;
 
@@ -49,7 +71,7 @@ app.get("/clients", async (req, res) => {
 
     const clients = await ClientModel.find()
       .select(
-        "id lname fname mname sname title bdate company address zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
+        "id lname fname mname sname title bdate company address steet city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
       )
       .sort({ id: -1 })
       .limit(limit)
@@ -73,6 +95,7 @@ app.get("/clients", async (req, res) => {
     res.header("X-Total-Count", totalClients);
     res.header("X-Current-Page", page);
     res.header("X-Total-Pages", totalPages);
+    io.emit("data-update", { type: "init", data: clients });
     res.json(clientsWithMetadata);
   } catch (err) {
     console.error(err);
@@ -102,6 +125,7 @@ app.post("/clients/add", verifyToken, async (req, res) => {
         editedAt: null,
       },
     });
+    io.emit("data-update", { type: "add", data: newClient });
     res.json(newClient);
   } catch (err) {
     console.error(err);
@@ -127,15 +151,15 @@ app.put("/clients/:id", verifyToken, async (req, res) => {
       },
     };
 
-    // Find the client by ID and update
     const updatedClient = await ClientModel.findOneAndUpdate(
-      { id: id }, // Find by custom id field
+      { id },
       updatedClientData,
-      { new: true } // Return the updated document
+      { new: true }
     );
     if (!updatedClient) {
       return res.status(404).json({ error: "Client not found" });
     }
+    io.emit("data-update", { type: "update", data: updatedClient });
     res.json(updatedClient);
   } catch (err) {
     console.error(err);
@@ -147,12 +171,13 @@ app.delete("/clients/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Find the client by ID and remove
-    const result = await ClientModel.findOneAndDelete({ id: id });
+    const result = await ClientModel.findOneAndDelete({ id });
 
     if (!result) {
       return res.status(404).json({ error: "Client not found" });
     }
+
+    io.emit("data-update", { type: "delete", data: { id } });
 
     res.json({ message: "Client deleted successfully" });
   } catch (err) {
@@ -165,27 +190,23 @@ app.get("/search", async (req, res) => {
   const { query: searchQuery } = req.query;
 
   try {
-    // Check if the search query is a valid number
     const id = parseInt(searchQuery);
-    if (!isNaN(id)) {
-      // If the search query is a valid number, perform a direct query by id
-      const client = await ClientModel.findOne({ id });
-      if (client) {
-        // If a client with the provided id is found, return it
-        res.json([client]); // Return as an array for consistency with text search results
-      } else {
-        res.json([]); // If no client is found, return an empty array
-      }
-    } else {
-      // If the search query is not a valid number, perform a text search
+    if (isNaN(id)) {
       const clients = await ClientModel.find(
         { $text: { $search: searchQuery } },
-        { score: { $meta: "textScore" } } // Optionally, retrieve the relevance score
+        { score: { $meta: "textScore" } }
       )
-        .sort({ score: { $meta: "textScore" } }) // Sort by relevance score
-        .limit(20); // Limit the number of results to 20
+        .sort({ score: { $meta: "textScore" } })
+        .limit(20);
 
       res.json(clients);
+    } else {
+      const client = await ClientModel.findOne({ id });
+      if (client) {
+        res.json([client]);
+      } else {
+        res.json([]);
+      }
     }
   } catch (err) {
     console.error(err);
@@ -195,12 +216,13 @@ app.get("/search", async (req, res) => {
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
-// Handle React routing, return all requests to React app
-app.get("*", function (req, res) {
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
 const PORT = process.env.PORT || 3001;
 const IP = "0.0.0.0";
 
-app.listen(PORT, IP, () => {});
+server.listen(PORT, IP, () => {
+  console.log(`Server is running on http://${IP}:${PORT}`);
+});
