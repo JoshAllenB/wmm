@@ -76,11 +76,7 @@ const Add = ({ fetchClients }) => {
     };
 
     try {
-      await axios.post(
-        "http://localhost:3001/clients/add",
-        formData,
-        submissionData
-      );
+      await axios.post("http://localhost:3001/clients/add", submissionData);
       fetchClients();
       setShowModal(false);
       setFormData({

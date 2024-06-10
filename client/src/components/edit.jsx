@@ -5,9 +5,12 @@ import Delete from "./delete";
 import Mailing from "./mailing";
 import InputField from "./input";
 import axios from "axios";
+import io from "socket.io-client";
+
+const socket = io("http://localhost:3001");
 
 const Edit = ({ rowData, onDelete, onClose }) => {
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     lname: "",
     fname: "",
     mname: "",
@@ -15,7 +18,9 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     title: "",
     bdate: "",
     company: "",
-    address: "",
+    street: "",
+    city: "",
+    barangay: "",
     zipcode: "",
     area: "",
     acode: "",
@@ -30,8 +35,9 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     subscriptionStart: "",
     subscriptionEnd: "",
     copies: "",
-  });
+  };
 
+  const [formData, setFormData] = useState(initialFormData);
   const [showModal, setShowModal] = useState(false);
 
   const formatDate = (date) => {
@@ -39,10 +45,36 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     return new Intl.DateTimeFormat("en-US", options).format(date);
   };
 
-  useEffect(() => {
-    setFormData(rowData);
-    setShowModal(true);
-  }, [rowData]);
+  useEffect(
+    (client) => {
+      if (rowData.address) {
+        const [street, barangay, city, zipcode, area, acode] = rowData.address
+          .split(",")
+          .map((item) => item.trim());
+        setFormData({
+          ...initialFormData,
+          ...rowData,
+          street,
+          barangay,
+          city,
+          zipcode,
+          area,
+          acode,
+        });
+      } else {
+        setFormData({
+          ...initialFormData,
+          ...rowData,
+        });
+      }
+      socket.emit("data-update", {
+        type: "update",
+        data: client,
+      });
+      setShowModal(true);
+    },
+    [rowData]
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -181,6 +213,28 @@ const Edit = ({ rowData, onDelete, onClose }) => {
 
               <div className="flex flex-col mb-2 p-2">
                 <h1 className="text-black mb-2 font-bold">Address Info</h1>
+
+                <InputField
+                  label="Street:"
+                  id="street"
+                  name="street"
+                  value={formData.street}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Barangay:"
+                  id="barangay"
+                  name="barangay"
+                  value={formData.barangay}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="City:"
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                />
                 <InputField
                   label="Zip Code:"
                   id="zipcode"
@@ -188,7 +242,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
                   value={formData.zipcode}
                   onChange={handleChange}
                 />
-
                 <InputField
                   label="Area:"
                   id="area"
@@ -196,25 +249,12 @@ const Edit = ({ rowData, onDelete, onClose }) => {
                   value={formData.area}
                   onChange={handleChange}
                 />
-
                 <InputField
                   label="Area Code:"
                   id="acode"
                   name="acode"
                   value={formData.acode}
                   onChange={handleChange}
-                />
-
-                <label className="block text-sm font-medium leading-6 text-gray-600">
-                  Address
-                </label>
-                <textarea
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="block rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 resize-none"
-                  rows={4}
                 />
               </div>
               <div className="flex flex-col mb-2 p-2">
@@ -309,12 +349,16 @@ const Edit = ({ rowData, onDelete, onClose }) => {
                   onChange={handleChange}
                 />
 
-                <InputField
-                  label="Copies:"
+                <label className="block text-sm font-medium leading-6 text-gray-600">
+                  Copies:
+                </label>
+                <input
                   id="copies"
                   name="copies"
-                  value={formData.copies}
+                  value={formData.copies || ""}
                   onChange={handleChange}
+                  type="number"
+                  className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                 />
               </div>
             </div>
@@ -345,7 +389,7 @@ const Edit = ({ rowData, onDelete, onClose }) => {
               />
 
               <Delete
-                client={formData}
+                client={rowData}
                 onDelete={handleDelete}
                 onClose={onClose}
               />

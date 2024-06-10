@@ -1,19 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./UI/ShadCN/button";
 import Modal from "./modal";
 import axios from "axios";
+import io from "socket.io-client";
 
-const Delete = ({ client, onDelete, onClose }) => {
+const socket = io("http://localhost:3001");
+
+const Delete = ({ client, onClose, onDelete }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
+
+  useEffect(() => {
+    socket.on("connect", () => {
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:3001/clients/${client.id}`);
-      console.log("Client deleted successfully:", client.id);
-      if (onDelete) {
+      const response = await axios.delete(
+        `http://localhost:3001/clients/${client.id}`
+      );
+      if (response.status === 200) {
         onDelete(client.id);
+        onClose();
+      } else {
+        console.error("Error: Deletion was not successful");
       }
-      onClose();
     } catch (e) {
       console.error("Error deleting client", e);
     }
@@ -35,7 +50,7 @@ const Delete = ({ client, onDelete, onClose }) => {
           </p>
           <div className="flex justify-start mt-4 gap-1">
             <Button
-              onClick={() => handleDelete(client.id)}
+              onClick={handleDelete}
               className="bg-red-500 hover:bg-red-800 rounded-xl"
             >
               Delete
