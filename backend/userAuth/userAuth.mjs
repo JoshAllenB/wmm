@@ -12,7 +12,6 @@ router.post("/login", async (req, res) => {
     console.error("Login error:", loginResult.error);
     res.status(401).json(loginResult);
   } else {
-    console.log("Login successful, token:", loginResult.token);
     res.status(200).json(loginResult);
   }
 });
@@ -20,10 +19,7 @@ router.post("/login", async (req, res) => {
 router.post("/register", async (req, res) => {
   const registerResult = await registerUser(req.body);
   if (registerResult.error) {
-    let statusCode = 400;
-    if (registerResult.error === "DuplicateUsernameError") {
-      statusCode = 409; // Conflict
-    }
+    const statusCode = registerResult.error === "DuplicateUsernameError" ? 409 : 400;
     res.status(statusCode).json(registerResult);
   } else {
     res.status(200).json(registerResult);

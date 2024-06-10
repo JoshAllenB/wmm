@@ -15,11 +15,7 @@ const registerUser = async (userData) => {
     const user = await UserModel.create(userData);
     return { user };
   } catch (err) {
-    if (err.name === "ValidationError") {
-      return { error: "ValidationError", message: err.message };
-    } else {
-      return { error: "RegistrationFailedError", message: err.message };
-    }
+    return err.name === "ValidationError" ? { error: "ValidationError", message: err.message } : { error: "RegistrationFailedError", message: err.message };
   }
 };
 
