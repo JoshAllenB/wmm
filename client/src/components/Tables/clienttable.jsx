@@ -24,6 +24,7 @@ import ArrowDropUpSharpIcon from "@mui/icons-material/ArrowDropUpSharp";
 import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
 import { Button } from "../UI/ShadCN/button";
 import { tokens } from "../UI/Theme/theme.utils";
+import io from "socket.io-client";
 
 export default function ClientTable({
   columns,
@@ -34,8 +35,9 @@ export default function ClientTable({
   pageSize,
   page,
   setPage,
+  initialData = [],
 }) {
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(initialData);
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -43,8 +45,42 @@ export default function ClientTable({
   const [sorting, setSorting] = useState([]);
 
   useEffect(() => {
-    fetchClients(setData, page, pageSize);
-  }, [page, pageSize]);
+    const socket = io("http://localhost:3001");
+
+    socket.on("connect", () => {
+    });
+
+    socket.on("data-update", (data) => {
+      handleDataUpdate(data);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const handleDataUpdate = (data) => {
+    setData((prevData) => {
+      switch (data.type) {
+        case "add":
+          return [...prevData, data.data];
+        case "update":
+          return prevData.map((client) =>
+            client.id === data.data.id ? data.data : client
+          );
+        case "delete":
+          return prevData.filter((client) => client.id !== data.data.id);
+        case "init":
+          return data.data;
+        default:
+          return prevData;
+      }
+    });
+  };
+
+  const handleDelete = (clientId) => {
+    setData((prevData) => prevData.filter((client) => client.id !== clientId));
+  };
 
   const table = useReactTable({
     data,
@@ -63,6 +99,7 @@ export default function ClientTable({
     getRowId: (row) => row.id,
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
+    columnResizeMode: "onChange", // Add this line
   });
 
   const bgColor = colors.mirage[500];
@@ -94,7 +131,7 @@ export default function ClientTable({
 
   return (
     <>
-      <ScrollArea className="rounded-md border border-secondary h-[700px]">
+      <ScrollArea className="rounded-md border  h-[700px] w-[1740px] ">
         <Table>
           <TableHeader
             className={
@@ -107,6 +144,7 @@ export default function ClientTable({
                   <TableHead
                     key={header.id}
                     onClick={header.column.getToggleSortingHandler()}
+                    className="sticky top-0 bg-gray-700 dark:bg-gray-900"
                   >
                     <>
                       {flexRender(
@@ -140,7 +178,10 @@ export default function ClientTable({
                   onClick={() => handleRowClick(row)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      style={{ width: cell.column.columnDef.size }}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()
@@ -158,7 +199,8 @@ export default function ClientTable({
             )}
           </TableBody>
         </Table>
-        <ScrollBar orientation="horizontal" className="red-400" />
+        <ScrollBar orientation="vertical" />
+        <ScrollBar orientation="horizontal" />
       </ScrollArea>
       <div className="mt-4 flex gap-2">
         <Button
@@ -185,6 +227,7 @@ export default function ClientTable({
         {selectedRow && (
           <Edit
             rowData={selectedRow}
+            onDelete={handleDelete}
             onClose={() => {
               setSelectedRow(null);
               setShowEditModal(false);
