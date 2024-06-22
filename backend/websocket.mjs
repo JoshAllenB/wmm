@@ -1,5 +1,3 @@
-import { Server } from "socket.io";
-
 const initWebSocket = (io) => {
   io.on("connection", (socket) => {
     console.log("A user is connected");
