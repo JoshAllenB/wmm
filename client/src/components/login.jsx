@@ -5,6 +5,9 @@ import { Button } from "./UI/ShadCN/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./UI/ShadCN/tabs";
 import RegisterPage from "./signup";
 import setAuthToken from "../utils/setAuthToken";
+import io from "socket.io-client";
+
+const socket = io("http://localhost:3001");
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -32,9 +35,15 @@ const LoginPage = ({ setIsLoggedIn }) => {
       if (result.data.token) {
         localStorage.setItem("token", result.data.token);
         setAuthToken(result.data.token);
-        
+
         setIsLoggedIn(true);
+
         navigate("/all-client");
+        socket.emit("user_status_change", {
+          userId: result.data.user._id,
+          status: "Active",
+        });
+
       } else {
         setErrorMessage(result.data.error);
       }
