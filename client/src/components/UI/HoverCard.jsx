@@ -4,7 +4,7 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const hanldeMouseMove = (e) => {
+    const handleMouseMove = (e) => {
       const cardWidth = 300;
       const cardHeight = 250;
       const padding = 10;
@@ -21,25 +21,28 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
       setPosition({ x: adjustedX, y: adjustedY });
     };
 
-    window.addEventListener("mousemove", hanldeMouseMove);
+    window.addEventListener("mousemove", handleMouseMove);
 
     return () => {
-      window.removeEventListener("mousemove", hanldeMouseMove);
+      window.removeEventListener("mousemove", handleMouseMove);
     };
   }, []);
 
-  let addedBy = metadata.addedBy;
-  let addedAt = metadata.addedAt;
-  const editedBy = metadata.editedBy;
-  let editedAt = metadata.editedAt;
+  const hasData = metadata || adduser || adddate;
 
-  if (!addedBy || !addedAt) {
-    addedBy = adduser;
-    addedAt = adddate;
+  if (!hasData) {
+    return null;
   }
 
-  addedAt = addedAt ? new Date(addedAt).toLocaleString() : "No data";
-  editedAt = editedAt ? new Date(editedAt).toLocaleString() : "No data";
+  const addedBy = metadata?.addedBy || adduser || "No data";
+  let addedAt = metadata?.addedAt || adddate || "No data";
+  const editedBy = metadata?.editedBy || "No data";
+  let editedAt = metadata?.editedAt || "No data";
+  
+  addedAt =
+    addedAt === "No data" ? "No data" : new Date(addedAt).toLocaleString();
+  editedAt =
+    editedAt === "No data" ? "No data" : new Date(editedAt).toLocaleString();
 
   return (
     <div
