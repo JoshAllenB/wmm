@@ -12,7 +12,14 @@ export const useRowHandlers = () => {
 
   const handleRowClick = (rowData) => {
     const rowValues = rowData.original;
-    setSelectedRow(rowValues);
+    if (selectedRow && selectedRow.id === rowValues.id) {
+      setSelectedRow(null);
+      setTimeout(() => {
+        setSelectedRow(rowValues);
+      }, 1);
+    } else {
+      setSelectedRow(rowValues);
+    }
   };
 
   return {
