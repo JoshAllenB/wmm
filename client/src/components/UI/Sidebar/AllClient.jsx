@@ -3,28 +3,31 @@
  * It uses the ClientTable component to display the data,
  * and the Add component to add new clients.
  * It also includes a search input and a dropdown to change the page size.
+ * Renders a component that displays all clients.
  *
+ * @return {JSX.Element} The rendered component.
  */
 
-import ClientTable from "@/components/Tables/clienttable";
-import Add from "@/components/add";
+import DataTable from "../../Table/DataTable";
+import Add from "../../CRUD/add";
 import { Input } from "../ShadCN/input";
 import { useTheme } from "@mui/material";
 
-import { columns, fetchClients } from "@/components/Tables/Data/clientdata";
+import { fetchClients } from "../../Table/Data/clientdata";
+import { columns } from "../../Table/Structure/clientColumn";
 import { useState, useEffect } from "react";
 
 export default function AllClient() {
   const theme = useTheme();
 
-  const [clientData, setClientData] = useState([]);
+  const [, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    fetchClients(setClientData, page, pageSize);
+    fetchClients((data) => setClientData(data), page, pageSize);
   }, [page, pageSize]);
 
   const handlePageSizeChange = (e) => {
@@ -53,7 +56,7 @@ export default function AllClient() {
             id="pageSize"
             value={pageSize}
             onChange={handlePageSizeChange}
-            className="border-2 border-secondary bg-inherit w-[60px]"
+            className="text-center border-2 border-secondary bg-inherit w-[60px]"
             style={{
               backgroundColor: theme.palette.background.default,
               color: theme.palette.text.primary,
@@ -67,8 +70,8 @@ export default function AllClient() {
           </select>
         </div>
       </div>
-      <ClientTable
-        data={clientData}
+      <DataTable
+        fetchData={fetchClients}
         columns={columns}
         filtering={filtering}
         setFiltering={setFiltering}
@@ -78,6 +81,11 @@ export default function AllClient() {
         setPageSize={setPageSize}
         page={page}
         setPage={setPage}
+        initialData={[]}
+        usePagination={true}
+        useHoverCard={true}
+        enableRowClick={true}
+        enableEdit={true}
       />
     </div>
   );
