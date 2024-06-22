@@ -9,6 +9,7 @@ const verifyToken = (req, res, next) => {
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
+      console.error("Token verification error:", err);
       return res.status(401).json({ error: "Unauthorized: Invalid Token" });
     }
 
@@ -18,7 +19,7 @@ const verifyToken = (req, res, next) => {
         .json({ error: "Unauthorized: Invalid Token Payload" });
     }
 
-    req.userId = decoded.userId;
+    req.user = { id: decoded.userId };
     next();
   });
 };
