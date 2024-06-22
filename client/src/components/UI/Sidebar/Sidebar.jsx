@@ -93,6 +93,7 @@ export default function MenuSidebar() {
               icon={<AdminPanelSettingsSharpIcon color="secondary" />}
               onClick={() => setSelected("Manage Team")}
               selected={selected === "Manage Team"}
+              component={<Link to="/admin-panel" />}
             >
               <Typography variant="h6" color="white">
                 Manage Team
