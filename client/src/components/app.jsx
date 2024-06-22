@@ -6,6 +6,7 @@ import Topbar from "./UI/Topbar";
 import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "./login";
+import AdminPanel from "./UI/Sidebar/AdminPanel";
 
 export default function App() {
   const [theme, colorMode] = useMode();
@@ -20,7 +21,7 @@ export default function App() {
           <div className="app">
             {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
             <div className="content">
-              {isLoggedIn && <Topbar setIsSidebar={setIsSidebar} />}
+              {isLoggedIn && <Topbar setIsSidebar={setIsSidebar} setIsLoggedIn={setIsLoggedIn} />}
               <Routes>
                 <Route
                   path="/"
@@ -30,6 +31,12 @@ export default function App() {
                   path="/all-client"
                   element={
                     isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
+                  }
+                />
+                <Route
+                  path="/admin-panel"
+                  element={
+                    isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />
                   }
                 />
               </Routes>
