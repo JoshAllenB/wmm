@@ -1,55 +1,106 @@
-import { useState, useEffect, useRef } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 
-const Mailing = ({ clientId, address }) => {
+const Mailing = ({
+  id,
+  address,
+  areaCode,
+  zipcode,
+  lname,
+  fname,
+  mname,
+  contactnos,
+  cellno,
+  officeno,
+}) => {
   const [editableAddress, setEditableAddress] = useState(address);
-  const [previewMode, setPreviewMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const printableContentRef = useRef(null);
+  const [leftPosition, setLeftPosition] = useState(10);
+  const [topPosition, setTopPosition] = useState(100); // Initial state for top position
+  const [columnWidth, setColumnWidth] = useState(300); // State for column width
+  const [fontSize, setFontSize] = useState(12);
 
   useEffect(() => {
     setEditableAddress(address);
   }, [address]);
 
-  const handleEdit = () => {
-    setPreviewMode(false);
+  const getFullName = () => {
+    return [lname, fname, mname].filter(Boolean).join(" ");
   };
 
-  const handlePreview = () => {
-    setPreviewMode(true);
+  const getContactNumber = () => {
+    return contactnos || cellno || officeno || "";
   };
 
-  const handleSave = async () => {
-    try {
-      await axios.put(`/address/${clientId}`, { address: editableAddress });
-      setPreviewMode(true);
-    } catch (e) {
-      console.error("Error saving address:", e);
-    }
+  const mailingStyle = {
+    width: "336px", // Rough estimate of 3.5 inches in pixels
+    height: "144px", // Rough estimate of 1.5 inches in pixels
+    position: "relative",
   };
 
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    printWindow.document.open();
-    printWindow.document.write(`
+  const addressStyle = {
+    position: "absolute",
+    left: `${leftPosition}px`,
+    top: `${topPosition}px`, // Top position set based on user input
+    fontSize: `${fontSize}px`,
+    color: "black",
+    width: `${columnWidth}px`,
+    wordWrap: "break-word",
+    whiteSpace: "normal",
+    overflowWrap: "break-word",
+  };
+
+  const generatePrintHTML = () => {
+    return `
       <html>
         <head>
           <title>Print Mailing Label</title>
           <style>
-            /* Add any necessary styles for printing */
+            .mailing-label {
+              position: relative;
+              width: 350px;
+              height: 400px;
+            }
+            .address-container {
+              left: ${leftPosition}px;
+              top: ${topPosition}px;
+              font-size: ${fontSize}px;
+              color: black;
+              width: ${columnWidth}px;
+              word-wrap: break-word;
+              white-space: normal;
+              overflow-wrap: break-word;
+              position: absolute;
+            }
+            .address-container p {
+              margin: 0;
+              padding: 0;
+            }
           </style>
         </head>
         <body>
-          ${printableContentRef.current.innerHTML}
+          <div class="mailing-label">
+            <div class="address-container">
+              ${areaCode ? `<p>${id} ${areaCode}</p>` : ""}
+              <p>${getFullName()}</p>
+              <p>${editableAddress}</p>
+              <p>${getContactNumber()}</p>
+            </div>
+          </div>
           <script>
             window.print();
             window.close();
           </script>
         </body>
       </html>
-    `);
+    `;
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank");
+    printWindow.document.open();
+    printWindow.document.write(generatePrintHTML());
     printWindow.document.close();
   };
 
@@ -61,6 +112,22 @@ const Mailing = ({ clientId, address }) => {
     setModalOpen(false);
   };
 
+  const handleLeftPositionChange = (event) => {
+    setLeftPosition(parseInt(event.target.value, 10));
+  };
+
+  const handleTopPositionChange = (event) => {
+    setTopPosition(parseInt(event.target.value, 10)); // User input changes top position
+  };
+
+  const handleColumnWidthChange = (event) => {
+    setColumnWidth(parseInt(event.target.value, 10));
+  };
+
+  const handleFontSize = (event) => {
+    setFontSize(parseInt(event.target.value, 10));
+  };
+
   return (
     <div className="flex justify-between">
       <Button
@@ -69,70 +136,82 @@ const Mailing = ({ clientId, address }) => {
       >
         Print
       </Button>
+
       {modalOpen && (
         <Modal>
-          {previewMode ? (
-            <div>
-              <h2 className="text-black">Mailing Label Preview</h2>
-              <textarea
-                ref={printableContentRef}
-                value={editableAddress}
-                readOnly
-                rows={5}
-                cols={50}
-                className="w-full border border-black rounded-md px-3 py-2 text-black"
+          <div className="flex justify-end">
+            <Button
+              onClick={closeModal}
+              className="bg-red-500 hover:bg-red-900"
+            >
+              X
+            </Button>
+          </div>
+          <h2 className="flex justify-center text-xl font-bold mb-5 mt-2 text-black">
+            Mailing Label Preview
+          </h2>
+
+          <div className="flex gap-5 justify-center ">
+            <div className="flex gap-2 mb-2 text-black text-lg">
+              <label>Font Size: </label>
+              <input
+                type="number"
+                value={fontSize}
+                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+                onChange={handleFontSize}
               />
-              <div className="flex justify-between">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleEdit}
-                    className="bg-black hover:bg-green-700"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    onClick={handlePrint}
-                    className="bg-black hover:bg-green-700"
-                  >
-                    Print
-                  </Button>
-                </div>
-                <div className="flex justify-between">
-                  <Button
-                    onClick={closeModal}
-                    className="bg-red-500 hover:bg-red-900"
-                  >
-                    Close
-                  </Button>
-                </div>
+            </div>
+            <div className="flex gap-2 mb-2 text-black text-lg">
+              <label>Left Position:</label>
+              <input
+                type="number"
+                value={leftPosition}
+                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+                onChange={handleLeftPositionChange}
+              />
+            </div>
+            <div className="flex gap-2 mb-2 text-black text-lg">
+              <label>Top Position:</label>
+              <input
+                type="number"
+                value={topPosition}
+                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+                onChange={handleTopPositionChange}
+              />
+            </div>
+            <div className="flex gap-2 mb-2 text-black text-lg">
+              <label>Column Width:</label>
+              <input
+                type="number"
+                value={columnWidth}
+                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+                onChange={handleColumnWidthChange}
+              />
+            </div>
+          </div>
+          <div className="flex flex-col items-center ">
+            <div
+              className="mailing-label border border-gray-400"
+              style={mailingStyle}
+            >
+              <div className="address-container" style={addressStyle}>
+                <p>
+                  {id}-{areaCode}
+                </p>
+                <p>{getFullName()}</p>
+                <p>
+                  {editableAddress} {zipcode}
+                </p>
+                <p>{getContactNumber()}</p>
               </div>
             </div>
-          ) : (
-            <div className="flex flex-col">
-              <h2 className="mb-2 mt-2 text-black">Edit Mailing Address</h2>
-              <textarea
-                value={editableAddress}
-                onChange={(e) => setEditableAddress(e.target.value)}
-                cols="5"
-                rows="10"
-                className="border border-black text-black p-2"
-              />
-              <div className="flex gap-2 mt-2">
-                <Button
-                  onClick={handleSave}
-                  className="bg-green-500 hover:bg-green-700"
-                >
-                  Save
-                </Button>
-                <Button
-                  onClick={handlePreview}
-                  className="bg-black hover:bg-black"
-                >
-                  Preview
-                </Button>
-              </div>
-            </div>
-          )}
+            <Button
+              onClick={handlePrint}
+              className="bg-black hover:bg-green-500 mt-4"
+            >
+              Print
+            </Button>
+          </div>
         </Modal>
       )}
     </div>
