@@ -1,7 +1,7 @@
 // user.mjs
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
-import crypto from "crypto"; // Import the crypto module
+import crypto from "crypto";
 
 // Create a new connection for the "wmm_user" database
 const userConnection = mongoose.createConnection(
@@ -20,9 +20,21 @@ const UsersSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    role: {
+      type: String,
+      enum: ["Admin", "Editor", "Viewer"],
+      default: "Viewer",
+    },
     salt: String,
     lastLoginAt: Date,
-    loggedIn: Boolean,
+
+    status: {
+      status: {
+        type: String,
+        enum: ["Active", "Inactive", "Logged Off"],
+        default: "inactive",
+      },
+    },
   },
   { timestamps: true }
 );
