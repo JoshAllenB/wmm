@@ -14,7 +14,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ShadCN/components/ui/dropdown-menu";
+} from "./ShadCN/dropdown-menu";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import setAuthToken from "../../utils/setAuthToken";
