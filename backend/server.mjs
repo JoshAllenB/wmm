@@ -9,8 +9,8 @@ import path from "path";
 import userAuthRouter from "./userAuth/userAuth.mjs";
 import initWebSocket from "./websocket.mjs"; // New import for WebSocket logic
 
-import userRoutes from "./milddleware/users/Users.mjs";
-import clientsRoutes from "./milddleware/wmm/Clients.mjs";
+import userRoutes from "./middleware/users/Users.mjs";
+import clientsRoutes from "./middleware/wmm/Clients.mjs";
 
 dotenv.config();
 
