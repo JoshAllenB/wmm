@@ -55,10 +55,6 @@ export default function DataTable({
   } = useRowHandlers();
 
   useEffect(() => {
-    setData(initialData);
-  }, [initialData]);
-
-  useEffect(() => {
     const socket = io("http://localhost:3001");
 
     socket.on("connect", () => {});
