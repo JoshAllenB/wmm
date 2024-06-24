@@ -19,8 +19,7 @@ const validateToken = async () => {
     }
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      console.log("Token expired or invalid, attempting to refresh...");
-
+      
       try {
         const refreshReponse = await axios.post(
           "http://localhost:3001/auth/refreshToken",
@@ -39,7 +38,6 @@ const validateToken = async () => {
           }
         }
       } catch (refreshError) {
-        console.log("Token Refresh failed");
         removeToken();
       }
     } else {
