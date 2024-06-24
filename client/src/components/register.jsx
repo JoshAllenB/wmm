@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Tabs, TabsContent } from "./UI/ShadCN/tabs";
 import { Button } from "./UI/ShadCN/button";
 
-const RegisterPage = () => {
+const RegisterPage = ({ onSuccess }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const navigate = useNavigate();
 
   const handleUsernameChange = (e) => {
     setUsername(e.target.value);
@@ -31,16 +29,15 @@ const RegisterPage = () => {
     }
 
     try {
-      const result = await axios.post("http://localhost:3001/auth/register", {
+      await axios.post("http://localhost:3001/auth/register", {
         username,
         password,
       });
 
-      navigate("/");
-
-      console.log(result);
+      onSuccess();
     } catch (err) {
       console.error(err);
+      setErrorMessage(err.response.data.message); // Display backend error message
     }
   };
 
