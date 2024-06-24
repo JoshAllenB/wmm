@@ -6,6 +6,8 @@ import loginUser from "./login.mjs";
 import registerUser from "./register.mjs";
 import logoutUser from "./logout.mjs";
 import verifyToken from "./verifyToken.mjs";
+import User from "../models/users.mjs";
+import jwt from "jsonwebtoken";
 
 const server = http.createServer();
 const io = new Server(server, {
@@ -60,4 +62,49 @@ router.post("/logout", verifyToken, async (req, res) => {
 
   res.json({ message: "Logout successful", userId });
 });
+
+router.post("/verifyToken", async (req, res) => {
+  const token = req.body.token;
+
+  if (!token) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User Not Found" });
+    }
+    res.json({ valid: true, user: { id: user._id, username: user.username } });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+router.post("/refreshToken", async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: "No Token Provided" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      ignoreExpiration: true,
+    });
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User Not Found" });
+    }
+
+    const newToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.json({ token: newToken });
+  } catch (err) {
+    console.error("Token refresh error:", err);
+    res.status(401).json({ error: "Invalid Token" });
+  }
+});
+
 export default router;
