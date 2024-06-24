@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ColorModeContext, useMode } from "./UI/Theme/theme.utils";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -7,11 +7,30 @@ import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "./login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
+import validateToken from "../utils/validateToken";
+import { syncToken } from "../utils/tokenStorage";
 
 export default function App() {
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      syncToken();
+      const user = await validateToken();
+      if (user) {
+        setIsLoggedIn(true);
+      }
+      setIsLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <ColorModeContext.Provider value={colorMode}>
@@ -21,7 +40,12 @@ export default function App() {
           <div className="app">
             {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
             <div className="content">
-              {isLoggedIn && <Topbar setIsSidebar={setIsSidebar} setIsLoggedIn={setIsLoggedIn} />}
+              {isLoggedIn && (
+                <Topbar
+                  setIsSidebar={setIsSidebar}
+                  setIsLoggedIn={setIsLoggedIn}
+                />
+              )}
               <Routes>
                 <Route
                   path="/"
