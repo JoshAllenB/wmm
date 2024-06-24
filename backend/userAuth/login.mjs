@@ -5,7 +5,7 @@ import UserModel from "../models/users.mjs";
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
+    expiresIn: "30min",
   });
 };
 
@@ -20,7 +20,6 @@ const io = new Server(server, {
 });
 
 const loginUser = async (username, password) => {
-  
   try {
     const user = await UserModel.findOne({ username });
 
