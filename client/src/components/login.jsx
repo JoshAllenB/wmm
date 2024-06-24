@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "./UI/ShadCN/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./UI/ShadCN/tabs";
-import RegisterPage from "./signup";
+import RegisterPage from "./register";
 import setAuthToken from "../utils/setAuthToken";
 import io from "socket.io-client";
 
