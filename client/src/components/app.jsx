@@ -5,7 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Topbar from "./UI/Topbar";
 import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
-import LoginPage from "./login";
+import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
 import validateToken from "../utils/validateToken";
 import { syncToken } from "../utils/tokenStorage";

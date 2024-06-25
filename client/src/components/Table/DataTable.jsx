@@ -24,7 +24,7 @@ import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
 import io from "socket.io-client";
 import { useRowHandlers } from "./Features/RowHandler";
 import { PaginationComponent } from "./Features/Pagination";
-import Edit from "../CRUD/edit";
+import Edit from "../CRUD/AllClient/edit";
 
 export default function DataTable({
   columns,

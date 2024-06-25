@@ -9,7 +9,7 @@
  */
 
 import DataTable from "../../Table/DataTable";
-import Add from "../../CRUD/add";
+import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
 import { useTheme } from "@mui/material";
 
