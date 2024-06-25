@@ -12,6 +12,7 @@ const socket = io("http://localhost:3001");
 const Edit = ({ rowData, onDelete, onClose }) => {
   const initialFormData = useMemo(
     () => ({
+      id: "",
       lname: "",
       fname: "",
       mname: "",
@@ -134,7 +135,9 @@ const Edit = ({ rowData, onDelete, onClose }) => {
       {showModal && (
         <Modal onClose={() => setShowModal(false)}>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">Edit Client Information</h2>
+            <h2 className="flex flex-col text-xl font-bold text-black">
+              Edit Client Information
+            </h2>
             <button
               onClick={() => setShowModal(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -155,6 +158,7 @@ const Edit = ({ rowData, onDelete, onClose }) => {
               </svg>
             </button>
           </div>
+          <h1 className="text-black font-bold">Client ID: {formData.id}</h1>
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col mb-2 p-2">
