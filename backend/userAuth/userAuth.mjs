@@ -60,6 +60,8 @@ router.post("/logout", verifyToken, async (req, res) => {
     return res.status(400).json(result);
   }
 
+  res.clearCookie("token");
+
   res.json({ message: "Logout successful", userId });
 });
 
