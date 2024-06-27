@@ -1,20 +1,17 @@
 import { useState, useEffect } from "react";
 import { fetchUsers } from "../../Table/Data/usersdata";
 import { userColumns } from "../../Table/Structure/userColumn";
-// import { useTheme } from "@mui/material";
 import DataTable from "../../Table/DataTable";
+import Add from "../../CRUD/AdminPanel/add";
 import io from "socket.io-client";
 
 export default function AdminPanel() {
-  // const theme = useTheme();
-
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadUsers = async () => {
-      
       try {
         const fetchedUsers = await fetchUsers();
 
@@ -61,6 +58,7 @@ export default function AdminPanel() {
   return (
     <div className="m-[30px]">
       <h1 className="text-xl font-bold mb-4">Admin Panel</h1>
+      <Add />
       <DataTable
         columns={userColumns}
         initialData={users}
