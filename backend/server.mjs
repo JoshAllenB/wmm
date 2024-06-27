@@ -68,51 +68,6 @@ app.use(
   clientsRoutes
 );
 
-// app.get("/address/:id", async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const client = await ClientModel.findById(id);
-
-//     if (!client) {
-//       return res.status(404).json({ error: "Client not found" });
-//     }
-
-//     res.json({ address: client.address });
-//   } catch (error) {
-//     console.error("Error fetching address:", error);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
-
-// app.get("/search", async (req, res) => {
-//   const { query: searchQuery } = req.query;
-
-//   try {
-//     const id = parseInt(searchQuery);
-//     if (isNaN(id)) {
-//       const clients = await ClientModel.find(
-//         { $text: { $search: searchQuery } },
-//         { score: { $meta: "textScore" } }
-//       )
-//         .sort({ score: { $meta: "textScore" } })
-//         .limit(20);
-
-//       res.json(clients);
-//     } else {
-//       const client = await ClientModel.findOne({ id });
-//       if (client) {
-//         res.json([client]);
-//       } else {
-//         res.json([]);
-//       }
-//     }
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: "Internal Server Error" });
-//   }
-// });
-
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
 app.get("*", (req, res) => {
