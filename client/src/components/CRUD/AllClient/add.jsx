@@ -45,6 +45,9 @@ const Add = ({ fetchClients }) => {
 
   const [showModal, setShowModal] = useState(false);
 
+  const openModal = () => setShowModal(true);
+  const closeModal = () => setShowModal(false);
+
   const formatDate = (date) => {
     const options = { month: "long", year: "numeric" };
     return new Intl.DateTimeFormat("en-US", options).format(date);
@@ -111,7 +114,7 @@ const Add = ({ fetchClients }) => {
       await axios.post("http://localhost:3001/clients/add", submissionData);
       fetchClients();
       socket.emit("client-added", submissionData);
-      setShowModal(false);
+      closeModal();
       setFormData({
         lname: "",
         fname: "",
@@ -144,7 +147,7 @@ const Add = ({ fetchClients }) => {
   return (
     <div>
       <Button
-        onClick={() => setShowModal(true)}
+        onClick={openModal}
         className="bg-green-600 mb-4 hover:bg-green-700"
       >
         Add Client
@@ -152,7 +155,8 @@ const Add = ({ fetchClients }) => {
 
       {showModal && (
         <Modal
-          onClose={() => setShowModal(false)}
+          isOpen={setShowModal}
+          onClose={closeModal}
           className=" bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
         >
           <h2 className="text-xl font-bold mb-4 text-gray-900">Add Client</h2>
