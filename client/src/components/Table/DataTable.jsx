@@ -45,6 +45,10 @@ export default function DataTable({
   const [rowSelection, setRowSelection] = useState([]);
   const [error, setError] = useState(null);
 
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedRow(null);
+  };
   const {
     hoverRowMetadata,
     selectedRow,
@@ -236,10 +240,7 @@ export default function DataTable({
         <Edit
           rowData={selectedRow}
           onDelete={(id) => setData(data.filter((d) => d.id !== id))}
-          onClose={() => {
-            setSelectedRow(null);
-            setShowModal(false);
-          }}
+          onClose={closeModal}
           showModal={showModal}
           setShowModal={setShowModal}
         />
