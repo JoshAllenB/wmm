@@ -31,7 +31,7 @@ const loginUser = async (username, password) => {
       return { error: "Invalid username or password" };
     }
 
-    user.status.status = "Active";
+    user.status = "Active";
     user.lastLoginAt = new Date();
     await user.save();
 

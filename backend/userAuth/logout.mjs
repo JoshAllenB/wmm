@@ -4,7 +4,7 @@ const logoutUser = async (userId, io) => {
   try {
     const user = await UserModel.findById(userId);
     if (user) {
-      user.status.status = "Logged Off";
+      user.status = "Logged Off";
       await user.save();
 
       // Emit a socket event to notify all clients about the user's status change
