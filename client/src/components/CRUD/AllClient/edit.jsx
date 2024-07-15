@@ -9,7 +9,7 @@ import io from "socket.io-client";
 
 const socket = io("http://localhost:3001");
 
-const Edit = ({ rowData, onDelete, onClose }) => {
+const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
   const initialFormData = useMemo(
     () => ({
       id: "",
@@ -41,22 +41,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     []
   );
 
-  useEffect(() => {
-    const socket = io("http://localhost:3001");
-
-    socket.on("connect", () => {
-      console.log("Connected");
-    });
-
-    socket.on("connect_error", (error) => {
-      console.error("Connection Error:", error);
-    });
-
-    socket.on("data-update", (data) => {
-      console.log("Data Update:", data);
-    });
-  }, []);
-
   const [formData, setFormData] = useState(initialFormData);
   const [showModal, setShowModal] = useState(false);
 
@@ -66,22 +50,22 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     const options = { month: "long", year: "numeric" };
     return new Intl.DateTimeFormat("en-US", options).format(date);
   };
+  useEffect(() => {
+    setFormData({
+      ...initialFormData,
+      ...rowData,
+    });
 
-  useEffect(
-    (client) => {
-      setFormData({
+    socket.emit("data-update", {
+      type: "update",
+      data: {
         ...initialFormData,
         ...rowData,
-      });
+      },
+    });
 
-      socket.emit("data-update", {
-        type: "update",
-        data: client,
-      });
-      setShowModal(true);
-    },
-    [rowData, initialFormData]
-  );
+    setShowModal(true);
+  }, [rowData, initialFormData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -108,8 +92,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
     }));
   };
 
-  useEffect(() => {}, [formData]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData) return;
@@ -120,15 +102,6 @@ const Edit = ({ rowData, onDelete, onClose }) => {
       setShowModal(false);
     } catch (e) {
       console.error("Error updating client:", e);
-    }
-  };
-
-  const handleDelete = async () => {
-    try {
-      await onDelete(rowData.id);
-      onClose();
-    } catch (e) {
-      console.error("Error deleting client:", e);
     }
   };
 
@@ -395,8 +368,8 @@ const Edit = ({ rowData, onDelete, onClose }) => {
 
               <Delete
                 client={rowData}
-                onDelete={handleDelete}
                 onClose={onClose}
+                onDeleteSuccess={onDeleteSuccess}
               />
             </div>
           </div>

@@ -1,31 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import axios from "axios";
-import io from "socket.io-client";
 
-const socket = io("http://localhost:3001");
-
-const Delete = ({ client, onClose, onDelete }) => {
+const Delete = ({ client, onClose, onDeleteSuccess }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
-
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("Connected");
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
 
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/clients/${client.id}`
+        `http://localhost:3001/clients/delete/${client.id}`
       );
       if (response.status === 200) {
-        onDelete(client.id);
+        onDeleteSuccess(client.id);
         onClose();
       } else {
         console.error("Error: Deletion was not successful");
@@ -44,7 +31,10 @@ const Delete = ({ client, onClose, onDelete }) => {
         Delete
       </Button>
       {showConfirmation && (
-        <Modal onClose={() => setShowConfirmation(false)}>
+        <Modal
+          isOpen={showConfirmation}
+          onClose={() => setShowConfirmation(false)}
+        >
           <h2 className="text-xl font-bold mb-4 text-black">Delete Client</h2>
           <p className="text-black">
             Are you sure you want to delete this client?
@@ -56,7 +46,6 @@ const Delete = ({ client, onClose, onDelete }) => {
             >
               Delete
             </Button>
-            <Button onClick={onClose}>Cancel</Button>
           </div>
         </Modal>
       )}
