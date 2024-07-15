@@ -1,9 +1,14 @@
 import axios from "axios";
 import setAuthToken from "./setAuthToken";
-import { getToken, removeToken, setToken } from "./tokenStorage";
+import {
+  getAccessToken,
+  getRefreshToken,
+  removeTokens,
+  setTokens,
+} from "./tokenStorage";
 
 const validateToken = async () => {
-  const token = getToken();
+  const token = getAccessToken();
   if (!token) {
     return false;
   }
@@ -19,32 +24,43 @@ const validateToken = async () => {
     }
   } catch (error) {
     if (error.response && error.response.status === 401) {
-      if (getToken()) {
-        try {
-          const refreshResponse = await axios.post(
-            "http://localhost:3001/auth/refreshToken",
-            { token }
-          );
-          if (refreshResponse.data.token) {
-            setToken(refreshResponse.data.token);
-            setAuthToken(refreshResponse.data.token);
-
-            const newValidResponse = await axios.post(
-              "http://localhost:3001/auth/verifyToken",
-              { token: refreshResponse.data.token }
-            );
-            if (newValidResponse.data.valid) {
-              return newValidResponse.data.user;
-            }
-          }
-        } catch (refreshError) {
-          removeToken();
-        }
-      }
-    } else {
-      console.error("Token validation error:", error);
-      removeToken();
+      console.error("Token expired, attempting refresh...");
+      return await refreshAndValidate();
     }
+    console.error("Token validation error:", error);
+    removeTokens();
+  }
+
+  return false;
+};
+
+const refreshAndValidate = async () => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    removeTokens();
+    console.error("No refresh token found");
+    return false;
+  }
+
+  try {
+    const refreshResponse = await axios.post(
+      "http://localhost:3001/auth/refreshToken",
+      { refreshToken }
+    );
+    const { token, refresthToken: newRefreshToken } = refreshResponse.data;
+    setTokens(token, newRefreshToken);
+    setAuthToken(token);
+
+    const newValidResponse = await axios.post(
+      "http://localhost:3001/auth/verifyToken",
+      { token }
+    );
+    if (newValidResponse.data.valid) {
+      return newValidResponse.data.user;
+    }
+  } catch (refreshError) {
+    console.error("Token refresh error:", refreshError);
+    removeTokens();
   }
 
   return false;

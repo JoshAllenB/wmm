@@ -12,7 +12,7 @@ import RegisterPage from "./register";
 import setAuthToken from "../setAuthToken";
 import validateToken from "../validateToken";
 import io from "socket.io-client";
-import { setToken } from "../tokenStorage";
+import { setTokens } from "../tokenStorage";
 
 const socket = io("http://localhost:3001");
 
@@ -63,7 +63,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
       });
 
       if (result.data.token) {
-        setToken(result.data.token);
+        setTokens(result.data.token);
         setAuthToken(result.data.token);
 
         setIsLoggedIn(true);

@@ -7,9 +7,11 @@ import {
   DropdownMenuRadioItem,
 } from "../../components/UI/ShadCN/dropdown-menu";
 import io from "socket.io-client";
-import { removeToken } from "../tokenStorage";
+import { removeTokens } from "../tokenStorage";
 
-const socket = io("http://localhost:3001");
+const socket = io("http://localhost:3001", {
+  transports: ["websocket"], // Ensure WebSocket is used
+});
 
 export default function Logout({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -18,7 +20,8 @@ export default function Logout({ setIsLoggedIn }) {
   const handleLogout = async () => {
     try {
       const token =
-        localStorage.getItem("token") || sessionStorage.getItem("token");
+        localStorage.getItem("accessToken") ||
+        sessionStorage.getItem("accessToken");
       if (!token) {
         console.error("No token found");
         setIsLoggedIn(false);
@@ -37,9 +40,9 @@ export default function Logout({ setIsLoggedIn }) {
       );
 
       if (reponse.data.message === "Logout successful") {
-        localStorage.removeItem("token");
-        sessionStorage.removeItem("token");
-        removeToken();
+        localStorage.removeItem("accessToken");
+        sessionStorage.removeItem("accessToken");
+        removeTokens();
         setAuthToken(null);
         setIsLoggedIn(false);
         socket.emit("user_status_change", {
