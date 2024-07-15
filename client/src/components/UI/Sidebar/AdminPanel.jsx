@@ -1,72 +1,37 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import { fetchUsers } from "../../Table/Data/usersdata";
 import { userColumns } from "../../Table/Structure/userColumn";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AdminPanel/add";
-import io from "socket.io-client";
+import Edit from "../../CRUD/AdminPanel/edit";
 
 export default function AdminPanel() {
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [, setUsers] = useState([]);
+  const [rowSelection, setRowSelection] = useState({});
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const fetchedUsers = await fetchUsers();
-
-        setUsers(fetchedUsers);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadUsers();
-
-    const socket = io("http://localhost:3001");
-
-    socket.on("user_status_change", ({ userId, status }) => {
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user._id === userId ? { ...user, status: { status } } : user
-        )
-      );
-    });
-
-    return () => {
-      socket.disconnect();
-    };
+  const handleDeleteSuccess = useCallback((deletedUserId) => {
+    setUsers((prevUsers) =>
+      prevUsers.filter((user) => user._id !== deletedUserId)
+    );
+    fetchUsers(setUsers);
   }, []);
-
-  const fetchDataWrapper = async (setData) => {
-    try {
-      const fetchedUsers = await fetchUsers();
-      setData(fetchedUsers);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>{error}</div>;
-  }
 
   return (
     <div className="m-[30px]">
-      <h1 className="text-xl font-bold mb-4">Admin Panel</h1>
-      <Add />
+      <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
+      <Add fetchUsers={() => fetchUsers(setUsers)} />
       <DataTable
+        fetchFunction={fetchUsers}
         columns={userColumns}
-        initialData={users}
-        fetchData={fetchDataWrapper}
+        rowSelection={rowSelection}
+        setRowSelection={setRowSelection}
         usePagination={false}
         useHoverCard={false}
-        enableEdit={false}
+        enableEdit={true}
         enableRowClick={false}
+        EditComponent={(props) => (
+          <Edit {...props} onDeleteSuccess={handleDeleteSuccess} />
+        )}
       />
     </div>
   );
