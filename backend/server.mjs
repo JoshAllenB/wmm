@@ -21,19 +21,10 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173", // Allow your frontend URL
+    origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
-);
-
-app.use(
-  "/auth",
-  (req, res, next) => {
-    req.io = io;
-    next();
-  },
-  userAuthRouter
 );
 
 const server = http.createServer(app);
@@ -46,27 +37,18 @@ const io = new Server(server, {
   },
 });
 
-mongoose.set("debug", true);
+mongoose.set("debug", false);
 
 initWebSocket(io);
 
-app.use(
-  "/users",
-  (req, res, next) => {
-    req.io = io;
-    next();
-  },
-  userRoutes
-);
+const attachIO = (req, res, next) => {
+  req.io = io;
+  next();
+};
 
-app.use(
-  "/clients",
-  (req, res, next) => {
-    req.io = io;
-    next();
-  },
-  clientsRoutes
-);
+app.use("/auth", attachIO, userAuthRouter);
+app.use("/users", attachIO, userRoutes);
+app.use("/clients", attachIO, clientsRoutes);
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
