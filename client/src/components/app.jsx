@@ -8,7 +8,8 @@ import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
 import validateToken from "../utils/validateToken";
-import { syncToken } from "../utils/tokenStorage";
+import { syncTokens } from "../utils/tokenStorage";
+import { SocketProvider } from "../utils/Websocket/websocket";
 
 export default function App() {
   const [theme, colorMode] = useMode();
@@ -18,7 +19,7 @@ export default function App() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      syncToken();
+      syncTokens();
       const user = await validateToken();
       if (user) {
         setIsLoggedIn(true);
@@ -36,37 +37,39 @@ export default function App() {
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <BrowserRouter>
-          <div className="app">
-            {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
-            <div className="content">
-              {isLoggedIn && (
-                <Topbar
-                  setIsSidebar={setIsSidebar}
-                  setIsLoggedIn={setIsLoggedIn}
-                />
-              )}
-              <Routes>
-                <Route
-                  path="/"
-                  element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
-                />
-                <Route
-                  path="/all-client"
-                  element={
-                    isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
-                  }
-                />
-                <Route
-                  path="/admin-panel"
-                  element={
-                    isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />
-                  }
-                />
-              </Routes>
+        <SocketProvider>
+          <BrowserRouter>
+            <div className="app">
+              {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
+              <div className="content">
+                {isLoggedIn && (
+                  <Topbar
+                    setIsSidebar={setIsSidebar}
+                    setIsLoggedIn={setIsLoggedIn}
+                  />
+                )}
+                <Routes>
+                  <Route
+                    path="/"
+                    element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
+                  />
+                  <Route
+                    path="/all-client"
+                    element={
+                      isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
+                    }
+                  />
+                  <Route
+                    path="/admin-panel"
+                    element={
+                      isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />
+                    }
+                  />
+                </Routes>
+              </div>
             </div>
-          </div>
-        </BrowserRouter>
+          </BrowserRouter>
+        </SocketProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
   );
