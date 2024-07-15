@@ -46,13 +46,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/logout", verifyToken, async (req, res) => {
-  const io = req.io;
-  if (!io) {
-    console.warn("Socket.io instance not found on app");
-  }
-
   const userId = req.user.id;
-
   const result = await logoutUser(userId, io);
 
   if (result.error) {
@@ -61,7 +55,6 @@ router.post("/logout", verifyToken, async (req, res) => {
   }
 
   res.clearCookie("token");
-
   res.json({ message: "Logout successful", userId });
 });
 
