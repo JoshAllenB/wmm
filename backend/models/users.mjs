@@ -29,11 +29,9 @@ const UsersSchema = new mongoose.Schema(
     lastLoginAt: Date,
 
     status: {
-      status: {
-        type: String,
-        enum: ["Active", "Inactive", "Logged Off"],
-        default: "Inactive",
-      },
+      type: String,
+      enum: ["Active", "Inactive", "Logged Off"],
+      default: "Inactive",
     },
   },
   { timestamps: true }
