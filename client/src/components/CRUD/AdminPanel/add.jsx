@@ -18,15 +18,13 @@ const Add = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
-        "http://localhost:3001/users/add",
-        userData,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
-      console.log("User added successfully:", response.data);
+      await axios.post("http://localhost:3001/users/add", userData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
       closeModal();
+      setUserData({ username: "", password: "", role: "" });
     } catch (err) {
       console.error("Error adding user:", err);
     }
