@@ -16,6 +16,7 @@ import { useTheme } from "@mui/material";
 import { fetchClients } from "../../Table/Data/clientdata";
 import { columns } from "../../Table/Structure/clientColumn";
 import { useState, useEffect } from "react";
+import Edit from "../../CRUD/AllClient/edit";
 
 export default function AllClient() {
   const theme = useTheme();
@@ -35,8 +36,16 @@ export default function AllClient() {
     setPage(1);
     fetchClients(setClientData, 1, Number(e.target.value));
   };
+
+  const handleDeleteSuccess = (deletedId) => {
+    setClientData((prevData) =>
+      prevData.filter((client) => client.id !== deletedId)
+    );
+    fetchClients((data) => setClientData(data), page, pageSize);
+  };
+
   return (
-    <div className="m-[30px]">
+    <div className="mr-[10px] ml-[10px]">
       <Add fetchClients={() => fetchClients(setClientData)} />
       <div className="flex items-center content-center ">
         <div className="mr-2">
@@ -71,7 +80,7 @@ export default function AllClient() {
         </div>
       </div>
       <DataTable
-        fetchData={fetchClients}
+        fetchFunction={fetchClients}
         columns={columns}
         filtering={filtering}
         setFiltering={setFiltering}
@@ -81,11 +90,13 @@ export default function AllClient() {
         setPageSize={setPageSize}
         page={page}
         setPage={setPage}
-        initialData={[]}
         usePagination={true}
         useHoverCard={true}
         enableRowClick={true}
         enableEdit={true}
+        EditComponent={(props) => (
+          <Edit {...props} onDeleteSuccess={handleDeleteSuccess} />
+        )}
       />
     </div>
   );
