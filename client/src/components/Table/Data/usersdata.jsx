@@ -1,19 +1,21 @@
 import axios from "axios";
 
-export const fetchUsers = async () => {
+export const fetchUsers = async (setUsersData) => {
   try {
     const response = await axios.get("http://localhost:3001/users", {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },
     });
 
-    return response.data.map((user) => ({
+    const users = response.data.map((user) => ({
       ...user,
-      status: user.status.status || user.status, // Flatten the nested status field
+      status: user.status.status || user.status,
     }));
+
+    setUsersData(users);
+    return users;
   } catch (err) {
     console.error("Error fetching user data:", err);
-    throw err;
   }
 };
