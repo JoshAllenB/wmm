@@ -136,84 +136,75 @@ const Mailing = ({
       >
         Print
       </Button>
+      <Modal isOpen={modalOpen} onClose={closeModal}>
+        <h2 className="flex justify-center text-xl font-bold mb-5 mt-2 text-black">
+          Mailing Label Preview
+        </h2>
 
-      {modalOpen && (
-        <Modal>
-          <div className="flex justify-end">
-            <Button
-              onClick={closeModal}
-              className="bg-red-500 hover:bg-red-900"
-            >
-              X
-            </Button>
+        <div className="flex gap-5 justify-center ">
+          <div className="flex gap-2 mb-2 text-black text-lg">
+            <label>Font Size: </label>
+            <input
+              type="number"
+              value={fontSize}
+              className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+              onChange={handleFontSize}
+            />
           </div>
-          <h2 className="flex justify-center text-xl font-bold mb-5 mt-2 text-black">
-            Mailing Label Preview
-          </h2>
-
-          <div className="flex gap-5 justify-center ">
-            <div className="flex gap-2 mb-2 text-black text-lg">
-              <label>Font Size: </label>
-              <input
-                type="number"
-                value={fontSize}
-                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                onChange={handleFontSize}
-              />
-            </div>
-            <div className="flex gap-2 mb-2 text-black text-lg">
-              <label>Left Position:</label>
-              <input
-                type="number"
-                value={leftPosition}
-                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                onChange={handleLeftPositionChange}
-              />
-            </div>
-            <div className="flex gap-2 mb-2 text-black text-lg">
-              <label>Top Position:</label>
-              <input
-                type="number"
-                value={topPosition}
-                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                onChange={handleTopPositionChange}
-              />
-            </div>
-            <div className="flex gap-2 mb-2 text-black text-lg">
-              <label>Column Width:</label>
-              <input
-                type="number"
-                value={columnWidth}
-                className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                onChange={handleColumnWidthChange}
-              />
+          <div className="flex gap-2 mb-2 text-black text-lg">
+            <label>Left Position:</label>
+            <input
+              type="number"
+              value={leftPosition}
+              className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+              onChange={handleLeftPositionChange}
+            />
+          </div>
+          <div className="flex gap-2 mb-2 text-black text-lg">
+            <label>Top Position:</label>
+            <input
+              type="number"
+              value={topPosition}
+              className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+              onChange={handleTopPositionChange}
+            />
+          </div>
+          <div className="flex gap-2 mb-2 text-black text-lg">
+            <label>Column Width:</label>
+            <input
+              type="number"
+              value={columnWidth}
+              className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
+              onChange={handleColumnWidthChange}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col items-center ">
+          <div
+            className="mailing-label border border-gray-400"
+            style={mailingStyle}
+          >
+            <div className="address-container" style={addressStyle}>
+              <p>
+                {id}-{areaCode}
+              </p>
+              <p>{getFullName()}</p>
+              <p>
+                {editableAddress} {zipcode}
+              </p>
+              <p>{getContactNumber()}</p>
             </div>
           </div>
-          <div className="flex flex-col items-center ">
-            <div
-              className="mailing-label border border-gray-400"
-              style={mailingStyle}
-            >
-              <div className="address-container" style={addressStyle}>
-                <p>
-                  {id}-{areaCode}
-                </p>
-                <p>{getFullName()}</p>
-                <p>
-                  {editableAddress} {zipcode}
-                </p>
-                <p>{getContactNumber()}</p>
-              </div>
-            </div>
-            <Button
-              onClick={handlePrint}
-              className="bg-black hover:bg-green-500 mt-4"
-            >
-              Print
-            </Button>
-          </div>
-        </Modal>
-      )}
+          <Button
+            onClick={() => {
+              handlePrint();
+            }}
+            className="bg-black hover:bg-green-500 mt-4"
+          >
+            Print
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };
