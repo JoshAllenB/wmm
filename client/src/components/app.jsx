@@ -7,15 +7,24 @@ import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
-import validateToken from "../utils/validateToken";
-import { syncTokens } from "../utils/tokenStorage";
+import validateToken from "../utils/Token/validateToken";
+import { syncTokens } from "../utils/Token/tokenStorage";
+import ActivityMonitor from "../utils/ActivityMonitor";
 import { SocketProvider } from "../utils/Websocket/websocket";
+import Modal from "./modal";
 
 export default function App() {
   const [theme, colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [inactivityTimeout, setInactivityTimeout] = useState(300); // Initial timeout of 5 minutes
+
+  const handleInactivity = (timeout) => {
+    console.log(`Setting inactivity timeout to ${timeout} seconds`);
+    setInactivityTimeout(timeout);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,6 +38,16 @@ export default function App() {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    // Retrieve error message from localStorage
+    const storedErrorMessage = localStorage.getItem("errorMessage");
+    if (storedErrorMessage) {
+      setErrorMessage(storedErrorMessage);
+      // Clear error message from localStorage after displaying
+      localStorage.removeItem("errorMessage");
+    }
+  }, []);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -38,37 +57,57 @@ export default function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <SocketProvider>
-          <BrowserRouter>
-            <div className="app">
-              {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
-              <div className="content">
-                {isLoggedIn && (
-                  <Topbar
-                    setIsSidebar={setIsSidebar}
-                    setIsLoggedIn={setIsLoggedIn}
-                  />
-                )}
-                <Routes>
-                  <Route
-                    path="/"
-                    element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
-                  />
-                  <Route
-                    path="/all-client"
-                    element={
-                      isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
-                    }
-                  />
-                  <Route
-                    path="/admin-panel"
-                    element={
-                      isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />
-                    }
-                  />
-                </Routes>
+          <ActivityMonitor
+            isLoggedIn={isLoggedIn}
+            setIsLoggedIn={setIsLoggedIn}
+            setErrorMessage={setErrorMessage}
+            inactivityTimeout={inactivityTimeout} // Pass inactivityTimeout here
+          >
+            <BrowserRouter>
+              <div className="app">
+                {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
+                <div className="content">
+                  {isLoggedIn && (
+                    <Topbar
+                      setIsSidebar={setIsSidebar}
+                      setIsLoggedIn={setIsLoggedIn}
+                      onInactivityTimeoutChange={handleInactivity}
+                    />
+                  )}
+                  {errorMessage && (
+                    <Modal
+                      isOpen={!!errorMessage}
+                      onClose={() => setErrorMessage("")}
+                    >
+                      <p className="text-red-500 m-5">{errorMessage}</p>
+                    </Modal>
+                  )}
+                  <Routes>
+                    <Route
+                      path="/"
+                      element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
+                    />
+                    <Route
+                      path="/all-client"
+                      element={
+                        isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
+                      }
+                    />
+                    <Route
+                      path="/admin-panel"
+                      element={
+                        isLoggedIn ? (
+                          <AdminPanel />
+                        ) : (
+                          <Navigate to="/" replace />
+                        )
+                      }
+                    />
+                  </Routes>
+                </div>
               </div>
-            </div>
-          </BrowserRouter>
+            </BrowserRouter>
+          </ActivityMonitor>
         </SocketProvider>
       </ThemeProvider>
     </ColorModeContext.Provider>
