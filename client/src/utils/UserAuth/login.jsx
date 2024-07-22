@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/UI/ShadCN/button";
 import {
@@ -9,10 +9,11 @@ import {
   TabsTrigger,
 } from "../../components/UI/ShadCN/tabs";
 import RegisterPage from "./register";
-import setAuthToken from "../setAuthToken";
-import validateToken from "../validateToken";
+import setAuthToken from "../Token/setAuthToken";
+import validateToken from "../Token/validateToken";
 import io from "socket.io-client";
-import { setTokens } from "../tokenStorage";
+import { setTokens } from "../Token/tokenStorage";
+import { ActivityContext } from "../ActivityMonitor";
 
 const socket = io("http://localhost:3001");
 
@@ -22,6 +23,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const [activeTab, setActiveTab] = useState("account");
   const navigate = useNavigate();
+  const resetActivityTimer = useContext(ActivityContext);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,6 +31,8 @@ const LoginPage = ({ setIsLoggedIn }) => {
       if (user) {
         setIsLoggedIn(true);
         navigate("/all-client");
+      } else {
+        setIsLoggedIn(false);
       }
     };
 
@@ -63,7 +67,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
       });
 
       if (result.data.token) {
-        setTokens(result.data.token);
+        setTokens(result.data.token, result.data.refreshToken); // Make sure to pass both tokens
         setAuthToken(result.data.token);
 
         setIsLoggedIn(true);
@@ -73,6 +77,8 @@ const LoginPage = ({ setIsLoggedIn }) => {
           userId: result.data.user._id,
           status: "Active",
         });
+
+        resetActivityTimer();
       } else {
         setErrorMessage(result.data.error);
       }
@@ -140,12 +146,11 @@ const LoginPage = ({ setIsLoggedIn }) => {
                 />
               </div>
             </div>
+            {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+
             <Button type="submit" className="bg-gray-700 border">
               Login
             </Button>
-            {errorMessage && (
-              <div className="error-message">{errorMessage}</div>
-            )}
           </form>
         </TabsContent>
         <TabsContent value="register">

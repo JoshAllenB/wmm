@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import setAuthToken from "../setAuthToken";
+import setAuthToken from "../Token/setAuthToken";
 import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "../../components/UI/ShadCN/dropdown-menu";
 import io from "socket.io-client";
-import { removeTokens } from "../tokenStorage";
+import { removeTokens } from "../Token/tokenStorage";
 
 const socket = io("http://localhost:3001", {
   transports: ["websocket"], // Ensure WebSocket is used
