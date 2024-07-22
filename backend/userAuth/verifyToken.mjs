@@ -18,6 +18,9 @@ const verifyToken = async (req, res, next) => {
     req.user = user; // Set user object in request for later use
     next(); // Proceed to the next middleware or route handler
   } catch (err) {
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Token expired", expired: true });
+    }
     console.error("Token verification error:", err);
     return res.status(401).json({ error: "Invalid token" });
   }
