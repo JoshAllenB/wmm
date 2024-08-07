@@ -7,10 +7,17 @@ import {
   getFilteredRowModel,
 } from "@tanstack/react-table";
 
-export function useTableLogic(data, columns, usePagination, page, pageSize) {
+export function useTableLogic(
+  data,
+  columns,
+  usePagination,
+  page,
+  pageSize,
+  rowSelection,
+  setRowSelection
+) {
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
-  const [rowSelection, setRowSelection] = useState([]);
 
   const tableData = Array.isArray(data) ? data : [];
 
