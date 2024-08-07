@@ -31,14 +31,18 @@ export function TableComponent({
                 key={header.id}
                 onClick={header.column.getToggleSortingHandler()}
                 className={`sticky top-0 ${
-                  theme.palette.mode === "dark" ? "bg-gray-700" : "bg-gray-400"
-                }`}
+                    theme.palette.mode === "dark"
+                      ? "bg-gray-700"
+                      : "bg-gray-400"
+                  }`}
               >
                 {flexRender(
                   header.column.columnDef.header,
                   header.getContext()
                 )}
-                {header.column.getIsSorted() === "asc" && <ArrowDropUpSharp />}
+                {header.column.getIsSorted() === "asc" && (
+                  <ArrowDropUpSharp />
+                )}
                 {header.column.getIsSorted() === "desc" && (
                   <ArrowDropDownSharp />
                 )}
@@ -59,12 +63,15 @@ export function TableComponent({
               }
               onMouseEnter={() => handleRowHover(row)}
               onMouseLeave={() => setHoverRowmetadata(null)}
-              onClick={() => handleRowClick(row)}
+              onClick={(event) => handleRowClick(event, row)}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   key={cell.id}
                   style={{ width: cell.column.columnDef.size }}
+                  className={
+                    cell.column.id === "select" ? "checkbox-cell" : ""
+                  }
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
