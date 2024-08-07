@@ -1,57 +1,60 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 
-const Mailing = ({
-  id,
-  address,
-  areaCode,
-  zipcode,
-  lname,
-  fname,
-  mname,
-  contactnos,
-  cellno,
-  officeno,
-}) => {
-  const [editableAddress, setEditableAddress] = useState(address);
+const Mailing = ({ table }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
-  const [topPosition, setTopPosition] = useState(100); // Initial state for top position
+  const [topPosition, setTopPosition] = useState(10); // Initial state for top position
   const [columnWidth, setColumnWidth] = useState(300); // State for column width
   const [fontSize, setFontSize] = useState(12);
+  const addressHeight = 100; // Fixed height for each address container
 
-  useEffect(() => {
-    setEditableAddress(address);
-  }, [address]);
-
-  const getFullName = () => {
-    return [lname, fname, mname].filter(Boolean).join(" ");
+  const getFullName = (row) => {
+    return [row.lname, row.fname, row.mname].filter(Boolean).join(" ");
   };
 
-  const getContactNumber = () => {
-    return contactnos || cellno || officeno || "";
+  const getContactNumber = (row) => {
+    return row.contactnos || row.cellno || row.ofcno || "";
   };
 
-  const mailingStyle = {
-    width: "336px", // Rough estimate of 3.5 inches in pixels
-    height: "144px", // Rough estimate of 1.5 inches in pixels
-    position: "relative",
-  };
-
-  const addressStyle = {
-    position: "absolute",
-    left: `${leftPosition}px`,
-    top: `${topPosition}px`, // Top position set based on user input
-    fontSize: `${fontSize}px`,
-    color: "black",
-    width: `${columnWidth}px`,
-    wordWrap: "break-word",
-    whiteSpace: "normal",
-    overflowWrap: "break-word",
-  };
+  const selectedRows = table.getSelectedRowModel().rows;
+  const totalAddress = selectedRows.length;
+  const addressPerColumn = Math.ceil(totalAddress / 2);
 
   const generatePrintHTML = () => {
+    const column1 = selectedRows.slice(0, addressPerColumn);
+    const column2 = selectedRows.slice(addressPerColumn);
+
+    const labelHtml = [column1, column2]
+      .map(
+        (column, colIndex) => `
+      <div class="column" style="position: absolute; left: ${
+        leftPosition + colIndex * (columnWidth + 20)
+      }px; top: ${topPosition}px;">
+        ${column
+          .map(
+            (row, rowIndex) => `
+          <div class="address-container" style="top: ${
+            rowIndex * addressHeight
+          }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
+            ${
+              row.original.areaCode
+                ? `<p>${row.original.id} ${row.original.areaCode}</p>`
+                : ""
+            }
+            <p>${getFullName(row.original)}</p>
+            <p>${row.original.address}</p>
+            <p>${getContactNumber(row.original)}</p>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    `
+      )
+      .join("");
+
     return `
       <html>
         <head>
@@ -59,8 +62,8 @@ const Mailing = ({
           <style>
             .mailing-label {
               position: relative;
-              width: 350px;
-              height: 400px;
+              width: ${columnWidth * 2 + 40}px; 
+              height: ${topPosition + addressHeight * addressPerColumn}px;
             }
             .address-container {
               left: ${leftPosition}px;
@@ -72,6 +75,8 @@ const Mailing = ({
               white-space: normal;
               overflow-wrap: break-word;
               position: absolute;
+              margin-bottom: 20px; 
+
             }
             .address-container p {
               margin: 0;
@@ -81,14 +86,9 @@ const Mailing = ({
         </head>
         <body>
           <div class="mailing-label">
-            <div class="address-container">
-              ${areaCode ? `<p>${id} ${areaCode}</p>` : ""}
-              <p>${getFullName()}</p>
-              <p>${editableAddress}</p>
-              <p>${getContactNumber()}</p>
-            </div>
+            ${labelHtml}
           </div>
-          <script>
+            <script>
             window.print();
             window.close();
           </script>
@@ -132,7 +132,7 @@ const Mailing = ({
     <div className="flex justify-between">
       <Button
         onClick={toggleModal}
-        className="text-sm bg-green-600 hover:bg-green-800"
+        className="text-sm bg-green-600 hover:bg-green-800 "
       >
         Print
       </Button>
@@ -182,27 +182,81 @@ const Mailing = ({
         <div className="flex flex-col items-center ">
           <div
             className="mailing-label border border-gray-400"
-            style={mailingStyle}
-          >
-            <div className="address-container" style={addressStyle}>
-              <p>
-                {id}-{areaCode}
-              </p>
-              <p>{getFullName()}</p>
-              <p>
-                {editableAddress} {zipcode}
-              </p>
-              <p>{getContactNumber()}</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => {
-              handlePrint();
+            style={{
+              width: `${columnWidth * 2 + 40}px`,
+              height: `${topPosition + addressHeight * addressPerColumn}px`,
+              position: "relative",
+              marginBottom: "10px",
             }}
-            className="bg-black hover:bg-green-500 mt-4"
           >
-            Print
-          </Button>
+            {selectedRows.slice(0, addressPerColumn).map((row, index) => (
+              <div
+                key={row.id}
+                className="address-container text-black"
+                style={{
+                  position: "absolute",
+                  left: `${leftPosition}px`,
+                  top: `${topPosition + index * addressHeight}px`,
+                  fontSize: `${fontSize}px`,
+                  width: `${columnWidth}px`,
+                  wordWrap: "break-word",
+                  whiteSpace: "normal",
+                  overflowWrap: "break-word",
+                  marginBottom: "20px",
+                }}
+              >
+                {row.original.areaCode && (
+                  <p>
+                    {row.original.id} {row.original.areaCode}
+                  </p>
+                )}
+                <p>{getFullName(row.original)}</p>
+                <p>{row.original.address}</p>
+                <p>{getContactNumber(row.original)}</p>
+              </div>
+            ))}
+            {selectedRows.slice(addressPerColumn).map((row, index) => (
+              <div
+                key={row.id}
+                className="address-container text-black"
+                style={{
+                  position: "absolute",
+                  left: `${leftPosition + columnWidth + 20}px`,
+                  top: `${topPosition + index * addressHeight}px`,
+                  fontSize: `${fontSize}px`,
+                  width: `${columnWidth}px`,
+                  wordWrap: "break-word",
+                  whiteSpace: "normal",
+                  overflowWrap: "break-word",
+                  marginBottom: "20px",
+                }}
+              >
+                {row.original.areaCode && (
+                  <p>
+                    {row.original.id} {row.original.areaCode}
+                  </p>
+                )}
+                <p>{getFullName(row.original)}</p>
+                <p>{row.original.address}</p>
+                <p>{getContactNumber(row.original)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-center space-x-5">
+            <Button
+              onClick={handlePrint}
+              className="bg-black hover:bg-green-500 mt-4"
+            >
+              Print
+            </Button>
+
+            <Button
+              onClick={closeModal}
+              className="bg-black hover:bg-red-500 mt-4"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>
