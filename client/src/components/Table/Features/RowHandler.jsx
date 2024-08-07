@@ -2,7 +2,7 @@ import { useState } from "react";
 
 export const useRowHandlers = () => {
   const [hoverRowMetadata, setHoverRowMetadata] = useState(null);
-  const [selectedRow, setSelectedRow] = useState(null);
+  const [editRow, setEditRow] = useState(null);
 
   const handleRowHover = (rowData) => {
     const { original } = rowData;
@@ -10,24 +10,23 @@ export const useRowHandlers = () => {
     setHoverRowMetadata({ metadata, adduser, adddate });
   };
 
-  const handleRowClick = (rowData) => {
+  const handleRowClick = (event, rowData) => {
+    const isCheckboxClick = event.target.closest(".checkbox-cell");
     const rowValues = rowData.original;
-    if (selectedRow && selectedRow.id === rowValues.id) {
-      setSelectedRow(null);
-      setTimeout(() => {
-        setSelectedRow(rowValues);
-      }, 1);
+
+    if (isCheckboxClick) {
+      rowData.toggleSelected();
     } else {
-      setSelectedRow(rowValues);
+      setEditRow(rowValues);
     }
   };
 
   return {
     hoverRowMetadata,
-    selectedRow,
+    editRow,
     handleRowHover,
     handleRowClick,
     setHoverRowMetadata,
-    setSelectedRow,
+    setEditRow,
   };
 };
