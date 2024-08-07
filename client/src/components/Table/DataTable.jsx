@@ -7,6 +7,7 @@ import { PaginationComponent } from "./Features/Pagination";
 import { useTableLogic } from "./TableLogic";
 import { useDataFetching } from "./TableDataFetch";
 import { TableComponent } from "./TableComponent";
+import Mailing from "../mailing";
 
 export default function DataTable({
   columns,
@@ -15,6 +16,8 @@ export default function DataTable({
   pageSize,
   page,
   setPage,
+  rowSelection,
+  setRowSelection,
   usePagination = false,
   useHoverCard = false,
   enableEdit = false,
@@ -35,20 +38,22 @@ export default function DataTable({
     columns,
     usePagination,
     page,
-    pageSize
+    pageSize,
+    rowSelection,
+    setRowSelection
   );
   const {
     hoverRowMetadata,
-    selectedRow,
+    editRow,
     handleRowHover,
     handleRowClick,
     setHoverRowMetadata,
-    setSelectedRow,
+    setEditRow,
   } = useRowHandlers();
 
   const closeModal = () => {
     setShowModal(false);
-    setSelectedRow(null);
+    setEditRow(null);
   };
 
   if (loading) {
@@ -86,9 +91,9 @@ export default function DataTable({
         />
       )}
 
-      {enableEdit && selectedRow && EditComponent && (
+      {enableEdit && editRow && EditComponent && (
         <EditComponent
-          rowData={selectedRow}
+          rowData={editRow}
           onDelete={onDelete}
           onClose={closeModal}
           showModal={showModal}
@@ -102,6 +107,7 @@ export default function DataTable({
           adddate={hoverRowMetadata.adddate}
         />
       )}
+      {table.getSelectedRowModel().rows.length > 0 && <Mailing table={table} />}
     </>
   );
 }
