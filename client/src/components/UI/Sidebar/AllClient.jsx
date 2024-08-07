@@ -34,6 +34,7 @@ export default function AllClient() {
   const handlePageSizeChange = (e) => {
     setPageSize(Number(e.target.value));
     setPage(1);
+    setRowSelection({});
     fetchClients(setClientData, 1, Number(e.target.value));
   };
 

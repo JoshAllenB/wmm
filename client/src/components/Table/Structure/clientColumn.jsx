@@ -5,7 +5,7 @@ export const columns = [
   {
     id: "select",
     header: ({ table }) => (
-      <div>
+      <div className="checkbox-cell">
         <Checkbox
           checked={
             table.getIsAllPageRowsSelected() ||
@@ -19,17 +19,19 @@ export const columns = [
       </div>
     ),
     cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => {
-          row.toggleSelected(!!value);
-        }}
-        aria-label="Select row"
-      />
+      <div className="checkbox-cell">
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => {
+            row.toggleSelected(!!value);
+          }}
+          aria-label="Select row"
+        />
+      </div>
     ),
     enableSorting: false,
     enableHiding: false,
-    size: 20, // Example size
+    size: 20,
   },
   { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
   {
