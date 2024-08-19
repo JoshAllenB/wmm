@@ -2,7 +2,35 @@ import { useState } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 
-const Mailing = ({ table }) => {
+const Mailing = ({
+  table,
+  id,
+  address,
+  areaCode,
+  zipcode,
+  lname,
+  fname,
+  mname,
+  contactnos,
+  cellno,
+  officeno,
+}) => {
+  const selectedRows = table?.getSelectedRowModel?.()?.rows || [
+    {
+      original: {
+        id,
+        address,
+        areaCode,
+        zipcode,
+        lname,
+        fname,
+        mname,
+        contactnos,
+        cellno,
+        ofcno: officeno,
+      },
+    },
+  ];
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
   const [topPosition, setTopPosition] = useState(10); // Initial state for top position
@@ -18,7 +46,6 @@ const Mailing = ({ table }) => {
     return row.contactnos || row.cellno || row.ofcno || "";
   };
 
-  const selectedRows = table.getSelectedRowModel().rows;
   const totalAddress = selectedRows.length;
   const addressPerColumn = Math.ceil(totalAddress / 2);
 
@@ -47,11 +74,11 @@ const Mailing = ({ table }) => {
             <p>${row.original.address}</p>
             <p>${getContactNumber(row.original)}</p>
           </div>
-        `
+        `,
           )
           .join("")}
       </div>
-    `
+    `,
       )
       .join("");
 
@@ -62,7 +89,7 @@ const Mailing = ({ table }) => {
           <style>
             .mailing-label {
               position: relative;
-              width: ${columnWidth * 2 + 40}px; 
+              width: ${columnWidth * 2 + 40}px;
               height: ${topPosition + addressHeight * addressPerColumn}px;
             }
             .address-container {
@@ -75,7 +102,7 @@ const Mailing = ({ table }) => {
               white-space: normal;
               overflow-wrap: break-word;
               position: absolute;
-              margin-bottom: 20px; 
+              margin-bottom: 20px;
 
             }
             .address-container p {
@@ -191,7 +218,7 @@ const Mailing = ({ table }) => {
           >
             {selectedRows.slice(0, addressPerColumn).map((row, index) => (
               <div
-                key={row.id}
+                key={`col1-${row.original.id || index}`}
                 className="address-container text-black"
                 style={{
                   position: "absolute",
@@ -217,7 +244,7 @@ const Mailing = ({ table }) => {
             ))}
             {selectedRows.slice(addressPerColumn).map((row, index) => (
               <div
-                key={row.id}
+                key={`col2-${row.original.id || index}`}
                 className="address-container text-black"
                 style={{
                   position: "absolute",
