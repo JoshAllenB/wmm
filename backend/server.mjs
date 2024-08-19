@@ -11,6 +11,7 @@ import initWebSocket from "./websocket.mjs"; // New import for WebSocket logic
 
 import userRoutes from "./middleware/users/Users.mjs";
 import clientsRoutes from "./middleware/wmm/Clients.mjs";
+import hrgRoutes from "./middleware/hrg/Hrg.mjs";
 
 dotenv.config();
 
@@ -37,7 +38,7 @@ const io = new Server(server, {
   },
 });
 
-mongoose.set("debug", false);
+mongoose.set("debug", true);
 
 initWebSocket(io);
 
@@ -49,6 +50,7 @@ const attachIO = (req, res, next) => {
 app.use("/auth", attachIO, userAuthRouter);
 app.use("/users", attachIO, userRoutes);
 app.use("/clients", attachIO, clientsRoutes);
+app.use("/hrg", attachIO, hrgRoutes);
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 

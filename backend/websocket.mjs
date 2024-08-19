@@ -6,6 +6,10 @@ const initWebSocket = (io) => {
       console.log("Data update received", data);
     });
 
+    socket.on("hrg-update", (data) => {
+      console.log("HRG update received", data);
+    });
+
     socket.on("user-update", (data) => {
       console.log("User update received:", data);
     });
