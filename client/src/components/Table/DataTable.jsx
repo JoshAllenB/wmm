@@ -40,7 +40,7 @@ export default function DataTable({
     page,
     pageSize,
     rowSelection,
-    setRowSelection
+    setRowSelection,
   );
   const {
     hoverRowMetadata,
