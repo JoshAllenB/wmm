@@ -20,6 +20,10 @@ export const SocketProvider = ({ children }) => {
       setSocketData(data);
     });
 
+    newSocket.on("hrg-update", (data) => {
+      setSocketData(data);
+    });
+
     newSocket.on("user-update", (data) => {
       setSocketData(data);
     });
