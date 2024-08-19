@@ -7,6 +7,7 @@ import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
+import Hrg from "./UI/Sidebar/Hrg";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
 import ActivityMonitor from "../utils/ActivityMonitor";
@@ -91,6 +92,12 @@ export default function App() {
                       path="/all-client"
                       element={
                         isLoggedIn ? <AllClient /> : <Navigate to="/" replace />
+                      }
+                    />
+                    <Route
+                      path="/hrg"
+                      element={
+                        isLoggedIn ? <Hrg /> : <Navigate to="/" replace />
                       }
                     />
                     <Route
