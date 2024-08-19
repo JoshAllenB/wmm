@@ -38,7 +38,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
       subscriptionEnd: "",
       copies: "",
     }),
-    []
+    [],
   );
 
   const [formData, setFormData] = useState(initialFormData);
