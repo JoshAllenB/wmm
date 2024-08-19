@@ -31,7 +31,7 @@ router.get("/", async (req, res) => {
 
     const clients = await ClientModel.find()
       .select(
-        "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata"
+        "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata",
       )
       .sort({ id: -1 })
       .limit(limit)
@@ -116,7 +116,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const updatedClient = await ClientModel.findOneAndUpdate(
       { id },
       updatedClientData,
-      { new: true }
+      { new: true },
     );
     if (!updatedClient) {
       return res.status(404).json({ error: "Client not found" });
