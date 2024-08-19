@@ -86,6 +86,7 @@ export default function MenuSidebar() {
               <MenuItem component={<Link to="/all-client" />}>
                 All Clients
               </MenuItem>
+              <MenuItem component={<Link to="/hrg" />}>HRG</MenuItem>
               <MenuItem>Inactive Clients</MenuItem>
               <MenuItem>Archived Clients</MenuItem>
             </SubMenu>
