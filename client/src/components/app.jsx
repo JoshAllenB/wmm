@@ -11,7 +11,7 @@ import Hrg from "./UI/Sidebar/Hrg";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
 import ActivityMonitor from "../utils/ActivityMonitor";
-import { SocketProvider } from "../utils/Websocket/websocket";
+import { SocketProvider } from "../utils/Websocket/SocketProvider";
 import Modal from "./modal";
 
 export default function App() {
