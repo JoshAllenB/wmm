@@ -10,13 +10,13 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.userId = decoded.userId; // Set userId in request for later use
+    req.userId = decoded.userId;
     const user = await User.findById(decoded.userId);
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
-    req.user = user; // Set user object in request for later use
-    next(); // Proceed to the next middleware or route handler
+    req.user = user;
+    next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({ error: "Token expired", expired: true });
