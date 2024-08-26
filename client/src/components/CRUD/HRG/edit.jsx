@@ -5,9 +5,6 @@ import Delete from "./delete";
 import InputField from "../input";
 import axios from "axios";
 
-import io from "socket.io-client";
-const socket = io("http://localhost:3001");
-
 const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
   const initialFormData = useMemo(
     () => ({
@@ -33,13 +30,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
       ...rowData,
     });
 
-    socket.emit("hrg-update", {
-      type: "update",
-      data: {
-        ...initialFormData,
-        ...rowData,
-      },
-    });
     setShowModal(true);
   }, [rowData, initialFormData]);
 
