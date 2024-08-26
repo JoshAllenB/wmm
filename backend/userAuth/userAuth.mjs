@@ -30,13 +30,12 @@ router.post("/login", async (req, res) => {
     console.error("Login error:", loginResult.error);
     res.status(401).json(loginResult);
   } else {
-    const expiresIn = 30;
     const token = jwt.sign(
       { userId: loginResult.user._id },
       process.env.JWT_SECRET,
       {
-        expiresIn: `${expiresIn}s`,
-      }
+        expiresIn: "1h",
+      },
     );
 
     const refreshToken = jwt.sign(
@@ -44,9 +43,11 @@ router.post("/login", async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: "7d",
-      }
+      },
     );
-    res.status(200).json({ ...loginResult, token, refreshToken, expiresIn });
+    res
+      .status(200)
+      .json({ ...loginResult, token, refreshToken, expiresIn: "1h" });
   }
 });
 
@@ -100,7 +101,7 @@ router.post("/refreshToken", async (req, res) => {
   }
 
   try {
-    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
     const user = await User.findById(decoded.userId);
     if (!user) {
       return res.status(401).json({ error: "User Not Found" });
@@ -111,7 +112,8 @@ router.post("/refreshToken", async (req, res) => {
     });
     const newRefreshToken = jwt.sign(
       { userId: user._id },
-      process.env.REFRESH_TOKEN_SECRET
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: "7d" },
     );
     res.json({ token: newToken, refreshToken: newRefreshToken });
   } catch (err) {
