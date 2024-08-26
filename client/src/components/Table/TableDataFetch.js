@@ -1,4 +1,3 @@
-// useDataFetching.js
 import { useState, useEffect } from "react";
 import io from "socket.io-client";
 
@@ -30,6 +29,10 @@ export function useDataFetching(fetchFunction, page, pageSize) {
       handleDataUpdate(updateData);
     });
 
+    socket.on("hrg-update", (updateData) => {
+      handleDataUpdate(updateData);
+    });
+
     socket.on("user-update", (updateData) => {
       handleDataUpdate(updateData);
     });
@@ -37,8 +40,8 @@ export function useDataFetching(fetchFunction, page, pageSize) {
     socket.on("user_status_change", ({ userId, status }) => {
       setData((prevData) =>
         prevData.map((user) =>
-          user._id === userId ? { ...user, status: { status } } : user
-        )
+          user._id === userId ? { ...user, status: { status } } : user,
+        ),
       );
     });
 
@@ -56,12 +59,12 @@ export function useDataFetching(fetchFunction, page, pageSize) {
           return prevData.map((item) =>
             item._id === updateData.data._id || item.id === updateData.data.id
               ? updateData.data
-              : item
+              : item,
           );
         case "delete":
           return prevData.filter(
             (item) =>
-              item.id !== updateData.data._id && item.id !== updateData.data.id
+              item.id !== updateData.data._id && item.id !== updateData.data.id,
           );
         case "init":
           return updateData.data;
