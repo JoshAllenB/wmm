@@ -10,14 +10,14 @@ import { Input } from "../ShadCN/input";
 export default function Hrg() {
   // const theme = useTheme();
 
-  const [hrgData, setHrgData] = useState([]);
+  const [, setHrgData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    fetchHrg(setHrgData, page, pageSize);
+    fetchHrg((data) => setHrgData(data), page, pageSize);
   }, [page, pageSize]);
 
   const handlePageSizeChange = (e) => {
@@ -65,7 +65,6 @@ export default function Hrg() {
       </div>
       <div>
         <DataTable
-          data={hrgData}
           fetchFunction={fetchHrg}
           columns={columns}
           filtering={filtering}
