@@ -10,8 +10,9 @@ export const fetchHrg = async (setHrgData, page = 1) => {
     allHrg = [...allHrg, ...response.data];
     page++;
 
-    setHrgData(allHrg);
+    return allHrg; // Return the fetched data
   } catch (e) {
     console.error("Error fetching hrg data:", e);
+    throw e; // Throw the error so it can be caught in useDataFetching
   }
 };
