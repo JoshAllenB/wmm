@@ -5,6 +5,7 @@ import initWebSocket from "../../websocket.mjs";
 import ClientModel from "../../models/clients.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/users.mjs";
+import WmmModel from "../../models/wmm.mjs";
 
 const server = http.createServer();
 const io = new Server(server, {
@@ -22,41 +23,91 @@ initWebSocket(io);
 router.get("/", async (req, res) => {
   const io = req.io;
   try {
-    const { page = 1, limit = 1000 } = req.query;
+    const { page = 1, pageSize = 20, filter = "" } = req.query;
 
-    const startIndex = (page - 1) * limit;
+    const startIndex = (page - 1) * pageSize;
 
-    const totalClients = await ClientModel.find().countDocuments();
-    const totalPages = Math.ceil(totalClients / limit);
+    const numericFilter = Number(filter);
+    const isNumeric = !isNaN(numericFilter);
 
-    const clients = await ClientModel.find()
+    const filterQuery = {
+      $or: [
+        ...(isNumeric ? [{ id: numericFilter }] : []),
+        { lname: { $regex: filter, $options: "i" } },
+        { fname: { $regex: filter, $options: "i" } },
+        { mname: { $regex: filter, $options: "i" } },
+        { sname: { $regex: filter, $options: "i" } },
+        { email: { $regex: filter, $options: "i" } },
+      ],
+    };
+
+    const totalClients = await ClientModel.countDocuments(filterQuery);
+
+    const totalPages = Math.ceil(totalClients / pageSize);
+
+    const wmmData = await WmmModel.aggregate([
+      {
+        $project: {
+          _id: 0,
+          clientid: 1,
+          subsdate: 1,
+          enddate: 1,
+          renewdate: 1,
+          subsyear: 1,
+          copies: 1,
+        },
+      },
+      {
+        $group: {
+          _id: "$clientid",
+          records: { $push: "$$ROOT" },
+        },
+      },
+    ]);
+
+    const clients = await ClientModel.find(filterQuery)
       .select(
         "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata",
       )
       .sort({ id: -1 })
-      .limit(limit)
+      .limit(Number(pageSize))
       .skip(startIndex);
 
-    const clientsWithMetadata = clients.map((client) => ({
-      ...client._doc,
+    const combinedData = clients.map((client) => {
+      const wmmRecords = wmmData.find((item) => item._id === client.id) || {
+        records: [],
+      };
 
-      adduser: client.adduser,
-      adddate: client.adddate,
-      metadata: {
-        addedBy: client.metadata.addedBy,
-        addedAt: client.metadata.addedAt
-          ? new Date(client.metadata.addedAt)
-          : new Date(),
-        editedBy: client.metadata.editedBy,
-        editedAt: client.metadata.editedAt,
-      },
-    }));
+      const flattenedWmmData = wmmRecords.records.map((record) => ({
+        subsdate: record.subsdate,
+        enddate: record.enddate,
+        renewdate: record.renewdate,
+        subsyear: record.subsyear,
+        copies: record.copies,
+      }));
 
-    res.header("X-Total-Count", totalClients);
-    res.header("X-Current-Page", page);
-    res.header("X-Total-Pages", totalPages);
-    io.emit("data-update", { type: "init", data: clients });
-    res.json(clientsWithMetadata);
+      return {
+        ...client.toObject(),
+        wmmData: flattenedWmmData.map((record) => ({
+          ...record,
+          adduser: record.adduser,
+          adddate: record.adddate,
+          metadata: {
+            addedBy: record.metadata?.addedBy || client.metadata?.addedBy,
+            addedAt: record.metadata?.addedAt
+              ? new Date(record.metadata.addedAt)
+              : client.metadata?.addedAt || new Date(),
+            editedBy: record.metadata?.editedBy || client.metadata?.editedBy,
+            editedAt: record.metadata?.editedAt
+              ? new Date(record.metadata.editedAt)
+              : client.metadata?.editedAt,
+          },
+        })),
+      };
+    });
+
+    io.emit("data-update", { type: "init", data: combinedData });
+    res.json({ totalPages, combinedData });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
