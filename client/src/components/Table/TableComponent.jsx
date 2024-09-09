@@ -30,19 +30,15 @@ export function TableComponent({
               <TableHead
                 key={header.id}
                 onClick={header.column.getToggleSortingHandler()}
-                className={`sticky top-0 ${
-                    theme.palette.mode === "dark"
-                      ? "bg-gray-700"
-                      : "bg-gray-400"
-                  }`}
+                className={`text-center sticky top-0 ${
+                  theme.palette.mode === "dark" ? "bg-gray-700" : "bg-gray-400"
+                }`}
               >
                 {flexRender(
                   header.column.columnDef.header,
-                  header.getContext()
+                  header.getContext(),
                 )}
-                {header.column.getIsSorted() === "asc" && (
-                  <ArrowDropUpSharp />
-                )}
+                {header.column.getIsSorted() === "asc" && <ArrowDropUpSharp />}
                 {header.column.getIsSorted() === "desc" && (
                   <ArrowDropDownSharp />
                 )}
@@ -69,18 +65,32 @@ export function TableComponent({
                 <TableCell
                   key={cell.id}
                   style={{ width: cell.column.columnDef.size }}
-                  className={
+                  className={`text-center ${
                     cell.column.id === "select" ? "checkbox-cell" : ""
-                  }
+                  }`}
                 >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  {cell.column.id === "Subscription" &&
+                  Array.isArray(cell.getValue()) ? (
+                    <ul style={{ paddingLeft: "20px" }}>
+                      {cell.getValue().map((sub, index) => (
+                        <li key={index}>
+                          {sub.subsdate}, {sub.enddate}, {sub.copies}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    flexRender(cell.column.columnDef.cell, cell.getContext())
+                  )}
                 </TableCell>
               ))}
             </TableRow>
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={table.getVisibleLeafColumns().length}>
+            <TableCell
+              colSpan={table.getVisibleLeafColumns().length}
+              className="text-center"
+            >
               No data
             </TableCell>
           </TableRow>
