@@ -14,7 +14,7 @@ export function useTableLogic(
   page,
   pageSize,
   rowSelection,
-  setRowSelection
+  setRowSelection,
 ) {
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
