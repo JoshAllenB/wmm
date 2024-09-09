@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 // Create a new connection for the "wmm_client" database
 const clientConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_client"
+  "mongodb://127.0.0.1:27017/wmm_client",
 );
 
 const ClientSchema = new mongoose.Schema(
@@ -45,7 +45,7 @@ const ClientSchema = new mongoose.Schema(
   },
   {
     versionKey: false,
-  }
+  },
 );
 
 const ClientModel = clientConnection.model("clients", ClientSchema);

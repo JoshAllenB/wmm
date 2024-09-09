@@ -1,16 +1,8 @@
 import mongoose from "mongoose";
 
 const hrgConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_client"
+  "mongodb://127.0.0.1:27017/wmm_client",
 );
-
-hrgConnection.on("connected", () => {
-  console.log("Mongoose connected to wmm_client");
-});
-
-hrgConnection.on("error", (err) => {
-  console.error("Mongoose connection error:", err);
-});
 
 const HrgSchema = new mongoose.Schema(
   {
@@ -25,8 +17,8 @@ const HrgSchema = new mongoose.Schema(
   },
   {
     versionKey: false,
-    collection: "hrg", 
-  }
+    collection: "hrg",
+  },
 );
 
 const HrgModel = hrgConnection.model("hrg", HrgSchema);
