@@ -10,8 +10,9 @@ import userAuthRouter from "./userAuth/userAuth.mjs";
 import initWebSocket from "./websocket.mjs"; // New import for WebSocket logic
 
 import userRoutes from "./middleware/users/Users.mjs";
-import clientsRoutes from "./middleware/wmm/Clients.mjs";
+import clientsRoutes from "./middleware/clients/Clients.mjs";
 import hrgRoutes from "./middleware/hrg/Hrg.mjs";
+import wmmRoutes from "./middleware/wmm/wmm.mjs";
 
 dotenv.config();
 
@@ -25,7 +26,7 @@ app.use(
     origin: "http://localhost:5173",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-  })
+  }),
 );
 
 const server = http.createServer(app);
@@ -38,7 +39,7 @@ const io = new Server(server, {
   },
 });
 
-mongoose.set("debug", true);
+mongoose.set("debug", false);
 
 initWebSocket(io);
 
@@ -51,6 +52,7 @@ app.use("/auth", attachIO, userAuthRouter);
 app.use("/users", attachIO, userRoutes);
 app.use("/clients", attachIO, clientsRoutes);
 app.use("/hrg", attachIO, hrgRoutes);
+app.use("/wmm", attachIO, wmmRoutes);
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
