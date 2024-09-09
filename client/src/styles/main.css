@@ -7,13 +7,13 @@ body,
 #root,
 .app,
 .content {
-  height: 100%;
-  width: 100%;
-  font-family: "Roboto", sans-serif;
+    height: 100%;
+    width: 100%;
+    font-family: "Roboto", sans-serif;
 }
 
 .app {
-  display: flex;
-  position: relative;
-  height: 100vh;
+    display: flex;
+    position: relative;
+    height: 100vh;
 }
