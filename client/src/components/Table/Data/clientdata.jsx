@@ -2,17 +2,20 @@ import axios from "axios";
 
 export const clientData = []; // Initialize as empty array
 
-export const fetchClients = async (setClientData, page = 1) => {
+export const fetchClients = async (
+  setClientData,
+  page = 1,
+  pageSize = 20,
+  filter = "",
+) => {
   try {
-    let allClients = [];
-
     const response = await axios.get(
-      `http://localhost:3001/clients?page=${page}`,
+      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(filter)}`,
     );
-    allClients = [...allClients, ...response.data];
-    page++;
+    const { totalPages, combinedData } = response.data;
 
-    return allClients;
+    setClientData(combinedData);
+    return { page, totalPages };
   } catch (e) {
     console.error("Error fetching client data:", e);
     throw e;
