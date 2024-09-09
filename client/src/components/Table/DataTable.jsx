@@ -16,12 +16,13 @@ export default function DataTable({
   pageSize,
   page,
   setPage,
+  totalPages,
   rowSelection,
   setRowSelection,
   usePagination = false,
   useHoverCard = false,
   enableEdit = false,
-  EditComponent = null,
+  ViewComponent = null,
   onDelete = null,
 }) {
   const theme = useTheme();
@@ -86,13 +87,15 @@ export default function DataTable({
       {usePagination && (
         <PaginationComponent
           table={table}
+          page={page}
+          totalPages={totalPages}
           handlePreviousPage={() => setPage((prev) => Math.max(1, prev - 1))}
           handleNextPage={() => setPage((prev) => prev + 1)}
         />
       )}
 
-      {enableEdit && editRow && EditComponent && (
-        <EditComponent
+      {enableEdit && editRow && ViewComponent && (
+        <ViewComponent
           rowData={editRow}
           onDelete={onDelete}
           onClose={closeModal}
