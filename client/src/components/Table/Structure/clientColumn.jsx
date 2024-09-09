@@ -31,59 +31,65 @@ export const columns = [
     ),
     enableSorting: false,
     enableHiding: false,
-    size: 20,
+    size: 10,
   },
   { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
   {
     id: "Name",
     Header: "Name",
     accessorFn: (row) =>
-      `${row.sname} ${row.lname} ${row.fname} ${row.mname} ${row.title}`,
-    size: 150,
+      `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${row.fname || ""} ${row.mname || ""}`,
+    size: 350,
   },
-  {
-    id: "Birth Date",
-    Header: "Birth Date",
-    accessorFn: (row) => row.bdate,
-    size: 300,
-  },
-  {
-    id: "Company",
-    Header: "Company",
-    accessorFn: (row) => row.company,
-    size: 100,
-  },
-  {
-    id: "Address",
-    Header: "Address",
-    accessorFn: (row) => {
-      const { street, city, barangay, address } = row;
-      const concatAddress = `${street || ""} ${city || ""} ${
-        barangay || ""
-      }`.trim();
-      return concatAddress || address;
-    },
-    size: 1500,
-  },
+  // {
+  //   id: "Birth Date",
+  //   Header: "Birth Date",
+  //   accessorFn: (row) => row.bdate,
+  //   size: 300,
+  // },
+  // {
+  //   id: "Company",
+  //   Header: "Company",
+  //   accessorFn: (row) => row.company,
+  //   size: 100,
+  // },
+  // {
+  //   id: "Address",
+  //   Header: "Address",
+  //   accessorFn: (row) => {
+  //     const { street, city, barangay, address } = row;
+  //     const concatAddress = `${street || ""} ${city || ""} ${
+  //       barangay || ""
+  //     }`.trim();
+  //     return concatAddress || address;
+  //   },
+  //   size: 1500,
+  // },
   {
     id: "Zipcode",
     Header: "Zipcode",
     accessorFn: (row) => row.zipcode,
-    size: 50,
-  },
-  { id: "Area", Header: "Area", accessorFn: (row) => row.area, size: 100 },
-  {
-    id: "Area Code",
-    Header: "Area Code",
-    accessorFn: (row) => row.acode,
-    size: 100,
+    size: 20,
   },
   {
-    id: "Contact Information",
-    Header: "Contact Info",
-    accessorFn: (row) => `${row.contactnos} ${row.cellno} ${row.ofcno}`,
-    size: 500,
+    id: "Area",
+    Header: "Area",
+    accessorFn: (row) => `${row.area} (${row.acode})`,
+    size: 250,
   },
+  // {
+  //   id: "Area Code",
+  //   Header: "Area Code",
+  //   accessorFn: (row) => row.acode,
+  //   size: 100,
+  // },
+  // {
+  //   id: "Contact Information",
+  //   Header: "Contact Info",
+  //   accessorFn: (row) =>
+  //     `${row.contactnos || ""} ${row.cellno || ""} ${row.ofcno || ""}`,
+  //   size: 500,
+  // },
   { id: "Type", Header: "Type", accessorFn: (row) => row.type, size: 100 },
   { id: "Group", Header: "Group", accessorFn: (row) => row.group, size: 100 },
   {
@@ -91,32 +97,32 @@ export const columns = [
     Header: "Remarks",
     accessorFn: (row) => row.remarks,
     enableResizing: true,
-    size: 300, // Adjust the size as needed
+    size: 200, // Adjust the size as needed
   },
   {
     id: "Subscription",
     Header: "Subscription",
     accessorFn: (row) => {
-      const { subscriptionFreq, subscriptionStart, subscriptionEnd, copies } =
-        row;
-      if (
-        !subscriptionFreq &&
-        !subscriptionStart &&
-        !subscriptionEnd &&
-        !copies
-      ) {
-        return "";
-      }
-      if (
-        !subscriptionFreq ||
-        !subscriptionStart ||
-        !subscriptionEnd ||
-        !copies
-      ) {
-        return "";
-      }
-      return `${subscriptionFreq} Months: ${subscriptionStart} ${subscriptionEnd} Copies: ${copies}`;
+      const subscriptionData = row.wmmData || [];
+
+      return subscriptionData.map((subscription) => {
+        let { subsdate, enddate, copies } = subscription;
+
+        if (subsdate) {
+          subsdate = `Start Date: ${new Date(subsdate).toLocaleDateString("en-US")}`;
+        } else {
+          subsdate = "N/A";
+        }
+
+        if (enddate) {
+          enddate = `End Date: ${new Date(enddate).toLocaleDateString("en-US")}`;
+        } else {
+          enddate = "N/A";
+        }
+
+        return { subsdate, enddate, copies: `Copies: ${copies || "N/A"}` }; // Return as an object
+      });
     },
-    size: 250,
+    size: 650,
   },
 ];
