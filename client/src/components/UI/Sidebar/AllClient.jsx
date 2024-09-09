@@ -16,7 +16,8 @@ import { useTheme } from "@mui/material";
 import { fetchClients } from "../../Table/Data/clientdata";
 import { columns } from "../../Table/Structure/clientColumn";
 import { useState, useEffect } from "react";
-import Edit from "../../CRUD/AllClient/edit";
+import View from "../../CRUD/AllClient/view";
+// import Edit from "../../CRUD/AllClient/edit";
 
 export default function AllClient() {
   const theme = useTheme();
@@ -26,21 +27,35 @@ export default function AllClient() {
   const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
 
   useEffect(() => {
-    fetchClients((data) => setClientData(data), page, pageSize);
-  }, [page, pageSize]);
+    const fetchData = async () => {
+      try {
+        const { totalPages } = await fetchClients(
+          setClientData,
+          page,
+          pageSize,
+          filtering,
+        );
+        setTotalPages(totalPages);
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+    fetchData();
+  }, [page, pageSize, filtering]);
 
   const handlePageSizeChange = (e) => {
     setPageSize(Number(e.target.value));
     setPage(1);
     setRowSelection({});
-    fetchClients(setClientData, 1, Number(e.target.value));
+    // fetchClients(setClientData, 1, Number(e.target.value));
   };
 
   const handleDeleteSuccess = (deletedId) => {
     setClientData((prevData) =>
-      prevData.filter((client) => client.id !== deletedId)
+      prevData.filter((client) => client.id !== deletedId),
     );
     fetchClients((data) => setClientData(data), page, pageSize);
   };
@@ -91,12 +106,13 @@ export default function AllClient() {
         setPageSize={setPageSize}
         page={page}
         setPage={setPage}
+        totalPages={totalPages}
         usePagination={true}
         useHoverCard={true}
         enableRowClick={true}
         enableEdit={true}
-        EditComponent={(props) => (
-          <Edit {...props} onDeleteSuccess={handleDeleteSuccess} />
+        ViewComponent={(props) => (
+          <View {...props} onDeleteSuccess={handleDeleteSuccess} />
         )}
       />
     </div>
