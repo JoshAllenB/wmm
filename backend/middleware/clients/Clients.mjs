@@ -23,9 +23,8 @@ initWebSocket(io);
 router.get("/", async (req, res) => {
   const io = req.io;
   try {
-    const { page = 1, pageSize = 20, filter = "" } = req.query;
-
-    const startIndex = (page - 1) * pageSize;
+    const { page = 1, limit = 1000, pageSize = 20, filter = "" } = req.query;
+    const skip = (page - 1) * pageSize;
 
     const numericFilter = Number(filter);
     const isNumeric = !isNaN(numericFilter);
@@ -37,74 +36,62 @@ router.get("/", async (req, res) => {
         { fname: { $regex: filter, $options: "i" } },
         { mname: { $regex: filter, $options: "i" } },
         { sname: { $regex: filter, $options: "i" } },
-        { email: { $regex: filter, $options: "i" } },
       ],
     };
 
-    const totalClients = await ClientModel.countDocuments(filterQuery);
+    const [totalClients, clients, wmmData] = await Promise.all([
+      ClientModel.countDocuments(filterQuery),
+      ClientModel.find(filterQuery)
+        .select(
+          "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata",
+        )
+        .sort({ id: -1 })
+        .limit(limit)
+        .skip(skip)
+        .lean(),
+      WmmModel.aggregate([
+        {
+          $group: {
+            _id: "$clientid",
+            records: {
+              $push: {
+                subsdate: "$subsdate",
+                enddate: "$enddate",
+                renewdate: "$renewdate",
+                subsyear: "$subsyear",
+                copies: "$copies",
+                adduser: "$adduser",
+                adddate: "$adddate",
+                metadata: "$metadata",
+              },
+            },
+          },
+        },
+      ]),
+    ]);
 
     const totalPages = Math.ceil(totalClients / pageSize);
 
-    const wmmData = await WmmModel.aggregate([
-      {
-        $project: {
-          _id: 0,
-          clientid: 1,
-          subsdate: 1,
-          enddate: 1,
-          renewdate: 1,
-          subsyear: 1,
-          copies: 1,
+    const wmmDataMap = new Map(wmmData.map((item) => [item._id, item.records]));
+
+    const combinedData = clients.map((client) => ({
+      ...client,
+      wmmData: (wmmDataMap.get(client.id) || []).map((record) => ({
+        ...record,
+        metadata: {
+          addedBy:
+            record.metadata?.addedBy || client.metadata?.addedBy || "Unknown", // Provide a fallback if addedBy is undefined
+          addedAt: record.metadata?.addedAt
+            ? new Date(record.metadata.addedAt)
+            : client.metadata?.addedAt || new Date(),
+          editedBy:
+            record.metadata?.editedBy || client.metadata?.editedBy || "Unknown", // Fallback if editedBy is undefined
+          editedAt: record.metadata?.editedAt
+            ? new Date(record.metadat.editedAt)
+            : client.metadata?.editedAt,
         },
-      },
-      {
-        $group: {
-          _id: "$clientid",
-          records: { $push: "$$ROOT" },
-        },
-      },
-    ]);
-
-    const clients = await ClientModel.find(filterQuery)
-      .select(
-        "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser subscriptionFreq subscriptionStart subscriptionEnd copies metadata",
-      )
-      .sort({ id: -1 })
-      .limit(Number(pageSize))
-      .skip(startIndex);
-
-    const combinedData = clients.map((client) => {
-      const wmmRecords = wmmData.find((item) => item._id === client.id) || {
-        records: [],
-      };
-
-      const flattenedWmmData = wmmRecords.records.map((record) => ({
-        subsdate: record.subsdate,
-        enddate: record.enddate,
-        renewdate: record.renewdate,
-        subsyear: record.subsyear,
-        copies: record.copies,
-      }));
-
-      return {
-        ...client.toObject(),
-        wmmData: flattenedWmmData.map((record) => ({
-          ...record,
-          adduser: record.adduser,
-          adddate: record.adddate,
-          metadata: {
-            addedBy: record.metadata?.addedBy || client.metadata?.addedBy,
-            addedAt: record.metadata?.addedAt
-              ? new Date(record.metadata.addedAt)
-              : client.metadata?.addedAt || new Date(),
-            editedBy: record.metadata?.editedBy || client.metadata?.editedBy,
-            editedAt: record.metadata?.editedAt
-              ? new Date(record.metadata.editedAt)
-              : client.metadata?.editedAt,
-          },
-        })),
-      };
-    });
+      })),
+    }));
 
     io.emit("data-update", { type: "init", data: combinedData });
     res.json({ totalPages, combinedData });
