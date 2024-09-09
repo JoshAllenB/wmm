@@ -4,6 +4,8 @@ import { useTheme } from "@mui/material";
 
 export const PaginationComponent = ({
   table,
+  page,
+  totalPages,
   handlePreviousPage,
   handleNextPage,
 }) => {
@@ -34,6 +36,9 @@ export const PaginationComponent = ({
       >
         Next
       </Button>
+      <span className="">
+        Page {page} of {totalPages}
+      </span>
     </div>
   );
 };
