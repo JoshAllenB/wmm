@@ -1,9 +1,10 @@
-// client.mjs
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-// Create a new connection for the "wmm_client" database
+dotenv.config();
+
 const clientConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_client",
+  process.env.MONGODB_URI_CLIENT,
 );
 
 const ClientSchema = new mongoose.Schema(

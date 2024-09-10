@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-const wmmConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_client",
-);
+dotenv.config();
+
+const wmmConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
 
 const WmmSchema = new mongoose.Schema(
   {

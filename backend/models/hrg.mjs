@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
+import dotenv from "dotenv";
 
-const hrgConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_client",
-);
+dotenv.config();
+
+const hrgConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
 
 const HrgSchema = new mongoose.Schema(
   {

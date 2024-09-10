@@ -2,11 +2,12 @@
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // Create a new connection for the "wmm_user" database
-const userConnection = mongoose.createConnection(
-  "mongodb://127.0.0.1:27017/wmm_user"
-);
+const userConnection = mongoose.createConnection(process.env.MONGODB_URI_USER);
 
 const UsersSchema = new mongoose.Schema(
   {
@@ -27,14 +28,13 @@ const UsersSchema = new mongoose.Schema(
     },
     salt: String,
     lastLoginAt: Date,
-
     status: {
       type: String,
       enum: ["Active", "Inactive", "Logged Off"],
       default: "Inactive",
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: "users" },
 );
 
 UsersSchema.virtual("password")
