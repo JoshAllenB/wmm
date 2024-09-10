@@ -1,4 +1,4 @@
-import UserModel from "../models/users.mjs";
+import UserModel from "../models/userControl/users.mjs";
 
 const logoutUser = async (userId, io) => {
   try {

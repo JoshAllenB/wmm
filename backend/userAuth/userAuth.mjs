@@ -6,7 +6,7 @@ import loginUser from "./login.mjs";
 import registerUser from "./register.mjs";
 import logoutUser from "./logout.mjs";
 import verifyToken from "./verifyToken.mjs";
-import User from "../models/users.mjs";
+import User from "../models/userControl/users.mjs";
 import jwt from "jsonwebtoken";
 
 const server = http.createServer();

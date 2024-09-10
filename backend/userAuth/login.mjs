@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import http from "http";
 import { Server } from "socket.io";
-import UserModel from "../models/users.mjs";
+import UserModel from "../models/userControl/users.mjs";
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
