@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import initWebSocket from "../../websocket.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
-import UserModel from "../../models/users.mjs";
+import UserModel from "../../models/userControl/users.mjs";
 
 const server = http.createServer();
 const io = new Server(server, {
