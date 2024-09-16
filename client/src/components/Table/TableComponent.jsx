@@ -12,27 +12,20 @@ import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
 
 export function TableComponent({
   table,
-  theme,
   handleRowHover,
   handleRowClick,
   setHoverRowmetadata,
 }) {
   return (
     <Table>
-      <TableHeader
-        className={
-          theme.palette.mode === "dark" ? "bg-gray-700" : "bg-gray-400"
-        }
-      >
+      <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
               <TableHead
                 key={header.id}
                 onClick={header.column.getToggleSortingHandler()}
-                className={`text-center sticky top-0 ${
-                  theme.palette.mode === "dark" ? "bg-gray-700" : "bg-gray-400"
-                }`}
+                className="text-center bg-blue-500 text-white sticky top-0"
               >
                 {flexRender(
                   header.column.columnDef.header,
@@ -52,11 +45,7 @@ export function TableComponent({
           table.getRowModel().rows.map((row) => (
             <TableRow
               key={row.id}
-              className={
-                theme.palette.mode === "dark"
-                  ? "hover:bg-gray-600 cursor-pointer"
-                  : "hover:bg-gray-300 cursor-pointer"
-              }
+              className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer"
               onMouseEnter={() => handleRowHover(row)}
               onMouseLeave={() => setHoverRowmetadata(null)}
               onClick={(event) => handleRowClick(event, row)}
@@ -65,7 +54,7 @@ export function TableComponent({
                 <TableCell
                   key={cell.id}
                   style={{ width: cell.column.columnDef.size }}
-                  className={`text-center ${
+                  className={`text-center${
                     cell.column.id === "select" ? "checkbox-cell" : ""
                   }`}
                 >
@@ -89,7 +78,7 @@ export function TableComponent({
           <TableRow>
             <TableCell
               colSpan={table.getVisibleLeafColumns().length}
-              className="text-center"
+              className="text-center text-2xl"
             >
               No data
             </TableCell>
