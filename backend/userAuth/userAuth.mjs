@@ -8,6 +8,7 @@ import logoutUser from "./logout.mjs";
 import verifyToken from "./verifyToken.mjs";
 import User from "../models/userControl/users.mjs";
 import jwt from "jsonwebtoken";
+import { Role, Permission } from "../models/userControl/role.mjs";
 
 const server = http.createServer();
 const io = new Server(server, {
@@ -24,30 +25,48 @@ initWebSocket(io);
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  const loginResult = await loginUser(username, password);
+  console.log("Login requested received for:", username);
 
-  if (loginResult.error) {
-    console.error("Login error:", loginResult.error);
-    res.status(401).json(loginResult);
-  } else {
-    const token = jwt.sign(
-      { userId: loginResult.user._id },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1h",
-      },
-    );
+  try {
+    const loginResult = await loginUser(username, password);
+    console.log("Login Result:", loginResult);
 
+    if (loginResult.error) {
+      console.error("Login error:", loginResult.error);
+      return res.status(401).json(loginResult);
+    }
+
+    const { user, role } = loginResult;
+    console.log("User found:", user.username); // log the user object
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
     const refreshToken = jwt.sign(
-      { userId: loginResult.user._id },
+      { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: "7d",
       },
     );
-    res
-      .status(200)
-      .json({ ...loginResult, token, refreshToken, expiresIn: "1h" });
+    console.log("Token and refresh token generated"); // log after token generation
+
+    // Check if the user has a role
+    const response = {
+      ...loginResult,
+      token,
+      refreshToken,
+      expiresIn: "1h",
+    };
+
+    if (!role) {
+      response.warning = "User role not assigned. Please contact the admin.";
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -55,7 +74,10 @@ router.post("/register", async (req, res) => {
   const registerResult = await registerUser(req.body);
   if (registerResult.error) {
     const statusCode =
-      registerResult.error === "DuplicateUsernameError" ? 409 : 400;
+      registerResult.error === "DuplicateUsernameError" ||
+      registerResult.error === "Role Not Found"
+        ? 409
+        : 400;
     res.status(statusCode).json(registerResult);
   } else {
     res.status(200).json(registerResult);
@@ -79,18 +101,38 @@ router.post("/verifyToken", async (req, res) => {
   const token = req.body.token;
 
   if (!token) {
+    console.log("No token provided");
     return res.status(401).json({ error: "No token provided" });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).populate({
+      path: "role",
+      model: Role,
+      populate: { path: "permissions", model: Permission },
+    });
     if (!user) {
       return res.status(401).json({ error: "User Not Found" });
     }
-    res.json({ valid: true, user: { id: user._id, username: user.username } });
+    res.json({
+      valid: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        role: user.role ? user.role.name : "No Role Assigned",
+        permissions: user.role ? user.role.permissions.map((p) => p.name) : [],
+      },
+    });
   } catch (err) {
-    res.status(401).json({ error: "Invalid token" });
+    if (err instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ error: "Token expired", expired: true });
+    }
+    if (err instanceof jwt.JsonWebTokenError) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+    console.error("Token verification error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

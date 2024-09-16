@@ -1,4 +1,5 @@
 import UserModel from "../models/userControl/users.mjs";
+import { Role } from "../models/userControl/role.mjs";
 
 const registerUser = async (userData) => {
   try {

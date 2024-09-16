@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import http from "http";
 import { Server } from "socket.io";
 import UserModel from "../models/userControl/users.mjs";
+import { Permission } from "../models/userControl/role.mjs";
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -20,14 +21,23 @@ const io = new Server(server, {
 });
 
 const loginUser = async (username, password) => {
+  console.log("Attempting login for user:", username); // log the username
+
   try {
-    const user = await UserModel.findOne({ username });
+    const user = await UserModel.findOne({ username: "admin" }).populate({
+      path: "role",
+      populate: {
+        path: "permissions",
+      },
+    });
+    console.log("User lookup result:", user); // log the user lookup result
 
     if (!user) {
+      console.log("User not found");
       return { error: "Invalid username or password" };
     }
-
     if (!user.authenticate(password)) {
+      console.log("Password authentication failed");
       return { error: "Invalid username or password" };
     }
 
@@ -38,6 +48,7 @@ const loginUser = async (username, password) => {
     io.emit("user_status_change", { userId: user._id, status: "Active" });
 
     const token = generateToken(user._id);
+    console.log("JWT token generated:", token); // log the generated token
 
     return {
       token,
@@ -51,7 +62,7 @@ const loginUser = async (username, password) => {
       },
     };
   } catch (err) {
-    console.error(err);
+    console.error("Error during login process:", err); // log any caught error
     return { error: "Internal Server Error" };
   }
 };
