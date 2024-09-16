@@ -14,6 +14,7 @@ import validateToken from "../Token/validateToken";
 import io from "socket.io-client";
 import { setTokens } from "../Token/tokenStorage";
 import { ActivityContext } from "../ActivityMonitor";
+import { useApiResponseToast } from "../../components/UI/apiResponse";
 
 const socket = io("http://localhost:3001");
 
@@ -24,6 +25,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
   const [activeTab, setActiveTab] = useState("account");
   const navigate = useNavigate();
   const resetActivityTimer = useContext(ActivityContext);
+  const handleApiResponse = useApiResponseToast();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -65,6 +67,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
         username,
         password,
       });
+      handleApiResponse(result.data);
 
       if (result.data.token) {
         setTokens(result.data.token, result.data.refreshToken); // Make sure to pass both tokens
@@ -80,26 +83,33 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
         resetActivityTimer();
       } else {
-        setErrorMessage(result.data.error);
+        setErrorMessage(
+          result.data.error || "An error occurred. Please try again later.",
+        );
       }
     } catch (err) {
-      console.error("error:", err);
-      if (err.response && err.response.status === 401) {
-        console.error(err);
-        setErrorMessage("Incorrect Password");
+      console.error("Error in login request:", err); // log error if there's an exception
+      if (err.response) {
+        console.error("Error response from server:", err.response.data); // log response error details
+        if (err.response.status === 401) {
+          setErrorMessage("Incorrect username or password.");
+        } else {
+          setErrorMessage(
+            `An error occurred: ${err.response.data.message || "Unknown error"}`,
+          );
+        }
       } else {
-        console.error(err);
         setErrorMessage("An error occurred. Please try again later.");
       }
     }
   };
 
   return (
-    <div className="flex min-h-full flex-1 flex-col justify-center items-center ">
+    <div className="flex min-h-full flex-1 flex-col justify-center items-center">
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="w-[400px] h-[400px] bg-white-700 rounded-md bg-clip-padding backdrop-filter backdrop-blur-lg bg-opacity-60 border border-gray-100 "
+        className="w-[400px] h-[400px] rounded-md border-2"
       >
         <TabsList className="flex gap-[80px] p-7 rounded-md">
           <TabsTrigger
@@ -111,7 +121,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
           </TabsTrigger>
           <TabsTrigger
             value="register"
-            className="font-roboto text-xl  py-1 rounded-md"
+            className="font-roboto text-xl py-1 rounded-md"
             onClick={() => handleTabChange("register")}
           >
             Register
@@ -120,7 +130,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
         <TabsContent value="account" className="m-10 ">
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="username">
-              <label className="block text-sm font-medium leading-6 text-gray-200">
+              <label className="block text-lg font-medium leading-6 ">
                 Username:
               </label>
               <div className="mt-2">
@@ -129,12 +139,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
                   value={username}
                   autoComplete={username}
                   onChange={handleUsernameChange}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  className="block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                 />
               </div>
             </div>
             <div className="password">
-              <label className="block text-sm font-medium leading-6 text-gray-200">
+              <label className="block text-lg font-medium leading-6">
                 Password:
               </label>
               <div className="mt-2">
@@ -142,13 +152,16 @@ const LoginPage = ({ setIsLoggedIn }) => {
                   type="password"
                   value={password}
                   onChange={handlePasswordChange}
-                  className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  className="block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                 />
               </div>
             </div>
             {errorMessage && <p className="text-red-500">{errorMessage}</p>}
 
-            <Button type="submit" className="bg-gray-700 border">
+            <Button
+              type="submit"
+              className="w-[100px] h-[40px] bg-blue-600 hover:bg-blue-800 border text-white text-lg "
+            >
               Login
             </Button>
           </form>

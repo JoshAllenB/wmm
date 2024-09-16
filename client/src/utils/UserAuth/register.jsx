@@ -48,7 +48,7 @@ const RegisterPage = ({ onSuccess }) => {
     >
       <TabsContent value="account">
         <form onSubmit={handleSubmit} className="space-y-3 w-[350px]">
-          <label className="block text-sm font-medium leading-6 text-gray-200">
+          <label className="block text-sm font-medium leading-6">
             Username:
           </label>
           <input
@@ -57,7 +57,7 @@ const RegisterPage = ({ onSuccess }) => {
             onChange={handleUsernameChange}
             className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
           />
-          <label className="block text-sm font-medium leading-6 text-gray-200">
+          <label className="block text-sm font-medium leading-6 ">
             Password:
           </label>
           <input
@@ -66,7 +66,7 @@ const RegisterPage = ({ onSuccess }) => {
             onChange={handlePasswordChange}
             className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
           />
-          <label className="block text-sm font-medium leading-6 text-gray-200">
+          <label className="block text-sm font-medium leading-6 ">
             Confirm Password:
           </label>
           <input
@@ -76,7 +76,7 @@ const RegisterPage = ({ onSuccess }) => {
             className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
           />
           {errorMessage && <p className="error-message">{errorMessage}</p>}
-          <Button type="submit" className="bg-gray-700 border">
+          <Button type="submit" className="bg-gray-700 border text-white">
             Register
           </Button>
         </form>

@@ -12,29 +12,36 @@ const validateToken = async () => {
   if (!token) {
     return false;
   }
-
   try {
     const response = await axios.post(
       "http://localhost:3001/auth/verifyToken",
-      { token }
+      { token },
     );
     if (response.data.valid) {
       setAuthToken(token);
       return response.data.user;
     }
   } catch (error) {
-    if (
-      error.response &&
-      error.response.status === 401 &&
-      error.response.data.expired
-    ) {
-      console.error("Token expired, attempting refresh...");
-      return await refreshAndValidate();
+    console.error("Full error object:", error);
+    if (error.response) {
+      console.error("Response data:", error.response.data);
+      console.error("Response status:", error.response.status);
+      console.error("Response headers:", error.response.headers);
+
+      if (error.response.status === 401) {
+        if (error.response.data.expired) {
+          console.log("Token expired, attempting refresh...");
+          return await refreshAndValidate();
+        } else if (error.response.data.error === "Invalid token") {
+          console.error("Invalid token");
+          removeTokens();
+          return false;
+        }
+      }
     }
     console.error("Token validation error:", error);
     removeTokens();
   }
-
   return false;
 };
 
@@ -49,7 +56,7 @@ const refreshAndValidate = async () => {
   try {
     const refreshResponse = await axios.post(
       "http://localhost:3001/auth/refreshToken",
-      { refreshToken }
+      { refreshToken },
     );
     const { token, refresthToken: newRefreshToken } = refreshResponse.data;
     setTokens(token, newRefreshToken);
@@ -57,7 +64,7 @@ const refreshAndValidate = async () => {
 
     const newValidResponse = await axios.post(
       "http://localhost:3001/auth/verifyToken",
-      { token }
+      { token },
     );
     if (newValidResponse.data.valid) {
       return newValidResponse.data.user;
