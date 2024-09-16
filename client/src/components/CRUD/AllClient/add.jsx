@@ -65,7 +65,7 @@ const Add = ({ fetchClients }) => {
       // Check if the current month is April or May
       if (today.getMonth() === 3 || today.getMonth() === 4) {
         subscriptionStart.setMonth(
-          subscriptionStart.getMonth() + monthsToAdd + 1
+          subscriptionStart.getMonth() + monthsToAdd + 1,
         );
       } else {
         subscriptionStart.setMonth(subscriptionStart.getMonth() + monthsToAdd);
@@ -99,7 +99,6 @@ const Add = ({ fetchClients }) => {
       formData.acode,
     ];
 
-    // Filter out empty components
     const address = addressComponents.filter(Boolean).join(", ");
 
     const submissionData = {
@@ -148,7 +147,7 @@ const Add = ({ fetchClients }) => {
     <div>
       <Button
         onClick={openModal}
-        className="bg-green-600 mb-4 hover:bg-green-700"
+        className="bg-green-600 mb-4 hover:bg-green-700 text-white"
       >
         Add Client
       </Button>

@@ -11,7 +11,6 @@
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
-import { useTheme } from "@mui/material";
 
 import { fetchClients } from "../../Table/Data/clientdata";
 import { columns } from "../../Table/Structure/clientColumn";
@@ -20,8 +19,6 @@ import View from "../../CRUD/AllClient/view";
 // import Edit from "../../CRUD/AllClient/edit";
 
 export default function AllClient() {
-  const theme = useTheme();
-
   const [, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const [pageSize, setPageSize] = useState(20);
@@ -50,7 +47,6 @@ export default function AllClient() {
     setPageSize(Number(e.target.value));
     setPage(1);
     setRowSelection({});
-    // fetchClients(setClientData, 1, Number(e.target.value));
   };
 
   const handleDeleteSuccess = (deletedId) => {
@@ -82,10 +78,6 @@ export default function AllClient() {
             value={pageSize}
             onChange={handlePageSizeChange}
             className="text-center border-2 border-secondary bg-inherit w-[60px]"
-            style={{
-              backgroundColor: theme.palette.background.default,
-              color: theme.palette.text.primary,
-            }}
           >
             <option value="10">10</option>
             <option value="20">20</option>

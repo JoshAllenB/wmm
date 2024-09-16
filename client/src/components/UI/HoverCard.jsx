@@ -38,7 +38,7 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
   let addedAt = metadata?.addedAt || adddate || "No data";
   const editedBy = metadata?.editedBy || "No data";
   let editedAt = metadata?.editedAt || "No data";
-  
+
   addedAt =
     addedAt === "No data" ? "No data" : new Date(addedAt).toLocaleString();
   editedAt =
@@ -46,7 +46,7 @@ const HoverCard = ({ metadata, adduser, adddate }) => {
 
   return (
     <div
-      className="fixed z-50 p-4 max-w-md max-h-64 rounded-md bg-clip-padding backdrop-filter backdrop-blur-lg bg-opacity-0 border border-slate-500"
+      className="fixed z-50 p-4 max-w-md max-h-64 rounded-md shadow-xl bg-clip-padding backdrop-filter backdrop-blur-lg bg-opacity-0 border border-slate-300"
       style={{
         left: position.x,
         top: position.y,
