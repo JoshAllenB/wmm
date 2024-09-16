@@ -3,10 +3,10 @@ import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import dotenv from "dotenv";
+import { Role } from "./role.mjs";
 
 dotenv.config();
-
-// Create a new connection for the "wmm_user" database
+console.log("users.mjs", process.env.MONGODB_URI_USER);
 const userConnection = mongoose.createConnection(process.env.MONGODB_URI_USER);
 
 const UsersSchema = new mongoose.Schema(
@@ -22,9 +22,9 @@ const UsersSchema = new mongoose.Schema(
       required: true,
     },
     role: {
-      type: String,
-      enum: ["Admin", "Editor", "Viewer"],
-      default: "Viewer",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      required: false,
     },
     salt: String,
     lastLoginAt: Date,
