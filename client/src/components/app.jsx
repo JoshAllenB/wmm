@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { ColorModeContext, useMode } from "./UI/Theme/theme.utils";
-import { CssBaseline, ThemeProvider } from "@mui/material";
+import { CssBaseline } from "@mui/material";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Topbar from "./UI/Topbar";
 import Sidebar from "./UI/Sidebar/Sidebar";
@@ -13,9 +13,10 @@ import { syncTokens } from "../utils/Token/tokenStorage";
 import ActivityMonitor from "../utils/ActivityMonitor";
 import { SocketProvider } from "../utils/Websocket/SocketProvider";
 import Modal from "./modal";
+import { Toaster } from "../components/UI/ShadCN/toaster";
 
 export default function App() {
-  const [theme, colorMode] = useMode();
+  const [colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +56,7 @@ export default function App() {
 
   return (
     <ColorModeContext.Provider value={colorMode}>
-      <ThemeProvider theme={theme}>
+      <>
         <CssBaseline />
         <SocketProvider>
           <ActivityMonitor
@@ -114,9 +115,10 @@ export default function App() {
                 </div>
               </div>
             </BrowserRouter>
+            <Toaster />
           </ActivityMonitor>
         </SocketProvider>
-      </ThemeProvider>
+      </>
     </ColorModeContext.Provider>
   );
 }
