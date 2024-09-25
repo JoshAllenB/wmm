@@ -1,5 +1,4 @@
 import UserModel from "../models/userControl/users.mjs";
-import { Role } from "../models/userControl/role.mjs";
 
 const registerUser = async (userData) => {
   try {
@@ -12,14 +11,24 @@ const registerUser = async (userData) => {
         message: "Username already taken",
       };
     }
-
-    const user = await UserModel.create(userData);
-    await user.save();
-    return { user };
+    const newUser = new UserModel({
+      username: userData.username,
+      email: userData.email,
+      password: userData.password, // This will be hashed by the pre-save middleware
+      status: "Active",
+    });
+    await newUser.save();
+    return {
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+        status: newUser.status,
+      },
+    };
   } catch (err) {
-    return err.name === "ValidationError"
-      ? { error: "ValidationError", message: err.message }
-      : { error: "RegistrationFailedError", message: err.message };
+    console.error("Error during registration process:", err);
+    return { error: "RegistrationFailedError", message: err.message };
   }
 };
 
