@@ -3,6 +3,7 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import Delete from "./delete";
 import Mailing from "../../mailing";
+import { useUser } from "../../../utils/Hooks/userProvider";
 
 const View = ({ rowData, onDeleteSuccess, onClose }) => {
   const initialFormData = useMemo(
@@ -38,6 +39,7 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
 
   const [formData, setFormData] = useState(initialFormData);
   const [showModal, setShowModal] = useState(false);
+  const { userData, hasPermission } = useUser();
 
   const closeModal = () => {
     setShowModal(false);
@@ -54,14 +56,14 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
 
   const renderField = (label, value) => (
     <div className="mb-2">
-      <span className="text-black font-bold">{label}:</span>{" "}
-      <span className="text-black">{value}</span>
+      <span className="text-black text-lg font-bold">{label}:</span>{" "}
+      <span className="text-black text-lg">{value}</span>
     </div>
   );
 
   const renderSection = (title, fields) => (
     <div className="flex flex-col mb-2 p-2">
-      <h1 className="text-black mb-2 font-bold">{title}</h1>
+      <h1 className="text-black text-xl mb-2 font-bold">{title}</h1>
       {fields.map((field, index) => (
         <div key={index}>{renderField(field.label, formData[field.name])}</div>
       ))}
@@ -117,11 +119,11 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
       {showModal && (
         <Modal isOpen={setShowModal} onClose={closeModal}>
           <div className="flex justify-between items-center mb-4 ">
-            <h2 className="flex flex-col text-xl font-bold text-black">
+            <h2 className="flex flex-col text-2xl font-bold text-black">
               Client Information
             </h2>
           </div>
-          <h1 className="text-black font-bold">Client ID: {formData.id}</h1>
+          <h1 className="text-black text-xl ">Client ID: {formData.id}</h1>
           <div className="grid grid-cols-2 gap-4 w-[600px]">
             {renderSection("Personal Info", [
               { label: "Last Name", name: "lname" },
@@ -134,12 +136,6 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
             ])}
 
             {renderSection("Address Info", [
-              { label: "Street", name: "street" },
-              { label: "Barangay", name: "barangay" },
-              { label: "City", name: "city" },
-              { label: "Zip Code", name: "zipcode" },
-              { label: "Area", name: "area" },
-              { label: "Area Code", name: "acode" },
               { label: "Address", name: "address" },
             ])}
 
@@ -165,23 +161,27 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
               </Button>
             </div>
             <div className="flex gap-1">
-              <Mailing
-                id={formData.id}
-                address={formData.address}
-                areaCode={formData.acode}
-                zipcode={formData.zipcode}
-                lname={formData.lname}
-                fname={formData.fname}
-                mname={formData.mname}
-                contactnos={formData.contactnos}
-                cellno={formData.cellno}
-                officeno={formData.ofcno}
-              />
-              <Delete
-                client={rowData}
-                onClose={onClose}
-                onDeleteSuccess={onDeleteSuccess}
-              />
+              {hasPermission("print_data") && (
+                <Mailing
+                  id={formData.id}
+                  address={formData.address}
+                  areaCode={formData.acode}
+                  zipcode={formData.zipcode}
+                  lname={formData.lname}
+                  fname={formData.fname}
+                  mname={formData.mname}
+                  contactnos={formData.contactnos}
+                  cellno={formData.cellno}
+                  officeno={formData.ofcno}
+                />
+              )}
+              {hasPermission("delete") && (
+                <Delete
+                  client={rowData}
+                  onClose={onClose}
+                  onDeleteSuccess={onDeleteSuccess}
+                />
+              )}
             </div>
           </div>
         </Modal>
