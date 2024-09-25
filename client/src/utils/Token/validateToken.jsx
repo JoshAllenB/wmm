@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as jwtDecode from "jwt-decode"; // Changed import statement
 import setAuthToken from "./setAuthToken";
 import {
   getAccessToken,
@@ -13,36 +14,38 @@ const validateToken = async () => {
     return false;
   }
   try {
-    const response = await axios.post(
-      "http://localhost:3001/auth/verifyToken",
-      { token },
-    );
-    if (response.data.valid) {
-      setAuthToken(token);
-      return response.data.user;
-    }
-  } catch (error) {
-    console.error("Full error object:", error);
-    if (error.response) {
-      console.error("Response data:", error.response.data);
-      console.error("Response status:", error.response.status);
-      console.error("Response headers:", error.response.headers);
+    const decodedToken = jwtDecode.jwtDecode(token); // Use jwtDecode.jwtDecode instead of jwt_decode
 
-      if (error.response.status === 401) {
-        if (error.response.data.expired) {
-          console.log("Token expired, attempting refresh...");
-          return await refreshAndValidate();
-        } else if (error.response.data.error === "Invalid token") {
-          console.error("Invalid token");
-          removeTokens();
-          return false;
-        }
-      }
+    // Check if the token is expired
+    if (Date.now() >= decodedToken.exp * 1000) {
+      console.log("Token expired, attempting refresh...");
+      return await refreshAndValidate();
     }
+
+    console.log("decoded:", {
+      id: decodedToken.userId,
+      username: decodedToken.username,
+      role: decodedToken.role,
+      permissions: decodedToken.permissions,
+    });
+
+    setAuthToken(token);
+    return {
+      id: decodedToken.userId,
+      username: decodedToken.username,
+      role: decodedToken.role,
+      permissions: decodedToken.permissions,
+    };
+  } catch (error) {
     console.error("Token validation error:", error);
-    removeTokens();
+    if (error.name === "InvalidTokenError") {
+      console.error("Invalid token");
+      removeTokens();
+      return false;
+    }
+    // If it's not an invalid token error, attempt to refresh
+    return await refreshAndValidate();
   }
-  return false;
 };
 
 const refreshAndValidate = async () => {
@@ -52,28 +55,27 @@ const refreshAndValidate = async () => {
     console.error("No refresh token found");
     return false;
   }
-
   try {
     const refreshResponse = await axios.post(
       "http://localhost:3001/auth/refreshToken",
       { refreshToken },
     );
-    const { token, refresthToken: newRefreshToken } = refreshResponse.data;
+    const { token, refreshToken: newRefreshToken } = refreshResponse.data;
     setTokens(token, newRefreshToken);
     setAuthToken(token);
 
-    const newValidResponse = await axios.post(
-      "http://localhost:3001/auth/verifyToken",
-      { token },
-    );
-    if (newValidResponse.data.valid) {
-      return newValidResponse.data.user;
-    }
+    // Decode the new token instead of making another API call
+    const decodedToken = jwtDecode.jwtDecode(token);
+    return {
+      id: decodedToken.userId,
+      username: decodedToken.username,
+      role: decodedToken.role,
+      permissions: decodedToken.permissions,
+    };
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
     removeTokens();
   }
-
   return false;
 };
 
