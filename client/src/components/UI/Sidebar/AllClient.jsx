@@ -16,6 +16,7 @@ import { fetchClients } from "../../Table/Data/clientdata";
 import { columns } from "../../Table/Structure/clientColumn";
 import { useState, useEffect } from "react";
 import View from "../../CRUD/AllClient/view";
+import { useUser } from "../../../utils/Hooks/userProvider";
 // import Edit from "../../CRUD/AllClient/edit";
 
 export default function AllClient() {
@@ -25,6 +26,7 @@ export default function AllClient() {
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const { userData, hasPermission } = useUser();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,7 +60,9 @@ export default function AllClient() {
 
   return (
     <div className="mr-[10px] ml-[10px]">
-      <Add fetchClients={() => fetchClients(setClientData)} />
+      {hasPermission("create") && (
+        <Add fetchClients={() => fetchClients(setClientData)} />
+      )}
       <div className="flex items-center content-center ">
         <div className="mr-2">
           <Input

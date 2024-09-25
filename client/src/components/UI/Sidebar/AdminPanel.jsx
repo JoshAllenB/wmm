@@ -11,7 +11,7 @@ export default function AdminPanel() {
 
   const handleDeleteSuccess = useCallback((deletedUserId) => {
     setUsers((prevUsers) =>
-      prevUsers.filter((user) => user._id !== deletedUserId)
+      prevUsers.filter((user) => user._id !== deletedUserId),
     );
     fetchUsers(setUsers);
   }, []);
