@@ -23,6 +23,7 @@ export default function DataTable({
   useHoverCard = false,
   enableEdit = false,
   ViewComponent = null,
+  EditComponent = null,
   onDelete = null,
 }) {
   const theme = useTheme();
@@ -96,6 +97,15 @@ export default function DataTable({
 
       {enableEdit && editRow && ViewComponent && (
         <ViewComponent
+          rowData={editRow}
+          onDelete={onDelete}
+          onClose={closeModal}
+          showModal={showModal}
+          setShowModal={setShowModal}
+        />
+      )}
+      {enableEdit && editRow && EditComponent && (
+        <EditComponent
           rowData={editRow}
           onDelete={onDelete}
           onClose={closeModal}
