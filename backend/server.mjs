@@ -14,6 +14,7 @@ import userRoutes from "./middleware/users/Users.mjs";
 import clientsRoutes from "./middleware/clients/Clients.mjs";
 import hrgRoutes from "./middleware/hrg/Hrg.mjs";
 import wmmRoutes from "./middleware/wmm/wmm.mjs";
+import roleRoutes from "./middleware/users/roleManagement.mjs";
 import axios from "axios";
 
 dotenv.config();
@@ -55,6 +56,7 @@ app.use("/users", attachIO, userRoutes);
 app.use("/clients", attachIO, clientsRoutes);
 app.use("/hrg", attachIO, hrgRoutes);
 app.use("/wmm", attachIO, wmmRoutes);
+app.use("/roles", attachIO, roleRoutes);
 
 const PSGC_API_BASE_URL = "https://psgc.gitlab.io/api";
 
