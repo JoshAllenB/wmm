@@ -9,18 +9,36 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
   const initialFormData = useMemo(
     () => ({
       username: "",
-      password: "",
+      oldpassword: "",
+      newpassword: "",
+      confirmpassword: "",
       role: "",
     }),
-    []
+    [],
   );
 
   const [formData, setFormData] = useState(initialFormData);
   const [showModal, setShowModal] = useState(false);
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [roles, setRoles] = useState([]);
 
   const closeModal = () => setShowModal(false);
 
   useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response = await axios.get("http://localhost:3001/roles", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        });
+        setRoles(response.data);
+      } catch (err) {
+        console.error("error fetching roles:", err);
+      }
+    };
+    fetchRoles();
+
     if (rowData) {
       setFormData({
         ...initialFormData,
@@ -46,15 +64,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
       throw new Error("Token not found");
     }
 
+    const dataToSend = {
+      username: formData.username,
+      role: formData.role,
+    };
+
+    if (showPasswordFields) {
+      dataToSend.oldpassword = formData.oldpassword;
+      dataToSend.newpassword = formData.newpassword;
+    }
+
     try {
       await axios.put(
         `http://localhost:3001/users/update/${rowData._id}`,
-        formData,
+        dataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       onClose();
       setShowModal(false);
@@ -79,14 +107,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
                 value={formData.username}
                 onChange={handleChange}
               />
-              <InputField
-                label="Password"
-                id="password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-              />
               <label className="block font-medium text-gray-700">Role:</label>
               <select
                 value={formData.role}
@@ -96,9 +116,49 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
                 className="mt-1 block w-full rounded-md text-center shadow-sm text-black border-gray-300 focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
               >
                 <option value="">Select Role</option>
-                <option value="Editor">Editor</option>
-                <option value="Viewer">Viewer</option>
+                {roles.map((role) => (
+                  <option key={role._id} value={role.name}>
+                    {role.name}
+                  </option>
+                ))}
               </select>
+              {!showPasswordFields && (
+                <Button
+                  type="Button"
+                  onClick={() => setShowPasswordFields(true)}
+                  className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                >
+                  Change Password
+                </Button>
+              )}
+              {showPasswordFields && (
+                <>
+                  <InputField
+                    label="Old Password"
+                    id="oldpassword"
+                    name="oldpassword"
+                    type="password"
+                    value={formData.oldpassword}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="New Password"
+                    id="newpassword"
+                    name="newpassword"
+                    type="password"
+                    value={formData.newpassword}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="Confirm New Password"
+                    id="confirmpassword"
+                    name="confirmpassword"
+                    type="password"
+                    value={formData.confirmpassword}
+                    onChange={handleChange}
+                  />
+                </>
+              )}
             </div>
           </form>
           <div className="mt-4 flex justify-between">
