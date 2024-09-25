@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { ColorModeContext, useMode } from "./UI/Theme/theme.utils";
 import { CssBaseline } from "@mui/material";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Topbar from "./UI/Topbar";
@@ -14,14 +13,15 @@ import ActivityMonitor from "../utils/ActivityMonitor";
 import { SocketProvider } from "../utils/Websocket/SocketProvider";
 import Modal from "./modal";
 import { Toaster } from "../components/UI/ShadCN/toaster";
+import { UserProvider } from "../utils/Hooks/userProvider.jsx";
 
 export default function App() {
-  const [colorMode] = useMode();
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [inactivityTimeout, setInactivityTimeout] = useState(300); // Initial timeout of 5 minutes
+  const [userData, setUserData] = useState(null);
 
   const handleInactivity = (timeout) => {
     console.log(`Setting inactivity timeout to ${timeout} seconds`);
@@ -34,6 +34,7 @@ export default function App() {
       const user = await validateToken();
       if (user) {
         setIsLoggedIn(true);
+        setUserData(user);
       }
       setIsLoading(false);
     };
@@ -55,17 +56,17 @@ export default function App() {
   }
 
   return (
-    <ColorModeContext.Provider value={colorMode}>
-      <>
-        <CssBaseline />
-        <SocketProvider>
-          <ActivityMonitor
-            isLoggedIn={isLoggedIn}
-            setIsLoggedIn={setIsLoggedIn}
-            setErrorMessage={setErrorMessage}
-            inactivityTimeout={inactivityTimeout} // Pass inactivityTimeout here
-          >
-            <BrowserRouter>
+    <>
+      <CssBaseline />
+      <SocketProvider>
+        <ActivityMonitor
+          isLoggedIn={isLoggedIn}
+          setIsLoggedIn={setIsLoggedIn}
+          setErrorMessage={setErrorMessage}
+          inactivityTimeout={inactivityTimeout} // Pass inactivityTimeout here
+        >
+          <BrowserRouter>
+            <UserProvider initialUserData={userData}>
               <div className="app">
                 {isLoggedIn && <Sidebar isSidebar={isSidebar} />}
                 <div className="content">
@@ -114,11 +115,11 @@ export default function App() {
                   </Routes>
                 </div>
               </div>
-            </BrowserRouter>
-            <Toaster />
-          </ActivityMonitor>
-        </SocketProvider>
-      </>
-    </ColorModeContext.Provider>
+            </UserProvider>
+          </BrowserRouter>
+          <Toaster />
+        </ActivityMonitor>
+      </SocketProvider>
+    </>
   );
 }
