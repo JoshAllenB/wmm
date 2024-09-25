@@ -11,6 +11,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
+import AddressForm from "../../../utils/addressLogic";
 
 import InputField from "../input";
 
@@ -43,6 +44,13 @@ const Add = ({ fetchClients }) => {
     copies: "",
   });
 
+  const [addressData, setAddressData] = useState({
+    region: "",
+    province: "",
+    city: "",
+    barangay: "",
+  });
+
   const [showModal, setShowModal] = useState(false);
 
   const openModal = () => setShowModal(true);
@@ -62,7 +70,6 @@ const Add = ({ fetchClients }) => {
 
       const subscriptionStart = new Date(today);
 
-      // Check if the current month is April or May
       if (today.getMonth() === 3 || today.getMonth() === 4) {
         subscriptionStart.setMonth(
           subscriptionStart.getMonth() + monthsToAdd + 1,
@@ -87,16 +94,27 @@ const Add = ({ fetchClients }) => {
       [name]: value,
     });
   };
+
+  const handleAddressChange = (name, value) => {
+    setAddressData({
+      ...addressData,
+      [name]: value,
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const addressComponents = [
-      formData.street,
-      formData.barangay,
-      formData.city,
-      formData.zipcode,
       formData.area,
       formData.acode,
+      formData.zipcode,
+      formData.address,
+      formData.street,
+      addressData.region,
+      addressData.province,
+      addressData.city,
+      addressData.barangay,
     ];
 
     const address = addressComponents.filter(Boolean).join(", ");
@@ -104,9 +122,6 @@ const Add = ({ fetchClients }) => {
     const submissionData = {
       ...formData,
       address,
-      street: formData.street || undefined,
-      city: formData.city || undefined,
-      barangay: formData.barangay || undefined,
     };
 
     try {
@@ -137,6 +152,12 @@ const Add = ({ fetchClients }) => {
         subscriptionStart: "",
         subscriptionEnd: "",
         copies: "",
+      });
+      setAddressData({
+        region: "",
+        province: "",
+        city: "",
+        barangay: "",
       });
     } catch (error) {
       console.error("Error adding clients!", error);
@@ -221,6 +242,7 @@ const Add = ({ fetchClients }) => {
 
               <div className="flex flex-col mb-2 p-2">
                 <h1 className="text-black mb-2 font-bold">Address Info</h1>
+
                 <InputField
                   label="Street:"
                   id="street"
@@ -228,19 +250,20 @@ const Add = ({ fetchClients }) => {
                   value={formData.street}
                   onChange={handleChange}
                 />
+
                 <InputField
-                  label="Barangay:"
-                  id="barangay"
-                  name="barangay"
-                  value={formData.barangay}
+                  label="Area"
+                  id="area"
+                  name="area"
+                  value={formData.area}
                   onChange={handleChange}
                 />
 
                 <InputField
-                  label="City:"
-                  id="city"
-                  name="city"
-                  value={formData.city}
+                  label="Area Code"
+                  id="acode"
+                  name="acode"
+                  value={formData.acode}
                   onChange={handleChange}
                 />
 
@@ -252,20 +275,9 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                 />
 
-                <InputField
-                  label="Area:"
-                  id="area"
-                  name="area"
-                  value={formData.area}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Area Code:"
-                  id="acode"
-                  name="acode"
-                  value={formData.acode}
-                  onChange={handleChange}
+                <AddressForm
+                  onAddressChange={handleAddressChange}
+                  addressData={addressData}
                 />
               </div>
               <div className="flex flex-col mb-2 p-2">
