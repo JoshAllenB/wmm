@@ -21,23 +21,20 @@ const io = new Server(server, {
 });
 
 const loginUser = async (username, password) => {
-  console.log("Attempting login for user:", username); // log the username
-
   try {
-    const user = await UserModel.findOne({ username: "admin" }).populate({
+    const user = await UserModel.findOne({ username }).populate({
       path: "role",
       populate: {
         path: "permissions",
       },
     });
-    console.log("User lookup result:", user); // log the user lookup result
-
     if (!user) {
       console.log("User not found");
       return { error: "Invalid username or password" };
     }
-    if (!user.authenticate(password)) {
-      console.log("Password authentication failed");
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
       return { error: "Invalid username or password" };
     }
 
@@ -48,21 +45,20 @@ const loginUser = async (username, password) => {
     io.emit("user_status_change", { userId: user._id, status: "Active" });
 
     const token = generateToken(user._id);
-    console.log("JWT token generated:", token); // log the generated token
 
     return {
       token,
       user: {
-        _id: user._id,
+        id: user._id,
         username: user.username,
         email: user.email,
         role: user.role,
-        status: user.status.status,
+        status: user.status,
         lastLoginAt: user.lastLoginAt,
       },
     };
   } catch (err) {
-    console.error("Error during login process:", err); // log any caught error
+    console.error("Error during login process:", err);
     return { error: "Internal Server Error" };
   }
 };
