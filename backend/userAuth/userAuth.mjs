@@ -25,33 +25,39 @@ initWebSocket(io);
 
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  console.log("Login requested received for:", username);
-
+  console.log("Login request received for:", username);
   try {
     const loginResult = await loginUser(username, password);
     console.log("Login Result:", loginResult);
-
     if (loginResult.error) {
       console.error("Login error:", loginResult.error);
       return res.status(401).json(loginResult);
     }
+    const { user } = loginResult;
+    console.log("User found:", user.username);
+    console.log("User Role:", user.role);
 
-    const { user, role } = loginResult;
-    console.log("User found:", user.username); // log the user object
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const token = jwt.sign(
+      {
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+        permissions: user.role.permissions,
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1h",
+      },
+    );
     const refreshToken = jwt.sign(
-      { userId: user._id },
+      { userId: user.id },
       process.env.REFRESH_TOKEN_SECRET,
       {
         expiresIn: "7d",
       },
     );
-    console.log("Token and refresh token generated"); // log after token generation
+    console.log("Token and refresh token generated");
 
-    // Check if the user has a role
     const response = {
       ...loginResult,
       token,
@@ -59,7 +65,7 @@ router.post("/login", async (req, res) => {
       expiresIn: "1h",
     };
 
-    if (!role) {
+    if (!user.role) {
       response.warning = "User role not assigned. Please contact the admin.";
     }
 
@@ -71,16 +77,27 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-  const registerResult = await registerUser(req.body);
-  if (registerResult.error) {
-    const statusCode =
-      registerResult.error === "DuplicateUsernameError" ||
-      registerResult.error === "Role Not Found"
-        ? 409
-        : 400;
-    res.status(statusCode).json(registerResult);
-  } else {
-    res.status(200).json(registerResult);
+  console.log("Registration request received for:", req.body.username);
+  try {
+    const registerResult = await registerUser(req.body);
+    console.log("Registration Result:", registerResult);
+
+    if (registerResult.error) {
+      console.error("Registration error:", registerResult.error);
+      const statusCode =
+        registerResult.error === "DuplicateUsernameError" ? 409 : 400;
+      return res
+        .status(statusCode)
+        .json({ error: registerResult.error, message: registerResult.message });
+    }
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: registerResult.user,
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
