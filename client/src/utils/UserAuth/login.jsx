@@ -15,6 +15,8 @@ import io from "socket.io-client";
 import { setTokens } from "../Token/tokenStorage";
 import { ActivityContext } from "../ActivityMonitor";
 import { useApiResponseToast } from "../../components/UI/apiResponse";
+import { jwtDecode } from "jwt-decode";
+import { useUser } from "../Hooks/userProvider";
 
 const socket = io("http://localhost:3001");
 
@@ -23,6 +25,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [activeTab, setActiveTab] = useState("account");
+  const { setUserData } = useUser(); // Access setUserData from the context
   const navigate = useNavigate();
   const resetActivityTimer = useContext(ActivityContext);
   const handleApiResponse = useApiResponseToast();
@@ -32,6 +35,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
       const user = await validateToken();
       if (user) {
         setIsLoggedIn(true);
+        setUserData(user);
         navigate("/all-client");
       } else {
         setIsLoggedIn(false);
@@ -39,7 +43,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
     };
 
     checkAuth();
-  }, [navigate, setIsLoggedIn]);
+  }, [navigate, setIsLoggedIn, setUserData]);
 
   const handleUsernameChange = (e) => {
     setUsername(e.target.value);
@@ -70,11 +74,14 @@ const LoginPage = ({ setIsLoggedIn }) => {
       handleApiResponse(result.data);
 
       if (result.data.token) {
-        setTokens(result.data.token, result.data.refreshToken); // Make sure to pass both tokens
+        setTokens(result.data.token, result.data.refreshToken);
         setAuthToken(result.data.token);
 
-        setIsLoggedIn(true);
+        const decodedToken = jwtDecode(result.data.token);
 
+        setUserData(decodedToken);
+
+        setIsLoggedIn(true);
         navigate("/all-client");
         socket.emit("user_status_change", {
           userId: result.data.user._id,
