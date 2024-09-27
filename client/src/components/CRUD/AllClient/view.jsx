@@ -114,6 +114,50 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
     );
   };
 
+  const renderHrgData = () => {
+    const hrgData = formData.hrgData || [];
+    return (
+      <div className="flex flex-col mb-2 p-2 ">
+        <h1 className="text-black mb-2 font-bold">Payment History</h1>
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+          {hrgData.map((hrg, index) => {
+            let { recvdate, renewdate, campaigndate, paymtref, paymtamt, unsubscribe } = hrg;
+
+            return (
+              <div key={index}>
+                <div>
+                  <span className="text-black font-bold">Receive Date:</span>
+                  <span className="text-black">{recvdate}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Renew Date:</span>
+                  <span className="text-black">{renewdate}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Campaign Date:</span>
+                  <span className="text-black">{campaigndate}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Payment Ref:</span>
+                  <span className="text-black">{paymtref}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Payment Amount:</span>
+                  <span className="text-black">{paymtamt}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Unsubscribe:</span>
+                  <span className="text-black">{unsubscribe}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+
+  }
+
   return (
     <>
       {showModal && (
@@ -153,6 +197,7 @@ const View = ({ rowData, onDeleteSuccess, onClose }) => {
             ])}
 
             {renderSubscription()}
+            {renderHrgData()}
           </div>
           <div className="mt-4 flex justify-between">
             <div className="flex gap-1">
