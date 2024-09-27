@@ -11,6 +11,8 @@ const HrgSchema = new mongoose.Schema(
     clientid: Number,
     recvdate: String,
     renewdate: String,
+    campaigndate: String,
+    paymtref: Number,
     paymtamt: Number,
     unsubscribe: Number,
     adddate: String,
