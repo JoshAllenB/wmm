@@ -6,7 +6,7 @@ import ClientModel from "../../models/clients.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import WmmModel from "../../models/wmm.mjs";
-import fetchWmmData from "../apiLogic/wmm.mjs";
+import fetchAggregatedData from "../apiLogic/aggregatedData.mjs";
 import { checkRole } from "../users/checkRole.mjs";
 
 const server = http.createServer();
@@ -30,7 +30,7 @@ router.get(
     const io = req.io;
     const { page = 1, limit = 1000, pageSize = 20, filter = "" } = req.query;
     try {
-      const { totalPages, combinedData } = await fetchWmmData(
+      const { totalPages, combinedData } = await fetchAggregatedData(
         filter,
         parseInt(page),
         parseInt(limit),
