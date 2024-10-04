@@ -1,60 +1,52 @@
 import { useState, useEffect } from "react";
+import psgcJSON from "./psgc.json";
 
 const AddressForm = ({ onAddressChange, addressData }) => {
   const [regions, setRegions] = useState([]);
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
   const [barangays, setBarangays] = useState([]);
-  const fetchData = async (endpoint, setter) => {
-    try {
-      const response = await fetch(`http://localhost:3001/api/${endpoint}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-
-      if (!Array.isArray(data)) {
-        throw new Error("Unexpected data format");
-      }
-
-      setter(data); // Update the state with the fetched data
-    } catch (error) {
-      console.error("There was a problem with the fetch:", error);
-    }
-  };
 
   useEffect(() => {
-    fetchData("regions", setRegions);
+    if (psgcJSON && Array.isArray(psgcJSON)) {
+      const regionData = psgcJSON.map((region) => ({
+        name: region["Region Name"],
+        code: region["Region PSGC"],
+      }));
+      setRegions(regionData);
+    }
   }, []);
 
   useEffect(() => {
     if (addressData.region) {
-      const regionCode = regions.find(
-        (r) => r.name === addressData.region,
-      )?.code;
-      if (regionCode) {
-        fetchData(`regions/${regionCode}/provinces`, setProvinces);
-        fetchData(`regions/${regionCode}/cities`, setCities);
+      const selectedRegion = psgcJSON.find(
+        (region) => region["Region Name"] === addressData.region
+      );
+
+      if (selectedRegion) {
+        setProvinces(selectedRegion.Provinces || []);
+        setCities(selectedRegion.Cities || []);
       }
     }
-  }, [addressData.region, regions]);
+  }, [addressData.region]);
 
   useEffect(() => {
     if (addressData.province) {
-      const provinceCode = provinces.find(
-        (p) => p.name === addressData.province,
-      )?.code;
-      if (provinceCode) {
-        fetchData(`provinces/${provinceCode}/cities-municipalities`, setCities);
+      const selectedProvince = provinces.find(
+        (province) => province.Name === addressData.province
+      );
+
+      if (selectedProvince) {
+        setCities(selectedProvince.Cities || []);
       }
     }
   }, [addressData.province, provinces]);
 
   useEffect(() => {
     if (addressData.city) {
-      const cityCode = cities.find((c) => c.name === addressData.city)?.code;
-      if (cityCode) {
-        fetchData(`cities-municipalities/${cityCode}/barangays`, setBarangays);
+      const selectedCity = cities.find((city) => city.Name === addressData.city);
+      if (selectedCity) {
+        setBarangays(selectedCity.barangays || []);
       }
     }
   }, [addressData.city, cities]);
@@ -66,6 +58,7 @@ const AddressForm = ({ onAddressChange, addressData }) => {
 
   return (
     <div className="flex flex-col gap-3 text-lg mb-5">
+      {/* Region Select */}
       <select
         name="region"
         value={addressData.region}
@@ -79,6 +72,7 @@ const AddressForm = ({ onAddressChange, addressData }) => {
         ))}
       </select>
 
+      {/* Province Select */}
       {addressData.region && provinces.length > 0 && (
         <select
           value={addressData.province}
@@ -86,24 +80,26 @@ const AddressForm = ({ onAddressChange, addressData }) => {
         >
           <option value="">Select Province</option>
           {provinces.map((province) => (
-            <option key={province.code} value={province.name}>
-              {province.name}
+            <option key={province["Correspondence Code"]} value={province.Name}>
+              {province.Name}
             </option>
           ))}
         </select>
       )}
 
+      {/* City Select */}
       {(addressData.region || addressData.province) && (
         <select value={addressData.city} onChange={handleChange("city")}>
           <option value="">Select City</option>
           {cities.map((city) => (
-            <option key={city.code} value={city.name}>
-              {city.name}
+            <option key={city["Correspondence Code"]} value={city.Name}>
+              {city.Name}
             </option>
           ))}
         </select>
       )}
 
+      {/* Barangay Select */}
       {addressData.city && (
         <select
           name="barangay"
@@ -112,8 +108,11 @@ const AddressForm = ({ onAddressChange, addressData }) => {
         >
           <option value="">Select Barangay</option>
           {barangays.map((barangay) => (
-            <option key={barangay.code} value={barangay.name}>
-              {barangay.name}
+            <option
+              key={barangay["Barangay Correspondence Code"]}
+              value={barangay["Barangay Name"]}
+            >
+              {barangay["Barangay Name"]}
             </option>
           ))}
         </select>
