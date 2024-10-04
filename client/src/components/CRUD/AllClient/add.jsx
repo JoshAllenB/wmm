@@ -12,6 +12,7 @@ import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import AddressForm from "../../../utils/addressLogic";
+import AreaForm from "../../../utils/areaform";
 
 import InputField from "../input";
 
@@ -50,6 +51,8 @@ const Add = ({ fetchClients }) => {
     city: "",
     barangay: "",
   });
+
+  const [selectedCity, setSelectedCity] = useState('');
 
   const [showModal, setShowModal] = useState(false);
 
@@ -95,11 +98,19 @@ const Add = ({ fetchClients }) => {
     });
   };
 
-  const handleAddressChange = (name, value) => {
-    setAddressData({
-      ...addressData,
-      [name]: value,
-    });
+  const handleAddressChange = (type, value) => {
+    setAddressData(prev => ({...prev, [type]: value}));
+  };
+
+  const handleCitySelect = (cityname) => {
+    setSelectedCity(cityname);
+  }
+
+  const handleAreaChange = (field, value) => {
+    setAreaData(prevData => ({
+      ...prevData,
+      [field]: value
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -242,42 +253,21 @@ const Add = ({ fetchClients }) => {
 
               <div className="flex flex-col mb-2 p-2">
                 <h1 className="text-black mb-2 font-bold">Address Info</h1>
+                
+                <AddressForm
+                  onAddressChange={handleAddressChange}
+                  addressData={addressData}
+                  selectedCity={selectedCity}
+                />
+
+                <AreaForm onAreaChange={handleAreaChange} onCitySelect={handleCitySelect} />
 
                 <InputField
-                  label="Street:"
+                  label="Address:"
                   id="street"
                   name="street"
                   value={formData.street}
                   onChange={handleChange}
-                />
-
-                <InputField
-                  label="Area"
-                  id="area"
-                  name="area"
-                  value={formData.area}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Area Code"
-                  id="acode"
-                  name="acode"
-                  value={formData.acode}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Zip Code:"
-                  id="zipcode"
-                  name="zipcode"
-                  value={formData.zipcode}
-                  onChange={handleChange}
-                />
-
-                <AddressForm
-                  onAddressChange={handleAddressChange}
-                  addressData={addressData}
                 />
               </div>
               <div className="flex flex-col mb-2 p-2">
@@ -387,13 +377,13 @@ const Add = ({ fetchClients }) => {
           </form>
           <div className="flex gap-1">
             <Button
-              className="bg-red-500 hover:bg-red-800 rounded-xl"
+              className="text-white bg-red-500 hover:bg-red-800 rounded-xl"
               onClick={() => setShowModal(false)}
             >
               Cancel
             </Button>
             <Button
-              className="text-sm bg-green-600 hover:bg-green-800 rounded-xl"
+              className="text-white text-sm bg-green-600 hover:bg-green-800 rounded-xl"
               type="submit"
               onClick={handleSubmit}
             >
