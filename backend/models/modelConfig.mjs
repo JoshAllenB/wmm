@@ -1,0 +1,101 @@
+// models/modelConfig.mjs
+
+import ClientModel from "./clients.mjs";
+
+
+export const models = {
+  WMMModel: () => import("./wmm.mjs"),
+  HRGModel: () => import("./hrg.mjs"),
+  FOMModel: () => import("./fom.mjs"),
+  CALModel: () => import("./cal.mjs"),
+};
+
+export const modelConfigs = {
+  WMMModel: {
+    projectFields: {
+      clientid: 1,
+      subsdate: 1,
+      enddate: 1,
+      renewdate: 1,
+      subsyear: 1,
+      copies: 1,
+    },
+    groupFields: {
+      subsdate: "$subsdate",
+      enddate: "$enddate",
+      renewdate: "$renewdate",
+      subsyear: "$subsyear",
+      copies: "$copies",
+    },
+  },
+  HRGModel: {
+    projectFields: {
+      clientid: 1,
+      recvdate: 1,
+      renewdate: 1,
+      campaigndate: 1,
+      paymtref: 1,
+      paymtamt: 1,
+      unsubscribe: 1,
+    },
+    groupFields: {
+      recvdate: "$recvdate",
+      renewdate: "$renewdate",
+      campaigndate: "$campaigndate",
+      paymtref: "$paymtref",
+      paymtamt: "$paymtamt",
+      unsubscribe: "$unsubscribe",
+    },
+  },
+  FOMModel: {
+    projectFields: {
+      clientid: 1,
+      recvdate: 1,
+      remarks: 1,
+      paymtamt: 1,
+      unsubscribe: 1,
+      adddate: 1,
+      adduser: 1,
+    },
+    groupFields: {
+      recvdate: "$recvdate",
+      remarks: "$remarks",
+      paymtamt: "$paymtamt",
+      unsubscribe: "$unsubscribe",
+      adddate: "$adddate",
+      adduser: "$adduser",
+    },
+  },
+  CALModel: {
+    projectFields: {
+      clientid: 1,
+      recvdate: 1,
+      caltype: 1,
+      calqty: 1,
+      calamt: 1,
+      paymtref: 1,
+      paymtamt: 1,
+      paymtform: 1,
+      paymtdate: 1,
+      adddate: 1,
+      adduser: 1,
+    },
+    groupFields: {
+      recvdate: "$recvdate",
+      caltype: "$caltype",
+      calqty: "$calqty",
+      calamt: "$calamt",
+      paymtref: "$paymtref",
+      paymtamt: "$paymtamt",
+      paymtform: "$paymtform",
+      paymtdate: "$paymtdate",
+      adddate: "$adddate",
+      adduser: "$adduser",
+    },
+  },
+};
+
+export const clientFields =
+  "id lname fname mname sname title bdate company address street city barangay zipcode area acode contactnos cellno ofcno email type group remarks adddate adduser metadata";
+
+export { ClientModel };
