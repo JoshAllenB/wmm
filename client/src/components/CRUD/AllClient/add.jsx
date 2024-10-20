@@ -1,13 +1,6 @@
-/**
- * Renders a component for adding a client and handles form submission.
- *
- * @param {Object} props - The component props.
- * @param {Function} props.fetchClients - A function to fetch clients.
- * @return {JSX.Element} The rendered component.
- */
-
-/* eslint-disable react/prop-types */
-import { useState } from "react";
+import { useUser } from "../../../utils/Hooks/userProvider";
+import { roleConfigs } from "../../../utils/roleConfigs";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
@@ -39,10 +32,6 @@ const Add = ({ fetchClients }) => {
     type: "",
     group: "",
     remarks: "",
-    subscriptionFreq: "",
-    subscriptionStart: "",
-    subscriptionEnd: "",
-    copies: "",
   });
 
   const [addressData, setAddressData] = useState({
@@ -52,7 +41,29 @@ const Add = ({ fetchClients }) => {
     barangay: "",
   });
 
-  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedCity, setSelectedCity] = useState("");
+  const { hasRole } = useUser();
+  const [roleSpecificData, setRoleSpecificData] = useState({});
+  // eslint-disable-next-line no-unused-vars
+  const [areaData, setAreaData] = useState({});
+
+  useEffect(() => {
+    const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
+    if (userRole && roleConfigs[userRole]) {
+      const initialRoleData = Object.keys(
+        roleConfigs[userRole].groupFields
+      ).reduce((acc, field) => {
+        acc[field] = "";
+        return acc;
+      }, {});
+      setRoleSpecificData(initialRoleData);
+    }
+  }, [hasRole]);
+
+  const handleRoleSpecificChange = (e) => {
+    const { name, value } = e.target;
+    setRoleSpecificData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const [showModal, setShowModal] = useState(false);
 
@@ -75,7 +86,7 @@ const Add = ({ fetchClients }) => {
 
       if (today.getMonth() === 3 || today.getMonth() === 4) {
         subscriptionStart.setMonth(
-          subscriptionStart.getMonth() + monthsToAdd + 1,
+          subscriptionStart.getMonth() + monthsToAdd + 1
         );
       } else {
         subscriptionStart.setMonth(subscriptionStart.getMonth() + monthsToAdd);
@@ -99,17 +110,17 @@ const Add = ({ fetchClients }) => {
   };
 
   const handleAddressChange = (type, value) => {
-    setAddressData(prev => ({...prev, [type]: value}));
+    setAddressData((prev) => ({ ...prev, [type]: value }));
   };
 
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
-  }
+  };
 
   const handleAreaChange = (field, value) => {
-    setAreaData(prevData => ({
+    setAreaData((prevData) => ({
       ...prevData,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -130,46 +141,52 @@ const Add = ({ fetchClients }) => {
 
     const address = addressComponents.filter(Boolean).join(", ");
 
+    const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
     const submissionData = {
       ...formData,
       address,
+      roleSpecificData: userRole ? roleSpecificData : {},
     };
 
     try {
-      await axios.post("http://localhost:3001/clients/add", submissionData);
-      fetchClients();
-      socket.emit("client-added", submissionData);
-      closeModal();
-      setFormData({
-        lname: "",
-        fname: "",
-        mname: "",
-        sname: "",
-        title: "",
-        bdate: "",
-        company: "",
-        address: "",
-        zipcode: "",
-        area: "",
-        acode: "",
-        contactnos: "",
-        cellno: "",
-        ofcno: "",
-        email: "",
-        type: "",
-        group: "",
-        remarks: "",
-        subscriptionFreq: "",
-        subscriptionStart: "",
-        subscriptionEnd: "",
-        copies: "",
-      });
-      setAddressData({
-        region: "",
-        province: "",
-        city: "",
-        barangay: "",
-      });
+      const response = await axios.post(
+        "http://localhost:3001/clients/add",
+        submissionData
+      );
+      if (response.data.success) {
+        fetchClients();
+        socket.emit("client-added", submissionData);
+        closeModal();
+        setFormData({
+          lname: "",
+          fname: "",
+          mname: "",
+          sname: "",
+          title: "",
+          bdate: "",
+          company: "",
+          address: "",
+          zipcode: "",
+          area: "",
+          acode: "",
+          contactnos: "",
+          cellno: "",
+          ofcno: "",
+          email: "",
+          type: "",
+          group: "",
+          remarks: "",
+        });
+        setAddressData({
+          region: "",
+          province: "",
+          city: "",
+          barangay: "",
+        });
+        setRoleSpecificData({});
+      } else {
+        console.error("Error adding clients!", response.data.message);
+      }
     } catch (error) {
       console.error("Error adding clients!", error);
     }
@@ -190,190 +207,228 @@ const Add = ({ fetchClients }) => {
           onClose={closeModal}
           className=" bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
         >
-          <h2 className="text-xl font-bold mb-4 text-gray-900">Add Client</h2>
+          {Object.keys(roleConfigs).map(
+            (role) =>
+              hasRole(role) && (
+                <div key={role} className="flex flex-col mb-2 p-2">
+                  <h1 className="text-black mb-2 font-bold">
+                    Add {role} Client
+                  </h1>
+                </div>
+              )
+          )}
+          <h1 className="text-black mb-2 font-bold"></h1>
           <form onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-4 ">
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Personal Info</h1>
-                <InputField
-                  label="Last Name:"
-                  id="lname"
-                  name="lname"
-                  value={formData.lname}
-                  onChange={handleChange}
-                />
+            {(hasRole("WMM") || hasRole("Admin")) && (
+              <div className="grid grid-cols-2 gap-4 ">
+                <div className="flex flex-col mb-2 p-2">
+                  <h1 className="text-black mb-2 font-bold">Personal Info</h1>
+                  <InputField
+                    label="Last Name:"
+                    id="lname"
+                    name="lname"
+                    value={formData.lname}
+                    onChange={handleChange}
+                  />
 
-                <InputField
-                  label="First Name:"
-                  id="fname"
-                  name="fname"
-                  value={formData.fname}
-                  onChange={handleChange}
-                />
+                  <InputField
+                    label="First Name:"
+                    id="fname"
+                    name="fname"
+                    value={formData.fname}
+                    onChange={handleChange}
+                  />
 
-                <InputField
-                  label="Middle Name:"
-                  id="mname"
-                  name="mname"
-                  value={formData.mname}
-                  onChange={handleChange}
-                />
+                  <InputField
+                    label="Middle Name:"
+                    id="mname"
+                    name="mname"
+                    value={formData.mname}
+                    onChange={handleChange}
+                  />
 
-                <InputField
-                  label="Suffix:"
-                  id="sname"
-                  name="sname"
-                  value={formData.sname}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Title:"
-                  id="title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                />
+                  <InputField
+                    label="Suffix:"
+                    id="sname"
+                    name="sname"
+                    value={formData.sname}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="Title:"
+                    id="title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                  />
 
-                <InputField
-                  label="Birth Date:"
-                  id="bdate"
-                  name="bdate"
-                  value={formData.bdate}
-                  onChange={handleChange}
-                />
+                  <InputField
+                    label="Birth Date:"
+                    id="bdate"
+                    name="bdate"
+                    value={formData.bdate}
+                    onChange={handleChange}
+                  />
 
-                <InputField
-                  label="Company:"
-                  id="company"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleChange}
-                />
+                  <InputField
+                    label="Company:"
+                    id="company"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="flex flex-col mb-2 p-2">
+                  <h1 className="text-black mb-2 font-bold">Address Info</h1>
+
+                  <AddressForm
+                    onAddressChange={handleAddressChange}
+                    addressData={addressData}
+                    selectedCity={selectedCity}
+                  />
+
+                  <AreaForm
+                    onAreaChange={handleAreaChange}
+                    onCitySelect={handleCitySelect}
+                  />
+
+                  <InputField
+                    label="Address:"
+                    id="street"
+                    name="street"
+                    value={formData.street}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="flex flex-col mb-2 p-2">
+                  <h1 className="text-black mb-2 font-bold">Contact Info</h1>
+                  <InputField
+                    label="Contact Numbers:"
+                    id="contactnos"
+                    name="contactnos"
+                    value={formData.contactnos}
+                    onChange={handleChange}
+                  />
+
+                  <InputField
+                    label="Cell Number:"
+                    id="cellno"
+                    name="cellno"
+                    value={formData.cellno}
+                    onChange={handleChange}
+                  />
+
+                  <InputField
+                    label="Office Number:"
+                    id="ofcno"
+                    name="ofcno"
+                    value={formData.ofcno}
+                    onChange={handleChange}
+                  />
+
+                  <InputField
+                    label="Email:"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="flex flex-col mb-2 p-2">
+                  <h1 className="text-black mb-2 font-bold">Group Info</h1>
+                  <InputField
+                    label="Type:"
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                  />
+
+                  <InputField
+                    label="Group:"
+                    id="group"
+                    name="group"
+                    value={formData.group}
+                    onChange={handleChange}
+                  />
+
+                  <InputField
+                    label="Remarks:"
+                    id="remarks"
+                    name="remarks"
+                    value={formData.remarks}
+                    onChange={handleChange}
+                  />
+                </div>
+                {hasRole("WMM") && (
+                  <div className="flex flex-col mb-2">
+                    <h1 className="text-black mb-2 font-bold">Subscription</h1>
+                    <label htmlFor="subcriptionFreq">
+                      Subscription Frequency:
+                    </label>
+                    <select
+                      id="subscriptionFreq"
+                      name="subscriptionFreq"
+                      value={formData.subscriptionFreq}
+                      onChange={handleChange}
+                      className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                    >
+                      <option value="3">3 Months</option>
+                      <option value="6">6 Months</option>
+                      <option value="12">12 Months</option>
+                    </select>
+
+                    <InputField
+                      label="Subscription Start:"
+                      id="subscriptionStart"
+                      name="subscriptionStart"
+                      value={formData.subscriptionStart}
+                      onChange={handleChange}
+                    />
+
+                    <InputField
+                      label="Subscription End:"
+                      id="subscriptionEnd"
+                      name="subscriptionEnd"
+                      value={formData.subscriptionEnd}
+                      onChange={handleChange}
+                    />
+
+                    <label className="block text-sm font-medium leading-6 text-gray-600">
+                      Copies:
+                    </label>
+                    <input
+                      id="copies"
+                      name="copies"
+                      value={formData.copies}
+                      onChange={handleChange}
+                      type="number"
+                      className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                    />
+                  </div>
+                )}
               </div>
-
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Address Info</h1>
-                
-                <AddressForm
-                  onAddressChange={handleAddressChange}
-                  addressData={addressData}
-                  selectedCity={selectedCity}
-                />
-
-                <AreaForm onAreaChange={handleAreaChange} onCitySelect={handleCitySelect} />
-
-                <InputField
-                  label="Address:"
-                  id="street"
-                  name="street"
-                  value={formData.street}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Contact Info</h1>
-                <InputField
-                  label="Contact Numbers:"
-                  id="contactnos"
-                  name="contactnos"
-                  value={formData.contactnos}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Cell Number:"
-                  id="cellno"
-                  name="cellno"
-                  value={formData.cellno}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Office Number:"
-                  id="ofcno"
-                  name="ofcno"
-                  value={formData.ofcno}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Email:"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Group Info</h1>
-                <InputField
-                  label="Type:"
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Group:"
-                  id="group"
-                  name="group"
-                  value={formData.group}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Remarks:"
-                  id="remarks"
-                  name="remarks"
-                  value={formData.remarks}
-                  onChange={handleChange}
-                />
-              </div>
-              <div className="flex flex-col mb-2">
-                <h1 className="text-black mb-2 font-bold">Subscription</h1>
-                <label htmlFor="subcriptionFreq">Subscription Frequency:</label>
-                <select
-                  id="subscriptionFreq"
-                  name="subscriptionFreq"
-                  value={formData.subscriptionFreq}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                >
-                  <option value="3">3 Months</option>
-                  <option value="6">6 Months</option>
-                  <option value="12">12 Months</option>
-                </select>
-
-                <InputField
-                  label="Subscription Start:"
-                  id="subscriptionStart"
-                  name="subscriptionStart"
-                  value={formData.subscriptionStart}
-                  onChange={handleChange}
-                />
-
-                <InputField
-                  label="Subscription End:"
-                  id="subscriptionEnd"
-                  name="subscriptionEnd"
-                  value={formData.subscriptionEnd}
-                  onChange={handleChange}
-                />
-
-                <label className="block text-sm font-medium leading-6 text-gray-600">
-                  Copies:
-                </label>
-                <input
-                  id="copies"
-                  name="copies"
-                  value={formData.copies}
-                  onChange={handleChange}
-                  type="number"
-                  className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                />
-              </div>
-            </div>
+            )}
+            {Object.keys(roleConfigs).map(
+              (role) =>
+                hasRole(role) && (
+                  <div key={role} className="flex flex-col mb-2 p-2">
+                    {Object.entries(roleConfigs[role].groupFields).map(
+                      ([field, Label]) => (
+                        <InputField
+                          key={field}
+                          label={Label}
+                          id={field}
+                          name={field}
+                          value={roleSpecificData[field]}
+                          onChange={handleRoleSpecificChange}
+                        />
+                      )
+                    )}
+                  </div>
+                )
+            )}
           </form>
           <div className="flex gap-1">
             <Button
