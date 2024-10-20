@@ -21,9 +21,9 @@ const HrgSchema = new mongoose.Schema(
   {
     versionKey: false,
     collection: "hrg",
-  },
+  }
 );
 
-const HrgModel = hrgConnection.model("hrg", HrgSchema);
+const HRGModel = hrgConnection.model("HRG", HrgSchema);
 
-export default HrgModel;
+export default HRGModel;
