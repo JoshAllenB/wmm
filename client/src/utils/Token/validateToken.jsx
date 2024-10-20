@@ -24,17 +24,13 @@ const validateToken = async () => {
 
     console.log("decoded:", {
       id: decodedToken.userId,
-      username: decodedToken.username,
-      role: decodedToken.role,
-      permissions: decodedToken.permissions,
+      roles: decodedToken.roles,
     });
 
     setAuthToken(token);
     return {
       id: decodedToken.userId,
-      username: decodedToken.username,
-      role: decodedToken.role,
-      permissions: decodedToken.permissions,
+      roles: decodedToken.roles,
     };
   } catch (error) {
     console.error("Token validation error:", error);
@@ -58,7 +54,7 @@ const refreshAndValidate = async () => {
   try {
     const refreshResponse = await axios.post(
       "http://localhost:3001/auth/refreshToken",
-      { refreshToken },
+      { refreshToken }
     );
     const { token, refreshToken: newRefreshToken } = refreshResponse.data;
     setTokens(token, newRefreshToken);
@@ -68,9 +64,7 @@ const refreshAndValidate = async () => {
     const decodedToken = jwtDecode.jwtDecode(token);
     return {
       id: decodedToken.userId,
-      username: decodedToken.username,
-      role: decodedToken.role,
-      permissions: decodedToken.permissions,
+      roles: decodedToken.roles,
     };
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
