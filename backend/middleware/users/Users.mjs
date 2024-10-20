@@ -20,18 +20,21 @@ const io = new Server(server, {
 const router = express.Router();
 initWebSocket(io);
 
-// Fetch all user to be used in table
+// Fetch all users to be used in table
 router.get("/", verifyToken, async (req, res) => {
   const io = req.io;
   try {
-    // Find users without populating permissions
     const users = await UserModel.find()
-      .select("username role lastLoginAt loggedIn status")
-      .populate("role", "name description") // Only select role fields
-      .lean(); // Convert documents to plain objects
+      .select("username roles lastLoginAt status")
+      .populate({
+        path: "roles.role",
+        populate: { path: "defaultPermissions" },
+      })
+      .populate("roles.customPermissions")
+      .lean();
 
     const currentUser = users.find(
-      (user) => user._id.toString() === req.user._id.toString(),
+      (user) => user._id.toString() === req.user._id.toString()
     );
 
     res.status(200).json({
@@ -49,82 +52,137 @@ router.get("/", verifyToken, async (req, res) => {
 router.post("/add", verifyToken, checkRole("Admin"), async (req, res) => {
   const io = req.io;
   try {
-    const { username, password, role } = req.body;
-    const roleObj = await Role.findOne({ name: role });
-    if (!roleObj) {
-      return res.status(400).json({ error: "Role Not Found" });
+    console.log("Received user data:", req.body);
+    const { username, password, roles } = req.body;
+
+    // Validate roles
+    if (!Array.isArray(roles) || roles.length === 0) {
+      throw new Error("At least one role must be assigned to the user");
     }
 
-    const newUser = new UserModel({ username, password, role: roleObj._id });
+    // Create the new user
+    const newUser = new UserModel({
+      username,
+      password,
+      roles: roles.map((roleData) => {
+        console.log("Processing role:", roleData);
+        if (!roleData.role) {
+          throw new Error("Invalid role data: role ID is missing");
+        }
+        return {
+          role: roleData.role,
+          customPermissions: roleData.customPermissions || [],
+        };
+      }),
+    });
+
+    // Save the new user
     await newUser.save();
-    res
-      .status(201)
-      .json({ message: "User created successfully", user: newUser });
+
+    // Populate role information
+    await newUser.populate({
+      path: "roles.role",
+      select: "name",
+    });
+
+    console.log("New user created:", newUser);
+
+    res.status(201).json(newUser);
     io.emit("user-update", { type: "add", data: newUser });
   } catch (error) {
+    console.error("Error adding user:", error);
     res.status(400).json({ error: error.message });
   }
 });
 
 // Update user
-router.put("/update/:id", verifyToken, async (req, res) => {
+router.put("/update/:id", verifyToken, checkRole("Admin"), async (req, res) => {
   const io = req.io;
   try {
-    const { username, role } = req.body;
-    const updateData = { username };
+    const { id } = req.params;
+    const { username, roles } = req.body;
 
-    // Check if the user performing the action is an admin
-    // if (req.user.role === "Admin") {
-    // Find the role by name
-    const roleObj = await Role.findOne({ name: role });
+    console.log("Received update request for user:", id);
+    console.log("Request body:", JSON.stringify(req.body, null, 2));
 
-    // If the role is not found, return an error
-    if (!roleObj) {
-      return res.status(400).json({ error: "Role Not Found" });
-    }
-
-    // Assign the role ObjectId to the user's update data
-    updateData.role = roleObj._id;
-    // }
-
-    // Update the user with the new role
-    const user = await UserModel.findByIdAndUpdate(req.params.id, updateData, {
-      new: true,
-      runValidators: true,
-    }).populate("role"); // Populate the role for the updated user
-
-    // If the user is not found, return a 404 error
+    const user = await UserModel.findById(id);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Send the updated user back in the response
-    res.json({ message: "User updated successfully", user });
+    user.username = username;
+    user.roles = roles
+      .map((roleData) => {
+        if (!roleData || !roleData.role) {
+          console.warn("Invalid role data received:", roleData);
+          return null; // or handle this case as appropriate for your application
+        }
+        return {
+          role: roleData.role, // This should be the role ID
+          customPermissions: roleData.customPermissions || [],
+        };
+      })
+      .filter(Boolean); // Remove any null entries
 
-    // Emit a socket event to notify others of the user update
-    io.emit("user-update", {
-      type: "update",
-      data: { ...user.toObject(), id: user._id },
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    await user.save();
+
+    res.json({ message: "User updated successfully", user });
+    io.emit("user-update", { type: "update", data: user });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ error: error.message || "Failed to update user" });
   }
 });
 
 // Delete user
-router.delete("/delete/:id", verifyToken, async (req, res) => {
-  const io = req.io;
-  try {
-    const user = await UserModel.findByIdAndDelete(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+router.delete(
+  "/delete/id",
+  verifyToken,
+  checkRole("Admin"),
+  async (req, res) => {
+    try {
+      const user = await UserModel.findByIdAndDelete(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: "User Not Found" });
+      }
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
     }
-    res.json({ message: "User deleted successfully" });
-    console.log("User deleted:", user);
-    io.emit("user-update", { type: "delete", data: user });
-  } catch (err) {
-    console.error(err);
   }
-});
+);
+
+// Update user role
+router.put(
+  "/update/:id/role",
+  verifyToken,
+  checkRole("Admin"),
+  async (req, res) => {
+    const io = req.io;
+    try {
+      const { role } = req.body;
+      const roleObj = await Role.findOne({ name: role });
+      if (!roleObj) {
+        return res.status(400).json({ error: "Role not found" });
+      }
+
+      const user = await UserModel.findByIdAndUpdate(
+        req.params.id,
+        { $set: { "roles.0.role": roleObj._id } },
+        { new: true }
+      ).populate("roles.role");
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({ message: "User role updated successfully", user });
+      io.emit("user-update", { type: "update", data: user });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  }
+);
+
 export default router;
