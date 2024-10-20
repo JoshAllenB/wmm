@@ -13,11 +13,10 @@ import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
 
 import { fetchClients } from "../../Table/Data/clientdata";
-import { columns } from "../../Table/Structure/clientColumn";
+import { useColumns } from "../../Table/Structure/clientColumn";
 import { useState, useEffect } from "react";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
-// import Edit from "../../CRUD/AllClient/edit";
 
 export default function AllClient() {
   const [, setClientData] = useState([]);
@@ -26,7 +25,7 @@ export default function AllClient() {
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const { userData, hasPermission } = useUser();
+  const columns = useColumns();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +34,7 @@ export default function AllClient() {
           setClientData,
           page,
           pageSize,
-          filtering,
+          filtering
         );
         setTotalPages(totalPages);
       } catch (error) {
@@ -45,24 +44,16 @@ export default function AllClient() {
     fetchData();
   }, [page, pageSize, filtering]);
 
-  const handlePageSizeChange = (e) => {
-    setPageSize(Number(e.target.value));
-    setPage(1);
-    setRowSelection({});
-  };
-
   const handleDeleteSuccess = (deletedId) => {
     setClientData((prevData) =>
-      prevData.filter((client) => client.id !== deletedId),
+      prevData.filter((client) => client.id !== deletedId)
     );
     fetchClients((data) => setClientData(data), page, pageSize);
   };
 
   return (
     <div className="mr-[10px] ml-[10px]">
-      {hasPermission("create") && (
-        <Add fetchClients={() => fetchClients(setClientData)} />
-      )}
+      <Add fetchClients={() => fetchClients(setClientData)} />
       <div className="flex items-center content-center ">
         <div className="mr-2">
           <Input
@@ -73,24 +64,8 @@ export default function AllClient() {
             className="w-[300px] mb-3 border-2 border-secondary"
           />
         </div>
-        <div className="flex">
-          <label htmlFor="pageSize" className="mr-2">
-            Rows:
-          </label>
-          <select
-            id="pageSize"
-            value={pageSize}
-            onChange={handlePageSizeChange}
-            className="text-center border-2 border-secondary bg-inherit w-[60px]"
-          >
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-            <option value="150">150</option>
-          </select>
-        </div>
       </div>
+
       <DataTable
         fetchFunction={fetchClients}
         columns={columns}
