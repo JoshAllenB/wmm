@@ -3,9 +3,10 @@ import http from "http";
 import { Server } from "socket.io";
 import UserModel from "../models/userControl/users.mjs";
 import { Permission } from "../models/userControl/role.mjs";
+import bcrypt from "bcrypt";
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
+const generateToken = (userId, roles) => {
+  return jwt.sign({ userId, roles }, process.env.JWT_SECRET, {
     expiresIn: "30min",
   });
 };
@@ -23,19 +24,17 @@ const io = new Server(server, {
 const loginUser = async (username, password) => {
   try {
     const user = await UserModel.findOne({ username }).populate({
-      path: "role",
-      populate: {
-        path: "permissions",
-      },
-    });
+      path: "roles.role",
+      populate: { path: "defaultPermissions" }
+    }).populate("roles.customPermissions");
+
     if (!user) {
-      console.log("User not found");
-      return { error: "Invalid username or password" };
+      return { error: "User not found" };
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return { error: "Invalid username or password" };
+      return { error: "Invalid credentials" };
     }
 
     user.status = "Active";
@@ -44,21 +43,27 @@ const loginUser = async (username, password) => {
 
     io.emit("user_status_change", { userId: user._id, status: "Active" });
 
-    const token = generateToken(user._id);
+    const rolesAndPermissions = user.roles.map(role => ({
+      role: role.role.name,
+      permissions: [
+        ...role.role.defaultPermissions.map(p => p.name),
+        ...role.customPermissions.map(p => p.name)
+      ]
+    }));
+
+    const token = generateToken(user._id, rolesAndPermissions);
 
     return {
-      token,
       user: {
         id: user._id,
         username: user.username,
-        email: user.email,
-        role: user.role,
+        roles: rolesAndPermissions,
         status: user.status,
-        lastLoginAt: user.lastLoginAt,
       },
+      token,
     };
-  } catch (err) {
-    console.error("Error during login process:", err);
+  } catch (error) {
+    console.error("Error during login process:", error);
     return { error: "Internal Server Error" };
   }
 };

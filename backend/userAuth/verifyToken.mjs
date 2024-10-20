@@ -11,7 +11,10 @@ const verifyToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId;
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId).populate({
+      path: 'roles.role',
+      populate: { path: 'defaultPermissions' }
+    });
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }

@@ -24,55 +24,35 @@ const router = express.Router();
 initWebSocket(io);
 
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  console.log("Login request received for:", username);
+  console.log("Login request received for:", req.body.username);
   try {
-    const loginResult = await loginUser(username, password);
+    const loginResult = await loginUser(req.body.username, req.body.password);
     console.log("Login Result:", loginResult);
+
     if (loginResult.error) {
       console.error("Login error:", loginResult.error);
-      return res.status(401).json(loginResult);
+      return res.status(401).json({ error: loginResult.error });
     }
-    const { user } = loginResult;
-    console.log("User found:", user.username);
-    console.log("User Role:", user.role);
 
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        username: user.username,
-        role: user.role,
-        permissions: user.role.permissions,
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: "1h",
-      },
-    );
+    const { token, user } = loginResult;
+
     const refreshToken = jwt.sign(
       { userId: user.id },
       process.env.REFRESH_TOKEN_SECRET,
-      {
-        expiresIn: "7d",
-      },
+      { expiresIn: "7d" }
     );
-    console.log("Token and refresh token generated");
 
     const response = {
-      ...loginResult,
+      user,
       token,
       refreshToken,
       expiresIn: "1h",
     };
 
-    if (!user.role) {
-      response.warning = "User role not assigned. Please contact the admin.";
-    }
-
     res.status(200).json(response);
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Unexpected error during login:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -172,7 +152,7 @@ router.post("/refreshToken", async (req, res) => {
     const newRefreshToken = jwt.sign(
       { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" },
+      { expiresIn: "7d" }
     );
     res.json({ token: newToken, refreshToken: newRefreshToken });
   } catch (err) {
