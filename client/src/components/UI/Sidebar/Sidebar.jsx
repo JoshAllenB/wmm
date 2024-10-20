@@ -13,10 +13,12 @@ import CalendarMonthSharpIcon from "@mui/icons-material/CalendarMonthSharp";
 import SpaceDashboardSharpIcon from "@mui/icons-material/SpaceDashboardSharp";
 import MenuSharpIcon from "@mui/icons-material/MenuSharp";
 import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
+import { useUser } from "../../../utils/Hooks/userProvider";
 
 export default function MenuSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selected, setSelected] = useState("Dashboard");
+  const { hasRole } = useUser();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -119,21 +121,23 @@ export default function MenuSidebar() {
                 Archived Clients
               </MenuItem>
             </SubMenu>
-            <MenuItem
-              icon={
-                <AdminPanelSettingsSharpIcon style={{ color: "#333333" }} />
-              }
-              onClick={() => handleSelect("Manage Team")}
-              selected={selected === "Manage Team"}
-              component={<Link to="/admin-panel" />}
-              style={{
-                backgroundColor:
-                  selected === "Manage Team" ? "#e3f2fd" : "transparent",
-                color: selected === "Manage Team" ? "#1976d2" : "#333333",
-              }}
-            >
-              <Typography variant="h6">Manage Team</Typography>
-            </MenuItem>
+            {hasRole("Admin") && (
+              <MenuItem
+                icon={
+                  <AdminPanelSettingsSharpIcon style={{ color: "#333333" }} />
+                }
+                onClick={() => handleSelect("Manage Team")}
+                selected={selected === "Manage Team"}
+                component={<Link to="/admin-panel" />}
+                style={{
+                  backgroundColor:
+                    selected === "Manage Team" ? "#e3f2fd" : "transparent",
+                  color: selected === "Manage Team" ? "#1976d2" : "#333333",
+                }}
+              >
+                <Typography variant="h6">Manage Team</Typography>
+              </MenuItem>
+            )}
             <MenuItem
               icon={<CalendarMonthSharpIcon style={{ color: "#333333" }} />}
               onClick={() => handleSelect("Calendar")}
