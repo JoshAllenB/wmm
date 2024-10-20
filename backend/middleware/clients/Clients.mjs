@@ -5,10 +5,9 @@ import initWebSocket from "../../websocket.mjs";
 import ClientModel from "../../models/clients.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
-import WmmModel from "../../models/wmm.mjs";
-import fetchAggregatedData from "../apiLogic/aggregatedData.mjs";
 import { checkRole } from "../users/checkRole.mjs";
-
+import fetchClientServices from "../apiLogic/fetchClientServices.mjs";
+import fetchData from "../apiLogic/fetchData.mjs";
 const server = http.createServer();
 const io = new Server(server, {
   cors: {
@@ -29,24 +28,68 @@ router.get(
   async (req, res) => {
     const io = req.io;
     const { page = 1, limit = 1000, pageSize = 20, filter = "" } = req.query;
+
     try {
-      const { totalPages, combinedData } = await fetchAggregatedData(
-        filter,
-        parseInt(page),
-        parseInt(limit),
-        parseInt(pageSize),
-      );
+      await req.user.populate({
+        path: "roles.role",
+        populate: { path: "defaultPermissions" },
+      });
+      const userRole = req.user.roles[0]?.role.name || "No Role";
+      let totalPages, combinedData;
+
+      if (userRole === "Admin") {
+        const results = await Promise.all([
+          fetchData("WmmModel", filter, page, limit, pageSize),
+          fetchData("HrgModel", filter, page, limit, pageSize),
+          fetchData("FomModel", filter, page, limit, pageSize),
+          fetchData("CalModel", filter, page, limit, pageSize),
+        ]);
+
+        combinedData = results.flatMap((result) => result.combinedData);
+        totalPages = Math.max(...results.map((result) => result.totalPages));
+      } else if (userRole === "HRG") {
+        const result = await Promise.all([
+          fetchData("HrgModel", filter, page, limit, pageSize),
+          fetchData("FomModel", filter, page, limit, pageSize),
+          fetchData("CalModel", filter, page, limit, pageSize),
+        ]);
+        combinedData = result.flatMap((result) => result.combinedData);
+        totalPages = Math.max(...result.map((result) => result.totalPages));
+      } else {
+        const modelName = `${userRole}Model`;
+        ({ totalPages, combinedData } = await fetchData(
+          modelName,
+          filter,
+          parseInt(page),
+          parseInt(limit),
+          parseInt(pageSize)
+        ));
+      }
+
+      const clientIds = combinedData.map((client) => client.id);
+      const clientServices = await fetchClientServices(clientIds);
+
+      combinedData = combinedData.map((client) => {
+        const serviceInfo = clientServices.find(
+          (cs) => cs.clientId === client.id
+        );
+        return {
+          ...client,
+          services: serviceInfo ? serviceInfo.services : [],
+        };
+      });
+
       io.emit("data-update", { type: "init", data: combinedData });
       res.json({ totalPages, combinedData });
     } catch (err) {
-      console.error("Error in WMM GET route:", err);
+      console.error("Error in client GET route:", err);
       res.status(500).json({
         error: "Internal Server Error",
         message: err.message,
         stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
       });
     }
-  },
+  }
 );
 
 router.post("/add", verifyToken, async (req, res) => {
@@ -102,7 +145,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const updatedClient = await ClientModel.findOneAndUpdate(
       { id },
       updatedClientData,
-      { new: true },
+      { new: true }
     );
     if (!updatedClient) {
       return res.status(404).json({ error: "Client not found" });
