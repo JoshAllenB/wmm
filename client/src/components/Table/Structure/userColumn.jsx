@@ -35,8 +35,7 @@ export const userColumns = [
   {
     id: "role",
     header: "Role",
-    accessorFn: (row) => (row.role ? row.role.name : "No Role Assigned"),
-    cell: ({ getValue }) => getValue() || "No Role Assigned",
+    accessorFn: (row) => row.role,
   },
   {
     id: "lastLoginAt",
