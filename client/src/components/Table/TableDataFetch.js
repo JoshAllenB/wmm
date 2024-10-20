@@ -11,8 +11,8 @@ export function useDataFetching(fetchFunction, page, pageSize) {
       setLoading(true);
       setError(null);
       try {
-        const fetchedData = await fetchFunction(setData, page, pageSize);
-        setData(fetchedData);
+        const result = await fetchFunction(setData, page, pageSize);
+        setData(result.data);
       } catch (err) {
         setError(err.message);
       } finally {
