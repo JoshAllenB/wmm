@@ -26,7 +26,7 @@ const WmmSchema = new mongoose.Schema(
   {
     versionKey: false,
     collection: "wmm",
-  },
+  }
 );
 
 const WmmModel = wmmConnection.model("wmm", WmmSchema);
