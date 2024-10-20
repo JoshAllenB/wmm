@@ -6,15 +6,29 @@ export const fetchClients = async (
   setClientData,
   page = 1,
   pageSize = 20,
-  filter = "",
+  filter = ""
 ) => {
   try {
     const response = await axios.get(
-      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(filter)}`,
+      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
+        filter
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
     );
+
     const { totalPages, combinedData } = response.data;
 
-    setClientData(combinedData);
+    const processedData = combinedData.map((client) => ({
+      ...client,
+      servicesString: client.services.join(", "),
+    }));
+
+    setClientData(processedData);
+    console.log("Processed client data:", processedData);
     return { page, totalPages };
   } catch (e) {
     console.error("Error fetching client data:", e);
