@@ -13,9 +13,8 @@ export default function DataTable({
   columns,
   data,
   fetchFunction,
-  pageSize,
-  page,
-  setPage,
+  initialPageSize = 20,
+  initialPage = 1,
   totalPages,
   rowSelection,
   setRowSelection,
@@ -28,6 +27,9 @@ export default function DataTable({
 }) {
   const theme = useTheme();
   const [showModal, setShowModal] = useState(false);
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+
   const {
     data: fetchedData,
     error,
@@ -58,6 +60,15 @@ export default function DataTable({
     setEditRow(null);
   };
 
+
+  const handlePreviousPage = () => {
+    setPage((prev) => Math.max(1, prev - 1));
+  }
+
+  const handleNextPage = () => {
+    setPage((prev) => Math.min(totalPages, prev + 1));
+  }
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -87,11 +98,13 @@ export default function DataTable({
 
       {usePagination && (
         <PaginationComponent
-          table={table}
-          page={page}
           totalPages={totalPages}
-          handlePreviousPage={() => setPage((prev) => Math.max(1, prev - 1))}
-          handleNextPage={() => setPage((prev) => prev + 1)}
+          handlePreviousPage={handlePreviousPage}
+          handleNextPage={handleNextPage}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+          page={page}
+          setPage={setPage}
         />
       )}
 
