@@ -3,16 +3,16 @@ import mongoose from "mongoose";
 
 const permissionSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, unique: true },
+    name: { type: String, unique: true },
     description: String,
   },
-  { collection: "permissions" },
+  { collection: "permissions" }
 );
 
 const roleSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
-    permissions: [
+    defaultPermissions: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "permissions",
@@ -20,7 +20,7 @@ const roleSchema = new mongoose.Schema(
     ],
     description: String,
   },
-  { collection: "roles" },
+  { collection: "roles" }
 );
 
 const Permission = dbConnection.model("permissions", permissionSchema);
