@@ -33,10 +33,6 @@ const ClientSchema = new mongoose.Schema(
     remarks: String,
     adddate: String,
     adduser: String,
-    subscriptionFreq: String,
-    subscriptionStart: String,
-    subscriptionEnd: String,
-    copies: Number,
     metadata: {
       addedBy: String,
       addedAt: { type: Date, default: Date.now },
