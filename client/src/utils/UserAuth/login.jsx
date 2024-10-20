@@ -25,7 +25,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [activeTab, setActiveTab] = useState("account");
-  const { setUserData } = useUser(); // Access setUserData from the context
+  const { setUserData } = useUser();
   const navigate = useNavigate();
   const resetActivityTimer = useContext(ActivityContext);
   const handleApiResponse = useApiResponseToast();
@@ -45,22 +45,11 @@ const LoginPage = ({ setIsLoggedIn }) => {
     checkAuth();
   }, [navigate, setIsLoggedIn, setUserData]);
 
-  const handleUsernameChange = (e) => {
-    setUsername(e.target.value);
-  };
-
-  const handlePasswordChange = (e) => {
-    setPassword(e.target.value);
-  };
-
-  const handleTabChange = (value) => {
-    setActiveTab(value);
-  };
-
+  const handleUsernameChange = (e) => setUsername(e.target.value);
+  const handlePasswordChange = (e) => setPassword(e.target.value);
+  const handleTabChange = (value) => setActiveTab(value);
   const handleRegisterSuccess = () => {
-    setTimeout(() => {
-      setActiveTab("account");
-    }, 200);
+    setTimeout(() => setActiveTab("account"), 200);
   };
 
   const handleSubmit = async (e) => {
@@ -79,30 +68,38 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
         const decodedToken = jwtDecode(result.data.token);
 
-        setUserData(decodedToken);
+        // Update this part to handle the new user schema
+        const userData = {
+          ...decodedToken,
+          roles: decodedToken.roles.map(role => ({
+            roleName: role.role,
+            permissions: role.permissions
+          }))
+        };
 
+        setUserData(userData);
         setIsLoggedIn(true);
         navigate("/all-client");
         socket.emit("user_status_change", {
-          userId: result.data.user._id,
+          userId: result.data.user.id,
           status: "Active",
         });
 
         resetActivityTimer();
       } else {
         setErrorMessage(
-          result.data.error || "An error occurred. Please try again later.",
+          result.data.error || "An error occurred. Please try again later."
         );
       }
     } catch (err) {
-      console.error("Error in login request:", err); // log error if there's an exception
+      console.error("Error in login request:", err);
       if (err.response) {
-        console.error("Error response from server:", err.response.data); // log response error details
+        console.error("Error response from server:", err.response.data);
         if (err.response.status === 401) {
           setErrorMessage("Incorrect username or password.");
         } else {
           setErrorMessage(
-            `An error occurred: ${err.response.data.message || "Unknown error"}`,
+            `An error occurred: ${err.response.data.message || "Unknown error"}`
           );
         }
       } else {
