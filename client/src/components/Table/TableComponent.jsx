@@ -29,7 +29,7 @@ export function TableComponent({
               >
                 {flexRender(
                   header.column.columnDef.header,
-                  header.getContext(),
+                  header.getContext()
                 )}
                 {header.column.getIsSorted() === "asc" && <ArrowDropUpSharp />}
                 {header.column.getIsSorted() === "desc" && (
@@ -58,12 +58,108 @@ export function TableComponent({
                     cell.column.id === "select" ? "checkbox-cell" : ""
                   }`}
                 >
-                  {cell.column.id === "Subscription" &&
-                  Array.isArray(cell.getValue()) ? (
-                    <ul style={{ paddingLeft: "20px" }}>
+                  {cell.column.id === "Client Data" ? (
+                    <div className="text-left space-y-1">
+                      <div>
+                        <strong>Name:</strong> {cell.getValue().name}
+                      </div>
+                      <div>
+                        <strong>Address:</strong> {cell.getValue().address}
+                      </div>
+                      <div>
+                        <strong>Zipcode:</strong> {cell.getValue().zipcode}
+                      </div>
+                      <div>
+                        <strong>Area:</strong> {cell.getValue().area}
+                      </div>
+                      <div>
+                        <strong>Type:</strong> {cell.getValue().type}
+                      </div>
+                      <div>
+                        <strong>Group:</strong> {cell.getValue().group}
+                      </div>
+                      {cell.getValue().contactInfo && (
+                        <div>
+                          <strong>Contact Info:</strong>{" "}
+                          {cell.getValue().contactInfo}
+                        </div>
+                      )}
+                    </div>
+                  ) : cell.column.id === "Subscription" &&
+                    Array.isArray(cell.getValue()) ? (
+                    <ul>
                       {cell.getValue().map((sub, index) => (
-                        <li key={index}>
-                          {sub.subsdate}, {sub.enddate}, {sub.copies}
+                        <li key={index} style={{ textAlign: "left" }}>
+                          <strong>Start Date:</strong> {sub.subsdate},<br />
+                          <strong>End Date:</strong> {sub.enddate},<br />
+                          <strong>Copies:</strong> {sub.copies}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : cell.column.id === "HRG Data" &&
+                    Array.isArray(cell.getValue()) ? (
+                    <ul>
+                      {cell.getValue().map((hrg, index) => (
+                        <li key={index} style={{ textAlign: "left" }}>
+                          <strong>Received Date:</strong> {hrg.recvdate}, <br />
+                          <strong>Renew Date:</strong> {hrg.renewdate}, <br />
+                          <strong>Campaign Date: </strong> {hrg.campaigndate},
+                          <br />
+                          <strong>Payment Reference: </strong> {hrg.paymtref},
+                          <br />
+                          <strong>Payment Amount: </strong>
+                          {hrg.paymtamt ? `${hrg.paymtamt}` : ""}, <br />
+                          <strong>Unsubscribe: </strong>
+                          {hrg.unsubscribe ? "Active" : "Unsubscribed"}, <br />
+                        </li>
+                      ))}
+                    </ul>
+                  ) : cell.column.id === "FOM Data" &&
+                    Array.isArray(cell.getValue()) ? (
+                    <ul>
+                      {cell.getValue().map((fom, index) => (
+                        <li key={index} style={{ textAlign: "left" }}>
+                          <strong>Received Date:</strong> {fom.recvdate}, <br />
+                          <strong>Remarks:</strong> {fom.remarks}, <br />
+                          <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
+                          <br />
+                          <strong>Status:</strong> {fom.unsubscribe}, <br />
+                          <strong>Added Date:</strong> {fom.adddate}, <br />
+                          <strong>Added By:</strong> {fom.adduser}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : cell.column.id === "CAL Data" &&
+                    Array.isArray(cell.getValue()) ? (
+                    <ul>
+                      {cell.getValue().map((cal, index) => (
+                        <li key={index} style={{ textAlign: "left" }}>
+                          <strong>Received Date:</strong> {cal.recvdate}, <br />
+                          <strong>Type:</strong> {cal.caltype}, <br />
+                          <strong>Quantity:</strong> {cal.calqty}, <br />
+                          <strong>Amount:</strong> {cal.calamt}, <br />
+                          <strong>Payment Reference:</strong> {cal.paymtref},{" "}
+                          <br />
+                          <strong>Payment Amount:</strong> {cal.paymtamt},{" "}
+                          <br />
+                          <strong>Payment Form:</strong> {cal.paymtform}, <br />
+                          <strong>Payment Date:</strong> {cal.paymtdate}, <br />
+                          <strong>Added Date:</strong> {cal.adddate}, <br />
+                          <strong>Added By:</strong> {cal.adduser}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : cell.column.id === "Services" &&
+                    Array.isArray(cell.getValue()) ? (
+                    <ul>
+                      {cell.getValue().map((service, index) => (
+                        <li
+                          key={index}
+                          style={{
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          <strong>{service}</strong>
                         </li>
                       ))}
                     </ul>
