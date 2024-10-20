@@ -15,10 +15,20 @@ const UsersSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    role: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "roles",
-    },
+    roles: [
+      {
+        role: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "roles",
+        },
+        customPermissions: [
+          {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "permissions",
+          },
+        ],
+      },
+    ],
     lastLoginAt: Date,
     status: {
       type: String,
@@ -26,7 +36,7 @@ const UsersSchema = new mongoose.Schema(
       default: "Inactive",
     },
   },
-  { timestamps: true, collection: "users" },
+  { timestamps: true, collection: "users" }
 );
 
 UsersSchema.pre("save", async function (next) {
@@ -40,10 +50,6 @@ UsersSchema.pre("save", async function (next) {
     next(error);
   }
 });
-
-UsersSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
 
 const UserModel = dbConnection.model("users", UsersSchema);
 
