@@ -8,18 +8,29 @@ export const UserProvider = ({ children, initialUserData }) => {
 
   const hasPermission = useCallback(
     (permission) => {
-      if (!userData || !userData.permissions) return false;
-      return userData.permissions.some((perm) => perm.name === permission);
+      if (!userData || !userData.roles) return false;
+      return userData.roles.some(roleObj => 
+        roleObj.permissions && roleObj.permissions.includes(permission)
+      );
     },
-    [userData],
+    [userData]
   );
 
   const hasRole = useCallback(
-    (role) => {
-      if (!userData || !userData.role || !userData.role.name) return false;
-      return userData.role.name === role;
+    (roleName) => {
+      if (!userData || !userData.roles) {
+        console.log(`hasRole check failed: no userData or roles for ${roleName}`);
+        return false;
+      }
+      // Split the roleName if it's a comma-separated string
+      const roleNames = typeof roleName === 'string' ? roleName.split(',').map(r => r.trim()) : [roleName];
+      const result = userData.roles.some(roleObj => 
+        roleNames.includes(roleObj.role)
+      );
+      console.log(`hasRole("${roleName}") result:`, result, "User roles:", userData.roles);
+      return result;
     },
-    [userData],
+    [userData]
   );
 
   return (
