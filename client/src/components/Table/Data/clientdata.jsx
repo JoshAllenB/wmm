@@ -28,7 +28,6 @@ export const fetchClients = async (
     }));
 
     setClientData(processedData);
-    console.log("Processed client data:", processedData);
     return { page, totalPages };
   } catch (e) {
     console.error("Error fetching client data:", e);
