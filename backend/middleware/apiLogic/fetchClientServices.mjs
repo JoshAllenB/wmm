@@ -57,8 +57,6 @@ async function fetchClientServices(clientIds = null) {
       };
     });
 
-    console.log("Services:", clientServices);
-
     return clientServices;
   } catch (error) {
     console.error("Error fetching client services:", error);
