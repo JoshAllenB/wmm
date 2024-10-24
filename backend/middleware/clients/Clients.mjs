@@ -8,6 +8,11 @@ import UserModel from "../../models/userControl/users.mjs";
 import { checkRole } from "../users/checkRole.mjs";
 import fetchClientServices from "../apiLogic/fetchClientServices.mjs";
 import fetchData from "../apiLogic/fetchData.mjs";
+import mongoose from "mongoose";
+import WmmModel from "../../models/wmm.mjs";
+import HrgModel from "../../models/hrg.mjs";
+import FomModel from "../../models/fom.mjs";
+
 const server = http.createServer();
 const io = new Server(server, {
   cors: {
@@ -93,33 +98,70 @@ router.get(
 );
 
 router.post("/add", verifyToken, async (req, res) => {
-  const io = req.io;
   try {
-    const user = await UserModel.findById(req.userId).select("username");
+    const { clientData, roleType, roleData } = req.body;
+    const user = await UserModel.findById(req.userId).populate("roles.role");
 
-    if (!user) {
-      return res.status(401).json({ error: "User not found" });
-    }
+    console.log("Received client data:", clientData);
+    console.log("Role type:", roleType);
+    console.log("Role data:", roleData);
 
+    // Generate new client ID
     const highestIdClient = await ClientModel.findOne().sort({ id: -1 });
-    const highestId = highestIdClient ? highestIdClient.id : 0;
-    const newId = highestId + 1;
+    const newClientId = (highestIdClient ? highestIdClient.id : 0) + 1;
 
-    const newClient = await ClientModel.create({
-      ...req.body,
-      id: newId,
+    // Create base client
+    const baseClientData = {
+      id: newClientId,
+      ...clientData,
       metadata: {
         addedBy: user.username,
         addedAt: new Date(),
         editedBy: null,
         editedAt: null,
       },
+    };
+
+    // Insert base client data
+    const newClient = await ClientModel.create(baseClientData);
+
+    // Handle role-specific data
+    let roleSpecificClient = null;
+    const roleModelMap = {
+      WMM: WmmModel,
+      HRG: HrgModel,
+      FOM: FomModel,
+    };
+
+    if (roleType && roleModelMap[roleType]) {
+      const RoleModel = roleModelMap[roleType];
+
+      // Generate new ID for the role-specific model
+      const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+      const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+
+      const roleSpecificData = {
+        id: newRoleSpecificId, // Use the new ID for the role-specific data
+        clientid: newClientId, // Use the client's ID as the clientid
+        ...roleData,
+        adddate: new Date(),
+        adduser: user.username,
+      };
+
+      // Insert role-specific data
+      roleSpecificClient = await RoleModel.create(roleSpecificData);
+    }
+
+    res.json({
+      success: true,
+      client: newClient,
+      roleSpecificClient: roleSpecificClient || null,
     });
-    io.emit("data-update", { type: "add", data: newClient });
-    res.json(newClient);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error adding client:", err);
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", message: err.message });
   }
 });
 
@@ -133,10 +175,13 @@ router.put("/:id", verifyToken, async (req, res) => {
     }
 
     const { id } = req.params;
+    const { clientData, roleType, roleData } = req.body;
+
+    // Update base client data
     const updatedClientData = {
-      ...req.body,
+      ...clientData,
       metadata: {
-        ...req.body.metadata,
+        ...clientData.metadata,
         editedBy: user.username,
         editedAt: new Date(),
       },
@@ -147,14 +192,73 @@ router.put("/:id", verifyToken, async (req, res) => {
       updatedClientData,
       { new: true }
     );
+
     if (!updatedClient) {
       return res.status(404).json({ error: "Client not found" });
     }
-    io.emit("data-update", { type: "update", data: updatedClient });
-    res.json(updatedClient);
+
+    // Handle role-specific data update
+    let updatedRoleSpecificClient = null;
+    const roleModelMap = {
+      WMM: WmmModel,
+      HRG: HrgModel,
+      FOM: FomModel,
+    };
+
+    if (roleType && roleModelMap[roleType]) {
+      const RoleModel = roleModelMap[roleType];
+
+      // Find existing role-specific data
+      const existingRoleData = await RoleModel.findOne({ clientid: id });
+
+      if (existingRoleData) {
+        // Update only changed fields
+        const updatedRoleData = {};
+        for (const [key, value] of Object.entries(roleData)) {
+          if (existingRoleData[key] !== value) {
+            updatedRoleData[key] = value;
+          }
+        }
+
+        // Add metadata for the update
+        updatedRoleData.editdate = new Date();
+        updatedRoleData.edituser = user.username;
+
+        // Update role-specific data
+        updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
+          { clientid: id },
+          updatedRoleData,
+          { new: true }
+        );
+      } else {
+        // If role-specific data doesn't exist, create it
+        const newRoleSpecificData = {
+          clientid: id,
+          ...roleData,
+          adddate: new Date(),
+          adduser: user.username,
+        };
+        updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
+      }
+    }
+
+    // Emit socket event for real-time updates
+    io.emit("data-update", { 
+      type: "update", 
+      data: { 
+        client: updatedClient, 
+        roleSpecificClient: updatedRoleSpecificClient 
+      } 
+    });
+
+    res.json({
+      success: true,
+      client: updatedClient,
+      roleSpecificClient: updatedRoleSpecificClient,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error updating client:", err);
+    res.status(500).json({ error: "Internal Server Error", message: err.message });
   }
 });
 
@@ -163,18 +267,35 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = await ClientModel.findOneAndDelete({ id });
+    // Delete from ClientModel
+    const deletedClient = await ClientModel.findOneAndDelete({ id });
 
-    if (!result) {
+    if (!deletedClient) {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    // Determine which role-specific model to delete from
+    const roleModelMap = {
+      WMM: WmmModel,
+      HRG: HrgModel,
+      FOM: FomModel,
+    };
+
+    // Attempt to delete from each role-specific model
+    const deletePromises = Object.values(roleModelMap).map(RoleModel => 
+      RoleModel.findOneAndDelete({ clientid: id })
+    );
+
+    // Wait for all delete operations to complete
+    await Promise.all(deletePromises);
+
+    // Emit socket event for real-time updates
     io.emit("data-update", { type: "delete", data: { id } });
 
-    res.json({ message: "Client deleted successfully" });
+    res.json({ message: "Client and associated role-specific data deleted successfully" });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error deleting client:", err);
+    res.status(500).json({ error: "Internal Server Error", message: err.message });
   }
 });
 
