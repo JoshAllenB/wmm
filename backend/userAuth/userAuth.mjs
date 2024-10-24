@@ -105,20 +105,29 @@ router.post("/verifyToken", async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.userId).populate({
-      path: "role",
+      path: "roles.role",
       model: Role,
-      populate: { path: "permissions", model: Permission },
-    });
+      populate: { path: "defaultPermissions", model: Permission },
+    }).populate("roles.customPermissions");
+
     if (!user) {
       return res.status(401).json({ error: "User Not Found" });
     }
+
+    const rolesAndPermissions = user.roles.map(role => ({
+      role: role.role.name,
+      permissions: [
+        ...role.role.defaultPermissions.map(p => p.name),
+        ...role.customPermissions.map(p => p.name)
+      ]
+    }));
+
     res.json({
       valid: true,
       user: {
         id: user._id,
         username: user.username,
-        role: user.role ? user.role.name : "No Role Assigned",
-        permissions: user.role ? user.role.permissions.map((p) => p.name) : [],
+        roles: rolesAndPermissions,
       },
     });
   } catch (err) {
