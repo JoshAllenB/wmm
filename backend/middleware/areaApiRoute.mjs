@@ -8,8 +8,6 @@ router.get("/", async (req, res) => {
         const areas = await AreaModel.find()
             .select("id name zipcode acode")
             .lean();
-
-            console.log("Area", areas)
         res.json(areas);
     } catch (err) {
         console.error("Error fetching area list:", err);
