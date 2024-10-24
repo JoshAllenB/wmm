@@ -15,7 +15,6 @@ import io from "socket.io-client";
 import { setTokens } from "../Token/tokenStorage";
 import { ActivityContext } from "../ActivityMonitor";
 import { useApiResponseToast } from "../../components/UI/apiResponse";
-import { jwtDecode } from "jwt-decode";
 import { useUser } from "../Hooks/userProvider";
 
 const socket = io("http://localhost:3001");
@@ -66,22 +65,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
         setTokens(result.data.token, result.data.refreshToken);
         setAuthToken(result.data.token);
 
-        const decodedToken = jwtDecode(result.data.token);
-
-        // Update this part to handle the new user schema
-        const userData = {
-          ...decodedToken,
-          roles: decodedToken.roles.map(role => ({
-            roleName: role.role,
-            permissions: role.permissions
-          }))
-        };
-
+        const userData = result.data.user;
         setUserData(userData);
         setIsLoggedIn(true);
         navigate("/all-client");
         socket.emit("user_status_change", {
-          userId: result.data.user.id,
+          userId: userData.id,
           status: "Active",
         });
 
