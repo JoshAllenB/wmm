@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const calConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
+const calConnection = mongoose.createConnection(process.env.MONGODB_URI, {
+  dbName: process.env.DB_NAME_CLIENT,
+});
 
 const CalSchema = new mongoose.Schema({
   id: Number,

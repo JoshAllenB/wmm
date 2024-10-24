@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const wmmConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
+const wmmConnection = mongoose.createConnection(process.env.MONGODB_URI, {
+  dbName: process.env.DB_NAME_CLIENT,
+});
 
 const WmmSchema = new mongoose.Schema(
   {

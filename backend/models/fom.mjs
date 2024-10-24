@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const fomConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
+const fomConnection = mongoose.createConnection(process.env.MONGODB_URI, {
+  dbName: process.env.DB_NAME_CLIENT,
+});
 
 const FomSchema = new mongoose.Schema(
   {

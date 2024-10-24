@@ -3,7 +3,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const hrgConnection = mongoose.createConnection(process.env.MONGODB_URI_CLIENT);
+const hrgConnection = mongoose.createConnection(process.env.MONGODB_URI, {
+  dbName: process.env.DB_NAME_CLIENT,
+});
 
 const HrgSchema = new mongoose.Schema(
   {
