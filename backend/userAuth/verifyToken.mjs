@@ -14,7 +14,7 @@ const verifyToken = async (req, res, next) => {
     const user = await User.findById(decoded.userId).populate({
       path: 'roles.role',
       populate: { path: 'defaultPermissions' }
-    });
+    }).populate('roles.customPermissions');
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
