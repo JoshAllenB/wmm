@@ -8,17 +8,16 @@
  * @return {JSX.Element} The rendered component.
  */
 
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
 
 import { fetchClients } from "../../Table/Data/clientdata";
 import { useColumns } from "../../Table/Structure/clientColumn";
-import { useState, useEffect } from "react";
 import View from "../../CRUD/AllClient/view";
-import { useUser } from "../../../utils/Hooks/userProvider";
 
-export default function AllClient() {
+const AllClient = React.memo(() => {
   const [, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const [pageSize, setPageSize] = useState(20);
@@ -27,45 +26,54 @@ export default function AllClient() {
   const [totalPages, setTotalPages] = useState(0);
   const columns = useColumns();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { totalPages } = await fetchClients(
-          setClientData,
-          page,
-          pageSize,
-          filtering
-        );
-        setTotalPages(totalPages);
-      } catch (error) {
-        console.error("Error fetching clients:", error);
-      }
-    };
-    fetchData();
+  const fetchData = useCallback(async () => {
+    try {
+      const { totalPages } = await fetchClients(
+        setClientData,
+        page,
+        pageSize,
+        filtering
+      );
+      setTotalPages(totalPages);
+    } catch (error) {
+      console.error("Error fetching clients:", error);
+    }
   }, [page, pageSize, filtering]);
 
-  const handleDeleteSuccess = (deletedId) => {
-    setClientData((prevData) =>
-      prevData.filter((client) => client.id !== deletedId)
-    );
-    fetchClients((data) => setClientData(data), page, pageSize);
-  };
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  return (
-    <div className="mr-[10px] ml-[10px]">
-      <Add fetchClients={() => fetchClients(setClientData)} />
-      <div className="flex items-center content-center ">
-        <div className="mr-2">
-          <Input
-            type="text"
-            value={filtering}
-            onChange={(e) => setFiltering(e.target.value)}
-            placeholder="Search Client"
-            className="w-[300px] mb-3 border-2 border-secondary"
-          />
-        </div>
-      </div>
+  const handleDeleteSuccess = useCallback(
+    (deletedId) => {
+      setClientData((prevData) =>
+        prevData.filter((client) => client.id !== deletedId)
+      );
+      fetchClients((data) => setClientData(data), page, pageSize);
+    },
+    [page, pageSize]
+  );
 
+  const memoizedAdd = useMemo(
+    () => <Add fetchClients={() => fetchClients(setClientData)} />,
+    []
+  );
+
+  const memoizedInput = useMemo(
+    () => (
+      <Input
+        type="text"
+        value={filtering}
+        onChange={(e) => setFiltering(e.target.value)}
+        placeholder="Search Client"
+        className="w-[300px] mb-3 border-2 border-secondary"
+      />
+    ),
+    [filtering]
+  );
+
+  const memoizedDataTable = useMemo(
+    () => (
       <DataTable
         fetchFunction={fetchClients}
         columns={columns}
@@ -86,6 +94,29 @@ export default function AllClient() {
           <View {...props} onDeleteSuccess={handleDeleteSuccess} />
         )}
       />
+    ),
+    [
+      columns,
+      filtering,
+      rowSelection,
+      pageSize,
+      page,
+      totalPages,
+      handleDeleteSuccess,
+    ]
+  );
+
+  return (
+    <div className="mr-[10px] ml-[10px]">
+      {memoizedAdd}
+      <div className="flex items-center content-center">
+        <div className="mr-2">{memoizedInput}</div>
+      </div>
+      {memoizedDataTable}
     </div>
   );
-}
+});
+
+AllClient.displayName = "AllClient";
+
+export default AllClient;
