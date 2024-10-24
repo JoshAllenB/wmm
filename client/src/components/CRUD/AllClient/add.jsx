@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useUser } from "../../../utils/Hooks/userProvider";
 import { roleConfigs } from "../../../utils/roleConfigs";
 import { useEffect, useState } from "react";
@@ -6,13 +7,24 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
-
 import InputField from "../input";
-
 import { io } from "socket.io-client";
+
 const socket = io("http://localhost:3001");
 
+// Utility function to format date to "yyyy-MM-dd"
+const formatDateToInput = (date) => {
+  const d = new Date(date);
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  const year = d.getFullYear();
+  return `${year}-${month}-${day}`;
+};
+
 const Add = ({ fetchClients }) => {
+  const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
+  console.log("User object in Add component:", user);
+
   const [formData, setFormData] = useState({
     lname: "",
     fname: "",
@@ -32,6 +44,7 @@ const Add = ({ fetchClients }) => {
     type: "",
     group: "",
     remarks: "",
+    copies: "1", // Set default value to "1"
   });
 
   const [addressData, setAddressData] = useState({
@@ -42,12 +55,12 @@ const Add = ({ fetchClients }) => {
   });
 
   const [selectedCity, setSelectedCity] = useState("");
-  const { hasRole } = useUser();
   const [roleSpecificData, setRoleSpecificData] = useState({});
-  // eslint-disable-next-line no-unused-vars
   const [areaData, setAreaData] = useState({});
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
+    console.log("User roles initialized");
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
     if (userRole && roleConfigs[userRole]) {
       const initialRoleData = Object.keys(
@@ -57,15 +70,41 @@ const Add = ({ fetchClients }) => {
         return acc;
       }, {});
       setRoleSpecificData(initialRoleData);
+      console.log("Role-specific data initialized:", initialRoleData);
     }
   }, [hasRole]);
 
-  const handleRoleSpecificChange = (e) => {
-    const { name, value } = e.target;
-    setRoleSpecificData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const [showModal, setShowModal] = useState(false);
+  useEffect(() => {
+    if (hasRole("WMM")) {
+      setRoleSpecificData({
+        subsdate: "",
+        enddate: "",
+        renewdate: "",
+        subsyear: 0,
+        copies: 1,
+        paymtamt: 0,
+        paymtmasses: 0,
+        calendar: false,
+        subsclass: "",
+        donorid: 0,
+      });
+    } else if (hasRole("HRG")) {
+      setRoleSpecificData({
+        recvdate: "",
+        renewdate: "",
+        campaigndate: "",
+        paymtref: 0,
+        paymtamt: 0,
+        unsubscribe: 0,
+      });
+    } else if (hasRole("FOM")) {
+      setRoleSpecificData({
+        recvdate: "",
+        paymtamt: 0,
+        unsubscribe: false,
+      });
+    }
+  }, [hasRole]);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -83,30 +122,54 @@ const Add = ({ fetchClients }) => {
       const monthsToAdd = parseInt(value);
 
       const subscriptionStart = new Date(today);
+      let subscriptionEnd = new Date(today);
 
-      if (today.getMonth() === 3 || today.getMonth() === 4) {
-        subscriptionStart.setMonth(
-          subscriptionStart.getMonth() + monthsToAdd + 1
-        );
-      } else {
-        subscriptionStart.setMonth(subscriptionStart.getMonth() + monthsToAdd);
+      const addMonths = (date, months) => {
+        let monthsAdded = 0;
+        while (monthsAdded < months) {
+          date.setMonth(date.getMonth() + 1);
+          if (date.getMonth() !== 3 && date.getMonth() !== 4) {
+            monthsAdded++;
+          } else if (monthsAdded > 0) {
+            monthsAdded++;
+          }
+        }
+        return date;
+      };
+
+      subscriptionEnd = addMonths(subscriptionEnd, monthsToAdd);
+
+      if (subscriptionEnd.getMonth() === 3) {
+        subscriptionEnd.setMonth(4, 31);
+      } else if (subscriptionEnd.getMonth() === 4) {
+        subscriptionEnd.setMonth(5, 1);
       }
-
-      const subscriptionEnd = new Date(subscriptionStart);
 
       setFormData({
         ...formData,
         subscriptionFreq: value,
-        subscriptionStart: formatDate(subscriptionStart),
-        subscriptionEnd: formatDate(subscriptionEnd),
+        subscriptionStart: formatDateToInput(subscriptionStart),
+        subscriptionEnd: formatDateToInput(subscriptionEnd),
       });
+      setRoleSpecificData((prev) => ({
+        ...prev,
+        subsdate: formatDateToInput(subscriptionStart),
+        enddate: formatDateToInput(subscriptionEnd),
+      }));
       return;
+    } else if (
+      hasRole("WMM") &&
+      ["copies", "subscriptionStart", "subscriptionEnd", "subsyear"].includes(
+        name
+      )
+    ) {
+      setRoleSpecificData((prev) => ({ ...prev, [name]: value }));
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value,
+      });
     }
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
   };
 
   const handleAddressChange = (type, value) => {
@@ -124,29 +187,77 @@ const Add = ({ fetchClients }) => {
     }));
   };
 
+  const handleRoleSpecificChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setRoleSpecificData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleRenewDateToday = () => {
+    const today = new Date();
+    setRoleSpecificData((prev) => ({
+      ...prev,
+      renewdate: formatDateToInput(today),
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const addressComponents = [
       formData.area,
-      formData.acode,
-      formData.zipcode,
-      formData.address,
-      formData.street,
-      addressData.region,
-      addressData.province,
-      addressData.city,
       addressData.barangay,
+      addressData.city,
+      addressData.province,
+      addressData.region,
     ];
-
     const address = addressComponents.filter(Boolean).join(", ");
 
-    const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
-    const submissionData = {
-      ...formData,
+    const {
+      subscriptionFreq,
+      subscriptionStart,
+      subscriptionEnd,
+      ...baseClientData
+    } = formData;
+
+    const clientData = {
+      ...baseClientData,
       address,
-      roleSpecificData: userRole ? roleSpecificData : {},
     };
+
+    // Format the date to "DD MMM YYYY"
+    const formatDate = (date) => {
+      return new Date(date).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    };
+
+    const submissionData = {
+      clientData,
+      roleType: null,
+      roleData: null,
+      adddate: formatDate(new Date()), 
+    };
+
+    if (hasRole("WMM")) {
+      submissionData.roleType = "WMM";
+      submissionData.roleData = {
+        ...roleSpecificData,
+        subscriptionFreq,
+        subscriptionStart,
+        subscriptionEnd,
+      };
+    } else if (hasRole("HRG")) {
+      submissionData.roleType = "HRG";
+      submissionData.roleData = roleSpecificData;
+    } else if (hasRole("FOM")) {
+      submissionData.roleType = "FOM";
+      submissionData.roleData = roleSpecificData;
+    }
 
     try {
       const response = await axios.post(
@@ -157,38 +268,10 @@ const Add = ({ fetchClients }) => {
         fetchClients();
         socket.emit("client-added", submissionData);
         closeModal();
-        setFormData({
-          lname: "",
-          fname: "",
-          mname: "",
-          sname: "",
-          title: "",
-          bdate: "",
-          company: "",
-          address: "",
-          zipcode: "",
-          area: "",
-          acode: "",
-          contactnos: "",
-          cellno: "",
-          ofcno: "",
-          email: "",
-          type: "",
-          group: "",
-          remarks: "",
-        });
-        setAddressData({
-          region: "",
-          province: "",
-          city: "",
-          barangay: "",
-        });
-        setRoleSpecificData({});
-      } else {
-        console.error("Error adding clients!", response.data.message);
+        // Reset form data if needed
       }
     } catch (error) {
-      console.error("Error adding clients!", error);
+      console.error("Error submitting form:", error);
     }
   };
 
@@ -203,9 +286,9 @@ const Add = ({ fetchClients }) => {
 
       {showModal && (
         <Modal
-          isOpen={setShowModal}
+          isOpen={showModal}
           onClose={closeModal}
-          className=" bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
+          className="bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
         >
           {Object.keys(roleConfigs).map(
             (role) =>
@@ -217,7 +300,6 @@ const Add = ({ fetchClients }) => {
                 </div>
               )
           )}
-          <h1 className="text-black mb-2 font-bold"></h1>
           <form onSubmit={handleSubmit}>
             {(hasRole("WMM") || hasRole("Admin")) && (
               <div className="grid grid-cols-2 gap-4 ">
@@ -230,7 +312,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.lname}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="First Name:"
                     id="fname"
@@ -238,7 +319,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.fname}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Middle Name:"
                     id="mname"
@@ -246,7 +326,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.mname}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Suffix:"
                     id="sname"
@@ -261,7 +340,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.title}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Birth Date:"
                     id="bdate"
@@ -269,7 +347,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.bdate}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Company:"
                     id="company"
@@ -344,7 +421,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.type}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Group:"
                     id="group"
@@ -352,7 +428,6 @@ const Add = ({ fetchClients }) => {
                     value={formData.group}
                     onChange={handleChange}
                   />
-
                   <InputField
                     label="Remarks:"
                     id="remarks"
@@ -361,6 +436,7 @@ const Add = ({ fetchClients }) => {
                     onChange={handleChange}
                   />
                 </div>
+
                 {hasRole("WMM") && (
                   <div className="flex flex-col mb-2">
                     <h1 className="text-black mb-2 font-bold">Subscription</h1>
@@ -374,6 +450,7 @@ const Add = ({ fetchClients }) => {
                       onChange={handleChange}
                       className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                     >
+                      <option value="">Select Subscription Frequency</option>
                       <option value="3">3 Months</option>
                       <option value="6">6 Months</option>
                       <option value="12">12 Months</option>
@@ -395,56 +472,67 @@ const Add = ({ fetchClients }) => {
                       onChange={handleChange}
                     />
 
+                    <InputField
+                      label="Renew Date:"
+                      id="renewdate"
+                      name="renewdate"
+                      value={roleSpecificData.renewdate}
+                      onChange={handleRoleSpecificChange}
+                      type="date"
+                    />
+                    <Button
+                      type="button"
+                      onClick={handleRenewDateToday}
+                      className="text-white bg-blue-500 hover:bg-blue-700 rounded-xl mt-2"
+                    >
+                      Set Renew Date to Today
+                    </Button>
+
+                    <label className="block text-sm font-medium leading-6 text-gray-600">
+                      Subscription Year:
+                    </label>
+                    <input
+                      id="subsyear"
+                      name="subsyear"
+                      value={roleSpecificData.subsyear}
+                      onChange={handleRoleSpecificChange}
+                      type="number"
+                      min="0"
+                      className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                    />
+
                     <label className="block text-sm font-medium leading-6 text-gray-600">
                       Copies:
                     </label>
                     <input
                       id="copies"
                       name="copies"
-                      value={formData.copies}
-                      onChange={handleChange}
+                      value={roleSpecificData.copies}
+                      onChange={handleRoleSpecificChange}
                       type="number"
+                      min="1"
                       className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                     />
                   </div>
                 )}
               </div>
             )}
-            {Object.keys(roleConfigs).map(
-              (role) =>
-                hasRole(role) && (
-                  <div key={role} className="flex flex-col mb-2 p-2">
-                    {Object.entries(roleConfigs[role].groupFields).map(
-                      ([field, Label]) => (
-                        <InputField
-                          key={field}
-                          label={Label}
-                          id={field}
-                          name={field}
-                          value={roleSpecificData[field]}
-                          onChange={handleRoleSpecificChange}
-                        />
-                      )
-                    )}
-                  </div>
-                )
-            )}
+            <div className="flex gap-1 mt-4">
+              <Button
+                type="button"
+                onClick={closeModal}
+                className="text-white bg-red-500 hover:bg-red-800 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="text-white text-sm bg-green-600 hover:bg-green-800 rounded-xl"
+              >
+                Submit
+              </Button>
+            </div>
           </form>
-          <div className="flex gap-1">
-            <Button
-              className="text-white bg-red-500 hover:bg-red-800 rounded-xl"
-              onClick={() => setShowModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="text-white text-sm bg-green-600 hover:bg-green-800 rounded-xl"
-              type="submit"
-              onClick={handleSubmit}
-            >
-              Submit
-            </Button>
-          </div>
         </Modal>
       )}
     </div>
