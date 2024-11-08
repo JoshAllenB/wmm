@@ -108,7 +108,7 @@ export default function DataTable({
         />
       )}
 
-      {enableEdit && editRow && ViewComponent && (
+      { editRow && ViewComponent && (
         <ViewComponent
           rowData={editRow}
           onDelete={onDelete}
