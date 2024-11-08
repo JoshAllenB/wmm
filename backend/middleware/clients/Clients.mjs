@@ -97,6 +97,71 @@ router.get(
   }
 );
 
+router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const clientExists = await ClientModel.findOne({ id: parseInt(id) });
+
+    if (!clientExists) {
+      return res.status(404).json({
+        error: "Client not found",
+        message: `No client found with ID ${id}`,
+      });
+    }
+
+    const [wmmSubscription, hrgSubscription, fomSubscription] =
+      await Promise.all([
+        WmmModel.findOne({ clientid: parseInt(id) })
+          .sort({ subsdate: -1, enddate: -1 })
+          .exec(),
+        HrgModel.findOne({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .exec(),
+        FomModel.findOne({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .exec(),
+      ]);
+
+    let latestSubscription = null;
+
+    if (wmmSubscription) {
+      latestSubscription = {
+        ...wmmSubscription.toObject(),
+        subscriptionEnd: wmmSubscription.enddate,
+        subscriptionType: "WMM",
+      };
+    } else if (hrgSubscription) {
+      latestSubscription = {
+        ...hrgSubscription.toObject(),
+        subscriptionEnd: hrgSubscription.renewdate,
+        subscriptionType: "HRG",
+      };
+    } else if (fomSubscription) {
+      latestSubscription = {
+        ...fomSubscription.toObject(),
+        subscriptionEnd: fomSubscription.recvdate,
+        subscriptionType: "FOM",
+      };
+    }
+
+    if (!latestSubscription) {
+      return res.status(404).json({
+        error: "No subscription found",
+        message: `No subscription data found for client ID ${id}`,
+      });
+    }
+
+    res.json(latestSubscription);
+  } catch (err) {
+    console.error("Error fetching latest subscription:", err);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: err.message,
+    });
+  }
+});
+
 router.post("/add", verifyToken, async (req, res) => {
   try {
     const { clientData, roleType, roleData } = req.body;
@@ -138,7 +203,8 @@ router.post("/add", verifyToken, async (req, res) => {
 
       // Generate new ID for the role-specific model
       const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-      const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+      const newRoleSpecificId =
+        (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
       const roleSpecificData = {
         id: newRoleSpecificId, // Use the new ID for the role-specific data
@@ -243,12 +309,12 @@ router.put("/:id", verifyToken, async (req, res) => {
     }
 
     // Emit socket event for real-time updates
-    io.emit("data-update", { 
-      type: "update", 
-      data: { 
-        client: updatedClient, 
-        roleSpecificClient: updatedRoleSpecificClient 
-      } 
+    io.emit("data-update", {
+      type: "update",
+      data: {
+        client: updatedClient,
+        roleSpecificClient: updatedRoleSpecificClient,
+      },
     });
 
     res.json({
@@ -258,7 +324,9 @@ router.put("/:id", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error("Error updating client:", err);
-    res.status(500).json({ error: "Internal Server Error", message: err.message });
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", message: err.message });
   }
 });
 
@@ -282,7 +350,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     };
 
     // Attempt to delete from each role-specific model
-    const deletePromises = Object.values(roleModelMap).map(RoleModel => 
+    const deletePromises = Object.values(roleModelMap).map((RoleModel) =>
       RoleModel.findOneAndDelete({ clientid: id })
     );
 
@@ -292,10 +360,14 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     // Emit socket event for real-time updates
     io.emit("data-update", { type: "delete", data: { id } });
 
-    res.json({ message: "Client and associated role-specific data deleted successfully" });
+    res.json({
+      message: "Client and associated role-specific data deleted successfully",
+    });
   } catch (err) {
     console.error("Error deleting client:", err);
-    res.status(500).json({ error: "Internal Server Error", message: err.message });
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", message: err.message });
   }
 });
 
