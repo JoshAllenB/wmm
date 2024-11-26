@@ -6,116 +6,30 @@ export const useColumns = () => {
   const { hasRole } = useUser();
 
   const baseColumns = [
-    {
-      id: "select",
-      header: ({ table }) => (
-        <div className="checkbox-cell">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => {
-              table.toggleAllPageRowsSelected(!!value);
-            }}
-            aria-label="Select all"
-          />
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="checkbox-cell">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => {
-              row.toggleSelected(!!value);
-            }}
-            aria-label="Select row"
-          />
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
-      size: 10,
-    },
     { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
     {
-      id: "Client Data",
-      Header: "Client Data",
-      accessorFn: (row) => ({
-        name: `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${
-          row.fname || ""
-        } ${row.mname || ""}`.trim(),
-        zipcode: row.zipcode,
-        area: `${row.area} (${row.acode})`,
-        type: row.type,
-        group: row.group,
-        address: `${row.address || ""}, ${row.street || ""}, ${
-          row.city || ""
-        }, ${row.barangay || ""}`.replace(/^[,\s]+|[,\s]+$/g, ""),
-        contactInfo: [
-          row.contactnos && `Phone: ${row.contactnos}`,
-          row.cellno && `Cell: ${row.cellno}`,
-          row.ofcno && `Office: ${row.ofcno}`,
-          row.email && `Email: ${row.email}`,
-        ]
-          .filter(Boolean)
-          .join(", "),
-      }),
-      cell: ({ getValue }) => {
-        const info = getValue();
-        return (
-          <div className="space-y-1">
-            <div>
-              <strong>Name:</strong> {info.name}
-            </div>
-            <div>
-              <strong>Address:</strong> {info.address}
-            </div>
-            <div>
-              <strong>Zipcode:</strong> {info.zipcode}
-            </div>
-            <div>
-              <strong>Area:</strong> {info.area}
-            </div>
-            <div>
-              <strong>Type:</strong> {info.type}
-            </div>
-            <div>
-              <strong>Group:</strong> {info.group}
-            </div>
-            {info.contactInfo && (
-              <div>
-                <strong>Contact Info:</strong> {info.contactInfo}
-              </div>
-            )}
-          </div>
-        );
-      },
-      size: 400,
+      id: "Client Name",
+      Header: "Client Name",
+      accessorFn: (row) => `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${row.fname || ""} ${row.mname || ""}`.trim(),
+      size: 200,
     },
-    // {
-    //   id: "Name",
-    //   Header: "Name",
-    //   accessorFn: (row) =>
-    //     `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${
-    //       row.fname || ""
-    //     } ${row.mname || ""}`,
-    //   size: 350,
-    // },
-    // {
-    //   id: "Zipcode",
-    //   Header: "Zipcode",
-    //   accessorFn: (row) => row.zipcode,
-    //   size: 20,
-    // },
-    // {
-    //   id: "Area",
-    //   Header: "Area",
-    //   accessorFn: (row) => `${row.area} (${row.acode})`,
-    //   size: 250,
-    // },
-    // { id: "Type", Header: "Type", accessorFn: (row) => row.type, size: 100 },
-    // { id: "Group", Header: "Group", accessorFn: (row) => row.group, size: 100 },
+    {
+      id: "Address",
+      Header: "Address",
+      accessorFn: (row) => `${row.address || ""}, ${row.street || ""}, ${row.city || ""}, ${row.barangay || ""}`.replace(/^[,\s]+|[,\s]+$/g, ""),
+      size: 300,
+    },
+    {
+      id: "Contact Info",
+      Header: "Contact Info",
+      accessorFn: (row) => [
+        row.contactnos && `Phone: ${row.contactnos}`,
+        row.cellno && `Cell: ${row.cellno}`,
+        row.ofcno && `Office: ${row.ofcno}`,
+        row.email && `Email: ${row.email}`,
+      ].filter(Boolean).join(", "),
+      size: 250,
+    },
     {
       id: "Services",
       Header: "Services",
