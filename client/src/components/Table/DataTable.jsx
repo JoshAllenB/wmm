@@ -44,7 +44,7 @@ export default function DataTable({
     page,
     pageSize,
     rowSelection,
-    setRowSelection,
+    setRowSelection
   );
   const {
     hoverRowMetadata,
@@ -60,14 +60,13 @@ export default function DataTable({
     setEditRow(null);
   };
 
-
   const handlePreviousPage = () => {
     setPage((prev) => Math.max(1, prev - 1));
-  }
+  };
 
   const handleNextPage = () => {
     setPage((prev) => Math.min(totalPages, prev + 1));
-  }
+  };
 
   if (loading) {
     return <div>Loading...</div>;
@@ -108,7 +107,7 @@ export default function DataTable({
         />
       )}
 
-      { editRow && ViewComponent && (
+      {editRow && ViewComponent && (
         <ViewComponent
           rowData={editRow}
           onDelete={onDelete}
@@ -126,13 +125,7 @@ export default function DataTable({
           setShowModal={setShowModal}
         />
       )}
-      {useHoverCard && hoverRowMetadata && (
-        <HoverCard
-          metadata={hoverRowMetadata.metadata}
-          adduser={hoverRowMetadata.adduser}
-          adddate={hoverRowMetadata.adddate}
-        />
-      )}
+
       {table.getSelectedRowModel().rows.length > 0 && <Mailing table={table} />}
     </>
   );
