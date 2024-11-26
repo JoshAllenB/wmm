@@ -1,118 +1,254 @@
 import { useState, useEffect } from "react";
-import psgcJSON from "./psgc.json";
 
-const AddressForm = ({ onAddressChange, addressData }) => {
+const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
   const [regions, setRegions] = useState([]);
   const [provinces, setProvinces] = useState([]);
-  const [cities, setCities] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [subLocations, setSubLocations] = useState([]);
   const [barangays, setBarangays] = useState([]);
+  const [showLocations, setShowLocations] = useState(true);
 
+  // Initialize regions
   useEffect(() => {
     if (psgcJSON && Array.isArray(psgcJSON)) {
       const regionData = psgcJSON.map((region) => ({
         name: region["Region Name"],
-        code: region["Region PSGC"],
+        psgc: region["Region PSGC"],
+        provinces: region.Provinces || [],
+        independentCities: region["Independent Cities"] || [],
       }));
       setRegions(regionData);
     }
-  }, []);
+  }, [psgcJSON]);
 
+  // Handle region selection
   useEffect(() => {
     if (addressData.region) {
-      const selectedRegion = psgcJSON.find(
-        (region) => region["Region Name"] === addressData.region
+      const selectedRegion = regions.find(
+        (region) => region.name === addressData.region
       );
 
       if (selectedRegion) {
-        setProvinces(selectedRegion.Provinces || []);
-        setCities(selectedRegion.Cities || []);
-      }
-    }
-  }, [addressData.region]);
+        const combinedLocations = [
+          ...selectedRegion.provinces.map((province) => ({
+            type: "province",
+            name: province["Province Name"],
+            uniqueKey: province["Province PSGC"],
+            data: province,
+          })),
+          ...selectedRegion.independentCities.map((city) => ({
+            type: "independent-city",
+            name: city["City Name"],
+            uniqueKey: city["City PSGC"],
+            data: city,
+          })),
+        ];
 
+        setProvinces(combinedLocations);
+        setLocations([]);
+        setSubLocations([]);
+        setBarangays([]);
+        setShowLocations(true);
+      }
+    } else {
+      resetForm();
+    }
+  }, [addressData.region, regions]);
+
+  // Handle province/independent city selection
   useEffect(() => {
     if (addressData.province) {
-      const selectedProvince = provinces.find(
-        (province) => province.Name === addressData.province
+      const selectedLocation = provinces.find(
+        (location) => location.name === addressData.province
       );
 
-      if (selectedProvince) {
-        setCities(selectedProvince.Cities || []);
+      if (selectedLocation) {
+        // For provinces
+        if (selectedLocation.type === "province") {
+          setShowLocations(true);
+          const province = selectedLocation.data;
+          const combinedLocations = [
+            ...(province.Municipalities || []).map((mun) => ({
+              type: "municipality",
+              name: mun.Name,
+              uniqueKey: mun.CorrespondenceCode,
+              data: mun,
+            })),
+            ...(province.Cities || []).map((city) => ({
+              type: "city",
+              name: city.Name,
+              uniqueKey: city.Code,
+              data: city,
+            })),
+          ];
+          setLocations(combinedLocations);
+          setBarangays([]);
+        }
+        // For independent cities
+        else if (selectedLocation.type === "independent-city") {
+          const subMuns = selectedLocation.data.SubMunicipalities || [];
+          const cityBarangays = selectedLocation.data.Barangays || [];
+
+          if (subMuns.length > 0) {
+            // If there are subMuns, show the locations dropdown
+            setShowLocations(true);
+            const combinedLocations = subMuns.map((subMun) => ({
+              type: "sub-municipality",
+              name: subMun.Name,
+              uniqueKey: subMun.CorrespondenceCode,
+              data: subMun,
+            }));
+            setLocations(combinedLocations);
+            setBarangays([]);
+          } else {
+            // If no subMuns, hide the locations dropdown and show barangays directly
+            setShowLocations(false);
+            setLocations([]);
+            // Process and set barangays directly for the independent city
+            const processedBarangays = cityBarangays.map((barangay, index) => ({
+              ...barangay,
+              uniqueKey: `${
+                barangay["Barangay PSGC"] || barangay.CorrespondenceCode
+              }-${index}`,
+              name: barangay["Barangay Name"] || barangay.Name,
+            }));
+            setBarangays(processedBarangays);
+            // Clear any existing location selection since we're showing barangays directly
+            onAddressChange("location", "");
+          }
+        }
       }
+    } else {
+      setLocations([]);
+      setSubLocations([]);
+      setBarangays([]);
+      setShowLocations(true);
     }
   }, [addressData.province, provinces]);
 
+  // Handle location selection
   useEffect(() => {
-    if (addressData.city) {
-      const selectedCity = cities.find((city) => city.Name === addressData.city);
-      if (selectedCity) {
-        setBarangays(selectedCity.barangays || []);
+    if (addressData.location && locations.length > 0) {
+      const selectedLocation = locations.find(
+        (loc) => loc.name === addressData.location
+      );
+
+      if (selectedLocation) {
+        switch (selectedLocation.type) {
+          case "municipality":
+          case "city":
+          case "sub-municipality":
+            const locationData = selectedLocation.data;
+            const processedBarangays = (locationData.Barangays || []).map(
+              (barangay, index) => ({
+                ...barangay,
+                uniqueKey: `${
+                  barangay["Barangay PSGC"] || barangay.CorrespondenceCode
+                }-${index}`,
+                name: barangay["Barangay Name"] || barangay.Name,
+              })
+            );
+            setBarangays(processedBarangays);
+            setSubLocations([]);
+            break;
+        }
       }
     }
-  }, [addressData.city, cities]);
+  }, [addressData.location, locations]);
 
   const handleChange = (type) => (event) => {
-    const selectedOption = event.target.value;
-    onAddressChange(type, selectedOption);
+    const value = event.target.value;
+    onAddressChange(type, value);
+
+    switch (type) {
+      case "region":
+        onAddressChange("province", "");
+        onAddressChange("location", "");
+        onAddressChange("subLocation", "");
+        onAddressChange("barangay", "");
+        break;
+      case "province":
+        onAddressChange("location", "");
+        onAddressChange("subLocation", "");
+        onAddressChange("barangay", "");
+        break;
+      case "location":
+        onAddressChange("subLocation", "");
+        onAddressChange("barangay", "");
+        break;
+      case "subLocation":
+        onAddressChange("barangay", "");
+        break;
+    }
+  };
+
+  const resetForm = () => {
+    setProvinces([]);
+    setLocations([]);
+    setSubLocations([]);
+    setBarangays([]);
+    setShowLocations(true);
   };
 
   return (
-    <div className="flex flex-col gap-3 text-lg mb-5">
+    <div className="flex flex-col space-y-4">
       {/* Region Select */}
       <select
-        name="region"
-        value={addressData.region}
+        className="w-full p-2 border rounded-md"
+        value={addressData.region || ""}
         onChange={handleChange("region")}
       >
         <option value="">Select Region</option>
         {regions.map((region) => (
-          <option key={region.code} value={region.name}>
+          <option key={region.psgc} value={region.name}>
             {region.name}
           </option>
         ))}
       </select>
 
-      {/* Province Select */}
-      {addressData.region && provinces.length > 0 && (
+      {/* Province/Independent City Select */}
+      {provinces.length > 0 && (
         <select
-          value={addressData.province}
+          className="w-full p-2 border rounded-md"
+          value={addressData.province || ""}
           onChange={handleChange("province")}
         >
-          <option value="">Select Province</option>
-          {provinces.map((province) => (
-            <option key={province["Correspondence Code"]} value={province.Name}>
-              {province.Name}
+          <option value="">Select Province/City</option>
+          {provinces.map((location) => (
+            <option key={location.uniqueKey} value={location.name}>
+              {location.name}
             </option>
           ))}
         </select>
       )}
 
-      {/* City Select */}
-      {(addressData.region || addressData.province) && (
-        <select value={addressData.city} onChange={handleChange("city")}>
-          <option value="">Select City</option>
-          {cities.map((city) => (
-            <option key={city["Correspondence Code"]} value={city.Name}>
-              {city.Name}
+      {/* Municipality/City Select - Only show if showLocations is true */}
+      {showLocations && locations.length > 0 && (
+        <select
+          className="w-full p-2 border rounded-md"
+          value={addressData.location || ""}
+          onChange={handleChange("location")}
+        >
+          <option value="">Select Municipality/City</option>
+          {locations.map((location) => (
+            <option key={location.uniqueKey} value={location.name}>
+              {location.name}
             </option>
           ))}
         </select>
       )}
 
       {/* Barangay Select */}
-      {addressData.city && (
+      {barangays.length > 0 && (
         <select
-          name="barangay"
-          value={addressData.barangay}
+          className="w-full p-2 border rounded-md"
+          value={addressData.barangay || ""}
           onChange={handleChange("barangay")}
         >
           <option value="">Select Barangay</option>
           {barangays.map((barangay) => (
-            <option
-              key={barangay["Barangay Correspondence Code"]}
-              value={barangay["Barangay Name"]}
-            >
-              {barangay["Barangay Name"]}
+            <option key={barangay.uniqueKey} value={barangay.name}>
+              {barangay.name}
             </option>
           ))}
         </select>
