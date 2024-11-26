@@ -8,7 +8,6 @@ import UserModel from "../../models/userControl/users.mjs";
 import { checkRole } from "../users/checkRole.mjs";
 import fetchClientServices from "../apiLogic/fetchClientServices.mjs";
 import fetchData from "../apiLogic/fetchData.mjs";
-import mongoose from "mongoose";
 import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
