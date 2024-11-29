@@ -31,15 +31,15 @@ router.get(
   checkRole(["Admin", "HRG", "WMM", "FOM"]),
   async (req, res) => {
     const io = req.io;
-    const { page = 1, limit = 1000, pageSize = 20, filter = "" } = req.query;
-
+    const { page = 1, pageSize = 20, filter = "" } = req.query;
+    const limit = parseInt(pageSize);
     try {
       await req.user.populate({
         path: "roles.role",
         populate: { path: "defaultPermissions" },
       });
       const userRole = req.user.roles[0]?.role.name || "No Role";
-      let totalPages, combinedData;
+      let totalPages, combinedData, totalCopies, pageSpecificCopies;
 
       if (userRole === "Admin") {
         const results = await Promise.all([
@@ -51,6 +51,14 @@ router.get(
 
         combinedData = results.flatMap((result) => result.combinedData);
         totalPages = Math.max(...results.map((result) => result.totalPages));
+        totalCopies = results.reduce(
+          (acc, result) => acc + (result.totalCopies || 0),
+          0
+        );
+        pageSpecificCopies = results.reduce(
+          (acc, result) => acc + (result.pageSpecificCopies || 0),
+          0
+        );
       } else if (userRole === "HRG") {
         const result = await Promise.all([
           fetchData("HrgModel", filter, page, limit, pageSize),
@@ -59,15 +67,24 @@ router.get(
         ]);
         combinedData = result.flatMap((result) => result.combinedData);
         totalPages = Math.max(...result.map((result) => result.totalPages));
+        totalCopies = result.reduce(
+          (acc, result) => acc + (result.totalCopies || 0),
+          0
+        );
+        pageSpecificCopies = result.reduce(
+          (acc, result) => acc + (result.pageSpecificCopies || 0),
+          0
+        );
       } else {
         const modelName = `${userRole}Model`;
-        ({ totalPages, combinedData } = await fetchData(
-          modelName,
-          filter,
-          parseInt(page),
-          parseInt(limit),
-          parseInt(pageSize)
-        ));
+        ({ totalPages, combinedData, totalCopies, pageSpecificCopies } =
+          await fetchData(
+            modelName,
+            filter,
+            parseInt(page),
+            parseInt(limit),
+            parseInt(pageSize)
+          ));
       }
 
       const clientIds = combinedData.map((client) => client.id);
@@ -83,8 +100,9 @@ router.get(
         };
       });
 
+      console.log("TotalCopies:", totalCopies);
       io.emit("data-update", { type: "init", data: combinedData });
-      res.json({ totalPages, combinedData });
+      res.json({ totalPages, combinedData, totalCopies, pageSpecificCopies });
     } catch (err) {
       console.error("Error in client GET route:", err);
       res.status(500).json({
