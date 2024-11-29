@@ -10,9 +10,11 @@ export const PaginationComponent = ({
   setPage,
 }) => {
   const handlePageSizeChange = (e) => {
-    setPageSize(Number(e.target.value));
+    const newSize = Number(e.target.value);
+    setPageSize(newSize);
     setPage(1);
   };
+
   return (
     <div className="flex items-center justify-between px-2 mt-2">
       <div className="flex-1 text-sm text-muted-foreground">
@@ -22,7 +24,7 @@ export const PaginationComponent = ({
         <div className="flex items-center space-x-2">
           <p className="text-sm font-medium">Rows per page</p>
           <select
-            className="h-8 w-[70px] rounded-md border border-input bg-transparent"
+            className="h-8 w-[70px] rounded-md border border-input bg-transparent text-center"
             value={pageSize}
             onChange={handlePageSizeChange}
           >

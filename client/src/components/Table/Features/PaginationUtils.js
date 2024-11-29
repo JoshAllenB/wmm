@@ -7,11 +7,20 @@ export function handlePreviousPage(
 ) {
   if (page > 1) {
     setPage(page - 1);
-    fetchClients(setData, page - 1, pageSize);
+    fetchClients(page - 1, pageSize);
   }
 }
 
-export function handleNextPage(page, setPage, fetchClients, setData, pageSize) {
-  setPage(page + 1);
-  fetchClients(setData, page + 1, pageSize);
+export function handleNextPage(
+  page,
+  setPage,
+  fetchClients,
+  setData,
+  pageSize,
+  totalPages
+) {
+  if (page < totalPages) {
+    setPage(page + 1);
+    fetchClients(page + 1, pageSize);
+  }
 }
