@@ -21,7 +21,9 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
 
   try {
     // If modelNames is a string, convert it to an array
-    const modelNamesArray = Array.isArray(modelNames) ? modelNames : [modelNames];
+    const modelNamesArray = Array.isArray(modelNames)
+      ? modelNames
+      : [modelNames];
 
     const fetchPromises = modelNamesArray.map(async (modelName) => {
       const modelKey = Object.keys(models).find(
@@ -45,7 +47,7 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
         const config = modelConfigs[modelKey];
         if (!config) {
           console.error(`No configuration found for ${modelName}`);
-          return [];
+          return { data: [], totalCopies: 0, pageSpecificCopies: 0 };
         }
 
         return Model.aggregate([
@@ -55,6 +57,7 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
           {
             $group: {
               _id: "$clientid",
+              totalCopies: { $sum: "$copies" },
               records: {
                 $push: config.groupFields,
               },
@@ -95,7 +98,9 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
         if (!modelDataMap.has(clientId)) {
           modelDataMap.set(clientId, {});
         }
-        modelDataMap.get(clientId)[modelNamesArray[index].toLowerCase().replace("model", "") + "Data"] = item.records || item;
+        modelDataMap.get(clientId)[
+          modelNamesArray[index].toLowerCase().replace("model", "") + "Data"
+        ] = item.records || item;
       });
     });
 
@@ -104,7 +109,32 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
       ...modelDataMap.get(client.id),
     }));
 
-    return { totalPages, combinedData };
+    const totalCopies = modelDataArrays.reduce((acc, modelData) => {
+      modelData.forEach((item) => {
+        acc += item.totalCopies || 0;
+      });
+      return acc;
+    }, 0);
+
+    // Calculate copies for current page
+    const pageSpecificCopies = combinedData.reduce((acc, client) => {
+      // Sum copies only for the clients on the current page
+      const clientCopies = modelDataArrays.reduce((copiesAcc, modelData) => {
+        const clientRecord = modelData.find(item => item._id === client.id);
+        return copiesAcc + (clientRecord?.totalCopies || 0);
+      }, 0);
+      return acc + clientCopies;
+    }, 0);
+
+    console.log("Total Copies:", totalCopies);
+    console.log("Page Specific Copies:", pageSpecificCopies);
+
+    return { 
+      totalPages, 
+      combinedData, 
+      totalCopies,
+      pageSpecificCopies 
+    };
   } catch (error) {
     console.error(`Error in fetchData:`, error);
     throw error;
