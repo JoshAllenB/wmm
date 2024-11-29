@@ -107,6 +107,13 @@ async function fetchAll(filter, page, limit, pageSize) {
 
   const totalPages = Math.ceil(totalClients / pageSize);
 
+  const totalCopies = modelData.reduce((acc, modelDataArray) => {
+    modelDataArray.forEach((item) => {
+      acc += item.totalCopies || 0;
+    });
+    return acc;
+  }, 0);
+
   const modelDataMaps = modelData.map(
     (data) => new Map(data.map((item) => [item._id, item.records]))
   );
@@ -121,7 +128,7 @@ async function fetchAll(filter, page, limit, pageSize) {
     ),
   }));
 
-  return { totalPages, combinedData };
+  return { totalPages, combinedData, totalCopies };
 }
 
 export default fetchAll;
