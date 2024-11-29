@@ -46,8 +46,6 @@ export function TableComponent({
             <TableRow
               key={row.id}
               className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer"
-              onMouseEnter={() => handleRowHover(row)}
-              onMouseLeave={() => setHoverRowmetadata(null)}
               onClick={(event) => handleRowClick(event, row)}
             >
               {row.getVisibleCells().map((cell) => (
