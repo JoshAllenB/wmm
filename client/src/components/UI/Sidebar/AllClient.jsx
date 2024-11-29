@@ -1,13 +1,3 @@
-/**
- * This is the main component for displaying all clients.
- * It uses the ClientTable component to display the data,
- * and the Add component to add new clients.
- * It also includes a search input and a dropdown to change the page size.
- * Renders a component that displays all clients.
- *
- * @return {JSX.Element} The rendered component.
- */
-
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
@@ -18,31 +8,31 @@ import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 
 const AllClient = React.memo(() => {
-  const [, setClientData] = useState([]);
+  const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalCopies, setTotalCopies] = useState(0);
+  const [pageSpecificCopies, setPageSpecificCopies] = useState(0);
   const columns = useColumns();
 
-  const fetchData = useCallback(async () => {
-    try {
-      const { totalPages } = await fetchClients(
-        setClientData,
-        page,
-        pageSize,
-        filtering
-      );
-      setTotalPages(totalPages);
-    } catch (error) {
-      console.error("Error fetching clients:", error);
-    }
-  }, [page, pageSize, filtering]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const fetchData = useCallback(
+    async (currentPage, currentPageSize, filter = "") => {
+      try {
+        const result = await fetchClients(currentPage, currentPageSize, filter);
+        setClientData(result.data);
+        setTotalPages(result.totalPages);
+        setTotalCopies(result.totalCopies);
+        setPageSpecificCopies(result.pageSpecificCopies);
+        return result;
+      } catch (error) {
+        console.error("Error fetching clients:", error);
+      }
+    },
+    []
+  );
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
@@ -59,49 +49,34 @@ const AllClient = React.memo(() => {
     []
   );
 
-  const memoizedInput = useMemo(
-    () => (
-      <Input
-        type="text"
-        value={filtering}
-        onChange={(e) => setFiltering(e.target.value)}
-        placeholder="Search Client"
-        className="w-[300px] mb-3 border-2 border-secondary"
-      />
-    ),
-    [filtering]
-  );
-
   const memoizedDataTable = useMemo(
     () => (
       <DataTable
-        fetchFunction={fetchClients}
         columns={columns}
-        filtering={filtering}
-        setFiltering={setFiltering}
+        data={clientData}
+        fetchFunction={fetchData}
+        initialPageSize={pageSize}
+        initialPage={page}
+        totalPages={totalPages}
         rowSelection={rowSelection}
         setRowSelection={setRowSelection}
-        pageSize={pageSize}
-        setPageSize={setPageSize}
-        page={page}
-        setPage={setPage}
-        totalPages={totalPages}
         usePagination={true}
-        useHoverCard={true}
-        enableRowClick={true}
-        enableEdit={true}
-        ViewComponent={(props) => (
-          <View {...props} onDeleteSuccess={handleDeleteSuccess} />
-        )}
+        useHoverCard={false}
+        ViewComponent={View}
+        totalCopies={totalCopies}
+        pageSpecificCopies={pageSpecificCopies}
       />
     ),
     [
       columns,
-      filtering,
-      rowSelection,
+      clientData,
+      fetchData,
       pageSize,
       page,
       totalPages,
+      rowSelection,
+      totalCopies,
+      pageSpecificCopies,
       handleDeleteSuccess,
     ]
   );
@@ -109,8 +84,13 @@ const AllClient = React.memo(() => {
   return (
     <div className="mr-[10px] ml-[10px]">
       {memoizedAdd}
-      <div className="flex items-center content-center">
-        <div className="mr-2">{memoizedInput}</div>
+      <div className="mb-4">
+        <Input
+          placeholder="Search..."
+          value={filtering}
+          onChange={(e) => setFiltering(e.target.value)}
+          className="max-w-sm"
+        />
       </div>
       {memoizedDataTable}
     </div>
