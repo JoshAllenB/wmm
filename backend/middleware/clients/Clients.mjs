@@ -141,10 +141,6 @@ router.get(
         };
       });
 
-      console.log("Cal Qty:", totalCalQty);
-      console.log("Cal Amt:", totalCalAmt);
-      console.log("Page Cal Qty:", pageSpecificCalQty);
-      console.log("Page Cal Amt:", pageSpecificCalAmt);
       io.emit("data-update", { type: "init", data: combinedData });
       res.json({
         totalPages,
