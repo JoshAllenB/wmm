@@ -58,6 +58,8 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
             $group: {
               _id: "$clientid",
               totalCopies: { $sum: "$copies" },
+              totalCalQty: { $sum: "$calqty" },
+              totalCalAmt: { $sum: "$calamt" },
               records: {
                 $push: config.groupFields,
               },
@@ -120,20 +122,54 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
       // Sum copies only for the clients on the current page
       const clientCopies = modelDataArrays.reduce((copiesAcc, modelData) => {
-        const clientRecord = modelData.find(item => item._id === client.id);
+        const clientRecord = modelData.find((item) => item._id === client.id);
         return copiesAcc + (clientRecord?.totalCopies || 0);
       }, 0);
       return acc + clientCopies;
     }, 0);
 
-    console.log("Total Copies:", totalCopies);
-    console.log("Page Specific Copies:", pageSpecificCopies);
+    const totalCalQty = modelDataArrays.reduce((acc, modelData) => {
+      modelData.forEach((item) => {
+        acc += item.totalCalQty || 0;
+      });
+      return acc;
+    }, 0);
 
-    return { 
-      totalPages, 
-      combinedData, 
+    const totalCalAmt = modelDataArrays.reduce((acc, modelData) => {
+      modelData.forEach((item) => {
+        acc += item.totalCalAmt || 0;
+      });
+      return acc;
+    }, 0);
+
+    const pageSpecificCalQty = combinedData.reduce((acc, client) => {
+      const clientCalQty = modelDataArrays.reduce((qtyAcc, modelData) => {
+        const clientRecord = modelData.find((item) => item._id === client.id);
+        return qtyAcc + (clientRecord?.totalCalQty || 0);
+      }, 0);
+      return acc + clientCalQty;
+    }, 0);
+
+    const pageSpecificCalAmt = combinedData.reduce((acc, client) => {
+      const clientCalAmt = modelDataArrays.reduce((amtAcc, modelData) => {
+        const clientRecord = modelData.find((item) => item._id === client.id);
+        return amtAcc + (clientRecord?.totalCalAmt || 0);
+      }, 0);
+      return acc + clientCalAmt;
+    }, 0);
+
+    console.log("Page Specific Cal Qty:", pageSpecificCalQty);
+    console.log("Page Specific Cal Amt:", pageSpecificCalAmt);
+
+    return {
+      totalPages,
+      combinedData,
       totalCopies,
-      pageSpecificCopies 
+      pageSpecificCopies,
+      totalCalQty,
+      totalCalAmt,
+      pageSpecificCalQty,
+      pageSpecificCalAmt,
     };
   } catch (error) {
     console.error(`Error in fetchData:`, error);
