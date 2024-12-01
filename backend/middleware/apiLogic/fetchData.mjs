@@ -158,9 +158,6 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
       return acc + clientCalAmt;
     }, 0);
 
-    console.log("Page Specific Cal Qty:", pageSpecificCalQty);
-    console.log("Page Specific Cal Amt:", pageSpecificCalAmt);
-
     return {
       totalPages,
       combinedData,
