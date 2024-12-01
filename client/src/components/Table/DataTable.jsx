@@ -29,6 +29,7 @@ export default function DataTable({
   totalCalQty: initialTotalCalQty,
   totalCalAmt: initialTotalCalAmt,
   userRole,
+  searchTerm,
 }) {
   const theme = useTheme();
   const [showModal, setShowModal] = useState(false);
@@ -60,17 +61,16 @@ export default function DataTable({
     pageSize,
     rowSelection,
     setRowSelection,
-    userRole,
+    userRole
   );
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const result = await fetchFunction(page, pageSize);
+        const result = await fetchFunction(page, pageSize, searchTerm);
 
         if (result && result.data) {
-          // Create a new array to trigger re-render
           setLocalData([...result.data]);
           setTotalPages(result.totalPages);
           setTotalCopies(result.totalCopies);
@@ -94,7 +94,7 @@ export default function DataTable({
     if (fetchFunction) {
       loadData();
     }
-  }, [page, pageSize, fetchFunction]);
+  }, [page, pageSize, fetchFunction, searchTerm]);
 
   if (isLoading) {
     return (
@@ -158,12 +158,6 @@ export default function DataTable({
               setPage={setPage}
             />
           </div>
-          {/* <div className="flex gap-4">
-            <span className="text-sm">
-              Page Copies: {pageSpecificCopies || 0}
-            </span>
-            <span className="text-sm">Total Copies: {totalCopies || 0}</span>
-          </div> */}
         </div>
       )}
     </>

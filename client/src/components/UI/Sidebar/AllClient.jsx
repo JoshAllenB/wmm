@@ -7,9 +7,12 @@ import { fetchClients } from "../../Table/Data/clientdata";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
+import useDebounce from "../../../utils/Hooks/useDebounce";
+
 const AllClient = React.memo(() => {
   const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
+  const debouncedFiltering = useDebounce(filtering, 300);
   const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
@@ -27,6 +30,7 @@ const AllClient = React.memo(() => {
     async (currentPage, currentPageSize, filter = "") => {
       try {
         const result = await fetchClients(currentPage, currentPageSize, filter);
+        console.log("AllClient - Received result:", result);
         setClientData(result.data);
         setTotalPages(result.totalPages);
         setTotalCopies(result.totalCopies);
@@ -42,6 +46,10 @@ const AllClient = React.memo(() => {
     },
     []
   );
+
+  useEffect(() => {
+    fetchData(page, pageSize, debouncedFiltering);
+  }, [debouncedFiltering, page, pageSize, fetchData]);
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
@@ -78,7 +86,8 @@ const AllClient = React.memo(() => {
         totalCalAmt={totalCalAmt}
         pageSpecificCalQty={pageSpecificCalQty}
         pageSpecificCalAmt={pageSpecificCalAmt}
-        userRole={hasRole("WMM") ? "WMM" : "CAL"} // Determine role dynamically
+        userRole={hasRole("WMM") ? "WMM" : "CAL"}
+        searchTerm={debouncedFiltering}
       />
     ),
     [
@@ -97,8 +106,15 @@ const AllClient = React.memo(() => {
       pageSpecificCalAmt,
       handleDeleteSuccess,
       hasRole,
+      filtering,
     ]
   );
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFiltering(value);
+    setPage(1);
+  };
 
   return (
     <div className="mr-[10px] ml-[10px]">
@@ -107,7 +123,7 @@ const AllClient = React.memo(() => {
         <Input
           placeholder="Search..."
           value={filtering}
-          onChange={(e) => setFiltering(e.target.value)}
+          onChange={handleSearchChange}
           className="max-w-sm"
         />
       </div>
