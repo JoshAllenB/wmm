@@ -192,11 +192,6 @@ async function fetchAll(filter, page, limit, pageSize) {
     return acc + clientCalAmt;
   }, 0);
 
-  console.log("pageSpecificCalQty", pageSpecificCalQty);
-  console.log("pageSpecificCalAmt", pageSpecificCalAmt);
-  console.log("totalCalQty", totalCalQty);
-  console.log("totalCalAmt", totalCalAmt);
-
   return {
     totalPages,
     combinedData,
