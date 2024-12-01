@@ -15,8 +15,16 @@ export const fetchClients = async (page = 1, pageSize = 20, filter = "") => {
       }
     );
 
-    const { totalPages, combinedData, totalCopies, pageSpecificCopies } =
-      response.data;
+    const {
+      totalPages,
+      combinedData,
+      totalCopies,
+      pageSpecificCopies,
+      totalCalQty,
+      totalCalAmt,
+      pageSpecificCalQty,
+      pageSpecificCalAmt,
+    } = response.data;
 
     if (!combinedData || !Array.isArray(combinedData)) {
       console.error("Invalid data format received:", response.data);
@@ -33,6 +41,10 @@ export const fetchClients = async (page = 1, pageSize = 20, filter = "") => {
       totalPages,
       totalCopies,
       pageSpecificCopies,
+      totalCalQty,
+      totalCalAmt,
+      pageSpecificCalQty,
+      pageSpecificCalAmt,
     };
   } catch (e) {
     console.error("Error fetching client data:", e);

@@ -6,7 +6,7 @@ import { Input } from "../ShadCN/input";
 import { fetchClients } from "../../Table/Data/clientdata";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
-
+import { useUser } from "../../../utils/Hooks/userProvider";
 const AllClient = React.memo(() => {
   const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
@@ -16,7 +16,12 @@ const AllClient = React.memo(() => {
   const [totalPages, setTotalPages] = useState(0);
   const [totalCopies, setTotalCopies] = useState(0);
   const [pageSpecificCopies, setPageSpecificCopies] = useState(0);
+  const [totalCalQty, setTotalCalQty] = useState(0);
+  const [totalCalAmt, setTotalCalAmt] = useState(0);
+  const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
+  const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const columns = useColumns();
+  const { hasRole } = useUser();
 
   const fetchData = useCallback(
     async (currentPage, currentPageSize, filter = "") => {
@@ -26,6 +31,10 @@ const AllClient = React.memo(() => {
         setTotalPages(result.totalPages);
         setTotalCopies(result.totalCopies);
         setPageSpecificCopies(result.pageSpecificCopies);
+        setTotalCalQty(result.totalCalQty);
+        setTotalCalAmt(result.totalCalAmt);
+        setPageSpecificCalQty(result.pageSpecificCalQty);
+        setPageSpecificCalAmt(result.pageSpecificCalAmt);
         return result;
       } catch (error) {
         console.error("Error fetching clients:", error);
@@ -65,6 +74,11 @@ const AllClient = React.memo(() => {
         ViewComponent={View}
         totalCopies={totalCopies}
         pageSpecificCopies={pageSpecificCopies}
+        totalCalQty={totalCalQty}
+        totalCalAmt={totalCalAmt}
+        pageSpecificCalQty={pageSpecificCalQty}
+        pageSpecificCalAmt={pageSpecificCalAmt}
+        userRole={hasRole("WMM") ? "WMM" : "CAL"} // Determine role dynamically
       />
     ),
     [
@@ -77,7 +91,12 @@ const AllClient = React.memo(() => {
       rowSelection,
       totalCopies,
       pageSpecificCopies,
+      totalCalQty,
+      totalCalAmt,
+      pageSpecificCalQty,
+      pageSpecificCalAmt,
       handleDeleteSuccess,
+      hasRole,
     ]
   );
 

@@ -40,6 +40,7 @@ router.get(
       });
       const userRole = req.user.roles[0]?.role.name || "No Role";
       let totalPages, combinedData, totalCopies, pageSpecificCopies;
+      let totalCalQty, totalCalAmt, pageSpecificCalQty, pageSpecificCalAmt;
 
       if (userRole === "Admin") {
         const results = await Promise.all([
@@ -59,6 +60,22 @@ router.get(
           (acc, result) => acc + (result.pageSpecificCopies || 0),
           0
         );
+        totalCalQty = results.reduce(
+          (acc, result) => acc + (result.totalCalQty || 0),
+          0
+        );
+        totalCalAmt = results.reduce(
+          (acc, result) => acc + (result.totalCalAmt || 0),
+          0
+        );
+        pageSpecificCalQty = results.reduce(
+          (acc, result) => acc + (result.pageSpecificCalQty || 0),
+          0
+        );
+        pageSpecificCalAmt = results.reduce(
+          (acc, result) => acc + (result.pageSpecificCalAmt || 0),
+          0
+        );
       } else if (userRole === "HRG") {
         const result = await Promise.all([
           fetchData("HrgModel", filter, page, limit, pageSize),
@@ -75,16 +92,40 @@ router.get(
           (acc, result) => acc + (result.pageSpecificCopies || 0),
           0
         );
+        totalCalQty = result.reduce(
+          (acc, result) => acc + (result.totalCalQty || 0),
+          0
+        );
+        totalCalAmt = result.reduce(
+          (acc, result) => acc + (result.totalCalAmt || 0),
+          0
+        );
+        pageSpecificCalQty = result.reduce(
+          (acc, result) => acc + (result.pageSpecificCalQty || 0),
+          0
+        );
+        pageSpecificCalAmt = result.reduce(
+          (acc, result) => acc + (result.pageSpecificCalAmt || 0),
+          0
+        );
       } else {
         const modelName = `${userRole}Model`;
-        ({ totalPages, combinedData, totalCopies, pageSpecificCopies } =
-          await fetchData(
-            modelName,
-            filter,
-            parseInt(page),
-            parseInt(limit),
-            parseInt(pageSize)
-          ));
+        ({
+          totalPages,
+          combinedData,
+          totalCopies,
+          pageSpecificCopies,
+          totalCalQty,
+          totalCalAmt,
+          pageSpecificCalQty,
+          pageSpecificCalAmt,
+        } = await fetchData(
+          modelName,
+          filter,
+          parseInt(page),
+          parseInt(limit),
+          parseInt(pageSize)
+        ));
       }
 
       const clientIds = combinedData.map((client) => client.id);
@@ -100,9 +141,21 @@ router.get(
         };
       });
 
-      console.log("TotalCopies:", totalCopies);
+      console.log("Cal Qty:", totalCalQty);
+      console.log("Cal Amt:", totalCalAmt);
+      console.log("Page Cal Qty:", pageSpecificCalQty);
+      console.log("Page Cal Amt:", pageSpecificCalAmt);
       io.emit("data-update", { type: "init", data: combinedData });
-      res.json({ totalPages, combinedData, totalCopies, pageSpecificCopies });
+      res.json({
+        totalPages,
+        combinedData,
+        totalCopies,
+        pageSpecificCopies,
+        totalCalQty,
+        totalCalAmt,
+        pageSpecificCalQty,
+        pageSpecificCalAmt,
+      });
     } catch (err) {
       console.error("Error in client GET route:", err);
       res.status(500).json({

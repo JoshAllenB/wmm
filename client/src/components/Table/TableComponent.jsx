@@ -12,10 +12,41 @@ import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
 
 export function TableComponent({
   table,
-  handleRowHover,
   handleRowClick,
-  setHoverRowmetadata,
+  totalCopies,
+  pageSpecificCopies,
+  totalCalQty,
+  totalCalAmt,
+  pageSpecificCalQty,
+  pageSpecificCalAmt,
+  userRole,
 }) {
+  const getTotalLabel = () => {
+    switch (userRole) {
+      case "WMM":
+        return (
+          <div className="space-y-1">
+            <div>Page Total Copies: {pageSpecificCopies || 0}</div>
+            <div>Total Copies: {totalCopies || 0}</div>
+          </div>
+        );
+      case "CAL":
+        return (
+          <div className="flex justify-between m-1">
+            <div>
+              Page Total Cal Qty: {pageSpecificCalQty || 0} | Page Total Cal
+              Amt: Php {pageSpecificCalAmt || 0}
+            </div>
+            <div>
+              Total Cal Qty: {totalCalQty || 0} | Total Cal Amt: Php{" "}
+              {totalCalAmt || 0}
+            </div>
+          </div>
+        );
+      default:
+        return "";
+    }
+  };
   return (
     <Table>
       <TableHeader>
@@ -56,35 +87,8 @@ export function TableComponent({
                     cell.column.id === "select" ? "checkbox-cell" : ""
                   }`}
                 >
-                  {cell.column.id === "Client Data" ? (
-                    <div className="text-left space-y-1">
-                      <div>
-                        <strong>Name:</strong> {cell.getValue().name}
-                      </div>
-                      <div>
-                        <strong>Address:</strong> {cell.getValue().address}
-                      </div>
-                      <div>
-                        <strong>Zipcode:</strong> {cell.getValue().zipcode}
-                      </div>
-                      <div>
-                        <strong>Area:</strong> {cell.getValue().area}
-                      </div>
-                      <div>
-                        <strong>Type:</strong> {cell.getValue().type}
-                      </div>
-                      <div>
-                        <strong>Group:</strong> {cell.getValue().group}
-                      </div>
-                      {cell.getValue().contactInfo && (
-                        <div>
-                          <strong>Contact Info:</strong>{" "}
-                          {cell.getValue().contactInfo}
-                        </div>
-                      )}
-                    </div>
-                  ) : cell.column.id === "Subscription" &&
-                    Array.isArray(cell.getValue()) ? (
+                  {cell.column.id === "Subscription" &&
+                  Array.isArray(cell.getValue()) ? (
                     <ul>
                       {cell.getValue().map((sub, index) => (
                         <li key={index} style={{ textAlign: "left" }}>
@@ -179,6 +183,16 @@ export function TableComponent({
           </TableRow>
         )}
       </TableBody>
+      <tfoot>
+        <TableRow>
+          <TableCell
+            colSpan={table.getVisibleLeafColumns().length}
+            className="h-[30px] sticky bottom-0 bg-white text-xs font-bold"
+          >
+            {getTotalLabel()}
+          </TableCell>
+        </TableRow>
+      </tfoot>
     </Table>
   );
 }

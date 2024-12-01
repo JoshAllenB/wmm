@@ -26,6 +26,9 @@ export default function DataTable({
   onDelete = null,
   totalCopies: initialTotalCopies,
   pageSpecificCopies: initialPageSpecificCopies,
+  totalCalQty: initialTotalCalQty,
+  totalCalAmt: initialTotalCalAmt,
+  userRole,
 }) {
   const theme = useTheme();
   const [showModal, setShowModal] = useState(false);
@@ -37,8 +40,12 @@ export default function DataTable({
   const [pageSpecificCopies, setPageSpecificCopies] = useState(
     initialPageSpecificCopies
   );
+  const [totalCalQty, setTotalCalQty] = useState(initialTotalCalQty);
+  const [totalCalAmt, setTotalCalAmt] = useState(initialTotalCalAmt);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
+  const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
 
   // Initialize table with data from props or local state
   const tableData = useMemo(() => {
@@ -52,12 +59,10 @@ export default function DataTable({
     page,
     pageSize,
     rowSelection,
-    setRowSelection
+    setRowSelection,
+    userRole,
   );
 
-  console.log("Total table rows:", table.getRowModel().rows.length);
-  console.log("Table data length:", tableData.length);
-  console.log("Columns:", columns);
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -70,6 +75,10 @@ export default function DataTable({
           setTotalPages(result.totalPages);
           setTotalCopies(result.totalCopies);
           setPageSpecificCopies(result.pageSpecificCopies);
+          setTotalCalQty(result.totalCalQty);
+          setTotalCalAmt(result.totalCalAmt);
+          setPageSpecificCalQty(result.pageSpecificCalQty);
+          setPageSpecificCalAmt(result.pageSpecificCalAmt);
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");
@@ -114,7 +123,17 @@ export default function DataTable({
   return (
     <>
       <ScrollArea className="rounded-md border h-[730px] w-full">
-        <TableComponent table={table} theme={theme} />
+        <TableComponent
+          table={table}
+          theme={theme}
+          totalCopies={totalCopies}
+          pageSpecificCopies={pageSpecificCopies}
+          totalCalQty={totalCalQty}
+          totalCalAmt={totalCalAmt}
+          pageSpecificCalQty={pageSpecificCalQty}
+          pageSpecificCalAmt={pageSpecificCalAmt}
+          userRole={userRole}
+        />
         <ScrollBar orientation="vertical" />
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
@@ -139,12 +158,12 @@ export default function DataTable({
               setPage={setPage}
             />
           </div>
-          <div className="flex gap-4">
+          {/* <div className="flex gap-4">
             <span className="text-sm">
               Page Copies: {pageSpecificCopies || 0}
             </span>
             <span className="text-sm">Total Copies: {totalCopies || 0}</span>
-          </div>
+          </div> */}
         </div>
       )}
     </>
