@@ -4,6 +4,7 @@ const models = {
   WmmModel: () => import("../../models/wmm.mjs"),
   HrgModel: () => import("../../models/hrg.mjs"),
   FomModel: () => import("../../models/fom.mjs"),
+  CalModel: () => import("../../models/cal.mjs"),
 };
 
 const modelConfigs = {
@@ -56,6 +57,33 @@ const modelConfigs = {
       remarks: "$remarks",
       paymtamt: "$aymtamt",
       unsubscribe: "$unsubscribe",
+    },
+  },
+  CalModel: {
+    projectFields: {
+      clientid: 1,
+      recvdate: 1,
+      caltype: 1,
+      calqty: 1,
+      calamt: 1,
+      paymtref: 1,
+      paymtamt: 1,
+      paymtform: 1,
+      paymtdate: 1,
+      adddate: 1,
+      adduser: 1,
+    },
+    groupFields: {
+      recvdate: "$recvdate",
+      caltype: "$caltype",
+      calqty: "$calqty",
+      calamt: "$calamt",
+      paymtref: "$paymtref",
+      paymtamt: "$paymtamt",
+      paymtform: "$paymtform",
+      paymtdate: "$paymtdate",
+      adddate: "$adddate",
+      adduser: "$adduser",
     },
   },
 };
@@ -114,6 +142,20 @@ async function fetchAll(filter, page, limit, pageSize) {
     return acc;
   }, 0);
 
+  const totalCalQty = modelData.reduce((acc, modelDataArray) => {
+    modelDataArray.forEach((item) => {
+      acc += item.totalCalQty || 0;
+    });
+    return acc;
+  }, 0);
+
+  const totalCalAmt = modelData.reduce((acc, modelDataArray) => {
+    modelDataArray.forEach((item) => {
+      acc += item.totalCalAmt || 0;
+    });
+    return acc;
+  }, 0);
+
   const modelDataMaps = modelData.map(
     (data) => new Map(data.map((item) => [item._id, item.records]))
   );
@@ -128,7 +170,42 @@ async function fetchAll(filter, page, limit, pageSize) {
     ),
   }));
 
-  return { totalPages, combinedData, totalCopies };
+  const pageSpecificCalQty = combinedData.reduce((acc, client) => {
+    const clientCalQty = modelDataMaps.reduce((qtyAcc, modelDataMap) => {
+      const clientRecords = modelDataMap.get(client.id) || [];
+      return (
+        qtyAcc +
+        clientRecords.reduce((sum, record) => sum + (record.calqty || 0), 0)
+      );
+    }, 0);
+    return acc + clientCalQty;
+  }, 0);
+
+  const pageSpecificCalAmt = combinedData.reduce((acc, client) => {
+    const clientCalAmt = modelDataMaps.reduce((amtAcc, modelDataMap) => {
+      const clientRecords = modelDataMap.get(client.id) || [];
+      return (
+        amtAcc +
+        clientRecords.reduce((sum, record) => sum + (record.calamt || 0), 0)
+      );
+    }, 0);
+    return acc + clientCalAmt;
+  }, 0);
+
+  console.log("pageSpecificCalQty", pageSpecificCalQty);
+  console.log("pageSpecificCalAmt", pageSpecificCalAmt);
+  console.log("totalCalQty", totalCalQty);
+  console.log("totalCalAmt", totalCalAmt);
+
+  return {
+    totalPages,
+    combinedData,
+    totalCopies,
+    totalCalQty,
+    totalCalAmt,
+    pageSpecificCalQty,
+    pageSpecificCalAmt,
+  };
 }
 
 export default fetchAll;
