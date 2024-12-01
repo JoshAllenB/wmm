@@ -25,9 +25,11 @@ export function TableComponent({
     switch (userRole) {
       case "WMM":
         return (
-          <div className="space-y-1">
-            <div>Page Total Copies: {pageSpecificCopies || 0}</div>
-            <div>Total Copies: {totalCopies || 0}</div>
+          <div className="flex space-x-1">
+            <div>
+              Page Total Copies: {pageSpecificCopies || 0} | Total Copies:{" "}
+              {totalCopies || 0}
+            </div>
           </div>
         );
       case "CAL":
