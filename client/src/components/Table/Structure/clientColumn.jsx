@@ -6,28 +6,68 @@ export const useColumns = () => {
   const { hasRole } = useUser();
 
   const baseColumns = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <div className="checkbox-cell">
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={(value) => {
+              table.toggleAllPageRowsSelected(!!value);
+            }}
+            aria-label="Select all"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="checkbox-cell">
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => {
+              row.toggleSelected(!!value);
+            }}
+            aria-label="Select row"
+          />
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 10,
+    },
     { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
     {
       id: "Client Name",
       Header: "Client Name",
-      accessorFn: (row) => `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${row.fname || ""} ${row.mname || ""}`.trim(),
+      accessorFn: (row) =>
+        `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${
+          row.fname || ""
+        } ${row.mname || ""}`.trim(),
       size: 200,
     },
     {
       id: "Address",
       Header: "Address",
-      accessorFn: (row) => `${row.address || ""}, ${row.street || ""}, ${row.city || ""}, ${row.barangay || ""}`.replace(/^[,\s]+|[,\s]+$/g, ""),
+      accessorFn: (row) =>
+        `${row.address || ""}, ${row.street || ""}, ${row.city || ""}, ${
+          row.barangay || ""
+        }`.replace(/^[,\s]+|[,\s]+$/g, ""),
       size: 300,
     },
     {
       id: "Contact Info",
       Header: "Contact Info",
-      accessorFn: (row) => [
-        row.contactnos && `Phone: ${row.contactnos}`,
-        row.cellno && `Cell: ${row.cellno}`,
-        row.ofcno && `Office: ${row.ofcno}`,
-        row.email && `Email: ${row.email}`,
-      ].filter(Boolean).join(", "),
+      accessorFn: (row) =>
+        [
+          row.contactnos && `Phone: ${row.contactnos}`,
+          row.cellno && `Cell: ${row.cellno}`,
+          row.ofcno && `Office: ${row.ofcno}`,
+          row.email && `Email: ${row.email}`,
+        ]
+          .filter(Boolean)
+          .join(", "),
       size: 250,
     },
     {
@@ -87,7 +127,7 @@ export const useColumns = () => {
                 }; // Return as an object
               });
             },
-            size: 650,
+            size: 350,
           },
         ]
       : []),
@@ -228,6 +268,12 @@ export const useColumns = () => {
           },
         ]
       : []),
+    {
+      id: "Added By",
+      Header: "Added By",
+      accessorFn: (row) => row.adduser,
+      size: 250,
+    },
   ];
 
   return [...baseColumns, ...roleSpecificColumns.flat()];
