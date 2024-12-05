@@ -26,11 +26,14 @@ const AllClient = React.memo(() => {
   const columns = useColumns();
   const { hasRole } = useUser();
 
+  // State for selected row and modal visibility
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+
   const fetchData = useCallback(
     async (currentPage, currentPageSize, filter = "") => {
       try {
         const result = await fetchClients(currentPage, currentPageSize, filter);
-        console.log("AllClient - Received result:", result);
         setClientData(result.data);
         setTotalPages(result.totalPages);
         setTotalCopies(result.totalCopies);
@@ -66,6 +69,16 @@ const AllClient = React.memo(() => {
     []
   );
 
+  const handleRowClick = (event, row) => {
+    setSelectedRow(row.original); // Set the selected row data
+    setShowViewModal(true); // Show the View component
+  };
+
+  const handleViewClose = () => {
+    setShowViewModal(false);
+    setSelectedRow(null);
+  };
+
   const memoizedDataTable = useMemo(
     () => (
       <DataTable
@@ -88,6 +101,7 @@ const AllClient = React.memo(() => {
         pageSpecificCalAmt={pageSpecificCalAmt}
         userRole={hasRole("WMM") ? "WMM" : "CAL"}
         searchTerm={debouncedFiltering}
+        handleRowClick={handleRowClick}
       />
     ),
     [
@@ -107,6 +121,7 @@ const AllClient = React.memo(() => {
       handleDeleteSuccess,
       hasRole,
       filtering,
+      handleRowClick,
     ]
   );
 
@@ -128,6 +143,13 @@ const AllClient = React.memo(() => {
         />
       </div>
       {memoizedDataTable}
+      {showViewModal && (
+        <View
+          rowData={selectedRow}
+          onClose={handleViewClose}
+          onDeleteSuccess={handleDeleteSuccess}
+        />
+      )}
     </div>
   );
 });
