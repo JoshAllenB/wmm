@@ -11,6 +11,7 @@ import fetchData from "../apiLogic/fetchData.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
+import GroupModel from "../../models/groups.mjs";
 
 const server = http.createServer();
 const io = new Server(server, {
@@ -422,6 +423,16 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Error deleting client:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/groups", verifyToken, async (req, res) => {
+  try {
+    const groups = await GroupModel.find().sort({ name: 1 });
+    res.json(groups);
+  } catch (err) {
+    console.error("Error fetching groups:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
