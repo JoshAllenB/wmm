@@ -322,7 +322,6 @@ const Add = ({ fetchClients }) => {
       );
       if (response.data.success) {
         fetchClients();
-        socket.emit("client-added", submissionData);
         closeModal();
         // Reset form data if needed
       }
