@@ -23,56 +23,21 @@ export function useDataFetching(fetchFunction, page, pageSize) {
   }, [fetchFunction, page, pageSize]);
 
   useEffect(() => {
-    const socket = io("http://localhost:3001");
-
-    socket.on("data-update", (updateData) => {
+    const handleDataUpdate = (updateData) => {
       handleDataUpdate(updateData);
-    });
+    };
 
-    socket.on("hrg-update", (updateData) => {
-      handleDataUpdate(updateData);
-    });
-
-    socket.on("user-update", (updateData) => {
-      handleDataUpdate(updateData);
-    });
-
-    socket.on("user_status_change", ({ userId, status }) => {
-      setData((prevData) =>
-        prevData.map((user) =>
-          user._id === userId ? { ...user, status: { status } } : user,
-        ),
-      );
-    });
+    const socket = webSocketService;
+    socket.subscribe("data-update", handleDataUpdate);
+    socket.subscribe("hrg-update", handleDataUpdate);
+    socket.subscribe("user-update", handleDataUpdate);
 
     return () => {
-      socket.disconnect();
+      socket.unsubscribe("data-update", handleDataUpdate);
+      socket.unsubscribe("hrg-update", handleDataUpdate);
+      socket.unsubscribe("user-update", handleDataUpdate);
     };
   }, []);
-
-  const handleDataUpdate = (updateData) => {
-    setData((prevData) => {
-      switch (updateData.type) {
-        case "add":
-          return [...prevData, updateData.data];
-        case "update":
-          return prevData.map((item) =>
-            item._id === updateData.data._id || item.id === updateData.data.id
-              ? updateData.data
-              : item,
-          );
-        case "delete":
-          return prevData.filter(
-            (item) =>
-              item.id !== updateData.data._id && item.id !== updateData.data.id,
-          );
-        case "init":
-          return updateData.data;
-        default:
-          return prevData;
-      }
-    });
-  };
 
   return { data, setData, error, loading };
 }
