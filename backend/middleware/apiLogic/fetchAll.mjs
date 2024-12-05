@@ -1,92 +1,9 @@
 import ClientModel from "../../models/clients.mjs";
-
-const models = {
-  WmmModel: () => import("../../models/wmm.mjs"),
-  HrgModel: () => import("../../models/hrg.mjs"),
-  FomModel: () => import("../../models/fom.mjs"),
-  CalModel: () => import("../../models/cal.mjs"),
-};
-
-const modelConfigs = {
-  WmmModel: {
-    projectFields: {
-      clientid: 1,
-      subsdate: 1,
-      enddate: 1,
-      renewdate: 1,
-      subsyear: 1,
-      copies: 1,
-    },
-    groupFields: {
-      subsdate: "$subsdate",
-      enddate: "$enddate",
-      renewdate: "$renewdate",
-      subsyear: "$subsyear",
-      copies: "$copies",
-    },
-  },
-  HrgModel: {
-    projectFields: {
-      clientid: 1,
-      recvdate: 1,
-      renewdate: 1,
-      campaigndate: 1,
-      paymtref: 1,
-      paymtamt: 1,
-      unsubscribe: 1,
-    },
-    groupFields: {
-      recvdate: "$recvdate",
-      renewdate: "$renewdate",
-      campaigndate: "$campaigndate",
-      paymtref: "$paymtref",
-      paymtamt: "$paymtamt",
-      unsubscribe: "$unsubscribe",
-    },
-  },
-  FomModel: {
-    projectFields: {
-      clientid: 1,
-      recvdate: 1,
-      remarks: 1,
-      paymtamt: 1,
-      unsubscribe: 1,
-    },
-    groupFields: {
-      recvdate: "$recvdate",
-      remarks: "$remarks",
-      paymtamt: "$aymtamt",
-      unsubscribe: "$unsubscribe",
-    },
-  },
-  CalModel: {
-    projectFields: {
-      clientid: 1,
-      recvdate: 1,
-      caltype: 1,
-      calqty: 1,
-      calamt: 1,
-      paymtref: 1,
-      paymtamt: 1,
-      paymtform: 1,
-      paymtdate: 1,
-      adddate: 1,
-      adduser: 1,
-    },
-    groupFields: {
-      recvdate: "$recvdate",
-      caltype: "$caltype",
-      calqty: "$calqty",
-      calamt: "$calamt",
-      paymtref: "$paymtref",
-      paymtamt: "$paymtamt",
-      paymtform: "$paymtform",
-      paymtdate: "$paymtdate",
-      adddate: "$adddate",
-      adduser: "$adduser",
-    },
-  },
-};
+import {
+  models,
+  modelConfigs,
+  ClientModel,
+} from "../../models/modelConfig.mjs";
 
 async function fetchAll(filter, page, limit, pageSize) {
   const skip = (page - 1) * pageSize;
