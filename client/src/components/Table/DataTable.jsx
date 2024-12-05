@@ -8,6 +8,7 @@ import { useTableLogic } from "./TableLogic";
 import { useDataFetching } from "./TableDataFetch";
 import { TableComponent } from "./TableComponent";
 import Mailing from "../mailing";
+import { useSocket } from "../../utils/Websocket/useSocket";
 
 export default function DataTable({
   columns,
@@ -30,9 +31,11 @@ export default function DataTable({
   totalCalAmt: initialTotalCalAmt,
   userRole,
   searchTerm,
+  handleRowClick,
 }) {
   const theme = useTheme();
   const [showModal, setShowModal] = useState(false);
+  const [selectedRow, setSelectedRow] = useState(null);
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [localData, setLocalData] = useState([]);
@@ -47,6 +50,7 @@ export default function DataTable({
   const [error, setError] = useState(null);
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
+  const { socket } = useSocket();
 
   // Initialize table with data from props or local state
   const tableData = useMemo(() => {
@@ -96,6 +100,41 @@ export default function DataTable({
     }
   }, [page, pageSize, fetchFunction, searchTerm]);
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDataUpdate = (updateData) => {
+      setLocalData((prevData) => {
+        switch (updateData.type) {
+          case "add":
+            return [updateData.data, ...prevData];
+          case "update":
+            return prevData.map((item) =>
+              item.id === updateData.data.id ? updateData.data : item
+            );
+          case "delete":
+            return prevData.filter((item) => item.id !== updateData.data.id);
+          case "init":
+            return updateData.data;
+          default:
+            return prevData;
+        }
+      });
+    };
+
+    socket.subscribe("data-update", handleDataUpdate);
+    socket.subscribe("hrg-update", handleDataUpdate);
+    socket.subscribe("wmm-update", handleDataUpdate);
+    socket.subscribe("user-update", handleDataUpdate);
+
+    return () => {
+      socket.unsubscribe("data-update", handleDataUpdate);
+      socket.unsubscribe("hrg-update", handleDataUpdate);
+      socket.unsubscribe("wmm-update", handleDataUpdate);
+      socket.unsubscribe("user-update", handleDataUpdate);
+    };
+  }, [socket]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[730px]">
@@ -126,6 +165,7 @@ export default function DataTable({
         <TableComponent
           table={table}
           theme={theme}
+          handleRowClick={handleRowClick}
           totalCopies={totalCopies}
           pageSpecificCopies={pageSpecificCopies}
           totalCalQty={totalCalQty}
