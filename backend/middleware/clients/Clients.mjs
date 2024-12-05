@@ -229,13 +229,10 @@ router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
 });
 
 router.post("/add", verifyToken, async (req, res) => {
+  const io = req.io;
   try {
     const { clientData, roleType, roleData } = req.body;
     const user = await UserModel.findById(req.userId).populate("roles.role");
-
-    console.log("Received client data:", clientData);
-    console.log("Role type:", roleType);
-    console.log("Role data:", roleData);
 
     // Generate new client ID
     const highestIdClient = await ClientModel.findOne().sort({ id: -1 });
@@ -284,20 +281,22 @@ router.post("/add", verifyToken, async (req, res) => {
       roleSpecificClient = await RoleModel.create(roleSpecificData);
     }
 
-    res.json({
-      success: true,
-      client: newClient,
-      roleSpecificClient: roleSpecificClient || null,
+    io.emit("data-update", {
+      type: "add",
+      data: {
+        ...newClient.toObject(),
+        services: [] // Initialize with empty services
+      }
     });
+    
+    res.json({ success: true, client: newClient });
   } catch (err) {
     console.error("Error adding client:", err);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", message: err.message });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-router.put("/:id", verifyToken, async (req, res) => {
+router.put("/update/:id", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const user = await UserModel.findById(req.userId).select("username");
@@ -377,22 +376,13 @@ router.put("/:id", verifyToken, async (req, res) => {
     // Emit socket event for real-time updates
     io.emit("data-update", {
       type: "update",
-      data: {
-        client: updatedClient,
-        roleSpecificClient: updatedRoleSpecificClient,
-      },
+      data: updatedClient
     });
 
-    res.json({
-      success: true,
-      client: updatedClient,
-      roleSpecificClient: updatedRoleSpecificClient,
-    });
+    res.json({ success: true, client: updatedClient });
   } catch (err) {
     console.error("Error updating client:", err);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", message: err.message });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -424,16 +414,15 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     await Promise.all(deletePromises);
 
     // Emit socket event for real-time updates
-    io.emit("data-update", { type: "delete", data: { id } });
-
-    res.json({
-      message: "Client and associated role-specific data deleted successfully",
+    io.emit("data-update", {
+      type: "delete",
+      data: { id: parseInt(id) }
     });
+
+    res.json({ success: true });
   } catch (err) {
     console.error("Error deleting client:", err);
-    res
-      .status(500)
-      .json({ error: "Internal Server Error", message: err.message });
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
