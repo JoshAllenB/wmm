@@ -64,6 +64,7 @@ const Add = ({ fetchClients }) => {
   const [showModal, setShowModal] = useState(false);
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
+  const [groups, setGroups] = useState([]);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -109,6 +110,22 @@ const Add = ({ fetchClients }) => {
       });
     }
   }, [hasRole]);
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await axios.get("http://localhost:3001/clients/groups", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        });
+        setGroups(response.data);
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    };
+    fetchGroups();
+  }, []);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -494,13 +511,23 @@ const Add = ({ fetchClients }) => {
                     value={formData.type}
                     onChange={handleChange}
                   />
-                  <InputField
-                    label="Group:"
+                  <label className="block text-sm font-medium leading-6 text-gray-600">
+                    Group:
+                  </label>
+                  <select
                     id="group"
                     name="group"
                     value={formData.group}
                     onChange={handleChange}
-                  />
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  >
+                    <option value="">Select a group</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.name}>
+                        {group.name}
+                      </option>
+                    ))}
+                  </select>
                   <InputField
                     label="Remarks:"
                     id="remarks"
