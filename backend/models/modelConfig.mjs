@@ -2,12 +2,12 @@
 
 import ClientModel from "./clients.mjs";
 
-
 export const models = {
   WMMModel: () => import("./wmm.mjs"),
   HRGModel: () => import("./hrg.mjs"),
   FOMModel: () => import("./fom.mjs"),
   CALModel: () => import("./cal.mjs"),
+  GroupModel: () => import("./groups.mjs"),
 };
 
 export const modelConfigs = {
@@ -91,6 +91,18 @@ export const modelConfigs = {
       paymtdate: "$paymtdate",
       adddate: "$adddate",
       adduser: "$adduser",
+    },
+  },
+  GroupModel: {
+    projectFields: {
+      id: 1,
+      name: 1,
+      description: 1,
+    },
+    groupFields: {
+      id: "$id",
+      name: "$name",
+      description: "$description",
     },
   },
 };
