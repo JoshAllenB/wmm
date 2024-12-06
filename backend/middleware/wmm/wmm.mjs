@@ -1,23 +1,10 @@
 import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import initWebSocket from "../../websocket.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 
-const server = http.createServer();
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
 
 const router = express.Router();
-initWebSocket(io);
 
 router.get("/", async (req, res) => {
   const io = req.io;
@@ -31,7 +18,7 @@ router.get("/", async (req, res) => {
 
     const wmm = await WmmModel.find()
       .select(
-        "id clientid subsdate enddate renewdate subsyear copies remarks paymtamt paymtmasses calender subsclass donorid adddate adduser",
+        "id clientid subsdate enddate renewdate subsyear copies remarks paymtamt paymtmasses calender subsclass donorid adddate adduser"
       )
       .sort({ id: -1 })
       .limit(limit)

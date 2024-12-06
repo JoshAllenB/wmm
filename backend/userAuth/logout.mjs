@@ -7,9 +7,6 @@ const logoutUser = async (userId, io) => {
       user.status = "Logged Off";
       await user.save();
 
-      // Emit a socket event to notify all clients about the user's status change
-      io.emit("user_status_change", { userId, status: "Logged Off" });
-
       return { message: "Logout successful" };
     } else {
       return { error: "User not found" };

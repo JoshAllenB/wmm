@@ -1,25 +1,9 @@
 import express from "express";
-import http from "http";
-import { Server } from "socket.io";
 import HrgModel from "../../models/hrg.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
-import initWebSocket from "../../websocket.mjs";
-import { Certificate } from "crypto";
-import { clear } from "console";
-
-const server = http.createServer();
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
 
 const router = express.Router();
-initWebSocket(io);
 
 router.get("/", async (req, res) => {
   const io = req.io;
@@ -32,7 +16,7 @@ router.get("/", async (req, res) => {
 
     const hrgs = await HrgModel.find()
       .select(
-        "id clientid recvdate renewdate paymtamt unsubscribe adddate adduser",
+        "id clientid recvdate renewdate paymtamt unsubscribe adddate adduser"
       )
       .sort({ id: -1 })
       .limit(limit)

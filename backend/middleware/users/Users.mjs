@@ -1,24 +1,10 @@
 import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import initWebSocket from "../../websocket.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import { Role } from "../../models/userControl/role.mjs";
 import { checkRole } from "./checkRole.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 
-const server = http.createServer();
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173", // Allow your frontend URL
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
-
 const router = express.Router();
-initWebSocket(io);
 
 // Fetch all users to be used in table
 router.get("/", verifyToken, async (req, res) => {
