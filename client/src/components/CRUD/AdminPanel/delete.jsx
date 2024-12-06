@@ -9,7 +9,7 @@ const Delete = ({ userId, onDeleteSuccess, onClose }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/users/delete/${userId}`,
+        `http://10.1.15.15:3001/users/delete/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

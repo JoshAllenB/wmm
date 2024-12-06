@@ -14,7 +14,7 @@ const Delete = ({ hrg, onClose, onDeleteSuccess }) => {
 
     try {
       const response = await axios.delete(
-        `http://localhost:3001/hrg/delete/${hrg.id}`,
+        `http://10.1.15.15:3001/hrg/delete/${hrg.id}`
       );
       if (response.status === 200) {
         onDeleteSuccess(hrg.id);

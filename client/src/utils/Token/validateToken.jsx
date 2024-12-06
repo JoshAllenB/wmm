@@ -26,14 +26,17 @@ const refreshAndValidate = async () => {
   }
   try {
     const { data } = await axios.post(
-      "http://localhost:3001/auth/refreshToken",
+      "http://10.1.15.15:3001/auth/refreshToken",
       { token: refreshToken }
     );
     const { token, refreshToken: newRefreshToken } = data;
     setTokens(token, newRefreshToken);
     setAuthToken(token);
 
-    const response = await axios.post("http://localhost:3001/auth/verifyToken", { token });
+    const response = await axios.post(
+      "http://10.1.15.15:3001/auth/verifyToken",
+      { token }
+    );
     return response.data.valid ? response.data.user : false;
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
@@ -48,7 +51,7 @@ const validateToken = async () => {
 
   try {
     const response = await axios.post(
-      "http://localhost:3001/auth/verifyToken",
+      "http://10.1.15.15:3001/auth/verifyToken",
       { token }
     );
     if (response.data.valid) {

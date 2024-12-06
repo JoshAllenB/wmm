@@ -11,13 +11,11 @@ import {
 import RegisterPage from "./register";
 import setAuthToken from "../Token/setAuthToken";
 import validateToken from "../Token/validateToken";
-import io from "socket.io-client";
 import { setTokens } from "../Token/tokenStorage";
 import { ActivityContext } from "../ActivityMonitor";
 import { useApiResponseToast } from "../../components/UI/apiResponse";
 import { useUser } from "../Hooks/userProvider";
-
-const socket = io("http://localhost:3001");
+import { webSocketService } from "../../services/WebSocketService";
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -55,7 +53,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
     e.preventDefault();
 
     try {
-      const result = await axios.post("http://localhost:3001/auth/login", {
+      const result = await axios.post("http://10.1.15.15:3001/auth/login", {
         username,
         password,
       });
@@ -69,10 +67,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
         setUserData(userData);
         setIsLoggedIn(true);
         navigate("/all-client");
-        socket.emit("user_status_change", {
-          userId: userData.id,
-          status: "Active",
-        });
+
+        const webSocketService = new webSocketService(
+          "http://10.1.15.15:3001",
+          result.data.token
+        );
+        webSocketService.connect();
 
         resetActivityTimer();
       } else {

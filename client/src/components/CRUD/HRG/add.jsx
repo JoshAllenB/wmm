@@ -5,9 +5,6 @@ import Modal from "../../modal";
 
 import InputField from "../input";
 
-import { io } from "socket.io-client";
-const socket = io("http://localhost:3001");
-
 const Add = ({ fetchHrg }) => {
   const [formData, setFormData] = useState({
     clientid: "",
@@ -41,9 +38,8 @@ const Add = ({ fetchHrg }) => {
     };
 
     try {
-      await axios.post("http://localhost:3001/hrg/add", submissionData);
+      await axios.post("http://10.1.15.15:3001/hrg/add", submissionData);
       fetchHrg();
-      socket.emit("hrg-added", submissionData);
       closeModal();
       setFormData({
         clientid: "",

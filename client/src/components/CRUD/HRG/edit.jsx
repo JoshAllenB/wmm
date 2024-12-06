@@ -16,7 +16,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
       adddate: "",
       adduser: "",
     }),
-    [],
+    []
   );
 
   const [formData, setFormData] = useState(initialFormData);
@@ -46,7 +46,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
     if (!formData) return;
 
     try {
-      await axios.put(`http://localhost:3001/hrg/${rowData.id}`, formData);
+      await axios.put(`http://10.1.15.15:3001/hrg/${rowData.id}`, formData);
       onClose();
       setShowModal(false);
     } catch (e) {

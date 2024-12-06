@@ -2,7 +2,7 @@ import axios from "axios";
 
 export const fetchUsers = async () => {
   try {
-    const response = await axios.get("http://localhost:3001/users", {
+    const response = await axios.get("http://10.1.15.15:3001/users", {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },

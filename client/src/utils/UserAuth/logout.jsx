@@ -6,12 +6,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
 } from "../../components/UI/ShadCN/dropdown-menu";
-import io from "socket.io-client";
 import { removeTokens } from "../Token/tokenStorage";
-
-const socket = io("http://localhost:3001", {
-  transports: ["websocket"], // Ensure WebSocket is used
-});
 
 export default function Logout({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -30,7 +25,7 @@ export default function Logout({ setIsLoggedIn }) {
       }
 
       const reponse = await axios.post(
-        "http://localhost:3001/auth/logout",
+        "http://10.1.15.15:3001/auth/logout",
         {},
         {
           headers: {
