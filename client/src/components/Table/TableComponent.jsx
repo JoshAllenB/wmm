@@ -91,9 +91,12 @@ export function TableComponent({
                 >
                   {cell.column.id === "Subscription" &&
                   Array.isArray(cell.getValue()) ? (
-                    <ul>
+                    <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                       {cell.getValue().map((sub, index) => (
-                        <li key={index} style={{ textAlign: "left" }}>
+                        <li
+                          key={index}
+                          className="text-left border-b border-gray-500 last:border-none pb-2 mb-2"
+                        >
                           <strong>Start Date:</strong> {sub.subsdate},<br />
                           <strong>End Date:</strong> {sub.enddate},<br />
                           <strong>Copies:</strong> {sub.copies}
