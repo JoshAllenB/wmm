@@ -2,12 +2,17 @@ import axios from "axios";
 
 export const clientData = []; // Initialize as empty array
 
-export const fetchClients = async (page = 1, pageSize = 20, filter = "") => {
+export const fetchClients = async (
+  page = 1,
+  pageSize = 20,
+  filter = "",
+  group = ""
+) => {
   try {
     const response = await axios.get(
-      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
+      `http://10.1.15.15:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
         filter
-      )}`,
+      )}&group=${encodeURIComponent(group)}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -24,7 +29,22 @@ export const fetchClients = async (page = 1, pageSize = 20, filter = "") => {
       totalCalAmt,
       pageSpecificCalQty,
       pageSpecificCalAmt,
+      noData,
     } = response.data;
+
+    if (noData) {
+      return {
+        data: [],
+        totalPages: 0,
+        totalCopies: 0,
+        pageSpecificCopies: 0,
+        totalCalQty: 0,
+        totalCalAmt: 0,
+        pageSpecificCalQty: 0,
+        pageSpecificCalAmt: 0,
+        noData: true,
+      };
+    }
 
     if (!combinedData || !Array.isArray(combinedData)) {
       console.error("Invalid data format received:", response.data);
@@ -45,6 +65,7 @@ export const fetchClients = async (page = 1, pageSize = 20, filter = "") => {
       totalCalAmt,
       pageSpecificCalQty,
       pageSpecificCalAmt,
+      noData: false,
     };
   } catch (e) {
     console.error("Error fetching client data:", e);

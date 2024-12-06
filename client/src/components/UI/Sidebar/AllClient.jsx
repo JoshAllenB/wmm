@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
-
 import { fetchClients } from "../../Table/Data/clientdata";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
+import axios from "axios";
 
 const AllClient = React.memo(() => {
   const [clientData, setClientData] = useState([]);
@@ -30,10 +30,37 @@ const AllClient = React.memo(() => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  const fetchData = useCallback(
-    async (currentPage, currentPageSize, filter = "") => {
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
+
+  useEffect(() => {
+    const fetchGroups = async () => {
       try {
-        const result = await fetchClients(currentPage, currentPageSize, filter);
+        const response = await axios.get(
+          "http://10.1.15.15:3001/clients/groups",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        setGroups(response.data);
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    };
+    fetchGroups();
+  }, []);
+
+  const fetchData = useCallback(
+    async (currentPage, currentPageSize, filter = "", group = "") => {
+      try {
+        const result = await fetchClients(
+          currentPage,
+          currentPageSize,
+          filter,
+          group
+        );
         setClientData(result.data);
         setTotalPages(result.totalPages);
         setTotalCopies(result.totalCopies);
@@ -47,12 +74,12 @@ const AllClient = React.memo(() => {
         console.error("Error fetching clients:", error);
       }
     },
-    []
+    [selectedGroup]
   );
 
   useEffect(() => {
-    fetchData(page, pageSize, debouncedFiltering);
-  }, [debouncedFiltering, page, pageSize, fetchData]);
+    fetchData(page, pageSize, debouncedFiltering, selectedGroup);
+  }, [debouncedFiltering, page, pageSize, fetchData, selectedGroup]);
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
@@ -134,13 +161,28 @@ const AllClient = React.memo(() => {
   return (
     <div className="mr-[10px] ml-[10px]">
       {memoizedAdd}
-      <div className="mb-4">
+      <div className="flex gap-4 mb-4">
         <Input
           placeholder="Search..."
           value={filtering}
           onChange={handleSearchChange}
           className="max-w-sm"
         />
+        <select
+          value={selectedGroup}
+          onChange={(e) => {
+            setSelectedGroup(e.target.value);
+            setPage(1);
+          }}
+          className="block rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+        >
+          <option value="">All Groups</option>
+          {groups.map((group) => (
+            <option key={group._id} value={group.id + " " + group.name}>
+              {group.id} 
+            </option>
+          ))}
+        </select>
       </div>
       {memoizedDataTable}
       {showViewModal && (

@@ -8,10 +8,7 @@ import Modal from "../../modal";
 import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
-import { io } from "socket.io-client";
 import psgcJson from "../../../utils/psgc.json";
-
-const socket = io("http://localhost:3001");
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -114,11 +111,14 @@ const Add = ({ fetchClients }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await axios.get("http://localhost:3001/clients/groups", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
+        const response = await axios.get(
+          "http://10.1.15.15:3001/clients/groups",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
         setGroups(response.data);
       } catch (error) {
         console.error("Error fetching groups:", error);
@@ -146,7 +146,8 @@ const Add = ({ fetchClients }) => {
 
     while (monthsCounted < monthsToAdd) {
       if (currentMonth === 3) {
-        currentMonth = 5;
+        // April
+        currentMonth = 5; // Skip to June
         monthsCounted++;
       } else {
         currentMonth++;
@@ -156,20 +157,9 @@ const Add = ({ fetchClients }) => {
         }
         monthsCounted++;
       }
-
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear += 1;
-      }
     }
 
-    if (currentMonth === 0) {
-      currentMonth = 11;
-      currentYear--;
-    } else {
-      currentMonth--;
-    }
-
+    // Adjust the end date to the last day of the calculated month
     const endDate = new Date(currentYear, currentMonth + 1, 0);
     return endDate;
   };
@@ -180,7 +170,7 @@ const Add = ({ fetchClients }) => {
     if (name === "subscriptionFreq") {
       const today = new Date();
       const monthsToAdd = parseInt(value);
-      let startDate;
+      const startDate = today;
 
       const subscriptionStart = new Date(
         startDate.getFullYear(),
@@ -230,7 +220,6 @@ const Add = ({ fetchClients }) => {
   };
 
   const updateCombinedAddress = (addressData) => {
-    console.log("City before replacement:", addressData.city);
     const addressComponents = [
       addressData.street1,
       addressData.street2,
@@ -334,7 +323,7 @@ const Add = ({ fetchClients }) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/clients/add",
+        "http://10.1.15.15:3001/clients/add",
         submissionData
       );
       if (response.data.success) {
@@ -523,8 +512,8 @@ const Add = ({ fetchClients }) => {
                   >
                     <option value="">Select a group</option>
                     {groups.map((group) => (
-                      <option key={group.id} value={group.name}>
-                        {group.name}
+                      <option key={group.id} value={group.id}>
+                        {group.id}
                       </option>
                     ))}
                   </select>
@@ -553,8 +542,8 @@ const Add = ({ fetchClients }) => {
                     >
                       <option value="">Select Subscription Frequency</option>
                       <option value="6">6 Months</option>
-                      <option value="12">1 Year</option>
-                      <option value="24">2 Years</option>
+                      <option value="11">1 Year</option>
+                      <option value="21">2 Years</option>
                     </select>
 
                     <InputField

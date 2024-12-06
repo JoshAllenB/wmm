@@ -1,7 +1,4 @@
 import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import initWebSocket from "../../websocket.mjs";
 import ClientModel from "../../models/clients.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
@@ -12,19 +9,11 @@ import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
 import GroupModel from "../../models/groups.mjs";
+import dotenv from "dotenv";
 
-const server = http.createServer();
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173", // Allow your frontend URL
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-  },
-});
+dotenv.config();
 
 const router = express.Router();
-initWebSocket(io);
 
 router.get(
   "/",
@@ -32,7 +21,7 @@ router.get(
   checkRole(["Admin", "HRG", "WMM", "FOM"]),
   async (req, res) => {
     const io = req.io;
-    const { page = 1, pageSize = 20, filter = "" } = req.query;
+    const { page = 1, pageSize = 20, filter = "", group = "" } = req.query;
     const limit = parseInt(pageSize);
     try {
       await req.user.populate({
@@ -45,10 +34,10 @@ router.get(
 
       if (userRole === "Admin") {
         const results = await Promise.all([
-          fetchData("WmmModel", filter, page, limit, pageSize),
-          fetchData("HrgModel", filter, page, limit, pageSize),
-          fetchData("FomModel", filter, page, limit, pageSize),
-          fetchData("CalModel", filter, page, limit, pageSize),
+          fetchData("WmmModel", filter, page, limit, pageSize, group),
+          fetchData("HrgModel", filter, page, limit, pageSize, group),
+          fetchData("FomModel", filter, page, limit, pageSize, group),
+          fetchData("CalModel", filter, page, limit, pageSize, group),
         ]);
 
         combinedData = results.flatMap((result) => result.combinedData);
@@ -79,9 +68,9 @@ router.get(
         );
       } else if (userRole === "HRG") {
         const result = await Promise.all([
-          fetchData("HrgModel", filter, page, limit, pageSize),
-          fetchData("FomModel", filter, page, limit, pageSize),
-          fetchData("CalModel", filter, page, limit, pageSize),
+          fetchData("HrgModel", filter, page, limit, pageSize, group),
+          fetchData("FomModel", filter, page, limit, pageSize, group),
+          fetchData("CalModel", filter, page, limit, pageSize, group),
         ]);
         combinedData = result.flatMap((result) => result.combinedData);
         totalPages = Math.max(...result.map((result) => result.totalPages));
@@ -125,7 +114,8 @@ router.get(
           filter,
           parseInt(page),
           parseInt(limit),
-          parseInt(pageSize)
+          parseInt(pageSize),
+          group
         ));
       }
 
@@ -286,10 +276,10 @@ router.post("/add", verifyToken, async (req, res) => {
       type: "add",
       data: {
         ...newClient.toObject(),
-        services: [] // Initialize with empty services
-      }
+        services: [], // Initialize with empty services
+      },
     });
-    
+
     res.json({ success: true, client: newClient });
   } catch (err) {
     console.error("Error adding client:", err);
@@ -377,7 +367,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     // Emit socket event for real-time updates
     io.emit("data-update", {
       type: "update",
-      data: updatedClient
+      data: updatedClient,
     });
 
     res.json({ success: true, client: updatedClient });
@@ -417,7 +407,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     // Emit socket event for real-time updates
     io.emit("data-update", {
       type: "delete",
-      data: { id: parseInt(id) }
+      data: { id: parseInt(id) },
     });
 
     res.json({ success: true });
@@ -429,7 +419,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.get("/groups", verifyToken, async (req, res) => {
   try {
-    const groups = await GroupModel.find().sort({ name: 1 });
+    const groups = await GroupModel.find().select("id name").sort({ id: 1 });
     res.json(groups);
   } catch (err) {
     console.error("Error fetching groups:", err);

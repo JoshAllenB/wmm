@@ -5,10 +5,11 @@ import {
   ClientModel,
 } from "../../models/modelConfig.mjs";
 
-async function fetchData(modelNames, filter, page, limit, pageSize) {
+async function fetchData(modelNames, filter, page, limit, pageSize, group) {
   const skip = (page - 1) * pageSize;
   const numericFilter = Number(filter);
   const isNumeric = !isNaN(numericFilter);
+
   const filterQuery = {
     $or: [
       ...(isNumeric ? [{ id: numericFilter }] : []),
@@ -19,8 +20,27 @@ async function fetchData(modelNames, filter, page, limit, pageSize) {
     ],
   };
 
+  if (group) {
+    filterQuery.group = group;
+  }
+
+  const clientCount = await ClientModel.countDocuments(filterQuery);
+
+  if (clientCount === 0) {
+    return {
+      totalPages: 0,
+      combinedData: [],
+      totalCopies: 0,
+      pageSpecificCopies: 0,
+      totalCalQty: 0,
+      totalCalAmt: 0,
+      pageSpecificCalQty: 0,
+      pageSpecificCalAmt: 0,
+      noData: true,
+    };
+  }
+
   try {
-    // If modelNames is a string, convert it to an array
     const modelNamesArray = Array.isArray(modelNames)
       ? modelNames
       : [modelNames];
