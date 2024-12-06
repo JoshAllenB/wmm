@@ -9,6 +9,7 @@ import { useDataFetching } from "./TableDataFetch";
 import { TableComponent } from "./TableComponent";
 import Mailing from "../mailing";
 import { useSocket } from "../../utils/Websocket/useSocket";
+import { webSocketService } from "../../services/WebSocketService";
 
 export default function DataTable({
   columns,
@@ -50,7 +51,7 @@ export default function DataTable({
   const [error, setError] = useState(null);
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
-  const { socket } = useSocket();
+  const { socket, socketData } = useSocket();
 
   // Initialize table with data from props or local state
   const tableData = useMemo(() => {
@@ -101,39 +102,31 @@ export default function DataTable({
   }, [page, pageSize, fetchFunction, searchTerm]);
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socketData) return;
 
-    const handleDataUpdate = (updateData) => {
-      setLocalData((prevData) => {
-        switch (updateData.type) {
+    setLocalData((prevData) => {
+      const updatedData = (() => {
+        switch (socketData.type) {
           case "add":
-            return [updateData.data, ...prevData];
+            if (!prevData.some((item) => item.id === socketData.data.id)) {
+              return [socketData.data, ...prevData];
+            }
+            return prevData;
           case "update":
             return prevData.map((item) =>
-              item.id === updateData.data.id ? updateData.data : item
+              item.id === socketData.data.id ? socketData.data : item
             );
           case "delete":
-            return prevData.filter((item) => item.id !== updateData.data.id);
+            return prevData.filter((item) => item.id !== socketData.data.id);
           case "init":
-            return updateData.data;
+            return socketData.data;
           default:
             return prevData;
         }
-      });
-    };
-
-    socket.subscribe("data-update", handleDataUpdate);
-    socket.subscribe("hrg-update", handleDataUpdate);
-    socket.subscribe("wmm-update", handleDataUpdate);
-    socket.subscribe("user-update", handleDataUpdate);
-
-    return () => {
-      socket.unsubscribe("data-update", handleDataUpdate);
-      socket.unsubscribe("hrg-update", handleDataUpdate);
-      socket.unsubscribe("wmm-update", handleDataUpdate);
-      socket.unsubscribe("user-update", handleDataUpdate);
-    };
-  }, [socket]);
+      })();
+      return updatedData;
+    });
+  }, [socketData]);
 
   if (isLoading) {
     return (
@@ -158,6 +151,8 @@ export default function DataTable({
       </div>
     );
   }
+
+  console.log("Rendering table with data:", tableData);
 
   return (
     <>
