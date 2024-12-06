@@ -9,7 +9,7 @@ const clientConnection = mongoose.createConnection(process.env.MONGODB_URI, {
 
 const GroupSchema = new mongoose.Schema(
   {
-    id: Number,
+    id: String,
     name: String,
     description: String,
   },
