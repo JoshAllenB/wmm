@@ -127,7 +127,7 @@ export const useColumns = () => {
                 }; // Return as an object
               });
             },
-            size: 350,
+            size: 550,
           },
         ]
       : []),
