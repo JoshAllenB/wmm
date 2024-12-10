@@ -278,6 +278,12 @@ export const useColumns = () => {
       accessorFn: (row) => row.adduser,
       size: 250,
     },
+    {
+      id: "Added Date",
+      Header: "Added Date",
+      accessorFn: (row) => row.adddate,
+      size: 250,
+    },
   ];
 
   return [...baseColumns, ...roleSpecificColumns.flat()];
