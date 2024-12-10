@@ -7,6 +7,20 @@ import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
+} from "../ShadCN/dropdown-menu";
+import { Button } from "../ShadCN/button";
+import { ScrollArea } from "../ShadCN/scroll-area";
+import GroupFilter from "../../groupFilter";
 import axios from "axios";
 
 const AllClient = () => {
@@ -117,21 +131,12 @@ const AllClient = () => {
           onChange={handleSearchChange}
           className="max-w-sm"
         />
-        <select
-          value={selectedGroup}
-          onChange={(e) => {
-            setSelectedGroup(e.target.value);
-            setPage(1);
-          }}
-          className="block rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-        >
-          <option value="">All Groups</option>
-          {groups.map((group) => (
-            <option key={group._id} value={group.id}>
-              {group.id}
-            </option>
-          ))}
-        </select>
+        <GroupFilter
+          groups={groups}
+          selectedGroup={selectedGroup}
+          setSelectedGroup={setSelectedGroup}
+          setPage={setPage}
+        />
       </div>
       <DataTable
         columns={columns}
