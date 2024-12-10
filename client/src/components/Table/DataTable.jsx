@@ -1,15 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea, ScrollBar } from "../UI/ShadCN/scroll-area";
-import HoverCard from "../UI/HoverCard";
 import { useTheme } from "@mui/material";
-import { useRowHandlers } from "./Features/RowHandler";
 import { PaginationComponent } from "./Features/Pagination";
 import { useTableLogic } from "./TableLogic";
-import { useDataFetching } from "./TableDataFetch";
 import { TableComponent } from "./TableComponent";
-import Mailing from "../mailing";
 import { useSocket } from "../../utils/Websocket/useSocket";
-import { webSocketService } from "../../services/WebSocketService";
 
 export default function DataTable({
   columns,
@@ -32,11 +27,10 @@ export default function DataTable({
   totalCalAmt: initialTotalCalAmt,
   userRole,
   searchTerm,
+  selectedGroup,
   handleRowClick,
 }) {
   const theme = useTheme();
-  const [showModal, setShowModal] = useState(false);
-  const [selectedRow, setSelectedRow] = useState(null);
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [localData, setLocalData] = useState([]);
@@ -53,27 +47,16 @@ export default function DataTable({
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const { socket, socketData } = useSocket();
 
-  // Initialize table with data from props or local state
-  const tableData = useMemo(() => {
-    return localData.length > 0 ? localData : data || [];
-  }, [localData, data]);
-
-  const table = useTableLogic(
-    tableData,
-    columns,
-    usePagination,
-    page,
-    pageSize,
-    rowSelection,
-    setRowSelection,
-    userRole
-  );
-
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const result = await fetchFunction(page, pageSize, searchTerm);
+        const result = await fetchFunction(
+          page,
+          pageSize,
+          searchTerm,
+          selectedGroup
+        );
 
         if (result && result.data) {
           setLocalData([...result.data]);
@@ -96,10 +79,19 @@ export default function DataTable({
       }
     };
 
-    if (fetchFunction) {
-      loadData();
-    }
-  }, [page, pageSize, fetchFunction, searchTerm]);
+    loadData();
+  }, [page, pageSize, fetchFunction, searchTerm, selectedGroup]);
+
+  const table = useTableLogic(
+    localData,
+    columns,
+    usePagination,
+    page,
+    pageSize,
+    rowSelection,
+    setRowSelection,
+    userRole
+  );
 
   useEffect(() => {
     if (!socketData) return;
@@ -151,8 +143,6 @@ export default function DataTable({
       </div>
     );
   }
-
-  console.log("Rendering table with data:", tableData);
 
   return (
     <>

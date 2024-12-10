@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
@@ -9,7 +9,7 @@ import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
 import axios from "axios";
 
-const AllClient = React.memo(() => {
+const AllClient = () => {
   const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const debouncedFiltering = useDebounce(filtering, 300);
@@ -74,7 +74,7 @@ const AllClient = React.memo(() => {
         console.error("Error fetching clients:", error);
       }
     },
-    [selectedGroup]
+    []
   );
 
   useEffect(() => {
@@ -91,11 +91,6 @@ const AllClient = React.memo(() => {
     [page, pageSize]
   );
 
-  const memoizedAdd = useMemo(
-    () => <Add fetchClients={() => fetchClients(setClientData)} />,
-    []
-  );
-
   const handleRowClick = (event, row) => {
     setSelectedRow(row.original); // Set the selected row data
     setShowViewModal(true); // Show the View component
@@ -106,8 +101,38 @@ const AllClient = React.memo(() => {
     setSelectedRow(null);
   };
 
-  const memoizedDataTable = useMemo(
-    () => (
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFiltering(value);
+    setPage(1);
+  };
+
+  return (
+    <div className="mr-[10px] ml-[10px]">
+      <Add fetchClients={() => fetchClients(setClientData)} />
+      <div className="flex gap-4 mb-4">
+        <Input
+          placeholder="Search..."
+          value={filtering}
+          onChange={handleSearchChange}
+          className="max-w-sm"
+        />
+        <select
+          value={selectedGroup}
+          onChange={(e) => {
+            setSelectedGroup(e.target.value);
+            setPage(1);
+          }}
+          className="block rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
+        >
+          <option value="">All Groups</option>
+          {groups.map((group) => (
+            <option key={group._id} value={group.id}>
+              {group.id}
+            </option>
+          ))}
+        </select>
+      </div>
       <DataTable
         columns={columns}
         data={clientData}
@@ -130,61 +155,6 @@ const AllClient = React.memo(() => {
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
       />
-    ),
-    [
-      columns,
-      clientData,
-      fetchData,
-      pageSize,
-      page,
-      totalPages,
-      rowSelection,
-      totalCopies,
-      pageSpecificCopies,
-      totalCalQty,
-      totalCalAmt,
-      pageSpecificCalQty,
-      pageSpecificCalAmt,
-      handleDeleteSuccess,
-      hasRole,
-      filtering,
-      handleRowClick,
-    ]
-  );
-
-  const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setFiltering(value);
-    setPage(1);
-  };
-
-  return (
-    <div className="mr-[10px] ml-[10px]">
-      {memoizedAdd}
-      <div className="flex gap-4 mb-4">
-        <Input
-          placeholder="Search..."
-          value={filtering}
-          onChange={handleSearchChange}
-          className="max-w-sm"
-        />
-        <select
-          value={selectedGroup}
-          onChange={(e) => {
-            setSelectedGroup(e.target.value);
-            setPage(1);
-          }}
-          className="block rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm sm:leading-6"
-        >
-          <option value="">All Groups</option>
-          {groups.map((group) => (
-            <option key={group._id} value={group.id + " " + group.name}>
-              {group.id} 
-            </option>
-          ))}
-        </select>
-      </div>
-      {memoizedDataTable}
       {showViewModal && (
         <View
           rowData={selectedRow}
@@ -194,7 +164,7 @@ const AllClient = React.memo(() => {
       )}
     </div>
   );
-});
+};
 
 AllClient.displayName = "AllClient";
 
