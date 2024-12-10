@@ -92,8 +92,12 @@ export const useColumns = () => {
             id: "Remarks",
             Header: "Remarks",
             accessorFn: (row) => row.remarks,
-            enableResizing: true,
-            size: 200, // Adjust the size as needed
+            cell: ({ getValue }) => (
+              <div className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide text-left">
+                {getValue()}
+              </div>
+            ),
+            size: 200,
           },
           {
             id: "Subscription",
