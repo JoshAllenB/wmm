@@ -7,19 +7,6 @@ import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuSeparator,
-} from "../ShadCN/dropdown-menu";
-import { Button } from "../ShadCN/button";
-import { ScrollArea } from "../ShadCN/scroll-area";
 import FilterDropdown from "../../filterDropdown";
 import axios from "axios";
 
