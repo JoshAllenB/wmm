@@ -21,21 +21,10 @@ async function fetchData(modelNames, filter, page, limit, pageSize, group) {
   };
 
   if (group) {
-    console.log("Group Filtering Details:", {
-      group,
-      groupType: typeof group,
-      filterQueryBefore: { ...filterQuery },
-    });
-
     // Normalize group to handle potential type issues
     const normalizedGroup = String(group).trim();
 
     filterQuery.group = normalizedGroup;
-
-    console.log("Group Filtering After Normalization:", {
-      normalizedGroup,
-      filterQueryAfter: { ...filterQuery },
-    });
   }
 
   const clientCount = await ClientModel.countDocuments(filterQuery);
