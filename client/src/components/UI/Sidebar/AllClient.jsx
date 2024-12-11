@@ -20,7 +20,7 @@ import {
 } from "../ShadCN/dropdown-menu";
 import { Button } from "../ShadCN/button";
 import { ScrollArea } from "../ShadCN/scroll-area";
-import GroupFilter from "../../groupFilter";
+import FilterDropdown from "../../filterDropdown";
 import axios from "axios";
 
 const AllClient = () => {
@@ -131,7 +131,7 @@ const AllClient = () => {
           onChange={handleSearchChange}
           className="max-w-sm"
         />
-        <GroupFilter
+        <FilterDropdown
           groups={groups}
           selectedGroup={selectedGroup}
           setSelectedGroup={setSelectedGroup}
