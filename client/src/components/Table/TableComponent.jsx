@@ -75,15 +75,15 @@ export function TableComponent({
       </TableHeader>
       <TableBody>
         {table.getRowModel().rows.length > 0 ? (
-          table.getRowModel().rows.map((row) => (
+          table.getRowModel().rows.map((row, rowIndex) => (
             <TableRow
-              key={row.id}
+              key={`${row.id}-${rowIndex}`}
               className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer"
               onClick={(event) => handleRowClick(event, row)}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
-                  key={cell.id}
+                  key={`${cell.id}-${rowIndex}`}
                   style={{ width: cell.column.columnDef.size }}
                   className={`text-center${
                     cell.column.id === "select" ? "checkbox-cell" : ""
