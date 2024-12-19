@@ -89,5 +89,5 @@ class WebSocketService {
   }
 }
 
-const webSocketService = new WebSocketService("http://10.1.15.15:3001");
+const webSocketService = new WebSocketService("http://localhost:3001");
 export { webSocketService };

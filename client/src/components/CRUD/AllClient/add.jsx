@@ -112,7 +112,7 @@ const Add = ({ fetchClients }) => {
     const fetchGroups = async () => {
       try {
         const response = await axios.get(
-          "http://10.1.15.15:3001/clients/groups",
+          "http://localhost:3001/clients/groups",
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -323,7 +323,7 @@ const Add = ({ fetchClients }) => {
 
     try {
       const response = await axios.post(
-        "http://10.1.15.15:3001/clients/add",
+        "http://localhost:3001/clients/add",
         submissionData
       );
       if (response.data.success) {

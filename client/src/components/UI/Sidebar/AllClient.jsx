@@ -38,7 +38,7 @@ const AllClient = () => {
     const fetchGroups = async () => {
       try {
         const response = await axios.get(
-          "http://10.1.15.15:3001/clients/groups",
+          "http://localhost:3001/clients/groups",
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

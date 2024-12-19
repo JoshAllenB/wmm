@@ -25,7 +25,7 @@ export default function Logout({ setIsLoggedIn }) {
       }
 
       const reponse = await axios.post(
-        "http://10.1.15.15:3001/auth/logout",
+        "http://localhost:3001/auth/logout",
         {},
         {
           headers: {
@@ -40,10 +40,6 @@ export default function Logout({ setIsLoggedIn }) {
         removeTokens();
         setAuthToken(null);
         setIsLoggedIn(false);
-        socket.emit("user_status_change", {
-          userId: reponse.data.userId,
-          status: "Logged Off",
-        });
         navigate("/");
       }
     } catch (err) {

@@ -29,7 +29,7 @@ const RegisterPage = ({ onSuccess }) => {
     }
 
     try {
-      await axios.post("http://10.1.15.15:3001/auth/register", {
+      await axios.post("http://localhost:3001/auth/register", {
         username,
         password,
       });

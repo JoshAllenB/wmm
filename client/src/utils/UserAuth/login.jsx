@@ -53,7 +53,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
     e.preventDefault();
 
     try {
-      const result = await axios.post("http://10.1.15.15:3001/auth/login", {
+      const result = await axios.post("http://localhost:3001/auth/login", {
         username,
         password,
       });
@@ -69,7 +69,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
         navigate("/all-client");
 
         const webSocketService = new webSocketService(
-          "http://10.1.15.15:3001",
+          "http://localhost:3001",
           result.data.token
         );
         webSocketService.connect();

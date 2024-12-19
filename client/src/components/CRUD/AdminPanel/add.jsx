@@ -38,12 +38,12 @@ const Add = ({ type = "user" }) => {
     const fetchRolesAndPermissions = async () => {
       try {
         const [rolesRes, permissionsRes] = await Promise.all([
-          axios.get("http://10.1.15.15:3001/roles/roles", {
+          axios.get("http://localhost:3001/roles/roles", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
           }),
-          axios.get("http://10.1.15.15:3001/roles/permissions", {
+          axios.get("http://localhost:3001/roles/permissions", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
@@ -69,7 +69,7 @@ const Add = ({ type = "user" }) => {
       let dataToSend;
 
       if (type === "user") {
-        endpoint = "http://10.1.15.15:3001/users/add";
+        endpoint = "http://localhost:3001/users/add";
         dataToSend = {
           username: formData.username,
           password: formData.password,
@@ -80,13 +80,13 @@ const Add = ({ type = "user" }) => {
         };
         console.log("Sending user data:", dataToSend); // Add this line
       } else if (type === "role") {
-        endpoint = "http://10.1.15.15:3001/roles/roles/add";
+        endpoint = "http://localhost:3001/roles/roles/add";
         dataToSend = {
           name: formData.name,
           defaultPermissions: formData.defaultPermissions,
         };
       } else if (type === "permission") {
-        endpoint = "http://10.1.15.15:3001/roles/permissions/add";
+        endpoint = "http://localhost:3001/roles/permissions/add";
         dataToSend = {
           name: formData.name,
           description: formData.description,

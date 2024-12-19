@@ -26,7 +26,7 @@ const refreshAndValidate = async () => {
   }
   try {
     const { data } = await axios.post(
-      "http://10.1.15.15:3001/auth/refreshToken",
+      "http://localhost:3001/auth/refreshToken",
       { token: refreshToken }
     );
     const { token, refreshToken: newRefreshToken } = data;
@@ -34,7 +34,7 @@ const refreshAndValidate = async () => {
     setAuthToken(token);
 
     const response = await axios.post(
-      "http://10.1.15.15:3001/auth/verifyToken",
+      "http://localhost:3001/auth/verifyToken",
       { token }
     );
     return response.data.valid ? response.data.user : false;
@@ -51,7 +51,7 @@ const validateToken = async () => {
 
   try {
     const response = await axios.post(
-      "http://10.1.15.15:3001/auth/verifyToken",
+      "http://localhost:3001/auth/verifyToken",
       { token }
     );
     if (response.data.valid) {

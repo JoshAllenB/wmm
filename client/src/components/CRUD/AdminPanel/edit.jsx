@@ -24,12 +24,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
     const fetchRolesAndPermissions = async () => {
       try {
         const [rolesRes, permissionsRes] = await Promise.all([
-          axios.get("http://10.1.15.15:3001/roles/roles", {
+          axios.get("http://localhost:3001/roles/roles", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
           }),
-          axios.get("http://10.1.15.15:3001/roles/permissions", {
+          axios.get("http://localhost:3001/roles/permissions", {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
@@ -69,7 +69,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
       let dataToSend;
 
       if (type === "user") {
-        endpoint = `http://10.1.15.15:3001/users/update/${rowData._id}`;
+        endpoint = `http://localhost:3001/users/update/${rowData._id}`;
         dataToSend = {
           username: formData.username,
           roles: selectedRoles.map((role) => ({
@@ -82,13 +82,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
           dataToSend.newpassword = formData.newpassword;
         }
       } else if (type === "role") {
-        endpoint = `http://10.1.15.15:3001/roles/roles/${rowData._id}`;
+        endpoint = `http://localhost:3001/roles/roles/${rowData._id}`;
         dataToSend = {
           name: formData.name,
           defaultPermissions: formData.permissions,
         };
       } else if (type === "permission") {
-        endpoint = `http://10.1.15.15:3001/roles/permissions/${rowData._id}`;
+        endpoint = `http://localhost:3001/roles/permissions/${rowData._id}`;
         dataToSend = { name: formData.name };
       }
 

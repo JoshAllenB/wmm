@@ -38,7 +38,7 @@ const Add = ({ fetchHrg }) => {
     };
 
     try {
-      await axios.post("http://10.1.15.15:3001/hrg/add", submissionData);
+      await axios.post("http://localhost:3001/hrg/add", submissionData);
       fetchHrg();
       closeModal();
       setFormData({

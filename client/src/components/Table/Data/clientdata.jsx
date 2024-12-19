@@ -10,7 +10,7 @@ export const fetchClients = async (
 ) => {
   try {
     const response = await axios.get(
-      `http://10.1.15.15:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
+      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
         filter
       )}&group=${encodeURIComponent(group)}`,
       {
