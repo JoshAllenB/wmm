@@ -38,7 +38,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   };
 
   return (
-    <div className="flex flex-col gap-3 text-lg mb-5">
+    <div className="flex flex-col gap-3 text-lg mb-5 mt-5">
       <input
         type="text"
         name="acode"
