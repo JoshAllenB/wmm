@@ -132,35 +132,18 @@ const Add = ({ fetchClients }) => {
 
   const formatDateToMonthYear = (date) => {
     const d = new Date(date);
-    const month = d.toLocaleString("en-US", { month: "long" }); // Full month name (e.g., "January")
-    const year = d.getFullYear();
-    return `${month} ${year}`;
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = d.getFullYear().toString().slice(-2);
+    return `${month}/${day}/${year}`;
   };
 
   const calculateEndMonth = (startDate, monthsToAdd) => {
     const start = new Date(startDate);
-    let monthsCounted = 0;
-
-    let currentMonth = start.getMonth();
-    let currentYear = start.getFullYear();
-
-    while (monthsCounted < monthsToAdd) {
-      if (currentMonth === 3) {
-        // April
-        currentMonth = 5; // Skip to June
-        monthsCounted++;
-      } else {
-        currentMonth++;
-        if (currentMonth > 11) {
-          currentMonth = 0;
-          currentYear++;
-        }
-        monthsCounted++;
-      }
-    }
+    const endDate = new Date(start.setMonth(start.getMonth() + monthsToAdd));
 
     // Adjust the end date to the last day of the calculated month
-    const endDate = new Date(currentYear, currentMonth + 1, 0);
+    endDate.setDate(0);
     return endDate;
   };
 
@@ -541,9 +524,9 @@ const Add = ({ fetchClients }) => {
                       className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
                     >
                       <option value="">Select Subscription Frequency</option>
-                      <option value="6">6 Months</option>
-                      <option value="11">1 Year</option>
-                      <option value="21">2 Years</option>
+                      <option value="5">6 Months</option>
+                      <option value="12">1 Year</option>
+                      <option value="23">2 Years</option>
                     </select>
 
                     <InputField
@@ -562,31 +545,37 @@ const Add = ({ fetchClients }) => {
                       onChange={handleChange}
                     />
 
-                    <label className="block text-sm font-medium leading-6 text-gray-600">
-                      Subscription Year:
-                    </label>
-                    <input
-                      id="subsyear"
-                      name="subsyear"
-                      value={roleSpecificData.subsyear}
-                      onChange={handleRoleSpecificChange}
-                      type="number"
-                      min="0"
-                      className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                    />
+                    <div className="flex space-x-4">
+                      <div className="flex flex-col">
+                        <label className="block text-sm font-medium leading-6 text-gray-600">
+                          Subscription Year:
+                        </label>
+                        <input
+                          id="subsyear"
+                          name="subsyear"
+                          value={roleSpecificData.subsyear}
+                          onChange={handleRoleSpecificChange}
+                          type="number"
+                          min="0"
+                          className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                        />
+                      </div>
 
-                    <label className="block text-sm font-medium leading-6 text-gray-600">
-                      Copies:
-                    </label>
-                    <input
-                      id="copies"
-                      name="copies"
-                      value={roleSpecificData.copies}
-                      onChange={handleRoleSpecificChange}
-                      type="number"
-                      min="1"
-                      className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                    />
+                      <div className="flex flex-col">   
+                        <label className="block text-sm font-medium leading-6 text-gray-600">
+                          Copies:
+                        </label>
+                        <input
+                          id="copies"
+                          name="copies"
+                          value={roleSpecificData.copies}
+                          onChange={handleRoleSpecificChange}
+                          type="number"
+                          min="1"
+                          className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
