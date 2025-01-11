@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
-import { fetchClients } from "../../Table/Data/clientdata";
+import { fetchClients, fetchGroups } from "../../Table/Data/clientdata";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
@@ -35,22 +35,15 @@ const AllClient = () => {
   const [selectedGroup, setSelectedGroup] = useState("");
 
   useEffect(() => {
-    const fetchGroups = async () => {
+    const loadGroups = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:3001/clients/groups",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
-        setGroups(response.data);
+        const groupsData = await fetchGroups();
+        setGroups(groupsData);
       } catch (error) {
-        console.error("Error fetching groups:", error);
+        console.error("Error loading groups:", error);
       }
     };
-    fetchGroups();
+    loadGroups();
   }, []);
 
   const fetchData = useCallback(

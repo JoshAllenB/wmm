@@ -9,6 +9,7 @@ import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
 import GroupModel from "../../models/groups.mjs";
+import SubClassModel from "../../models/subsclass.mjs";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -423,6 +424,16 @@ router.get("/groups", verifyToken, async (req, res) => {
     res.json(groups);
   } catch (err) {
     console.error("Error fetching groups:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/subclass", verifyToken, async (req, res) => {
+  try {
+    const subclass = await SubClassModel.find();
+    res.json(subclass);
+  } catch (err) {
+    console.error("Error fetching subclasses:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

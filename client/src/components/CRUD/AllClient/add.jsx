@@ -9,6 +9,7 @@ import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import psgcJson from "../../../utils/psgc.json";
+import { fetchSubclasses } from "../../Table/Data/clientdata";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -62,6 +63,7 @@ const Add = ({ fetchClients }) => {
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [groups, setGroups] = useState([]);
+  const [subclasses, setSubclasses] = useState([]);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -126,6 +128,18 @@ const Add = ({ fetchClients }) => {
     };
     fetchGroups();
   }, []);
+
+  useEffect(() => {
+    const loadSubclasses = async () => {
+      try {
+        const subclassesData = await fetchSubclasses();
+        setSubclasses(subclassesData);
+      } catch (error) {
+        console.error("Error loading subclasses:", error);
+      }
+    };
+    loadSubclasses();
+  }, [hasRole]);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -483,7 +497,7 @@ const Add = ({ fetchClients }) => {
                     value={formData.type}
                     onChange={handleChange}
                   />
-                  <label className="block text-sm font-medium leading-6 text-gray-600">
+                  <label className="block text-sm font-medium leading-6 text-gray-600 mb-">
                     Group:
                   </label>
                   <select
@@ -491,12 +505,29 @@ const Add = ({ fetchClients }) => {
                     name="group"
                     value={formData.group}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 mb-2"
                   >
                     <option value="">Select a group</option>
                     {groups.map((group) => (
                       <option key={group.id} value={group.id}>
                         {group.id}
+                      </option>
+                    ))}
+                  </select>
+                  <label htmlFor="subsclass">
+                    Subscription Classification:
+                  </label>
+                  <select
+                    id="subsclass"
+                    name="subsclass"
+                    value={formData.subsclass}
+                    onChange={handleChange}
+                    className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  >
+                    <option value="">Select a classification</option>
+                    {subclasses.map((subclass) => (
+                      <option key={subclass.id} value={subclass.id}>
+                        {subclass.name}
                       </option>
                     ))}
                   </select>
@@ -561,7 +592,7 @@ const Add = ({ fetchClients }) => {
                         />
                       </div>
 
-                      <div className="flex flex-col">   
+                      <div className="flex flex-col">
                         <label className="block text-sm font-medium leading-6 text-gray-600">
                           Copies:
                         </label>
