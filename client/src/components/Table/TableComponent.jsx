@@ -89,8 +89,19 @@ export function TableComponent({
                     cell.column.id === "select" ? "checkbox-cell" : ""
                   }`}
                 >
-                  {cell.column.id === "Subscription" &&
-                  Array.isArray(cell.getValue()) ? (
+                  {cell.column.id === "Added Info" ? (
+                    <div style={{ textAlign: "left" }}>
+                      <div>
+                        <strong>By:</strong>{" "}
+                        {cell.getValue().split(", ")[0].split(": ")[1]}
+                      </div>
+                      <div>
+                        <strong>Date:</strong>{" "}
+                        {cell.getValue().split(", ")[1].split(": ")[1]}
+                      </div>
+                    </div>
+                  ) : cell.column.id === "Subscription" &&
+                    Array.isArray(cell.getValue()) ? (
                     <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                       {cell.getValue().map((sub, index) => (
                         <li

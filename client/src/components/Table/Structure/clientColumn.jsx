@@ -273,16 +273,11 @@ export const useColumns = () => {
         ]
       : []),
     {
-      id: "Added By",
-      Header: "Added By",
-      accessorFn: (row) => row.adduser,
-      size: 250,
-    },
-    {
-      id: "Added Date",
-      Header: "Added Date",
-      accessorFn: (row) => row.adddate,
-      size: 250,
+      id: "Added Info",
+      Header: "Added Info",
+      accessorFn: (row) =>
+        `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
+      size: 350,
     },
   ];
 
