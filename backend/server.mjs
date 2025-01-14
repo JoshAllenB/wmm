@@ -14,6 +14,7 @@ import hrgRoutes from "./middleware/hrg/Hrg.mjs";
 import wmmRoutes from "./middleware/wmm/wmm.mjs";
 import roleRoutes from "./middleware/users/roleManagement.mjs";
 import areaRoutes from "./middleware/areaApiRoute.mjs";
+import utilRoutes from "./middleware/fetchUtils.mjs";
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ const attachIO = (req, res, next) => {
   next();
 };
 
+app.use("/util", attachIO, utilRoutes);
 app.use("/auth", attachIO, userAuthRouter);
 app.use("/users", attachIO, userRoutes);
 app.use("/clients", attachIO, clientsRoutes);
