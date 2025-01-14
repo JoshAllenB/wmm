@@ -9,9 +9,6 @@ export const fetchUsers = async () => {
     });
     const { users, currentUser } = response.data;
 
-    console.log("Raw users data:", users);
-    console.log("Raw current user data:", currentUser);
-
     const formattedUsers = users.map((user) => ({
       ...user,
       status: user.status || "Inactive",
@@ -47,8 +44,6 @@ export const fetchUsers = async () => {
         }
       : null;
 
-    console.log("Formatted users:", formattedUsers);
-    console.log("Formatted current user:", formattedCurrentUser);
     return [formattedUsers, formattedCurrentUser];
   } catch (err) {
     console.error("Error fetching user data:", err);
