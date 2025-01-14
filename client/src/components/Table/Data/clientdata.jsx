@@ -72,32 +72,3 @@ export const fetchClients = async (
     throw e;
   }
 };
-
-export const fetchGroups = async () => {
-  try {
-    const response = await axios.get("http://localhost:3001/clients/groups", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching groups:", error);
-    throw error;
-  }
-};
-
-export const fetchSubclasses = async () => {
-  try {
-    const response = await axios.get("http://localhost:3001/clients/subclass", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
-    console.log("Received subclass data:", response.data); // Add this line
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching subclasses:", error);
-    throw error;
-  }
-};
