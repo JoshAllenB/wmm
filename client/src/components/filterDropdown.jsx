@@ -14,7 +14,7 @@ import { ScrollArea } from "./UI/ShadCN/scroll-area";
 import { useUser } from "../utils/Hooks/userProvider";
 
 const FilterDropdown = ({
-  groups,
+  groups = [],
   selectedGroup,
   setSelectedGroup,
   setPage,
@@ -58,18 +58,19 @@ const FilterDropdown = ({
                 >
                   All Groups
                 </DropdownMenuItem>
-                {groups.map((group) => (
-                  <DropdownMenuItem
-                    key={group._id}
-                    onClick={() => {
-                      setSelectedGroup(group.id);
-                      setPage(1);
-                    }}
-                    className={selectedGroup === group.id ? "bg-accent" : ""}
-                  >
-                    {group.id}
-                  </DropdownMenuItem>
-                ))}
+                {Array.isArray(groups) &&
+                  groups.map((group) => (
+                    <DropdownMenuItem
+                      key={group._id}
+                      onClick={() => {
+                        setSelectedGroup(group.id);
+                        setPage(1);
+                      }}
+                      className={selectedGroup === group.id ? "bg-accent" : ""}
+                    >
+                      {group.id}
+                    </DropdownMenuItem>
+                  ))}
               </ScrollArea>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

@@ -58,15 +58,18 @@ export default function DataTable({
           selectedGroup
         );
 
-        if (result && result.data) {
+        if (Array.isArray(result)) {
+          setLocalData(result);
+          setTotalPages(1);
+        } else if (result && result.data) {
           setLocalData([...result.data]);
-          setTotalPages(result.totalPages);
-          setTotalCopies(result.totalCopies);
-          setPageSpecificCopies(result.pageSpecificCopies);
-          setTotalCalQty(result.totalCalQty);
-          setTotalCalAmt(result.totalCalAmt);
-          setPageSpecificCalQty(result.pageSpecificCalQty);
-          setPageSpecificCalAmt(result.pageSpecificCalAmt);
+          setTotalPages(result.totalPages || 1);
+          setTotalCopies(result.totalCopies || 0);
+          setPageSpecificCopies(result.pageSpecificCopies || 0);
+          setTotalCalQty(result.totalCalQty || 0);
+          setTotalCalAmt(result.totalCalAmt || 0);
+          setPageSpecificCalQty(result.pageSpecificCalQty || 0);
+          setPageSpecificCalAmt(result.pageSpecificCalAmt || 0);
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");
