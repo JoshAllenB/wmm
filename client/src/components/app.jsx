@@ -6,6 +6,7 @@ import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
+import SubClass from "./UI/Sidebar/SubClass";
 import Hrg from "./UI/Sidebar/Hrg";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
@@ -49,45 +50,57 @@ const App = React.memo(() => {
     }
   }, []);
 
-  const memoizedRoutes = useMemo(() => (
-    <Routes>
-      <Route path="/" element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} />
-      <Route
-        path="/all-client"
-        element={isLoggedIn ? <AllClient /> : <Navigate to="/" replace />}
-      />
-      <Route
-        path="/hrg"
-        element={isLoggedIn ? <Hrg /> : <Navigate to="/" replace />}
-      />
-      <Route
-        path="/admin-panel"
-        element={isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />}
-      />
-    </Routes>
-  ), [isLoggedIn]);
+  const memoizedRoutes = useMemo(
+    () => (
+      <Routes>
+        <Route path="/" element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} />
+        <Route
+          path="/all-client"
+          element={isLoggedIn ? <AllClient /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/hrg"
+          element={isLoggedIn ? <Hrg /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/admin-panel"
+          element={isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/subclass"
+          element={isLoggedIn ? <SubClass /> : <Navigate to="/" replace />}
+        />
+      </Routes>
+    ),
+    [isLoggedIn]
+  );
 
-  const memoizedTopbar = useMemo(() => (
-    isLoggedIn && (
-      <Topbar
-        setIsSidebar={setIsSidebar}
-        setIsLoggedIn={setIsLoggedIn}
-        onInactivityTimeoutChange={handleInactivity}
-      />
-    )
-  ), [isLoggedIn, handleInactivity]);
+  const memoizedTopbar = useMemo(
+    () =>
+      isLoggedIn && (
+        <Topbar
+          setIsSidebar={setIsSidebar}
+          setIsLoggedIn={setIsLoggedIn}
+          onInactivityTimeoutChange={handleInactivity}
+        />
+      ),
+    [isLoggedIn, handleInactivity]
+  );
 
-  const memoizedSidebar = useMemo(() => (
-    isLoggedIn && <Sidebar isSidebar={isSidebar} />
-  ), [isLoggedIn, isSidebar]);
+  const memoizedSidebar = useMemo(
+    () => isLoggedIn && <Sidebar isSidebar={isSidebar} />,
+    [isLoggedIn, isSidebar]
+  );
 
-  const memoizedErrorModal = useMemo(() => (
-    errorMessage && (
-      <Modal isOpen={!!errorMessage} onClose={() => setErrorMessage("")}>
-        <p className="text-red-500 m-5">{errorMessage}</p>
-      </Modal>
-    )
-  ), [errorMessage]);
+  const memoizedErrorModal = useMemo(
+    () =>
+      errorMessage && (
+        <Modal isOpen={!!errorMessage} onClose={() => setErrorMessage("")}>
+          <p className="text-red-500 m-5">{errorMessage}</p>
+        </Modal>
+      ),
+    [errorMessage]
+  );
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -122,6 +135,6 @@ const App = React.memo(() => {
   );
 });
 
-App.displayName = 'App';
+App.displayName = "App";
 
 export default App;

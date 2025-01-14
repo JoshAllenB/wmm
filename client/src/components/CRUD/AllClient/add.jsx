@@ -9,7 +9,7 @@ import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import psgcJson from "../../../utils/psgc.json";
-import { fetchSubclasses } from "../../Table/Data/clientdata";
+import { fetchSubclasses } from "../../Table/Data/utilData";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -113,14 +113,11 @@ const Add = ({ fetchClients }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:3001/clients/groups",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
+        const response = await axios.get("http://localhost:3001/util/groups", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        });
         setGroups(response.data);
       } catch (error) {
         console.error("Error fetching groups:", error);
@@ -278,6 +275,7 @@ const Add = ({ fetchClients }) => {
       subscriptionFreq,
       subscriptionStart,
       subscriptionEnd,
+      subsclass,
       ...baseClientData
     } = formData;
 
@@ -309,6 +307,7 @@ const Add = ({ fetchClients }) => {
         subscriptionFreq,
         subscriptionStart,
         subscriptionEnd,
+        subsclass,
       };
     } else if (hasRole("HRG")) {
       submissionData.roleType = "HRG";
@@ -527,7 +526,7 @@ const Add = ({ fetchClients }) => {
                     <option value="">Select a classification</option>
                     {subclasses.map((subclass) => (
                       <option key={subclass.id} value={subclass.id}>
-                        {subclass.name}
+                        {subclass.name} ({subclass.id})
                       </option>
                     ))}
                   </select>
