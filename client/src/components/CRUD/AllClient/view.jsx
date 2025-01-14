@@ -20,12 +20,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       setFormData(rowData);
       setShowModal(true);
 
-      const addressParts = rowData.address ? rowData.address.split(', ') : [];
+      const addressParts = rowData.address ? rowData.address.split(", ") : [];
       setAddressData({
-        region: addressParts[4] || '',
-        province: addressParts[3] || '',
-        city: addressParts[2] || '',
-        barangay: addressParts[1] || '',
+        region: addressParts[4] || "",
+        province: addressParts[3] || "",
+        city: addressParts[2] || "",
+        barangay: addressParts[1] || "",
       });
 
       if (hasRole("WMM")) {
@@ -94,6 +94,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
           {roleSpecificData.map((subscription, index) => (
             <div key={index}>
+              <div className="flex space-x-1">
+                <h5 className="font-bold">Subscription Classification: </h5>
+                <span>{subscription.subsclass}</span>
+              </div>
               <div>
                 <span className="text-black font-bold">Start Date:</span>{" "}
                 <span className="text-black">
@@ -108,7 +112,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               </div>
               <div>
                 <span className="text-black font-bold">Copies:</span>{" "}
-                <span className="text-black">{subscription.copies || "N/A"}</span>
+                <span className="text-black">
+                  {subscription.copies || "N/A"}
+                </span>
               </div>
             </div>
           ))}
@@ -147,7 +153,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               </div>
               <div>
                 <span className="text-black font-bold">Unsubscribe:</span>{" "}
-                <span className="text-black">{hrg.unsubscribe ? "Yes" : "No"}</span>
+                <span className="text-black">
+                  {hrg.unsubscribe ? "Yes" : "No"}
+                </span>
               </div>
             </div>
           ))}
@@ -211,7 +219,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               </div>
               <div className="mt-4 flex justify-between">
                 <div className="flex gap-1">
-                  <Button onClick={closeModal} className="bg-red-500 hover:bg-red-800">
+                  <Button
+                    onClick={closeModal}
+                    className="bg-red-500 hover:bg-red-800"
+                  >
                     Close
                   </Button>
                   {hasPermission("edit") && (

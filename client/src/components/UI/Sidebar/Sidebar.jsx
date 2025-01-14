@@ -13,6 +13,8 @@ import CalendarMonthSharpIcon from "@mui/icons-material/CalendarMonthSharp";
 import SpaceDashboardSharpIcon from "@mui/icons-material/SpaceDashboardSharp";
 import MenuSharpIcon from "@mui/icons-material/MenuSharp";
 import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
+import SettingsIcon from "@mui/icons-material/Settings";
+import ListIcon from "@mui/icons-material/List";
 import { useUser } from "../../../utils/Hooks/userProvider";
 
 export default function MenuSidebar() {
@@ -122,21 +124,43 @@ export default function MenuSidebar() {
               </MenuItem>
             </SubMenu>
             {hasRole("Admin") && (
-              <MenuItem
-                icon={
-                  <AdminPanelSettingsSharpIcon style={{ color: "#333333" }} />
-                }
-                onClick={() => handleSelect("Manage Team")}
-                selected={selected === "Manage Team"}
-                component={<Link to="/admin-panel" />}
-                style={{
-                  backgroundColor:
-                    selected === "Manage Team" ? "#e3f2fd" : "transparent",
-                  color: selected === "Manage Team" ? "#1976d2" : "#333333",
-                }}
-              >
-                <Typography variant="h6">Manage Team</Typography>
-              </MenuItem>
+              <div>
+                <MenuItem
+                  icon={
+                    <AdminPanelSettingsSharpIcon style={{ color: "#333333" }} />
+                  }
+                  onClick={() => handleSelect("Manage Team")}
+                  selected={selected === "Manage Team"}
+                  component={<Link to="/admin-panel" />}
+                  style={{
+                    backgroundColor:
+                      selected === "Manage Team" ? "#e3f2fd" : "transparent",
+                    color: selected === "Manage Team" ? "#1976d2" : "#333333",
+                  }}
+                >
+                  <Typography variant="h6">Manage Team</Typography>
+                </MenuItem>
+                <SubMenu
+                  label="Settings"
+                  className="font-bold text-lg"
+                  icon={<SettingsIcon style={{ color: "#333333" }} />}
+                  style={{ color: "#333333" }}
+                >
+                  <MenuItem
+                    icon={<ListIcon style={{ color: "#333333" }} />}
+                    onClick={() => handleSelect("Manage Team")}
+                    selected={selected === "Manage Team"}
+                    component={<Link to="/subclass" />}
+                    style={{
+                      backgroundColor:
+                        selected === "Manage Team" ? "#e3f2fd" : "transparent",
+                      color: selected === "Manage Team" ? "#1976d2" : "#333333",
+                    }}
+                  >
+                    <Typography variant="h8">Sub. Class</Typography>
+                  </MenuItem>
+                </SubMenu>
+              </div>
             )}
             <MenuItem
               icon={<CalendarMonthSharpIcon style={{ color: "#333333" }} />}

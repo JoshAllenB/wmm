@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import { Input } from "../ShadCN/input";
-import { fetchClients, fetchGroups } from "../../Table/Data/clientdata";
+import { fetchClients } from "../../Table/Data/clientdata";
+import { fetchGroups } from "../../Table/Data/utilData";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
 import FilterDropdown from "../../filterDropdown";
-import axios from "axios";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -34,18 +34,6 @@ const AllClient = () => {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
 
-  useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        const groupsData = await fetchGroups();
-        setGroups(groupsData);
-      } catch (error) {
-        console.error("Error loading groups:", error);
-      }
-    };
-    loadGroups();
-  }, []);
-
   const fetchData = useCallback(
     async (currentPage, currentPageSize, filter = "", group = "") => {
       try {
@@ -70,6 +58,18 @@ const AllClient = () => {
     },
     []
   );
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        const groupsData = await fetchGroups();
+        setGroups(groupsData);
+      } catch (error) {
+        console.error("Error loading groups:", error);
+      }
+    };
+    loadGroups();
+  }, []);
 
   useEffect(() => {
     fetchData(page, pageSize, debouncedFiltering, selectedGroup);
