@@ -418,24 +418,4 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
   }
 });
 
-router.get("/groups", verifyToken, async (req, res) => {
-  try {
-    const groups = await GroupModel.find().select("id name").sort({ id: 1 });
-    res.json(groups);
-  } catch (err) {
-    console.error("Error fetching groups:", err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-router.get("/subclass", verifyToken, async (req, res) => {
-  try {
-    const subclass = await SubClassModel.find();
-    res.json(subclass);
-  } catch (err) {
-    console.error("Error fetching subclasses:", err);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
 export default router;
