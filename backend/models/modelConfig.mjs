@@ -19,6 +19,7 @@ export const modelConfigs = {
       renewdate: 1,
       subsyear: 1,
       copies: 1,
+      subsclass: 1,
     },
     groupFields: {
       subsdate: "$subsdate",
@@ -26,6 +27,7 @@ export const modelConfigs = {
       renewdate: "$renewdate",
       subsyear: "$subsyear",
       copies: "$copies",
+      subsclass: "$subsclass",
     },
   },
   HRGModel: {

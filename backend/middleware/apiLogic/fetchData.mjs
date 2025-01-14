@@ -83,6 +83,7 @@ async function fetchData(modelNames, filter, page, limit, pageSize, group) {
               totalCopies: { $sum: "$copies" },
               totalCalQty: { $sum: "$calqty" },
               totalCalAmt: { $sum: "$calamt" },
+              subsclass: { $first: "$subsclass" },
               records: {
                 $push: config.groupFields,
               },
