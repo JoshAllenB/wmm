@@ -1,5 +1,4 @@
 import { io } from "socket.io-client";
-import { WS_URL } from "../config";
 
 class WebSocketService {
   constructor(url) {
@@ -90,5 +89,5 @@ class WebSocketService {
   }
 }
 
-const webSocketService = new WebSocketService(WS_URL);
+const webSocketService = new WebSocketService("http://localhost:3001");
 export { webSocketService };

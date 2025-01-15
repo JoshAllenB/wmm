@@ -7,7 +7,9 @@ export const fetchHrg = async (setHrgData, page = 1) => {
   try {
     let allHrg = [];
 
-    const response = await axios.get(`${BACKEND_URL}/hrg?page=${page}`);
+    const response = await axios.get(
+      `http://${BACKEND_URL}:3001/hrg?page=${page}`
+    );
     allHrg = [...allHrg, ...response.data];
     page++;
 

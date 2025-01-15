@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import axios from "axios";
-import { BACKEND_URL } from "../../../config";
 
 const Delete = ({ subclass, onClose, onDeleteSuccess }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -10,7 +9,7 @@ const Delete = ({ subclass, onClose, onDeleteSuccess }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `${BACKEND_URL}/util/subclass-delete/${subclass.id}`,
+        `http://localhost:3001/util/subclass-delete/${subclass.id}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

@@ -4,7 +4,6 @@ import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import InputField from "../input";
-import { BACKEND_URL } from "../../../config";
 
 const Add = ({ fetchSubclasses }) => {
   const { user, hasRole } = useUser();
@@ -29,7 +28,7 @@ const Add = ({ fetchSubclasses }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${BACKEND_URL}/util/subclass-add`, formData, {
+      await axios.post("http://localhost:3001/util/subclass-add", formData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },

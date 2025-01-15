@@ -3,7 +3,7 @@ import { BACKEND_URL } from "../../../config";
 
 export const fetchUsers = async () => {
   try {
-    const response = await axios.get(`${BACKEND_URL}/users`, {
+    const response = await axios.get(`http://${BACKEND_URL}:3001/users`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },

@@ -3,7 +3,7 @@ import { BACKEND_URL } from "../../../config";
 
 export const fetchGroups = async () => {
   try {
-    const response = await axios.get(`${BACKEND_URL}/util/groups`, {
+    const response = await axios.get(`http://${BACKEND_URL}:3001/util/groups`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
       },
@@ -17,11 +17,14 @@ export const fetchGroups = async () => {
 
 export const fetchSubclasses = async () => {
   try {
-    const response = await axios.get(`${BACKEND_URL}/util/subclass`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
+    const response = await axios.get(
+      `http://${BACKEND_URL}:3001/util/subclass`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error fetching subclasses:", error);
