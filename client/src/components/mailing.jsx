@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 
@@ -15,28 +15,27 @@ const Mailing = ({
   cellno,
   officeno,
 }) => {
-  const selectedRows = table?.getSelectedRowModel?.()?.rows || [
-    {
-      original: {
-        id,
-        address,
-        areaCode,
-        zipcode,
-        lname,
-        fname,
-        mname,
-        contactnos,
-        cellno,
-        ofcno: officeno,
-      },
-    },
-  ];
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
   const [topPosition, setTopPosition] = useState(10); // Initial state for top position
   const [columnWidth, setColumnWidth] = useState(300); // State for column width
   const [fontSize, setFontSize] = useState(12);
   const addressHeight = 100; // Fixed height for each address container
+
+  // Get selected rows safely with proper type checking
+  const getSelectedRows = useCallback(() => {
+    if (!table || typeof table.getSelectedRowModel !== "function") return [];
+    try {
+      const selectedRows = table.getSelectedRowModel().rows;
+      return Array.isArray(selectedRows) ? selectedRows : [];
+    } catch (error) {
+      console.error("Error getting selected rows:", error);
+      return [];
+    }
+  }, [table]);
+
+  const selectedRows = getSelectedRows();
+  const hasSelectedRows = selectedRows.length > 0;
 
   const getFullName = (row) => {
     return [row.lname, row.fname, row.mname].filter(Boolean).join(" ");
@@ -155,14 +154,19 @@ const Mailing = ({
     setFontSize(parseInt(event.target.value, 10));
   };
 
+  // Only render if we have a table instance
+  if (!table) return null;
+
   return (
     <div className="flex justify-between">
-      <Button
-        onClick={toggleModal}
-        className="text-sm bg-green-600 hover:bg-green-800 text-white"
-      >
-        Print
-      </Button>
+      {hasSelectedRows && (
+        <Button
+          onClick={() => setModalOpen(true)}
+          className="text-sm bg-green-600 hover:bg-green-800 text-white"
+        >
+          Print ({selectedRows.length})
+        </Button>
+      )}
       <Modal isOpen={modalOpen} onClose={closeModal}>
         <h2 className="flex justify-center text-xl font-bold mb-5 mt-2 text-black">
           Mailing Label Preview

@@ -9,7 +9,7 @@ export const useColumns = () => {
     {
       id: "select",
       header: ({ table }) => (
-        <div className="checkbox-cell">
+        <div className="flex">
           <Checkbox
             checked={
               table.getIsAllPageRowsSelected() ||
@@ -19,23 +19,25 @@ export const useColumns = () => {
               table.toggleAllPageRowsSelected(!!value);
             }}
             aria-label="Select all"
+            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
           />
         </div>
       ),
       cell: ({ row }) => (
-        <div className="checkbox-cell">
+        <div className="flex px-4">
           <Checkbox
             checked={row.getIsSelected()}
             onCheckedChange={(value) => {
               row.toggleSelected(!!value);
             }}
             aria-label="Select row"
+            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
           />
         </div>
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 10,
+      size: 50,
     },
     { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
     {
@@ -54,7 +56,7 @@ export const useColumns = () => {
         `${row.address || ""}, ${row.street || ""}, ${row.city || ""}, ${
           row.barangay || ""
         }`.replace(/^[,\s]+|[,\s]+$/g, ""),
-      size: 300,
+      size: 500,
     },
     {
       id: "Contact Info",
@@ -81,7 +83,7 @@ export const useColumns = () => {
         const services = getValue();
         return services.join(", ");
       },
-      size: 200,
+      size: 50,
     },
   ];
 
@@ -129,7 +131,7 @@ export const useColumns = () => {
                 }; // Return as an object
               });
             },
-            size: 550,
+            size: 250,
           },
         ]
       : []),

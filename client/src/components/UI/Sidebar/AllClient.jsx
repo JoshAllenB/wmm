@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
+import Mailing from "../../mailing";
 import { Input } from "../ShadCN/input";
 import { fetchClients } from "../../Table/Data/clientdata";
 import { fetchGroups } from "../../Table/Data/utilData";
@@ -33,6 +34,8 @@ const AllClient = () => {
 
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
+
+  const [tableInstance, setTableInstance] = useState(null);
 
   const fetchData = useCallback(
     async (currentPage, currentPageSize, filter = "", group = "") => {
@@ -101,9 +104,16 @@ const AllClient = () => {
     setPage(1);
   };
 
+  const handleTableInstanceUpdate = useCallback((instance) => {
+    setTableInstance(instance);
+  }, []);
+
   return (
     <div className="mr-[10px] ml-[10px]">
-      <Add fetchClients={() => fetchClients(setClientData)} />
+      <div className="flex gap-2">
+        <Add fetchClients={() => fetchClients(setClientData)} />
+        <Mailing table={tableInstance} />
+      </div>
       <div className="flex gap-4 mb-4">
         <Input
           placeholder="Search..."
@@ -139,6 +149,7 @@ const AllClient = () => {
         userRole={hasRole("WMM") ? "WMM" : "CAL"}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
+        setTableInstance={handleTableInstanceUpdate}
       />
       {showViewModal && (
         <View

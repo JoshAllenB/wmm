@@ -16,7 +16,7 @@ export const PaginationComponent = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-2 mt-2">
+    <div className="flex items-center justify-between">
       <div className="flex-1 text-sm text-muted-foreground">
         Page {page} of {totalPages}
       </div>
@@ -38,14 +38,14 @@ export const PaginationComponent = ({
 
         <div className="flex items-center space-x-2">
           <Button
-            className="px-2 py-1 border rounded bg-blue-500 hover:bg-blue-600 text-white"
+            className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handlePreviousPage}
             disabled={page === 1}
           >
             Previous
           </Button>
           <Button
-            className="px-2 py-1 border rounded bg-blue-500 hover:bg-blue-600 text-white"
+            className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleNextPage}
             disabled={page === totalPages}
           >
