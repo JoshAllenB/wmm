@@ -6,8 +6,8 @@ export const useRowHandlers = () => {
 
   const handleRowHover = (rowData) => {
     const { original } = rowData;
-    const { adduser, adddate, metadata } = original;
-    setHoverRowMetadata({ metadata, adduser, adddate });
+    const { adduser, adddate } = original;
+    setHoverRowMetadata({ adduser, adddate });
   };
 
   const handleRowClick = (event, rowData) => {

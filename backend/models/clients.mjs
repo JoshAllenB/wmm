@@ -33,16 +33,10 @@ const ClientSchema = new mongoose.Schema(
     remarks: String,
     adddate: String,
     adduser: String,
-    metadata: {
-      addedBy: String,
-      addedAt: { type: Date, default: Date.now },
-      editedBy: String,
-      editedAt: { type: Date },
-    },
   },
   {
     versionKey: false,
-  },
+  }
 );
 
 const ClientModel = clientConnection.model("clients", ClientSchema);

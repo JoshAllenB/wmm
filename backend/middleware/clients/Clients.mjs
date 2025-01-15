@@ -234,12 +234,18 @@ router.post("/add", verifyToken, async (req, res) => {
     const baseClientData = {
       id: newClientId,
       ...clientData,
-      metadata: {
-        addedBy: user.username,
-        addedAt: new Date(),
-        editedBy: null,
-        editedAt: null,
-      },
+      adduser: user.username,
+      adddate: new Date()
+        .toLocaleString("en-US", {
+          month: "numeric",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })
+        .replace(",", ""),
     };
 
     // Insert base client data
@@ -265,8 +271,18 @@ router.post("/add", verifyToken, async (req, res) => {
         id: newRoleSpecificId, // Use the new ID for the role-specific data
         clientid: newClientId, // Use the client's ID as the clientid
         ...roleData,
-        adddate: new Date(),
         adduser: user.username,
+        adddate: new Date()
+          .toLocaleString("en-US", {
+            month: "numeric",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })
+          .replace(",", ""),
       };
 
       // Insert role-specific data
@@ -303,11 +319,18 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     // Update base client data
     const updatedClientData = {
       ...clientData,
-      metadata: {
-        ...clientData.metadata,
-        editedBy: user.username,
-        editedAt: new Date(),
-      },
+      editedBy: user.username,
+      editedAt: new Date()
+        .toLocaleString("en-US", {
+          month: "numeric",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })
+        .replace(",", ""),
     };
 
     const updatedClient = await ClientModel.findOneAndUpdate(
@@ -358,8 +381,18 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         const newRoleSpecificData = {
           clientid: id,
           ...roleData,
-          adddate: new Date(),
           adduser: user.username,
+          adddate: new Date()
+            .toLocaleString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
+            .replace(",", ""),
         };
         updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
       }
