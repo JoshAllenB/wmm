@@ -29,6 +29,7 @@ export default function DataTable({
   searchTerm,
   selectedGroup,
   handleRowClick,
+  setTableInstance,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -123,6 +124,18 @@ export default function DataTable({
     });
   }, [socketData]);
 
+  useEffect(() => {
+    if (setTableInstance && table) {
+      const updatedTable = {
+        ...table,
+        getSelectedRowModel: () => ({
+          rows: table.getSelectedRowModel().rows,
+        }),
+      };
+      setTableInstance(updatedTable);
+    }
+  }, [table, setTableInstance, rowSelection, localData]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[730px]">
@@ -167,7 +180,7 @@ export default function DataTable({
       </ScrollArea>
 
       {usePagination && (
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between mt-2">
           <div className="flex-1">
             <PaginationComponent
               totalPages={totalPages}
