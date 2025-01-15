@@ -74,11 +74,11 @@ const Mailing = ({
             <p>${row.original.address}</p>
             <p>${getContactNumber(row.original)}</p>
           </div>
-        `,
+        `
           )
           .join("")}
       </div>
-    `,
+    `
       )
       .join("");
 
@@ -159,7 +159,7 @@ const Mailing = ({
     <div className="flex justify-between">
       <Button
         onClick={toggleModal}
-        className="text-sm bg-green-600 hover:bg-green-800 "
+        className="text-sm bg-green-600 hover:bg-green-800 text-white"
       >
         Print
       </Button>
@@ -272,14 +272,14 @@ const Mailing = ({
           <div className="flex justify-center space-x-5">
             <Button
               onClick={handlePrint}
-              className="bg-black hover:bg-green-500 mt-4"
+              className="bg-green-500 hover:bg-green-500 text-white"
             >
               Print
             </Button>
 
             <Button
               onClick={closeModal}
-              className="bg-black hover:bg-red-500 mt-4"
+              className="bg-red-500 hover:bg-red-500 text-white"
             >
               Close
             </Button>

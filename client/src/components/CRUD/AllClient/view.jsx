@@ -217,11 +217,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
                 {renderRoleSpecificData()}
               </div>
-              <div className="mt-4 flex justify-between">
+              <div className="flex justify-between">
                 <div className="flex gap-1">
                   <Button
                     onClick={closeModal}
-                    className="bg-red-500 hover:bg-red-800"
+                    className="bg-red-500 hover:bg-red-800 text-white"
                   >
                     Close
                   </Button>

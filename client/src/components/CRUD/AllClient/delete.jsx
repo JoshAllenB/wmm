@@ -26,7 +26,7 @@ const Delete = ({ client, onClose, onDeleteSuccess }) => {
     <>
       <Button
         onClick={() => setShowConfirmation(true)}
-        className="bg-red-500 hover:bg-red-800"
+        className="bg-red-500 hover:bg-red-800 text-white"
       >
         Delete
       </Button>
