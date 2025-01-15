@@ -7,6 +7,7 @@ import {
   DropdownMenuRadioItem,
 } from "../../components/UI/ShadCN/dropdown-menu";
 import { removeTokens } from "../Token/tokenStorage";
+import { BACKEND_URL } from "../../config";
 
 export default function Logout({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Logout({ setIsLoggedIn }) {
       }
 
       const reponse = await axios.post(
-        "http://localhost:3001/auth/logout",
+        `${BACKEND_URL}/auth/logout`,
         {},
         {
           headers: {

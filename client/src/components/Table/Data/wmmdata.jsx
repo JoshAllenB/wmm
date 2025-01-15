@@ -1,4 +1,5 @@
 import axios from "axios";
+import { BACKEND_URL } from "../../../config";
 
 export const wmmData = [];
 
@@ -6,7 +7,7 @@ export const fetchWmm = async (setWmmData, page = 1) => {
   try {
     let allWmm = [];
 
-    const response = await axios.get(`http://localhost:3001/wmm?page=${page}`);
+    const response = await axios.get(`${BACKEND_URL}/wmm?page=${page}`);
     allWmm = [...allWmm, ...response.data];
     page++;
 

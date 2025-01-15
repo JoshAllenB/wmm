@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
+import { BACKEND_URL } from "../../../config";
 
 const Delete = ({ userId, onDeleteSuccess, onClose }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -9,7 +10,7 @@ const Delete = ({ userId, onDeleteSuccess, onClose }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/users/delete/${userId}`,
+        `${BACKEND_URL}/users/delete/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

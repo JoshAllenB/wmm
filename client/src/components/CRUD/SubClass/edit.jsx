@@ -5,6 +5,7 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import InputField from "../input";
 import Delete from "./delete";
+import { BACKEND_URL } from "../../../config";
 
 const Edit = ({ rowData, onEditSuccess, onClose, onDeleteSuccess }) => {
   const { user, hasRole } = useUser();
@@ -40,7 +41,7 @@ const Edit = ({ rowData, onEditSuccess, onClose, onDeleteSuccess }) => {
     console.log("Submitting form data:", formData);
     try {
       const response = await axios.put(
-        `http://localhost:3001/util/subclass-edit/${rowData.id}`,
+        `${BACKEND_URL}/util/subclass-edit/${rowData.id}`,
         { ...formData, newId: formData.id },
         {
           headers: {

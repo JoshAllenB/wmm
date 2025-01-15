@@ -16,6 +16,7 @@ import { ActivityContext } from "../ActivityMonitor";
 import { useApiResponseToast } from "../../components/UI/apiResponse";
 import { useUser } from "../Hooks/userProvider";
 import { webSocketService } from "../../services/WebSocketService";
+import { BACKEND_URL } from "../../config";
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -53,7 +54,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
     e.preventDefault();
 
     try {
-      const result = await axios.post("http://localhost:3001/auth/login", {
+      const result = await axios.post(`${BACKEND_URL}/auth/login`, {
         username,
         password,
       });

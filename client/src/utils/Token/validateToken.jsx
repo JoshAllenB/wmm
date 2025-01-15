@@ -7,6 +7,7 @@ import {
   removeTokens,
   setTokens,
 } from "./tokenStorage";
+import { BACKEND_URL } from "../../config";
 
 const decodeToken = (token) => {
   try {
@@ -25,18 +26,16 @@ const refreshAndValidate = async () => {
     return false;
   }
   try {
-    const { data } = await axios.post(
-      "http://localhost:3001/auth/refreshToken",
-      { token: refreshToken }
-    );
+    const { data } = await axios.post(`${BACKEND_URL}/auth/refreshToken`, {
+      token: refreshToken,
+    });
     const { token, refreshToken: newRefreshToken } = data;
     setTokens(token, newRefreshToken);
     setAuthToken(token);
 
-    const response = await axios.post(
-      "http://localhost:3001/auth/verifyToken",
-      { token }
-    );
+    const response = await axios.post(`${BACKEND_URL}/auth/verifyToken`, {
+      token,
+    });
     return response.data.valid ? response.data.user : false;
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
@@ -50,10 +49,9 @@ const validateToken = async () => {
   if (!token) return false;
 
   try {
-    const response = await axios.post(
-      "http://localhost:3001/auth/verifyToken",
-      { token }
-    );
+    const response = await axios.post(`${BACKEND_URL}/auth/verifyToken`, {
+      token,
+    });
     if (response.data.valid) {
       setAuthToken(token);
       return response.data.user;

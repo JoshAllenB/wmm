@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "axios";
 import { Tabs, TabsContent } from "../../components/UI/ShadCN/tabs";
 import { Button } from "../../components/UI/ShadCN/button";
+import { BACKEND_URL } from "../../config";
 
 const RegisterPage = ({ onSuccess }) => {
   const [username, setUsername] = useState("");
@@ -29,7 +30,7 @@ const RegisterPage = ({ onSuccess }) => {
     }
 
     try {
-      await axios.post("http://localhost:3001/auth/register", {
+      await axios.post(`${BACKEND_URL}/auth/register`, {
         username,
         password,
       });

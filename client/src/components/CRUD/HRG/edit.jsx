@@ -4,6 +4,7 @@ import Modal from "../../modal";
 import Delete from "./delete";
 import InputField from "../input";
 import axios from "axios";
+import { BACKEND_URL } from "../../../config";
 
 const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
   const initialFormData = useMemo(
@@ -46,7 +47,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
     if (!formData) return;
 
     try {
-      await axios.put(`http://localhost:3001/hrg/${rowData.id}`, formData);
+      await axios.put(`${BACKEND_URL}/hrg/${rowData.id}`, formData);
       onClose();
       setShowModal(false);
     } catch (e) {

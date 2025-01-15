@@ -9,6 +9,7 @@ import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import Delete from "./delete";
 import Mailing from "../../mailing";
+import { BACKEND_URL } from "../../../config";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -129,7 +130,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           try {
             console.log("Fetching last subscription for client:", rowData.id);
             const response = await axios.get(
-              `http://localhost:3001/clients/${rowData.id}/latest-subscription`
+              `${BACKEND_URL}/clients/${rowData.id}/latest-subscription`
             );
             console.log("Last subscription data:", response.data);
 
@@ -297,7 +298,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     try {
       const response = await axios.put(
-        `http://localhost:3001/clients/${rowData.id}`,
+        `${BACKEND_URL}/clients/${rowData.id}`,
         updatedClientData
       );
       if (response.data.success) {

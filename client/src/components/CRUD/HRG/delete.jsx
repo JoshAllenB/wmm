@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import axios from "axios";
+import { BACKEND_URL } from "../../../config";
 
 const Delete = ({ hrg, onClose, onDeleteSuccess }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -14,7 +15,7 @@ const Delete = ({ hrg, onClose, onDeleteSuccess }) => {
 
     try {
       const response = await axios.delete(
-        `http://localhost:3001/hrg/delete/${hrg.id}`
+        `${BACKEND_URL}/hrg/delete/${hrg.id}`
       );
       if (response.status === 200) {
         onDeleteSuccess(hrg.id);

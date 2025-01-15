@@ -10,6 +10,7 @@ import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import psgcJson from "../../../utils/psgc.json";
 import { fetchSubclasses } from "../../Table/Data/utilData";
+import { BACKEND_URL } from "../../../config";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -113,7 +114,7 @@ const Add = ({ fetchClients }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await axios.get("http://localhost:3001/util/groups", {
+        const response = await axios.get(`${BACKEND_URL}/util/groups`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
@@ -322,7 +323,7 @@ const Add = ({ fetchClients }) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/clients/add",
+        `${BACKEND_URL}/clients/add`,
         submissionData
       );
       if (response.data.success) {

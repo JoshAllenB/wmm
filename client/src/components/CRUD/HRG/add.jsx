@@ -4,6 +4,7 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 
 import InputField from "../input";
+import { BACKEND_URL } from "../../../config";
 
 const Add = ({ fetchHrg }) => {
   const [formData, setFormData] = useState({
@@ -38,7 +39,7 @@ const Add = ({ fetchHrg }) => {
     };
 
     try {
-      await axios.post("http://localhost:3001/hrg/add", submissionData);
+      await axios.post(`${BACKEND_URL}/hrg/add`, submissionData);
       fetchHrg();
       closeModal();
       setFormData({

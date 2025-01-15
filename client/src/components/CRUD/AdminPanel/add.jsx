@@ -3,6 +3,7 @@ import axios from "axios";
 import Modal from "../../modal";
 import { Button } from "../../UI/ShadCN/button";
 import InputField from "../input";
+import { BACKEND_URL } from "../../../config";
 
 const Add = ({ type = "user" }) => {
   const [showModal, setShowModal] = useState(false);
@@ -38,12 +39,12 @@ const Add = ({ type = "user" }) => {
     const fetchRolesAndPermissions = async () => {
       try {
         const [rolesRes, permissionsRes] = await Promise.all([
-          axios.get("http://localhost:3001/roles/roles", {
+          axios.get(`${BACKEND_URL}/roles/roles`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
           }),
-          axios.get("http://localhost:3001/roles/permissions", {
+          axios.get(`${BACKEND_URL}/roles/permissions`, {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
@@ -69,7 +70,7 @@ const Add = ({ type = "user" }) => {
       let dataToSend;
 
       if (type === "user") {
-        endpoint = "http://localhost:3001/users/add";
+        endpoint = `${BACKEND_URL}/users/add`;
         dataToSend = {
           username: formData.username,
           password: formData.password,
@@ -80,13 +81,13 @@ const Add = ({ type = "user" }) => {
         };
         console.log("Sending user data:", dataToSend); // Add this line
       } else if (type === "role") {
-        endpoint = "http://localhost:3001/roles/roles/add";
+        endpoint = `${BACKEND_URL}/roles/roles/add`;
         dataToSend = {
           name: formData.name,
           defaultPermissions: formData.defaultPermissions,
         };
       } else if (type === "permission") {
-        endpoint = "http://localhost:3001/roles/permissions/add";
+        endpoint = `${BACKEND_URL}/roles/permissions/add`;
         dataToSend = {
           name: formData.name,
           description: formData.description,
