@@ -161,6 +161,9 @@ const Add = ({ fetchClients }) => {
   const handleChange = async (e) => {
     const { name, value } = e.target;
 
+    // Convert the input value to uppercase
+    const upperCaseValue = value.toUpperCase();
+
     if (name === "subscriptionFreq") {
       const today = new Date();
       const monthsToAdd = parseInt(value);
@@ -202,7 +205,7 @@ const Add = ({ fetchClients }) => {
 
     setFormData({
       ...formData,
-      [name]: value,
+      [name]: upperCaseValue,
     });
   };
 
@@ -420,19 +423,25 @@ const Add = ({ fetchClients }) => {
                     label="Address (house/building number street name):"
                     id="street1"
                     name="street1"
-                    value={addressData.street1}
+                    value={addressData.street1.toUpperCase()}
                     onChange={(e) =>
-                      handleAddressChange("street1", e.target.value)
+                      handleAddressChange(
+                        "street1",
+                        e.target.value.toUpperCase()
+                      )
                     }
                   />
 
                   <InputField
                     label="Address (subdivision/compound name):"
-                    id="stree2"
+                    id="street2"
                     name="street2"
-                    value={addressData.street2}
+                    value={addressData.street2.toUpperCase()}
                     onChange={(e) =>
-                      handleAddressChange("street2", e.target.value)
+                      handleAddressChange(
+                        "street2",
+                        e.target.value.toUpperCase()
+                      )
                     }
                   />
 

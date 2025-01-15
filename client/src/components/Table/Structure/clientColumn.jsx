@@ -109,17 +109,15 @@ export const useColumns = () => {
                 let { subsdate, enddate, copies } = subscription;
 
                 if (subsdate) {
-                  subsdate = `Start Date: ${new Date(
-                    subsdate
-                  ).toLocaleDateString("en-US")}`;
+                  subsdate = `${new Date(subsdate).toLocaleDateString(
+                    "en-US"
+                  )}`;
                 } else {
                   subsdate = "N/A";
                 }
 
                 if (enddate) {
-                  enddate = `End Date: ${new Date(enddate).toLocaleDateString(
-                    "en-US"
-                  )}`;
+                  enddate = `${new Date(enddate).toLocaleDateString("en-US")}`;
                 } else {
                   enddate = "N/A";
                 }
@@ -127,7 +125,7 @@ export const useColumns = () => {
                 return {
                   subsdate,
                   enddate,
-                  copies: `Copies: ${copies || "N/A"}`,
+                  copies: `${copies || "N/A"}`,
                 }; // Return as an object
               });
             },

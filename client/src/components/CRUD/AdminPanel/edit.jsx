@@ -174,7 +174,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
     <>
       {showModal && (
         <Modal isOpen={showModal} onClose={onClose}>
-          <div className="bg-white rounded-lg shadow-xl p-6  w-full">
+          <div className="bg-white rounded-lg w-[400px]">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl text-gray-800 font-bold">
                 Edit {type.charAt(0).toUpperCase() + type.slice(1)}
