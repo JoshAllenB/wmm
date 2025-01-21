@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,36 +19,51 @@ export function useTableLogic(
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
 
-  // Ensure data is always an array
-  const tableData = Array.isArray(data) ? data : [];
+  // Ensure data and columns are valid arrays
+  const tableData = useMemo(() => {
+    if (!Array.isArray(data)) {
+      console.warn("Table data is not an array");
+      return [];
+    }
+    return data;
+  }, [data]);
 
-  // Use useCallback to memoize the table creation
+  const tableColumns = useMemo(() => {
+    if (!Array.isArray(columns)) {
+      console.warn("Table columns are not an array");
+      return [];
+    }
+    return columns;
+  }, [columns]);
+
+  // Create table instance
   const table = useReactTable({
     data: tableData,
-    columns,
+    columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     ...(usePagination
       ? {
           getPaginationRowModel: getPaginationRowModel(),
-          // Explicitly set manual pagination
           manualPagination: true,
         }
       : {}),
-    getFilteredRowModel: getFilteredRowModel(),
-    onRowSelectionChange: setRowSelection,
     state: {
       sorting,
-      rowSelection,
+      rowSelection: rowSelection || {},
       globalFilter: filtering,
       pagination: {
-        pageIndex: page - 1, // tanstack uses 0-indexed pages
-        pageSize,
+        pageIndex: Math.max(0, page - 1),
+        pageSize: Math.max(1, pageSize),
       },
     },
-    getRowId: (row) => row?.id || crypto.randomUUID(), // fallback to a unique ID
+    onRowSelectionChange: setRowSelection || (() => {}),
+    getRowId: (row) => row?.id || row?._id || crypto.randomUUID(),
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
+    enableRowSelection: true,
+    enableMultiRowSelection: false,
   });
 
   return table;
