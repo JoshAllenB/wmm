@@ -25,7 +25,10 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: [
+      `http://${process.env.IP_ADDRESS}:5173`,
+      `http://${process.env.IP_ADDRESS}:3001`,
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -34,7 +37,10 @@ app.use(
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: [
+      `http://${process.env.IP_ADDRESS}:5173`,
+      `http://${process.env.IP_ADDRESS}:3001`,
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -49,6 +55,8 @@ const attachIO = (req, res, next) => {
   req.io = io;
   next();
 };
+
+console.log("IP Address:", process.env.IP_ADDRESS);
 
 app.use("/util", attachIO, utilRoutes);
 app.use("/auth", attachIO, userAuthRouter);
@@ -65,8 +73,8 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
-const PORT = process.env.PORT || 3001;
-const IP = "0.0.0.0";
+const PORT = process.env.SERVER_PORT;
+const IP = process.env.SERVER_IP;
 
 server.listen(PORT, IP, () => {
   console.log(`Server is running on http://${IP}:${PORT}`);
