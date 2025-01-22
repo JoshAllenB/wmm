@@ -53,10 +53,13 @@ const LoginPage = ({ setIsLoggedIn }) => {
     e.preventDefault();
 
     try {
-      const result = await axios.post("http://localhost:3001/auth/login", {
-        username,
-        password,
-      });
+      const result = await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/login`,
+        {
+          username,
+          password,
+        }
+      );
       handleApiResponse(result.data);
 
       if (result.data.token) {
@@ -68,11 +71,11 @@ const LoginPage = ({ setIsLoggedIn }) => {
         setIsLoggedIn(true);
         navigate("/all-client");
 
-        const webSocketService = new webSocketService(
-          "http://localhost:3001",
+        const webSocketServiceInstance = new webSocketService(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001`,
           result.data.token
         );
-        webSocketService.connect();
+        webSocketServiceInstance.connect();
 
         resetActivityTimer();
       } else {

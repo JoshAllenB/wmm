@@ -29,10 +29,13 @@ const RegisterPage = ({ onSuccess }) => {
     }
 
     try {
-      await axios.post("http://localhost:3001/auth/register", {
-        username,
-        password,
-      });
+      await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/register`,
+        {
+          username,
+          password,
+        }
+      );
 
       onSuccess();
     } catch (err) {

@@ -9,7 +9,9 @@ const Delete = ({ client, onClose, onDeleteSuccess }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/clients/delete/${client.id}`
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/delete/${
+          client.id
+        }`
       );
       if (response.status === 200) {
         onDeleteSuccess(client.id);

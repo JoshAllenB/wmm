@@ -28,11 +28,15 @@ const Add = ({ fetchSubclasses }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post("http://localhost:3001/util/subclass-add", formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}$1`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
       setFormData({ id: "", name: "", description: "" });
       fetchSubclasses();
       closeModal();

@@ -129,7 +129,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           try {
             console.log("Fetching last subscription for client:", rowData.id);
             const response = await axios.get(
-              `http://localhost:3001/clients/${rowData.id}/latest-subscription`
+              `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/${
+                rowData.id
+              }/latest-subscription`
             );
             console.log("Last subscription data:", response.data);
 
@@ -297,7 +299,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     try {
       const response = await axios.put(
-        `http://localhost:3001/clients/${rowData.id}`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/${rowData.id}`,
         updatedClientData
       );
       if (response.data.success) {

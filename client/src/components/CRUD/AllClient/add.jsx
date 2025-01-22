@@ -113,11 +113,14 @@ const Add = ({ fetchClients }) => {
   useEffect(() => {
     const fetchGroups = async () => {
       try {
-        const response = await axios.get("http://localhost:3001/util/groups", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        });
+        const response = await axios.get(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
         setGroups(response.data);
       } catch (error) {
         console.error("Error fetching groups:", error);
@@ -322,7 +325,7 @@ const Add = ({ fetchClients }) => {
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/clients/add",
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
         submissionData
       );
       if (response.data.success) {

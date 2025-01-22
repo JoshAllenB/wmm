@@ -9,7 +9,9 @@ const Delete = ({ subclass, onClose, onDeleteSuccess }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/util/subclass-delete/${subclass.id}`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass-delete/${
+          subclass.id
+        }`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

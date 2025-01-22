@@ -46,7 +46,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose }) => {
     if (!formData) return;
 
     try {
-      await axios.put(`http://localhost:3001/hrg/${rowData.id}`, formData);
+      await axios.put(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/hrg/${rowData.id}`,
+        formData
+      );
       onClose();
       setShowModal(false);
     } catch (e) {

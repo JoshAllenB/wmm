@@ -1,5 +1,4 @@
 import axios from "axios";
-import { BACKEND_URL } from "../../../config";
 
 export const hrgData = [];
 
@@ -8,7 +7,7 @@ export const fetchHrg = async (setHrgData, page = 1) => {
     let allHrg = [];
 
     const response = await axios.get(
-      `http://${BACKEND_URL}:3001/hrg?page=${page}`
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/hrg?page=${page}`
     );
     allHrg = [...allHrg, ...response.data];
     page++;

@@ -14,7 +14,7 @@ const Delete = ({ hrg, onClose, onDeleteSuccess }) => {
 
     try {
       const response = await axios.delete(
-        `http://localhost:3001/hrg/delete/${hrg.id}`
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/hrg/delete/${hrg.id}`
       );
       if (response.status === 200) {
         onDeleteSuccess(hrg.id);

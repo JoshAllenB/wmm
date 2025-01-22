@@ -88,6 +88,8 @@ class WebSocketService {
     return this.socket?.connected || false;
   }
 }
-
-const webSocketService = new WebSocketService("http://localhost:3001");
+const webSocketService = new WebSocketService(
+  `http://${import.meta.env.VITE_IP_ADDRESS}:3001`,
+  console.log("IP Address:", import.meta.env.VITE_IP_ADDRESS)
+);
 export { webSocketService };

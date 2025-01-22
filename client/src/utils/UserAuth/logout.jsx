@@ -25,7 +25,7 @@ export default function Logout({ setIsLoggedIn }) {
       }
 
       const reponse = await axios.post(
-        "http://localhost:3001/auth/logout",
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/logout`,
         {},
         {
           headers: {

@@ -40,7 +40,9 @@ const Edit = ({ rowData, onEditSuccess, onClose, onDeleteSuccess }) => {
     console.log("Submitting form data:", formData);
     try {
       const response = await axios.put(
-        `http://localhost:3001/util/subclass-edit/${rowData.id}`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass-edit/${
+          rowData.id
+        }`,
         { ...formData, newId: formData.id },
         {
           headers: {

@@ -17,7 +17,9 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
 
   const fetchAreas = async () => {
     try {
-      const response = await fetch("http://localhost:3001/areas");
+      const response = await fetch(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/areas`
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

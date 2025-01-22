@@ -1,13 +1,15 @@
 import axios from "axios";
-import { BACKEND_URL } from "../../../config";
 
 export const fetchUsers = async () => {
   try {
-    const response = await axios.get(`http://${BACKEND_URL}:3001/users`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
+    const response = await axios.get(
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
+    );
     const { users, currentUser } = response.data;
 
     const formattedUsers = users.map((user) => ({

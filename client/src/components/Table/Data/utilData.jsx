@@ -1,13 +1,15 @@
 import axios from "axios";
-import { BACKEND_URL } from "../../../config";
 
 export const fetchGroups = async () => {
   try {
-    const response = await axios.get(`http://${BACKEND_URL}:3001/util/groups`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
+    const response = await axios.get(
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error fetching groups:", error);
@@ -18,7 +20,7 @@ export const fetchGroups = async () => {
 export const fetchSubclasses = async () => {
   try {
     const response = await axios.get(
-      `http://${BACKEND_URL}:3001/util/subclass`,
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,

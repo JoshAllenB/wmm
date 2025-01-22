@@ -38,7 +38,10 @@ const Add = ({ fetchHrg }) => {
     };
 
     try {
-      await axios.post("http://localhost:3001/hrg/add", submissionData);
+      await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/hrg/add`,
+        submissionData
+      );
       fetchHrg();
       closeModal();
       setFormData({

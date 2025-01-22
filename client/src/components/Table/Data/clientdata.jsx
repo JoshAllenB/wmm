@@ -1,5 +1,4 @@
 import axios from "axios";
-import { BACKEND_URL } from "../../../config";
 
 export const clientData = []; // Initialize as empty array
 
@@ -11,7 +10,9 @@ export const fetchClients = async (
 ) => {
   try {
     const response = await axios.get(
-      `http://localhost:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
+      `http://${
+        import.meta.env.VITE_IP_ADDRESS
+      }:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
         filter
       )}&group=${encodeURIComponent(group)}`,
       {

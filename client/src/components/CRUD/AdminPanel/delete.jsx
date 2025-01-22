@@ -9,7 +9,7 @@ const Delete = ({ userId, onDeleteSuccess, onClose }) => {
   const handleDelete = async () => {
     try {
       const response = await axios.delete(
-        `http://localhost:3001/users/delete/${userId}`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users/delete/${userId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
