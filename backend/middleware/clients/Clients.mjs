@@ -3,8 +3,7 @@ import ClientModel from "../../models/clients.mjs";
 import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import { checkRole } from "../users/checkRole.mjs";
-import fetchClientServices from "../apiLogic/fetchClientServices.mjs";
-import fetchData from "../apiLogic/fetchData.mjs";
+import fetchDataServices from "../apiLogic/fetchDataServices.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
@@ -30,108 +29,43 @@ router.get(
         populate: { path: "defaultPermissions" },
       });
       const userRole = req.user.roles[0]?.role.name || "No Role";
-      let totalPages, combinedData, totalCopies, pageSpecificCopies;
-      let totalCalQty, totalCalAmt, pageSpecificCalQty, pageSpecificCalAmt;
 
-      if (userRole === "Admin") {
-        const results = await Promise.all([
-          fetchData("WmmModel", filter, page, limit, pageSize, group),
-          fetchData("HrgModel", filter, page, limit, pageSize, group),
-          fetchData("FomModel", filter, page, limit, pageSize, group),
-          fetchData("CalModel", filter, page, limit, pageSize, group),
-        ]);
+      const modelNames =
+        userRole === "Admin"
+          ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
+          : [`${userRole}Model`];
 
-        combinedData = results.flatMap((result) => result.combinedData);
-        totalPages = Math.max(...results.map((result) => result.totalPages));
-        totalCopies = results.reduce(
-          (acc, result) => acc + (result.totalCopies || 0),
-          0
-        );
-        pageSpecificCopies = results.reduce(
-          (acc, result) => acc + (result.pageSpecificCopies || 0),
-          0
-        );
-        totalCalQty = results.reduce(
-          (acc, result) => acc + (result.totalCalQty || 0),
-          0
-        );
-        totalCalAmt = results.reduce(
-          (acc, result) => acc + (result.totalCalAmt || 0),
-          0
-        );
-        pageSpecificCalQty = results.reduce(
-          (acc, result) => acc + (result.pageSpecificCalQty || 0),
-          0
-        );
-        pageSpecificCalAmt = results.reduce(
-          (acc, result) => acc + (result.pageSpecificCalAmt || 0),
-          0
-        );
-      } else if (userRole === "HRG") {
-        const result = await Promise.all([
-          fetchData("HrgModel", filter, page, limit, pageSize, group),
-          fetchData("FomModel", filter, page, limit, pageSize, group),
-          fetchData("CalModel", filter, page, limit, pageSize, group),
-        ]);
-        combinedData = result.flatMap((result) => result.combinedData);
-        totalPages = Math.max(...result.map((result) => result.totalPages));
-        totalCopies = result.reduce(
-          (acc, result) => acc + (result.totalCopies || 0),
-          0
-        );
-        pageSpecificCopies = result.reduce(
-          (acc, result) => acc + (result.pageSpecificCopies || 0),
-          0
-        );
-        totalCalQty = result.reduce(
-          (acc, result) => acc + (result.totalCalQty || 0),
-          0
-        );
-        totalCalAmt = result.reduce(
-          (acc, result) => acc + (result.totalCalAmt || 0),
-          0
-        );
-        pageSpecificCalQty = result.reduce(
-          (acc, result) => acc + (result.pageSpecificCalQty || 0),
-          0
-        );
-        pageSpecificCalAmt = result.reduce(
-          (acc, result) => acc + (result.pageSpecificCalAmt || 0),
-          0
-        );
-      } else {
-        const modelName = `${userRole}Model`;
-        ({
-          totalPages,
-          combinedData,
-          totalCopies,
-          pageSpecificCopies,
-          totalCalQty,
-          totalCalAmt,
-          pageSpecificCalQty,
-          pageSpecificCalAmt,
-        } = await fetchData(
-          modelName,
-          filter,
-          parseInt(page),
-          parseInt(limit),
-          parseInt(pageSize),
-          group
-        ));
-      }
+      const results = await fetchDataServices(
+        modelNames,
+        filter,
+        page,
+        limit,
+        pageSize,
+        group
+      );
 
-      const clientIds = combinedData.map((client) => client.id);
-      const clientServices = await fetchClientServices(clientIds);
+      let { combinedData, clientServices } = results;
 
+      // Merge clientServices into combinedData
       combinedData = combinedData.map((client) => {
-        const serviceInfo = clientServices.find(
-          (cs) => cs.clientId === client.id
+        const clientService = clientServices.find(
+          (service) => service.clientId === client.id
         );
         return {
           ...client,
-          services: serviceInfo ? serviceInfo.services : [],
+          services: clientService ? clientService.services : [],
         };
       });
+
+      const {
+        totalPages,
+        totalCopies,
+        pageSpecificCopies,
+        totalCalQty,
+        totalCalAmt,
+        pageSpecificCalQty,
+        pageSpecificCalAmt,
+      } = results;
 
       io.emit("data-update", { type: "init", data: combinedData });
       res.json({
@@ -143,6 +77,7 @@ router.get(
         totalCalAmt,
         pageSpecificCalQty,
         pageSpecificCalAmt,
+        clientServices,
       });
     } catch (err) {
       console.error("Error in client GET route:", err);
