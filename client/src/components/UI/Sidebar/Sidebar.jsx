@@ -33,7 +33,7 @@ export default function MenuSidebar() {
   return (
     <div className="h-full">
       <Sidebar
-        collapsed={isCollapsed}
+        collapsed={!isCollapsed}
         onToggle={() => setIsCollapsed(!isCollapsed)}
         className="h-full bg-gray-100"
         rootStyles={{

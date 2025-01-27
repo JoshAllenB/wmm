@@ -91,17 +91,6 @@ export const useColumns = () => {
     ...(hasRole("WMM")
       ? [
           {
-            id: "Remarks",
-            Header: "Remarks",
-            accessorFn: (row) => row.remarks,
-            cell: ({ getValue }) => (
-              <div className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide text-left">
-                {getValue()}
-              </div>
-            ),
-            size: 200,
-          },
-          {
             id: "Subscription",
             Header: "Subscription",
             accessorFn: (row) => {
@@ -131,7 +120,7 @@ export const useColumns = () => {
                 }; // Return as an object
               });
             },
-            size: 250,
+            size: 650,
           },
         ]
       : []),
@@ -277,7 +266,7 @@ export const useColumns = () => {
       Header: "Added Info",
       accessorFn: (row) =>
         `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
-      size: 350,
+      size: 300,
     },
   ];
 

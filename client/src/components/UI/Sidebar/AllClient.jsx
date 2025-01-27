@@ -71,12 +71,10 @@ const AllClient = () => {
         console.error("Error loading groups:", error);
       }
     };
-    loadGroups();
-  }, []);
 
-  useEffect(() => {
+    loadGroups();
     fetchData(page, pageSize, debouncedFiltering, selectedGroup);
-  }, [debouncedFiltering, page, pageSize, fetchData, selectedGroup]);
+  }, [page, pageSize, debouncedFiltering, selectedGroup, fetchData]);
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
