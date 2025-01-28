@@ -7,13 +7,28 @@ class WebSocketService {
     this.eventHandlers = new Map();
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.connect();
+
+    this.sessionData = {
+      userId: null,
+      username: null,
+      sessionId: null,
+    };
   }
 
-  connect() {
-    if (this.socket?.connected) return;
+  connect(options = {}) {
+    console.log("Connecting to WebSocket with options:", options);
+
+    if (this.socket) {
+      // Disconnect the existing socket if new options are provided
+      this.socket.disconnect();
+      this.socket = null;
+    }
+
+    const sessionId = localStorage.getItem("sessionId");
+    this.sessionData = { ...this.sessionData, ...options.query, sessionId };
 
     this.socket = io(this.url, {
+      query: this.sessionData, // Include session ID in query
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -28,7 +43,7 @@ class WebSocketService {
     this.socket.on("disconnect", (reason) => {
       console.log("Disconnected from WebSocket:", reason);
       if (reason === "io server disconnect") {
-        this.connect();
+        this.reconnect(options);
       }
     });
 
@@ -40,6 +55,12 @@ class WebSocketService {
       }
     });
   }
+
+  // reconnect(options = {}) {
+  //   console.log("Attempting to reconnect...");
+
+  //   this.connect({ query: this.sessionData });
+  // }
 
   subscribe(event, handler) {
     if (!this.socket) {
@@ -88,8 +109,19 @@ class WebSocketService {
     return this.socket?.connected || false;
   }
 }
+
 const webSocketService = new WebSocketService(
-  `http://${import.meta.env.VITE_IP_ADDRESS}:3001`,
-  console.log("IP Address:", import.meta.env.VITE_IP_ADDRESS)
+  `http://${import.meta.env.VITE_IP_ADDRESS}:3001`
 );
+
+// Automatically reconnect on page load if sessionId exists
+const sessionId = localStorage.getItem("sessionId");
+if (sessionId) {
+  webSocketService.connect({
+    query: {
+      sessionId,
+    },
+  });
+}
+
 export { webSocketService };

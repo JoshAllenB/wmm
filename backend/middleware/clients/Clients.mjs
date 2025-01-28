@@ -7,8 +7,7 @@ import fetchDataServices from "../apiLogic/fetchDataServices.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
-import GroupModel from "../../models/groups.mjs";
-import SubClassModel from "../../models/subsclass.mjs";
+import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -18,11 +17,14 @@ const router = express.Router();
 router.get(
   "/",
   verifyToken,
+  attachSocketId,
   checkRole(["Admin", "HRG", "WMM", "FOM"]),
   async (req, res) => {
     const io = req.io;
+    const socketId = req.socketId;
     const { page = 1, pageSize = 20, filter = "", group = "" } = req.query;
     const limit = parseInt(pageSize);
+
     try {
       await req.user.populate({
         path: "roles.role",
@@ -67,7 +69,13 @@ router.get(
         pageSpecificCalAmt,
       } = results;
 
-      io.emit("data-update", { type: "init", data: combinedData });
+      if (socketId && io) {
+        io.to(socketId).emit("data-update", {
+          type: "init",
+          data: combinedData,
+        });
+      }
+
       res.json({
         totalPages,
         combinedData,

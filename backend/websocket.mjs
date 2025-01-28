@@ -1,31 +1,73 @@
 const initWebSocket = (io) => {
-  const connectedClients = new Map();
+  global.io = io;
+
+  const sessions = new Map(); // Map to track sessionId to user data
+  global.socketIdMap = new Map(); // Map to track userId to socketId
+
+  const logConnectedUsers = () => {
+    console.log("\n=== Connected Users ===");
+    sessions.forEach(({ userId, username, socketId }, sessionId) => {
+      console.log(`Session ID: ${sessionId}`);
+      console.log(`- User ID: ${userId}`);
+      console.log(`- Username: ${username}`);
+      console.log(`- Socket ID: ${socketId}`);
+      console.log("----------------------");
+    });
+    console.log(`Total Connected Users: ${sessions.size}`);
+    console.log("========================\n");
+  };
 
   io.on("connection", (socket) => {
-    // Extract user information from the socket handshake query
-    const userId = socket.handshake.query.userId;
-    const username = socket.handshake.query.username;
+    const { userId, username, sessionId } = socket.handshake.query;
 
-    const clientInfo = {
-      id: socket.id,
-      userId,
-      username,
-      connectTime: new Date().toISOString(),
-      userAgent: socket.handshake.headers["user-agent"],
-    };
+    if (!sessionId || !userId || !username) {
+      console.error("Missing required parameters");
+      socket.disconnect();
+      return;
+    }
 
-    connectedClients.set(socket.id, clientInfo);
+    // Check if the sessionId already exists
+    if (sessions.has(sessionId)) {
+      // Reconnection logic
+      const existingSession = sessions.get(sessionId);
+      existingSession.socketId = socket.id;
+      global.socketIdMap.set(userId, socket.id);
+      console.log(
+        `Reconnected session: ${sessionId} for user: ${existingSession.username}`
+      );
+    } else {
+      // New connection logic
+      if (!userId || !username) {
+        console.error("Missing userId or username in query parameters");
+        socket.disconnect();
+        return;
+      }
 
-    console.log("\n=== New Client Connected ===");
+      global.socketIdMap.set(userId, socket.id);
+
+      const sessionData = {
+        userId,
+        username,
+        socketId: socket.id,
+        connectionTime: new Date(),
+      };
+      // Store session data
+      sessions.set(sessionId, sessionData);
+      console.log(
+        `Socket Connected - UserID: ${userId}, SocketID: ${socket.id}`
+      );
+    }
+
+    logConnectedUsers();
+
+    // Log connected clients
+    console.log("\n=== Client Connected ===");
     console.log(`Socket ID: ${socket.id}`);
     console.log(`User ID: ${userId}`);
     console.log(`Username: ${username}`);
-    console.log(`Total Connected Clients: ${connectedClients.size}`);
-    console.log("Currently Connected Clients:");
-    connectedClients.forEach((client, id) => {
-      console.log(`- Client ${id} (User: ${client.username}, connected at ${client.connectTime})`);
-    });
-    console.log("============================\n");
+    console.log(`Session ID: ${sessionId}`);
+    console.log(`Total Sessions: ${sessions.size}`);
+    console.log("========================\n");
 
     socket.on("data-update", (data) => {
       console.log("\n=== Data Update Event ===");
@@ -37,7 +79,7 @@ const initWebSocket = (io) => {
 
       // Log which clients will receive the broadcast
       console.log("\nBroadcasting to clients:");
-      connectedClients.forEach((client, id) => {
+      sessions.forEach((client, id) => {
         if (id !== socket.id) {
           console.log(`- Client ${id}`);
         }
@@ -60,16 +102,16 @@ const initWebSocket = (io) => {
     });
 
     socket.on("disconnect", (reason) => {
-      connectedClients.delete(socket.id);
-      console.log("\n=== Client Disconnected ===");
-      console.log(`Socket ID: ${socket.id}`);
-      console.log(`Reason: ${reason}`);
-      console.log(`Remaining Connected Clients: ${connectedClients.size}`);
-      console.log("Currently Connected Clients:");
-      connectedClients.forEach((client, id) => {
-        console.log(`- Client ${id} (User: ${client.username}, connected at ${client.connectTime})`);
-      });
-      console.log("=========================\n");
+      setTimeout(() => {
+        if (!io.sockets.sockets.has(socket.id)) {
+          global.socketIdMap.delete(userId);
+          sessions.delete(sessionId);
+          console.log(`Cleaned up disconnected user: ${userId}`);
+        }
+      }, 5000);
+
+      // Log connected users after a disconnection
+      logConnectedUsers();
     });
   });
 };
