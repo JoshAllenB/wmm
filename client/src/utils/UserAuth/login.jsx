@@ -16,6 +16,7 @@ import { ActivityContext } from "../ActivityMonitor";
 import { useApiResponseToast } from "../../components/UI/apiResponse";
 import { useUser } from "../Hooks/userProvider";
 import { webSocketService } from "../../services/WebSocketService";
+import { v4 as uuidv4 } from "uuid";
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -71,11 +72,18 @@ const LoginPage = ({ setIsLoggedIn }) => {
         setIsLoggedIn(true);
         navigate("/all-client");
 
-        const webSocketServiceInstance = new webSocketService(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001`,
-          result.data.token
-        );
-        webSocketServiceInstance.connect();
+        // Generate a session ID
+        const sessionId = uuidv4();
+        localStorage.setItem("sessionId", sessionId);
+
+        // Connect to WebSocket with session ID and user data
+        webSocketService.connect({
+          query: {
+            userId: userData.id,
+            username: userData.username,
+            sessionId: sessionId,
+          },
+        });
 
         resetActivityTimer();
       } else {

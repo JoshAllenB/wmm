@@ -17,6 +17,7 @@ export default function Logout({ setIsLoggedIn }) {
       const token =
         localStorage.getItem("accessToken") ||
         sessionStorage.getItem("accessToken");
+      const sessionId = localStorage.getItem("sessionId");
       if (!token) {
         console.error("No token found");
         setIsLoggedIn(false);
@@ -37,6 +38,7 @@ export default function Logout({ setIsLoggedIn }) {
       if (reponse.data.message === "Logout successful") {
         localStorage.removeItem("accessToken");
         sessionStorage.removeItem("accessToken");
+        localStorage.removeItem("sessionId");
         removeTokens();
         setAuthToken(null);
         setIsLoggedIn(false);
