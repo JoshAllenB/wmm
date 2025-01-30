@@ -86,6 +86,11 @@ export default function DataTable({
     loadData();
   }, [page, pageSize, fetchFunction, searchTerm, selectedGroup]);
 
+  useEffect(() => {
+    console.log("Updating localData with new data prop:", data.slice(0, 2)); // Log first 2 entries
+    setLocalData(data);
+  }, [data]);
+
   const table = useTableLogic(
     localData,
     columns,
