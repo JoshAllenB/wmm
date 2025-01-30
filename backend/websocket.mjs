@@ -32,6 +32,8 @@ const initWebSocket = (io) => {
       const existingSession = sessions.get(sessionId);
       existingSession.socketId = socket.id;
       global.socketIdMap.set(userId, socket.id);
+      // Store socketId for session
+      sessions.set(sessionId, existingSession);
       console.log(
         `Reconnected session: ${sessionId} for user: ${existingSession.username}`
       );
@@ -57,6 +59,9 @@ const initWebSocket = (io) => {
         `Socket Connected - UserID: ${userId}, SocketID: ${socket.id}`
       );
     }
+
+    // Store socketId for session
+    sessions.get(sessionId).socketId = socket.id;
 
     logConnectedUsers();
 

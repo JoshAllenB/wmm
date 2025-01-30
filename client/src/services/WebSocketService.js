@@ -12,6 +12,7 @@ class WebSocketService {
       userId: null,
       username: null,
       sessionId: null,
+      socketId: null,
     };
   }
 
@@ -38,6 +39,7 @@ class WebSocketService {
     this.socket.on("connect", () => {
       console.log("Connected to WebSocket");
       this.reconnectAttempts = 0;
+      this.sessionData.socketId = this.socket.id;
     });
 
     this.socket.on("disconnect", (reason) => {
