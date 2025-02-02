@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { fetchAreas } from "../components/Table/Data/utilData";
+import InputField from "../components/CRUD/input";
 
 const AreaForm = ({ onAreaChange, initialAreaData }) => {
-  // eslint-disable-next-line no-unused-vars
   const [areas, setAreas] = useState([]);
   const [formData, setFormData] = useState(
     initialAreaData || {
@@ -12,23 +13,16 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   );
 
   useEffect(() => {
-    fetchAreas();
-  }, []);
-
-  const fetchAreas = async () => {
-    try {
-      const response = await fetch(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/areas`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const loadAreas = async () => {
+      try {
+        const areasData = await fetchAreas();
+        setAreas(areasData);
+      } catch (error) {
+        console.error("Error loading areas:", error);
       }
-      const data = await response.json();
-      setAreas(data);
-    } catch (error) {
-      console.error("Error fetching areas:", error);
-    }
-  };
+    };
+    loadAreas();
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -39,22 +33,46 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
     onAreaChange(name, value);
   };
 
+  const handleAreaChange = (event) => {
+    const selectedAcode = event.target.value;
+    const selectedArea = areas.find((area) => area.name === selectedAcode);
+
+    setFormData((prevData) => ({
+      ...prevData,
+      acode: selectedAcode,
+      zipcode: selectedArea?.zipcode || "",
+    }));
+
+    onAreaChange("acode", selectedAcode);
+    onAreaChange("zipcode", selectedArea?.zipcode || "");
+  };
+
   return (
-    <div className="flex flex-col gap-3 text-lg mb-5 mt-5">
-      <input
-        type="text"
-        name="acode"
-        value={formData.acode}
-        onChange={handleChange}
-        placeholder="Area Code"
-      />
-      <input
-        type="text"
-        name="zipcode"
-        value={formData.zipcode}
-        onChange={handleChange}
-        placeholder="Zip Code"
-      />
+    <div className="flex flex-col gap-3 text-lg">
+      <div>
+        <select
+          name="acode"
+          value={formData.acode}
+          onChange={handleAreaChange}
+          className="w-full p-2 border rounded-md"
+        >
+          <option value="">Select Area Code</option>
+          {areas.map((area) => (
+            <option key={`${area.id}`} value={area.name}>
+              {area.id} - {area.acode} ({area.name})
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <InputField
+          label="Zip Code"
+          type="text"
+          name="zipcode"
+          value={formData.zipcode}
+          onChange={handleChange}
+        />
+      </div>
     </div>
   );
 };

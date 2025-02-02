@@ -9,7 +9,7 @@ import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import psgcJson from "../../../utils/psgc.json";
-import { fetchSubclasses } from "../../Table/Data/utilData";
+import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -64,6 +64,7 @@ const Add = ({ fetchClients }) => {
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [groups, setGroups] = useState([]);
   const [subclasses, setSubclasses] = useState([]);
+  const [types, setTypes] = useState([]);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -140,6 +141,18 @@ const Add = ({ fetchClients }) => {
     };
     loadSubclasses();
   }, [hasRole]);
+
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const typesData = await fetchTypes();
+        setTypes(typesData);
+      } catch (error) {
+        console.error("Error loading types:", error);
+      }
+    };
+    loadTypes();
+  }, []);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -356,8 +369,8 @@ const Add = ({ fetchClients }) => {
           {Object.keys(roleConfigs).map(
             (role) =>
               hasRole(role) && (
-                <div key={role} className="flex flex-col mb-2 p-2">
-                  <h1 className="text-black mb-2 font-bold">
+                <div key={role} className="flex flex-col">
+                  <h1 className="text-black text-3xl font-bold">
                     Add {role} Client
                   </h1>
                 </div>
@@ -365,7 +378,7 @@ const Add = ({ fetchClients }) => {
           )}
           <form onSubmit={handleSubmit}>
             {(hasRole("WMM") || hasRole("Admin")) && (
-              <div className="grid grid-cols-2 gap-4 ">
+              <div className="grid grid-cols-5 gap-4 ">
                 <div className="flex flex-col mb-2 p-2">
                   <h1 className="text-black mb-2 font-bold">Personal Info</h1>
                   <InputField
@@ -419,7 +432,7 @@ const Add = ({ fetchClients }) => {
                   />
                 </div>
 
-                <div className="flex flex-col mb-2 p-2">
+                <div className="flex flex-col p-2">
                   <h1 className="text-black mb-2 font-bold">Address Info</h1>
 
                   <InputField
@@ -447,22 +460,33 @@ const Add = ({ fetchClients }) => {
                       )
                     }
                   />
-
-                  <AddressForm
-                    onAddressChange={handleAddressChange}
-                    addressData={addressData}
-                    selectedCity={selectedCity}
-                    psgcJSON={psgcJson}
-                  />
-
-                  <AreaForm
-                    onAreaChange={handleAreaChange}
-                    onCitySelect={handleCitySelect}
-                  />
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <AddressForm
+                        onAddressChange={handleAddressChange}
+                        addressData={addressData}
+                        selectedCity={selectedCity}
+                        psgcJSON={psgcJson}
+                      />
+                    </div>
+                    <div>
+                      <AreaForm
+                        onAreaChange={handleAreaChange}
+                        onCitySelect={handleCitySelect}
+                      />
+                    </div>
+                  </div>
 
                   <div className="mt-4">
                     <h2 className="text-black font-bold">Address Preview:</h2>
-                    <p>{combinedAddress || "No address entered"}</p>
+                    <textarea
+                      label="Combined Address:"
+                      id="combinedAddress"
+                      name="combinedAddress"
+                      value={combinedAddress}
+                      onChange={(e) => setCombinedAddress(e.target.value)}
+                      className="w-full h-[160px] p-2 border rounded-md"
+                    />
                   </div>
                 </div>
                 <div className="flex flex-col mb-2 p-2">
@@ -499,41 +523,42 @@ const Add = ({ fetchClients }) => {
                     onChange={handleChange}
                   />
                 </div>
-                <div className="flex flex-col mb-2 p-2">
+                <div className="flex flex-col gap-2">
                   <h1 className="text-black mb-2 font-bold">Group Info</h1>
-                  <InputField
-                    label="Type:"
+                  <select
                     id="type"
                     name="type"
                     value={formData.type}
                     onChange={handleChange}
-                  />
-                  <label className="block text-sm font-medium leading-6 text-gray-600 mb-">
-                    Group:
-                  </label>
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="">Select a type</option>
+                    {types.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.id} - {type.name}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     id="group"
                     name="group"
                     value={formData.group}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 mb-2"
+                    className="w-full p-2 border rounded-md"
                   >
                     <option value="">Select a group</option>
                     {groups.map((group) => (
                       <option key={group.id} value={group.id}>
-                        {group.id}
+                        {group.id} - {group.name}
                       </option>
                     ))}
                   </select>
-                  <label htmlFor="subsclass">
-                    Subscription Classification:
-                  </label>
                   <select
                     id="subsclass"
                     name="subsclass"
                     value={formData.subsclass}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                    className="w-full p-2 border rounded-md"
                   >
                     <option value="">Select a classification</option>
                     {subclasses.map((subclass) => (
@@ -542,7 +567,8 @@ const Add = ({ fetchClients }) => {
                       </option>
                     ))}
                   </select>
-                  <InputField
+                  <textarea
+                    className="w-full h-[160px] p-2 border rounded-md"
                     label="Remarks:"
                     id="remarks"
                     name="remarks"
@@ -552,58 +578,43 @@ const Add = ({ fetchClients }) => {
                 </div>
 
                 {hasRole("WMM") && (
-                  <div className="flex flex-col mb-2">
+                  <div className="flex flex-col gap-2">
                     <h1 className="text-black mb-2 font-bold">Subscription</h1>
-
-                    <label htmlFor="subcriptionFreq">
-                      Subscription Frequency:
-                    </label>
+                    <InputField
+                      label="Subscription Start (MM/DD/YY):"
+                      id="subscriptionStart"
+                      name="subscriptionStart"
+                      value={formData.subscriptionStart}
+                      onChange={handleChange}
+                      placeholder="MM/DD/YY"
+                      className="w-full p-2 border rounded-md"
+                    />
                     <select
                       id="subscriptionFreq"
                       name="subscriptionFreq"
                       value={formData.subscriptionFreq}
                       onChange={handleChange}
-                      className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                      className="w-full p-2 border rounded-md"
                     >
                       <option value="">Select Subscription Frequency</option>
                       <option value="5">6 Months</option>
                       <option value="12">1 Year</option>
                       <option value="23">2 Years</option>
+                      <option value="others">Others</option>
                     </select>
 
                     <InputField
-                      label="Subscription Start:"
-                      id="subscriptionStart"
-                      name="subscriptionStart"
-                      value={formData.subscriptionStart}
-                      onChange={handleChange}
-                    />
-
-                    <InputField
-                      label="Subscription End:"
+                      label="Subscription End (MM/DD/YY):"
                       id="subscriptionEnd"
                       name="subscriptionEnd"
                       value={formData.subscriptionEnd}
                       onChange={handleChange}
+                      placeholder="MM/DD/YY"
+                      className="w-full p-2 border rounded-md"
                     />
 
                     <div className="flex space-x-4">
-                      <div className="flex flex-col">
-                        <label className="block text-sm font-medium leading-6 text-gray-600">
-                          Subscription Year:
-                        </label>
-                        <input
-                          id="subsyear"
-                          name="subsyear"
-                          value={roleSpecificData.subsyear}
-                          onChange={handleRoleSpecificChange}
-                          type="number"
-                          min="0"
-                          className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                        />
-                      </div>
-
-                      <div className="flex flex-col">
+                      <div className="flex flex-row items-center justify-center gap-2">
                         <label className="block text-sm font-medium leading-6 text-gray-600">
                           Copies:
                         </label>
