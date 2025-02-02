@@ -32,13 +32,13 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
         const combinedLocations = [
           ...selectedRegion.provinces.map((province) => ({
             type: "province",
-            name: province["Province Name"],
+            name: province["Province Name"].toUpperCase(),
             uniqueKey: province["Province PSGC"],
             data: province,
           })),
           ...selectedRegion.independentCities.map((city) => ({
             type: "independent-city",
-            name: city["City Name"],
+            name: city["City Name"].replace(/^City of\s+/i, "").toUpperCase(),
             uniqueKey: city["City PSGC"],
             data: city,
           })),
@@ -70,13 +70,13 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
           const combinedLocations = [
             ...(province.Municipalities || []).map((mun) => ({
               type: "municipality",
-              name: mun.Name,
+              name: mun.Name.toUpperCase(),
               uniqueKey: mun.CorrespondenceCode,
               data: mun,
             })),
             ...(province.Cities || []).map((city) => ({
               type: "city",
-              name: city.Name,
+              name: city.Name.replace(/^City of\s+/i, "").toUpperCase(),
               uniqueKey: city.Code,
               data: city,
             })),
@@ -94,7 +94,7 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
             setShowLocations(true);
             const combinedLocations = subMuns.map((subMun) => ({
               type: "sub-municipality",
-              name: subMun.Name,
+              name: subMun.Name.toUpperCase(),
               uniqueKey: subMun.CorrespondenceCode,
               data: subMun,
             }));
@@ -110,7 +110,7 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
               uniqueKey: `${
                 barangay["Barangay PSGC"] || barangay.CorrespondenceCode
               }-${index}`,
-              name: barangay["Barangay Name"] || barangay.Name,
+              name: (barangay["Barangay Name"] || barangay.Name).toUpperCase(),
             }));
             setBarangays(processedBarangays);
             // Clear any existing location selection since we're showing barangays directly
@@ -145,7 +145,9 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
                 uniqueKey: `${
                   barangay["Barangay PSGC"] || barangay.CorrespondenceCode
                 }-${index}`,
-                name: barangay["Barangay Name"] || barangay.Name,
+                name: (
+                  barangay["Barangay Name"] || barangay.Name
+                ).toUpperCase(),
               })
             );
             setBarangays(processedBarangays);
