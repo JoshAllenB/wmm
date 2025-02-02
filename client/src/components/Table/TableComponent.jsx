@@ -120,9 +120,8 @@ export function TableComponent({
                             key={index}
                             className="text-left border-b border-gray-500 last:border-none pb-2 mb-2"
                           >
-                            <strong>Start Date:</strong> {sub.subsdate},<br />
-                            <strong>End Date:</strong> {sub.enddate},<br />
-                            <strong>Copies:</strong> {sub.copies}
+                            <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
+                            {sub.enddate}, Cps: {sub.copies}
                           </li>
                         ))}
                       </ul>

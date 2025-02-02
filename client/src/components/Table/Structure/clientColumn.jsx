@@ -97,7 +97,7 @@ export const useColumns = () => {
               const subscriptionData = row.wmmData || [];
 
               return subscriptionData.map((subscription) => {
-                let { subsdate, enddate, copies } = subscription;
+                let { subsdate, enddate, copies, subsclass } = subscription;
 
                 if (subsdate) {
                   subsdate = `${new Date(subsdate).toLocaleDateString(
@@ -114,6 +114,7 @@ export const useColumns = () => {
                 }
 
                 return {
+                  subsclass,
                   subsdate,
                   enddate,
                   copies: `${copies || "N/A"}`,
