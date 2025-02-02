@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 
 import GroupModel from "../models/groups.mjs";
 import SubClassModel from "../models/subsclass.mjs";
+import AreaModel from "../models/area.mjs";
+import TypesModel from "../models/types.mjs";
 
 dotenv.config();
 
@@ -15,6 +17,28 @@ router.get("/groups", verifyToken, async (req, res) => {
     res.json(groups);
   } catch (err) {
     console.error("Error fetching groups:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/areas", async (req, res) => {
+  try {
+    const areas = await AreaModel.find()
+      .select("id name zipcode acode")
+      .sort({ id: 1 });
+    res.json(areas);
+  } catch (err) {
+    console.error("Error fetching area list:", err);
+    res.status(500).json({ error: "Failed to fetch areas" });
+  }
+});
+
+router.get("/types", verifyToken, async (req, res) => {
+  try {
+    const types = await TypesModel.find().select("id name").sort({ id: 1 });
+    res.json(types);
+  } catch (err) {
+    console.error("Error fetching types:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
