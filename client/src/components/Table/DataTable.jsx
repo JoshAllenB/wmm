@@ -5,6 +5,14 @@ import { PaginationComponent } from "./Features/Pagination";
 import { useTableLogic } from "./TableLogic";
 import { TableComponent } from "./TableComponent";
 import { useSocket } from "../../utils/Websocket/useSocket";
+import { fetchClients } from "../Table/Data/clientdata";
+import {
+  handlePreviousPage,
+  handleNextPage,
+  handleFirstPage,
+  handleLastPage,
+  handlePageJump,
+} from "./Features/PaginationUtils";
 
 export default function DataTable({
   columns,
@@ -189,15 +197,51 @@ export default function DataTable({
             <PaginationComponent
               totalPages={totalPages}
               handlePreviousPage={() =>
-                setPage((prev) => Math.max(1, prev - 1))
+                handlePreviousPage(
+                  page,
+                  setPage,
+                  fetchClients,
+                  setLocalData,
+                  pageSize
+                )
               }
               handleNextPage={() =>
-                setPage((prev) => Math.min(totalPages, prev + 1))
+                handleNextPage(
+                  page,
+                  setPage,
+                  fetchClients,
+                  setLocalData,
+                  pageSize,
+                  totalPages
+                )
+              }
+              handleFirstPage={() =>
+                handleFirstPage(setPage, fetchClients, setLocalData, pageSize)
+              }
+              handleLastPage={() =>
+                handleLastPage(
+                  totalPages,
+                  setPage,
+                  fetchClients,
+                  setLocalData,
+                  pageSize
+                )
+              }
+              handlePageJump={(newPage) =>
+                handlePageJump(
+                  newPage,
+                  setPage,
+                  fetchClients,
+                  setLocalData,
+                  pageSize,
+                  totalPages
+                )
               }
               pageSize={pageSize}
               setPageSize={(newSize) => {
                 setPageSize(newSize);
                 setPage(1);
+                fetchClients(1, newSize);
               }}
               page={page}
               setPage={setPage}

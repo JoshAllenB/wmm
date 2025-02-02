@@ -8,6 +8,9 @@ export const PaginationComponent = ({
   setPageSize,
   page,
   setPage,
+  handleFirstPage,
+  handleLastPage,
+  handlePageJump,
 }) => {
   const handlePageSizeChange = (e) => {
     const newSize = Number(e.target.value);
@@ -39,17 +42,39 @@ export const PaginationComponent = ({
         <div className="flex items-center space-x-2">
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={handleFirstPage}
+            disabled={page === 1}
+          >
+            First
+          </Button>
+          <Button
+            className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handlePreviousPage}
             disabled={page === 1}
           >
             Previous
           </Button>
+          <input
+            type="number"
+            className="h-8 rounded-md border border-input text-center"
+            value={page}
+            onChange={(e) => handlePageJump(Number(e.target.value))}
+            min={1}
+            max={totalPages}
+          />
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleNextPage}
             disabled={page === totalPages}
           >
             Next
+          </Button>
+          <Button
+            className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
+            onClick={handleLastPage}
+            disabled={page === totalPages}
+          >
+            Last
           </Button>
         </div>
       </div>
