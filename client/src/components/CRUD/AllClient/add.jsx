@@ -301,6 +301,7 @@ const Add = ({ fetchClients }) => {
     const clientData = {
       ...baseClientData,
       address: combinedAddress,
+      ...areaData, // Include area data in clientData
     };
 
     // Format the date to "DD MMM YYYY"
@@ -470,10 +471,7 @@ const Add = ({ fetchClients }) => {
                       />
                     </div>
                     <div>
-                      <AreaForm
-                        onAreaChange={handleAreaChange}
-                        onCitySelect={handleCitySelect}
-                      />
+                      <AreaForm onAreaChange={handleAreaChange} />
                     </div>
                   </div>
 
