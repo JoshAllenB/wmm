@@ -20,6 +20,11 @@ export const modelConfigs = {
       subsyear: 1,
       copies: 1,
       subsclass: 1,
+      remarks: 1,
+      paymtamt: 1,
+      paymtmasses: 1,
+      calendar: 1,
+      donorid: 1,
     },
     groupFields: {
       subsdate: "$subsdate",
@@ -28,6 +33,11 @@ export const modelConfigs = {
       subsyear: "$subsyear",
       copies: "$copies",
       subsclass: "$subsclass",
+      remarks: "$remarks",
+      paymtamt: "$paymtamt",
+      paymtmasses: "$paymtmasses",
+      calendar: "$calendar",
+      donorid: "$donorid",
     },
   },
   HRGModel: {

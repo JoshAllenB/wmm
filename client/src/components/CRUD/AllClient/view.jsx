@@ -77,7 +77,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const renderRoleSpecificData = () => {
     if (hasRole("WMM")) {
-      return renderSubscription();
+      return (
+        <>
+          {renderSubscription()}
+          {renderPaymentHistory()}
+        </>
+      );
     } else if (hasRole("HRG")) {
       return renderHrgData();
     } else if (hasRole("FOM")) {
@@ -88,32 +93,24 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const renderSubscription = () => {
     if (roleSpecificData.length === 0) return null;
+
+    const formatDate = (date) => {
+      return new Date(date).toLocaleDateString("en-US"); // Adjust locale as needed
+    };
+
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black mb-2 font-bold">Subscription History</h1>
+        <h1 className="text-black text-xl mb-2 font-bold">
+          Subscription History
+        </h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
           {roleSpecificData.map((subscription, index) => (
             <div key={index}>
               <div className="flex space-x-1">
-                <h5 className="font-bold">Subscription Classification: </h5>
-                <span>{subscription.subsclass}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Start Date:</span>{" "}
-                <span className="text-black">
-                  {new Date(subscription.subsdate).toLocaleDateString("en-US")}
-                </span>
-              </div>
-              <div>
-                <span className="text-black font-bold">End Date:</span>{" "}
-                <span className="text-black">
-                  {new Date(subscription.enddate).toLocaleDateString("en-US")}
-                </span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Copies:</span>{" "}
-                <span className="text-black">
-                  {subscription.copies || "N/A"}
+                <span>
+                  <span className="font-bold">{subscription.subsclass}</span>:{" "}
+                  {formatDate(subscription.subsdate)} -{" "}
+                  {formatDate(subscription.enddate)} Cps: {subscription.copies}
                 </span>
               </div>
             </div>
@@ -123,11 +120,49 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     );
   };
 
+  const renderPaymentHistory = () => {
+    if (!roleSpecificData.length) return null;
+
+    return (
+      <div className="flex flex-col mb-2 p-2">
+        <h1 className="text-black text-xl mb-2 font-bold">Payment History</h1>
+        <div className="space-y-2 overflow-auto">
+          {roleSpecificData.map(
+            ({ paymtamt, paymtmasses, donorid, calendar, remarks }, index) => (
+              <div key={index} className="text-black flex flex-col">
+                <span>
+                  <span className="font-bold">Payment Amount:</span> {paymtamt}
+                </span>
+                <span>
+                  <span className="font-bold">Payment Masses:</span>{" "}
+                  {paymtmasses}
+                </span>
+                <span>
+                  <span className="font-bold">Donor ID:</span> {donorid}
+                </span>
+                <span>
+                  <span className="font-bold">Calendar:</span>{" "}
+                  {calendar ? "Yes" : "No"}
+                </span>
+                <span>
+                  <div className="mt-1 p-2 border border-gray-300 rounded bg-gray-50">
+                    <span className="font-bold">Remarks: </span>
+                    {remarks}
+                  </div>
+                </span>{" "}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderHrgData = () => {
     if (roleSpecificData.length === 0) return null;
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black mb-2 font-bold">Payment History</h1>
+        <h1 className="text-black text-xl mb-2 font-bold">Payment History</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
           {roleSpecificData.map((hrg, index) => (
             <div key={index}>
@@ -183,11 +218,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             <>
               <div className="flex justify-between items-center mb-4">
                 <h2 className="flex flex-col text-2xl font-bold text-black">
-                  Client Information
+                  Client Information ID: {formData.id}
                 </h2>
               </div>
-              <h1 className="text-black text-xl">Client ID: {formData.id}</h1>
-              <div className="grid grid-cols-2 gap-4 w-[600px]">
+              <div className="grid grid-cols-3 gap-4 w-[1200px]">
                 {renderSection("Personal Info", [
                   { label: "Last Name", name: "lname" },
                   { label: "First Name", name: "fname" },
