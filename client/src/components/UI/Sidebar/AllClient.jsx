@@ -10,6 +10,8 @@ import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
 import FilterDropdown from "../../filterDropdown";
+import { Button } from "../ShadCN/button";
+import AdvancedFilter from "../../CRUD/advanceFilter";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -37,14 +39,74 @@ const AllClient = () => {
 
   const [tableInstance, setTableInstance] = useState(null);
 
+  const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
+  const [advancedFilterData, setAdvancedFilterData] = useState({
+    lname: "",
+    fname: "",
+    mname: "",
+    sname: "",
+    address: "",
+    contactnos: "",
+    cellno: "",
+    ofcno: "",
+    email: "",
+    birthdate: "",
+  });
+
+  const openAdvancedFilterModal = () => setShowAdvancedFilterModal(true);
+  const closeAdvancedFilterModal = () => setShowAdvancedFilterModal(false);
+
+  const handleAdvancedFilterChange = (e) => {
+    const { name, value } = e.target;
+    setAdvancedFilterData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAdvancedFilterSubmit = () => {
+    // Send advancedFilterData to the backend
+    fetchData(
+      page,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      advancedFilterData
+    );
+    closeAdvancedFilterModal();
+  };
+
+  const handleClearAllFilters = () => {
+    setFiltering(""); // Clear the simple search filter
+    setAdvancedFilterData({
+      lname: "",
+      fname: "",
+      mname: "",
+      sname: "",
+      address: "",
+      contactnos: "",
+      cellno: "",
+      ofcno: "",
+      email: "",
+    }); // Clear the advanced filter
+    fetchData(page, pageSize, "", selectedGroup, {}); // Fetch unfiltered data
+  };
+
   const fetchData = useCallback(
-    async (currentPage, currentPageSize, filter = "", group = "") => {
+    async (
+      currentPage,
+      currentPageSize,
+      filter = "",
+      group = "",
+      advancedFilterData = {}
+    ) => {
       try {
         const result = await fetchClients(
           currentPage,
           currentPageSize,
           filter,
-          group
+          group,
+          advancedFilterData
         );
         setClientData(result.data);
         setTotalPages(result.totalPages);
@@ -106,6 +168,10 @@ const AllClient = () => {
     setTableInstance(instance);
   }, []);
 
+  const handleApplyFilter = (filterData) => {
+    fetchData(page, pageSize, debouncedFiltering, selectedGroup, filterData);
+  };
+
   return (
     <div className="mr-[10px] ml-[10px]">
       <div className="flex gap-2">
@@ -119,12 +185,14 @@ const AllClient = () => {
           onChange={handleSearchChange}
           className="max-w-sm"
         />
+        <AdvancedFilter onApplyFilter={handleApplyFilter} />
         <FilterDropdown
           groups={groups}
           selectedGroup={selectedGroup}
           setSelectedGroup={setSelectedGroup}
           setPage={setPage}
         />
+        <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
       </div>
       <DataTable
         columns={columns}

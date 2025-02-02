@@ -19,32 +19,47 @@ async function fetchDataServices(
   limit,
   pageSize,
   group,
-  clientIds = null
+  clientIds = null,
+  advancedFilterData = {}
 ) {
   const skip = (page - 1) * pageSize;
-  const numericFilter = Number(filter);
-  const isNumeric = !isNaN(numericFilter);
 
-  const filterQuery = {
-    $and: [
-      {
-        $or: [
-          ...(isNumeric ? [{ id: numericFilter }] : []),
-          { lname: { $regex: filter, $options: "i" } },
-          { fname: { $regex: filter, $options: "i" } },
-          { mname: { $regex: filter, $options: "i" } },
-          { sname: { $regex: filter, $options: "i" } },
-        ],
-      },
-    ],
-  };
+  const filterQuery = { $and: [] };
+
+  if (filter) {
+    const numericFilter = Number(filter);
+    const isNumeric = !isNaN(numericFilter);
+    filterQuery.$and.push({
+      $or: [
+        ...(isNumeric ? [{ id: numericFilter }] : []),
+        { lname: { $regex: filter, $options: "i" } },
+        { fname: { $regex: filter, $options: "i" } },
+        { mname: { $regex: filter, $options: "i" } },
+        { sname: { $regex: filter, $options: "i" } },
+      ],
+    });
+  }
 
   if (group) {
     filterQuery.$and.push({ group: { $regex: group, $options: "i" } });
   }
 
+  const advanceConditions = Object.entries(advancedFilterData)
+    .filter(([_, value]) => value)
+    .map(([key, value]) => {
+      return { [key]: { $regex: value, $options: "i" } };
+    });
+
+  if (advanceConditions.length > 0) {
+    filterQuery.$and.push(...advanceConditions);
+  }
+
   if (clientIds) {
     filterQuery.$and.push({ id: { $in: clientIds } });
+  }
+
+  if (filterQuery.$and.length === 0) {
+    delete filterQuery.$and;
   }
 
   const clientCount = await ClientModel.countDocuments(filterQuery);

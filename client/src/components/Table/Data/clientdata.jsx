@@ -6,7 +6,8 @@ export const fetchClients = async (
   page = 1,
   pageSize = 20,
   filter = "",
-  group = ""
+  group = "",
+  advancedFilterData = {}
 ) => {
   try {
     const response = await axios.get(
@@ -18,6 +19,11 @@ export const fetchClients = async (
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+        params: {
+          ...advancedFilterData, // Include advanced filter data
+          birthdate: advancedFilterData.birthdate,
+          address: advancedFilterData.address,
         },
       }
     );
