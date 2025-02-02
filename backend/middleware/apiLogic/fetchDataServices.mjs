@@ -47,12 +47,82 @@ async function fetchDataServices(
   const advanceConditions = Object.entries(advancedFilterData)
     .filter(([_, value]) => value)
     .map(([key, value]) => {
+      if (key === "startDate") {
+        console.log(`Filtering with startDate: ${value}`);
+        return {
+          $expr: {
+            $and: [
+              { $eq: [{ $type: "$adddate" }, "string"] },
+              {
+                $gte: [
+                  {
+                    $dateFromString: {
+                      dateString: {
+                        $let: {
+                          vars: {
+                            matchResult: {
+                              $regexFind: {
+                                input: "$adddate",
+                                regex: "^(\\d{1,2}/\\d{1,2}/\\d{4})",
+                              },
+                            },
+                          },
+                          in: "$$matchResult.match",
+                        },
+                      },
+                      format: "%m/%d/%Y",
+                    },
+                  },
+                  new Date(value),
+                ],
+              },
+            ],
+          },
+        };
+      }
+
+      if (key === "endDate") {
+        console.log(`Filtering with endDate: ${value}`);
+        return {
+          $expr: {
+            $and: [
+              { $eq: [{ $type: "$adddate" }, "string"] },
+              {
+                $lte: [
+                  {
+                    $dateFromString: {
+                      dateString: {
+                        $let: {
+                          vars: {
+                            matchResult: {
+                              $regexFind: {
+                                input: "$adddate",
+                                regex: "^(\\d{1,2}/\\d{1,2}/\\d{4})",
+                              },
+                            },
+                          },
+                          in: "$$matchResult.match",
+                        },
+                      },
+                      format: "%m/%d/%Y",
+                    },
+                  },
+                  new Date(value),
+                ],
+              },
+            ],
+          },
+        };
+      }
+
       return { [key]: { $regex: value, $options: "i" } };
     });
 
   if (advanceConditions.length > 0) {
     filterQuery.$and.push(...advanceConditions);
   }
+
+  console.log("Filter Query:", JSON.stringify(filterQuery, null, 2));
 
   if (clientIds) {
     filterQuery.$and.push({ id: { $in: clientIds } });

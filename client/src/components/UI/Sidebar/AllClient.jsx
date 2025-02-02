@@ -51,6 +51,8 @@ const AllClient = () => {
     ofcno: "",
     email: "",
     birthdate: "",
+    startDate: "",
+    endDate: "",
   });
 
   const openAdvancedFilterModal = () => setShowAdvancedFilterModal(true);
@@ -65,13 +67,24 @@ const AllClient = () => {
   };
 
   const handleAdvancedFilterSubmit = () => {
-    // Send advancedFilterData to the backend
+    // Ensure dates are in MM/DD/YY format
+    const formattedFilterData = {
+      ...advancedFilterData,
+      startDate: advancedFilterData.startDate
+        ? new Date(advancedFilterData.startDate).toLocaleDateString("en-US")
+        : "",
+      endDate: advancedFilterData.endDate
+        ? new Date(advancedFilterData.endDate).toLocaleDateString("en-US")
+        : "",
+    };
+
+    // Send formattedFilterData to the backend
     fetchData(
       page,
       pageSize,
       debouncedFiltering,
       selectedGroup,
-      advancedFilterData
+      formattedFilterData
     );
     closeAdvancedFilterModal();
   };
@@ -169,7 +182,24 @@ const AllClient = () => {
   }, []);
 
   const handleApplyFilter = (filterData) => {
-    fetchData(page, pageSize, debouncedFiltering, selectedGroup, filterData);
+    const formatDate = (dateString) => {
+      if (!dateString) return "";
+      const date = new Date(dateString);
+      const month = date.getMonth() + 1; // No leading zero
+      const day = date.getDate(); // No leading zero
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    };
+
+    const formattedFilterData = {
+      ...filterData,
+      startDate: formatDate(filterData.startDate),
+      endDate: formatDate(filterData.endDate),
+    };
+
+    console.log("Formatted Filter Data:", formattedFilterData); // Log the formatted filter data
+
+    fetchData(page, pageSize, debouncedFiltering, selectedGroup, formattedFilterData);
   };
 
   return (

@@ -16,6 +16,8 @@ const AdvancedFilter = ({ onApplyFilter }) => {
     ofcno: "",
     email: "",
     address: "",
+    startDate: "",
+    endDate: "",
   });
 
   const openModal = () => setShowModal(true);
@@ -125,6 +127,26 @@ const AdvancedFilter = ({ onApplyFilter }) => {
                   name="address"
                   className="w-full p-2 border-2 border-gray-300 rounded-md"
                   value={filterData.address}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Date Range</h1>
+                <InputField
+                  label="Start Date:"
+                  id="startDate"
+                  name="startDate"
+                  type="date"
+                  value={filterData.startDate}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="End Date:"
+                  id="endDate"
+                  name="endDate"
+                  type="date"
+                  value={filterData.endDate}
                   onChange={handleChange}
                 />
               </div>

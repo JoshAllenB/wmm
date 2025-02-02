@@ -22,7 +22,13 @@ router.get(
   async (req, res) => {
     const io = req.io;
     const socketId = req.socketId;
-    const { page = 1, pageSize = 20, filter = "", group = "", ...advancedFilterData } = req.query;
+    const {
+      page = 1,
+      pageSize = 20,
+      filter = "",
+      group = "",
+      ...advancedFilterData
+    } = req.query;
     const limit = parseInt(pageSize);
 
     try {
