@@ -13,7 +13,6 @@ import clientsRoutes from "./middleware/clients/Clients.mjs";
 import hrgRoutes from "./middleware/hrg/Hrg.mjs";
 import wmmRoutes from "./middleware/wmm/wmm.mjs";
 import roleRoutes from "./middleware/users/roleManagement.mjs";
-import areaRoutes from "./middleware/areaApiRoute.mjs";
 import utilRoutes from "./middleware/fetchUtils.mjs";
 
 dotenv.config();
@@ -65,7 +64,6 @@ app.use("/clients", attachIO, clientsRoutes);
 app.use("/hrg", attachIO, hrgRoutes);
 app.use("/wmm", attachIO, wmmRoutes);
 app.use("/roles", attachIO, roleRoutes);
-app.use("/areas", attachIO, areaRoutes);
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
