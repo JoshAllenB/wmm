@@ -156,9 +156,6 @@ async function fetchDataServices(
       ...modelDataMap.get(client.id),
     }));
 
-    // Log at least two combined data entries
-    console.log("Combined Data Sample:", combinedData.slice(0, 2));
-
     const totalCopies = modelDataArrays.reduce((acc, modelData) => {
       modelData.forEach((item) => {
         acc += item.totalCopies || 0;
