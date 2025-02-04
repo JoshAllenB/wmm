@@ -25,7 +25,7 @@ router.get("/areas", async (req, res) => {
   try {
     const areas = await AreaModel.find()
       .select("id name zipcode acode")
-      .sort({ id: 1 });
+      .sort({ _id: 1 });
     res.json(areas);
   } catch (err) {
     console.error("Error fetching area list:", err);
