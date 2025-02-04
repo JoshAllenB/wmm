@@ -7,8 +7,7 @@ import Modal from "../../modal";
 import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
-import Delete from "./delete";
-import Mailing from "../../mailing";
+import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -17,44 +16,6 @@ const formatDateToInput = (date) => {
   const day = `${d.getDate()}`.padStart(2, "0");
   const year = d.getFullYear();
   return `${year}-${month}-${day}`;
-};
-
-const formatDateToMonthYear = (date) => {
-  const d = new Date(date);
-  const month = d.toLocaleString("en-US", { month: "long" });
-  const year = d.getFullYear();
-  return `${month} ${year}`;
-};
-
-const calculateEndMonth = (startDate, monthsToAdd) => {
-  const start = new Date(startDate);
-  let monthsCounted = 0;
-  let currentMonth = start.getMonth();
-  let currentYear = start.getFullYear();
-
-  while (monthsCounted < monthsToAdd) {
-    if (currentMonth === 3) {
-      currentMonth = 5;
-      monthsCounted++;
-    } else {
-      currentMonth++;
-      if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-      }
-      monthsCounted++;
-    }
-  }
-
-  if (currentMonth === 0) {
-    currentMonth = 11;
-    currentYear--;
-  } else {
-    currentMonth--;
-  }
-
-  const endDate = new Date(currentYear, currentMonth + 1, 0);
-  return endDate;
 };
 
 const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
@@ -79,15 +40,23 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     group: "",
     remarks: "",
     copies: "1",
+    subsclass: "",
+    subscriptionFreq: "",
+    subscriptionStart: "",
+    subscriptionEnd: "",
   });
+
   const [addressData, setAddressData] = useState({
     street1: "",
     street2: "",
-    region: "",
     province: "",
     city: "",
+    municipality: "",
+    subMunicipality: "",
     barangay: "",
   });
+
+  const [combinedAddress, setCombinedAddress] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [roleSpecificData, setRoleSpecificData] = useState({});
   const [areaData, setAreaData] = useState({});
@@ -95,7 +64,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [subscriptionFreq, setSubscriptionFreq] = useState("");
-  const [combinedAddress, setCombinedAddress] = useState("");
+  const [groups, setGroups] = useState([]);
+  const [subclasses, setSubclasses] = useState([]);
+  const [types, setTypes] = useState([]);
 
   useEffect(() => {
     if (rowData) {
@@ -104,45 +75,24 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       const addressParts = rowData.address ? rowData.address.split(", ") : [];
       setAddressData({
-        region: addressParts[4] || "",
-        province: addressParts[3] || "",
-        city: addressParts[2] || "",
-        barangay: addressParts[1] || "",
+        street1: addressParts[0] || "",
+        street2: addressParts[1] || "",
+        barangay: addressParts[2] || "",
+        city: addressParts[3] || "",
+        province: addressParts[4] || "",
       });
-      setSelectedCity(addressParts[2] || "");
 
       if (hasRole("WMM")) {
-        setRoleSpecificData({
-          subsdate: rowData.subsdate || "",
-          enddate: rowData.enddate || "",
-          renewdate: rowData.renewdate || "",
-          subsyear: rowData.subsyear || 0,
-          copies: rowData.copies || 1,
-          paymtamt: rowData.paymtamt || 0,
-          paymtmasses: rowData.paymtmasses || 0,
-          calendar: rowData.calendar || false,
-          subsclass: rowData.subsclass || "",
-          donorid: rowData.donorid || 0,
-        });
-
-        const fetchLastSubscription = async () => {
-          try {
-            console.log("Fetching last subscription for client:", rowData.id);
-            const response = await axios.get(
-              `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/${
-                rowData.id
-              }/latest-subscription`
-            );
-            console.log("Last subscription data:", response.data);
-
-            if (response.data) {
-              setLastSubscriptionEnd(new Date(response.data.subscriptionEnd));
-            }
-          } catch (error) {
-            console.error("Error fetching last subscription:", error);
-          }
-        };
-        fetchLastSubscription();
+        const wmmData = rowData.wmmData && rowData.wmmData[0]; // Access the first element
+        if (wmmData) {
+          setRoleSpecificData({
+            subsdate: wmmData.subsdate || "",
+            enddate: wmmData.enddate || "",
+            subsclass: wmmData.subsclass || "",
+            copies: wmmData.copies || 1,
+            // Include other WMM-specific data if needed
+          });
+        }
       } else if (hasRole("HRG")) {
         setRoleSpecificData({
           recvdate: rowData.recvdate || "",
@@ -162,46 +112,80 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   }, [rowData, hasRole]);
 
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await axios.get(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        setGroups(response.data);
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    };
+    fetchGroups();
+  }, []);
+
+  useEffect(() => {
+    const loadSubclasses = async () => {
+      try {
+        const subclassesData = await fetchSubclasses();
+        setSubclasses(subclassesData);
+      } catch (error) {
+        console.error("Error loading subclasses:", error);
+      }
+    };
+    loadSubclasses();
+  }, [hasRole]);
+
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const typesData = await fetchTypes();
+        setTypes(typesData);
+      } catch (error) {
+        console.error("Error loading types:", error);
+      }
+    };
+    loadTypes();
+  }, []);
+
   const closeModal = () => {
     setShowModal(false);
     onClose();
   };
 
-  const handleChange = (e) => {
+  const formatDateToMonthYear = (date) => {
+    const d = new Date(date);
+    const month = d.toLocaleString("en-US", { month: "long" });
+    const year = d.getFullYear();
+    return `${month} ${year}`;
+  };
+
+  const calculateEndMonth = (startDate, monthsToAdd) => {
+    const start = new Date(startDate);
+    const endDate = new Date(start.setMonth(start.getMonth() + monthsToAdd));
+
+    // Adjust the end date to the last day of the calculated month
+    endDate.setDate(0);
+    return endDate;
+  };
+
+  const handleChange = async (e) => {
     const { name, value } = e.target;
-    console.log(`Handle change - ${name}: ${value}`);
 
-    if (name === "renewalType") {
-      console.log("Renewal type changed:", value);
-      setRenewalType(value);
-      setSubscriptionFreq("");
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        subsdate:
-          value === "retro" ? formatDateToMonthYear(lastSubscriptionEnd) : "", // Set subsdate based on enddate
-
-        enddate: "",
-        renewdate:
-          value === "retro"
-            ? formatDateToInput(new Date()) + " (Retroactive)"
-            : "", // Set renewdate to today with a retroactive tag
-      }));
-      return;
-    }
+    // Convert the input value to uppercase
+    const upperCaseValue = value.toUpperCase();
 
     if (name === "subscriptionFreq") {
-      console.log("Setting subscription frequency:", value);
-      setSubscriptionFreq(value);
+      const today = new Date();
       const monthsToAdd = parseInt(value);
-      let startDate;
-
-      if (renewalType === "retro" && lastSubscriptionEnd) {
-        console.log("Using retroactive start date:", lastSubscriptionEnd);
-        startDate = new Date(lastSubscriptionEnd);
-      } else {
-        console.log("Using current date as start");
-        startDate = new Date();
-      }
+      const startDate = today;
 
       const subscriptionStart = new Date(
         startDate.getFullYear(),
@@ -209,38 +193,55 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       );
       const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
 
-      console.log("Calculated dates:", {
-        start: subscriptionStart,
-        end: subscriptionEnd,
+      // Update `formData` and `roleSpecificData` states for dates
+      setFormData({
+        ...formData,
+        subscriptionFreq: value,
+        subscriptionStart: formatDateToMonthYear(subscriptionStart),
+        subscriptionEnd: formatDateToMonthYear(subscriptionEnd),
       });
 
       setRoleSpecificData((prev) => ({
         ...prev,
-        subsdate:
-          renewalType === "retro"
-            ? formatDateToMonthYear(lastSubscriptionEnd)
-            : formatDateToMonthYear(subscriptionStart), // Format to month and year
-        enddate: formatDateToMonthYear(subscriptionEnd), // Format to month and year
+        subsdate: formatDateToMonthYear(subscriptionStart),
+        enddate: formatDateToMonthYear(subscriptionEnd),
+        copies: prev.copies || 1,
       }));
       return;
     }
 
-    if (name in formData) {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    } else {
-      setRoleSpecificData((prev) => ({ ...prev, [name]: value }));
+    if (name === "renewalType") {
+      setRenewalType(value);
+      setFormData((prev) => ({
+        ...prev,
+        subscriptionFreq: "",
+        subscriptionStart: "",
+        subscriptionEnd: "",
+      }));
+      return;
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    setFormData({
+      ...formData,
+      [name]: upperCaseValue,
+    });
+  };
+
+  const handleAddressChange = (type, value) => {
+    setAddressData((prev) => ({
+      ...prev,
+      [type]: value,
+    }));
   };
 
   const updateCombinedAddress = (addressData) => {
     const addressComponents = [
       addressData.street1,
       addressData.street2,
+      formData.area,
       addressData.barangay,
-      addressData.city,
+      addressData.city ? addressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
       addressData.province,
-      addressData.region,
     ];
     const address = addressComponents.filter(Boolean).join(", ");
     setCombinedAddress(address);
@@ -250,23 +251,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     updateCombinedAddress(addressData);
   }, [addressData]);
 
-  const handleAddressChange = (type, value) => {
-    setAddressData((prev) => ({ ...prev, [type]: value }));
-  };
-
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
   };
 
-  const handleAreaChange = (field, value) => {
-    setAreaData((prev) => ({ ...prev, [field]: value }));
+  const handleAreaChange = (name, value) => {
+    setAreaData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleRoleSpecificChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const uppercasedValue = type === "checkbox" ? checked : value.toUpperCase(); // Convert to uppercase
     setRoleSpecificData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: uppercasedValue,
     }));
   };
 
@@ -286,21 +284,53 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       addressData.street2,
       formData.area,
       addressData.barangay,
-      addressData.city,
+      addressData.city?.replace(/^City of\s+/i, ""), // Remove "City of" prefix
       addressData.province,
-      addressData.region,
     ];
 
+    const {
+      subscriptionFreq,
+      subscriptionStart,
+      subscriptionEnd,
+      subsclass,
+      ...baseClientData
+    } = formData;
+
     const updatedClientData = {
-      ...formData,
+      ...baseClientData,
       address: combinedAddress,
-      ...roleSpecificData,
+      ...areaData, // Include area data in clientData
     };
+
+    const submissionData = {
+      clientData: updatedClientData,
+      roleType: null,
+      roleData: null,
+    };
+
+    if (hasRole("WMM")) {
+      submissionData.roleType = "WMM";
+      submissionData.roleData = {
+        ...roleSpecificData,
+        subscriptionFreq,
+        subscriptionStart,
+        subscriptionEnd,
+        subsclass,
+      };
+    } else if (hasRole("HRG")) {
+      submissionData.roleType = "HRG";
+      submissionData.roleData = roleSpecificData;
+    } else if (hasRole("FOM")) {
+      submissionData.roleType = "FOM";
+      submissionData.roleData = roleSpecificData;
+    }
 
     try {
       const response = await axios.put(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/${rowData.id}`,
-        updatedClientData
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
+          rowData.id
+        }`,
+        submissionData
       );
       if (response.data.success) {
         onEditSuccess(updatedClientData);
@@ -314,10 +344,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   return (
     <Modal isOpen={showModal} onClose={closeModal}>
       <h2 className="text-xl font-bold text-black mb-4">
-        Edit Client Information
+        Edit Client Information ID: {rowData.id}
       </h2>
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           <div className="flex flex-col mb-2 p-2">
             <h1 className="text-black mb-2 font-bold">Personal Info</h1>
             <InputField
@@ -361,7 +391,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               name="bdate"
               value={formData.bdate}
               onChange={handleChange}
-              type="date"
             />
             <InputField
               label="Company:"
@@ -372,9 +401,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             />
           </div>
 
-          <div className="flex flex-col mb-2 p-2">
+          <div className="flex flex-col p-2">
             <h1 className="text-black mb-2 font-bold">Address Info</h1>
-
             <InputField
               label="Address 1 (house/building number street name):"
               id="street1"
@@ -382,27 +410,33 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               value={addressData.street1}
               onChange={(e) => handleAddressChange("street1", e.target.value)}
             />
-
             <InputField
               label="Address 2 (subdivision/compound/building name):"
-              id="stree2"
+              id="street2"
               name="street2"
               value={addressData.street2}
               onChange={(e) => handleAddressChange("street2", e.target.value)}
             />
-            <AddressForm
-              onAddressChange={handleAddressChange}
-              addressData={addressData}
-              selectedCity={selectedCity}
-            />
-            <AreaForm
-              onAreaChange={handleAreaChange}
-              onCitySelect={handleCitySelect}
-            />
-
-            <div className="mt-4 w-[500px]">
+            <div className="flex flex-col gap-2">
+              <AreaForm
+                onAreaChange={handleAreaChange}
+                initialAreaData={{
+                  acode: rowData.acode || "",
+                  zipcode: rowData.zipcode || "",
+                }}
+              />
+            </div>
+            <div className="mt-4">
               <h2 className="text-black font-bold">Address Preview:</h2>
-              <p>{combinedAddress || "No address entered"}</p>
+              <textarea
+                id="combinedAddress"
+                name="combinedAddress"
+                value={combinedAddress}
+                onChange={(e) =>
+                  setCombinedAddress(e.target.value.toUpperCase())
+                }
+                className="w-full h-[160px] p-2 border rounded-md"
+              />
             </div>
           </div>
 
@@ -438,23 +472,38 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             />
           </div>
 
-          <div className="flex flex-col mb-2 p-2">
+          <div className="flex flex-col gap-2">
             <h1 className="text-black mb-2 font-bold">Group Info</h1>
-            <InputField
-              label="Type:"
+            <select
               id="type"
               name="type"
               value={formData.type}
               onChange={handleChange}
-            />
-            <InputField
-              label="Group:"
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="">Select a type</option>
+              {types.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.id} - {type.name}
+                </option>
+              ))}
+            </select>
+            <select
               id="group"
               name="group"
               value={formData.group}
               onChange={handleChange}
-            />
-            <InputField
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="">Select a group</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.id} - {group.name}
+                </option>
+              ))}
+            </select>
+            <textarea
+              className="w-full h-[160px] p-2 border rounded-md"
               label="Remarks:"
               id="remarks"
               name="remarks"
@@ -464,157 +513,86 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           </div>
 
           {hasRole("WMM") && (
-            <div className="flex flex-col mb-2">
+            <div className="flex flex-col gap-2">
               <h1 className="text-black mb-2 font-bold">Subscription</h1>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-600 mb-2">
-                  Renewal Type:
-                </label>
-                <select
-                  name="renewalType"
-                  value={renewalType}
-                  onChange={handleChange}
-                  className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 place placeholded:text-gray-300 focus:ring-3 p-3"
-                >
-                  <option value="current">Current Date</option>
-                  <option value="retro">
-                    Retroactive (From last subscription)
-                  </option>
-                </select>
-              </div>
-              <label htmlFor="subcriptionFreq">Subscription Frequency:</label>
               <select
-                id="subscriptionFreq"
-                name="subscriptionFreq"
-                value={formData.subscriptionFreq}
-                onChange={handleChange}
-                className="block w-full rounded-md border-0 mb-2 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              >
-                <option value="">Select Subscription Frequency</option>
-                <option value="6">6 Months</option>
-                <option value="11">1 Year</option>
-                <option value="21">2 Years</option>
-              </select>
-              <InputField
-                label="Subscription Start:"
-                id="subsdate"
-                name="subsdate"
-                value={roleSpecificData.subsdate}
-                onChange={handleRoleSpecificChange}
-              />
-              <InputField
-                label="Subscription End:"
-                id="enddate"
-                name="enddate"
-                value={roleSpecificData.enddate}
-                onChange={handleRoleSpecificChange}
-              />
-              <InputField
-                label="Renew Date:"
-                id="renewdate"
-                name="renewdate"
-                value={roleSpecificData.renewdate}
-                onChange={handleRoleSpecificChange}
-              />
-              <Button
-                type="button"
-                onClick={handleRenewDateToday}
-                className="text-white bg-blue-500 hover:bg-blue-700 rounded-xl mt-2"
-              >
-                Set renew date to today
-              </Button>
-              <label className="block text-sm font-medium leading-6 text-gray-600">
-                Subscription Year:
-              </label>
-              <input
-                id="subsyear"
-                name="subsyear"
-                value={roleSpecificData.subsyear}
-                onChange={handleRoleSpecificChange}
-                type="number"
-                min="0"
-                className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              />
-              <label className="block text-sm font-medium leading-6 text-gray-600">
-                Copies:
-              </label>
-              <input
-                id="copies"
-                name="copies"
-                value={roleSpecificData.copies}
-                onChange={handleRoleSpecificChange}
-                type="number"
-                min="1"
-                className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-              />
-              <InputField
-                label="Payment Amount:"
-                id="paymtamt"
-                name="paymtamt"
-                value={roleSpecificData.paymtamt}
-                onChange={handleRoleSpecificChange}
-                type="number"
-              />
-              <InputField
-                label="Payment Masses:"
-                id="paymtmasses"
-                name="paymtmasses"
-                value={roleSpecificData.paymtmasses}
-                onChange={handleRoleSpecificChange}
-                type="number"
-              />
-              <InputField
-                label="Subscription Class:"
                 id="subsclass"
                 name="subsclass"
                 value={roleSpecificData.subsclass}
-                onChange={handleRoleSpecificChange}
-              />
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Select a classification</option>
+                {subclasses.map((subclass) => (
+                  <option key={subclass.id} value={subclass.id}>
+                    {subclass.name} ({subclass.id})
+                  </option>
+                ))}
+              </select>
               <InputField
-                label="Donor ID:"
-                id="donorid"
-                name="donorid"
-                value={roleSpecificData.donorid}
-                onChange={handleRoleSpecificChange}
-                type="number"
+                label="Subscription Start (MM/DD/YY):"
+                id="subscriptionStart"
+                name="subscriptionStart"
+                value={roleSpecificData.subsdate}
+                onChange={handleChange}
+                placeholder="MM/DD/YY"
+                className="w-full p-2 border rounded-md"
               />
+              <select
+                id="subscriptionFreq"
+                name="subscriptionFreq"
+                value={roleSpecificData.subscriptionFreq}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+              >
+                <option value="">Select Subscription Frequency</option>
+                <option value="5">6 Months</option>
+                <option value="12">1 Year</option>
+                <option value="23">2 Years</option>
+                <option value="others">Others</option>
+              </select>
+              <InputField
+                label="Subscription End (MM/DD/YY):"
+                id="subscriptionEnd"
+                name="subscriptionEnd"
+                value={roleSpecificData.enddate}
+                onChange={handleChange}
+                placeholder="MM/DD/YY"
+                className="w-full p-2 border rounded-md"
+              />
+              <div className="flex space-x-4">
+                <div className="flex flex-row items-center justify-center gap-2">
+                  <label className="block text-sm font-medium leading-6 text-gray-600">
+                    Copies:
+                  </label>
+                  <input
+                    id="copies"
+                    name="copies"
+                    value={roleSpecificData.copies}
+                    onChange={handleRoleSpecificChange}
+                    type="number"
+                    min="1"
+                    className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
-        <div className="flex justify-between mt-4">
-          <div className="flex gap-1">
-            <Button
-              type="submit"
-              className="text-sm text-white bg-green-600 hover:bg-green-800"
-            >
-              Save
-            </Button>
-            <Button
-              onClick={closeModal}
-              className="text-white bg-red-500 hover:bg-red-800"
-            >
-              Cancel
-            </Button>
-          </div>
-          <div className="flex gap-1">
-            <Mailing
-              id={formData.id}
-              address={formData.address}
-              areaCode={formData.acode}
-              zipcode={formData.zipcode}
-              lname={formData.lname}
-              fname={formData.fname}
-              mname={formData.mname}
-              contactnos={formData.contactnos}
-              cellno={formData.cellno}
-              officeno={formData.ofcno}
-            />
-            <Delete
-              client={rowData}
-              onClose={onClose}
-              onDeleteSuccess={onDeleteSuccess}
-            />
-          </div>
+        <div className="flex gap-1 mt-4">
+          <Button
+            type="button"
+            onClick={closeModal}
+            className="text-white bg-red-500 hover:bg-red-800 rounded-xl"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="text-white text-sm bg-green-600 hover:bg-green-800 rounded-xl"
+          >
+            Save
+          </Button>
         </div>
       </form>
     </Modal>
