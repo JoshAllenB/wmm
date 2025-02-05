@@ -6,6 +6,7 @@ import {
   getPaginationRowModel,
   getFilteredRowModel,
 } from "@tanstack/react-table";
+import { v4 as uuidv4 } from "uuid";
 
 export function useTableLogic(
   data,
@@ -59,7 +60,7 @@ export function useTableLogic(
       },
     },
     onRowSelectionChange: setRowSelection || (() => {}),
-    getRowId: (row) => row?.id || row?._id || crypto.randomUUID(),
+    getRowId: (row) => row?.id || row?._id || uuidv4(),
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
     enableRowSelection: true,
