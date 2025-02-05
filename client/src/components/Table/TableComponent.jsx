@@ -198,6 +198,19 @@ export function TableComponent({
                           </li>
                         ))}
                       </ul>
+                    ) : cell.column.id === "Location Name" &&
+                      Array.isArray(cell.getValue()) ? (
+                      <div>
+                        {cell.getValue().map((location, index) => (
+                          <div
+                            key={index}
+                            className="text-gray-700 p-2 border-b border-gray-200"
+                            style={{ maxHeight: '128px', overflowY: 'auto' }}
+                          >
+                            {location.name} - {location.zipcode} - {location.description}
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       flexRender(cell.column.columnDef.cell, cell.getContext())
                     )}

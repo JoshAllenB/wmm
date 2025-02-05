@@ -15,6 +15,7 @@ import MenuSharpIcon from "@mui/icons-material/MenuSharp";
 import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ListIcon from "@mui/icons-material/List";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { useUser } from "../../../utils/Hooks/userProvider";
 
 export default function MenuSidebar() {
@@ -158,6 +159,14 @@ export default function MenuSidebar() {
                     }}
                   >
                     <Typography variant="h8">Sub. Class</Typography>
+                  </MenuItem>
+                  <MenuItem
+                    icon={<LocationOnIcon style={{ color: "#333333" }} />}
+                    component={<Link to="/area" />}
+                    onClick={() => handleSelect("Area")}
+                    selected={selected === "Area"}
+                  >
+                    Area
                   </MenuItem>
                 </SubMenu>
               </div>

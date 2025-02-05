@@ -8,6 +8,7 @@ import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
 import SubClass from "./UI/Sidebar/SubClass";
 import Hrg from "./UI/Sidebar/Hrg";
+import Area from "./UI/Sidebar/Area";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
 import ActivityMonitor from "../utils/ActivityMonitor";
@@ -69,6 +70,10 @@ const App = React.memo(() => {
         <Route
           path="/subclass"
           element={isLoggedIn ? <SubClass /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/area"
+          element={isLoggedIn ? <Area /> : <Navigate to="/" replace />}
         />
       </Routes>
     ),
