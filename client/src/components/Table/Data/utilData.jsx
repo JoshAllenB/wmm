@@ -37,7 +37,12 @@ export const fetchSubclasses = async () => {
 export const fetchAreas = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/areas`
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/areas`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
     );
     return response.data;
   } catch (error) {
