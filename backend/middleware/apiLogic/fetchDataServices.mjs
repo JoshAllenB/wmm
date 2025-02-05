@@ -214,7 +214,7 @@ async function fetchDataServices(
       ClientModel.countDocuments(filterQuery),
       ClientModel.find(filterQuery)
         .select(clientFields)
-        .sort({ id: -1 })
+        .sort({ id: 1 })
         .limit(limit)
         .skip(skip)
         .lean(),
