@@ -23,9 +23,23 @@ router.get("/groups", verifyToken, async (req, res) => {
 
 router.get("/areas", async (req, res) => {
   try {
-    const areas = await AreaModel.find()
-      .select("id name zipcode acode")
-      .sort({ _id: 1 });
+    const areas = await AreaModel.aggregate([
+      {
+        $project: {
+          _id: 1,
+          locations: {
+            $map: {
+              input: {
+                $sortArray: { input: "$locations", sortBy: { name: 1 } },
+              },
+              as: "location",
+              in: "$$location",
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
     res.json(areas);
   } catch (err) {
     console.error("Error fetching area list:", err);
@@ -115,6 +129,78 @@ router.delete("/subclass-delete/:id", verifyToken, async (req, res) => {
     res.status(200).json({ message: "Subclass deleted successfully" });
   } catch (err) {
     console.error("Error deleting subclass:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Create area
+router.post("/areas-add", verifyToken, async (req, res) => {
+  try {
+    const { _id, locations } = req.body;
+
+    // Validate _id
+    if (!_id || !_id.trim()) {
+      return res.status(400).json({ error: "Area Code (_id) is required" });
+    }
+
+    // Validate that each location has a name
+    if (!locations.every((location) => location.name)) {
+      return res.status(400).json({ error: "Each location must have a name" });
+    }
+
+    // Ensure _id is set when creating the document
+    const newArea = new AreaModel({ _id, locations });
+    await newArea.save();
+
+    res.status(201).json(newArea);
+  } catch (err) {
+    console.error("Error creating area:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Update area
+router.put("/areas/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { locations } = req.body;
+
+    // Validate that each location has a name
+    if (!locations.every(location => location.name)) {
+      return res.status(400).json({ error: "Each location must have a name" });
+    }
+
+    const updatedArea = await AreaModel.findOneAndUpdate(
+      { _id: id },
+      { locations, updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!updatedArea) {
+      return res.status(404).json({ error: "Area not found" });
+    }
+
+    res.json({ success: true, data: updatedArea });
+  } catch (err) {
+    console.error("Error updating area:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Delete area
+router.delete("/areas/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedArea = await AreaModel.findOneAndDelete({ _id: id });
+
+    if (!deletedArea) {
+      return res.status(404).json({ error: "Area not found" });
+    }
+
+    res.status(200).json({ message: "Area deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting area:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
