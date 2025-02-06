@@ -29,7 +29,7 @@ const Add = ({ fetchSubclasses }) => {
     e.preventDefault();
     try {
       await axios.post(
-        `http://${import.meta.env.VITE_IP_ADDRESS}$1`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass-add`,
         formData,
         {
           headers: {
