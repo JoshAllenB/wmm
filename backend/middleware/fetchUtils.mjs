@@ -6,7 +6,7 @@ import GroupModel from "../models/groups.mjs";
 import SubClassModel from "../models/subsclass.mjs";
 import AreaModel from "../models/area.mjs";
 import TypesModel from "../models/types.mjs";
-
+import PrintLabelModel from "../models/print.mjs";
 dotenv.config();
 
 const router = express.Router();
@@ -166,7 +166,7 @@ router.put("/areas/:id", verifyToken, async (req, res) => {
     const { locations } = req.body;
 
     // Validate that each location has a name
-    if (!locations.every(location => location.name)) {
+    if (!locations.every((location) => location.name)) {
       return res.status(400).json({ error: "Each location must have a name" });
     }
 
@@ -202,6 +202,34 @@ router.delete("/areas/:id", verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error deleting area:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/templates", verifyToken, async (req, res) => {
+  try {
+    const templates = await PrintLabelModel.find();
+    res.json(templates);
+  } catch (err) {
+    console.error("Error fetching templates:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.post("/templates-add", verifyToken, async (req, res) => {
+  try {
+    const { name, layout, selectedFields } = req.body;
+
+    const newTemplate = new PrintLabelModel({
+      name,
+      layout,
+      selectedFields,
+    });
+
+    await newTemplate.save();
+    res.status(201).json(newTemplate);
+  } catch (error) {
+    console.error("Error saving template:", error);
+    res.status(500).json({ error: "Failed to save template." });
   }
 });
 
