@@ -33,7 +33,10 @@ const AdvancedFilter = ({ onApplyFilter }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onApplyFilter(filterData);
+    const trimmedData = Object.fromEntries(
+      Object.entries(filterData).map(([key, value]) => [key, value.trim()])
+    );
+    onApplyFilter(trimmedData);
     closeModal();
   };
 
