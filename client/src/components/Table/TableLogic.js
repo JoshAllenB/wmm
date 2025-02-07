@@ -64,7 +64,7 @@ export function useTableLogic(
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
     enableRowSelection: true,
-    enableMultiRowSelection: false,
+    enableMultiRowSelection: true,
   });
 
   return table;
