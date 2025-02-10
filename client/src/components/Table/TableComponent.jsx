@@ -135,10 +135,10 @@ export function TableComponent({
                             <strong>Renew Date:</strong> {hrg.renewdate}, <br />
                             <strong>Campaign Date: </strong> {hrg.campaigndate},
                             <br />
-                            <strong>Payment Reference: </strong> {hrg.paymtref},
+                            <strong>Payment Reference: {hrg.paymtref}</strong> ,
                             <br />
-                            <strong>Payment Amount: </strong>
-                            {hrg.paymtamt ? `${hrg.paymtamt}` : ""}, <br />
+                            <strong>Payment Amount: {hrg.paymtamt}</strong>
+                            <br />
                             <strong>Status:</strong> {hrg.unsubscribe} <br />
                           </li>
                         ))}
@@ -150,10 +150,10 @@ export function TableComponent({
                           <li key={index} style={{ textAlign: "left" }}>
                             <strong>Received Date:</strong> {fom.recvdate},{" "}
                             <br />
-                            <strong>Remarks:</strong> {fom.remarks}, <br />
                             <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
                             <br />
                             <strong>Status:</strong> {fom.unsubscribe} <br />
+                            <strong>Remarks:</strong> {fom.remarks}, <br />
                           </li>
                         ))}
                       </ul>
