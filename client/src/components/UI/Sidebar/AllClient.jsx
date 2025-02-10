@@ -197,9 +197,13 @@ const AllClient = () => {
       endDate: formatDate(filterData.endDate),
     };
 
-    console.log("Formatted Filter Data:", formattedFilterData); // Log the formatted filter data
-
-    fetchData(page, pageSize, debouncedFiltering, selectedGroup, formattedFilterData);
+    fetchData(
+      page,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      formattedFilterData
+    );
   };
 
   return (
