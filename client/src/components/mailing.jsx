@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
+import { useColumns } from "./Table/Structure/clientColumn";
 import axios from "axios";
 
 const Mailing = ({
@@ -32,6 +33,11 @@ const Mailing = ({
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
 
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
+
+  const columns = useColumns();
+  const filteredColumns = columns.filter(
+    (column) => column.id !== "addedBy" && column.id !== "Added Info"
+  );
 
   // Get selected rows safely with proper type checking
   const getSelectedRows = useCallback(() => {
@@ -260,18 +266,121 @@ const Mailing = ({
     setShowInputs(!showInputs);
   };
 
+  const generateChecklistHTML = (columns, selectedRows) => {
+    const checklistHtml = selectedRows
+      .map((row) => {
+        const rowData = columns.map((column) => {
+          if (column.id === "select") {
+            // Increase the width of the blank space for the checklist
+            return `<td class="checklist-item" style="width: 1000px; border-right: 1px solid #ccc;"></td>`;
+          } else if (
+            column.id === "Subscription" &&
+            Array.isArray(column.accessorFn(row.original))
+          ) {
+            // Handle the Subscription column
+            const subscriptionData = column.accessorFn(row.original);
+            return `
+              <td class="checklist-data" style="width: ${
+                column.size
+              }px; padding-left: 10px;">
+                <ul class="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide" style="font-size: 12px;">
+                  ${subscriptionData
+                    .map(
+                      (sub, index) => `
+                    <li key=${index} class="text-left border-b border-gray-500 last:border-none pb-2 mb-2">
+                      ${sub.subsclass}: ${sub.subsdate} - ${sub.enddate}, Cps: ${sub.copies}
+                    </li>
+                  `
+                    )
+                    .join("")}
+                </ul>
+              </td>
+            `;
+          } else {
+            // Adjust the width for the Contact Info column
+            const width = column.id === "Contact Info" ? 200 : column.size;
+            const value = column.accessorFn
+              ? column.accessorFn(row.original)
+              : "";
+            return `<td class="checklist-data" style="width: 10px; padding-left: 10px;">${value}</td>`;
+          }
+        });
+
+        return `<tr class="checklist-row">${rowData.join("")}</tr>`;
+      })
+      .join("");
+
+    return `
+    <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+          }
+          .checklist-row {
+            border-bottom: 1px solid #ccc;
+          }
+          .checklist-item {
+            width: 950px;
+            border-right: 1px solid #ccc;
+          }
+          .checklist-item, .checklist-data {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+            font-size: 12px;
+          }
+          .checklist-data ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+          }
+          .checklist-data li {
+            font-size: 12px;
+            margin-bottom: 1px;
+          }
+        </style>
+      </head>
+      <body>
+        <table class="checklist">
+          ${checklistHtml}
+        </table>
+        <script>
+          window.print();
+          window.close();
+        </script>
+      </body>
+    </html>
+    `;
+  };
+
+  const handlePrintChecklist = () => {
+    const printWindow = window.open("", "_blank");
+    printWindow.document.open();
+    printWindow.document.write(
+      generateChecklistHTML(filteredColumns, selectedRows)
+    );
+    printWindow.document.close();
+  };
+
   // Only render if we have a table instance
   if (!table) return null;
 
   return (
     <div className="flex justify-between">
       {hasSelectedRows && (
-        <Button
-          onClick={() => setModalOpen(true)}
-          className="text-sm bg-green-600 hover:bg-green-800 text-white"
-        >
-          Print ({selectedRows.length})
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setModalOpen(true)}
+            className="text-sm bg-green-600 hover:bg-green-800 text-white"
+          >
+            Print Mailing Label ({selectedRows.length})
+          </Button>
+        </div>
       )}
       <Modal isOpen={modalOpen} onClose={closeModal}>
         <h2 className="flex justify-center text-xl font-bold text-black">
@@ -279,12 +388,18 @@ const Mailing = ({
         </h2>
 
         <div className="flex flex-col justify-center ">
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-2">
             <Button
               onClick={toggleShowInputs}
               className="bg-blue-500 hover:bg-blue-700 text-white"
             >
               {showInputs ? "Hide Configuration" : "Show Configuration"}
+            </Button>
+            <Button
+              onClick={handlePrintChecklist}
+              className="text-sm bg-blue-800 hover:bg-blue-800 text-white"
+            >
+              Print Checklist
             </Button>
           </div>
           {showInputs && (
@@ -335,6 +450,7 @@ const Mailing = ({
                       type="checkbox"
                       checked={selectedFields.includes(field.value)}
                       onChange={() => handleFieldChange(field.value)}
+                      className="text-black text-lg border border-black"
                     />
                     <label>{field.label}</label>
                   </div>
