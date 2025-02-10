@@ -383,6 +383,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       WMM: WmmModel,
       HRG: HrgModel,
       FOM: FomModel,
+      CAL: CalModel,
     };
 
     // Attempt to delete from each role-specific model
