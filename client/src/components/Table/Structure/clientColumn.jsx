@@ -158,7 +158,7 @@ export const useColumns = () => {
 
                 paymtamt = paymtamt ? `Payment Amount: ${paymtamt}` : "";
 
-                unsubscribe = unsubscribe ? "Subscribed" : "Active";
+                unsubscribe = unsubscribe ? "Unsubscribed" : "Active";
 
                 return {
                   recvdate,
@@ -192,9 +192,9 @@ export const useColumns = () => {
                   ? `${new Date(recvdate).toLocaleDateString("en-US")}`
                   : "N/A";
 
-                paymtamt = paymtamt ? `Payment Amount: ${paymtamt}` : "N/A";
+                paymtamt = paymtamt ? `Php ${paymtamt}` : "N/A";
 
-                unsubscribe = unsubscribe ? "Subscription" : "Active";
+                unsubscribe = unsubscribe ? "Unsubscribed" : "Active";
 
                 adddate = adddate
                   ? `${new Date(adddate).toLocaleDateString("en-US")}`
@@ -206,7 +206,6 @@ export const useColumns = () => {
                   paymtamt,
                   unsubscribe,
                   adddate,
-                  adduser: `${adduser || "N/A"}`,
                 };
               });
             },
