@@ -16,7 +16,7 @@ const HrgSchema = new mongoose.Schema(
     campaigndate: String,
     paymtref: Number,
     paymtamt: Number,
-    unsubscribe: Number,
+    unsubscribe: Boolean,
     adddate: String,
     adduser: String,
   },
