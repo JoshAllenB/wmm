@@ -193,7 +193,7 @@ const AddressForm = ({ onAddressChange, addressData, psgcJSON }) => {
   };
 
   return (
-    <div className="flex flex-col space-y-4">
+    <div className="flex flex-col space-y-4 text-lg">
       {/* Region Select */}
       <select
         className="w-full p-2 border rounded-md"
