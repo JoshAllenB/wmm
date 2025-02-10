@@ -7,6 +7,7 @@ import fetchDataServices from "../apiLogic/fetchDataServices.mjs";
 import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
+import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 
@@ -18,7 +19,7 @@ router.get(
   "/",
   verifyToken,
   attachSocketId,
-  checkRole(["Admin", "HRG", "WMM", "FOM"]),
+  checkRole(["Admin", "HRG", "WMM", "FOM", "CAL"]),
   async (req, res) => {
     const io = req.io;
     const socketId = req.socketId;
@@ -36,12 +37,14 @@ router.get(
         path: "roles.role",
         populate: { path: "defaultPermissions" },
       });
-      const userRole = req.user.roles[0]?.role.name || "No Role";
 
-      const modelNames =
-        userRole === "Admin"
-          ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-          : [`${userRole}Model`];
+      // Log the roles being received
+      const userRoles = req.user.roles.map((role) => role.role.name);
+
+      // Determine model names based on all roles
+      const modelNames = userRoles.includes("Admin")
+        ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
+        : userRoles.map((role) => `${role}Model`);
 
       const results = await fetchDataServices(
         modelNames,
@@ -175,6 +178,7 @@ router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const { clientData, roleType, roleData } = req.body;
+
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
     // Generate new client ID
@@ -202,12 +206,12 @@ router.post("/add", verifyToken, async (req, res) => {
     // Insert base client data
     const newClient = await ClientModel.create(baseClientData);
 
-    // Handle role-specific data
     let roleSpecificClient = null;
     const roleModelMap = {
       WMM: WmmModel,
       HRG: HrgModel,
       FOM: FomModel,
+      CAL: CalModel,
     };
 
     if (roleType && roleModelMap[roleType]) {
@@ -219,8 +223,8 @@ router.post("/add", verifyToken, async (req, res) => {
         (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
       const roleSpecificData = {
-        id: newRoleSpecificId, // Use the new ID for the role-specific data
-        clientid: newClientId, // Use the client's ID as the clientid
+        id: newRoleSpecificId,
+        clientid: newClientId,
         ...roleData,
         adduser: user.username,
         adddate: new Date()
@@ -244,7 +248,7 @@ router.post("/add", verifyToken, async (req, res) => {
       type: "add",
       data: {
         ...newClient.toObject(),
-        services: [], // Initialize with empty services
+        services: [],
       },
     });
 
