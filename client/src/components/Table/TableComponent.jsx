@@ -139,9 +139,7 @@ export function TableComponent({
                             <br />
                             <strong>Payment Amount: </strong>
                             {hrg.paymtamt ? `${hrg.paymtamt}` : ""}, <br />
-                            <strong>Unsubscribe: </strong>
-                            {hrg.unsubscribe ? "Active" : "Unsubscribed"},{" "}
-                            <br />
+                            <strong>Status:</strong> {hrg.unsubscribe} <br />
                           </li>
                         ))}
                       </ul>
@@ -155,9 +153,7 @@ export function TableComponent({
                             <strong>Remarks:</strong> {fom.remarks}, <br />
                             <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
                             <br />
-                            <strong>Status:</strong> {fom.unsubscribe}, <br />
-                            <strong>Added Date:</strong> {fom.adddate}, <br />
-                            <strong>Added By:</strong> {fom.adduser}
+                            <strong>Status:</strong> {fom.unsubscribe} <br />
                           </li>
                         ))}
                       </ul>
