@@ -11,7 +11,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole, hasPermission } = useUser();
   const [formData, setFormData] = useState({});
   const [addressData, setAddressData] = useState({});
-  const [roleSpecificData, setRoleSpecificData] = useState({});
+  const [wmmData, setWmmData] = useState([]);
+  const [hrgData, setHrgData] = useState([]);
+  const [fomData, setFomData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -28,12 +30,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         barangay: addressParts[1] || "",
       });
 
+
+
       if (hasRole("WMM")) {
-        setRoleSpecificData(rowData.wmmData || []);
-      } else if (hasRole("HRG")) {
-        setRoleSpecificData(rowData.hrgData || []);
-      } else if (hasRole("FOM")) {
-        setRoleSpecificData(rowData.fomData || []);
+        setWmmData(rowData.wmmData || []);
+      }
+      if (hasRole("HRG")) {
+        setHrgData(rowData.hrgData || []);
+      }
+      if (hasRole("FOM")) {
+        setFomData(rowData.fomData || []);
       }
     }
   }, [rowData, hasRole]);
@@ -75,96 +81,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     </div>
   );
 
-  const renderRoleSpecificData = () => {
-    if (hasRole("WMM")) {
-      return (
-        <>
-          {renderSubscription()}
-          {renderPaymentHistory()}
-        </>
-      );
-    } else if (hasRole("HRG")) {
-      return renderHrgData();
-    } else if (hasRole("FOM")) {
-      return renderFomData();
-    }
-    return null;
-  };
-
-  const renderSubscription = () => {
-    if (roleSpecificData.length === 0) return null;
-
-    const formatDate = (date) => {
-      return new Date(date).toLocaleDateString("en-US"); // Adjust locale as needed
-    };
-
-    return (
-      <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">
-          Subscription History
-        </h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
-          {roleSpecificData.map((subscription, index) => (
-            <div key={index}>
-              <div className="flex space-x-1">
-                <span>
-                  <span className="font-bold">{subscription.subsclass}</span>:{" "}
-                  {formatDate(subscription.subsdate)} -{" "}
-                  {formatDate(subscription.enddate)} Cps: {subscription.copies}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderPaymentHistory = () => {
-    if (!roleSpecificData.length) return null;
-
-    return (
-      <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">Payment History</h1>
-        <div className="space-y-2 overflow-auto">
-          {roleSpecificData.map(
-            ({ paymtamt, paymtmasses, donorid, calendar, remarks }, index) => (
-              <div key={index} className="text-black flex flex-col">
-                <span>
-                  <span className="font-bold">Payment Amount:</span> {paymtamt}
-                </span>
-                <span>
-                  <span className="font-bold">Payment Masses:</span>{" "}
-                  {paymtmasses}
-                </span>
-                <span>
-                  <span className="font-bold">Donor ID:</span> {donorid}
-                </span>
-                <span>
-                  <span className="font-bold">Calendar:</span>{" "}
-                  {calendar ? "Yes" : "No"}
-                </span>
-                <span>
-                  <div className="mt-1 p-2 border border-gray-300 rounded bg-gray-50">
-                    <span className="font-bold">Remarks: </span>
-                    {remarks}
-                  </div>
-                </span>{" "}
-              </div>
-            )
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const renderHrgData = () => {
-    if (roleSpecificData.length === 0) return null;
+    if (hrgData.length === 0) return null;
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">Payment History</h1>
+        <h1 className="text-black text-xl mb-2 font-bold">HRG Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
-          {roleSpecificData.map((hrg, index) => (
+          {hrgData.map((hrg, index) => (
             <div key={index}>
               <div>
                 <span className="text-black font-bold">Receive Date:</span>{" "}
@@ -200,8 +123,44 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderFomData = () => {
-    // Implement FOM-specific data rendering here
-    return null;
+    if (fomData.length === 0) return null;
+    return (
+      <div className="flex flex-col mb-2 p-2">
+        <h1 className="text-black text-xl mb-2 font-bold">FOM Data</h1>
+        <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-[300px]">
+          {fomData.map((fom, index) => (
+            <div key={index}>
+              <div>
+                <span className="text-black font-bold">Receive Date:</span>{" "}
+                <span className="text-black">{fom.recvdate}</span>
+              </div>
+              <div>
+                <span className="text-black font-bold">Payment Ref:</span>{" "}
+                <span className="text-black">{fom.paymtref}</span>
+              </div>
+              <div>
+                <span className="text-black font-bold">Payment Amount:</span>{" "}
+                <span className="text-black">{fom.paymtamt}</span>
+              </div>
+              <div>
+                <span className="text-black font-bold">Payment Form:</span>{" "}
+                <span className="text-black">{fom.paymtform}</span>
+              </div>
+              <div>
+                <span className="text-black font-bold">Remarks:</span>{" "}
+                <span className="text-black">{fom.remarks}</span>
+              </div>
+              <div>
+                <span className="text-black font-bold">Unsubscribe:</span>{" "}
+                <span className="text-black">
+                  {fom.unsubscribe ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -249,7 +208,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   { label: "Remarks", name: "remarks" },
                 ])}
 
-                {renderRoleSpecificData()}
+                {renderHrgData()}
+                {renderFomData()}
               </div>
               <div className="flex justify-between">
                 <div className="flex gap-1">
