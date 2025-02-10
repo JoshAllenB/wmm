@@ -65,6 +65,7 @@ const Add = ({ fetchClients }) => {
   const [groups, setGroups] = useState([]);
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
+  const [selectedRole, setSelectedRole] = useState("HRG"); // Default to HRG
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -337,6 +338,8 @@ const Add = ({ fetchClients }) => {
       submissionData.roleData = roleSpecificData;
     }
 
+    console.log("Submission Data:", submissionData);
+
     try {
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
@@ -350,6 +353,10 @@ const Add = ({ fetchClients }) => {
     } catch (error) {
       console.error("Error submitting form:", error);
     }
+  };
+
+  const handleRoleToggle = (role) => {
+    setSelectedRole(role);
   };
 
   return (
@@ -367,114 +374,111 @@ const Add = ({ fetchClients }) => {
           onClose={closeModal}
           className="bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
         >
-          {Object.keys(roleConfigs).map(
-            (role) =>
-              hasRole(role) && (
-                <div key={role} className="flex flex-col">
-                  <h1 className="text-black text-3xl font-bold">
-                    Add {role} Client
-                  </h1>
-                </div>
-              )
+          {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") ? (
+            <div className="flex flex-col">
+              <h1 className="text-black text-3xl font-bold mt-2">
+                Add {selectedRole} Client
+              </h1>
+            </div>
+          ) : (
+            Object.keys(roleConfigs).map(
+              (role) =>
+                hasRole(role) && (
+                  <div key={role} className="flex flex-col">
+                    <h1 className="text-black text-3xl font-bold mt-2">
+                      Add {role} Client
+                    </h1>
+                  </div>
+                )
+            )
           )}
           <form onSubmit={handleSubmit}>
-            {(hasRole("WMM") || hasRole("Admin")) && (
-              <div className="grid grid-cols-5 gap-4 ">
-                <div className="flex flex-col mb-2 p-2">
-                  <h1 className="text-black mb-2 font-bold">Personal Info</h1>
-                  <InputField
-                    label="Title:"
-                    id="title"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="First Name:"
-                    id="fname"
-                    name="fname"
-                    value={formData.fname}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Middle Name:"
-                    id="mname"
-                    name="mname"
-                    value={formData.mname}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Last Name:"
-                    id="lname"
-                    name="lname"
-                    value={formData.lname}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Suffix:"
-                    id="sname"
-                    name="sname"
-                    value={formData.sname}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Birth Date:"
-                    id="bdate"
-                    name="bdate"
-                    value={formData.bdate}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Company:"
-                    id="company"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleChange}
-                  />
-                </div>
+            <div className="flex flex-col-2 gap-5">
+              <div>
+                <h1 className="text-black mb-2 font-bold">Personal Info</h1>
+                <InputField
+                  label="Title:"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="First Name:"
+                  id="fname"
+                  name="fname"
+                  value={formData.fname}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Middle Name:"
+                  id="mname"
+                  name="mname"
+                  value={formData.mname}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Last Name:"
+                  id="lname"
+                  name="lname"
+                  value={formData.lname}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Suffix:"
+                  id="sname"
+                  name="sname"
+                  value={formData.sname}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Birth Date:"
+                  id="bdate"
+                  name="bdate"
+                  value={formData.bdate}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Company:"
+                  id="company"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <h1 className="text-black mb-2 font-bold">Address Info</h1>
+                <InputField
+                  label="Address (house/building number street name):"
+                  id="street1"
+                  name="street1"
+                  value={addressData.street1.toUpperCase()}
+                  onChange={(e) =>
+                    handleAddressChange("street1", e.target.value.toUpperCase())
+                  }
+                />
 
-                <div className="flex flex-col p-2">
-                  <h1 className="text-black mb-2 font-bold">Address Info</h1>
-
-                  <InputField
-                    label="Address (house/building number street name):"
-                    id="street1"
-                    name="street1"
-                    value={addressData.street1.toUpperCase()}
-                    onChange={(e) =>
-                      handleAddressChange(
-                        "street1",
-                        e.target.value.toUpperCase()
-                      )
-                    }
-                  />
-
-                  <InputField
-                    label="Address (subdivision/compound name):"
-                    id="street2"
-                    name="street2"
-                    value={addressData.street2.toUpperCase()}
-                    onChange={(e) =>
-                      handleAddressChange(
-                        "street2",
-                        e.target.value.toUpperCase()
-                      )
-                    }
-                  />
-                  <div className="flex flex-col gap-2">
-                    <div>
-                      <AddressForm
-                        onAddressChange={handleAddressChange}
-                        addressData={addressData}
-                        selectedCity={selectedCity}
-                        psgcJSON={psgcJson}
-                      />
-                    </div>
-                    <div>
-                      <AreaForm onAreaChange={handleAreaChange} />
-                    </div>
+                <InputField
+                  label="Address (subdivision/compound name):"
+                  id="street2"
+                  name="street2"
+                  value={addressData.street2.toUpperCase()}
+                  onChange={(e) =>
+                    handleAddressChange("street2", e.target.value.toUpperCase())
+                  }
+                />
+                <div className="flex flex-col gap-2">
+                  <div>
+                    <AddressForm
+                      onAddressChange={handleAddressChange}
+                      addressData={addressData}
+                      selectedCity={selectedCity}
+                      psgcJSON={psgcJson}
+                    />
                   </div>
-
+                  <div>
+                    <AreaForm onAreaChange={handleAreaChange} />
+                  </div>
                   <div className="mt-4">
                     <h2 className="text-black font-bold">Address Preview:</h2>
                     <textarea
@@ -487,150 +491,365 @@ const Add = ({ fetchClients }) => {
                     />
                   </div>
                 </div>
-                <div className="flex flex-col mb-2 p-2">
-                  <h1 className="text-black mb-2 font-bold">Contact Info</h1>
-                  <InputField
-                    label="Contact Numbers:"
-                    id="contactnos"
-                    name="contactnos"
-                    value={formData.contactnos}
-                    onChange={handleChange}
-                  />
-
-                  <InputField
-                    label="Cell Number:"
-                    id="cellno"
-                    name="cellno"
-                    value={formData.cellno}
-                    onChange={handleChange}
-                  />
-
-                  <InputField
-                    label="Office Number:"
-                    id="ofcno"
-                    name="ofcno"
-                    value={formData.ofcno}
-                    onChange={handleChange}
-                  />
-
-                  <InputField
-                    label="Email:"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
+              </div>
+              {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
+                <div className="flex flex-col mb-4">
+                  <div className="flex space-x-4 mb-4 mt-2">
+                    <label>
+                      <input
+                        type="radio"
+                        name="role"
+                        value="HRG"
+                        checked={selectedRole === "HRG"}
+                        onChange={() => handleRoleToggle("HRG")}
+                      />
+                      HRG
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="role"
+                        value="FOM"
+                        checked={selectedRole === "FOM"}
+                        onChange={() => handleRoleToggle("FOM")}
+                      />
+                      FOM
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="role"
+                        value="CAL"
+                        checked={selectedRole === "CAL"}
+                        onChange={() => handleRoleToggle("CAL")}
+                      />
+                      CAL
+                    </label>
+                  </div>
+                  <div className="flex flex-col-2 gap-5">
+                    <div className="flex flex-col-2 gap-4 mb-2 p-2">
+                      {selectedRole === "HRG" && (
+                        <div>
+                          <h1 className="text-black mb-2 font-bold">HRG Add</h1>
+                          <InputField
+                            label="Received Date:"
+                            id="recvdate"
+                            name="recvdate"
+                            value={roleSpecificData.recvdate}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Renewal Date:"
+                            id="renewdate"
+                            name="renewdate"
+                            value={roleSpecificData.renewdate}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Campaign Date:"
+                            id="campaigndate"
+                            name="campaigndate"
+                            value={roleSpecificData.campaigndate}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Payment Reference:"
+                            id="paymtref"
+                            name="paymtref"
+                            value={roleSpecificData.paymtref}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <label
+                            htmlFor="unsubscribe"
+                            className="text-black font-bold mr-2"
+                          >
+                            Unsubscribe:
+                          </label>
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={roleSpecificData.unsubscribe}
+                            onChange={(e) =>
+                              setRoleSpecificData((prev) => ({
+                                ...prev,
+                                unsubscribe: e.target.checked,
+                              }))
+                            }
+                          />
+                        </div>
+                      )}
+                      {selectedRole === "FOM" && (
+                        <div>
+                          <h1 className="text-black mb-2 font-bold">FOM Add</h1>
+                          <InputField
+                            label="Received Date:"
+                            id="recvdate"
+                            name="recvdate"
+                            value={roleSpecificData.recvdate}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Payment Reference:"
+                            id="paymtref"
+                            name="paymtref"
+                            value={roleSpecificData.paymtref}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Payment Amount:"
+                            id="paymtamt"
+                            name="paymtamt"
+                            value={roleSpecificData.paymtamt}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <InputField
+                            label="Payment Form:"
+                            id="paymtform"
+                            name="paymtform"
+                            value={roleSpecificData.paymtform}
+                            onChange={handleRoleSpecificChange}
+                          />
+                          <label
+                            htmlFor="unsubscribe"
+                            className="text-black font-bold mr-2"
+                          >
+                            Unsubscribe:
+                          </label>
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={roleSpecificData.unsubscribe}
+                            onChange={(e) =>
+                              setRoleSpecificData((prev) => ({
+                                ...prev,
+                                unsubscribe: e.target.checked,
+                              }))
+                            }
+                          />
+                        </div>
+                      )}
+                      {selectedRole === "CAL" && (
+                        <div>
+                          <h1 className="text-black mb-2 font-bold">CAL Add</h1>
+                          <div className="flex gap-5">
+                            <div>
+                              <InputField
+                                label="Received Date:"
+                                id="recvdate"
+                                name="recvdate"
+                                value={roleSpecificData.recvdate}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Calendar Type:"
+                                id="caltype"
+                                name="caltype"
+                                value={roleSpecificData.caltype}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Calendar Quantity:"
+                                id="calqty"
+                                name="calqty"
+                                value={roleSpecificData.calqty}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Calendar Amount:"
+                                id="calamt"
+                                name="calamt"
+                                value={roleSpecificData.calamt}
+                                onChange={handleRoleSpecificChange}
+                              />
+                            </div>
+                            <div>
+                              <InputField
+                                label="Payment Reference:"
+                                id="paymtref"
+                                name="paymtref"
+                                value={roleSpecificData.paymtref}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Payment Amount:"
+                                id="paymtamt"
+                                name="paymtamt"
+                                value={roleSpecificData.paymtamt}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Payment Form:"
+                                id="paymtform"
+                                name="paymtform"
+                                value={roleSpecificData.paymtform}
+                                onChange={handleRoleSpecificChange}
+                              />
+                              <InputField
+                                label="Payment Date:"
+                                id="paymtdate"
+                                name="paymtdate"
+                                value={roleSpecificData.paymtdate}
+                                onChange={handleRoleSpecificChange}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <h1 className="text-black mb-2 font-bold">Group Info</h1>
-                  <select
-                    id="type"
-                    name="type"
-                    value={formData.type}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="">Select a type</option>
-                    {types.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.id} - {type.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    id="group"
-                    name="group"
-                    value={formData.group}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="">Select a group</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.id} - {group.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    id="subsclass"
-                    name="subsclass"
-                    value={formData.subsclass}
-                    onChange={handleChange}
-                    className="w-full p-2 border rounded-md"
-                  >
-                    <option value="">Select a classification</option>
-                    {subclasses.map((subclass) => (
-                      <option key={subclass.id} value={subclass.id}>
-                        {subclass.name} ({subclass.id})
-                      </option>
-                    ))}
-                  </select>
-                  <textarea
-                    className="w-full h-[160px] p-2 border rounded-md"
-                    label="Remarks:"
-                    id="remarks"
-                    name="remarks"
-                    value={formData.remarks}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                {hasRole("WMM") && (
-                  <div className="flex flex-col gap-2">
-                    <h1 className="text-black mb-2 font-bold">Subscription</h1>
+              )}
+              {(hasRole("WMM") || hasRole("Admin")) && (
+                <div className="grid grid-cols-5 gap-4 ">
+                  <div className="flex flex-col mb-2 p-2">
+                    <h1 className="text-black mb-2 font-bold">Contact Info</h1>
                     <InputField
-                      label="Subscription Start (MM/DD/YY):"
-                      id="subscriptionStart"
-                      name="subscriptionStart"
-                      value={formData.subscriptionStart}
+                      label="Contact Numbers:"
+                      id="contactnos"
+                      name="contactnos"
+                      value={formData.contactnos}
                       onChange={handleChange}
-                      placeholder="MM/DD/YY"
-                      className="w-full p-2 border rounded-md"
                     />
+
+                    <InputField
+                      label="Cell Number:"
+                      id="cellno"
+                      name="cellno"
+                      value={formData.cellno}
+                      onChange={handleChange}
+                    />
+
+                    <InputField
+                      label="Office Number:"
+                      id="ofcno"
+                      name="ofcno"
+                      value={formData.ofcno}
+                      onChange={handleChange}
+                    />
+
+                    <InputField
+                      label="Email:"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <h1 className="text-black mb-2 font-bold">Group Info</h1>
                     <select
-                      id="subscriptionFreq"
-                      name="subscriptionFreq"
-                      value={formData.subscriptionFreq}
+                      id="type"
+                      name="type"
+                      value={formData.type}
                       onChange={handleChange}
                       className="w-full p-2 border rounded-md"
                     >
-                      <option value="">Select Subscription Frequency</option>
-                      <option value="5">6 Months</option>
-                      <option value="12">1 Year</option>
-                      <option value="23">2 Years</option>
-                      <option value="others">Others</option>
+                      <option value="">Select a type</option>
+                      {types.map((type) => (
+                        <option key={type.id} value={type.id}>
+                          {type.id} - {type.name}
+                        </option>
+                      ))}
                     </select>
-
-                    <InputField
-                      label="Subscription End (MM/DD/YY):"
-                      id="subscriptionEnd"
-                      name="subscriptionEnd"
-                      value={formData.subscriptionEnd}
+                    <select
+                      id="group"
+                      name="group"
+                      value={formData.group}
                       onChange={handleChange}
-                      placeholder="MM/DD/YY"
                       className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Select a group</option>
+                      {groups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.id} - {group.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      id="subsclass"
+                      name="subsclass"
+                      value={formData.subsclass}
+                      onChange={handleChange}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Select a classification</option>
+                      {subclasses.map((subclass) => (
+                        <option key={subclass.id} value={subclass.id}>
+                          {subclass.name} ({subclass.id})
+                        </option>
+                      ))}
+                    </select>
+                    <textarea
+                      className="w-full h-[160px] p-2 border rounded-md"
+                      label="Remarks:"
+                      id="remarks"
+                      name="remarks"
+                      value={formData.remarks}
+                      onChange={handleChange}
                     />
+                  </div>
 
-                    <div className="flex space-x-4">
-                      <div className="flex flex-row items-center justify-center gap-2">
-                        <label className="block text-sm font-medium leading-6 text-gray-600">
-                          Copies:
-                        </label>
-                        <input
-                          id="copies"
-                          name="copies"
-                          value={roleSpecificData.copies}
-                          onChange={handleRoleSpecificChange}
-                          type="number"
-                          min="1"
-                          className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
-                        />
+                  {hasRole("WMM") && (
+                    <div className="flex flex-col gap-2">
+                      <h1 className="text-black mb-2 font-bold">
+                        Subscription
+                      </h1>
+                      <InputField
+                        label="Subscription Start (MM/DD/YY):"
+                        id="subscriptionStart"
+                        name="subscriptionStart"
+                        value={formData.subscriptionStart}
+                        onChange={handleChange}
+                        placeholder="MM/DD/YY"
+                        className="w-full p-2 border rounded-md"
+                      />
+                      <select
+                        id="subscriptionFreq"
+                        name="subscriptionFreq"
+                        value={formData.subscriptionFreq}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="">Select Subscription Frequency</option>
+                        <option value="5">6 Months</option>
+                        <option value="12">1 Year</option>
+                        <option value="23">2 Years</option>
+                        <option value="others">Others</option>
+                      </select>
+
+                      <InputField
+                        label="Subscription End (MM/DD/YY):"
+                        id="subscriptionEnd"
+                        name="subscriptionEnd"
+                        value={formData.subscriptionEnd}
+                        onChange={handleChange}
+                        placeholder="MM/DD/YY"
+                        className="w-full p-2 border rounded-md"
+                      />
+
+                      <div className="flex space-x-4">
+                        <div className="flex flex-row items-center justify-center gap-2">
+                          <label className="block text-sm font-medium leading-6 text-gray-600">
+                            Copies:
+                          </label>
+                          <input
+                            id="copies"
+                            name="copies"
+                            value={roleSpecificData.copies}
+                            onChange={handleRoleSpecificChange}
+                            type="number"
+                            min="1"
+                            className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
             <div className="flex gap-1 mt-4">
               <Button
                 type="button"
