@@ -8,6 +8,7 @@ export const useColumns = () => {
   const baseColumns = [
     {
       id: "select",
+      toggleable: false,
       header: ({ table }) => (
         <div className="flex">
           <Checkbox
@@ -156,15 +157,13 @@ export const useColumns = () => {
                     )}`
                   : "";
 
-                paymtamt = paymtamt ? `Payment Amount: ${paymtamt}` : "";
-
                 unsubscribe = unsubscribe ? "Unsubscribed" : "Active";
 
                 return {
                   recvdate,
                   renewdate,
                   campaigndate,
-                  paymtref: `Payment Referrence: ${paymtref || ""}`,
+                  paymtref,
                   paymtamt,
                   unsubscribe,
                 };
@@ -202,7 +201,7 @@ export const useColumns = () => {
 
                 return {
                   recvdate,
-                  remarks: ` ${remarks || "N/A"}`,
+                  remarks,
                   paymtamt,
                   unsubscribe,
                   adddate,
@@ -245,15 +244,15 @@ export const useColumns = () => {
 
                 return {
                   recvdate,
-                  caltype: `${caltype || "N/A"}`,
-                  calqty: `${calqty || "N/A"}`,
-                  calamt: `${calamt || "N/A"}`,
-                  paymtref: `${paymtref || "N/A"}`,
-                  paymtamt: `${paymtamt || "N/A"}`,
-                  paymtform: `${paymtform || "N/A"}`,
+                  caltype,
+                  calqty,
+                  calamt,
+                  paymtref,
+                  paymtamt,
+                  paymtform,
                   paymtdate,
                   adddate,
-                  adduser: `Added by: ${adduser || "N/A"}`,
+                  adduser,
                 };
               });
             },

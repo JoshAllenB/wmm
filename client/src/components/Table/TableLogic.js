@@ -19,6 +19,17 @@ export function useTableLogic(
 ) {
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
+  
+  // Initialize column visibility based on columns
+  const initialColumnVisibility = useMemo(() => {
+    const visibility = {};
+    columns.forEach((column) => {
+      visibility[column.id] = column.isVisible !== undefined ? column.isVisible : true;
+    });
+    return visibility;
+  }, [columns]);
+
+  const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility);
 
   // Ensure data and columns are valid arrays
   const tableData = useMemo(() => {
@@ -58,6 +69,7 @@ export function useTableLogic(
         pageIndex: Math.max(0, page - 1),
         pageSize: Math.max(1, pageSize),
       },
+      columnVisibility,
     },
     onRowSelectionChange: setRowSelection || (() => {}),
     getRowId: (row) => row?.id || row?._id || uuidv4(),
@@ -67,5 +79,5 @@ export function useTableLogic(
     enableMultiRowSelection: true,
   });
 
-  return table;
+  return { table, setColumnVisibility, columnVisibility };
 }

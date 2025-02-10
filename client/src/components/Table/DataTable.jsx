@@ -13,6 +13,7 @@ import {
   handleLastPage,
   handlePageJump,
 } from "./Features/PaginationUtils";
+import { ColumnToggle } from "./ColumnToggle";
 
 export default function DataTable({
   columns,
@@ -56,6 +57,17 @@ export default function DataTable({
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const { socket, socketData } = useSocket();
 
+  const { table, setColumnVisibility, columnVisibility } = useTableLogic(
+    localData,
+    columns,
+    usePagination,
+    page,
+    pageSize,
+    rowSelection,
+    setRowSelection,
+    userRole
+  );
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -97,17 +109,6 @@ export default function DataTable({
   useEffect(() => {
     setLocalData(data);
   }, [data]);
-
-  const table = useTableLogic(
-    localData,
-    columns,
-    usePagination,
-    page,
-    pageSize,
-    rowSelection,
-    setRowSelection,
-    userRole
-  );
 
   useEffect(() => {
     if (!socketData) return;
@@ -172,9 +173,16 @@ export default function DataTable({
     );
   }
 
+  const toggleableColumns = columns.filter((column) => column.id !== "select");
+
   return (
     <>
-      <ScrollArea className="rounded-md border h-[730px] w-full">
+      <ColumnToggle
+        columns={toggleableColumns}
+        columnVisibility={columnVisibility}
+        setColumnVisibility={setColumnVisibility}
+      />
+      <ScrollArea className="rounded-md border h-[700px] w-full">
         <TableComponent
           table={table}
           theme={theme}
