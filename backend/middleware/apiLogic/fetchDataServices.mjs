@@ -196,14 +196,6 @@ async function fetchDataServices(
             },
           },
         ]);
-      } else if (Model && typeof Model.HRG === "function") {
-        const config = modelConfigs[modelKey];
-        if (!config) {
-          console.error(`No configuration found for ${modelName}`);
-          return [];
-        }
-
-        return Model.HRG.find(filterQuery).lean();
       } else {
         console.error(`Invalid model for ${modelName}. Model:`, Model);
         return [];
@@ -214,7 +206,7 @@ async function fetchDataServices(
       ClientModel.countDocuments(filterQuery),
       ClientModel.find(filterQuery)
         .select(clientFields)
-        .sort({ id: 1 })
+        .sort({ id: -1 })
         .limit(limit)
         .skip(skip)
         .lean(),
