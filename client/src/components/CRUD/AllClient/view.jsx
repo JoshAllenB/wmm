@@ -14,6 +14,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [wmmData, setWmmData] = useState([]);
   const [hrgData, setHrgData] = useState([]);
   const [fomData, setFomData] = useState([]);
+  const [calData, setCalData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -30,8 +31,6 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         barangay: addressParts[1] || "",
       });
 
-
-
       if (hasRole("WMM")) {
         setWmmData(rowData.wmmData || []);
       }
@@ -40,6 +39,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }
       if (hasRole("FOM")) {
         setFomData(rowData.fomData || []);
+      }
+      if (hasRole("CAL")) {
+        setCalData(rowData.calData || []);
       }
     }
   }, [rowData, hasRole]);
@@ -81,6 +83,34 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     </div>
   );
 
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString("en-US"); // Adjust locale as needed
+  };
+
+  const renderWmmData = () => {
+    if (wmmData.length === 0) return null;
+    return (
+      <div className="flex flex-col mb-2 p-2">
+        <h1 className="text-black text-xl mb-2 font-bold">
+          Subscription History
+        </h1>
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+          {wmmData.map((subscription, index) => (
+            <div key={index}>
+              <div className="flex space-x-1 border-b border-gray-500">
+                <span>
+                  <span className="font-bold">{subscription.subsclass}</span>:{" "}
+                  {formatDate(subscription.subsdate)} -{" "}
+                  {formatDate(subscription.enddate)} Cps: {subscription.copies}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderHrgData = () => {
     if (hrgData.length === 0) return null;
     return (
@@ -88,7 +118,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         <h1 className="text-black text-xl mb-2 font-bold">HRG Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
           {hrgData.map((hrg, index) => (
-            <div key={index}>
+            <div key={index} className="flex flex-col border-b border-gray-500">
               <div>
                 <span className="text-black font-bold">Receive Date:</span>{" "}
                 <span className="text-black">{hrg.recvdate}</span>
@@ -129,7 +159,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         <h1 className="text-black text-xl mb-2 font-bold">FOM Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-[300px]">
           {fomData.map((fom, index) => (
-            <div key={index}>
+            <div key={index} className="flex flex-col border-b border-gray-500">
               <div>
                 <span className="text-black font-bold">Receive Date:</span>{" "}
                 <span className="text-black">{fom.recvdate}</span>
@@ -155,6 +185,57 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 <span className="text-black">
                   {fom.unsubscribe ? "Yes" : "No"}
                 </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCalData = () => {
+    if (calData.length === 0) return null;
+    return (
+      <div className="flex flex-col mb-2 p-2">
+        <h1 className="text-black text-xl mb-2 font-bold">CAL Data</h1>
+        <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-[300px]">
+          {calData.map((cal, index) => (
+            <div key={index} className="flex flex-col border-b border-gray-500">
+              <div>
+                <div>
+                  <span className="text-black font-bold">Receive Date:</span>{" "}
+                  <span className="text-black">{cal.recvdate}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Cal Type:</span>{" "}
+                  <span className="text-black">{cal.caltype}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Cal Quantity:</span>{" "}
+                  <span className="text-black">{cal.calqty}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Cal Amount:</span>{" "}
+                  <span className="text-black">{cal.calamt}</span>
+                </div>
+              </div>
+              <div>
+                <div>
+                  <span className="text-black font-bold">Payment Ref:</span>{" "}
+                  <span className="text-black">{cal.paymtref}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Payment Amount:</span>{" "}
+                  <span className="text-black">{cal.paymtamt}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Payment Form:</span>{" "}
+                  <span className="text-black">{cal.paymtform}</span>
+                </div>
+                <div>
+                  <span className="text-black font-bold">Payment Date:</span>{" "}
+                  <span className="text-black">{cal.paymtdate}</span>
+                </div>
               </div>
             </div>
           ))}
@@ -208,8 +289,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   { label: "Remarks", name: "remarks" },
                 ])}
 
+                {renderWmmData()}
                 {renderHrgData()}
                 {renderFomData()}
+                {renderCalData()}
               </div>
               <div className="flex justify-between">
                 <div className="flex gap-1">
