@@ -42,6 +42,7 @@ const Add = ({ fetchClients }) => {
     group: "",
     remarks: "",
     copies: "1", // Set default value to "1"
+    roleType: null,
   });
 
   const [addressData, setAddressData] = useState({
@@ -107,6 +108,8 @@ const Add = ({ fetchClients }) => {
       setRoleSpecificData({
         recvdate: "",
         paymtamt: 0,
+        paymtform: "",
+        paymtref: 0,
         unsubscribe: false,
       });
     }
@@ -251,7 +254,6 @@ const Add = ({ fetchClients }) => {
   }, [addressData]);
 
   const handleCitySelect = (cityname) => {
-    console.log("Selected city:", cityname);
     setSelectedCity(cityname);
     handleAddressChange("city", cityname);
   };
@@ -277,6 +279,41 @@ const Add = ({ fetchClients }) => {
       ...prev,
       renewdate: formatDateToInput(today),
     }));
+  };
+
+  const FOMFields = (data) => {
+    return (
+      data.recvdate ||
+      data.paymtamt ||
+      data.paymtform ||
+      data.paymtref ||
+      data.unsubscribe ||
+      data.remarks
+    );
+  };
+
+  const CALFields = (data) => {
+    return (
+      data.recvdate ||
+      data.caltype ||
+      data.calqty ||
+      data.calamt ||
+      data.paymtref ||
+      data.paymtamt ||
+      data.paymtform ||
+      data.paymtdate
+    );
+  };
+
+  const HRGFields = (data) => {
+    return (
+      data.recvdate ||
+      data.renewdate ||
+      data.campaigndate ||
+      data.paymtref ||
+      data.paymtamt ||
+      data.unsubscribe
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -314,29 +351,65 @@ const Add = ({ fetchClients }) => {
       });
     };
 
+    let submissionRole = selectedRole;
+    let roleData = {};
+
+    if (hasRole("HRG") && hasRole("FOM") && hasRole("CAL")) {
+      if (FOMFields(roleSpecificData)) {
+        submissionRole = "FOM";
+        roleData = {
+          recvdate: roleSpecificData.recvdate,
+          paymtamt: roleSpecificData.paymtamt,
+          paymtform: roleSpecificData.paymtform,
+          paymtref: roleSpecificData.paymtref,
+          unsubscribe: roleSpecificData.unsubscribe,
+          remarks: roleSpecificData.remarks,
+        };
+      } else if (CALFields(roleSpecificData)) {
+        submissionRole = "CAL";
+        roleData = {
+          recvdate: roleSpecificData.recvdate,
+          caltype: roleSpecificData.caltype,
+          calqty: roleSpecificData.calqty,
+          calamt: roleSpecificData.calamt,
+          paymtref: roleSpecificData.paymtref,
+          paymtamt: roleSpecificData.paymtamt,
+          paymtform: roleSpecificData.paymtform,
+          paymtdate: roleSpecificData.paymtdate,
+        };
+      } else if (HRGFields(roleSpecificData)) {
+        submissionRole = "HRG";
+        roleData = {
+          recvdate: roleSpecificData.recvdate,
+          renewdate: roleSpecificData.renewdate,
+          campaigndate: roleSpecificData.campaigndate,
+          paymtref: roleSpecificData.paymtref,
+          paymtamt: roleSpecificData.paymtamt,
+          unsubscribe: roleSpecificData.unsubscribe,
+        };
+      } else if (hasRole("WMM")) {
+        submissionRole = "WMM";
+        roleData = {
+          ...roleSpecificData,
+          subscriptionFreq,
+          subscriptionStart,
+          subscriptionEnd,
+          subsclass,
+        };
+      }
+
+      if (!submissionRole) {
+        console.error("No Role fields have been filled out");
+        return;
+      }
+    }
+
     const submissionData = {
       clientData,
-      roleType: null,
-      roleData: null,
+      roleType: submissionRole,
+      roleData,
       adddate: formatDate(new Date()),
     };
-
-    if (hasRole("WMM")) {
-      submissionData.roleType = "WMM";
-      submissionData.roleData = {
-        ...roleSpecificData,
-        subscriptionFreq,
-        subscriptionStart,
-        subscriptionEnd,
-        subsclass,
-      };
-    } else if (hasRole("HRG")) {
-      submissionData.roleType = "HRG";
-      submissionData.roleData = roleSpecificData;
-    } else if (hasRole("FOM")) {
-      submissionData.roleType = "FOM";
-      submissionData.roleData = roleSpecificData;
-    }
 
     console.log("Submission Data:", submissionData);
 
@@ -348,7 +421,9 @@ const Add = ({ fetchClients }) => {
       if (response.data.success) {
         fetchClients();
         closeModal();
-        // Reset form data if needed
+        // Reset form data
+        resetForm();
+        setRoleSpecificData({});
       }
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -356,7 +431,9 @@ const Add = ({ fetchClients }) => {
   };
 
   const handleRoleToggle = (role) => {
+    console.log(`Role toggled to: ${role}`);
     setSelectedRole(role);
+    setRoleSpecificData({});
   };
 
   return (
@@ -446,7 +523,7 @@ const Add = ({ fetchClients }) => {
                   onChange={handleChange}
                 />
               </div>
-              <div>
+              <div className="flex flex-col p-2">
                 <h1 className="text-black mb-2 font-bold">Address Info</h1>
                 <InputField
                   label="Address (house/building number street name):"
@@ -491,6 +568,40 @@ const Add = ({ fetchClients }) => {
                     />
                   </div>
                 </div>
+              </div>
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Contact Info</h1>
+                <InputField
+                  label="Contact Numbers:"
+                  id="contactnos"
+                  name="contactnos"
+                  value={formData.contactnos}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Cell Number:"
+                  id="cellno"
+                  name="cellno"
+                  value={formData.cellno}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Office Number:"
+                  id="ofcno"
+                  name="ofcno"
+                  value={formData.ofcno}
+                  onChange={handleChange}
+                />
+
+                <InputField
+                  label="Email:"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                />
               </div>
               {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
                 <div className="flex flex-col mb-4">
@@ -628,6 +739,13 @@ const Add = ({ fetchClients }) => {
                               }))
                             }
                           />
+                          <InputField
+                            label="Remarks:"
+                            id="remarks"
+                            name="remarks"
+                            value={formData.remarks}
+                            onChange={handleChange}
+                          />
                         </div>
                       )}
                       {selectedRole === "CAL" && (
@@ -703,40 +821,6 @@ const Add = ({ fetchClients }) => {
               )}
               {(hasRole("WMM") || hasRole("Admin")) && (
                 <div className="grid grid-cols-5 gap-4 ">
-                  <div className="flex flex-col mb-2 p-2">
-                    <h1 className="text-black mb-2 font-bold">Contact Info</h1>
-                    <InputField
-                      label="Contact Numbers:"
-                      id="contactnos"
-                      name="contactnos"
-                      value={formData.contactnos}
-                      onChange={handleChange}
-                    />
-
-                    <InputField
-                      label="Cell Number:"
-                      id="cellno"
-                      name="cellno"
-                      value={formData.cellno}
-                      onChange={handleChange}
-                    />
-
-                    <InputField
-                      label="Office Number:"
-                      id="ofcno"
-                      name="ofcno"
-                      value={formData.ofcno}
-                      onChange={handleChange}
-                    />
-
-                    <InputField
-                      label="Email:"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                    />
-                  </div>
                   <div className="flex flex-col gap-2">
                     <h1 className="text-black mb-2 font-bold">Group Info</h1>
                     <select
