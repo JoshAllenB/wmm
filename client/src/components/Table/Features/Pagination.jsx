@@ -18,10 +18,13 @@ export const PaginationComponent = ({
     setPage(1);
   };
 
+  // Ensure totalPages is at least 1
+  const effectiveTotalPages = Math.max(1, totalPages || 1);
+
   return (
     <div className="flex items-center justify-between">
       <div className="flex-1 text-sm text-muted-foreground">
-        Page {page} of {totalPages}
+        Page {page} of {effectiveTotalPages}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
@@ -60,19 +63,19 @@ export const PaginationComponent = ({
             value={page}
             onChange={(e) => handlePageJump(Number(e.target.value))}
             min={1}
-            max={totalPages}
+            max={effectiveTotalPages}
           />
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleNextPage}
-            disabled={page === totalPages}
+            disabled={page === effectiveTotalPages}
           >
             Next
           </Button>
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleLastPage}
-            disabled={page === totalPages}
+            disabled={page === effectiveTotalPages}
           >
             Last
           </Button>

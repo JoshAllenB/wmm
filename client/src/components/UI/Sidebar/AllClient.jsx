@@ -114,15 +114,25 @@ const AllClient = () => {
       advancedFilterData = {}
     ) => {
       try {
+        // Ensure we're using the current advancedFilterData from state if none provided
+        const filtersToUse =
+          Object.keys(advancedFilterData).length > 0
+            ? advancedFilterData
+            : Object.keys(advancedFilterData).length === 0 &&
+              Object.keys(advancedFilterData).some(Boolean)
+            ? advancedFilterData
+            : {};
+
         const result = await fetchClients(
           currentPage,
           currentPageSize,
           filter,
           group,
-          advancedFilterData
+          filtersToUse
         );
+
         setClientData(result.data);
-        setTotalPages(result.totalPages);
+        setTotalPages(result.totalPages || 0);
         setTotalCopies(result.totalCopies);
         setPageSpecificCopies(result.pageSpecificCopies);
         setTotalCalQty(result.totalCalQty);
@@ -131,10 +141,10 @@ const AllClient = () => {
         setPageSpecificCalAmt(result.pageSpecificCalAmt);
         return result;
       } catch (error) {
-        console.error("Error fetching clients:", error);
+        console.error("❌ Error fetching clients:", error);
       }
     },
-    []
+    [advancedFilterData]
   );
 
   useEffect(() => {
@@ -148,8 +158,22 @@ const AllClient = () => {
     };
 
     loadGroups();
-    fetchData(page, pageSize, debouncedFiltering, selectedGroup);
-  }, [page, pageSize, debouncedFiltering, selectedGroup, fetchData]);
+
+    fetchData(
+      page,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      advancedFilterData
+    );
+  }, [
+    page,
+    pageSize,
+    debouncedFiltering,
+    selectedGroup,
+    fetchData,
+    advancedFilterData,
+  ]);
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
@@ -185,8 +209,8 @@ const AllClient = () => {
     const formatDate = (dateString) => {
       if (!dateString) return "";
       const date = new Date(dateString);
-      const month = date.getMonth() + 1; // No leading zero
-      const day = date.getDate(); // No leading zero
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
       const year = date.getFullYear();
       return `${month}/${day}/${year}`;
     };
@@ -197,8 +221,10 @@ const AllClient = () => {
       endDate: formatDate(filterData.endDate),
     };
 
+    setAdvancedFilterData(formattedFilterData);
+    setPage(1); // Reset to first page with new filters
     fetchData(
-      page,
+      1,
       pageSize,
       debouncedFiltering,
       selectedGroup,
@@ -250,6 +276,8 @@ const AllClient = () => {
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
         setTableInstance={handleTableInstanceUpdate}
+        advancedFilterData={advancedFilterData}
+        selectedGroup={selectedGroup}
       />
       {showViewModal && (
         <View

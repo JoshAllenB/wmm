@@ -39,6 +39,7 @@ export default function DataTable({
   selectedGroup,
   handleRowClick,
   setTableInstance,
+  advancedFilterData,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -76,7 +77,8 @@ export default function DataTable({
           page,
           pageSize,
           searchTerm,
-          selectedGroup
+          selectedGroup,
+          advancedFilterData
         );
 
         if (Array.isArray(result)) {
@@ -104,7 +106,20 @@ export default function DataTable({
     };
 
     loadData();
-  }, [page, pageSize, fetchFunction, searchTerm, selectedGroup]);
+  }, [
+    page,
+    pageSize,
+    fetchFunction,
+    searchTerm,
+    selectedGroup,
+    advancedFilterData,
+  ]);
+
+  useEffect(() => {
+    if (initialTotalPages !== undefined) {
+      setTotalPages(initialTotalPages);
+    }
+  }, [initialTotalPages]);
 
   useEffect(() => {
     setLocalData(data);
@@ -208,48 +223,74 @@ export default function DataTable({
                 handlePreviousPage(
                   page,
                   setPage,
-                  fetchClients,
+                  fetchFunction,
                   setLocalData,
-                  pageSize
+                  pageSize,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
                 )
               }
               handleNextPage={() =>
                 handleNextPage(
                   page,
                   setPage,
-                  fetchClients,
+                  fetchFunction,
                   setLocalData,
                   pageSize,
-                  totalPages
+                  totalPages,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
                 )
               }
               handleFirstPage={() =>
-                handleFirstPage(setPage, fetchClients, setLocalData, pageSize)
+                handleFirstPage(
+                  setPage,
+                  fetchFunction,
+                  setLocalData,
+                  pageSize,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
+                )
               }
               handleLastPage={() =>
                 handleLastPage(
                   totalPages,
                   setPage,
-                  fetchClients,
+                  fetchFunction,
                   setLocalData,
-                  pageSize
+                  pageSize,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
                 )
               }
               handlePageJump={(newPage) =>
                 handlePageJump(
                   newPage,
                   setPage,
-                  fetchClients,
+                  fetchFunction,
                   setLocalData,
                   pageSize,
-                  totalPages
+                  totalPages,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
                 )
               }
               pageSize={pageSize}
               setPageSize={(newSize) => {
                 setPageSize(newSize);
                 setPage(1);
-                fetchClients(1, newSize);
+                fetchFunction(
+                  1,
+                  newSize,
+                  searchTerm,
+                  selectedGroup,
+                  advancedFilterData
+                );
               }}
               page={page}
               setPage={setPage}

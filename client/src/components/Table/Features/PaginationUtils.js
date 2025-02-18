@@ -1,43 +1,108 @@
-export function handlePreviousPage(
+export const handleNextPage = async (
   page,
   setPage,
-  fetchClients,
-  setData,
-  pageSize
-) {
-  if (page > 1) {
-    setPage(page - 1);
-    fetchClients(page - 1, pageSize);
-  }
-}
-
-export function handleNextPage(
-  page,
-  setPage,
-  fetchClients,
+  fetchFunction,
   setData,
   pageSize,
-  totalPages
-) {
+  totalPages,
+  searchTerm = "",
+  selectedGroup = "",
+  advancedFilterData = {}
+) => {
   if (page < totalPages) {
-    setPage(page + 1);
-    fetchClients(page + 1, pageSize);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchFunction(
+      nextPage,
+      pageSize,
+      searchTerm,
+      selectedGroup,
+      advancedFilterData
+    );
   }
-}
+};
 
-export function handleFirstPage(setPage, fetchClients, setData, pageSize) {
+export const handlePreviousPage = async (
+  page,
+  setPage,
+  fetchFunction,
+  setData,
+  pageSize,
+  searchTerm = "",
+  selectedGroup = "",
+  advancedFilterData = {}
+) => {
+  if (page > 1) {
+    const prevPage = page - 1;
+    setPage(prevPage);
+    await fetchFunction(
+      prevPage,
+      pageSize,
+      searchTerm,
+      selectedGroup,
+      advancedFilterData
+    );
+  }
+};
+
+export const handleFirstPage = async (
+  setPage,
+  fetchFunction,
+  setData,
+  pageSize,
+  searchTerm = "",
+  selectedGroup = "",
+  advancedFilterData = {}
+) => {
   setPage(1);
-  fetchClients(1, pageSize);
-}
+  await fetchFunction(
+    1,
+    pageSize,
+    searchTerm,
+    selectedGroup,
+    advancedFilterData
+  );
+};
 
-export function handleLastPage(totalPages, setPage, fetchClients, setData, pageSize) {
+export const handleLastPage = async (
+  totalPages,
+  setPage,
+  fetchFunction,
+  setData,
+  pageSize,
+  searchTerm = "",
+  selectedGroup = "",
+  advancedFilterData = {}
+) => {
   setPage(totalPages);
-  fetchClients(totalPages, pageSize);
-}
+  await fetchFunction(
+    totalPages,
+    pageSize,
+    searchTerm,
+    selectedGroup,
+    advancedFilterData
+  );
+};
 
-export function handlePageJump(page, setPage, fetchClients, setData, pageSize, totalPages) {
-  if (page >= 1 && page <= totalPages) {
-    setPage(page);
-    fetchClients(page, pageSize);
+export const handlePageJump = async (
+  newPage,
+  setPage,
+  fetchFunction,
+  setData,
+  pageSize,
+  totalPages,
+  searchTerm = "",
+  selectedGroup = "",
+  advancedFilterData = {}
+) => {
+  if (newPage >= 1 && newPage <= totalPages) {
+    setPage(newPage);
+    await fetchFunction(
+      newPage,
+      pageSize,
+      searchTerm,
+      selectedGroup,
+      advancedFilterData
+    );
   }
-}
+};
