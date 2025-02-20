@@ -53,6 +53,10 @@ const AllClient = () => {
     birthdate: "",
     startDate: "",
     endDate: "",
+    wmmStartSubsDate: "",
+    wmmEndSubsDate: "",
+    wmmStartEndDate: "",
+    wmmEndEndDate: "",
   });
 
   const openAdvancedFilterModal = () => setShowAdvancedFilterModal(true);
@@ -90,7 +94,7 @@ const AllClient = () => {
   };
 
   const handleClearAllFilters = () => {
-    setFiltering(""); // Clear the simple search filter
+    setFiltering("");
     setAdvancedFilterData({
       lname: "",
       fname: "",
@@ -101,8 +105,15 @@ const AllClient = () => {
       cellno: "",
       ofcno: "",
       email: "",
-    }); // Clear the advanced filter
-    fetchData(page, pageSize, "", selectedGroup, {}); // Fetch unfiltered data
+      birthdate: "",
+      startDate: "",
+      endDate: "",
+      wmmStartSubsDate: "",
+      wmmEndSubsDate: "",
+      wmmStartEndDate: "",
+      wmmEndEndDate: "",
+    });
+    fetchData(page, pageSize, "", selectedGroup, {});
   };
 
   const fetchData = useCallback(
@@ -245,12 +256,10 @@ const AllClient = () => {
           onChange={handleSearchChange}
           className="max-w-sm"
         />
-        <AdvancedFilter onApplyFilter={handleApplyFilter} />
-        <FilterDropdown
+        <AdvancedFilter 
+          onApplyFilter={handleApplyFilter} 
           groups={groups}
           selectedGroup={selectedGroup}
-          setSelectedGroup={setSelectedGroup}
-          setPage={setPage}
         />
         <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
       </div>
