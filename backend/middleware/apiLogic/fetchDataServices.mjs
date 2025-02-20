@@ -22,134 +22,153 @@ async function fetchDataServices(
   clientIds = null,
   advancedFilterData = {}
 ) {
-  const skip = (page - 1) * pageSize;
-
-  const filterQuery = { $and: [] };
-
-  if (filter) {
-    const numericFilter = Number(filter);
-    const isNumeric = !isNaN(numericFilter);
-    filterQuery.$and.push({
-      $or: [
-        ...(isNumeric ? [{ id: numericFilter }] : []),
-        { lname: { $regex: filter, $options: "i" } },
-        { fname: { $regex: filter, $options: "i" } },
-        { mname: { $regex: filter, $options: "i" } },
-        { sname: { $regex: filter, $options: "i" } },
-      ],
-    });
-  }
-
-  if (group) {
-    filterQuery.$and.push({ group: { $regex: group, $options: "i" } });
-  }
-
-  const advanceConditions = Object.entries(advancedFilterData)
-    .filter(([_, value]) => value)
-    .map(([key, value]) => {
-      if (key === "startDate") {
-        console.log(`Filtering with startDate: ${value}`);
-        return {
-          $expr: {
-            $and: [
-              { $eq: [{ $type: "$adddate" }, "string"] },
-              {
-                $gte: [
-                  {
-                    $dateFromString: {
-                      dateString: {
-                        $let: {
-                          vars: {
-                            matchResult: {
-                              $regexFind: {
-                                input: "$adddate",
-                                regex: "^(\\d{1,2}/\\d{1,2}/\\d{4})",
-                              },
-                            },
-                          },
-                          in: "$$matchResult.match",
-                        },
-                      },
-                      format: "%m/%d/%Y",
-                    },
-                  },
-                  new Date(value),
-                ],
-              },
-            ],
-          },
-        };
-      }
-
-      if (key === "endDate") {
-        console.log(`Filtering with endDate: ${value}`);
-        return {
-          $expr: {
-            $and: [
-              { $eq: [{ $type: "$adddate" }, "string"] },
-              {
-                $lte: [
-                  {
-                    $dateFromString: {
-                      dateString: {
-                        $let: {
-                          vars: {
-                            matchResult: {
-                              $regexFind: {
-                                input: "$adddate",
-                                regex: "^(\\d{1,2}/\\d{1,2}/\\d{4})",
-                              },
-                            },
-                          },
-                          in: "$$matchResult.match",
-                        },
-                      },
-                      format: "%m/%d/%Y",
-                    },
-                  },
-                  new Date(value),
-                ],
-              },
-            ],
-          },
-        };
-      }
-
-      return { [key]: { $regex: value, $options: "i" } };
-    });
-
-  if (advanceConditions.length > 0) {
-    filterQuery.$and.push(...advanceConditions);
-  }
-
-  console.log("Filter Query:", JSON.stringify(filterQuery, null, 2));
-
-  if (clientIds) {
-    filterQuery.$and.push({ id: { $in: clientIds } });
-  }
-
-  if (filterQuery.$and.length === 0) {
-    delete filterQuery.$and;
-  }
-
-  const clientCount = await ClientModel.countDocuments(filterQuery);
-
-  if (clientCount === 0) {
-    return {
-      totalPages: 0,
-      combinedData: [],
-      totalCopies: 0,
-      pageSpecificCopies: 0,
-      totalCalQty: 0,
-      totalCalAmt: 0,
-      pageSpecificCalQty: 0,
-      pageSpecificCalAmt: 0,
-      clientServices: [],
-      noData: true,
-    };
-  }
-
   try {
+    const skip = (page - 1) * pageSize;
+    const filterQuery = { $and: [] };
+
+    // Handle WMM date filtering first if present
+    if (
+      advancedFilterData.wmmStartSubsDate ||
+      advancedFilterData.wmmExpiringMonth
+    ) {
+      const { default: WmmModel } = await import("../../models/wmm.mjs");
+      let wmmFilterQuery = [];
+
+      // Handle active subscription month filtering
+      if (
+        advancedFilterData.wmmStartSubsDate &&
+        advancedFilterData.wmmEndSubsDate
+      ) {
+        const startDate = new Date(advancedFilterData.wmmStartSubsDate);
+        const endDate = new Date(advancedFilterData.wmmEndSubsDate);
+
+        wmmFilterQuery.push({
+          $match: {
+            $expr: {
+              $and: [
+                // Subscription starts before or during the selected month
+                {
+                  $lte: [
+                    { $dateFromString: { dateString: "$subsdate" } },
+                    endDate,
+                  ],
+                },
+                // Subscription ends after or during the selected month
+                {
+                  $gte: [
+                    { $dateFromString: { dateString: "$enddate" } },
+                    startDate,
+                  ],
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      // Handle expiring subscription month filtering
+      if (
+        advancedFilterData.wmmStartEndDate &&
+        advancedFilterData.wmmEndEndDate
+      ) {
+        const startDate = new Date(advancedFilterData.wmmStartEndDate);
+        const endDate = new Date(advancedFilterData.wmmEndEndDate);
+
+        wmmFilterQuery.push({
+          $match: {
+            $expr: {
+              $and: [
+                {
+                  $gte: [
+                    { $dateFromString: { dateString: "$enddate" } },
+                    startDate,
+                  ],
+                },
+                {
+                  $lte: [
+                    { $dateFromString: { dateString: "$enddate" } },
+                    endDate,
+                  ],
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (wmmFilterQuery.length > 0) {
+        const wmmResults = await WmmModel.aggregate([
+          ...wmmFilterQuery,
+          {
+            $group: {
+              _id: "$clientid",
+              records: { $push: "$$ROOT" },
+            },
+          },
+        ]);
+
+        if (wmmResults.length > 0) {
+          const wmmClientIds = wmmResults.map((result) => result._id);
+          filterQuery.$and.push({ id: { $in: wmmClientIds } });
+        } else {
+          return {
+            totalPages: 0,
+            combinedData: [],
+            totalCopies: 0,
+            pageSpecificCopies: 0,
+            totalCalQty: 0,
+            totalCalAmt: 0,
+            pageSpecificCalQty: 0,
+            pageSpecificCalAmt: 0,
+            clientServices: [],
+            noData: true,
+          };
+        }
+      }
+    }
+
+    // Add other filter conditions
+    if (filter) {
+      const numericFilter = Number(filter);
+      const isNumeric = !isNaN(numericFilter);
+      filterQuery.$and.push({
+        $or: [
+          ...(isNumeric ? [{ id: numericFilter }] : []),
+          { lname: { $regex: filter, $options: "i" } },
+          { fname: { $regex: filter, $options: "i" } },
+          { mname: { $regex: filter, $options: "i" } },
+          { sname: { $regex: filter, $options: "i" } },
+        ],
+      });
+    }
+
+    // Add group filter if present
+    if (group) {
+      filterQuery.$and.push({ group });
+    }
+
+    // Ensure filterQuery has at least one condition
+    if (filterQuery.$and.length === 0) {
+      delete filterQuery.$and;
+    }
+
+    const clientCount = await ClientModel.countDocuments(filterQuery);
+
+    if (clientCount === 0) {
+      return {
+        totalPages: 0,
+        combinedData: [],
+        totalCopies: 0,
+        pageSpecificCopies: 0,
+        totalCalQty: 0,
+        totalCalAmt: 0,
+        pageSpecificCalQty: 0,
+        pageSpecificCalAmt: 0,
+        clientServices: [],
+        noData: true,
+      };
+    }
+
     const modelNamesArray = Array.isArray(modelNames)
       ? modelNames
       : [modelNames];
