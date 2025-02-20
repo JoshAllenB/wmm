@@ -18,6 +18,8 @@ const AdvancedFilter = ({ onApplyFilter }) => {
     address: "",
     startDate: "",
     endDate: "",
+    wmmActiveMonth: "",
+    wmmExpiringMonth: "",
   });
 
   const openModal = () => setShowModal(true);
@@ -33,10 +35,42 @@ const AdvancedFilter = ({ onApplyFilter }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const trimmedData = Object.fromEntries(
-      Object.entries(filterData).map(([key, value]) => [key, value.trim()])
-    );
-    onApplyFilter(trimmedData);
+    
+    // Format dates to ensure they span the entire selected month
+    const formatMonthRange = (monthStr) => {
+      if (!monthStr) return { start: "", end: "" };
+      
+      const date = new Date(monthStr);
+      
+      // For active subscriptions:
+      // We only need the selected month's start and end
+      // The backend will handle checking if subscriptions are active during this period
+      const start = new Date(date.getFullYear(), date.getMonth(), 1);
+      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      // Format dates as YYYY-MM-DD for consistent date handling
+      const formatDate = (date) => {
+        return date.toISOString().split('T')[0];
+      };
+      
+      return {
+        start: formatDate(start),
+        end: formatDate(end)
+      };
+    };
+
+    const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
+    const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
+
+    const formattedData = {
+      ...filterData,
+      wmmStartSubsDate: activeMonthRange.start,
+      wmmEndSubsDate: activeMonthRange.end,
+      wmmStartEndDate: expiringMonthRange.start,
+      wmmEndEndDate: expiringMonthRange.end,
+    };
+
+    onApplyFilter(formattedData);
     closeModal();
   };
 
@@ -152,6 +186,40 @@ const AdvancedFilter = ({ onApplyFilter }) => {
                   value={filterData.endDate}
                   onChange={handleChange}
                 />
+              </div>
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Active Subscriptions</h1>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Select month to find clients with active subscriptions during this period
+                  </p>
+                  <InputField
+                    label="Select Month:"
+                    id="wmmActiveMonth"
+                    name="wmmActiveMonth"
+                    type="month"
+                    value={filterData.wmmActiveMonth}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Expiring Subscriptions</h1>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Select month to find clients whose subscriptions expire in this period
+                  </p>
+                  <InputField
+                    label="Select Month:"
+                    id="wmmExpiringMonth"
+                    name="wmmExpiringMonth"
+                    type="month"
+                    value={filterData.wmmExpiringMonth}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
             </div>
             <div className="flex gap-1 mt-4">
