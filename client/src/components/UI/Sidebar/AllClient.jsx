@@ -57,6 +57,9 @@ const AllClient = () => {
     wmmEndSubsDate: "",
     wmmStartEndDate: "",
     wmmEndEndDate: "",
+    copiesRange: "",
+    minCopies: "",
+    maxCopies: "",
   });
 
   const openAdvancedFilterModal = () => setShowAdvancedFilterModal(true);
@@ -112,6 +115,9 @@ const AllClient = () => {
       wmmEndSubsDate: "",
       wmmStartEndDate: "",
       wmmEndEndDate: "",
+      copiesRange: "",
+      minCopies: "",
+      maxCopies: "",
     });
     fetchData(page, pageSize, "", selectedGroup, {});
   };
@@ -256,8 +262,8 @@ const AllClient = () => {
           onChange={handleSearchChange}
           className="max-w-sm"
         />
-        <AdvancedFilter 
-          onApplyFilter={handleApplyFilter} 
+        <AdvancedFilter
+          onApplyFilter={handleApplyFilter}
           groups={groups}
           selectedGroup={selectedGroup}
         />
