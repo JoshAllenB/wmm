@@ -269,17 +269,22 @@ const Mailing = ({
   const generateChecklistHTML = (columns, selectedRows) => {
     const checklistHtml = selectedRows
       .map((row) => {
-        const rowData = columns.map((column) => {
-          if (column.id === "select") {
-            // Increase the width of the blank space for the checklist
-            return `<td class="checklist-item" style="width: 1000px; border-right: 1px solid #ccc;"></td>`;
-          } else if (
-            column.id === "Subscription" &&
-            Array.isArray(column.accessorFn(row.original))
-          ) {
-            // Handle the Subscription column
-            const subscriptionData = column.accessorFn(row.original);
-            return `
+        const rowData = columns
+          .map((column) => {
+            if (
+              column.id === "Client Name" ||
+              column.id === "Address" ||
+              column.id === "Contact Info"
+            ) {
+              // Skip individual rendering for these columns
+              return null;
+            } else if (
+              column.id === "Subscription" &&
+              Array.isArray(column.accessorFn(row.original))
+            ) {
+              // Handle the Subscription column
+              const subscriptionData = column.accessorFn(row.original);
+              return `
               <td class="checklist-data" style="width: ${
                 column.size
               }px; padding-left: 10px;">
@@ -296,16 +301,49 @@ const Mailing = ({
                 </ul>
               </td>
             `;
-          } else {
-            // Adjust the width for the Contact Info column
-            const width = column.id === "Contact Info" ? 200 : column.size;
-            const value = column.accessorFn
-              ? column.accessorFn(row.original)
-              : "";
-            return `<td class="checklist-data" style="width: 10px; padding-left: 10px;">${value}</td>`;
-          }
-        });
+            }
+          })
+          .filter(Boolean); // Remove null values
 
+        // Add the ID as the first column
+        const idColumn = `<td class="checklist-data" style="width: 50px; border-right: 1px solid #ccc;">${row.original.id}</td>`;
+        const servicesColumn = `<td class="checklist-data" style="width: 50px; border-right: 1px solid #ccc;">${row.original.services.join(
+          ", "
+        )}</td>`;
+
+        // Combine Client Name, Address, and Contact Info into one column
+        const clientName = columns
+          .find((col) => col.id === "Client Name")
+          ?.accessorFn(row.original);
+
+        const address = columns
+          .find((col) => col.id === "Address")
+          ?.accessorFn(row.original);
+
+        const contactInfo = columns
+          .find((col) => col.id === "Contact Info")
+          ?.accessorFn(row.original);
+
+        // Extract the type part from the clientName
+        const [namePart, typePart] = clientName.split("<br>");
+
+        // Combine the data
+        const combinedData = [
+          namePart,
+          address,
+          contactInfo,
+          typePart ? `<br><strong>${typePart}</strong>` : "",
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        // Add the combined data as a single column
+        const combinedColumn = `<td class="checklist-data" style="width: 1000px; border-right: 1px solid #ccc;">${combinedData}</td>`;
+
+        // Prepend the ID column and combined data column to the rowData
+        rowData.unshift(servicesColumn);
+        rowData.unshift(combinedColumn);
+        rowData.unshift(idColumn);
         return `<tr class="checklist-row">${rowData.join("")}</tr>`;
       })
       .join("");
