@@ -44,10 +44,19 @@ export const useColumns = () => {
     {
       id: "Client Name",
       Header: "Client Name",
-      accessorFn: (row) =>
-        `${row.title || ""} ${row.sname || ""} ${row.lname || ""} ${
-          row.fname || ""
-        } ${row.mname || ""}`.trim(),
+      accessorFn: (row) => {
+        const nameParts = [
+          row.title || "",
+          row.sname || "",
+          row.lname || "",
+          row.fname || "",
+          row.mname || "",
+        ].filter(Boolean).join(" ");
+
+        const typePart = row.type ? `<br>Type: ${row.type}` : "";
+
+        return `${nameParts}${typePart}`.trim();
+      },
       size: 200,
     },
     {
@@ -108,13 +117,17 @@ export const useColumns = () => {
                   let { subsdate, enddate, copies, subsclass } = subscription;
 
                   if (subsdate) {
-                    subsdate = `${new Date(subsdate).toLocaleDateString("en-US")}`;
+                    subsdate = `${new Date(subsdate).toLocaleDateString(
+                      "en-US"
+                    )}`;
                   } else {
                     subsdate = "N/A";
                   }
 
                   if (enddate) {
-                    enddate = `${new Date(enddate).toLocaleDateString("en-US")}`;
+                    enddate = `${new Date(enddate).toLocaleDateString(
+                      "en-US"
+                    )}`;
                   } else {
                     enddate = "N/A";
                   }
