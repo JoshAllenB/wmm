@@ -25,6 +25,7 @@ export const modelConfigs = {
       paymtmasses: 1,
       calendar: 1,
       donorid: 1,
+      adddate: 1,
     },
     groupFields: {
       subsdate: "$subsdate",
@@ -38,6 +39,7 @@ export const modelConfigs = {
       paymtmasses: "$paymtmasses",
       calendar: "$calendar",
       donorid: "$donorid",
+      adddate: "$adddate",
     },
   },
   HRGModel: {
