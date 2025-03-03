@@ -101,7 +101,14 @@ export function TableComponent({
                     }`}
                     onClick={(event) => handleCellClick(event, row, cell)}
                   >
-                    {cell.column.id === "Added Info" ? (
+                    {cell.column.id === "Client Name" ? (
+                      <div style={{ textAlign: "left" }}>
+                        <div>{cell.getValue().split("<br>")[0]}</div>
+                        <div className="text font-bold">
+                          {cell.getValue().split("<br>")[1]}
+                        </div>
+                      </div>
+                    ) : cell.column.id === "Added Info" ? (
                       <div style={{ textAlign: "left" }}>
                         <div>
                           <strong>By:</strong>{" "}
