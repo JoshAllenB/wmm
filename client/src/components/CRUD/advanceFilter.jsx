@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../UI/ShadCN/button";
 import Modal from "../modal";
 import InputField from "../CRUD/input";
+import { fetchSubclasses, fetchAreas } from "../Table/Data/utilData";
 
-const AdvancedFilter = ({ onApplyFilter }) => {
+const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const [showModal, setShowModal] = useState(false);
   const [filterData, setFilterData] = useState({
     lname: "",
@@ -20,7 +21,33 @@ const AdvancedFilter = ({ onApplyFilter }) => {
     endDate: "",
     wmmActiveMonth: "",
     wmmExpiringMonth: "",
+    copiesRange: "",
+    minCopies: "",
+    maxCopies: "",
+    group: selectedGroup || "",
+    subsclass: "",
+    area: "",
   });
+
+  const [subclasses, setSubclasses] = useState([]);
+  const [areas, setAreas] = useState([]);
+
+  // Load subclasses and areas on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [subclassesData, areasData] = await Promise.all([
+          fetchSubclasses(),
+          fetchAreas(),
+        ]);
+        setSubclasses(subclassesData);
+        setAreas(areasData);
+      } catch (error) {
+        console.error("Error loading filter data:", error);
+      }
+    };
+    loadData();
+  }, []);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
@@ -35,27 +62,27 @@ const AdvancedFilter = ({ onApplyFilter }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     // Format dates to ensure they span the entire selected month
     const formatMonthRange = (monthStr) => {
       if (!monthStr) return { start: "", end: "" };
-      
+
       const date = new Date(monthStr);
-      
+
       // For active subscriptions:
       // We only need the selected month's start and end
       // The backend will handle checking if subscriptions are active during this period
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
       const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-      
+
       // Format dates as YYYY-MM-DD for consistent date handling
       const formatDate = (date) => {
-        return date.toISOString().split('T')[0];
+        return date.toISOString().split("T")[0];
       };
-      
+
       return {
         start: formatDate(start),
-        end: formatDate(end)
+        end: formatDate(end),
       };
     };
 
@@ -68,6 +95,9 @@ const AdvancedFilter = ({ onApplyFilter }) => {
       wmmEndSubsDate: activeMonthRange.end,
       wmmStartEndDate: expiringMonthRange.start,
       wmmEndEndDate: expiringMonthRange.end,
+      copiesRange: filterData.copiesRange,
+      minCopies: filterData.minCopies,
+      maxCopies: filterData.maxCopies,
     };
 
     onApplyFilter(formattedData);
@@ -189,10 +219,13 @@ const AdvancedFilter = ({ onApplyFilter }) => {
               </div>
 
               <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Active Subscriptions</h1>
+                <h1 className="text-black mb-2 font-bold">
+                  Active Subscriptions
+                </h1>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">
-                    Select month to find clients with active subscriptions during this period
+                    Select month to find clients with active subscriptions
+                    during this period
                   </p>
                   <InputField
                     label="Select Month:"
@@ -206,10 +239,13 @@ const AdvancedFilter = ({ onApplyFilter }) => {
               </div>
 
               <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Expiring Subscriptions</h1>
+                <h1 className="text-black mb-2 font-bold">
+                  Expiring Subscriptions
+                </h1>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-600">
-                    Select month to find clients whose subscriptions expire in this period
+                    Select month to find clients whose subscriptions expire in
+                    this period
                   </p>
                   <InputField
                     label="Select Month:"
@@ -219,6 +255,48 @@ const AdvancedFilter = ({ onApplyFilter }) => {
                     value={filterData.wmmExpiringMonth}
                     onChange={handleChange}
                   />
+                </div>
+              </div>
+
+              <div className="flex flex-col mb-2 p-2">
+                <h1 className="text-black mb-2 font-bold">Copies Range</h1>
+                <div className="mb-2">
+                  <label className="text-black font-bold">Copies Range:</label>
+                  <select
+                    name="copiesRange"
+                    value={filterData.copiesRange}
+                    onChange={handleChange}
+                    className="w-full p-2 border-2 border-gray-300 rounded-md"
+                  >
+                    <option value="">Any number of copies</option>
+                    <option value="lt5">Less than 5</option>
+                    <option value="5to10">5 to 10</option>
+                    <option value="gt10">More than 10</option>
+                    <option value="custom">Custom range</option>
+                  </select>
+
+                  {filterData.copiesRange === "custom" && (
+                    <div className="flex gap-2 mt-2">
+                      <InputField
+                        label="Min copies:"
+                        id="minCopies"
+                        name="minCopies"
+                        type="number"
+                        min="0"
+                        value={filterData.minCopies}
+                        onChange={handleChange}
+                      />
+                      <InputField
+                        label="Max copies:"
+                        id="maxCopies"
+                        name="maxCopies"
+                        type="number"
+                        min="0"
+                        value={filterData.maxCopies}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
