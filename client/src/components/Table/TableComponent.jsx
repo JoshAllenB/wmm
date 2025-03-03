@@ -90,7 +90,7 @@ export function TableComponent({
             table.getRowModel().rows.map((row, rowIndex) => (
               <TableRow
                 key={`${row.id}-${rowIndex}`}
-                className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer"
+                className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
@@ -116,10 +116,7 @@ export function TableComponent({
                       Array.isArray(cell.getValue()) ? (
                       <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().map((sub, index) => (
-                          <li
-                            key={index}
-                            className="text-left border-b border-gray-500 last:border-none pb-2 mb-2"
-                          >
+                          <li key={index}>
                             <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
                             {sub.enddate}, Cps: {sub.copies}
                           </li>
