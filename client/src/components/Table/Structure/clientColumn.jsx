@@ -97,30 +97,35 @@ export const useColumns = () => {
             accessorFn: (row) => {
               const subscriptionData = row.wmmData || [];
 
-              return subscriptionData.map((subscription) => {
-                let { subsdate, enddate, copies, subsclass } = subscription;
+              // Sort subscriptionData by subsdate in descending order (most recent first)
+              return [...subscriptionData]
+                .sort((a, b) => {
+                  const dateA = new Date(a.subsdate || 0);
+                  const dateB = new Date(b.subsdate || 0);
+                  return dateB - dateA;
+                })
+                .map((subscription) => {
+                  let { subsdate, enddate, copies, subsclass } = subscription;
 
-                if (subsdate) {
-                  subsdate = `${new Date(subsdate).toLocaleDateString(
-                    "en-US"
-                  )}`;
-                } else {
-                  subsdate = "N/A";
-                }
+                  if (subsdate) {
+                    subsdate = `${new Date(subsdate).toLocaleDateString("en-US")}`;
+                  } else {
+                    subsdate = "N/A";
+                  }
 
-                if (enddate) {
-                  enddate = `${new Date(enddate).toLocaleDateString("en-US")}`;
-                } else {
-                  enddate = "N/A";
-                }
+                  if (enddate) {
+                    enddate = `${new Date(enddate).toLocaleDateString("en-US")}`;
+                  } else {
+                    enddate = "N/A";
+                  }
 
-                return {
-                  subsclass,
-                  subsdate,
-                  enddate,
-                  copies: `${copies || "N/A"}`,
-                }; // Return as an object
-              });
+                  return {
+                    subsclass,
+                    subsdate,
+                    enddate,
+                    copies: `${copies || "N/A"}`,
+                  };
+                });
             },
             size: 650,
           },
