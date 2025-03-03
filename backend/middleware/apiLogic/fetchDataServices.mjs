@@ -24,114 +24,32 @@ async function fetchDataServices(
 ) {
   try {
     const skip = (page - 1) * pageSize;
-    const filterQuery = { $and: [] };
+    let filterQuery = { $and: [] };
 
-    // Handle WMM date filtering first if present
-    if (
-      advancedFilterData.wmmStartSubsDate ||
-      advancedFilterData.wmmExpiringMonth
-    ) {
-      const { default: WmmModel } = await import("../../models/wmm.mjs");
-      let wmmFilterQuery = [];
+    const baseFilter = [];
 
-      // Handle active subscription month filtering
-      if (
-        advancedFilterData.wmmStartSubsDate &&
-        advancedFilterData.wmmEndSubsDate
+    // Add group filter first (modified)
+    if (advancedFilterData.group || group) {
+      const groupValue = advancedFilterData.group || group;
+      // Only add group filter if it's a non-empty string or array with non-empty values
+      if (typeof groupValue === "string" && groupValue.trim()) {
+        baseFilter.push({ group: groupValue });
+      } else if (
+        Array.isArray(groupValue) &&
+        groupValue.some((g) => g.trim())
       ) {
-        const startDate = new Date(advancedFilterData.wmmStartSubsDate);
-        const endDate = new Date(advancedFilterData.wmmEndSubsDate);
-
-        wmmFilterQuery.push({
-          $match: {
-            $expr: {
-              $and: [
-                // Subscription starts before or during the selected month
-                {
-                  $lte: [
-                    { $dateFromString: { dateString: "$subsdate" } },
-                    endDate,
-                  ],
-                },
-                // Subscription ends after or during the selected month
-                {
-                  $gte: [
-                    { $dateFromString: { dateString: "$enddate" } },
-                    startDate,
-                  ],
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      // Handle expiring subscription month filtering
-      if (
-        advancedFilterData.wmmStartEndDate &&
-        advancedFilterData.wmmEndEndDate
-      ) {
-        const startDate = new Date(advancedFilterData.wmmStartEndDate);
-        const endDate = new Date(advancedFilterData.wmmEndEndDate);
-
-        wmmFilterQuery.push({
-          $match: {
-            $expr: {
-              $and: [
-                {
-                  $gte: [
-                    { $dateFromString: { dateString: "$enddate" } },
-                    startDate,
-                  ],
-                },
-                {
-                  $lte: [
-                    { $dateFromString: { dateString: "$enddate" } },
-                    endDate,
-                  ],
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      if (wmmFilterQuery.length > 0) {
-        const wmmResults = await WmmModel.aggregate([
-          ...wmmFilterQuery,
-          {
-            $group: {
-              _id: "$clientid",
-              records: { $push: "$$ROOT" },
-            },
-          },
-        ]);
-
-        if (wmmResults.length > 0) {
-          const wmmClientIds = wmmResults.map((result) => result._id);
-          filterQuery.$and.push({ id: { $in: wmmClientIds } });
-        } else {
-          return {
-            totalPages: 0,
-            combinedData: [],
-            totalCopies: 0,
-            pageSpecificCopies: 0,
-            totalCalQty: 0,
-            totalCalAmt: 0,
-            pageSpecificCalQty: 0,
-            pageSpecificCalAmt: 0,
-            clientServices: [],
-            noData: true,
-          };
+        // Filter out empty strings and create valid group filter
+        const validGroups = groupValue.filter((g) => g.trim());
+        if (validGroups.length > 0) {
+          baseFilter.push({ group: { $in: validGroups } });
         }
       }
     }
 
-    // Add other filter conditions
     if (filter) {
       const numericFilter = Number(filter);
       const isNumeric = !isNaN(numericFilter);
-      filterQuery.$and.push({
+      baseFilter.push({
         $or: [
           ...(isNumeric ? [{ id: numericFilter }] : []),
           { lname: { $regex: filter, $options: "i" } },
@@ -142,32 +60,223 @@ async function fetchDataServices(
       });
     }
 
-    // Add group filter if present
-    if (group) {
-      filterQuery.$and.push({ group });
+    // Add area filter
+    if (advancedFilterData.area) {
+      baseFilter.push({ area: advancedFilterData.area });
     }
 
-    // Ensure filterQuery has at least one condition
+    if (baseFilter.length > 0) {
+      filterQuery.$and.push(...baseFilter);
+    }
+
+    // Replace the WMM filtering section with:
+
+    if (
+      advancedFilterData.wmmStartSubsDate ||
+      advancedFilterData.wmmExpiringMonth ||
+      advancedFilterData.copiesRange ||
+      advancedFilterData.subsclass
+    ) {
+      const { default: WmmModel } = await import("../../models/wmm.mjs");
+      let wmmFilterQuery = [];
+      let wmmLatestSubs = null;
+
+      // Handle copies range filtering first
+      if (advancedFilterData.copiesRange) {
+        wmmLatestSubs = await WmmModel.aggregate([
+          { $sort: { clientid: 1, subsdate: -1 } },
+          {
+            $group: {
+              _id: "$clientid",
+              mostRecentSub: { $first: "$$ROOT" },
+            },
+          },
+          { $replaceRoot: { newRoot: "$mostRecentSub" } },
+          {
+            $match: {
+              $expr: {
+                $let: {
+                  vars: {
+                    numericCopies: { $toInt: "$copies" },
+                  },
+                  in: {
+                    $cond: {
+                      if: { $eq: [advancedFilterData.copiesRange, "lt5"] },
+                      then: { $lt: ["$$numericCopies", 5] },
+                      else: {
+                        $cond: {
+                          if: {
+                            $eq: [advancedFilterData.copiesRange, "5to10"],
+                          },
+                          then: {
+                            $and: [
+                              { $gte: ["$$numericCopies", 5] },
+                              { $lte: ["$$numericCopies", 10] },
+                            ],
+                          },
+                          else: {
+                            $cond: {
+                              if: {
+                                $eq: [advancedFilterData.copiesRange, "gt10"],
+                              },
+                              then: { $gt: ["$$numericCopies", 10] },
+                              else: {
+                                $cond: {
+                                  if: {
+                                    $eq: [
+                                      advancedFilterData.copiesRange,
+                                      "custom",
+                                    ],
+                                  },
+                                  then: {
+                                    $and: [
+                                      advancedFilterData.minCopies
+                                        ? {
+                                            $gte: [
+                                              "$$numericCopies",
+                                              parseInt(
+                                                advancedFilterData.minCopies
+                                              ),
+                                            ],
+                                          }
+                                        : { $gte: ["$$numericCopies", 0] },
+                                      advancedFilterData.maxCopies
+                                        ? {
+                                            $lte: [
+                                              "$$numericCopies",
+                                              parseInt(
+                                                advancedFilterData.maxCopies
+                                              ),
+                                            ],
+                                          }
+                                        : { $gte: ["$$numericCopies", 0] },
+                                    ],
+                                  },
+                                  else: true,
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ]);
+      }
+
+      // Add other WMM filters to wmmFilterQuery array
+      if (
+        advancedFilterData.wmmStartSubsDate &&
+        advancedFilterData.wmmEndSubsDate
+      ) {
+        // Your existing date filtering...
+        wmmFilterQuery.push({
+          $match: {
+            $expr: {
+              $and: [
+                {
+                  $lte: [
+                    { $dateFromString: { dateString: "$subsdate" } },
+                    new Date(advancedFilterData.wmmEndSubsDate),
+                  ],
+                },
+                {
+                  $gte: [
+                    { $dateFromString: { dateString: "$enddate" } },
+                    new Date(advancedFilterData.wmmStartSubsDate),
+                  ],
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      if (advancedFilterData.subsclass) {
+        wmmFilterQuery.push({
+          $match: {
+            subsclass: advancedFilterData.subsclass,
+          },
+        });
+      }
+
+      // Get results from other filters if any
+      let wmmResults = [];
+      if (wmmFilterQuery.length > 0) {
+        wmmResults = await WmmModel.aggregate([
+          ...wmmFilterQuery,
+          {
+            $group: {
+              _id: "$clientid",
+            },
+          },
+        ]);
+      }
+
+      // Combine results from both filtering methods
+      let validClientIds = [];
+
+      if (wmmLatestSubs?.length > 0) {
+        validClientIds = wmmLatestSubs
+          .map((result) => Number(result.clientid))
+          .filter((id) => !isNaN(id));
+      }
+
+      if (wmmResults.length > 0) {
+        const otherClientIds = wmmResults
+          .map((result) => Number(result._id))
+          .filter((id) => !isNaN(id));
+
+        if (validClientIds.length > 0) {
+          // If we have both copies filter and other filters, use intersection
+          validClientIds = validClientIds.filter((id) =>
+            otherClientIds.includes(id)
+          );
+        } else {
+          // If we only have other filters, use those results
+          validClientIds = otherClientIds;
+        }
+      }
+
+      if (validClientIds.length > 0) {
+        filterQuery.$and.push({ id: { $in: validClientIds } });
+      } else {
+        return {
+          totalPages: 0,
+          combinedData: [],
+          totalCopies: 0,
+          pageSpecificCopies: 0,
+          totalCalQty: 0,
+          totalCalAmt: 0,
+          pageSpecificCalQty: 0,
+          pageSpecificCalAmt: 0,
+          clientServices: [],
+          noData: true,
+        };
+      }
+    }
+    // After adding all filters, clean up empty $and array
     if (filterQuery.$and.length === 0) {
       delete filterQuery.$and;
+    } else if (filterQuery.$and.length === 1) {
+      // If there's only one condition, use it directly
+      filterQuery = filterQuery.$and[0];
     }
 
-    const clientCount = await ClientModel.countDocuments(filterQuery);
+    const totalClients = await ClientModel.countDocuments(filterQuery);
+    const totalPages = Math.ceil(totalClients / pageSize);
 
-    if (clientCount === 0) {
-      return {
-        totalPages: 0,
-        combinedData: [],
-        totalCopies: 0,
-        pageSpecificCopies: 0,
-        totalCalQty: 0,
-        totalCalAmt: 0,
-        pageSpecificCalQty: 0,
-        pageSpecificCalAmt: 0,
-        clientServices: [],
-        noData: true,
-      };
-    }
+    // Get paginated clients with proper skip and limit
+    const clients = await ClientModel.find(filterQuery)
+      .select(clientFields)
+      .sort({ id: -1 })
+      .skip(skip)
+      .limit(pageSize)
+      .lean();
 
     const modelNamesArray = Array.isArray(modelNames)
       ? modelNames
@@ -205,6 +314,7 @@ async function fetchDataServices(
           {
             $group: {
               _id: "$clientid",
+              recentCopies: { $first: "$copies" },
               totalCopies: { $sum: "$copies" },
               totalCalQty: { $sum: "$calqty" },
               totalCalAmt: { $sum: "$calamt" },
@@ -221,21 +331,15 @@ async function fetchDataServices(
       }
     });
 
-    const [totalClients, clients, ...modelDataArrays] = await Promise.all([
-      ClientModel.countDocuments(filterQuery),
-      ClientModel.find(filterQuery)
-        .select(clientFields)
-        .sort({ id: -1 })
-        .limit(limit)
-        .skip(skip)
-        .lean(),
-      ...fetchPromises,
-    ]);
+    const [modelDataArrays] = await Promise.all([Promise.all(fetchPromises)]);
 
-    const totalPages = Math.ceil(totalClients / pageSize);
+    // Process model data
+    const validModelDataArrays = modelDataArrays.filter(
+      (array) => Array.isArray(array) && array.length > 0
+    );
 
     const modelDataMap = new Map();
-    modelDataArrays.forEach((modelData, index) => {
+    validModelDataArrays.forEach((modelData, index) => {
       modelData.forEach((item) => {
         const clientId = item._id || item.clientid;
         if (!modelDataMap.has(clientId)) {
@@ -252,37 +356,46 @@ async function fetchDataServices(
       ...modelDataMap.get(client.id),
     }));
 
-    const totalCopies = modelDataArrays.reduce((acc, modelData) => {
+    const totalCopies = validModelDataArrays.reduce((acc, modelData) => {
       modelData.forEach((item) => {
-        acc += item.totalCopies || 0;
+        if (clients.some((client) => client.id === item._id)) {
+          acc += item.recentCopies || 0;
+        }
       });
       return acc;
     }, 0);
 
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
-      const clientCopies = modelDataArrays.reduce((copiesAcc, modelData) => {
-        const clientRecord = modelData.find((item) => item._id === client.id);
-        return copiesAcc + (clientRecord?.totalCopies || 0);
-      }, 0);
+      const clientCopies = validModelDataArrays.reduce(
+        (copiesAcc, modelData) => {
+          const clientRecord = modelData.find((item) => item._id === client.id);
+          return copiesAcc + (clientRecord?.recentCopies || 0);
+        },
+        0
+      );
       return acc + clientCopies;
     }, 0);
 
-    const totalCalQty = modelDataArrays.reduce((acc, modelData) => {
+    const totalCalQty = validModelDataArrays.reduce((acc, modelData) => {
       modelData.forEach((item) => {
-        acc += item.totalCalQty || 0;
+        if (clients.some((client) => client.id === item._id)) {
+          acc += item.totalCalQty || 0;
+        }
       });
       return acc;
     }, 0);
 
-    const totalCalAmt = modelDataArrays.reduce((acc, modelData) => {
+    const totalCalAmt = validModelDataArrays.reduce((acc, modelData) => {
       modelData.forEach((item) => {
-        acc += item.totalCalAmt || 0;
+        if (clients.some((client) => client.id === item._id)) {
+          acc += item.totalCalAmt || 0;
+        }
       });
       return acc;
     }, 0);
 
     const pageSpecificCalQty = combinedData.reduce((acc, client) => {
-      const clientCalQty = modelDataArrays.reduce((qtyAcc, modelData) => {
+      const clientCalQty = validModelDataArrays.reduce((qtyAcc, modelData) => {
         const clientRecord = modelData.find((item) => item._id === client.id);
         return qtyAcc + (clientRecord?.totalCalQty || 0);
       }, 0);
@@ -290,7 +403,7 @@ async function fetchDataServices(
     }, 0);
 
     const pageSpecificCalAmt = combinedData.reduce((acc, client) => {
-      const clientCalAmt = modelDataArrays.reduce((amtAcc, modelData) => {
+      const clientCalAmt = validModelDataArrays.reduce((amtAcc, modelData) => {
         const clientRecord = modelData.find((item) => item._id === client.id);
         return amtAcc + (clientRecord?.totalCalAmt || 0);
       }, 0);
@@ -340,7 +453,13 @@ async function fetchDataServices(
 
     return {
       totalPages,
-      combinedData,
+      totalClients,
+      currentPage: page,
+      pageSize,
+      combinedData: clients.map((client) => ({
+        ...client,
+        ...modelDataMap.get(client.id),
+      })),
       totalCopies,
       pageSpecificCopies,
       totalCalQty,
