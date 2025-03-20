@@ -14,12 +14,12 @@ const ComplimentarySchema = new mongoose.Schema(
   {
     id: Number,
     clientId: Number,
-    subsdate: Date,
-    enddate: Date,
+    subsdate: String,
+    enddate: String,
     subsyear: Number,
     copies: Number,
     remarks: String,
-    calendar: String,
+    calendar: Number,
     adddate: Date,
     adduser: String,
   },
@@ -35,4 +35,3 @@ const ComplimentaryModel = complimentaryConnection.model(
 );
 
 export default ComplimentaryModel;
-  

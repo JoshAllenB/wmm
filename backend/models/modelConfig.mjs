@@ -8,6 +8,7 @@ export const models = {
   FOMModel: () => import("./fom.mjs"),
   CALModel: () => import("./cal.mjs"),
   GroupModel: () => import("./groups.mjs"),
+  ComplimentaryModel: () => import("./complimentary.mjs"),
 };
 
 export const modelConfigs = {
@@ -121,6 +122,29 @@ export const modelConfigs = {
       id: "$id",
       name: "$name",
       description: "$description",
+    },
+  },
+  ComplimentaryModel: {
+    projectFields: {
+      clientId: 1,
+      subsdate: 1,
+      enddate: 1,
+      subsyear: 1,
+      copies: 1,
+      remarks: 1,
+      calendar: 1,
+      adddate: 1,
+      adduser: 1,
+    },
+    groupFields: {
+      subsdate: "$subsdate",
+      enddate: "$enddate",
+      subsyear: "$subsyear",
+      copies: "$copies",
+      remarks: "$remarks",
+      calendar: "$calendar",
+      adddate: "$adddate",
+      adduser: "$adduser",
     },
   },
 };
