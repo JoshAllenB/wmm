@@ -55,7 +55,8 @@ const Mailing = ({
   const hasSelectedRows = selectedRows.length > 0;
 
   const getFullName = (row) => {
-    return [row.fname, row.mname, row.lname].filter(Boolean).join(" ");
+    const title = row.title ? `${row.title} ` : ""; // Add title if present
+    return [title, row.fname, row.mname, row.lname].filter(Boolean).join(" ");
   };
 
   const getContactNumber = (row) => {
@@ -70,79 +71,82 @@ const Mailing = ({
     const column2 = selectedRows.slice(addressPerColumn);
 
     const labelHtml = [column1, column2]
-      .map((row, index) => {
-        const wmmData = row.original.wmmData || [];
-        const copies = wmmData.length > 0 ? wmmData[0].copies : "N/A";
-        const subsdate =
-          wmmData.length > 0
-            ? new Date(wmmData[0].subsdate).toLocaleDateString()
-            : "N/A";
+      .map((column, columnIndex) => {
+        return column
+          .map((row, rowIndex) => {
+            const wmmData = row?.original?.wmmData || [];
+            const copies = wmmData.length > 0 ? wmmData[0].copies : "N/A";
+            const subsdate =
+              wmmData.length > 0
+                ? new Date(wmmData[0].subsdate).toLocaleDateString()
+                : "N/A";
 
-        return `
-        <div class="address-container" style="top: ${
-          rowIndex * addressHeight
-        }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
-            ${
-              selectedFields.includes("id")
-                ? `<p>${row.original.id} - ${subsdate} - ${copies}cps/${row.original.acode}</p>`
-                : ""
-            }
-            ${`<p>${getFullName(row.original)}</p>`}
-            ${`<p>${row.original.address}</p>`}
-            ${
-              selectedFields.includes("contactnos")
-                ? `<p>${getContactNumber(row.original)}</p>`
-                : ""
-            }
+            return `
+          <div class="address-container" style="left: ${
+            columnIndex * (columnWidth + 20)
+          }px; top: ${
+              rowIndex * addressHeight
+            }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
+            <p>${row?.original?.id || ""} - ${subsdate} - ${copies}cps/${
+              row?.original?.acode || ""
+            }</p>
+            <p>${getFullName(row?.original || {})}</p>
+            <p>${row?.original?.address || ""}</p>
+            <p>${getContactNumber(row?.original || {})}</p>
           </div>
         `;
+          })
+          .join("");
       })
       .join("");
 
     return `
-    <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; }
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; }
             .mailing-label {
               position: relative;
               width: ${columnWidth * 2 + 40}px;
               height: ${topPosition + addressHeight * addressPerColumn}px;
-          }
-          .address-container p {
-              left: ${leftPosition}px;
-              top: ${topPosition}px;
+            }
+            .address-container {
+              position: absolute;
+              margin-bottom: 20px;
+            }
+            .address-container p {
+              margin: 0;
+              padding: 0;
               font-size: ${fontSize}px;
               color: black;
               width: ${columnWidth}px;
               word-wrap: break-word;
               white-space: normal;
               overflow-wrap: break-word;
-              position: absolute;
-              margin-bottom: 20px;
-          }
-          .address-container p{
-            margin: 0;
-            padding: 0;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="mailing-label">${labelHtml}</div>
-        <script>
-          window.print();
-          window.close();
-        </script>
-      </body>
-    </html>
-  `;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="mailing-label">${labelHtml}</div>
+          <script>
+            window.print();
+            window.close();
+          </script>
+        </body>
+      </html>
+    `;
   };
 
   const handlePrint = () => {
+    const printHTML = generatePrintHTML();
     const printWindow = window.open("", "_blank");
     printWindow.document.open();
     printWindow.document.write(generatePrintHTML());
     printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
   };
 
   const toggleModal = () => {
