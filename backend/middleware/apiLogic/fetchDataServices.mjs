@@ -356,14 +356,79 @@ async function fetchDataServices(
       ...modelDataMap.get(client.id),
     }));
 
-    const totalCopies = validModelDataArrays.reduce((acc, modelData) => {
-      modelData.forEach((item) => {
-        if (clients.some((client) => client.id === item._id)) {
-          acc += item.recentCopies || 0;
-        }
-      });
-      return acc;
-    }, 0);
+    // Calculate totalCopies directly from filtered subscription data
+    // This needs to be done through an additional query if we have date filters
+    let totalCopies = 0;
+
+    if (
+      advancedFilterData.wmmStartSubsDate ||
+      advancedFilterData.wmmEndSubsDate
+    ) {
+      const { default: WmmModel } = await import("../../models/wmm.mjs");
+
+      // Build the date query
+      const dateQuery = {};
+      if (
+        advancedFilterData.wmmStartSubsDate &&
+        advancedFilterData.wmmEndSubsDate
+      ) {
+        // Your existing date filtering...
+        dateQuery.$expr = {
+          $and: [
+            {
+              $lte: [
+                { $dateFromString: { dateString: "$subsdate" } },
+                new Date(advancedFilterData.wmmEndSubsDate),
+              ],
+            },
+            {
+              $gte: [
+                { $dateFromString: { dateString: "$enddate" } },
+                new Date(advancedFilterData.wmmStartSubsDate),
+              ],
+            },
+          ],
+        };
+      }
+
+      // Add other filters from filterQuery that apply to the WMM model
+      const wmmQuery = { ...dateQuery };
+      if (advancedFilterData.subsclass) {
+        wmmQuery.subsclass = advancedFilterData.subsclass;
+      }
+
+      // Get the total copies from matching subscriptions
+      const copiesResult = await WmmModel.aggregate([
+        { $match: wmmQuery },
+        {
+          $group: {
+            _id: null,
+            totalFilteredCopies: { $sum: { $toInt: "$copies" } },
+          },
+        },
+      ]);
+
+      totalCopies =
+        copiesResult.length > 0 ? copiesResult[0].totalFilteredCopies : 0;
+    } else {
+      // If no date filters, use the previous method
+      const filteredClientIds = await ClientModel.find(filterQuery)
+        .select("id")
+        .lean()
+        .then((results) => results.map((client) => client.id));
+
+      totalCopies = validModelDataArrays.reduce((acc, modelData) => {
+        return (
+          acc +
+          modelData.reduce((modelAcc, item) => {
+            if (filteredClientIds.includes(item._id)) {
+              return modelAcc + (parseInt(item.totalCopies) || 0);
+            }
+            return modelAcc;
+          }, 0)
+        );
+      }, 0);
+    }
 
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
       const clientCopies = validModelDataArrays.reduce(
