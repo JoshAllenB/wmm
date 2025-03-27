@@ -20,6 +20,7 @@ export function TableComponent({
   pageSpecificCalQty,
   pageSpecificCalAmt,
   userRole,
+  animationComplete,
 }) {
   const getTotalLabel = () => {
     switch (userRole) {
@@ -90,7 +91,14 @@ export function TableComponent({
             table.getRowModel().rows.map((row, rowIndex) => (
               <TableRow
                 key={`${row.id}-${rowIndex}`}
-                className="bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none"
+                className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out ${
+                  animationComplete
+                    ? "opacity-100 translate-y-0"
+                    : "opacity-0 translate-y-2"
+                }`}
+                style={{
+                  transitionDelay: `${rowIndex * 40}ms`,
+                }}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
@@ -107,6 +115,18 @@ export function TableComponent({
                         <div className="text font-bold">
                           {cell.getValue().split("<br>")[1]}
                         </div>
+                      </div>
+                    ) : cell.column.id === "Address" ? (
+                      <div style={{ textAlign: "left" }}>
+                        <div>{cell.getValue().split("<br>")[0]}</div>
+                        {cell.getValue().split("<br>")[1] && (
+                          <div className="font-bold">
+                            {cell
+                              .getValue()
+                              .split("<br>")[1]
+                              .replace(/<\/?strong>/g, "")}
+                          </div>
+                        )}
                       </div>
                     ) : cell.column.id === "Added Info" ? (
                       <div style={{ textAlign: "left" }}>
@@ -220,7 +240,14 @@ export function TableComponent({
           <TableRow>
             <TableCell
               colSpan={table.getVisibleLeafColumns().length}
-              className="h-[30px] sticky bottom-0 bg-white text-xs font-bold"
+              className={`h-[30px] sticky bottom-0 bg-white text-xs font-bold transition-opacity duration-300 ease-in-out ${
+                animationComplete ? "opacity-100" : "opacity-0"
+              }`}
+              style={{
+                transitionDelay: `${
+                  table.getRowModel().rows.length * 40 + 100
+                }ms`,
+              }}
             >
               {getTotalLabel()}
             </TableCell>

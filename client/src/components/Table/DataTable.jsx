@@ -14,6 +14,7 @@ import {
   handlePageJump,
 } from "./Features/PaginationUtils";
 import { ColumnToggle } from "./ColumnToggle";
+import { LinearProgress } from "@mui/material";
 
 export default function DataTable({
   columns,
@@ -57,6 +58,8 @@ export default function DataTable({
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const { socket, socketData } = useSocket();
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(false);
 
   const { table, setColumnVisibility, columnVisibility } = useTableLogic(
     localData,
@@ -72,6 +75,7 @@ export default function DataTable({
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      setAnimationComplete(false);
       try {
         const result = await fetchFunction(
           page,
@@ -102,6 +106,12 @@ export default function DataTable({
         setError(error.message);
       } finally {
         setIsLoading(false);
+        setIsTransitioning(true);
+        const timer = setTimeout(() => {
+          setIsTransitioning(false);
+          setAnimationComplete(true);
+        }, 300);
+        return () => clearTimeout(timer);
       }
     };
 
@@ -166,11 +176,24 @@ export default function DataTable({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[730px]">
-        <div className="text-center">
-          <div className="text-lg mb-2">Loading data...</div>
-          <div className="text-sm text-gray-500">
-            Page {page} of {totalPages || "?"}
+      <div className="rounded-md border h-[700px] w-full overflow-hidden">
+        <div className="flex flex-col h-full">
+          {/* Center area with MUI progress bar */}
+          <div className="flex-1 flex items-center justify-center bg-muted/10">
+            <div className="text-center space-y-6 w-2/3 max-w-md">
+              {/* MUI LinearProgress component */}
+              <LinearProgress
+                color="primary"
+                style={{
+                  height: 6,
+                  borderRadius: 3,
+                }}
+              />
+
+              <p className="text-muted-foreground text-sm">
+                Preparing your data...
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -192,112 +215,119 @@ export default function DataTable({
 
   return (
     <>
-      <ColumnToggle
+      {/* <ColumnToggle
         columns={toggleableColumns}
         columnVisibility={columnVisibility}
         setColumnVisibility={setColumnVisibility}
-      />
-      <ScrollArea className="rounded-md border h-[700px] w-full">
-        <TableComponent
-          table={table}
-          theme={theme}
-          handleRowClick={handleRowClick}
-          totalCopies={totalCopies}
-          pageSpecificCopies={pageSpecificCopies}
-          totalCalQty={totalCalQty}
-          totalCalAmt={totalCalAmt}
-          pageSpecificCalQty={pageSpecificCalQty}
-          pageSpecificCalAmt={pageSpecificCalAmt}
-          userRole={userRole}
-        />
-        <ScrollBar orientation="vertical" />
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      /> */}
+      <div
+        className={`transition-opacity duration-300 ease-in-out ${
+          isTransitioning ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <ScrollArea className="rounded-md border h-[700px] w-full">
+          <TableComponent
+            table={table}
+            theme={theme}
+            handleRowClick={handleRowClick}
+            totalCopies={totalCopies}
+            pageSpecificCopies={pageSpecificCopies}
+            totalCalQty={totalCalQty}
+            totalCalAmt={totalCalAmt}
+            pageSpecificCalQty={pageSpecificCalQty}
+            pageSpecificCalAmt={pageSpecificCalAmt}
+            userRole={userRole}
+            animationComplete={animationComplete}
+          />
+          <ScrollBar orientation="vertical" />
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
 
-      {usePagination && (
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex-1">
-            <PaginationComponent
-              totalPages={totalPages}
-              handlePreviousPage={() =>
-                handlePreviousPage(
-                  page,
-                  setPage,
-                  fetchFunction,
-                  setLocalData,
-                  pageSize,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                )
-              }
-              handleNextPage={() =>
-                handleNextPage(
-                  page,
-                  setPage,
-                  fetchFunction,
-                  setLocalData,
-                  pageSize,
-                  totalPages,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                )
-              }
-              handleFirstPage={() =>
-                handleFirstPage(
-                  setPage,
-                  fetchFunction,
-                  setLocalData,
-                  pageSize,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                )
-              }
-              handleLastPage={() =>
-                handleLastPage(
-                  totalPages,
-                  setPage,
-                  fetchFunction,
-                  setLocalData,
-                  pageSize,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                )
-              }
-              handlePageJump={(newPage) =>
-                handlePageJump(
-                  newPage,
-                  setPage,
-                  fetchFunction,
-                  setLocalData,
-                  pageSize,
-                  totalPages,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                )
-              }
-              pageSize={pageSize}
-              setPageSize={(newSize) => {
-                setPageSize(newSize);
-                setPage(1);
-                fetchFunction(
-                  1,
-                  newSize,
-                  searchTerm,
-                  selectedGroup,
-                  advancedFilterData
-                );
-              }}
-              page={page}
-              setPage={setPage}
-            />
+        {usePagination && (
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex-1">
+              <PaginationComponent
+                totalPages={totalPages}
+                handlePreviousPage={() =>
+                  handlePreviousPage(
+                    page,
+                    setPage,
+                    fetchFunction,
+                    setLocalData,
+                    pageSize,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  )
+                }
+                handleNextPage={() =>
+                  handleNextPage(
+                    page,
+                    setPage,
+                    fetchFunction,
+                    setLocalData,
+                    pageSize,
+                    totalPages,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  )
+                }
+                handleFirstPage={() =>
+                  handleFirstPage(
+                    setPage,
+                    fetchFunction,
+                    setLocalData,
+                    pageSize,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  )
+                }
+                handleLastPage={() =>
+                  handleLastPage(
+                    totalPages,
+                    setPage,
+                    fetchFunction,
+                    setLocalData,
+                    pageSize,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  )
+                }
+                handlePageJump={(newPage) =>
+                  handlePageJump(
+                    newPage,
+                    setPage,
+                    fetchFunction,
+                    setLocalData,
+                    pageSize,
+                    totalPages,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  )
+                }
+                pageSize={pageSize}
+                setPageSize={(newSize) => {
+                  setPageSize(newSize);
+                  setPage(1);
+                  fetchFunction(
+                    1,
+                    newSize,
+                    searchTerm,
+                    selectedGroup,
+                    advancedFilterData
+                  );
+                }}
+                page={page}
+                setPage={setPage}
+              />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </>
   );
 }
