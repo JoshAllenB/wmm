@@ -60,9 +60,38 @@ async function fetchDataServices(
       });
     }
 
+    const personalInfoFields = [
+      "fname",
+      "lname",
+      "mname",
+      "sname",
+      "email",
+      "address",
+      "contactnos",
+      "cellno",
+      "ofcno",
+    ];
+    personalInfoFields.forEach((field) => {
+      if (advancedFilterData[field]) {
+        baseFilter.push({
+          [field]: { $regex: advancedFilterData[field], $options: "i" },
+        });
+      }
+    });
+
     // Add area filter
-    if (advancedFilterData.area) {
-      baseFilter.push({ area: advancedFilterData.area });
+    if (advancedFilterData.acode) {
+      baseFilter.push({ acode: advancedFilterData.acode });
+    }
+
+    // Add type filter
+    if (advancedFilterData.type) {
+      baseFilter.push({ type: advancedFilterData.type });
+    }
+
+    // Add subsclass filter (already handled for WMM but might need it for general filtering)
+    if (advancedFilterData.subsclass && !modelNames.includes("WMM")) {
+      baseFilter.push({ subsclass: advancedFilterData.subsclass });
     }
 
     if (baseFilter.length > 0) {
