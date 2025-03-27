@@ -86,13 +86,7 @@ const AllClient = () => {
     };
 
     // Send formattedFilterData to the backend
-    fetchData(
-      page,
-      pageSize,
-      debouncedFiltering,
-      selectedGroup,
-      formattedFilterData
-    );
+    setAdvancedFilterData(formattedFilterData);
     closeAdvancedFilterModal();
   };
 
@@ -161,7 +155,7 @@ const AllClient = () => {
         console.error("❌ Error fetching clients:", error);
       }
     },
-    [advancedFilterData]
+    []
   );
 
   useEffect(() => {
@@ -240,13 +234,91 @@ const AllClient = () => {
 
     setAdvancedFilterData(formattedFilterData);
     setPage(1); // Reset to first page with new filters
-    fetchData(
-      1,
-      pageSize,
-      debouncedFiltering,
-      selectedGroup,
-      formattedFilterData
-    );
+  };
+
+  // Function to generate readable filter descriptions
+  const getActiveFilters = () => {
+    const filters = [];
+
+    // Check each filter and add readable description if it's active
+    if (debouncedFiltering) filters.push(`Search: "${debouncedFiltering}"`);
+    if (selectedGroup) filters.push(`Group: ${selectedGroup}`);
+
+    // Check advanced filters
+    if (advancedFilterData.lname)
+      filters.push(`Last Name: ${advancedFilterData.lname}`);
+    if (advancedFilterData.fname)
+      filters.push(`First Name: ${advancedFilterData.fname}`);
+    if (advancedFilterData.startDate && advancedFilterData.endDate)
+      filters.push(
+        `Date Range: ${advancedFilterData.startDate} to ${advancedFilterData.endDate}`
+      );
+    else if (advancedFilterData.startDate)
+      filters.push(`From: ${advancedFilterData.startDate}`);
+    else if (advancedFilterData.endDate)
+      filters.push(`Until: ${advancedFilterData.endDate}`);
+
+    // Fix for Active Subscriptions month display
+    if (advancedFilterData.wmmActiveMonth) {
+      // Use the original month selection directly instead of derived dates
+      const [year, month] = advancedFilterData.wmmActiveMonth.split("-");
+      const date = new Date(year, parseInt(month) - 1);
+      const monthName = date.toLocaleString("default", { month: "long" });
+      filters.push(`Active Subscriptions: ${monthName} ${year}`);
+    } else if (
+      advancedFilterData.wmmStartSubsDate &&
+      advancedFilterData.wmmEndSubsDate
+    ) {
+      // Fallback to using the start/end dates if wmmActiveMonth isn't available
+      const date = new Date(advancedFilterData.wmmStartSubsDate);
+      const monthName = date.toLocaleString("default", { month: "long" });
+      const year = date.getFullYear();
+      filters.push(`Active Subscriptions: ${monthName} ${year}`);
+    }
+
+    // Fix for Expiring Subscriptions month display
+    if (advancedFilterData.wmmExpiringMonth) {
+      // Use the original month selection directly
+      const [year, month] = advancedFilterData.wmmExpiringMonth.split("-");
+      const date = new Date(year, parseInt(month) - 1);
+      const monthName = date.toLocaleString("default", { month: "long" });
+      filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+    } else if (
+      advancedFilterData.wmmStartEndDate &&
+      advancedFilterData.wmmEndEndDate
+    ) {
+      // Fallback
+      const date = new Date(advancedFilterData.wmmStartEndDate);
+      const monthName = date.toLocaleString("default", { month: "long" });
+      const year = date.getFullYear();
+      filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+    }
+
+    if (advancedFilterData.type)
+      filters.push(`Type: ${advancedFilterData.type}`);
+    if (advancedFilterData.subsclass)
+      filters.push(`Subclass: ${advancedFilterData.subsclass}`);
+    if (advancedFilterData.area)
+      filters.push(`Area: ${advancedFilterData.area}`);
+
+    if (advancedFilterData.copiesRange) {
+      const rangeMap = {
+        lt5: "Less than 5 copies",
+        "5to10": "5 to 10 copies",
+        gt10: "More than 10 copies",
+        custom: `${advancedFilterData.minCopies || "0"} to ${
+          advancedFilterData.maxCopies || "any"
+        } copies`,
+      };
+      filters.push(
+        `Copies: ${
+          rangeMap[advancedFilterData.copiesRange] ||
+          advancedFilterData.copiesRange
+        }`
+      );
+    }
+
+    return filters;
   };
 
   return (
@@ -269,6 +341,30 @@ const AllClient = () => {
         />
         <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
       </div>
+
+      {/* Filter Status Display */}
+      <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+        <h3 className="text-sm font-medium text-gray-700 mb-1">
+          Active Filters:
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {getActiveFilters().length > 0 ? (
+            getActiveFilters().map((filter, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs"
+              >
+                {filter}
+              </span>
+            ))
+          ) : (
+            <span className="text-gray-500 text-sm italic">
+              No filters applied
+            </span>
+          )}
+        </div>
+      </div>
+
       <DataTable
         columns={columns}
         data={clientData}
