@@ -51,7 +51,9 @@ export const useColumns = () => {
           row.lname || "",
           row.fname || "",
           row.mname || "",
-        ].filter(Boolean).join(" ");
+        ]
+          .filter(Boolean)
+          .join(" ");
 
         const typePart = row.type ? `<br>Type: ${row.type}` : "";
 
@@ -62,10 +64,22 @@ export const useColumns = () => {
     {
       id: "Address",
       Header: "Address",
-      accessorFn: (row) =>
-        `${row.address || ""}, ${row.street || ""}, ${row.city || ""}, ${
-          row.barangay || ""
-        }`.replace(/^[,\s]+|[,\s]+$/g, ""),
+      accessorFn: (row) => {
+        const address = row.address || "";
+        const street = row.street || "";
+        const city = row.city || "";
+        const barangay = row.barangay || "";
+        const acode = row.acode
+          ? `<br><strong>Area Code: ${row.acode}</strong>`
+          : "";
+
+        // Create array of address parts and filter out empty ones
+        const addressParts = [address, street, city, barangay]
+          .filter(Boolean)
+          .join(", ");
+
+        return `${addressParts}${acode}`;
+      },
       size: 500,
     },
     {
