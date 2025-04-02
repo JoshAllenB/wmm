@@ -261,40 +261,99 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   Client Information ID: {formData.id}
                 </h2>
               </div>
-              <div className="grid grid-cols-3 gap-4 w-[1200px]">
-                {renderSection("Personal Info", [
-                  { label: "Last Name", name: "lname" },
-                  { label: "First Name", name: "fname" },
-                  { label: "Middle Name", name: "mname" },
-                  { label: "Suffix", name: "sname" },
-                  { label: "Title", name: "title" },
-                  { label: "Birth Date", name: "bdate" },
-                  { label: "Company", name: "company" },
-                ])}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
+                {/* Personal Information Card */}
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Personal Information
+                  </h2>
+                  {renderSection("Personal Info", [
+                    { label: "Last Name", name: "lname" },
+                    { label: "First Name", name: "fname" },
+                    { label: "Middle Name", name: "mname" },
+                    { label: "Suffix", name: "sname" },
+                    { label: "Title", name: "title" },
+                    { label: "Birth Date", name: "bdate" },
+                    { label: "Company", name: "company" },
+                  ])}
+                </div>
 
-                {renderSection("Address Info", [
-                  { label: "Address", name: "address" },
-                ])}
+                {/* Address Information Card */}
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Address Information
+                  </h2>
+                  {renderSection("Address Info", [
+                    { label: "Address", name: "address" },
+                  ])}
+                </div>
 
-                {renderSection("Contact Info", [
-                  { label: "Contact Numbers", name: "contactnos" },
-                  { label: "Cell Number", name: "cellno" },
-                  { label: "Office Number", name: "ofcno" },
-                  { label: "Email", name: "email" },
-                ])}
+                {/* Contact Information Card */}
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Contact Information
+                  </h2>
+                  {renderSection("Contact Info", [
+                    { label: "Contact Numbers", name: "contactnos" },
+                    { label: "Cell Number", name: "cellno" },
+                    { label: "Office Number", name: "ofcno" },
+                    { label: "Email", name: "email" },
+                  ])}
+                </div>
 
-                {renderSection("Group Info", [
-                  { label: "Type", name: "type" },
-                  { label: "Group", name: "group" },
-                  { label: "Remarks", name: "remarks" },
-                ])}
+                {/* Group Information Card */}
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Group Information
+                  </h2>
+                  {renderSection("Group Info", [
+                    { label: "Type", name: "type" },
+                    { label: "Group", name: "group" },
+                    { label: "Remarks", name: "remarks" },
+                  ])}
+                </div>
 
-                {renderWmmData()}
-                {renderHrgData()}
-                {renderFomData()}
-                {renderCalData()}
+                {/* Subscription History Card */}
+                {wmmData.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm">
+                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      Subscription History
+                    </h2>
+                    {renderWmmData()}
+                  </div>
+                )}
+
+                {/* HRG Data Card */}
+                {hrgData.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm">
+                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      HRG Data
+                    </h2>
+                    {renderHrgData()}
+                  </div>
+                )}
+
+                {/* FOM Data Card */}
+                {fomData.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm">
+                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      FOM Data
+                    </h2>
+                    {renderFomData()}
+                  </div>
+                )}
+
+                {/* CAL Data Card */}
+                {calData.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm">
+                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      CAL Data
+                    </h2>
+                    {renderCalData()}
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between mt-8 pt-4 border-t">
                 <div className="flex gap-1">
                   <Button
                     onClick={closeModal}

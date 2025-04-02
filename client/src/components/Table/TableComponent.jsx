@@ -62,7 +62,7 @@ export function TableComponent({
   return (
     <div>
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-0 z-10">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (

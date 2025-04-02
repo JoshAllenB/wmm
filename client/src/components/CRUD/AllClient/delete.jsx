@@ -5,8 +5,12 @@ import axios from "axios";
 
 const Delete = ({ client, onClose, onDeleteSuccess }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleDelete = async () => {
+    setIsDeleting(true);
+    setError(null);
     try {
       const response = await axios.delete(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/delete/${
@@ -17,10 +21,13 @@ const Delete = ({ client, onClose, onDeleteSuccess }) => {
         onDeleteSuccess(client.id);
         onClose();
       } else {
-        console.error("Error: Deletion was not successful");
+        setError("Failed to delete client. Please try again.");
       }
     } catch (e) {
       console.error("Error deleting client", e);
+      setError("An error occurred while deleting the client.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -38,15 +45,32 @@ const Delete = ({ client, onClose, onDeleteSuccess }) => {
           onClose={() => setShowConfirmation(false)}
         >
           <h2 className="text-xl font-bold mb-4 text-black">Delete Client</h2>
-          <p className="text-black">
-            Are you sure you want to delete this client?
+          <p className="text-black mb-4">
+            Are you sure you want to delete {client.name || "this client"}? This
+            action cannot be undone.
           </p>
-          <div className="flex justify-start mt-4 gap-1">
+
+          {error && (
+            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded-md">
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-end mt-6 gap-3">
+            <Button
+              onClick={() => setShowConfirmation(false)}
+              variant="outline"
+              className="border-gray-300 text-gray-700"
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
             <Button
               onClick={handleDelete}
-              className="bg-red-500 hover:bg-red-800 rounded-xl"
+              className="bg-red-500 hover:bg-red-800"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </Modal>
