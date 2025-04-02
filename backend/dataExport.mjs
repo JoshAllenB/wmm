@@ -173,13 +173,12 @@ async function processMonthlyDistribution(month, year) {
           const client = clients.find((c) => c.id === sub.clientid);
           const isAbroad = client.acode && client.acode.includes("ZONE");
           const location = isAbroad ? "ABROAD" : "LOCAL";
+          const copies = sub.copies || 1;
+
           detailedLog.paidSubscribers[category][location].push({
-            id: sub.id,
+            id: sub._id,
             clientId: sub.clientid,
-            subsdate: sub.subsdate,
-            enddate: sub.enddate,
-            copies: sub.copies,
-            paymtmasses: sub.paymtmasses,
+            copies,
           });
         }
       }
@@ -189,13 +188,12 @@ async function processMonthlyDistribution(month, year) {
           const client = clients.find((c) => c.id === sub.clientId);
           const isAbroad = client.acode && client.acode.includes("ZONE");
           const location = isAbroad ? "ABROAD" : "LOCAL";
+          const copies = sub.copies || 1;
+
           detailedLog.complimentarySubscribers[category][location].push({
-            id: sub.id,
+            id: sub._id,
             clientId: sub.clientId,
-            subsdate: sub.subsdate,
-            enddate: sub.enddate,
-            copies: sub.copies,
-            paymtmasses: sub.paymtmasses,
+            copies,
           });
         }
       }
@@ -668,6 +666,7 @@ async function processMonthlyDistribution(month, year) {
 
             // Get copies count (default to 1 if not specified)
             const copies = doc.copies || 1;
+            const subscriptionDate = doc.subsdate - doc.enddate;
 
             // Add to the appropriate category
             result[category][location] += copies;
@@ -686,6 +685,7 @@ async function processMonthlyDistribution(month, year) {
             }
             detailedLog.complimentarySubscribers[category][location].push({
               clientId: clientInfo.id,
+              subscriptionDate,
               copies,
             });
 
@@ -1021,8 +1021,8 @@ async function generateExcelReport(reportData, outputPath) {
 
 // Example usage
 async function main() {
-  const month = 2;
-  const year = 2025;
+  const month = 11;
+  const year = 2018;
 
   console.log(
     chalk.bold(`\n========== MONTHLY DISTRIBUTION REPORT GENERATOR ==========`)
