@@ -288,6 +288,78 @@ async function fetchDataServices(
         };
       }
     }
+
+    // Handle services filter
+    if (advancedFilterData.services && advancedFilterData.services.length > 0) {
+      // Fetch client IDs that have the specified services
+      const serviceClientIds = await Promise.all(
+        advancedFilterData.services.map(async (serviceName) => {
+          const modelKey = Object.keys(additionalModels).find((key) =>
+            key.toLowerCase().includes(serviceName.toLowerCase())
+          );
+
+          if (!modelKey) return [];
+
+          const { default: Model } = await additionalModels[modelKey]();
+
+          const results = await Model.aggregate([
+            {
+              $group: {
+                _id: "$clientid",
+                hasData: { $sum: 1 },
+              },
+            },
+            {
+              $match: {
+                hasData: { $gt: 0 },
+              },
+            },
+          ]);
+
+          return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
+        })
+      );
+
+      // If we have multiple services selected, we need to find the intersection
+      // of clients that have ALL the selected services
+      if (serviceClientIds.length > 0) {
+        // Start with the first service's client list
+        let validServiceClientIds = serviceClientIds[0] || [];
+
+        // For each subsequent service, keep only the clients that exist in both lists
+        for (let i = 1; i < serviceClientIds.length; i++) {
+          if (advancedFilterData.servicesMatchAny) {
+            // OR logic - include clients that have ANY of the selected services
+            validServiceClientIds = [
+              ...new Set([...validServiceClientIds, ...serviceClientIds[i]]),
+            ];
+          } else {
+            // AND logic - include only clients that have ALL selected services
+            validServiceClientIds = validServiceClientIds.filter((id) =>
+              serviceClientIds[i].includes(id)
+            );
+          }
+        }
+
+        if (validServiceClientIds.length > 0) {
+          filterQuery.$and.push({ id: { $in: validServiceClientIds } });
+        } else {
+          return {
+            totalPages: 0,
+            combinedData: [],
+            totalCopies: 0,
+            pageSpecificCopies: 0,
+            totalCalQty: 0,
+            totalCalAmt: 0,
+            pageSpecificCalQty: 0,
+            pageSpecificCalAmt: 0,
+            clientServices: [],
+            noData: true,
+          };
+        }
+      }
+    }
+
     // After adding all filters, clean up empty $and array
     if (filterQuery.$and.length === 0) {
       delete filterQuery.$and;
@@ -385,8 +457,7 @@ async function fetchDataServices(
       ...modelDataMap.get(client.id),
     }));
 
-    // Calculate totalCopies directly from filtered subscription data
-    // This needs to be done through an additional query if we have date filters
+    // Calculate totalCopies using only the most recent copies for each client
     let totalCopies = 0;
 
     if (
@@ -426,13 +497,20 @@ async function fetchDataServices(
         wmmQuery.subsclass = advancedFilterData.subsclass;
       }
 
-      // Get the total copies from matching subscriptions
+      // Get only the most recent copies for each client
       const copiesResult = await WmmModel.aggregate([
         { $match: wmmQuery },
+        { $sort: { clientid: 1, subsdate: -1 } },
+        {
+          $group: {
+            _id: "$clientid",
+            recentCopies: { $first: "$copies" },
+          },
+        },
         {
           $group: {
             _id: null,
-            totalFilteredCopies: { $sum: { $toInt: "$copies" } },
+            totalFilteredCopies: { $sum: { $toInt: "$recentCopies" } },
           },
         },
       ]);
@@ -440,7 +518,7 @@ async function fetchDataServices(
       totalCopies =
         copiesResult.length > 0 ? copiesResult[0].totalFilteredCopies : 0;
     } else {
-      // If no date filters, use the previous method
+      // If no date filters, use recentCopies instead of totalCopies
       const filteredClientIds = await ClientModel.find(filterQuery)
         .select("id")
         .lean()
@@ -451,7 +529,7 @@ async function fetchDataServices(
           acc +
           modelData.reduce((modelAcc, item) => {
             if (filteredClientIds.includes(item._id)) {
-              return modelAcc + (parseInt(item.totalCopies) || 0);
+              return modelAcc + (parseInt(item.recentCopies) || 0);
             }
             return modelAcc;
           }, 0)

@@ -35,6 +35,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     subsclass: "",
     area: "",
     acode: "",
+    services: [],
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -78,6 +79,24 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       return {
         ...prev,
         [name]: value,
+      };
+    });
+  };
+
+  const handleServiceChange = (service) => {
+    setFilterData((prev) => {
+      const services = [...prev.services];
+      const serviceIndex = services.indexOf(service);
+
+      if (serviceIndex === -1) {
+        services.push(service);
+      } else {
+        services.splice(serviceIndex, 1);
+      }
+
+      return {
+        ...prev,
+        services,
       };
     });
   };
@@ -147,163 +166,224 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   return (
     <div>
-      <Button onClick={openModal} className="bg-blue-600 text-white">
+      <Button
+        onClick={openModal}
+        className="bg-blue-600 text-white hover:bg-blue-700 rounded-md"
+      >
         Advanced Filter
       </Button>
 
       {showModal && (
         <Modal isOpen={showModal} onClose={closeModal}>
-          <form onSubmit={handleSubmit}>
-            <h1 className="text-black text-3xl font-bold">Advanced Filter</h1>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Personal Info</h1>
-                <InputField
-                  label="First Name:"
-                  id="fname"
-                  name="fname"
-                  value={filterData.fname}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Middle Name:"
-                  id="mname"
-                  name="mname"
-                  value={filterData.mname}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Last Name:"
-                  id="lname"
-                  name="lname"
-                  value={filterData.lname}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Suffix:"
-                  id="sname"
-                  name="sname"
-                  value={filterData.sname}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Birth Date:"
-                  id="birthdate"
-                  name="birthdate"
-                  value={filterData.birthdate}
-                  onChange={handleChange}
-                />
-                <h1 className="text-black mb-2 font-bold">Address</h1>
-                <textarea
-                  label="Address:"
-                  id="address"
-                  name="address"
-                  className="w-full h-[100px] p-2 border-2 border-gray-300 rounded-md"
-                  value={filterData.address}
-                  onChange={handleChange}
-                />
-              </div>
+          <form
+            onSubmit={handleSubmit}
+            className="max-h-[80vh] overflow-y-auto"
+          >
+            <div className="mb-6 border-b pb-4">
+              <h1 className="text-black text-2xl font-bold">Advanced Filter</h1>
+              <p className="text-gray-500 text-sm">
+                Use filters to narrow down results
+              </p>
+            </div>
 
-              <div className="flex flex-col mb-2 p-2">
-                <h1 className="text-black mb-2 font-bold">Contact Info</h1>
-                <InputField
-                  label="Contact Numbers:"
-                  id="contactnos"
-                  name="contactnos"
-                  value={filterData.contactnos}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Cell Number:"
-                  id="cellno"
-                  name="cellno"
-                  value={filterData.cellno}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Office Number:"
-                  id="ofcno"
-                  name="ofcno"
-                  value={filterData.ofcno}
-                  onChange={handleChange}
-                />
-                <InputField
-                  label="Email:"
-                  id="email"
-                  name="email"
-                  value={filterData.email}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div className="flex flex-col mb-2 p-2">
-                <div className="flex flex-col p-2">
-                  <h1 className="text-black mb-2 font-bold">Date Range</h1>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {/* Personal Information Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Personal Information
+                </h2>
+                <div className="space-y-3">
                   <InputField
-                    label="Start Date:"
-                    id="startDate"
-                    name="startDate"
-                    type="date"
-                    value={filterData.startDate}
+                    label="First Name"
+                    id="fname"
+                    name="fname"
+                    value={filterData.fname}
                     onChange={handleChange}
+                    className="w-full"
                   />
                   <InputField
-                    label="End Date:"
-                    id="endDate"
-                    name="endDate"
+                    label="Last Name"
+                    id="lname"
+                    name="lname"
+                    value={filterData.lname}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <InputField
+                      label="Middle Name"
+                      id="mname"
+                      name="mname"
+                      value={filterData.mname}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                    <InputField
+                      label="Suffix"
+                      id="sname"
+                      name="sname"
+                      value={filterData.sname}
+                      onChange={handleChange}
+                      className="w-full"
+                    />
+                  </div>
+                  <InputField
+                    label="Birth Date"
+                    id="birthdate"
+                    name="birthdate"
                     type="date"
-                    value={filterData.endDate}
+                    value={filterData.birthdate}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Information Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Contact Information
+                </h2>
+                <div className="space-y-3">
+                  <InputField
+                    label="Email Address"
+                    id="email"
+                    name="email"
+                    type="email"
+                    value={filterData.email}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                  <InputField
+                    label="Cell Number"
+                    id="cellno"
+                    name="cellno"
+                    value={filterData.cellno}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                  <InputField
+                    label="Office Number"
+                    id="ofcno"
+                    name="ofcno"
+                    value={filterData.ofcno}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                  <InputField
+                    label="Other Contact"
+                    id="contactnos"
+                    name="contactnos"
+                    value={filterData.contactnos}
+                    onChange={handleChange}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Address Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Address
+                </h2>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Full Address
+                  </label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                    value={filterData.address}
                     onChange={handleChange}
                   />
                 </div>
+              </div>
 
-                <div className="flex flex-col p-2">
-                  <h1 className="text-black mb-2 font-bold">
-                    Active Subscriptions
-                  </h1>
+              {/* Date Ranges Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Date Ranges
+                </h2>
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      General Date Range
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <InputField
+                        label="Start Date"
+                        id="startDate"
+                        name="startDate"
+                        type="date"
+                        value={filterData.startDate}
+                        onChange={handleChange}
+                        className="w-full"
+                      />
+                      <InputField
+                        label="End Date"
+                        id="endDate"
+                        name="endDate"
+                        type="date"
+                        value={filterData.endDate}
+                        onChange={handleChange}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Select month to find clients with active subscriptions
-                      during this period
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      Active Subscriptions
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Find clients with active subscriptions during this month
                     </p>
                     <InputField
-                      label="Select Month:"
+                      label="Select Month"
                       id="wmmActiveMonth"
                       name="wmmActiveMonth"
                       type="month"
                       value={filterData.wmmActiveMonth}
                       onChange={handleChange}
+                      className="w-full"
                     />
                   </div>
-                </div>
 
-                <div className="flex flex-col p-2">
-                  <h1 className="text-black mb-2 font-bold">
-                    Expiring Subscriptions
-                  </h1>
                   <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      Select month to find clients whose subscriptions expire in
-                      this period
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      Expiring Subscriptions
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Find clients whose subscriptions expire this month
                     </p>
                     <InputField
-                      label="Select Month:"
+                      label="Select Month"
                       id="wmmExpiringMonth"
                       name="wmmExpiringMonth"
                       type="month"
                       value={filterData.wmmExpiringMonth}
                       onChange={handleChange}
+                      className="w-full"
                     />
                   </div>
                 </div>
-                {/* Copies Range - Existing code */}
-                <div className="p-2">
-                  <label className="text-black font-bold">Copies Range:</label>
+              </div>
+
+              {/* Copies Range Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Copies Range
+                </h2>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Number of Copies
+                  </label>
                   <select
                     name="copiesRange"
                     value={filterData.copiesRange}
                     onChange={handleChange}
-                    className="w-full p-2 border-2 border-gray-300 rounded-md"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Any number of copies</option>
                     <option value="lt5">Less than 5</option>
@@ -313,126 +393,212 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   </select>
 
                   {filterData.copiesRange === "custom" && (
-                    <div className="flex gap-2 mt-2">
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                       <InputField
-                        label="Min copies:"
+                        label="Min copies"
                         id="minCopies"
                         name="minCopies"
                         type="number"
                         min="0"
                         value={filterData.minCopies}
                         onChange={handleChange}
+                        className="w-full"
                       />
                       <InputField
-                        label="Max copies:"
+                        label="Max copies"
                         id="maxCopies"
                         name="maxCopies"
                         type="number"
                         min="0"
                         value={filterData.maxCopies}
                         onChange={handleChange}
+                        className="w-full"
                       />
                     </div>
                   )}
                 </div>
               </div>
-              <div className="mt-4">
-                <h1 className="text-black mb-2 font-bold">Category Filters</h1>
 
-                {/* Group Filter Dropdown - Simplified */}
-                <div className="mb-3">
-                  <label className="text-black font-semibold">Group:</label>
-                  <select
-                    name="group"
-                    value={filterData.group}
-                    onChange={handleChange}
-                    className="w-full p-2 border-2 border-gray-300 rounded-md"
-                    disabled={!hasRole("WMM")}
-                  >
-                    <option value="">All Groups</option>
-                    {Array.isArray(groups) &&
-                      groups.map((group) => (
-                        <option key={group._id} value={group.id}>
-                          {group.id}
-                        </option>
-                      ))}
-                  </select>
-                  {!hasRole("WMM") && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Group filtering not available for your role
-                    </p>
-                  )}
+              {/* Category Filters Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Category Filters
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Group
+                    </label>
+                    <select
+                      name="group"
+                      value={filterData.group}
+                      onChange={handleChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      disabled={!hasRole("WMM")}
+                    >
+                      <option value="">All Groups</option>
+                      {Array.isArray(groups) &&
+                        groups.map((group) => (
+                          <option key={group._id} value={group.id}>
+                            {group.id}
+                          </option>
+                        ))}
+                    </select>
+                    {!hasRole("WMM") && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Group filtering not available for your role
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type
+                    </label>
+                    <select
+                      name="type"
+                      value={filterData.type}
+                      onChange={handleChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Types</option>
+                      {Array.isArray(types) &&
+                        types.map((type) => (
+                          <option key={type._id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Subclass
+                    </label>
+                    <select
+                      name="subsclass"
+                      value={filterData.subsclass}
+                      onChange={handleChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Subclasses</option>
+                      {Array.isArray(subclasses) &&
+                        subclasses.map((subclass) => (
+                          <option key={subclass._id} value={subclass.id}>
+                            {subclass.id} - {subclass.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Area
+                    </label>
+                    <select
+                      name="area"
+                      value={filterData.area}
+                      onChange={handleChange}
+                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">All Areas</option>
+                      {Array.isArray(areas) &&
+                        areas.map((area) => (
+                          <option key={area._id} value={area._id}>
+                            {area._id}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
                 </div>
+              </div>
 
-                {/* Type Filter Dropdown - Now using locally fetched types */}
-                <div className="mb-3">
-                  <label className="text-black font-semibold">Type:</label>
-                  <select
-                    name="type"
-                    value={filterData.type}
-                    onChange={handleChange}
-                    className="w-full p-2 border-2 border-gray-300 rounded-md"
-                  >
-                    <option value="">All Types</option>
-                    {Array.isArray(types) &&
-                      types.map((type) => (
-                        <option key={type._id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {/* Subclass Filter Dropdown - Adding this based on fetched data */}
-                <div className="mb-3">
-                  <label className="text-black font-semibold">Subclass:</label>
-                  <select
-                    name="subsclass"
-                    value={filterData.subsclass}
-                    onChange={handleChange}
-                    className="w-full p-2 border-2 border-gray-300 rounded-md"
-                  >
-                    <option value="">All Subclasses</option>
-                    {Array.isArray(subclasses) &&
-                      subclasses.map((subclass) => (
-                        <option key={subclass._id} value={subclass.id}>
-                          {subclass.id} - {subclass.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {/* Area Filter Dropdown - Enhanced with more information */}
-                <div className="mb-3">
-                  <label className="text-black font-semibold">Area:</label>
-                  <select
-                    name="area"
-                    value={filterData.area}
-                    onChange={handleChange}
-                    className="w-full p-2 border-2 border-gray-300 rounded-md"
-                  >
-                    <option value="">All Areas</option>
-                    {Array.isArray(areas) &&
-                      areas.map((area) => (
-                        <option key={area._id} value={area._id}>
-                          {area._id}
-                        </option>
-                      ))}
-                  </select>
+              {/* Services Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Services
+                </h2>
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select services to filter clients
+                  </p>
+                  <div className="grid grid-cols-2 gap-y-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="service-wmm"
+                        checked={filterData.services.includes("WMM")}
+                        onChange={() => handleServiceChange("WMM")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor="service-wmm"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        WMM
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="service-fom"
+                        checked={filterData.services.includes("FOM")}
+                        onChange={() => handleServiceChange("FOM")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor="service-fom"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        FOM
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="service-hrg"
+                        checked={filterData.services.includes("HRG")}
+                        onChange={() => handleServiceChange("HRG")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor="service-hrg"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        HRG
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="service-cal"
+                        checked={filterData.services.includes("CAL")}
+                        onChange={() => handleServiceChange("CAL")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label
+                        htmlFor="service-cal"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        CAL
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="flex gap-1 mt-4">
+
+            <div className="mt-8 pt-4 border-t flex justify-end gap-3">
               <Button
                 type="button"
                 onClick={closeModal}
-                className="text-white bg-red-500 hover:bg-red-800 rounded-xl"
+                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="text-white text-sm bg-green-600 hover:bg-green-800 rounded-xl"
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
               >
                 Apply Filter
               </Button>
