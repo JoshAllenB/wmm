@@ -23,6 +23,20 @@ async function fetchDataServices(
   advancedFilterData = {}
 ) {
   try {
+    // Cache imported models to avoid repeated dynamic imports
+    const modelCache = {};
+
+    async function getModel(modelKey) {
+      if (!modelCache[modelKey]) {
+        const importFunc = additionalModels[modelKey];
+        if (importFunc) {
+          const { default: Model } = await importFunc();
+          modelCache[modelKey] = Model;
+        }
+      }
+      return modelCache[modelKey];
+    }
+
     const skip = (page - 1) * pageSize;
     let filterQuery = { $and: [] };
 
@@ -98,91 +112,125 @@ async function fetchDataServices(
       filterQuery.$and.push(...baseFilter);
     }
 
-    // Replace the WMM filtering section with:
-
+    // Optimize WMM filtering by combining queries where possible
     if (
       advancedFilterData.wmmStartSubsDate ||
       advancedFilterData.wmmExpiringMonth ||
       advancedFilterData.copiesRange ||
       advancedFilterData.subsclass
     ) {
-      const { default: WmmModel } = await import("../../models/wmm.mjs");
-      let wmmFilterQuery = [];
-      let wmmLatestSubs = null;
+      const WmmModel = await getModel("WmmModel");
 
-      // Handle copies range filtering first
-      if (advancedFilterData.copiesRange) {
-        wmmLatestSubs = await WmmModel.aggregate([
-          { $sort: { clientid: 1, subsdate: -1 } },
-          {
-            $group: {
-              _id: "$clientid",
-              mostRecentSub: { $first: "$$ROOT" },
+      // Build a single aggregation pipeline instead of multiple separate queries
+      const wmmPipeline = [];
+
+      // Add match stage for all WMM filters
+      const wmmMatchStage = { $match: {} };
+
+      if (advancedFilterData.subsclass) {
+        wmmMatchStage.$match.subsclass = advancedFilterData.subsclass;
+      }
+
+      if (
+        advancedFilterData.wmmStartSubsDate &&
+        advancedFilterData.wmmEndSubsDate
+      ) {
+        wmmMatchStage.$match.$expr = {
+          $and: [
+            {
+              $lte: [
+                { $dateFromString: { dateString: "$subsdate" } },
+                new Date(advancedFilterData.wmmEndSubsDate),
+              ],
             },
+            {
+              $gte: [
+                { $dateFromString: { dateString: "$enddate" } },
+                new Date(advancedFilterData.wmmStartSubsDate),
+              ],
+            },
+          ],
+        };
+      }
+
+      // Only add match stage if it has conditions
+      if (Object.keys(wmmMatchStage.$match).length > 0) {
+        wmmPipeline.push(wmmMatchStage);
+      }
+
+      // Sort and group to get latest subscription for each client
+      wmmPipeline.push(
+        { $sort: { clientid: 1, subsdate: -1 } },
+        {
+          $group: {
+            _id: "$clientid",
+            mostRecentSub: { $first: "$$ROOT" },
           },
-          { $replaceRoot: { newRoot: "$mostRecentSub" } },
-          {
-            $match: {
-              $expr: {
-                $let: {
-                  vars: {
-                    numericCopies: { $toInt: "$copies" },
-                  },
-                  in: {
-                    $cond: {
-                      if: { $eq: [advancedFilterData.copiesRange, "lt5"] },
-                      then: { $lt: ["$$numericCopies", 5] },
-                      else: {
-                        $cond: {
-                          if: {
-                            $eq: [advancedFilterData.copiesRange, "5to10"],
-                          },
-                          then: {
-                            $and: [
-                              { $gte: ["$$numericCopies", 5] },
-                              { $lte: ["$$numericCopies", 10] },
-                            ],
-                          },
-                          else: {
-                            $cond: {
-                              if: {
-                                $eq: [advancedFilterData.copiesRange, "gt10"],
-                              },
-                              then: { $gt: ["$$numericCopies", 10] },
-                              else: {
-                                $cond: {
-                                  if: {
-                                    $eq: [
-                                      advancedFilterData.copiesRange,
-                                      "custom",
-                                    ],
-                                  },
-                                  then: {
-                                    $and: [
-                                      advancedFilterData.minCopies
-                                        ? {
-                                            $gte: [
-                                              "$$numericCopies",
-                                              parseInt(
-                                                advancedFilterData.minCopies
-                                              ),
-                                            ],
-                                          }
-                                        : { $gte: ["$$numericCopies", 0] },
-                                      advancedFilterData.maxCopies
-                                        ? {
-                                            $lte: [
-                                              "$$numericCopies",
-                                              parseInt(
-                                                advancedFilterData.maxCopies
-                                              ),
-                                            ],
-                                          }
-                                        : { $gte: ["$$numericCopies", 0] },
-                                    ],
-                                  },
-                                  else: true,
+        },
+        { $replaceRoot: { newRoot: "$mostRecentSub" } }
+      );
+
+      // Add copies range filtering if needed
+      if (advancedFilterData.copiesRange) {
+        const copiesMatchStage = {
+          $match: {
+            $expr: {
+              $let: {
+                vars: {
+                  numericCopies: { $toInt: "$copies" },
+                },
+                in: {
+                  $cond: {
+                    if: { $eq: [advancedFilterData.copiesRange, "lt5"] },
+                    then: { $lt: ["$$numericCopies", 5] },
+                    else: {
+                      $cond: {
+                        if: { $eq: [advancedFilterData.copiesRange, "5to10"] },
+                        then: {
+                          $and: [
+                            { $gte: ["$$numericCopies", 5] },
+                            { $lte: ["$$numericCopies", 10] },
+                          ],
+                        },
+                        else: {
+                          $cond: {
+                            if: {
+                              $eq: [advancedFilterData.copiesRange, "gt10"],
+                            },
+                            then: { $gt: ["$$numericCopies", 10] },
+                            else: {
+                              $cond: {
+                                if: {
+                                  $eq: [
+                                    advancedFilterData.copiesRange,
+                                    "custom",
+                                  ],
                                 },
+                                then: {
+                                  $and: [
+                                    advancedFilterData.minCopies
+                                      ? {
+                                          $gte: [
+                                            "$$numericCopies",
+                                            parseInt(
+                                              advancedFilterData.minCopies
+                                            ),
+                                          ],
+                                        }
+                                      : { $gte: ["$$numericCopies", 0] },
+                                    advancedFilterData.maxCopies
+                                      ? {
+                                          $lte: [
+                                            "$$numericCopies",
+                                            parseInt(
+                                              advancedFilterData.maxCopies
+                                            ),
+                                          ],
+                                        }
+                                      : { $gte: ["$$numericCopies", 0] },
+                                  ],
+                                },
+                                else: true,
                               },
                             },
                           },
@@ -194,85 +242,34 @@ async function fetchDataServices(
               },
             },
           },
-        ]);
+        };
+        wmmPipeline.push(copiesMatchStage);
       }
 
-      // Add other WMM filters to wmmFilterQuery array
-      if (
-        advancedFilterData.wmmStartSubsDate &&
-        advancedFilterData.wmmEndSubsDate
-      ) {
-        // Your existing date filtering...
-        wmmFilterQuery.push({
-          $match: {
-            $expr: {
-              $and: [
-                {
-                  $lte: [
-                    { $dateFromString: { dateString: "$subsdate" } },
-                    new Date(advancedFilterData.wmmEndSubsDate),
-                  ],
-                },
-                {
-                  $gte: [
-                    { $dateFromString: { dateString: "$enddate" } },
-                    new Date(advancedFilterData.wmmStartSubsDate),
-                  ],
-                },
-              ],
-            },
-          },
-        });
-      }
-
-      if (advancedFilterData.subsclass) {
-        wmmFilterQuery.push({
-          $match: {
-            subsclass: advancedFilterData.subsclass,
-          },
-        });
-      }
-
-      // Get results from other filters if any
-      let wmmResults = [];
-      if (wmmFilterQuery.length > 0) {
-        wmmResults = await WmmModel.aggregate([
-          ...wmmFilterQuery,
-          {
-            $group: {
-              _id: "$clientid",
-            },
-          },
-        ]);
-      }
-
-      // Combine results from both filtering methods
-      let validClientIds = [];
-
-      if (wmmLatestSubs?.length > 0) {
-        validClientIds = wmmLatestSubs
-          .map((result) => Number(result.clientid))
-          .filter((id) => !isNaN(id));
-      }
+      // Get client IDs from filtered WMM data
+      const wmmResults = await WmmModel.aggregate(wmmPipeline);
 
       if (wmmResults.length > 0) {
-        const otherClientIds = wmmResults
-          .map((result) => Number(result._id))
+        const validClientIds = wmmResults
+          .map((result) => Number(result.clientid))
           .filter((id) => !isNaN(id));
 
         if (validClientIds.length > 0) {
-          // If we have both copies filter and other filters, use intersection
-          validClientIds = validClientIds.filter((id) =>
-            otherClientIds.includes(id)
-          );
+          filterQuery.$and.push({ id: { $in: validClientIds } });
         } else {
-          // If we only have other filters, use those results
-          validClientIds = otherClientIds;
+          return {
+            totalPages: 0,
+            combinedData: [],
+            totalCopies: 0,
+            pageSpecificCopies: 0,
+            totalCalQty: 0,
+            totalCalAmt: 0,
+            pageSpecificCalQty: 0,
+            pageSpecificCalAmt: 0,
+            clientServices: [],
+            noData: true,
+          };
         }
-      }
-
-      if (validClientIds.length > 0) {
-        filterQuery.$and.push({ id: { $in: validClientIds } });
       } else {
         return {
           totalPages: 0,
@@ -289,9 +286,9 @@ async function fetchDataServices(
       }
     }
 
-    // Handle services filter
+    // Optimize services filtering with Promise.all and early returns
     if (advancedFilterData.services && advancedFilterData.services.length > 0) {
-      // Fetch client IDs that have the specified services
+      // Fetch client IDs that have the specified services in parallel
       const serviceClientIds = await Promise.all(
         advancedFilterData.services.map(async (serviceName) => {
           const modelKey = Object.keys(additionalModels).find((key) =>
@@ -300,20 +297,12 @@ async function fetchDataServices(
 
           if (!modelKey) return [];
 
-          const { default: Model } = await additionalModels[modelKey]();
+          const Model = await getModel(modelKey);
 
+          // Use a simpler, more efficient aggregation
           const results = await Model.aggregate([
-            {
-              $group: {
-                _id: "$clientid",
-                hasData: { $sum: 1 },
-              },
-            },
-            {
-              $match: {
-                hasData: { $gt: 0 },
-              },
-            },
+            { $project: { clientid: 1 } },
+            { $group: { _id: "$clientid" } },
           ]);
 
           return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
@@ -368,10 +357,11 @@ async function fetchDataServices(
       filterQuery = filterQuery.$and[0];
     }
 
+    // Optimize client fetching by selecting only needed fields
     const totalClients = await ClientModel.countDocuments(filterQuery);
     const totalPages = Math.ceil(totalClients / pageSize);
 
-    // Get paginated clients with proper skip and limit
+    // First fetch clients
     const clients = await ClientModel.find(filterQuery)
       .select(clientFields)
       .sort({ id: -1 })
@@ -379,65 +369,128 @@ async function fetchDataServices(
       .limit(pageSize)
       .lean();
 
-    const modelNamesArray = Array.isArray(modelNames)
-      ? modelNames
-      : [modelNames];
+    // Then fetch model data in parallel
+    const modelDataArrays = await Promise.all(
+      modelNames.map(async (modelName) => {
+        const modelKey = Object.keys(models).find(
+          (key) => key.toLowerCase() === modelName.toLowerCase()
+        );
 
-    const fetchPromises = modelNamesArray.map(async (modelName) => {
-      const modelKey = Object.keys(models).find(
-        (key) => key.toLowerCase() === modelName.toLowerCase()
-      );
-
-      if (!modelKey) {
-        throw new Error(`Model not found for ${modelName}`);
-      }
-
-      const modelFunction = models[modelKey];
-      let Model;
-      if (typeof modelFunction === "function") {
-        const importedModel = await modelFunction();
-        Model = importedModel.default || importedModel;
-      } else {
-        Model = modelFunction;
-      }
-
-      if (Model && Model.modelName && typeof Model.aggregate === "function") {
-        const config = modelConfigs[modelKey];
-        if (!config) {
-          console.error(`No configuration found for ${modelName}`);
-          return { data: [], totalCopies: 0, pageSpecificCopies: 0 };
+        if (!modelKey) {
+          throw new Error(`Model not found for ${modelName}`);
         }
 
-        return Model.aggregate([
-          {
-            $project: config.projectFields,
-          },
-          {
-            $group: {
-              _id: "$clientid",
-              recentCopies: { $first: "$copies" },
-              totalCopies: { $sum: "$copies" },
-              totalCalQty: { $sum: "$calqty" },
-              totalCalAmt: { $sum: "$calamt" },
-              subsclass: { $first: "$subsclass" },
-              records: {
-                $push: config.groupFields,
+        const modelFunction = models[modelKey];
+        let Model;
+        if (typeof modelFunction === "function") {
+          const importedModel = await modelFunction();
+          Model = importedModel.default || importedModel;
+        } else {
+          Model = modelFunction;
+        }
+
+        if (Model && Model.modelName && typeof Model.aggregate === "function") {
+          const config = modelConfigs[modelKey];
+          if (!config) {
+            console.error(`No configuration found for ${modelName}`);
+            return { data: [], totalCopies: 0, pageSpecificCopies: 0 };
+          }
+
+          // Only fetch data for clients in the current page to reduce data volume
+          const clientIds = clients.map((c) => c.id);
+
+          // For WMM model, we need to get subscription data
+          if (modelKey.toLowerCase() === "wmmmodel") {
+            console.log("Processing WMM model data...");
+            console.log("Client IDs to match:", clientIds);
+
+            const result = await Model.aggregate([
+              {
+                $match: {
+                  clientid: { $in: clientIds.map((id) => parseInt(id)) }, // Convert to integers
+                },
+              },
+              { $project: config.projectFields },
+              { $sort: { clientid: 1, subsdate: -1 } },
+              {
+                $group: {
+                  _id: "$clientid", // This will be the integer clientid
+                  recentCopies: { $first: "$copies" },
+                  totalCopies: { $sum: { $toInt: "$copies" } },
+                  totalCalQty: { $sum: { $toInt: "$calqty" } },
+                  totalCalAmt: { $sum: { $toInt: "$calamt" } },
+                  subsclass: { $first: "$subsclass" },
+                  subsdate: { $first: "$subsdate" },
+                  enddate: { $first: "$enddate" },
+                  records: {
+                    $push: "$$ROOT", // Include the entire document in records
+                  },
+                },
+              },
+            ]);
+
+            // Log the first result to see what's being returned
+            if (result.length > 0) {
+              console.log("WMM sample result:", {
+                clientId: result[0]._id,
+                recordsCount: result[0].records?.length || 0,
+                hasRecords: !!result[0].records,
+                firstRecord: result[0].records?.[0]
+                  ? Object.keys(result[0].records[0]).join(", ")
+                  : "No records",
+              });
+            } else {
+              console.log("No WMM data found for the current clients");
+            }
+
+            return result;
+          }
+
+          // For other models
+          return Model.aggregate([
+            {
+              $match: {
+                clientid: { $in: clientIds.map((id) => parseInt(id)) }, // Convert to integers
               },
             },
-          },
-        ]);
-      } else {
-        console.error(`Invalid model for ${modelName}. Model:`, Model);
-        return [];
-      }
-    });
-
-    const [modelDataArrays] = await Promise.all([Promise.all(fetchPromises)]);
+            { $project: config.projectFields },
+            {
+              $group: {
+                _id: "$clientid", // This will be the integer clientid
+                recentCopies: { $first: "$copies" },
+                totalCopies: { $sum: { $toInt: "$copies" } },
+                totalCalQty: { $sum: { $toInt: "$calqty" } },
+                totalCalAmt: { $sum: { $toInt: "$calamt" } },
+                subsclass: { $first: "$subsclass" },
+                records: {
+                  $push: "$$ROOT", // Include the entire document in records
+                },
+              },
+            },
+          ]);
+        } else {
+          console.error(`Invalid model for ${modelName}. Model:`, Model);
+          return [];
+        }
+      })
+    );
 
     // Process model data
     const validModelDataArrays = modelDataArrays.filter(
       (array) => Array.isArray(array) && array.length > 0
     );
+
+    console.log("Valid model data arrays count:", validModelDataArrays.length);
+    validModelDataArrays.forEach((modelData, index) => {
+      console.log(`Model ${modelNames[index]} has ${modelData.length} records`);
+      if (modelData.length > 0) {
+        console.log(
+          `First record has ${
+            modelData[0].records?.length || 0
+          } subscription records`
+        );
+      }
+    });
 
     const modelDataMap = new Map();
     validModelDataArrays.forEach((modelData, index) => {
@@ -446,96 +499,129 @@ async function fetchDataServices(
         if (!modelDataMap.has(clientId)) {
           modelDataMap.set(clientId, {});
         }
-        modelDataMap.get(clientId)[
-          modelNamesArray[index].toLowerCase().replace("model", "") + "Data"
-        ] = item.records || item;
+
+        // Create the data object with all fields from the item
+        const dataObject = {
+          ...item,
+          records: item.records || [],
+        };
+
+        // Log the data object for WMM
+        if (modelNames[index].toLowerCase() === "wmmmodel") {
+          console.log(`WMM data for client ${clientId}:`, {
+            recordsCount: dataObject.records.length,
+            hasRecords: !!dataObject.records,
+            dataKeys: Object.keys(dataObject).join(", "),
+          });
+        }
+
+        // Set the data for this model
+        const modelKey =
+          modelNames[index].toLowerCase().replace("model", "") + "Data";
+        modelDataMap.get(clientId)[modelKey] = dataObject;
       });
     });
 
+    // Log a sample of the combined data
     const combinedData = clients.map((client) => ({
       ...client,
       ...modelDataMap.get(client.id),
     }));
 
+    if (combinedData.length > 0) {
+      const sampleClient = combinedData[0];
+      console.log("Sample combined client data:", {
+        id: sampleClient.id,
+        hasWmmData: !!sampleClient.wmmData,
+        wmmRecordsCount: sampleClient.wmmData?.records?.length || 0,
+        wmmDataKeys: sampleClient.wmmData
+          ? Object.keys(sampleClient.wmmData).join(", ")
+          : "No WMM data",
+      });
+    }
+
     // Calculate totalCopies using only the most recent copies for each client
     let totalCopies = 0;
+    let totalFilterQuery = { ...filterQuery };
 
-    if (
-      advancedFilterData.wmmStartSubsDate ||
-      advancedFilterData.wmmEndSubsDate
-    ) {
-      const { default: WmmModel } = await import("../../models/wmm.mjs");
+    // Use Promise to get the totalCopies based on the filter
+    const getTotalCopies = async () => {
+      try {
+        // Get all client IDs that match the filter
+        const filteredClientIds = await ClientModel.find(totalFilterQuery)
+          .select("id")
+          .lean()
+          .then((results) => results.map((client) => client.id));
 
-      // Build the date query
-      const dateQuery = {};
-      if (
-        advancedFilterData.wmmStartSubsDate &&
-        advancedFilterData.wmmEndSubsDate
-      ) {
-        // Your existing date filtering...
-        dateQuery.$expr = {
-          $and: [
-            {
-              $lte: [
-                { $dateFromString: { dateString: "$subsdate" } },
-                new Date(advancedFilterData.wmmEndSubsDate),
-              ],
-            },
-            {
-              $gte: [
-                { $dateFromString: { dateString: "$enddate" } },
-                new Date(advancedFilterData.wmmStartSubsDate),
-              ],
-            },
-          ],
+        // If no clients match the filter, return 0
+        if (filteredClientIds.length === 0) {
+          return 0;
+        }
+
+        // Get WMM model for copies calculation
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+
+        // Build WMM query to match filtered clients
+        const wmmQuery = {
+          clientid: { $in: filteredClientIds.map((id) => parseInt(id)) },
         };
-      }
 
-      // Add other filters from filterQuery that apply to the WMM model
-      const wmmQuery = { ...dateQuery };
-      if (advancedFilterData.subsclass) {
-        wmmQuery.subsclass = advancedFilterData.subsclass;
-      }
+        // Add subscription class filter if present
+        if (advancedFilterData.subsclass) {
+          wmmQuery.subsclass = advancedFilterData.subsclass;
+        }
 
-      // Get only the most recent copies for each client
-      const copiesResult = await WmmModel.aggregate([
-        { $match: wmmQuery },
-        { $sort: { clientid: 1, subsdate: -1 } },
-        {
-          $group: {
-            _id: "$clientid",
-            recentCopies: { $first: "$copies" },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalFilteredCopies: { $sum: { $toInt: "$recentCopies" } },
-          },
-        },
-      ]);
+        // For date filtering, we'll use a simpler approach
+        // We'll get all subscriptions for the filtered clients and filter in memory
+        const allSubscriptions = await WmmModel.find(wmmQuery).lean();
 
-      totalCopies =
-        copiesResult.length > 0 ? copiesResult[0].totalFilteredCopies : 0;
-    } else {
-      // If no date filters, use recentCopies instead of totalCopies
-      const filteredClientIds = await ClientModel.find(filterQuery)
-        .select("id")
-        .lean()
-        .then((results) => results.map((client) => client.id));
+        // Filter subscriptions based on date if needed
+        let filteredSubscriptions = allSubscriptions;
+        if (
+          advancedFilterData.wmmStartSubsDate &&
+          advancedFilterData.wmmEndSubsDate
+        ) {
+          const startDate = new Date(advancedFilterData.wmmStartSubsDate);
+          const endDate = new Date(advancedFilterData.wmmEndSubsDate);
 
-      totalCopies = validModelDataArrays.reduce((acc, modelData) => {
-        return (
-          acc +
-          modelData.reduce((modelAcc, item) => {
-            if (filteredClientIds.includes(item._id)) {
-              return modelAcc + (parseInt(item.recentCopies) || 0);
+          filteredSubscriptions = allSubscriptions.filter((sub) => {
+            try {
+              const subDate = new Date(sub.subsdate);
+              const subEndDate = new Date(sub.enddate);
+              return subDate <= endDate && subEndDate >= startDate;
+            } catch (e) {
+              console.error("Error parsing date:", e);
+              return false;
             }
-            return modelAcc;
-          }, 0)
-        );
-      }, 0);
-    }
+          });
+        }
+
+        // Sum up all copies directly
+        let totalCopies = 0;
+        for (const sub of filteredSubscriptions) {
+          // Only count if copies is a valid number or can be converted to a valid number
+          if (sub.copies) {
+            const copies =
+              typeof sub.copies === "string"
+                ? parseInt(sub.copies, 10)
+                : sub.copies;
+
+            // Only add if it's a valid number
+            if (!isNaN(copies) && copies > 0) {
+              totalCopies += copies;
+            }
+          }
+        }
+
+        return totalCopies;
+      } catch (error) {
+        console.error("Error calculating total copies:", error);
+        return 0;
+      }
+    };
+
+    // Calculate total copies based on filter
+    totalCopies = await getTotalCopies();
 
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
       const clientCopies = validModelDataArrays.reduce(
