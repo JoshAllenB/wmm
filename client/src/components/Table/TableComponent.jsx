@@ -142,67 +142,88 @@ export function TableComponent({
                     ) : cell.column.id === "Subscription" &&
                       Array.isArray(cell.getValue()) ? (
                       <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
-                        {cell.getValue().map((sub, index) => (
-                          <li key={index}>
-                            <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
-                            {sub.enddate}, Cps: {sub.copies}
-                          </li>
-                        ))}
+                        {cell.getValue().length > 0 ? (
+                          cell.getValue().map((sub, index) => (
+                            <li key={index}>
+                              <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
+                              {sub.enddate}, Cps: {sub.copies}
+                            </li>
+                          ))
+                        ) : (
+                          <li>No subscription data</li>
+                        )}
                       </ul>
                     ) : cell.column.id === "HRG Data" &&
                       Array.isArray(cell.getValue()) ? (
                       <ul>
-                        {cell.getValue().map((hrg, index) => (
-                          <li key={index} style={{ textAlign: "left" }}>
-                            <strong>Received Date:</strong> {hrg.recvdate},{" "}
-                            <br />
-                            <strong>Renew Date:</strong> {hrg.renewdate}, <br />
-                            <strong>Campaign Date: </strong> {hrg.campaigndate},
-                            <br />
-                            <strong>Payment Reference: {hrg.paymtref}</strong> ,
-                            <br />
-                            <strong>Payment Amount: {hrg.paymtamt}</strong>
-                            <br />
-                            <strong>Status:</strong> {hrg.unsubscribe} <br />
-                          </li>
-                        ))}
+                        {cell.getValue().length > 0 ? (
+                          cell.getValue().map((hrg, index) => (
+                            <li key={index} style={{ textAlign: "left" }}>
+                              <strong>Received Date:</strong> {hrg.recvdate},{" "}
+                              <br />
+                              <strong>Renew Date:</strong> {hrg.renewdate},{" "}
+                              <br />
+                              <strong>Campaign Date: </strong>{" "}
+                              {hrg.campaigndate},
+                              <br />
+                              <strong>
+                                Payment Reference: {hrg.paymtref}
+                              </strong>{" "}
+                              ,
+                              <br />
+                              <strong>Payment Amount: {hrg.paymtamt}</strong>
+                              <br />
+                              <strong>Status:</strong> {hrg.unsubscribe} <br />
+                            </li>
+                          ))
+                        ) : (
+                          <li>No HRG data</li>
+                        )}
                       </ul>
                     ) : cell.column.id === "FOM Data" &&
                       Array.isArray(cell.getValue()) ? (
                       <ul>
-                        {cell.getValue().map((fom, index) => (
-                          <li key={index} style={{ textAlign: "left" }}>
-                            <strong>Received Date:</strong> {fom.recvdate},{" "}
-                            <br />
-                            <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
-                            <br />
-                            <strong>Status:</strong> {fom.unsubscribe} <br />
-                            <strong>Remarks:</strong> {fom.remarks}, <br />
-                          </li>
-                        ))}
+                        {cell.getValue().length > 0 ? (
+                          cell.getValue().map((fom, index) => (
+                            <li key={index} style={{ textAlign: "left" }}>
+                              <strong>Received Date:</strong> {fom.recvdate},{" "}
+                              <br />
+                              <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
+                              <br />
+                              <strong>Status:</strong> {fom.unsubscribe} <br />
+                              <strong>Remarks:</strong> {fom.remarks}, <br />
+                            </li>
+                          ))
+                        ) : (
+                          <li>No FOM data</li>
+                        )}
                       </ul>
                     ) : cell.column.id === "CAL Data" &&
                       Array.isArray(cell.getValue()) ? (
                       <ul>
-                        {cell.getValue().map((cal, index) => (
-                          <li key={index} style={{ textAlign: "left" }}>
-                            <strong>Received Date:</strong> {cal.recvdate},{" "}
-                            <br />
-                            <strong>Type:</strong> {cal.caltype}, <br />
-                            <strong>Quantity:</strong> {cal.calqty}, <br />
-                            <strong>Amount:</strong> {cal.calamt}, <br />
-                            <strong>Payment Reference:</strong> {cal.paymtref},{" "}
-                            <br />
-                            <strong>Payment Amount:</strong> {cal.paymtamt},{" "}
-                            <br />
-                            <strong>Payment Form:</strong> {cal.paymtform},{" "}
-                            <br />
-                            <strong>Payment Date:</strong> {cal.paymtdate},{" "}
-                            <br />
-                            <strong>Added Date:</strong> {cal.adddate}, <br />
-                            <strong>Added By:</strong> {cal.adduser}
-                          </li>
-                        ))}
+                        {cell.getValue().length > 0 ? (
+                          cell.getValue().map((cal, index) => (
+                            <li key={index} style={{ textAlign: "left" }}>
+                              <strong>Received Date:</strong> {cal.recvdate},{" "}
+                              <br />
+                              <strong>Type:</strong> {cal.caltype}, <br />
+                              <strong>Quantity:</strong> {cal.calqty}, <br />
+                              <strong>Amount:</strong> {cal.calamt}, <br />
+                              <strong>Payment Reference:</strong> {cal.paymtref}
+                              , <br />
+                              <strong>Payment Amount:</strong> {cal.paymtamt},{" "}
+                              <br />
+                              <strong>Payment Form:</strong> {cal.paymtform},{" "}
+                              <br />
+                              <strong>Payment Date:</strong> {cal.paymtdate},{" "}
+                              <br />
+                              <strong>Added Date:</strong> {cal.adddate}, <br />
+                              <strong>Added By:</strong> {cal.adduser}
+                            </li>
+                          ))
+                        ) : (
+                          <li>No CAL data</li>
+                        )}
                       </ul>
                     ) : cell.column.id === "Services" &&
                       Array.isArray(cell.getValue()) ? (

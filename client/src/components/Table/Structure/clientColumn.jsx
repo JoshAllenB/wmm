@@ -118,10 +118,16 @@ export const useColumns = () => {
             id: "Subscription",
             Header: "Subscription",
             accessorFn: (row) => {
-              const subscriptionData = row.wmmData || [];
+              // Check if wmmData exists and has records
+              if (!row.wmmData || !row.wmmData.records) {
+                return [];
+              }
 
-              // Sort subscriptionData by subsdate in descending order (most recent first)
-              return [...subscriptionData]
+              // Use the records array from wmmData
+              const subscriptionRecords = row.wmmData.records || [];
+
+              // Sort records by subsdate in descending order (most recent first)
+              return [...subscriptionRecords]
                 .sort((a, b) => {
                   const dateA = new Date(a.subsdate || 0);
                   const dateB = new Date(b.subsdate || 0);
@@ -164,10 +170,16 @@ export const useColumns = () => {
             id: "HRG Data",
             Header: "HRG Data",
             accessorFn: (row) => {
-              const hrgData = row.hrgData || [];
+              // Check if hrgData exists and has records
+              if (!row.hrgData || !row.hrgData.records) {
+                return [];
+              }
+
+              // Use the records array from hrgData
+              const hrgRecords = row.hrgData.records || [];
 
               // Convert the array of objects to a more readable format
-              return hrgData.map((hrgItem) => {
+              return hrgRecords.map((hrgItem) => {
                 let {
                   recvdate,
                   renewdate,
@@ -207,9 +219,15 @@ export const useColumns = () => {
             id: "FOM Data",
             Header: "FOM Data",
             accessorFn: (row) => {
-              const fomData = row.fomData || [];
+              // Check if fomData exists and has records
+              if (!row.fomData || !row.fomData.records) {
+                return [];
+              }
 
-              return fomData.map((fomItem) => {
+              // Use the records array from fomData
+              const fomRecords = row.fomData.records || [];
+
+              return fomRecords.map((fomItem) => {
                 let {
                   recvdate,
                   remarks,
@@ -246,9 +264,15 @@ export const useColumns = () => {
             id: "CAL Data",
             Header: "CAL Data",
             accessorFn: (row) => {
-              const calData = row.calData || [];
+              // Check if calData exists and has records
+              if (!row.calData || !row.calData.records) {
+                return [];
+              }
 
-              return calData.map((calItem) => {
+              // Use the records array from calData
+              const calRecords = row.calData.records || [];
+
+              return calRecords.map((calItem) => {
                 let {
                   recvdate,
                   caltype,
