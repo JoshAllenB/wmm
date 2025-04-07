@@ -407,4 +407,117 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
   }
 });
 
+router.post("/check-duplicates", verifyToken, async (req, res) => {
+  try {
+    const { lname, fname, mname, email, cellno, contactnos } = req.body;
+
+    // Build a query to find potential duplicates
+    const query = { $or: [] };
+
+    // Name-based matching
+    if (lname && fname) {
+      query.$or.push({
+        $and: [
+          { lname: { $regex: new RegExp(`^${lname}`, "i") } },
+          { fname: { $regex: new RegExp(`^${fname}`, "i") } },
+        ],
+      });
+    } else if (lname && lname.length > 1) {
+      query.$or.push({ lname: { $regex: new RegExp(`^${lname}`, "i") } });
+    } else if (fname && fname.length > 1) {
+      query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
+    }
+
+    // Contact-based matching
+    if (email && email.includes("@")) {
+      query.$or.push({ email: { $regex: new RegExp(`^${email}`, "i") } });
+    }
+
+    if (cellno && cellno.length > 5) {
+      query.$or.push({ cellno: { $regex: cellno } });
+    }
+
+    if (contactnos && contactnos.length > 5) {
+      query.$or.push({ contactnos: { $regex: contactnos } });
+    }
+
+    // If we don't have enough criteria, don't bother searching
+    if (query.$or.length === 0) {
+      return res.json({ matches: [] });
+    }
+
+    // Execute query with limit to ensure performance
+    const clients = await ClientModel.find(query)
+      .select("id lname fname mname email cellno address")
+      .limit(5)
+      .lean();
+
+    res.json({ matches: clients });
+  } catch (err) {
+    console.error("Error checking for duplicates:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+router.get("/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Find the client by ID
+    const client = await ClientModel.findOne({ id: parseInt(id) }).lean();
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
+    // Determine which role-specific models to query based on user roles
+    await req.user.populate({
+      path: "roles.role",
+      populate: { path: "defaultPermissions" },
+    });
+
+    const userRoles = req.user.roles.map((role) => role.role.name);
+
+    // Gather data from each role-specific model
+    const roleData = {};
+
+    if (userRoles.includes("Admin") || userRoles.includes("WMM")) {
+      const wmmData = await WmmModel.find({ clientid: parseInt(id) })
+        .sort({ subsdate: -1 })
+        .lean();
+      roleData.wmmData = wmmData;
+    }
+
+    if (userRoles.includes("Admin") || userRoles.includes("HRG")) {
+      const hrgData = await HrgModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.hrgData = hrgData;
+    }
+
+    if (userRoles.includes("Admin") || userRoles.includes("FOM")) {
+      const fomData = await FomModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.fomData = fomData;
+    }
+
+    if (userRoles.includes("Admin") || userRoles.includes("CAL")) {
+      const calData = await CalModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.calData = calData;
+    }
+
+    // Return combined data
+    res.json({
+      ...client,
+      ...roleData,
+    });
+  } catch (err) {
+    console.error("Error fetching client details:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 export default router;
