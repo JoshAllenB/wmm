@@ -66,21 +66,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFilterData((prev) => {
-      // If area is being changed, also update acode since they're related
-      if (name === "area" && value) {
-        // For area, the value is the area._id which is the same as acode
-        return {
-          ...prev,
-          [name]: value,
-          acode: value, // Set acode to match the selected area's ID
-        };
-      }
-      return {
-        ...prev,
-        [name]: value,
-      };
-    });
+    setFilterData((prev) => ({
+      ...prev,
+      [name]: value,
+      // If area is being changed, also update acode
+      ...(name === "area" && value ? { acode: value } : {}),
+    }));
   };
 
   const handleServiceChange = (service) => {
@@ -94,10 +85,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         services.splice(serviceIndex, 1);
       }
 
-      return {
-        ...prev,
-        services,
-      };
+      return { ...prev, services };
     });
   };
 
@@ -109,17 +97,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       if (!monthStr) return { start: "", end: "" };
 
       const date = new Date(monthStr);
-
-      // For active subscriptions:
-      // We only need the selected month's start and end
-      // The backend will handle checking if subscriptions are active during this period
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
       const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-      // Format dates as YYYY-MM-DD for consistent date handling
-      const formatDate = (date) => {
-        return date.toISOString().split("T")[0];
-      };
+      // Format dates as YYYY-MM-DD
+      const formatDate = (date) => date.toISOString().split("T")[0];
 
       return {
         start: formatDate(start),
@@ -130,47 +112,210 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
     const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
 
-    // Make sure all personal info fields are explicitly included
+    // Trim text fields and format data
     const formattedData = {
       ...filterData,
-      fname: filterData.fname.trim(), // Ensure first name is included and trimmed
-      lname: filterData.lname.trim(), // Ensure last name is included and trimmed
-      mname: filterData.mname.trim(), // Trim middle name
-      sname: filterData.sname.trim(), // Trim suffix
+      fname: filterData.fname.trim(),
+      lname: filterData.lname.trim(),
+      mname: filterData.mname.trim(),
+      sname: filterData.sname.trim(),
       wmmStartSubsDate: activeMonthRange.start,
       wmmEndSubsDate: activeMonthRange.end,
       wmmStartEndDate: expiringMonthRange.start,
       wmmEndEndDate: expiringMonthRange.end,
-      copiesRange: filterData.copiesRange,
-      minCopies: filterData.minCopies,
-      maxCopies: filterData.maxCopies,
-      group: filterData.group,
-      type: filterData.type,
-      subsclass: filterData.subsclass,
-      area: filterData.area,
-      acode: filterData.acode, // Explicitly include acode in formatted data
     };
 
     onApplyFilter(formattedData);
     closeModal();
   };
 
+  const clearAllFilters = () => {
+    setFilterData({
+      lname: "",
+      fname: "",
+      mname: "",
+      sname: "",
+      birthdate: "",
+      contactnos: "",
+      cellno: "",
+      ofcno: "",
+      email: "",
+      address: "",
+      startDate: "",
+      endDate: "",
+      wmmActiveMonth: "",
+      wmmExpiringMonth: "",
+      copiesRange: "",
+      minCopies: "",
+      maxCopies: "",
+      group: selectedGroup || "",
+      type: "",
+      subsclass: "",
+      area: "",
+      acode: "",
+      services: [],
+    });
+  };
+
   const getFilterButtonText = () => {
     if (hasRole("WMM")) {
       return filterData.group ? `Group: ${filterData.group}` : "Filter Group";
-    } else if (hasRole("HRG, FOM, CAL")) {
-      return "Filter Group";
     }
     return "Filter Group";
+  };
+
+  // Function to count active filters
+  const countActiveFilters = () => {
+    return Object.entries(filterData).reduce((count, [key, value]) => {
+      const isActive =
+        value &&
+        key !== "group" &&
+        ((typeof value === "string" && value.trim() !== "") ||
+          (Array.isArray(value) && value.length > 0));
+
+      return isActive ? count + 1 : count;
+    }, 0);
+  };
+
+  // Get active filters for display
+  const getActiveFilters = () => {
+    // Define field mappings with their display labels
+    const fieldMappings = {
+      fname: "First Name",
+      lname: "Last Name",
+      mname: "Middle Name",
+      sname: "Suffix",
+      birthdate: "Birth Date",
+      email: "Email",
+      cellno: "Cell Number",
+      ofcno: "Office Number",
+      contactnos: "Other Contact",
+      address: "Address",
+      wmmActiveMonth: "Active Month",
+      wmmExpiringMonth: "Expiring Month",
+      group: "Group",
+      type: "Type",
+      subsclass: "Subclass",
+      area: "Area",
+    };
+
+    // Special case formatters
+    const formatters = {
+      address: (value) =>
+        value.length > 20 ? `${value.substring(0, 20)}...` : value,
+      type: (value) => types.find((t) => t.id === value)?.name || value,
+      subsclass: (value) =>
+        subclasses.find((s) => s.id === value)?.name || value,
+    };
+
+    // Handle date range special case
+    const active = [];
+
+    // Handle date range as a special case
+    if (filterData.startDate && filterData.endDate) {
+      active.push({
+        label: "Date Range",
+        value: `${filterData.startDate} to ${filterData.endDate}`,
+        key: "dateRange",
+      });
+    } else if (filterData.startDate) {
+      active.push({
+        label: "From Date",
+        value: filterData.startDate,
+        key: "startDate",
+      });
+    } else if (filterData.endDate) {
+      active.push({
+        label: "To Date",
+        value: filterData.endDate,
+        key: "endDate",
+      });
+    }
+
+    // Handle copies range as a special case
+    if (filterData.copiesRange) {
+      const rangeMap = {
+        lt5: "Less than 5",
+        "5to10": "5 to 10",
+        gt10: "More than 10",
+        custom: `${filterData.minCopies || "0"} to ${
+          filterData.maxCopies || "∞"
+        }`,
+      };
+
+      active.push({
+        label: "Copies",
+        value: rangeMap[filterData.copiesRange] || filterData.copiesRange,
+        key: "copiesRange",
+      });
+    }
+
+    // Handle services as a special case
+    if (filterData.services.length > 0) {
+      active.push({
+        label: "Services",
+        value: filterData.services.join(", "),
+        key: "services",
+      });
+    }
+
+    // Process all other standard fields
+    Object.entries(fieldMappings).forEach(([key, label]) => {
+      const value = filterData[key];
+
+      // Skip empty values, group if it matches selectedGroup, and already handled special cases
+      if (
+        !value ||
+        (key === "group" && value === selectedGroup) ||
+        key === "startDate" ||
+        key === "endDate"
+      ) {
+        return;
+      }
+
+      // Format the value if a formatter exists, otherwise use the raw value
+      const displayValue = formatters[key] ? formatters[key](value) : value;
+
+      active.push({ label, value: displayValue, key });
+    });
+
+    return active;
+  };
+
+  // Remove a specific filter
+  const removeFilter = (key) => {
+    setFilterData((prev) => {
+      const updates = {};
+
+      // Handle special cases
+      switch (key) {
+        case "dateRange":
+          updates.startDate = "";
+          updates.endDate = "";
+          break;
+        case "services":
+          updates.services = [];
+          break;
+        default:
+          updates[key] = "";
+      }
+
+      return { ...prev, ...updates };
+    });
   };
 
   return (
     <div>
       <Button
         onClick={openModal}
-        className="bg-blue-600 text-white hover:bg-blue-700 rounded-md"
+        className="bg-blue-600 text-white hover:bg-blue-700 rounded-md flex items-center gap-2"
       >
-        Advanced Filter
+        <span>Advanced Filter</span>
+        {countActiveFilters() > 0 && (
+          <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
+            {countActiveFilters()}
+          </span>
+        )}
       </Button>
 
       {showModal && (
@@ -199,7 +344,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="fname"
                     value={filterData.fname}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.fname ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                   <InputField
                     label="Last Name"
@@ -207,7 +354,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="lname"
                     value={filterData.lname}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.lname ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <InputField
@@ -216,7 +365,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="mname"
                       value={filterData.mname}
                       onChange={handleChange}
-                      className="w-full"
+                      className={`w-full ${
+                        filterData.mname ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                     />
                     <InputField
                       label="Suffix"
@@ -224,7 +375,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="sname"
                       value={filterData.sname}
                       onChange={handleChange}
-                      className="w-full"
+                      className={`w-full ${
+                        filterData.sname ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                     />
                   </div>
                   <InputField
@@ -234,7 +387,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     type="date"
                     value={filterData.birthdate}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.birthdate ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                 </div>
               </div>
@@ -252,7 +407,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     type="email"
                     value={filterData.email}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.email ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                   <InputField
                     label="Cell Number"
@@ -260,7 +417,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="cellno"
                     value={filterData.cellno}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.cellno ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                   <InputField
                     label="Office Number"
@@ -268,7 +427,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="ofcno"
                     value={filterData.ofcno}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.ofcno ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                   <InputField
                     label="Other Contact"
@@ -276,7 +437,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="contactnos"
                     value={filterData.contactnos}
                     onChange={handleChange}
-                    className="w-full"
+                    className={`w-full ${
+                      filterData.contactnos ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   />
                 </div>
               </div>
@@ -293,7 +456,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   <textarea
                     id="address"
                     name="address"
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[120px]"
+                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[120px] ${
+                      filterData.address ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                     value={filterData.address}
                     onChange={handleChange}
                   />
@@ -318,7 +483,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         type="date"
                         value={filterData.startDate}
                         onChange={handleChange}
-                        className="w-full"
+                        className={`w-full ${
+                          filterData.startDate
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
+                        }`}
                       />
                       <InputField
                         label="End Date"
@@ -327,7 +496,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         type="date"
                         value={filterData.endDate}
                         onChange={handleChange}
-                        className="w-full"
+                        className={`w-full ${
+                          filterData.endDate ? "border-blue-500 bg-blue-50" : ""
+                        }`}
                       />
                     </div>
                   </div>
@@ -346,7 +517,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       type="month"
                       value={filterData.wmmActiveMonth}
                       onChange={handleChange}
-                      className="w-full"
+                      className={`w-full ${
+                        filterData.wmmActiveMonth
+                          ? "border-blue-500 bg-blue-50"
+                          : ""
+                      }`}
                     />
                   </div>
 
@@ -364,7 +539,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       type="month"
                       value={filterData.wmmExpiringMonth}
                       onChange={handleChange}
-                      className="w-full"
+                      className={`w-full ${
+                        filterData.wmmExpiringMonth
+                          ? "border-blue-500 bg-blue-50"
+                          : ""
+                      }`}
                     />
                   </div>
                 </div>
@@ -383,7 +562,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="copiesRange"
                     value={filterData.copiesRange}
                     onChange={handleChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
+                    }`}
                   >
                     <option value="">Any number of copies</option>
                     <option value="lt5">Less than 5</option>
@@ -402,7 +583,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         min="0"
                         value={filterData.minCopies}
                         onChange={handleChange}
-                        className="w-full"
+                        className={`w-full ${
+                          filterData.minCopies
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
+                        }`}
                       />
                       <InputField
                         label="Max copies"
@@ -412,7 +597,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         min="0"
                         value={filterData.maxCopies}
                         onChange={handleChange}
-                        className="w-full"
+                        className={`w-full ${
+                          filterData.maxCopies
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
+                        }`}
                       />
                     </div>
                   )}
@@ -433,7 +622,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="group"
                       value={filterData.group}
                       onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.group ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                       disabled={!hasRole("WMM")}
                     >
                       <option value="">All Groups</option>
@@ -459,7 +650,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="type"
                       value={filterData.type}
                       onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.type ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                     >
                       <option value="">All Types</option>
                       {Array.isArray(types) &&
@@ -479,7 +672,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="subsclass"
                       value={filterData.subsclass}
                       onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.subsclass ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                     >
                       <option value="">All Subclasses</option>
                       {Array.isArray(subclasses) &&
@@ -499,7 +694,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="area"
                       value={filterData.area}
                       onChange={handleChange}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.area ? "border-blue-500 bg-blue-50" : ""
+                      }`}
                     >
                       <option value="">All Areas</option>
                       {Array.isArray(areas) &&
@@ -588,7 +785,54 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
               </div>
             </div>
 
-            <div className="mt-8 pt-4 border-t flex justify-end gap-3">
+            {/* Active Filters Section */}
+            {getActiveFilters().length > 0 && (
+              <div className="mt-8 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-blue-700 text-sm font-bold">
+                    Active Filters
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={clearAllFilters}
+                    className="text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    Clear all
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {getActiveFilters().map((filter, index) => (
+                    <div
+                      key={index}
+                      className="bg-white border border-blue-300 rounded-full px-3 py-1 text-xs flex items-center"
+                    >
+                      <span className="font-semibold mr-1">
+                        {filter.label}:
+                      </span>
+                      <span className="truncate max-w-[150px]">
+                        {filter.value}
+                      </span>
+                      <button
+                        type="button"
+                        className="ml-2 text-gray-500 hover:text-red-500"
+                        onClick={() => removeFilter(filter.key)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t flex justify-end gap-3">
+              <Button
+                type="button"
+                onClick={clearAllFilters}
+                className="px-4 py-2 text-red-700 bg-red-100 hover:bg-red-200 rounded-md"
+              >
+                Clear All
+              </Button>
               <Button
                 type="button"
                 onClick={closeModal}
