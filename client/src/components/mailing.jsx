@@ -20,10 +20,11 @@ const Mailing = ({
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
-  const [topPosition, setTopPosition] = useState(10); // Initial state for top position
-  const [columnWidth, setColumnWidth] = useState(300); // State for column width
+  const [topPosition, setTopPosition] = useState(10);
+  const [columnWidth, setColumnWidth] = useState(300);
   const [fontSize, setFontSize] = useState(12);
-  const addressHeight = 100; // Fixed height for each address container
+  const [labelHeight, setLabelHeight] = useState(100);
+  const [horizontalSpacing, setHorizontalSpacing] = useState(20);
   const [selectedFields, setSelectedFields] = useState(["contactnos"]);
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -32,6 +33,11 @@ const Mailing = ({
   const [inputModalOpen, setInputModalOpen] = useState(false);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
 
+  // State for start/end Client IDs
+  const [startClientId, setStartClientId] = useState("");
+  const [endClientId, setEndClientId] = useState("");
+  const [startPosition, setStartPosition] = useState("left"); // 'left' or 'right'
+
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
 
   const columns = useColumns();
@@ -39,7 +45,6 @@ const Mailing = ({
     (column) => column.id !== "addedBy" && column.id !== "Added Info"
   );
 
-  // Get selected rows safely with proper type checking
   const getSelectedRows = useCallback(() => {
     if (!table || typeof table.getSelectedRowModel !== "function") return [];
     try {
@@ -54,8 +59,44 @@ const Mailing = ({
   const selectedRows = getSelectedRows();
   const hasSelectedRows = selectedRows.length > 0;
 
+  // Set default start/end IDs when selection changes
+  useEffect(() => {
+    if (hasSelectedRows) {
+      const firstId = selectedRows[0]?.original?.id?.toString() || "";
+      const lastId =
+        selectedRows[selectedRows.length - 1]?.original?.id?.toString() || "";
+
+      // Ensure startId <= endId for the default range
+      if (firstId && lastId) {
+        // Attempt numeric comparison first, fallback to string
+        const firstNum = parseInt(firstId, 10);
+        const lastNum = parseInt(lastId, 10);
+        if (!isNaN(firstNum) && !isNaN(lastNum)) {
+          setStartClientId(Math.min(firstNum, lastNum).toString());
+          setEndClientId(Math.max(firstNum, lastNum).toString());
+        } else {
+          // Fallback to string comparison
+          if (firstId <= lastId) {
+            setStartClientId(firstId);
+            setEndClientId(lastId);
+          } else {
+            setStartClientId(lastId);
+            setEndClientId(firstId);
+          }
+        }
+      } else {
+        // Handle cases where one or both IDs might be missing
+        setStartClientId(firstId || lastId); // Use whichever one exists
+        setEndClientId(lastId || firstId);
+      }
+    } else {
+      setStartClientId("");
+      setEndClientId("");
+    }
+  }, [selectedRows]); // Rerun when selection changes
+
   const getFullName = (row) => {
-    const title = row.title ? `${row.title} ` : ""; // Add title if present
+    const title = row.title ? `${row.title} ` : "";
     return [title, row.fname, row.mname, row.lname].filter(Boolean).join(" ");
   };
 
@@ -63,36 +104,93 @@ const Mailing = ({
     return row.contactnos || row.cellno || row.ofcno || "";
   };
 
-  const totalAddress = selectedRows.length;
-  const addressPerColumn = Math.ceil(totalAddress / 2);
+  // Generate HTML for a specific range of Client IDs and starting position
+  const generatePrintHTML = (startId, endId, startColumn) => {
+    // Filter rows based on start/end Client IDs
+    const filteredRows = selectedRows.filter((row) => {
+      const clientId = row?.original?.id?.toString();
+      if (!clientId) {
+        return false;
+      }
+      const trimmedStartId = startId?.trim();
+      const trimmedEndId = endId?.trim();
 
-  const generatePrintHTML = () => {
-    const column1 = selectedRows.slice(0, addressPerColumn);
-    const column2 = selectedRows.slice(addressPerColumn);
+      const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+      const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+      return isAfterStart && isBeforeEnd;
+    });
+
+    if (filteredRows.length === 0) {
+      return "<html><body>No labels found for the specified Client ID range. Check IDs and selection.</body></html>";
+    }
+
+    // Calculate layout based on filtered rows
+    const numRowsToPrint = filteredRows.length;
+    let layoutRows = [...filteredRows];
+    let emptySlots = 0;
+
+    // If starting on the right, add a placeholder at the beginning
+    if (startColumn === "right" && numRowsToPrint > 0) {
+      layoutRows.unshift(null); // Add placeholder for the first slot
+      emptySlots = 1;
+    }
+
+    const addressPerColumn = Math.ceil(layoutRows.length / 2);
+    const column1 = layoutRows.slice(0, addressPerColumn);
+    const column2 = layoutRows.slice(addressPerColumn);
 
     const labelHtml = [column1, column2]
       .map((column, columnIndex) => {
         return column
           .map((row, rowIndex) => {
-            const wmmData = row?.original?.wmmData || [];
-            const copies = wmmData.length > 0 ? wmmData[0].copies : "N/A";
-            const subsdate =
-              wmmData.length > 0
-                ? new Date(wmmData[0].subsdate).toLocaleDateString()
-                : "N/A";
+            // Skip rendering the placeholder if it exists
+            if (row === null) {
+              return "<!-- Placeholder -->";
+            }
+
+            // Calculate the actual data row index (needed if placeholder was added)
+            const dataRowIndex =
+              columnIndex * addressPerColumn + rowIndex - emptySlots;
+            const actualRowData = filteredRows[dataRowIndex];
+
+            if (!actualRowData) {
+              console.error(
+                "Mismatch finding actual row data for index",
+                dataRowIndex
+              );
+              return "<!-- Error -->";
+            }
+
+            // Access data directly from the wmmData object
+            const wmmData = actualRowData?.original?.wmmData; // Get the object
+            const copies = wmmData?.totalCopies ?? "N/A"; // Use totalCopies, fallback N/A
+            let subsdate = "N/A";
+            if (wmmData?.subsdate) {
+              // Check for subsdate directly on the object
+              const date = new Date(wmmData.subsdate);
+              if (!isNaN(date.getTime())) {
+                subsdate = date.toLocaleDateString();
+              }
+            }
 
             return `
           <div class="address-container" style="left: ${
-            columnIndex * (columnWidth + 20)
+            columnIndex * (columnWidth + horizontalSpacing)
           }px; top: ${
-              rowIndex * addressHeight
+              topPosition + rowIndex * labelHeight
             }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
-            <p>${row?.original?.id || ""} - ${subsdate} - ${copies}cps/${
-              row?.original?.acode || ""
+            <p>${
+              actualRowData?.original?.id || ""
+            } - ${subsdate} - ${copies}cps/${
+              actualRowData?.original?.acode || ""
             }</p>
-            <p>${getFullName(row?.original || {})}</p>
-            <p>${row?.original?.address || ""}</p>
-            <p>${getContactNumber(row?.original || {})}</p>
+            <p>${getFullName(actualRowData?.original || {})}</p>
+            <p>${actualRowData?.original?.address || ""}</p>
+            ${
+              selectedFields.includes("contactnos")
+                ? `<p>${getContactNumber(actualRowData?.original || {})}</p>`
+                : "" /* Render contact paragraph conditionally */
+            }
           </div>
         `;
           })
@@ -102,13 +200,16 @@ const Mailing = ({
 
     return `
       <html>
-        <head>
+      <head>
+         <title>Mailing Labels (${startId || "Start"} to ${
+      endId || "End"
+    })</title>
           <style>
             body { font-family: Arial, sans-serif; }
             .mailing-label {
               position: relative;
-              width: ${columnWidth * 2 + 40}px;
-              height: ${topPosition + addressHeight * addressPerColumn}px;
+              width: ${columnWidth * 2 + horizontalSpacing}px;
+              height: ${topPosition + labelHeight * addressPerColumn}px;
             }
             .address-container {
               position: absolute;
@@ -124,29 +225,41 @@ const Mailing = ({
               white-space: normal;
               overflow-wrap: break-word;
             }
+             @media print {
+               body { margin: ${topPosition}px 0 0 ${leftPosition}px !important; }
+             }
           </style>
         </head>
         <body>
-          <div class="mailing-label">${labelHtml}</div>
+          <div class="mailing-label" style="position: absolute; left: ${leftPosition}px; top: ${topPosition}px;">
+              ${labelHtml}
+          </div>
           <script>
-            window.print();
-            window.close();
+             window.print();
+             window.close();
           </script>
         </body>
       </html>
     `;
   };
 
-  const handlePrint = () => {
-    const printHTML = generatePrintHTML();
-    const printWindow = window.open("", "_blank");
-    printWindow.document.open();
-    printWindow.document.write(generatePrintHTML());
-    printWindow.document.close();
-    printWindow.onload = () => {
-      printWindow.print();
-      printWindow.close();
-    };
+  // Handle printing with the specified range and starting position
+  const handlePrintWithRange = () => {
+    const htmlContent = generatePrintHTML(
+      startClientId,
+      endClientId,
+      startPosition
+    );
+    const printWindow = window.open("", "_blank", "height=600,width=800");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } else {
+      alert(
+        "Could not open print window. Please check your pop-up blocker settings."
+      );
+    }
   };
 
   const toggleModal = () => {
@@ -155,6 +268,11 @@ const Mailing = ({
 
   const closeModal = () => {
     setModalOpen(false);
+    // Reset start/end IDs when closing (optional, could retain)
+    // if (hasSelectedRows) {
+    //     setStartClientId(selectedRows[0]?.original?.id?.toString() || "");
+    //     setEndClientId(selectedRows[selectedRows.length - 1]?.original?.id?.toString() || "");
+    // }
   };
 
   const handleLeftPositionChange = (event) => {
@@ -162,7 +280,7 @@ const Mailing = ({
   };
 
   const handleTopPositionChange = (event) => {
-    setTopPosition(parseInt(event.target.value, 10)); // User input changes top position
+    setTopPosition(parseInt(event.target.value, 10));
   };
 
   const handleColumnWidthChange = (event) => {
@@ -206,6 +324,8 @@ const Mailing = ({
           leftPosition,
           topPosition,
           columnWidth,
+          labelHeight,
+          horizontalSpacing,
         },
         selectedFields,
       };
@@ -257,6 +377,8 @@ const Mailing = ({
       setLeftPosition(selected.layout.leftPosition);
       setTopPosition(selected.layout.topPosition);
       setColumnWidth(selected.layout.columnWidth);
+      setLabelHeight(selected.layout.labelHeight || 100);
+      setHorizontalSpacing(selected.layout.horizontalSpacing || 20);
       setSelectedFields(selected.selectedFields);
     }
     setSelectedTemplate(selected);
@@ -409,7 +531,6 @@ const Mailing = ({
     printWindow.document.close();
   };
 
-  // Only render if we have a table instance
   if (!table) return null;
 
   return (
@@ -417,7 +538,7 @@ const Mailing = ({
       {hasSelectedRows && (
         <div className="flex gap-2">
           <Button
-            onClick={() => setModalOpen(true)}
+            onClick={toggleModal}
             className="text-sm bg-green-600 hover:bg-green-800 text-white"
           >
             Print Mailing Label ({selectedRows.length})
@@ -426,113 +547,148 @@ const Mailing = ({
       )}
       <Modal isOpen={modalOpen} onClose={closeModal}>
         <h2 className="flex justify-center text-xl font-bold text-black">
-          Mailing Label Preview
+          Mailing Label Options
         </h2>
 
-        <div className="flex flex-col justify-center ">
-          <div className="flex justify-center gap-2">
-            <Button
-              onClick={toggleShowInputs}
-              className="bg-blue-500 hover:bg-blue-700 text-white"
-            >
+        <div className="flex flex-col items-center ">
+          {/* Configuration Toggle and Checklist Button */}
+          <div className="flex justify-center gap-2 mb-4">
+            <Button onClick={toggleShowInputs} variant="outline">
               {showInputs ? "Hide Configuration" : "Show Configuration"}
             </Button>
             <Button
               onClick={handlePrintChecklist}
-              className="text-sm bg-blue-800 hover:bg-blue-800 text-white"
+              variant="outline"
+              disabled={!hasSelectedRows}
             >
               Print Checklist
             </Button>
           </div>
+
+          {/* Configuration Inputs (Initially Hidden) */}
           {showInputs && (
-            <div className="flex flex-col items-center mt-4">
-              <div className="flex gap-2 mb-2 text-black ">
-                <label>Font Size: </label>
-                <input
-                  type="number"
-                  value={fontSize}
-                  className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                  onChange={handleFontSize}
-                />
+            <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
+              <h3 className="text-lg font-semibold mb-3">Configuration</h3>
+              {/* Layout Settings */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">Font Size:</label>
+                  <input
+                    type="number"
+                    value={fontSize}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={handleFontSize}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">Column Width (px):</label>
+                  <input
+                    type="number"
+                    value={columnWidth}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={handleColumnWidthChange}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">Left Position (px):</label>
+                  <input
+                    type="number"
+                    value={leftPosition}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={handleLeftPositionChange}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">Top Position (px):</label>
+                  <input
+                    type="number"
+                    value={topPosition}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={handleTopPositionChange}
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">
+                    Label Height (Vertical Space):
+                  </label>
+                  <input
+                    type="number"
+                    value={labelHeight}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={(e) =>
+                      setLabelHeight(parseInt(e.target.value, 10) || 100)
+                    }
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="text-sm mb-1">Horizontal Spacing:</label>
+                  <input
+                    type="number"
+                    value={horizontalSpacing}
+                    className="border border-gray-300 rounded p-1 text-center w-full"
+                    onChange={(e) =>
+                      setHorizontalSpacing(parseInt(e.target.value, 10) || 20)
+                    }
+                  />
+                </div>
               </div>
-              <div className="flex gap-2 mb-2 text-black ">
-                <label>Left Position:</label>
-                <input
-                  type="number"
-                  value={leftPosition}
-                  className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                  onChange={handleLeftPositionChange}
-                />
-              </div>
-              <div className="flex gap-2 mb-2 text-black ">
-                <label>Top Position:</label>
-                <input
-                  type="number"
-                  value={topPosition}
-                  className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                  onChange={handleTopPositionChange}
-                />
-              </div>
-              <div className="flex gap-2 mb-2 text-black ">
-                <label>Column Width:</label>
-                <input
-                  type="number"
-                  value={columnWidth}
-                  className="border border-black text-black text-center mb-2 w-[50px] appearance-none"
-                  onChange={handleColumnWidthChange}
-                />
-              </div>
-              <div className="flex gap-2 justify-center">
+              {/* Field Selection */}
+              <div className="flex gap-4 justify-center mb-4 w-full">
                 {fields.map((field) => (
                   <div
                     key={field.value}
-                    className="flex gap-2 mb-2 text-black text-lg"
+                    className="flex items-center gap-1 text-black text-base"
                   >
                     <input
                       type="checkbox"
+                      id={`field-${field.value}`}
                       checked={selectedFields.includes(field.value)}
                       onChange={() => handleFieldChange(field.value)}
-                      className="text-black text-lg border border-black"
+                      className="text-black border-gray-300 h-4 w-4"
                     />
-                    <label>{field.label}</label>
+                    <label htmlFor={`field-${field.value}`}>
+                      {field.label}
+                    </label>
                   </div>
                 ))}
               </div>
-              <Button
-                onClick={handleSaveClick}
-                className="bg-green-500 hover:bg-green-500 text-white"
-              >
-                Save
-              </Button>
-              {showTemplateNameInput && (
-                <div className="flex flex-col items-center mt-4">
-                  <input
-                    type="text"
-                    value={templateName}
-                    onChange={handleTemplateNameChange}
-                    placeholder="Enter template name"
-                    className="border border-black text-black text-center mb-2 w-[200px] appearance-none"
-                  />
-                  <Button
-                    onClick={saveTemplate}
-                    className="bg-blue-500 hover:bg-blue-700 text-white"
-                  >
-                    Confirm Save
-                  </Button>
-                </div>
-              )}
+              {/* Template Saving */}
+              <div className="w-full">
+                <Button
+                  onClick={handleSaveClick}
+                  variant="secondary"
+                  className="w-full mb-2"
+                >
+                  Save Current Settings as Template
+                </Button>
+                {showTemplateNameInput && (
+                  <div className="flex flex-col items-center mt-1">
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={handleTemplateNameChange}
+                      placeholder="Enter template name"
+                      className="border border-gray-300 rounded p-1 text-center mb-1 w-full"
+                    />
+                    <Button onClick={saveTemplate} className="w-full">
+                      Confirm Save
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
-        </div>
-        <div className="flex flex-col items-center mt-2">
-          <div>
-            <label>Select Template:</label>
+
+          {/* Template Selection */}
+          <div className="flex justify-center items-center mb-4">
+            <label className="mr-2">Use Template:</label>
             <select
               onChange={handleTemplateSelect}
               value={selectedTemplate?.name || ""}
+              className="border border-gray-300 rounded p-1"
             >
               <option value="" disabled>
-                Select a template
+                Select a template...
               </option>
               {savedTemplates.map((template) => (
                 <option key={template.name} value={template.name}>
@@ -541,103 +697,136 @@ const Mailing = ({
               ))}
             </select>
           </div>
-          <div className="flex justify-center">
-            <div
-              className="mailing-label border border-gray-400"
-              style={{
-                width: `${columnWidth * 2 + 40}px`,
-                height: `${topPosition + addressHeight * addressPerColumn}px`,
-                position: "relative",
-                marginBottom: "10px",
-              }}
-            >
-              {selectedRows.slice(0, addressPerColumn).map((row, index) => {
-                const wmmData = row.original.wmmData || [];
-                const copies = wmmData.length > 0 ? wmmData[0].copies : "";
-                const subsdate =
-                  wmmData.length > 0
-                    ? new Date(wmmData[0].subsdate).toLocaleDateString()
-                    : "";
-                return (
-                  <div
-                    key={`col1-${row.original.id || index}`}
-                    className="address-container"
-                    style={{
-                      position: "absolute",
-                      left: `${leftPosition}px`,
-                      top: `${topPosition + index * addressHeight}px`,
-                      fontSize: `${fontSize}px`,
-                      width: `${columnWidth}px`,
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      overflowWrap: "break-word",
-                      marginBottom: "20px",
-                    }}
-                  >
-                    <p>
-                      {row.original.id} - {subsdate} - {copies}cps/
-                      {row.original.acode}
-                    </p>
 
-                    <p>{getFullName(row.original)}</p>
-                    <p>{row.original.address}</p>
-
-                    {selectedFields.includes("contactnos") && (
-                      <p>{getContactNumber(row.original)}</p>
-                    )}
-                  </div>
-                );
-              })}
-              {selectedRows.slice(addressPerColumn).map((row, index) => {
-                const wmmData = row.original.wmmData || [];
-                const copies = wmmData.length > 0 ? wmmData[0].copies : "";
-                const subsdate =
-                  wmmData.length > 0
-                    ? new Date(wmmData[0].subsdate).toLocaleDateString()
-                    : "";
-                return (
-                  <div
-                    key={`col2-${row.original.id || index}`}
-                    className="address-container"
-                    style={{
-                      position: "absolute",
-                      left: `${leftPosition + columnWidth + 20}px`,
-                      top: `${topPosition + index * addressHeight}px`,
-                      fontSize: `${fontSize}px`,
-                      width: `${columnWidth}px`,
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      overflowWrap: "break-word",
-                      marginBottom: "20px",
-                    }}
-                  >
-                    <p>
-                      {row.original.id} - {subsdate} - {copies}cps/
-                      {row.original.acode}
-                    </p>
-
-                    <p>{getFullName(row.original)}</p>
-                    <p>{row.original.address}</p>
-
-                    {selectedFields.includes("contactnos") && (
-                      <p>{getContactNumber(row.original)}</p>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Client ID Range Input */}
+          <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-100">
+            <h3 className="text-lg font-semibold mb-3">
+              Print Range & Position
+            </h3>
+            <p className="text-xs text-gray-600 mb-3">
+              Use Client IDs to specify a range (e.g., after a paper jam).
+              Select starting label position.
+            </p>
+            <div className="flex items-center space-x-2 w-full mb-2">
+              <label htmlFor="startId" className="text-sm w-28 text-right">
+                Start Client ID:
+              </label>
+              <input
+                type="text"
+                id="startId"
+                value={startClientId}
+                onChange={(e) => setStartClientId(e.target.value)}
+                placeholder={`First: ${selectedRows[0]?.original?.id || "N/A"}`}
+                className="border border-gray-300 rounded p-1 w-full"
+              />
+            </div>
+            <div className="flex items-center space-x-2 w-full mb-3">
+              <label htmlFor="endId" className="text-sm w-28 text-right">
+                End Client ID:
+              </label>
+              <input
+                type="text"
+                id="endId"
+                value={endClientId}
+                onChange={(e) => setEndClientId(e.target.value)}
+                placeholder={`Last: ${
+                  selectedRows[selectedRows.length - 1]?.original?.id || "N/A"
+                }`}
+                className="border border-gray-300 rounded p-1 w-full"
+              />
+            </div>
+            <div className="flex items-center justify-center space-x-4 w-full">
+              <span className="text-sm">Start Printing At:</span>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="startLeft"
+                  name="startPosition"
+                  value="left"
+                  checked={startPosition === "left"}
+                  onChange={(e) => setStartPosition(e.target.value)}
+                  className="mr-1"
+                />
+                <label htmlFor="startLeft" className="text-sm">
+                  Label 1 (Left)
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="startRight"
+                  name="startPosition"
+                  value="right"
+                  checked={startPosition === "right"}
+                  onChange={(e) => setStartPosition(e.target.value)}
+                  className="mr-1"
+                />
+                <label htmlFor="startRight" className="text-sm">
+                  Label 2 (Right)
+                </label>
+              </div>
             </div>
           </div>
-          <div className="flex justify-center space-x-5 mt-5">
-            <Button
-              onClick={handlePrint}
-              className="bg-green-500 hover:bg-green-500 text-white"
-            >
-              Print
-            </Button>
 
+          {/* Preview Area (Simplified) */}
+          <div className="mb-4">
+            <h3 className="text-center font-semibold mb-1">
+              Preview (Layout Only)
+            </h3>
+            <div
+              className="mailing-label-preview border border-dashed border-gray-400 relative bg-white"
+              style={{
+                width: `${columnWidth * 2 + horizontalSpacing}px`,
+                height: `${topPosition + labelHeight * 1.5}px`,
+              }}
+            >
+              {/* Placeholder for visual layout */}
+              <div
+                className="address-container-preview border border-gray-300 absolute"
+                style={{
+                  left: `${leftPosition}px`,
+                  top: `${topPosition}px`,
+                  width: `${columnWidth}px`,
+                  height: `${labelHeight}px`,
+                  fontSize: `${fontSize}px`,
+                  padding: "2px",
+                }}
+              >
+                (Label 1 Position)
+                <br />
+                ...
+              </div>
+              <div
+                className="address-container-preview border border-gray-300 absolute"
+                style={{
+                  left: `${leftPosition + columnWidth + horizontalSpacing}px`,
+                  top: `${topPosition}px`,
+                  width: `${columnWidth}px`,
+                  height: `${labelHeight}px`,
+                  fontSize: `${fontSize}px`,
+                  padding: "2px",
+                }}
+              >
+                (Label 2 Position)
+                <br />
+                ...
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-4 w-full max-w-lg">
+            <Button
+              onClick={handlePrintWithRange}
+              className="bg-green-600 hover:bg-green-700 text-white flex-grow"
+              disabled={!hasSelectedRows}
+            >
+              Print Selected Range
+            </Button>
             <Button
               onClick={closeModal}
-              className="bg-red-500 hover:bg-red-500 text-white"
+              variant="secondary"
+              className="flex-grow"
             >
               Close
             </Button>
