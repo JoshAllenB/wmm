@@ -93,6 +93,11 @@ async function fetchDataServices(
       }
     });
 
+    // Add date filter for "Added Today" functionality
+    if (advancedFilterData.adddate) {
+      baseFilter.push({ adddate: advancedFilterData.adddate });
+    }
+
     // Add area filter
     if (advancedFilterData.acode) {
       baseFilter.push({ acode: advancedFilterData.acode });
