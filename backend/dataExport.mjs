@@ -11,6 +11,7 @@ import { exec } from "child_process";
 import os from "os";
 import chalk from "chalk";
 import cliProgress from "cli-progress";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -109,8 +110,23 @@ function getClientCategory(clientType, typeGroups) {
  * Process data and generate monthly distribution report
  * @param {number} month - Month (1-12)
  * @param {number} year - Year (e.g., 2025)
+ * @param {Object} io - Socket.io instance for real-time updates
+ * @param {string} userId - User ID for targeted notifications
  */
-async function processMonthlyDistribution(month, year) {
+async function processMonthlyDistribution(
+  month,
+  year,
+  io = null,
+  userId = null
+) {
+  // Function to send progress updates via WebSocket if available
+  const sendProgressUpdate = (message, progress = null) => {
+    console.log(chalk.cyan(message));
+    if (io && userId) {
+      io.emit(`export-progress-${userId}`, { message, progress });
+    }
+  };
+
   console.log(
     chalk.bold.blue(
       `\n========== STARTING REPORT GENERATION FOR ${month}/${year} ==========\n`
@@ -118,12 +134,12 @@ async function processMonthlyDistribution(month, year) {
   );
 
   // Connect to the database
-  console.log(chalk.cyan("Connecting to MongoDB database..."));
+  sendProgressUpdate("Connecting to MongoDB database...");
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
       dbName: process.env.DB_NAME_CLIENT,
     });
-    console.log(chalk.green("✅ Database connection successful"));
+    sendProgressUpdate("✅ Database connection successful");
   } catch (error) {
     console.error(chalk.red("❌ Database connection failed:"), error.message);
     throw error;
@@ -136,7 +152,7 @@ async function processMonthlyDistribution(month, year) {
     );
 
     // Step 1: Retrieve all required data in parallel
-    console.log(chalk.bold(`\n----- STEP 1: RETRIEVING DATA -----`));
+    sendProgressUpdate("Retrieving data from database...");
 
     const [
       clients,
@@ -152,16 +168,15 @@ async function processMonthlyDistribution(month, year) {
       WmmModel.find({ subsdate: { $regex: monthRegex } }).lean(),
     ]);
 
-    console.log(
-      chalk.green(
-        `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions`
-      )
+    sendProgressUpdate(
+      `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions`
     );
 
     // Create client lookup map for faster access
     const clientMap = createClientLookupMap(clients);
 
     // Step 2: Filter active subscriptions
+    sendProgressUpdate("Filtering active subscriptions...");
     const activeSubscriptions = allSubscriptions.filter((sub) => {
       const subDate = new Date(sub.subsdate);
       const endDate = new Date(sub.enddate);
@@ -174,10 +189,8 @@ async function processMonthlyDistribution(month, year) {
       return subDate <= endOfMonth && endDate >= startOfMonth;
     });
 
-    console.log(
-      chalk.green(
-        `✅ Found ${activeSubscriptions.length} active subscriptions and ${activeComplimentary.length} complimentary subscriptions for the month`
-      )
+    sendProgressUpdate(
+      `✅ Found ${activeSubscriptions.length} active subscriptions and ${activeComplimentary.length} complimentary subscriptions for the month`
     );
 
     // Group clients by type - more efficient approach
@@ -195,9 +208,7 @@ async function processMonthlyDistribution(month, year) {
     }
 
     // Step 3: Process paid subscriptions
-    console.log(
-      chalk.bold(`\n----- STEP 2: PROCESSING PAID SUBSCRIPTIONS -----`)
-    );
+    sendProgressUpdate("Processing paid subscriptions...");
 
     // Initialize logging
     const detailedLog = {
@@ -213,7 +224,7 @@ async function processMonthlyDistribution(month, year) {
     }
 
     // Process each subscription in bulk instead of individual queries
-    console.log(chalk.bold("Categorizing paid subscribers..."));
+    sendProgressUpdate("Categorizing paid subscribers...");
     const paidProgressBar = new cliProgress.SingleBar({
       format:
         "Paid Subscribers |" +
@@ -296,6 +307,16 @@ async function processMonthlyDistribution(month, year) {
 
           processedCount++;
           paidProgressBar.update(processedCount);
+
+          // Send progress update every 100 records
+          if (processedCount % 100 === 0 && io && userId) {
+            io.emit(`export-progress-${userId}`, {
+              message: `Processing paid subscriptions: ${processedCount}/${activeSubscriptions.length}`,
+              progress: Math.round(
+                (processedCount / activeSubscriptions.length) * 100
+              ),
+            });
+          }
         } catch (error) {
           console.error(
             chalk.red(`❌ Error processing subscription ${sub.id}:`),
@@ -307,26 +328,18 @@ async function processMonthlyDistribution(month, year) {
     }
 
     paidProgressBar.stop();
-    console.log(
-      chalk.green(
-        `✅ Processed ${processedCount} subscriptions (${skippedCount} skipped)`
-      )
+    sendProgressUpdate(
+      `✅ Processed ${processedCount} subscriptions (${skippedCount} skipped)`
     );
 
     // Step 4: Process renewals vs new subscriptions
-    console.log(
-      chalk.bold(`\n----- STEP 3: PROCESSING NEW SUBSCRIBERS & RENEWALS -----`)
-    );
+    sendProgressUpdate("Processing new subscribers & renewals...");
 
-    console.log(
-      chalk.green(
-        `✅ Found ${clientsAddedThisMonth.length} clients added this month`
-      )
+    sendProgressUpdate(
+      `✅ Found ${clientsAddedThisMonth.length} clients added this month`
     );
-    console.log(
-      chalk.green(
-        `✅ Found ${subsStartedThisMonth.length} subscriptions started this month`
-      )
+    sendProgressUpdate(
+      `✅ Found ${subsStartedThisMonth.length} subscriptions started this month`
     );
 
     // More efficient renewal detection using bulk operations
@@ -383,16 +396,12 @@ async function processMonthlyDistribution(month, year) {
       }
     }
 
-    console.log(
-      chalk.green(
-        `✅ Analysis complete: ${newSubs.length} new subscriptions, ${renewals.length} renewals`
-      )
+    sendProgressUpdate(
+      `✅ Analysis complete: ${newSubs.length} new subscriptions, ${renewals.length} renewals`
     );
 
     // Step 5: Process complimentary subscriptions
-    console.log(
-      chalk.bold(`\n----- STEP 4: PROCESSING COMPLIMENTARY COPIES -----`)
-    );
+    sendProgressUpdate("Processing complimentary copies...");
 
     // Initialize result structure with proper default values
     const complimentaryResult = {};
@@ -410,14 +419,12 @@ async function processMonthlyDistribution(month, year) {
     }
 
     if (activeComplimentary.length === 0) {
-      console.log(
-        chalk.yellow(
-          "⚠️ No active complimentary subscriptions found for this period!"
-        )
+      sendProgressUpdate(
+        "⚠️ No active complimentary subscriptions found for this period!"
       );
     } else {
       // Process complimentary subscriptions in bulk
-      console.log(chalk.bold("Categorizing complimentary subscriptions..."));
+      sendProgressUpdate("Categorizing complimentary subscriptions...");
       const complimentaryProgressBar = new cliProgress.SingleBar({
         format:
           "Complimentary Subscribers |" +
@@ -497,6 +504,16 @@ async function processMonthlyDistribution(month, year) {
 
             processedCount++;
             complimentaryProgressBar.update(processedCount);
+
+            // Send progress update every 100 records
+            if (processedCount % 100 === 0 && io && userId) {
+              io.emit(`export-progress-${userId}`, {
+                message: `Processing complimentary subscriptions: ${processedCount}/${activeComplimentary.length}`,
+                progress: Math.round(
+                  (processedCount / activeComplimentary.length) * 100
+                ),
+              });
+            }
           } catch (error) {
             console.error(
               chalk.red(`❌ Error processing complimentary doc ${doc.id}:`),
@@ -508,10 +525,8 @@ async function processMonthlyDistribution(month, year) {
       }
 
       complimentaryProgressBar.stop();
-      console.log(
-        chalk.green(
-          `✅ Processed ${processedCount} complimentary subscriptions (${skippedCount} skipped)`
-        )
+      sendProgressUpdate(
+        `✅ Processed ${processedCount} complimentary subscriptions (${skippedCount} skipped)`
       );
     }
 
@@ -521,10 +536,10 @@ async function processMonthlyDistribution(month, year) {
       `Detailed_Log_${month}_${year}.json`
     );
     fs.writeFileSync(logFilePath, JSON.stringify(detailedLog, null, 2));
-    console.log(chalk.green(`Detailed log saved to ${logFilePath}`));
+    sendProgressUpdate(`Detailed log saved to ${logFilePath}`);
 
     // ======= COMPILE REPORT RESULTS =======
-    console.log(chalk.bold(`\n----- STEP 5: COMPILING FINAL REPORT -----`));
+    sendProgressUpdate("Compiling final report...");
 
     const reportData = {
       month,
@@ -576,9 +591,7 @@ async function processMonthlyDistribution(month, year) {
     reportData.available =
       reportData.printedCopies - reportData.totalCopiesReleased.TOTAL;
 
-    console.log(
-      chalk.green(`\n✅ Report compilation complete for ${month}/${year}`)
-    );
+    sendProgressUpdate(`✅ Report compilation complete for ${month}/${year}`);
 
     return reportData;
   } catch (error) {
@@ -586,12 +599,12 @@ async function processMonthlyDistribution(month, year) {
       chalk.red(`\n❌ CRITICAL ERROR: Failed to generate report:`),
       error
     );
-    process.exit(1);
+    throw error;
   } finally {
     // Close the database connection
-    console.log(chalk.cyan("Closing database connection..."));
+    sendProgressUpdate("Closing database connection...");
     await mongoose.connection.close();
-    console.log(chalk.green("✅ Database connection closed"));
+    sendProgressUpdate("✅ Database connection closed");
   }
 }
 
@@ -601,7 +614,7 @@ const reportConfig = {
   // Default path for Windows when running in WSL
   outputDirectory: "/mnt/d/WMM Template and example/Monthly Report",
   // Whether to open Excel after generation
-  openExcelAfterGeneration: true,
+  openExcelAfterGeneration: false, // Changed to false for server-side generation
 };
 
 // Function to generate an Excel file from the report data
@@ -752,68 +765,79 @@ function parseArgs() {
   return params;
 }
 
-async function main() {
-  const params = parseArgs();
-  const { month, year, outputDir } = params;
+// Only run the main function if this file is executed directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  async function main() {
+    const params = parseArgs();
+    const { month, year, outputDir } = params;
 
-  reportConfig.outputDirectory = outputDir;
+    reportConfig.outputDirectory = outputDir;
 
-  console.log(
-    chalk.bold(`\n========== MONTHLY DISTRIBUTION REPORT GENERATOR ==========`)
-  );
-  console.log(chalk.cyan(`Generating report for ${month}/${year}`));
-  console.log(chalk.cyan(`Output directory: ${reportConfig.outputDirectory}`));
-
-  try {
-    // Create output directory if it doesn't exist
-    if (!fs.existsSync(reportConfig.outputDirectory)) {
-      console.log(
-        chalk.cyan(`Creating output directory: ${reportConfig.outputDirectory}`)
-      );
-      fs.mkdirSync(reportConfig.outputDirectory, { recursive: true });
-    }
-
-    // Generate the report data
-    const reportData = await processMonthlyDistribution(month, year);
-
-    // Generate Excel report
-    const outputPath = path.join(
-      reportConfig.outputDirectory,
-      `Monthly_Report_${month}_${year}.xlsx`
+    console.log(
+      chalk.bold(
+        `\n========== MONTHLY DISTRIBUTION REPORT GENERATOR ==========`
+      )
+    );
+    console.log(chalk.cyan(`Generating report for ${month}/${year}`));
+    console.log(
+      chalk.cyan(`Output directory: ${reportConfig.outputDirectory}`)
     );
 
-    await generateExcelReport(reportData, outputPath);
-
-    console.log(chalk.green(`\n✅ REPORT GENERATION COMPLETE`));
-    console.log(chalk.green(`Report saved to ${outputPath}`));
-
-    if (reportConfig.openExcelAfterGeneration) {
-      console.log(chalk.bold("Opening Excel with the generated report..."));
-      // Convert WSL path to Windows path for Excel to open it
-      let windowsPath = outputPath;
-      if (outputPath.startsWith("/mnt/")) {
-        // Convert /mnt/d/path to D:/path
-        const driveLetter = outputPath.charAt(5).toUpperCase();
-        const pathPart = outputPath.substring(7).replace(/\//g, "\\");
-        windowsPath = `${driveLetter}:\\${pathPart}`;
+    try {
+      // Create output directory if it doesn't exist
+      if (!fs.existsSync(reportConfig.outputDirectory)) {
+        console.log(
+          chalk.cyan(
+            `Creating output directory: ${reportConfig.outputDirectory}`
+          )
+        );
+        fs.mkdirSync(reportConfig.outputDirectory, { recursive: true });
       }
 
-      // Open in Windows Excel
-      exec(`cmd.exe /c start excel.exe "${windowsPath}"`, (error) => {
-        if (error) {
-          console.error(chalk.red("❌ Could not open Excel:"), error.message);
-          // Fallback to open with default application
-          exec(`cmd.exe /c start "" "${windowsPath}"`);
+      // Generate the report data
+      const reportData = await processMonthlyDistribution(month, year);
+
+      // Generate Excel report
+      const outputPath = path.join(
+        reportConfig.outputDirectory,
+        `Monthly_Report_${month}_${year}.xlsx`
+      );
+
+      await generateExcelReport(reportData, outputPath);
+
+      console.log(chalk.green(`\n✅ REPORT GENERATION COMPLETE`));
+      console.log(chalk.green(`Report saved to ${outputPath}`));
+
+      if (reportConfig.openExcelAfterGeneration) {
+        console.log(chalk.bold("Opening Excel with the generated report..."));
+        // Convert WSL path to Windows path for Excel to open it
+        let windowsPath = outputPath;
+        if (outputPath.startsWith("/mnt/")) {
+          // Convert /mnt/d/path to D:/path
+          const driveLetter = outputPath.charAt(5).toUpperCase();
+          const pathPart = outputPath.substring(7).replace(/\//g, "\\");
+          windowsPath = `${driveLetter}:\\${pathPart}`;
         }
-      });
+
+        // Open in Windows Excel
+        exec(`cmd.exe /c start excel.exe "${windowsPath}"`, (error) => {
+          if (error) {
+            console.error(chalk.red("❌ Could not open Excel:"), error.message);
+            // Fallback to open with default application
+            exec(`cmd.exe /c start "" "${windowsPath}"`);
+          }
+        });
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(`\n❌ CRITICAL ERROR: Failed to generate report:`),
+        error
+      );
+      process.exit(1);
     }
-  } catch (error) {
-    console.error(
-      chalk.red(`\n❌ CRITICAL ERROR: Failed to generate report:`),
-      error
-    );
-    process.exit(1);
   }
+
+  main();
 }
 
-main();
+export { processMonthlyDistribution, generateExcelReport };
