@@ -29,6 +29,7 @@ const AllClient = () => {
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
+  const [addedToday, setAddedToday] = useState(false);
 
   // State for selected row and modal visibility
   const [selectedRow, setSelectedRow] = useState(null);
@@ -90,8 +91,14 @@ const AllClient = () => {
     closeAdvancedFilterModal();
   };
 
+  const handleAddedTodayClick = () => {
+    setAddedToday(!addedToday);
+    setPage(1); // Reset to first page when toggling filter
+  };
+
   const handleClearAllFilters = () => {
     setFiltering("");
+    setAddedToday(false);
     setAdvancedFilterData({
       lname: "",
       fname: "",
@@ -134,6 +141,18 @@ const AllClient = () => {
             ? advancedFilterData
             : {};
 
+        // Add addedToday filter if enabled
+        if (addedToday) {
+          const today = new Date();
+          const formattedDate = `${
+            today.getMonth() + 1
+          }/${today.getDate()}/${today.getFullYear()}`;
+          filtersToUse.adddate = formattedDate;
+        } else {
+          // Explicitly remove adddate filter when addedToday is false
+          delete filtersToUse.adddate;
+        }
+
         const result = await fetchClients(
           currentPage,
           currentPageSize,
@@ -155,7 +174,7 @@ const AllClient = () => {
         console.error("❌ Error fetching clients:", error);
       }
     },
-    []
+    [addedToday]
   );
 
   useEffect(() => {
@@ -184,6 +203,7 @@ const AllClient = () => {
     selectedGroup,
     fetchData,
     advancedFilterData,
+    addedToday,
   ]);
 
   const handleDeleteSuccess = useCallback(
@@ -243,6 +263,7 @@ const AllClient = () => {
     // Check each filter and add readable description if it's active
     if (debouncedFiltering) filters.push(`Search: "${debouncedFiltering}"`);
     if (selectedGroup) filters.push(`Group: ${selectedGroup}`);
+    if (addedToday) filters.push("Added Today");
 
     // Check advanced filters
     if (advancedFilterData.lname)
@@ -339,6 +360,14 @@ const AllClient = () => {
           groups={groups}
           selectedGroup={selectedGroup}
         />
+        <Button
+          onClick={handleAddedTodayClick}
+          className={`${
+            addedToday ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
+          }`}
+        >
+          Added Today
+        </Button>
         <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
       </div>
 
