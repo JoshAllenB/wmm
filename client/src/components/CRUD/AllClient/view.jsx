@@ -111,6 +111,38 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     );
   };
 
+  const renderPaymentHistory = () => {
+    // Check if `wmmData` exists and has a `records` property that is an array
+    if (!wmmData?.records || wmmData.records.length === 0) {
+      return <p>No payment history available.</p>;
+    }
+
+    return (
+      <div className="flex flex-col mb-2 p-2">
+        <div>
+          {wmmData.records.map((record, index) => (
+            <div key={index} className="mb-2">
+              <span className="text-black font-bold">Payment Ref:</span>{" "}
+              <span className="text-black"> {record.paymtref}</span>
+              <br />
+              <span className="text-black font-bold">Payment Amount:</span>{" "}
+              <span className="text-black"> {record.paymtamt}</span>
+              <br />
+              <span className="text-black font-bold">Payment Masses:</span>{" "}
+              <span className="text-black"> {record.paymtmasses}</span>
+              <br />
+              <span className="text-black font-bold">Donor ID:</span>{" "}
+              <span className="text-black"> {record.donorid}</span>
+              <br />
+              <span className="text-black font-bold">Add Date:</span>{" "}
+              <span className="text-black"> {record.adddate}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderHrgData = () => {
     if (hrgData.length === 0) return null;
     return (
@@ -256,9 +288,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             />
           ) : (
             <>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="flex flex-col text-2xl font-bold text-black">
+              <div className="flex flex-col justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold text-black">
                   Client Information ID: {formData.id}
+                </h2>
+                <h2 className="flex flex-col text-xl font-bold text-black">
+                  Added Date: {formatDate(formData.adddate)}
                 </h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
@@ -311,6 +346,15 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Group", name: "group" },
                     { label: "Remarks", name: "remarks" },
                   ])}
+                </div>
+
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Payment History
+                  </h2>
+                  {renderPaymentHistory() || (
+                    <p>No payment history available.</p>
+                  )}
                 </div>
 
                 {/* Subscription History Card */}
