@@ -16,6 +16,7 @@ import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ListIcon from "@mui/icons-material/List";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
+import DownloadIcon from "@mui/icons-material/Download";
 import { useUser } from "../../../utils/Hooks/userProvider";
 
 export default function MenuSidebar() {
@@ -32,7 +33,7 @@ export default function MenuSidebar() {
   };
 
   return (
-    <div className="h-full">
+    <div className="h-full z-20">
       <Sidebar
         collapsed={!isCollapsed}
         onToggle={() => setIsCollapsed(!isCollapsed)}
@@ -69,61 +70,20 @@ export default function MenuSidebar() {
               <Typography variant="h6">Dashboard</Typography>
               {/* <Link to={"/dashboard"} /> */}
             </MenuItem>
-            <SubMenu
-              label="Clients"
-              className="font-bold text-lg"
+
+            <MenuItem
               icon={<GroupsSharpIcon style={{ color: "#333333" }} />}
-              style={{ color: "#333333" }}
+              component={<Link to="/all-client" />}
+              onClick={() => handleSelect("All Clients")}
+              selected={selected === "All Clients"}
+              style={{
+                backgroundColor:
+                  selected === "All Clients" ? "#e3f2fd" : "transparent",
+                color: selected === "All Clients" ? "#1976d2" : "#333333",
+              }}
             >
-              <MenuItem
-                component={<Link to="/all-client" />}
-                onClick={() => handleSelect("All Clients")}
-                selected={selected === "All Clients"}
-                style={{
-                  backgroundColor:
-                    selected === "All Clients" ? "#e3f2fd" : "transparent",
-                  color: selected === "All Clients" ? "#1976d2" : "#333333",
-                }}
-              >
-                All Clients
-              </MenuItem>
-              <MenuItem
-                component={<Link to="/hrg" />}
-                onClick={() => handleSelect("HRG")}
-                selected={selected === "HRG"}
-                style={{
-                  backgroundColor:
-                    selected === "HRG" ? "#e3f2fd" : "transparent",
-                  color: selected === "HRG" ? "#1976d2" : "#333333",
-                }}
-              >
-                HRG
-              </MenuItem>
-              <MenuItem
-                onClick={() => handleSelect("Inactive Clients")}
-                selected={selected === "Inactive Clients"}
-                style={{
-                  backgroundColor:
-                    selected === "Inactive Clients" ? "#e3f2fd" : "transparent",
-                  color:
-                    selected === "Inactive Clients" ? "#1976d2" : "#333333",
-                }}
-              >
-                Inactive Clients
-              </MenuItem>
-              <MenuItem
-                onClick={() => handleSelect("Archived Clients")}
-                selected={selected === "Archived Clients"}
-                style={{
-                  backgroundColor:
-                    selected === "Archived Clients" ? "#e3f2fd" : "transparent",
-                  color:
-                    selected === "Archived Clients" ? "#1976d2" : "#333333",
-                }}
-              >
-                Archived Clients
-              </MenuItem>
-            </SubMenu>
+              <Typography variant="h6">All Clients</Typography>
+            </MenuItem>
             {hasRole("Admin") && (
               <div>
                 <MenuItem
@@ -168,21 +128,22 @@ export default function MenuSidebar() {
                   >
                     Area
                   </MenuItem>
+                  <MenuItem
+                    icon={<DownloadIcon style={{ color: "#333333" }} />}
+                    component={<Link to="/data-export" />}
+                    onClick={() => handleSelect("Data Export")}
+                    selected={selected === "Data Export"}
+                    style={{
+                      backgroundColor:
+                        selected === "Data Export" ? "#e3f2fd" : "transparent",
+                      color: selected === "Data Export" ? "#1976d2" : "#333333",
+                    }}
+                  >
+                    <Typography variant="h6">Data Export</Typography>
+                  </MenuItem>
                 </SubMenu>
               </div>
             )}
-            <MenuItem
-              icon={<CalendarMonthSharpIcon style={{ color: "#333333" }} />}
-              onClick={() => handleSelect("Calendar")}
-              selected={selected === "Calendar"}
-              style={{
-                backgroundColor:
-                  selected === "Calendar" ? "#e3f2fd" : "transparent",
-                color: selected === "Calendar" ? "#1976d2" : "#333333",
-              }}
-            >
-              <Typography variant="h6">Calendar</Typography>
-            </MenuItem>
           </div>
         </Menu>
       </Sidebar>
