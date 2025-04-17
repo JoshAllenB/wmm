@@ -22,6 +22,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("account");
   const { setUserData } = useUser();
   const navigate = useNavigate();
@@ -43,8 +44,18 @@ const LoginPage = ({ setIsLoggedIn }) => {
     checkAuth();
   }, [navigate, setIsLoggedIn, setUserData]);
 
-  const handleUsernameChange = (e) => setUsername(e.target.value);
-  const handlePasswordChange = (e) => setPassword(e.target.value);
+  const handleUsernameChange = (e) => {
+    setUsername(e.target.value);
+    // Clear error when user starts typing
+    if (errorMessage) setErrorMessage("");
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    // Clear error when user starts typing
+    if (errorMessage) setErrorMessage("");
+  };
+
   const handleTabChange = (value) => setActiveTab(value);
   const handleRegisterSuccess = () => {
     setTimeout(() => setActiveTab("account"), 200);
@@ -52,6 +63,8 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setIsLoading(true);
 
     try {
       const result = await axios.post(
@@ -90,20 +103,42 @@ const LoginPage = ({ setIsLoggedIn }) => {
         setErrorMessage(
           result.data.error || "An error occurred. Please try again later."
         );
+        setIsLoading(false);
       }
     } catch (err) {
       console.error("Error in login request:", err);
+      setIsLoading(false);
+
       if (err.response) {
         console.error("Error response from server:", err.response.data);
-        if (err.response.status === 401) {
+
+        // Display specific error messages from the backend
+        if (
+          err.response.data.error === "Account locked" &&
+          err.response.data.message
+        ) {
+          // Display account lockout message with time remaining
+          setErrorMessage(err.response.data.message);
+        } else if (err.response.data.error === "Invalid credentials") {
           setErrorMessage("Incorrect username or password.");
+        } else if (err.response.data.error === "User already logged in") {
+          setErrorMessage("You are already logged in on another device.");
         } else {
           setErrorMessage(
-            `An error occurred: ${err.response.data.message || "Unknown error"}`
+            err.response.data.message ||
+              err.response.data.error ||
+              "An error occurred. Please try again."
           );
         }
+      } else if (err.request) {
+        // Handle network errors
+        setErrorMessage(
+          "Unable to connect to the server. Please check your network connection and try again."
+        );
       } else {
-        setErrorMessage("An error occurred. Please try again later.");
+        setErrorMessage(
+          "An unexpected error occurred. Please try again later."
+        );
       }
     }
   };
@@ -113,7 +148,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
-        className="w-[400px] h-[400px] rounded-md border-2"
+        className="w-[500px] h-[500px] rounded-md border-2"
       >
         <TabsList className="flex gap-[80px] p-7 rounded-md">
           <TabsTrigger
@@ -143,7 +178,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
                   value={username}
                   autoComplete={username}
                   onChange={handleUsernameChange}
-                  className="block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  className={`block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ${
+                    errorMessage
+                      ? "ring-2 ring-red-500"
+                      : "ring-2 ring-gray-300"
+                  } placeholder:text-gray-300 focus:ring-3 p-3`}
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -156,17 +196,53 @@ const LoginPage = ({ setIsLoggedIn }) => {
                   type="password"
                   value={password}
                   onChange={handlePasswordChange}
-                  className="block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                  className={`block w-full rounded-md border-0 text-lg py-1.5 shadow-sm ${
+                    errorMessage
+                      ? "ring-2 ring-red-500"
+                      : "ring-2 ring-gray-300"
+                  } placeholder:text-gray-300 focus:ring-3 p-3`}
+                  disabled={isLoading}
                 />
               </div>
             </div>
-            {errorMessage && <p className="text-red-500">{errorMessage}</p>}
+            {errorMessage && (
+              <div className="text-red-500 p-2 bg-red-50 border border-red-200 rounded-md">
+                {errorMessage}
+              </div>
+            )}
 
             <Button
               type="submit"
-              className="w-[100px] h-[40px] bg-blue-600 hover:bg-blue-800 border text-white text-lg "
+              className="w-[100px] h-[40px] bg-blue-600 hover:bg-blue-800 border text-white text-lg"
+              disabled={isLoading}
             >
-              Login
+              {isLoading ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Loading
+                </span>
+              ) : (
+                "Login"
+              )}
             </Button>
           </form>
         </TabsContent>
