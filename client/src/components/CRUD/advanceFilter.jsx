@@ -61,6 +61,31 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     loadData();
   }, []);
 
+  // Auto-set services based on user roles
+  useEffect(() => {
+    // Only set services if the filter is empty to avoid overriding user selections
+    if (filterData.services.length === 0) {
+      const roleBasedServices = [];
+
+      // Check each role and add corresponding service
+      if (hasRole("WMM")) roleBasedServices.push("WMM");
+      if (hasRole("FOM")) roleBasedServices.push("FOM");
+      if (hasRole("HRG")) roleBasedServices.push("HRG");
+      if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+      // Log the role-based services
+      console.log("Role-based services:", roleBasedServices);
+
+      // Only update if we found matching roles
+      if (roleBasedServices.length > 0) {
+        setFilterData((prev) => ({
+          ...prev,
+          services: roleBasedServices,
+        }));
+      }
+    }
+  }, [hasRole]);
+
   const openModal = () => setShowModal(true);
   const closeModal = () => setShowModal(false);
 
@@ -84,6 +109,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       } else {
         services.splice(serviceIndex, 1);
       }
+
+      // Log the updated services array
+      console.log("Updated services array:", services);
 
       return { ...prev, services };
     });
@@ -112,6 +140,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
     const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
 
+    // Log the filterData before formatting
+    console.log("Filter data before formatting:", filterData);
+    console.log("Services before formatting:", filterData.services);
+
     // Trim text fields and format data
     const formattedData = {
       ...filterData,
@@ -124,6 +156,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       wmmStartEndDate: expiringMonthRange.start,
       wmmEndEndDate: expiringMonthRange.end,
     };
+
+    // Log the formatted data
+    console.log("Formatted data:", formattedData);
+    console.log("Services in formatted data:", formattedData.services);
 
     onApplyFilter(formattedData);
     closeModal();
@@ -719,6 +755,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   <p className="text-xs text-gray-500 mb-3">
                     Select services to filter clients
                   </p>
+                  {hasRole("WMM") ||
+                  hasRole("FOM") ||
+                  hasRole("HRG") ||
+                  hasRole("CAL") ? (
+                    <p className="text-xs text-blue-500 mb-3">
+                      Services matching your role are automatically selected.
+                      You can modify these selections.
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-2 gap-y-2">
                     <div className="flex items-center">
                       <input
@@ -734,6 +779,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       >
                         WMM
                       </label>
+                      {hasRole("WMM") && (
+                        <span className="ml-1 text-xs text-blue-500">
+                          (Auto)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center">
                       <input
@@ -749,6 +799,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       >
                         FOM
                       </label>
+                      {hasRole("FOM") && (
+                        <span className="ml-1 text-xs text-blue-500">
+                          (Auto)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center">
                       <input
@@ -764,6 +819,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       >
                         HRG
                       </label>
+                      {hasRole("HRG") && (
+                        <span className="ml-1 text-xs text-blue-500">
+                          (Auto)
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center">
                       <input
@@ -779,6 +839,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       >
                         CAL
                       </label>
+                      {hasRole("CAL") && (
+                        <span className="ml-1 text-xs text-blue-500">
+                          (Auto)
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
