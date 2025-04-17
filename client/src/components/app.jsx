@@ -55,26 +55,36 @@ const App = React.memo(() => {
   const memoizedRoutes = useMemo(
     () => (
       <Routes>
-        <Route path="/" element={<LoginPage setIsLoggedIn={setIsLoggedIn} />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/login"
+          element={<LoginPage setIsLoggedIn={setIsLoggedIn} />}
+        />
         <Route
           path="/all-client"
-          element={isLoggedIn ? <AllClient /> : <Navigate to="/" replace />}
+          element={
+            isLoggedIn ? <AllClient /> : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="/admin-panel"
-          element={isLoggedIn ? <AdminPanel /> : <Navigate to="/" replace />}
+          element={
+            isLoggedIn ? <AdminPanel /> : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="/subclass"
-          element={isLoggedIn ? <SubClass /> : <Navigate to="/" replace />}
+          element={isLoggedIn ? <SubClass /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/area"
-          element={isLoggedIn ? <Area /> : <Navigate to="/" replace />}
+          element={isLoggedIn ? <Area /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/data-export"
-          element={isLoggedIn ? <DataExport /> : <Navigate to="/" replace />}
+          element={
+            isLoggedIn ? <DataExport /> : <Navigate to="/login" replace />
+          }
         />
       </Routes>
     ),
