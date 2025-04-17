@@ -19,17 +19,40 @@ class WebSocketService {
   connect(options = {}) {
     console.log("Connecting to WebSocket with options:", options);
 
+    // Validate required user data before connecting
+    const sessionId =
+      localStorage.getItem("sessionId") || options.query?.sessionId;
+    const userId = options.query?.userId;
+    const username = options.query?.username;
+
+    // Prevent connection with null/undefined values
+    if (
+      !sessionId ||
+      !userId ||
+      !username ||
+      userId === "null" ||
+      username === "null" ||
+      sessionId === "null"
+    ) {
+      console.warn("Cannot connect to WebSocket without valid user data");
+      return;
+    }
+
     if (this.socket) {
       // Disconnect the existing socket if new options are provided
       this.socket.disconnect();
       this.socket = null;
     }
 
-    const sessionId = localStorage.getItem("sessionId");
-    this.sessionData = { ...this.sessionData, ...options.query, sessionId };
+    this.sessionData = {
+      ...this.sessionData,
+      sessionId,
+      userId,
+      username,
+    };
 
     this.socket = io(this.url, {
-      query: this.sessionData, // Include session ID in query
+      query: this.sessionData, // Include session data in query
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
