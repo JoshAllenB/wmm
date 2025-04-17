@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import Mailing from "../../mailing";
@@ -41,26 +41,37 @@ const AllClient = () => {
   const [tableInstance, setTableInstance] = useState(null);
 
   const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
-  const [advancedFilterData, setAdvancedFilterData] = useState({
-    lname: "",
-    fname: "",
-    mname: "",
-    sname: "",
-    address: "",
-    contactnos: "",
-    cellno: "",
-    ofcno: "",
-    email: "",
-    birthdate: "",
-    startDate: "",
-    endDate: "",
-    wmmStartSubsDate: "",
-    wmmEndSubsDate: "",
-    wmmStartEndDate: "",
-    wmmEndEndDate: "",
-    copiesRange: "",
-    minCopies: "",
-    maxCopies: "",
+  const [advancedFilterData, setAdvancedFilterData] = useState(() => {
+    // Initialize with default empty values
+    const initialState = {
+      lname: "",
+      fname: "",
+      mname: "",
+      sname: "",
+      address: "",
+      contactnos: "",
+      cellno: "",
+      ofcno: "",
+      email: "",
+      birthdate: "",
+      startDate: "",
+      endDate: "",
+      wmmStartSubsDate: "",
+      wmmEndSubsDate: "",
+      wmmStartEndDate: "",
+      wmmEndEndDate: "",
+      copiesRange: "",
+      minCopies: "",
+      maxCopies: "",
+      group: "",
+      type: "",
+      subsclass: "",
+      area: "",
+      acode: "",
+      services: [], // Always initialize as an empty array
+    };
+
+    return initialState;
   });
 
   const openAdvancedFilterModal = () => setShowAdvancedFilterModal(true);
@@ -99,30 +110,120 @@ const AllClient = () => {
   const handleClearAllFilters = () => {
     setFiltering("");
     setAddedToday(false);
-    setAdvancedFilterData({
-      lname: "",
-      fname: "",
-      mname: "",
-      sname: "",
-      address: "",
-      contactnos: "",
-      cellno: "",
-      ofcno: "",
-      email: "",
-      birthdate: "",
-      startDate: "",
-      endDate: "",
-      wmmStartSubsDate: "",
-      wmmEndSubsDate: "",
-      wmmStartEndDate: "",
-      wmmEndEndDate: "",
-      copiesRange: "",
-      minCopies: "",
-      maxCopies: "",
+
+    // Get role-based services
+    const roleBasedServices = [];
+    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("FOM")) roleBasedServices.push("FOM");
+    if (hasRole("HRG")) roleBasedServices.push("HRG");
+    if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+    // Create new filter with just services and keep the selected group if there is one
+    const newFilter = {
+      services: roleBasedServices,
+      group: selectedGroup || "",
+    };
+
+    console.log(
+      "Clearing filters and setting role-based services:",
+      roleBasedServices
+    );
+
+    // Create a snapshot of what the filter will be
+    const filterSnapshot = JSON.stringify({
+      services: roleBasedServices,
+      page,
+      filtering: "",
+      group: selectedGroup,
+      addedToday: false,
     });
-    fetchData(page, pageSize, "", selectedGroup, {});
+
+    // Update last filter ref to prevent bounce
+    lastFilterRef.current = filterSnapshot;
+
+    // Update the filter state
+    setAdvancedFilterData(newFilter);
+
+    // Fetch with the role-based services
+    fetchData(page, pageSize, "", selectedGroup, newFilter);
   };
 
+  const [isLoading, setIsLoading] = useState(true);
+  const initialLoadComplete = useRef(false);
+  const lastFilterRef = useRef(null);
+
+  // Create a dependency value that will change when services changes
+  const servicesDependency = Array.isArray(advancedFilterData.services)
+    ? advancedFilterData.services.join(",")
+    : "";
+
+  // Auto-set services based on user roles on component mount (run this FIRST)
+  useEffect(() => {
+    if (initialLoadComplete.current) {
+      return; // Only run once on initial load
+    }
+
+    // Load groups first to have them available
+    const loadGroups = async () => {
+      try {
+        const groupsData = await fetchGroups();
+        setGroups(groupsData);
+      } catch (error) {
+        console.error("Error loading groups:", error);
+      }
+    };
+    loadGroups();
+
+    // Initialize services based on user roles
+    const roleBasedServices = [];
+
+    // Check each role and add corresponding service
+    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("FOM")) roleBasedServices.push("FOM");
+    if (hasRole("HRG")) roleBasedServices.push("HRG");
+    if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+    console.log("Initial setting of role-based services:", roleBasedServices);
+
+    // Only update if we found matching roles
+    if (roleBasedServices.length > 0) {
+      // Create initial filter with role-based services
+      const initialFilter = {
+        ...advancedFilterData,
+        services: roleBasedServices,
+      };
+
+      // Save as last filter to prevent bouncing
+      lastFilterRef.current = JSON.stringify({
+        services: roleBasedServices,
+        page,
+        filtering: debouncedFiltering,
+        group: selectedGroup,
+        addedToday,
+      });
+
+      // Set the filter state
+      setAdvancedFilterData(initialFilter);
+    }
+
+    // Mark initial load as complete
+    initialLoadComplete.current = true;
+
+    // Continue to data loading after a short delay
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+  }, [
+    hasRole,
+    page,
+    pageSize,
+    debouncedFiltering,
+    selectedGroup,
+    addedToday,
+    advancedFilterData,
+  ]);
+
+  // Define fetchData before using it in useEffect
   const fetchData = useCallback(
     async (
       currentPage,
@@ -132,14 +233,46 @@ const AllClient = () => {
       advancedFilterData = {}
     ) => {
       try {
-        // Ensure we're using the current advancedFilterData from state if none provided
-        const filtersToUse =
-          Object.keys(advancedFilterData).length > 0
-            ? advancedFilterData
-            : Object.keys(advancedFilterData).length === 0 &&
-              Object.keys(advancedFilterData).some(Boolean)
-            ? advancedFilterData
-            : {};
+        // Clone the filter object to avoid mutations
+        let filtersToUse = { ...advancedFilterData };
+
+        // Properly handle services array
+        // Get role-based services first
+        const roleBasedServices = [];
+        if (hasRole("WMM")) roleBasedServices.push("WMM");
+        if (hasRole("FOM")) roleBasedServices.push("FOM");
+        if (hasRole("HRG")) roleBasedServices.push("HRG");
+        if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+        // Check if services exists and is properly formatted
+        let shouldUseRoleBasedServices = true;
+
+        if (filtersToUse.services) {
+          // Convert to array if it's a string
+          if (
+            typeof filtersToUse.services === "string" &&
+            filtersToUse.services.trim() !== ""
+          ) {
+            filtersToUse.services = filtersToUse.services
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            shouldUseRoleBasedServices = false;
+          }
+          // If it's an array and has items, keep it
+          else if (
+            Array.isArray(filtersToUse.services) &&
+            filtersToUse.services.length > 0
+          ) {
+            shouldUseRoleBasedServices = false;
+          }
+        }
+
+        // Use role-based services if no valid services provided
+        if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
+          filtersToUse.services = roleBasedServices;
+          console.log("Using role-based services:", roleBasedServices);
+        }
 
         // Add addedToday filter if enabled
         if (addedToday) {
@@ -174,10 +307,16 @@ const AllClient = () => {
         console.error("❌ Error fetching clients:", error);
       }
     },
-    [addedToday]
+    [addedToday, hasRole]
   );
 
+  // Main data loading effect (runs AFTER role-based services are set)
   useEffect(() => {
+    // Skip this effect during initial load when services are being set up
+    if (isLoading) {
+      return;
+    }
+
     const loadGroups = async () => {
       try {
         const groupsData = await fetchGroups();
@@ -188,6 +327,36 @@ const AllClient = () => {
     };
 
     loadGroups();
+
+    // Create a snapshot of the current filter
+    const currentFilter = JSON.stringify({
+      services: advancedFilterData.services,
+      page,
+      filtering: debouncedFiltering,
+      group: selectedGroup,
+      addedToday,
+    });
+
+    // If this is the same as our last filter, skip to prevent bouncing
+    if (lastFilterRef.current === currentFilter) {
+      console.log("Skipping duplicate fetch with same filters");
+      return;
+    }
+
+    // Update our last filter reference
+    lastFilterRef.current = currentFilter;
+
+    // Log what's triggering data fetching
+    console.log("Fetching data with filters:", {
+      page,
+      pageSize,
+      filter: debouncedFiltering,
+      group: selectedGroup,
+      services: advancedFilterData.services,
+      hasServices:
+        Array.isArray(advancedFilterData.services) &&
+        advancedFilterData.services.length > 0,
+    });
 
     fetchData(
       page,
@@ -203,7 +372,9 @@ const AllClient = () => {
     selectedGroup,
     fetchData,
     advancedFilterData,
+    servicesDependency,
     addedToday,
+    isLoading, // Only run when loading is complete
   ]);
 
   const handleDeleteSuccess = useCallback(
@@ -246,14 +417,57 @@ const AllClient = () => {
       return `${month}/${day}/${year}`;
     };
 
+    // Process services data - ensure it's always an array
+    let services = [];
+
+    try {
+      if (filterData.services) {
+        if (Array.isArray(filterData.services)) {
+          services = [...filterData.services];
+        } else if (typeof filterData.services === "string") {
+          services = filterData.services.split(",").map((s) => s.trim());
+        }
+      }
+    } catch (error) {
+      console.error("Error processing services:", error);
+      // Fallback to empty array if there's an error
+      services = [];
+    }
+
+    // Create formatted data with properly handled services
     const formattedFilterData = {
       ...filterData,
       startDate: formatDate(filterData.startDate),
       endDate: formatDate(filterData.endDate),
+      services: services,
     };
 
+    console.log("Advanced filter applied with services:", services);
+
+    // Create a snapshot of what the filter will be
+    const filterSnapshot = JSON.stringify({
+      services: services,
+      page: 1, // Always reset to page 1 when applying filters
+      filtering: debouncedFiltering,
+      group: selectedGroup,
+      addedToday,
+    });
+
+    // Update last filter ref to prevent bounce
+    lastFilterRef.current = filterSnapshot;
+
+    // Update state and trigger data fetch
     setAdvancedFilterData(formattedFilterData);
     setPage(1); // Reset to first page with new filters
+
+    // Directly fetch data with the new filter to avoid bouncing
+    fetchData(
+      1,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      formattedFilterData
+    );
   };
 
   // Function to generate readable filter descriptions
@@ -337,6 +551,52 @@ const AllClient = () => {
           advancedFilterData.copiesRange
         }`
       );
+    }
+
+    // Enhanced services handling
+    if (advancedFilterData.services) {
+      let services = [];
+
+      try {
+        // Handle different possible formats
+        if (Array.isArray(advancedFilterData.services)) {
+          if (advancedFilterData.services.length > 0) {
+            services = [...advancedFilterData.services];
+          }
+        } else if (
+          typeof advancedFilterData.services === "string" &&
+          advancedFilterData.services.trim() !== ""
+        ) {
+          // Handle case where services might be a comma-separated string
+          services = advancedFilterData.services
+            .split(",")
+            .map((s) => s.trim());
+        }
+
+        if (services.length > 0) {
+          // Determine which services match the user's roles
+          const roleBasedServices = [];
+          if (hasRole("WMM")) roleBasedServices.push("WMM");
+          if (hasRole("FOM")) roleBasedServices.push("FOM");
+          if (hasRole("HRG")) roleBasedServices.push("HRG");
+          if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+          // Check if all selected services exactly match role-based ones
+          const isExactlyRoleBased =
+            services.length === roleBasedServices.length &&
+            services.every((service) => roleBasedServices.includes(service));
+
+          if (isExactlyRoleBased && roleBasedServices.length > 0) {
+            filters.push(
+              `Services: ${services.join(", ")} (based on your roles)`
+            );
+          } else {
+            filters.push(`Services: ${services.join(", ")}`);
+          }
+        }
+      } catch (error) {
+        console.error("Error processing services in getActiveFilters:", error);
+      }
     }
 
     return filters;
