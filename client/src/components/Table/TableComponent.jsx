@@ -143,37 +143,66 @@ export function TableComponent({
                       Array.isArray(cell.getValue()) ? (
                       <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().length > 0 ? (
-                          cell.getValue().map((sub, index) => (
-                            <li key={index}>
-                              <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
-                              {sub.enddate}, Cps: {sub.copies}
-                            </li>
-                          ))
+                          cell.getValue().map((sub, index) => {
+                            // Get status color class
+                            const statusClass =
+                              sub.status === "expired"
+                                ? "text-red-600 font-bold"
+                                : sub.status === "expiring-soon"
+                                ? "text-amber-600 font-bold"
+                                : sub.status === "active"
+                                ? "text-green-600"
+                                : "";
+
+                            // Get status indicator
+                            const statusIndicator =
+                              sub.status === "expired"
+                                ? "🔴 "
+                                : sub.status === "expiring-soon"
+                                ? "🟡 "
+                                : sub.status === "active"
+                                ? "🟢 "
+                                : "";
+
+                            return (
+                              <li key={index} className="mb-1">
+                                <span className={statusClass}>
+                                  {statusIndicator}
+                                  <strong>{sub.subsclass}</strong>:{" "}
+                                  {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                                  {sub.copies}
+                                </span>
+                              </li>
+                            );
+                          })
                         ) : (
                           <li>No subscription data</li>
                         )}
                       </ul>
                     ) : cell.column.id === "HRG Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul>
+                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((hrg, index) => (
                             <li key={index} style={{ textAlign: "left" }}>
-                              <strong>Received Date:</strong> {hrg.recvdate},{" "}
-                              <br />
-                              <strong>Renew Date:</strong> {hrg.renewdate},{" "}
-                              <br />
-                              <strong>Campaign Date: </strong>{" "}
-                              {hrg.campaigndate},
-                              <br />
-                              <strong>
-                                Payment Reference: {hrg.paymtref}
-                              </strong>{" "}
-                              ,
-                              <br />
-                              <strong>Payment Amount: {hrg.paymtamt}</strong>
-                              <br />
-                              <strong>Status:</strong> {hrg.unsubscribe} <br />
+                              <div>
+                                <strong>Recv:</strong> {hrg.recvdate}
+                              </div>
+                              <div>
+                                <strong>Renew:</strong> {hrg.renewdate}
+                              </div>
+                              <div>
+                                <strong>Camp:</strong> {hrg.campaigndate}
+                              </div>
+                              <div>
+                                <strong>Ref:</strong> {hrg.paymtref}
+                              </div>
+                              <div>
+                                <strong>Amt:</strong> {hrg.paymtamt}
+                              </div>
+                              <div>
+                                <strong>Status:</strong> {hrg.unsubscribe}
+                              </div>
                             </li>
                           ))
                         ) : (
@@ -182,16 +211,22 @@ export function TableComponent({
                       </ul>
                     ) : cell.column.id === "FOM Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul>
+                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((fom, index) => (
                             <li key={index} style={{ textAlign: "left" }}>
-                              <strong>Received Date:</strong> {fom.recvdate},{" "}
-                              <br />
-                              <strong>Payment Amount:</strong> {fom.paymtamt},{" "}
-                              <br />
-                              <strong>Status:</strong> {fom.unsubscribe} <br />
-                              <strong>Remarks:</strong> {fom.remarks}, <br />
+                              <div>
+                                <strong>Recv:</strong> {fom.recvdate}
+                              </div>
+                              <div>
+                                <strong>Amt:</strong> {fom.paymtamt}
+                              </div>
+                              <div>
+                                <strong>Status:</strong> {fom.unsubscribe}
+                              </div>
+                              <div>
+                                <strong>Remarks:</strong> {fom.remarks}
+                              </div>
                             </li>
                           ))
                         ) : (
@@ -200,25 +235,40 @@ export function TableComponent({
                       </ul>
                     ) : cell.column.id === "CAL Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul>
+                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((cal, index) => (
                             <li key={index} style={{ textAlign: "left" }}>
-                              <strong>Received Date:</strong> {cal.recvdate},{" "}
-                              <br />
-                              <strong>Type:</strong> {cal.caltype}, <br />
-                              <strong>Quantity:</strong> {cal.calqty}, <br />
-                              <strong>Amount:</strong> {cal.calamt}, <br />
-                              <strong>Payment Reference:</strong> {cal.paymtref}
-                              , <br />
-                              <strong>Payment Amount:</strong> {cal.paymtamt},{" "}
-                              <br />
-                              <strong>Payment Form:</strong> {cal.paymtform},{" "}
-                              <br />
-                              <strong>Payment Date:</strong> {cal.paymtdate},{" "}
-                              <br />
-                              <strong>Added Date:</strong> {cal.adddate}, <br />
-                              <strong>Added By:</strong> {cal.adduser}
+                              <div>
+                                <strong>Recv:</strong> {cal.recvdate}
+                              </div>
+                              <div>
+                                <strong>Type:</strong> {cal.caltype}
+                              </div>
+                              <div>
+                                <strong>Qty:</strong> {cal.calqty}
+                              </div>
+                              <div>
+                                <strong>Amt:</strong> {cal.calamt}
+                              </div>
+                              <div>
+                                <strong>Ref:</strong> {cal.paymtref}
+                              </div>
+                              <div>
+                                <strong>Pay:</strong> {cal.paymtamt}
+                              </div>
+                              <div>
+                                <strong>Form:</strong> {cal.paymtform}
+                              </div>
+                              <div>
+                                <strong>Date:</strong> {cal.paymtdate}
+                              </div>
+                              <div>
+                                <strong>Added:</strong> {cal.adddate}
+                              </div>
+                              <div>
+                                <strong>By:</strong> {cal.adduser}
+                              </div>
                             </li>
                           ))
                         ) : (

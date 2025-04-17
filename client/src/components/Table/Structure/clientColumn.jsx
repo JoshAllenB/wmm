@@ -1,9 +1,47 @@
 import { Checkbox } from "../../UI/ShadCN/checkbox";
 import { useUser } from "../../../utils/Hooks/userProvider";
 
-/** @type import ('@tanstack/react-table).ColumnDef<any>*/
+/** @type import ('@tanstack/react-table').ColumnDef<any>*/
 export const useColumns = () => {
   const { hasRole } = useUser();
+
+  // Function to determine subscription status based on enddate
+  const getSubscriptionStatus = (enddate) => {
+    if (!enddate || enddate === "N/A") return "unknown";
+
+    const today = new Date();
+    const endDate = new Date(enddate);
+
+    // Check if date is valid
+    if (isNaN(endDate.getTime())) return "unknown";
+
+    // Calculate days until expiration
+    const daysUntilExpiration = Math.ceil(
+      (endDate - today) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysUntilExpiration < 0) {
+      return "expired";
+    } else if (daysUntilExpiration <= 30) {
+      return "expiring-soon";
+    } else {
+      return "active";
+    }
+  };
+
+  // Function to get status color class
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case "expired":
+        return "text-red-600 font-bold";
+      case "expiring-soon":
+        return "text-amber-600 font-bold";
+      case "active":
+        return "text-green-600";
+      default:
+        return "";
+    }
+  };
 
   const baseColumns = [
     {
@@ -152,13 +190,49 @@ export const useColumns = () => {
                     enddate = "N/A";
                   }
 
+                  // Determine subscription status
+                  const status = getSubscriptionStatus(enddate);
+
                   return {
                     subsclass,
                     subsdate,
                     enddate,
                     copies: `${copies || "N/A"}`,
+                    status,
                   };
                 });
+            },
+            cell: ({ getValue }) => {
+              const subscriptions = getValue();
+              if (!subscriptions || subscriptions.length === 0) {
+                return <div>No subscription data</div>;
+              }
+
+              return (
+                <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
+                  {subscriptions.map((sub, index) => {
+                    const statusClass = getStatusColorClass(sub.status);
+                    const statusIndicator =
+                      sub.status === "expired"
+                        ? "🔴 "
+                        : sub.status === "expiring-soon"
+                        ? "🟡 "
+                        : sub.status === "active"
+                        ? "🟢 "
+                        : "";
+
+                    return (
+                      <li key={index} className="mb-1">
+                        <span className={statusClass}>
+                          {statusIndicator}
+                          <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
+                          {sub.enddate}, Cps: {sub.copies}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
             },
             size: 650,
           },
@@ -190,9 +264,7 @@ export const useColumns = () => {
                 } = hrgItem;
 
                 recvdate = recvdate
-                  ? `Received: ${new Date(recvdate).toLocaleDateString(
-                      "en-US"
-                    )}`
+                  ? `${new Date(recvdate).toLocaleDateString("en-US")}`
                   : "";
 
                 renewdate = renewdate
@@ -241,7 +313,9 @@ export const useColumns = () => {
                   ? `${new Date(recvdate).toLocaleDateString("en-US")}`
                   : "N/A";
 
-                paymtamt = paymtamt ? `Php ${paymtamt}` : "N/A";
+                paymtamt = paymtamt
+                  ? `Php ${parseFloat(paymtamt).toFixed(2)}`
+                  : "N/A";
 
                 unsubscribe = unsubscribe ? "Unsubscribed" : "Active";
 
