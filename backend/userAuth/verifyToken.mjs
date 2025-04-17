@@ -1,5 +1,9 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userControl/users.mjs";
+import { activeSessions } from "./login.mjs";
+
+// Track revoked tokens
+const revokedTokens = new Set();
 
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1] || req.cookies.token;
@@ -9,7 +13,44 @@ const verifyToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Check if token is in the revoked list
+    if (revokedTokens.has(token)) {
+      return res.status(401).json({ error: "Token has been revoked" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ["HS256"], // Explicitly specify allowed algorithms
+    });
+
+    // Check token expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.exp < now) {
+      return res.status(401).json({ error: "Token expired", expired: true });
+    }
+
+    // Check token issuance time (iat)
+    if (decoded.iat > now) {
+      return res.status(401).json({ error: "Invalid token issuance time" });
+    }
+
+    // Modified session check - don't invalidate token if session not found
+    // This makes the app more tolerant to refreshes
+    if (decoded.jti && activeSessions.has(decoded.jti)) {
+      // Update the last activity time for this session if it exists
+      const session = activeSessions.get(decoded.jti);
+      if (session) {
+        session.lastActivity = new Date();
+      }
+    } else if (decoded.jti) {
+      // If session not found but token is valid, recreate the session
+      // This helps with page refreshes where the in-memory session might be lost
+      activeSessions.set(decoded.jti, {
+        userId: decoded.userId,
+        loginTime: new Date(),
+        lastActivity: new Date(),
+      });
+    }
+
     req.userId = decoded.userId;
     const user = await User.findById(decoded.userId)
       .populate({
@@ -17,18 +58,53 @@ const verifyToken = async (req, res, next) => {
         populate: { path: "defaultPermissions" },
       })
       .populate("roles.customPermissions");
+
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
+
+    // Check if user is still active
+    if (user.status !== "Active") {
+      return res.status(401).json({ error: "User account is not active" });
+    }
+
     req.user = user;
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({ error: "Token expired", expired: true });
+    } else if (err.name === "JsonWebTokenError") {
+      return res.status(401).json({ error: "Invalid token" });
+    } else if (err.name === "NotBeforeError") {
+      return res.status(401).json({ error: "Token not active yet" });
     }
     console.error("Token verification error:", err);
     return res.status(401).json({ error: "Invalid token" });
   }
 };
 
-export default verifyToken;
+// Function to revoke a token (can be used during logout)
+const revokeToken = (token) => {
+  revokedTokens.add(token);
+
+  // If possible, also remove from active sessions
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && decoded.jti) {
+      activeSessions.delete(decoded.jti);
+    }
+  } catch (error) {
+    console.error("Error decoding token during revocation:", error);
+  }
+
+  // Clean up old revoked tokens periodically
+  // This is a simple implementation - in production, you might want to use Redis or a database
+  if (revokedTokens.size > 1000) {
+    // Keep only the most recent 1000 revoked tokens
+    const tokensArray = Array.from(revokedTokens);
+    revokedTokens.clear();
+    tokensArray.slice(-1000).forEach((t) => revokedTokens.add(t));
+  }
+};
+
+export { verifyToken, revokeToken };
