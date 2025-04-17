@@ -1,6 +1,6 @@
 import express from "express";
 import ClientModel from "../../models/clients.mjs";
-import verifyToken from "../../userAuth/verifyToken.mjs";
+import { verifyToken } from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import { checkRole } from "../users/checkRole.mjs";
 import fetchDataServices from "../apiLogic/fetchDataServices.mjs";

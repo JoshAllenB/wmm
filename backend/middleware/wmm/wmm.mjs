@@ -1,6 +1,5 @@
 import express from "express";
 import WmmModel from "../../models/wmm.mjs";
-import verifyToken from "../../userAuth/verifyToken.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 
 

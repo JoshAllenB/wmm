@@ -1,7 +1,7 @@
 import express from "express";
 import HrgModel from "../../models/hrg.mjs";
 import UserModel from "../../models/userControl/users.mjs";
-import verifyToken from "../../userAuth/verifyToken.mjs";
+import { verifyToken } from "../../userAuth/verifyToken.mjs";
 
 const router = express.Router();
 

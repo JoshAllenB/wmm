@@ -1,7 +1,7 @@
 import express from "express";
 import { Role, Permission } from "../../models/userControl/role.mjs";
 import { checkRole } from "./checkRole.mjs";
-import verifyToken from "../../userAuth/verifyToken.mjs";
+import { verifyToken } from "../../userAuth/verifyToken.mjs";
 
 const router = express.Router();
 

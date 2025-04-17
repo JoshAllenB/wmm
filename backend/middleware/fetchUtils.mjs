@@ -1,5 +1,5 @@
 import express from "express";
-import verifyToken from "../userAuth/verifyToken.mjs";
+import { verifyToken } from "../userAuth/verifyToken.mjs";
 import dotenv from "dotenv";
 
 import GroupModel from "../models/groups.mjs";
