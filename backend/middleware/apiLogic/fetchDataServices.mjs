@@ -406,9 +406,6 @@ async function fetchDataServices(
 
           // For WMM model, we need to get subscription data
           if (modelKey.toLowerCase() === "wmmmodel") {
-            console.log("Processing WMM model data...");
-            console.log("Client IDs to match:", clientIds);
-
             const result = await Model.aggregate([
               {
                 $match: {
@@ -423,7 +420,7 @@ async function fetchDataServices(
                   recentCopies: { $first: "$copies" },
                   totalCopies: { $sum: { $toInt: "$copies" } },
                   totalCalQty: { $sum: { $toInt: "$calqty" } },
-                  totalCalAmt: { $sum: { $toInt: "$calamt" } },
+                  totalCalAmt: { $sum: { $toDouble: "$calamt" } },
                   subsclass: { $first: "$subsclass" },
                   subsdate: { $first: "$subsdate" },
                   enddate: { $first: "$enddate" },
@@ -433,20 +430,6 @@ async function fetchDataServices(
                 },
               },
             ]);
-
-            // Log the first result to see what's being returned
-            if (result.length > 0) {
-              console.log("WMM sample result:", {
-                clientId: result[0]._id,
-                recordsCount: result[0].records?.length || 0,
-                hasRecords: !!result[0].records,
-                firstRecord: result[0].records?.[0]
-                  ? Object.keys(result[0].records[0]).join(", ")
-                  : "No records",
-              });
-            } else {
-              console.log("No WMM data found for the current clients");
-            }
 
             return result;
           }
@@ -465,7 +448,7 @@ async function fetchDataServices(
                 recentCopies: { $first: "$copies" },
                 totalCopies: { $sum: { $toInt: "$copies" } },
                 totalCalQty: { $sum: { $toInt: "$calqty" } },
-                totalCalAmt: { $sum: { $toInt: "$calamt" } },
+                totalCalAmt: { $sum: { $toDouble: "$calamt" } },
                 subsclass: { $first: "$subsclass" },
                 records: {
                   $push: "$$ROOT", // Include the entire document in records
@@ -485,18 +468,6 @@ async function fetchDataServices(
       (array) => Array.isArray(array) && array.length > 0
     );
 
-    console.log("Valid model data arrays count:", validModelDataArrays.length);
-    validModelDataArrays.forEach((modelData, index) => {
-      console.log(`Model ${modelNames[index]} has ${modelData.length} records`);
-      if (modelData.length > 0) {
-        console.log(
-          `First record has ${
-            modelData[0].records?.length || 0
-          } subscription records`
-        );
-      }
-    });
-
     const modelDataMap = new Map();
     validModelDataArrays.forEach((modelData, index) => {
       modelData.forEach((item) => {
@@ -511,15 +482,6 @@ async function fetchDataServices(
           records: item.records || [],
         };
 
-        // Log the data object for WMM
-        if (modelNames[index].toLowerCase() === "wmmmodel") {
-          console.log(`WMM data for client ${clientId}:`, {
-            recordsCount: dataObject.records.length,
-            hasRecords: !!dataObject.records,
-            dataKeys: Object.keys(dataObject).join(", "),
-          });
-        }
-
         // Set the data for this model
         const modelKey =
           modelNames[index].toLowerCase().replace("model", "") + "Data";
@@ -533,24 +495,14 @@ async function fetchDataServices(
       ...modelDataMap.get(client.id),
     }));
 
-    if (combinedData.length > 0) {
-      const sampleClient = combinedData[0];
-      console.log("Sample combined client data:", {
-        id: sampleClient.id,
-        hasWmmData: !!sampleClient.wmmData,
-        wmmRecordsCount: sampleClient.wmmData?.records?.length || 0,
-        wmmDataKeys: sampleClient.wmmData
-          ? Object.keys(sampleClient.wmmData).join(", ")
-          : "No WMM data",
-      });
-    }
-
     // Calculate totalCopies using only the most recent copies for each client
     let totalCopies = 0;
+    let totalCalQty = 0;
+    let totalCalAmt = 0;
     let totalFilterQuery = { ...filterQuery };
 
     // Use Promise to get the totalCopies based on the filter
-    const getTotalCopies = async () => {
+    const getTotalValues = async () => {
       try {
         // Get all client IDs that match the filter
         const filteredClientIds = await ClientModel.find(totalFilterQuery)
@@ -558,13 +510,15 @@ async function fetchDataServices(
           .lean()
           .then((results) => results.map((client) => client.id));
 
-        // If no clients match the filter, return 0
+        // If no clients match the filter, return zeros
         if (filteredClientIds.length === 0) {
-          return 0;
+          return { totalCopies: 0, totalCalQty: 0, totalCalAmt: 0 };
         }
 
-        // Get WMM model for copies calculation
+        // Get WMM model for calculations
         const { default: WmmModel } = await import("../../models/wmm.mjs");
+        // Get CAL model for calendar calculations
+        const { default: CalModel } = await import("../../models/cal.mjs");
 
         // Build WMM query to match filtered clients
         const wmmQuery = {
@@ -601,10 +555,48 @@ async function fetchDataServices(
           });
         }
 
-        // Sum up all copies directly
-        let totalCopies = 0;
+        // Get all calendar entries for filtered clients
+        const calQuery = {
+          clientid: { $in: filteredClientIds.map((id) => parseInt(id)) },
+        };
+        const allCalEntries = await CalModel.find(calQuery).lean();
+
+        // For both copies and calendar data, we only want to count the most recent entry for each client
+        const clientLatestSubscriptions = new Map();
+        const clientLatestCalEntries = new Map();
+
+        // Find the most recent WMM subscription for each client
         for (const sub of filteredSubscriptions) {
-          // Only count if copies is a valid number or can be converted to a valid number
+          const clientId = parseInt(sub.clientid);
+          const subsDate = new Date(sub.subsdate);
+
+          if (
+            !clientLatestSubscriptions.has(clientId) ||
+            subsDate >
+              new Date(clientLatestSubscriptions.get(clientId).subsdate)
+          ) {
+            clientLatestSubscriptions.set(clientId, sub);
+          }
+        }
+
+        // Find the most recent calendar entry for each client
+        for (const cal of allCalEntries) {
+          const clientId = parseInt(cal.clientid);
+          const calDate = cal.caldate ? new Date(cal.caldate) : new Date(0);
+
+          if (
+            !clientLatestCalEntries.has(clientId) ||
+            (cal.caldate &&
+              calDate >
+                new Date(clientLatestCalEntries.get(clientId).caldate || 0))
+          ) {
+            clientLatestCalEntries.set(clientId, cal);
+          }
+        }
+
+        // Sum up copies from the most recent subscription for each client
+        let copiesTotal = 0;
+        for (const sub of clientLatestSubscriptions.values()) {
           if (sub.copies) {
             const copies =
               typeof sub.copies === "string"
@@ -613,20 +605,59 @@ async function fetchDataServices(
 
             // Only add if it's a valid number
             if (!isNaN(copies) && copies > 0) {
-              totalCopies += copies;
+              copiesTotal += copies;
             }
           }
         }
 
-        return totalCopies;
+        // Sum up calendar quantities and amounts from the most recent entry for each client
+        let calQtyTotal = 0;
+        let calAmtTotal = 0;
+
+        for (const cal of clientLatestCalEntries.values()) {
+          // Handle calendar quantity calculation
+          if (cal.calqty) {
+            const calQty =
+              typeof cal.calqty === "string"
+                ? parseInt(cal.calqty, 10)
+                : cal.calqty;
+
+            // Only add if it's a valid number
+            if (!isNaN(calQty) && calQty > 0) {
+              calQtyTotal += calQty;
+            }
+          }
+
+          // Handle calendar amount calculation
+          if (cal.calamt) {
+            const calAmt =
+              typeof cal.calamt === "string"
+                ? parseFloat(cal.calamt)
+                : cal.calamt;
+
+            // Only add if it's a valid number
+            if (!isNaN(calAmt) && calAmt > 0) {
+              calAmtTotal += calAmt;
+            }
+          }
+        }
+
+        return {
+          totalCopies: copiesTotal,
+          totalCalQty: calQtyTotal,
+          totalCalAmt: calAmtTotal,
+        };
       } catch (error) {
-        console.error("Error calculating total copies:", error);
-        return 0;
+        console.error("Error calculating totals:", error);
+        return { totalCopies: 0, totalCalQty: 0, totalCalAmt: 0 };
       }
     };
 
-    // Calculate total copies based on filter
-    totalCopies = await getTotalCopies();
+    // Calculate totals based on filter
+    const totals = await getTotalValues();
+    totalCopies = totals.totalCopies;
+    totalCalQty = totals.totalCalQty;
+    totalCalAmt = totals.totalCalAmt;
 
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
       const clientCopies = validModelDataArrays.reduce(
@@ -637,24 +668,6 @@ async function fetchDataServices(
         0
       );
       return acc + clientCopies;
-    }, 0);
-
-    const totalCalQty = validModelDataArrays.reduce((acc, modelData) => {
-      modelData.forEach((item) => {
-        if (clients.some((client) => client.id === item._id)) {
-          acc += item.totalCalQty || 0;
-        }
-      });
-      return acc;
-    }, 0);
-
-    const totalCalAmt = validModelDataArrays.reduce((acc, modelData) => {
-      modelData.forEach((item) => {
-        if (clients.some((client) => client.id === item._id)) {
-          acc += item.totalCalAmt || 0;
-        }
-      });
-      return acc;
     }, 0);
 
     const pageSpecificCalQty = combinedData.reduce((acc, client) => {
