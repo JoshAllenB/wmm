@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import InputField from "../input";
-import axios from "axios";
 import Delete from "./delete";
+import userService from "../../../services/userService";
+import { toast } from "react-hot-toast";
 
 const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
   const [showModal, setShowModal] = useState(false);
@@ -13,36 +14,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
     roles: [],
     name: "", // for role/permission
     permissions: [],
+    oldpassword: "",
+    newpassword: "",
   });
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [rolePermissions, setRolePermissions] = useState({});
   const [showPasswordFields, setShowPasswordFields] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchRolesAndPermissions = async () => {
       try {
         const [rolesRes, permissionsRes] = await Promise.all([
-          axios.get(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/roles/roles`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            }
-          ),
-          axios.get(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/roles/permissions`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            }
-          ),
+          userService.getRoles(),
+          userService.getPermissions(),
         ]);
-        setRoles(rolesRes.data);
-        setPermissions(permissionsRes.data);
+        setRoles(rolesRes);
+        setPermissions(permissionsRes);
 
         if (rowData) {
           setFormData((prevFormData) => ({
@@ -62,6 +52,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
         }
       } catch (err) {
         console.error("Error fetching roles and permissions:", err);
+        toast.error("Failed to load roles and permissions");
       }
     };
     fetchRolesAndPermissions();
@@ -70,14 +61,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
-      let endpoint;
       let dataToSend;
 
       if (type === "user") {
-        endpoint = `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/users/update/${rowData._id}`;
         dataToSend = {
           username: formData.username,
           roles: selectedRoles.map((role) => ({
@@ -90,60 +78,24 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
           dataToSend.newpassword = formData.newpassword;
         }
       } else if (type === "role") {
-        endpoint = `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/roles/roles/${rowData._id}`;
         dataToSend = {
           name: formData.name,
           defaultPermissions: formData.permissions,
         };
       } else if (type === "permission") {
-        endpoint = `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/roles/permissions/${rowData._id}`;
         dataToSend = { name: formData.name };
       }
 
-      console.log("Sending data:", JSON.stringify(dataToSend, null, 2));
-
-      const response = await axios.put(endpoint, dataToSend, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.log("Server response:", response.data);
+      await userService.updateUser(rowData._id, dataToSend);
+      toast.success(
+        `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully`
+      );
       onClose();
     } catch (err) {
       console.error(`Error updating ${type}:`, err);
-      if (err.response) {
-        console.error("Server error response:", err.response.data);
-        console.error("Status code:", err.response.status);
-        console.error("Headers:", err.response.headers);
-
-        // Add this block to log the full error object
-        console.error("Full error object:", JSON.stringify(err, null, 2));
-
-        if (err.response.data && err.response.data.error) {
-          alert(`Failed to update ${type}: ${err.response.data.error}`);
-        } else {
-          alert(
-            `Failed to update ${type}. Please check the console for more details.`
-          );
-        }
-      } else if (err.request) {
-        console.error("No response received:", err.request);
-        alert(`No response received from the server. Please try again later.`);
-      } else {
-        console.error("Error setting up request:", err.message);
-        alert(
-          `An error occurred while setting up the request. Please try again.`
-        );
-      }
-      alert(
-        `Failed to update ${type}. Please check the console for more details.`
-      );
+      toast.error(`Failed to update ${type}. Please try again.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -182,6 +134,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
     }));
   };
 
+  const handleDelete = async () => {
+    try {
+      await userService.deleteUser(rowData._id);
+      toast.success(
+        `${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`
+      );
+      onDeleteSuccess(rowData._id);
+      onClose();
+    } catch (err) {
+      console.error(`Error deleting ${type}:`, err);
+      toast.error(`Failed to delete ${type}. Please try again.`);
+    }
+  };
+
   return (
     <>
       {showModal && (
@@ -201,7 +167,50 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
                     value={formData.username}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
+
+                  <div className="flex items-center mb-2">
+                    <input
+                      type="checkbox"
+                      id="changePassword"
+                      checked={showPasswordFields}
+                      onChange={() =>
+                        setShowPasswordFields(!showPasswordFields)
+                      }
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="changePassword"
+                      className="ml-2 block text-sm text-gray-700"
+                    >
+                      Change Password
+                    </label>
+                  </div>
+
+                  {showPasswordFields && (
+                    <>
+                      <InputField
+                        label="Current Password"
+                        name="oldpassword"
+                        type="password"
+                        value={formData.oldpassword}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <InputField
+                        label="New Password"
+                        name="newpassword"
+                        type="password"
+                        value={formData.newpassword}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                    </>
+                  )}
+
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-gray-700">
                       Roles and Permissions:
@@ -252,79 +261,74 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
                       </div>
                     ))}
                   </div>
-                  {!showPasswordFields ? (
-                    <Button
-                      type="button"
-                      onClick={() => setShowPasswordFields(true)}
-                      className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded"
-                    >
-                      Change Password
-                    </Button>
-                  ) : (
-                    <div className="space-y-2">
-                      <InputField
-                        label="Old Password"
-                        name="oldpassword"
-                        type="password"
-                        value={formData.oldpassword}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <InputField
-                        label="New Password"
-                        name="newpassword"
-                        type="password"
-                        value={formData.newpassword}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  )}
+                </>
+              ) : type === "role" ? (
+                <>
+                  <InputField
+                    label="Role Name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-gray-700">
+                      Default Permissions:
+                    </h3>
+                    {permissions.map((permission) => (
+                      <label
+                        key={permission._id}
+                        className="flex items-center space-x-2 text-gray-600"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.includes(
+                            permission._id
+                          )}
+                          onChange={() =>
+                            handlePermissionChange(permission._id)
+                          }
+                          className="form-checkbox h-4 w-4 text-blue-500"
+                        />
+                        <span className="text-sm">{permission.name}</span>
+                      </label>
+                    ))}
+                  </div>
                 </>
               ) : (
-                <InputField
-                  label={`${type.charAt(0).toUpperCase() + type.slice(1)} Name`}
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-                />
+                <>
+                  <InputField
+                    label="Permission Name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </>
               )}
-              {type === "role" && (
-                <div className="mt-4">
-                  <h3 className="text-lg font-semibold mb-2">Permissions:</h3>
-                  {permissions.map((permission) => (
-                    <label
-                      key={permission._id}
-                      className="flex items-center mb-2"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.includes(permission._id)}
-                        onChange={() => handlePermissionChange(permission._id)}
-                        className="mr-2"
-                      />
-                      {permission.name}
-                    </label>
-                  ))}
+
+              <div className="flex justify-between items-center mt-6">
+                <Delete onDelete={handleDelete} />
+                <div className="flex space-x-2">
+                  <Button
+                    type="button"
+                    onClick={onClose}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition duration-200"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
-              )}
-              <Button
-                type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
-              >
-                Update {type.charAt(0).toUpperCase() + type.slice(1)}
-              </Button>
-            </form>
-            {type === "user" && (
-              <div className="mt-6">
-                <Delete
-                  userId={rowData._id}
-                  onClose={onClose}
-                  onDeleteSuccess={onDeleteSuccess}
-                />
               </div>
-            )}
+            </form>
           </div>
         </Modal>
       )}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
 import Modal from "../../modal";
 import { Button } from "../../UI/ShadCN/button";
 import InputField from "../input";
+import userService from "../../../services/userService";
+import { toast } from "react-hot-toast";
 
 const Add = ({ type = "user" }) => {
   const [showModal, setShowModal] = useState(false);
@@ -18,6 +19,7 @@ const Add = ({ type = "user" }) => {
   const [permissions, setPermissions] = useState([]);
   const [selectedRoles, setSelectedRoles] = useState([]);
   const [rolePermissions, setRolePermissions] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const openModal = () => setShowModal(true);
   const closeModal = () => {
@@ -38,27 +40,14 @@ const Add = ({ type = "user" }) => {
     const fetchRolesAndPermissions = async () => {
       try {
         const [rolesRes, permissionsRes] = await Promise.all([
-          axios.get(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/roles/roles`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            }
-          ),
-          axios.get(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/roles/permissions`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            }
-          ),
+          userService.getRoles(),
+          userService.getPermissions(),
         ]);
-        setRoles(rolesRes.data);
-        setPermissions(permissionsRes.data);
+        setRoles(rolesRes);
+        setPermissions(permissionsRes);
       } catch (err) {
         console.error("Error fetching roles and permissions:", err);
+        toast.error("Failed to load roles and permissions");
       }
     };
     fetchRolesAndPermissions();
@@ -67,15 +56,15 @@ const Add = ({ type = "user" }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (type === "user" && selectedRoles.length === 0) {
-      alert("Please select at least one role for the user.");
+      toast.error("Please select at least one role for the user.");
       return;
     }
+
+    setIsSubmitting(true);
     try {
-      let endpoint;
       let dataToSend;
 
       if (type === "user") {
-        endpoint = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users/add`;
         dataToSend = {
           username: formData.username,
           password: formData.password,
@@ -84,37 +73,28 @@ const Add = ({ type = "user" }) => {
             customPermissions: rolePermissions[role._id] || [],
           })),
         };
-        console.log("Sending user data:", dataToSend); // Add this line
       } else if (type === "role") {
-        endpoint = `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/roles/roles/add`;
         dataToSend = {
           name: formData.name,
           defaultPermissions: formData.defaultPermissions,
         };
       } else if (type === "permission") {
-        endpoint = `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/roles/permissions/add`;
         dataToSend = {
           name: formData.name,
           description: formData.description,
         };
       }
 
-      const response = await axios.post(endpoint, dataToSend, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
-      console.log("Server response:", response.data); // Add this line
+      await userService.createUser(dataToSend);
+      toast.success(
+        `${type.charAt(0).toUpperCase() + type.slice(1)} created successfully`
+      );
       closeModal();
     } catch (err) {
       console.error(`Error adding ${type}:`, err);
-      if (err.response) {
-        console.error("Server error response:", err.response.data); // Add this line
-      }
+      toast.error(`Failed to create ${type}. Please try again.`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -182,6 +162,7 @@ const Add = ({ type = "user" }) => {
                     value={formData.username}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                   <InputField
                     label="Password"
@@ -190,6 +171,7 @@ const Add = ({ type = "user" }) => {
                     value={formData.password}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-gray-700">
@@ -250,6 +232,7 @@ const Add = ({ type = "user" }) => {
                     value={formData.name}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-gray-700">
@@ -268,9 +251,9 @@ const Add = ({ type = "user" }) => {
                           onChange={() =>
                             handlePermissionChange(permission._id)
                           }
-                          className="form-checkbox h-5 w-5 text-blue-600"
+                          className="form-checkbox h-4 w-4 text-blue-500"
                         />
-                        <span>{permission.name}</span>
+                        <span className="text-sm">{permission.name}</span>
                       </label>
                     ))}
                   </div>
@@ -283,6 +266,7 @@ const Add = ({ type = "user" }) => {
                     value={formData.name}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                   <InputField
                     label="Description"
@@ -290,15 +274,26 @@ const Add = ({ type = "user" }) => {
                     value={formData.description}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                 </>
               )}
-              <Button
-                type="submit"
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
-              >
-                Add {type.charAt(0).toUpperCase() + type.slice(1)}
-              </Button>
+              <div className="flex justify-end space-x-2 mt-6">
+                <Button
+                  type="button"
+                  onClick={closeModal}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition duration-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Creating..." : "Create"}
+                </Button>
+              </div>
             </form>
           </div>
         </Modal>
