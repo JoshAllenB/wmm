@@ -12,9 +12,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [formData, setFormData] = useState({});
   const [addressData, setAddressData] = useState({});
   const [wmmData, setWmmData] = useState([]);
-  const [hrgData, setHrgData] = useState([]);
-  const [fomData, setFomData] = useState([]);
-  const [calData, setCalData] = useState([]);
+  const [hrgData, setHrgData] = useState({});
+  const [fomData, setFomData] = useState({});
+  const [calData, setCalData] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -31,20 +31,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         barangay: addressParts[1] || "",
       });
 
-      if (hasRole("WMM")) {
-        setWmmData(rowData.wmmData || []);
-      }
-      if (hasRole("HRG")) {
-        setHrgData(rowData.hrgData || []);
-      }
-      if (hasRole("FOM")) {
-        setFomData(rowData.fomData || []);
-      }
-      if (hasRole("CAL")) {
-        setCalData(rowData.calData || []);
-      }
+      // Set data regardless of role if it exists in rowData
+      setWmmData(rowData.wmmData || []);
+      setHrgData(rowData.hrgData || {});
+      setFomData(rowData.fomData || {});
+      setCalData(rowData.calData || {});
     }
-  }, [rowData, hasRole]);
+  }, [rowData]);
 
   const closeModal = () => {
     setShowModal(false);
@@ -87,6 +80,58 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return new Date(date).toLocaleDateString("en-US"); // Adjust locale as needed
   };
 
+  // Function to determine subscription status based on enddate
+  const getSubscriptionStatus = (enddate) => {
+    if (!enddate) return "unknown";
+
+    const today = new Date();
+    const endDate = new Date(enddate);
+
+    // Check if date is valid
+    if (isNaN(endDate.getTime())) return "unknown";
+
+    // Calculate days until expiration
+    const daysUntilExpiration = Math.ceil(
+      (endDate - today) / (1000 * 60 * 60 * 24)
+    );
+
+    if (daysUntilExpiration < 0) {
+      return "expired";
+    } else if (daysUntilExpiration <= 30) {
+      return "expiring-soon";
+    } else {
+      return "active";
+    }
+  };
+
+  // Function to get status color class
+  const getStatusColorClass = (status) => {
+    switch (status) {
+      case "expired":
+        return "text-red-600 font-bold";
+      case "expiring-soon":
+        return "text-amber-600 font-bold";
+      case "active":
+        return "text-green-600";
+      default:
+        return "";
+    }
+  };
+
+  // Function to get status indicator
+  const getStatusIndicator = (status) => {
+    switch (status) {
+      case "expired":
+        return "🔴 ";
+      case "expiring-soon":
+        return "🟡 ";
+      case "active":
+        return "🟢 ";
+      default:
+        return "";
+    }
+  };
+
   const renderWmmData = () => {
     if (wmmData.length === 0) return null;
     return (
@@ -95,17 +140,26 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           Subscription History
         </h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
-          {wmmData.map((subscription, index) => (
-            <div key={index}>
-              <div className="flex space-x-1 border-b border-gray-500">
-                <span>
-                  <span className="font-bold">{subscription.subsclass}</span>:{" "}
-                  {formatDate(subscription.subsdate)} -{" "}
-                  {formatDate(subscription.enddate)} Cps: {subscription.copies}
-                </span>
+          {wmmData.map((subscription, index) => {
+            const status = getSubscriptionStatus(subscription.enddate);
+            const statusClass = getStatusColorClass(status);
+            const statusIndicator = getStatusIndicator(status);
+
+            return (
+              <div key={index}>
+                <div className="flex space-x-1 border-b border-gray-500">
+                  <span className={statusClass}>
+                    {statusIndicator}
+                    <span className="font-bold">
+                      {subscription.subsclass}
+                    </span>: {formatDate(subscription.subsdate)} -{" "}
+                    {formatDate(subscription.enddate)} Cps:{" "}
+                    {subscription.copies}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
@@ -144,37 +198,42 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderHrgData = () => {
-    if (hrgData.length === 0) return null;
+    if (!hrgData || !hrgData.records || hrgData.records.length === 0)
+      return null;
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">HRG Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
-          {hrgData.map((hrg, index) => (
+          {hrgData.records.map((record, index) => (
             <div key={index} className="flex flex-col border-b border-gray-500">
-              <div>
-                <span className="text-black font-bold">Receive Date:</span>{" "}
-                <span className="text-black">{hrg.recvdate}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Renew Date:</span>{" "}
-                <span className="text-black">{hrg.renewdate}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Campaign Date:</span>{" "}
-                <span className="text-black">{hrg.campaigndate}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Payment Ref:</span>{" "}
-                <span className="text-black">{hrg.paymtref}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Payment Amount:</span>{" "}
-                <span className="text-black">{hrg.paymtamt}</span>
-              </div>
+              {record.recvdate && (
+                <div>
+                  <span className="text-black font-bold">Receive Date:</span>{" "}
+                  <span className="text-black">{record.recvdate}</span>
+                </div>
+              )}
+              {record.campaigndate && (
+                <div>
+                  <span className="text-black font-bold">Campaign Date:</span>{" "}
+                  <span className="text-black">{record.campaigndate}</span>
+                </div>
+              )}
+              {record.paymtref && (
+                <div>
+                  <span className="text-black font-bold">Payment Ref:</span>{" "}
+                  <span className="text-black">{record.paymtref}</span>
+                </div>
+              )}
+              {record.paymtamt && (
+                <div>
+                  <span className="text-black font-bold">Payment Amount:</span>{" "}
+                  <span className="text-black">{record.paymtamt}</span>
+                </div>
+              )}
               <div>
                 <span className="text-black font-bold">Unsubscribe:</span>{" "}
                 <span className="text-black">
-                  {hrg.unsubscribe ? "Yes" : "No"}
+                  {record.unsubscribe ? "Yes" : "No"}
                 </span>
               </div>
             </div>
@@ -185,37 +244,42 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderFomData = () => {
-    if (fomData.length === 0) return null;
+    if (!fomData || !fomData.records || fomData.records.length === 0)
+      return null;
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">FOM Data</h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-[300px]">
-          {fomData.map((fom, index) => (
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+          {fomData.records.map((record, index) => (
             <div key={index} className="flex flex-col border-b border-gray-500">
-              <div>
-                <span className="text-black font-bold">Receive Date:</span>{" "}
-                <span className="text-black">{fom.recvdate}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Payment Ref:</span>{" "}
-                <span className="text-black">{fom.paymtref}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Payment Amount:</span>{" "}
-                <span className="text-black">{fom.paymtamt}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Payment Form:</span>{" "}
-                <span className="text-black">{fom.paymtform}</span>
-              </div>
-              <div>
-                <span className="text-black font-bold">Remarks:</span>{" "}
-                <span className="text-black">{fom.remarks}</span>
-              </div>
+              {record.recvdate && (
+                <div>
+                  <span className="text-black font-bold">Receive Date:</span>{" "}
+                  <span className="text-black">{record.recvdate}</span>
+                </div>
+              )}
+              {record.paymtref && (
+                <div>
+                  <span className="text-black font-bold">Payment Ref:</span>{" "}
+                  <span className="text-black">{record.paymtref}</span>
+                </div>
+              )}
+              {record.paymtamt && (
+                <div>
+                  <span className="text-black font-bold">Payment Amount:</span>{" "}
+                  <span className="text-black">{record.paymtamt}</span>
+                </div>
+              )}
+              {record.paymtform && (
+                <div>
+                  <span className="text-black font-bold">Payment Form:</span>{" "}
+                  <span className="text-black">{record.paymtform}</span>
+                </div>
+              )}
               <div>
                 <span className="text-black font-bold">Unsubscribe:</span>{" "}
                 <span className="text-black">
-                  {fom.unsubscribe ? "Yes" : "No"}
+                  {record.unsubscribe ? "Yes" : "No"}
                 </span>
               </div>
             </div>
@@ -226,49 +290,62 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderCalData = () => {
-    if (calData.length === 0) return null;
+    if (!calData || !calData.records || calData.records.length === 0)
+      return null;
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">CAL Data</h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-[300px]">
-          {calData.map((cal, index) => (
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+          {calData.records.map((record, index) => (
             <div key={index} className="flex flex-col border-b border-gray-500">
-              <div>
+              {record.recvdate && (
                 <div>
                   <span className="text-black font-bold">Receive Date:</span>{" "}
-                  <span className="text-black">{cal.recvdate}</span>
+                  <span className="text-black">{record.recvdate}</span>
                 </div>
+              )}
+              {record.caltype && (
                 <div>
                   <span className="text-black font-bold">Cal Type:</span>{" "}
-                  <span className="text-black">{cal.caltype}</span>
+                  <span className="text-black">{record.caltype}</span>
                 </div>
+              )}
+              {record.calqty && (
                 <div>
                   <span className="text-black font-bold">Cal Quantity:</span>{" "}
-                  <span className="text-black">{cal.calqty}</span>
+                  <span className="text-black">{record.calqty}</span>
                 </div>
+              )}
+              {record.calamt && (
                 <div>
                   <span className="text-black font-bold">Cal Amount:</span>{" "}
-                  <span className="text-black">{cal.calamt}</span>
+                  <span className="text-black">{record.calamt}</span>
                 </div>
-              </div>
-              <div>
+              )}
+              {record.paymtref && (
                 <div>
                   <span className="text-black font-bold">Payment Ref:</span>{" "}
-                  <span className="text-black">{cal.paymtref}</span>
+                  <span className="text-black">{record.paymtref}</span>
                 </div>
+              )}
+              {record.paymtamt && (
                 <div>
                   <span className="text-black font-bold">Payment Amount:</span>{" "}
-                  <span className="text-black">{cal.paymtamt}</span>
+                  <span className="text-black">{record.paymtamt}</span>
                 </div>
+              )}
+              {record.paymtform && (
                 <div>
                   <span className="text-black font-bold">Payment Form:</span>{" "}
-                  <span className="text-black">{cal.paymtform}</span>
+                  <span className="text-black">{record.paymtform}</span>
                 </div>
+              )}
+              {record.paymtdate && (
                 <div>
                   <span className="text-black font-bold">Payment Date:</span>{" "}
-                  <span className="text-black">{cal.paymtdate}</span>
+                  <span className="text-black">{record.paymtdate}</span>
                 </div>
-              </div>
+              )}
             </div>
           ))}
         </div>
@@ -368,7 +445,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 )}
 
                 {/* HRG Data Card */}
-                {hrgData.length > 0 && (
+                {hrgData && hrgData.records && hrgData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                       HRG Data
@@ -378,7 +455,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 )}
 
                 {/* FOM Data Card */}
-                {fomData.length > 0 && (
+                {fomData && fomData.records && fomData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                       FOM Data
@@ -388,7 +465,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 )}
 
                 {/* CAL Data Card */}
-                {calData.length > 0 && (
+                {calData && calData.records && calData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                       CAL Data
