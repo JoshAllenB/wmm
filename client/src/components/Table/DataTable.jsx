@@ -41,6 +41,7 @@ export default function DataTable({
   handleRowClick,
   setTableInstance,
   advancedFilterData,
+  isLoading = false,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -53,7 +54,6 @@ export default function DataTable({
   );
   const [totalCalQty, setTotalCalQty] = useState(initialTotalCalQty);
   const [totalCalAmt, setTotalCalAmt] = useState(initialTotalCalAmt);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
@@ -74,7 +74,9 @@ export default function DataTable({
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
+      if (isLoading) return; // Skip if already loading
+
+      setIsTransitioning(false);
       setAnimationComplete(false);
       try {
         const result = await fetchFunction(
@@ -105,7 +107,6 @@ export default function DataTable({
         console.error("Error loading data:", error);
         setError(error.message);
       } finally {
-        setIsLoading(false);
         setIsTransitioning(true);
         const timer = setTimeout(() => {
           setIsTransitioning(false);
@@ -123,6 +124,7 @@ export default function DataTable({
     searchTerm,
     selectedGroup,
     advancedFilterData,
+    isLoading,
   ]);
 
   useEffect(() => {
