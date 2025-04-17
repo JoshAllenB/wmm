@@ -4,6 +4,25 @@ const initWebSocket = (io) => {
   const sessions = new Map(); // Map to track sessionId to user data
   global.socketIdMap = new Map(); // Map to track userId to socketId
 
+  // Clean up any invalid sessions (without proper user information)
+  const cleanupInvalidSessions = () => {
+    let cleanedCount = 0;
+    sessions.forEach((data, sessionId) => {
+      if (
+        !data.userId ||
+        !data.username ||
+        data.userId === "null" ||
+        data.username === "null"
+      ) {
+        sessions.delete(sessionId);
+        cleanedCount++;
+      }
+    });
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} invalid sessions`);
+    }
+  };
+
   const logConnectedUsers = () => {
     console.log("\n=== Connected Users ===");
     sessions.forEach(({ userId, username, socketId }, sessionId) => {
@@ -17,11 +36,26 @@ const initWebSocket = (io) => {
     console.log("========================\n");
   };
 
+  // Perform initial cleanup
+  cleanupInvalidSessions();
+
   io.on("connection", (socket) => {
     const { userId, username, sessionId } = socket.handshake.query;
 
-    if (!sessionId || !userId || !username) {
-      console.error("Missing required parameters");
+    // Validate connection data - reject empty or "null" string values
+    if (
+      !sessionId ||
+      !userId ||
+      !username ||
+      userId === "null" ||
+      username === "null" ||
+      sessionId === "null"
+    ) {
+      console.error("Invalid session data, disconnecting socket:", {
+        userId,
+        username,
+        sessionId,
+      });
       socket.disconnect();
       return;
     }
@@ -39,12 +73,6 @@ const initWebSocket = (io) => {
       );
     } else {
       // New connection logic
-      if (!userId || !username) {
-        console.error("Missing userId or username in query parameters");
-        socket.disconnect();
-        return;
-      }
-
       global.socketIdMap.set(userId, socket.id);
 
       const sessionData = {
