@@ -535,6 +535,15 @@ async function processMonthlyDistribution(
       reportConfig.outputDirectory,
       `Detailed_Log_${month}_${year}.json`
     );
+
+    // Ensure the output directory exists before writing the file
+    if (!fs.existsSync(reportConfig.outputDirectory)) {
+      console.log(
+        chalk.cyan(`Creating output directory: ${reportConfig.outputDirectory}`)
+      );
+      fs.mkdirSync(reportConfig.outputDirectory, { recursive: true });
+    }
+
     fs.writeFileSync(logFilePath, JSON.stringify(detailedLog, null, 2));
     sendProgressUpdate(`Detailed log saved to ${logFilePath}`);
 
@@ -611,11 +620,35 @@ async function processMonthlyDistribution(
 // Configuration for the report file path
 // Can be easily changed here or loaded from a config file
 const reportConfig = {
-  // Default path for Windows when running in WSL
-  outputDirectory: "/mnt/d/WMM Template and example/Monthly Report",
+  // Default path that works on both Windows WSL and native Ubuntu
+  outputDirectory: getDefaultOutputPath(),
   // Whether to open Excel after generation
   openExcelAfterGeneration: false, // Changed to false for server-side generation
 };
+
+/**
+ * Determines the default output path based on the current environment
+ * Works on both Windows WSL and native Ubuntu
+ * @returns {string} The default path for saving reports
+ */
+function getDefaultOutputPath() {
+  const homeDir = os.homedir();
+  const isWSL = os.release().toLowerCase().includes("microsoft");
+
+  if (isWSL) {
+    // We're in WSL, try to use the Windows Documents folder if possible
+    const username = homeDir.split("/").pop();
+    if (fs.existsSync("/mnt/c/Users/" + username + "/Documents")) {
+      return `/mnt/c/Users/${username}/Documents/WMM Reports`;
+    } else if (fs.existsSync("/mnt/d")) {
+      // Fallback to D drive if it exists (common external drive)
+      return `/mnt/d/WMM Reports`;
+    }
+  }
+
+  // Default for native Ubuntu or fallback if WSL paths aren't available
+  return `${homeDir}/WMM_Reports`;
+}
 
 // Function to generate an Excel file from the report data
 async function generateExcelReport(reportData, outputPath) {
@@ -808,7 +841,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       console.log(chalk.green(`\n✅ REPORT GENERATION COMPLETE`));
       console.log(chalk.green(`Report saved to ${outputPath}`));
 
-      if (reportConfig.openExcelAfterGeneration) {
+      // Only attempt to open Excel if configured to do so and running in WSL
+      const isWSL = os.release().toLowerCase().includes("microsoft");
+      if (reportConfig.openExcelAfterGeneration && isWSL) {
         console.log(chalk.bold("Opening Excel with the generated report..."));
         // Convert WSL path to Windows path for Excel to open it
         let windowsPath = outputPath;
@@ -827,6 +862,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
             exec(`cmd.exe /c start "" "${windowsPath}"`);
           }
         });
+      } else if (reportConfig.openExcelAfterGeneration) {
+        console.log(
+          chalk.yellow(
+            "Excel auto-open is only available in WSL. File saved at:"
+          )
+        );
+        console.log(chalk.yellow(outputPath));
       }
     } catch (error) {
       console.error(
