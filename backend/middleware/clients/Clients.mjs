@@ -409,7 +409,8 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { lname, fname, mname, email, cellno, contactnos } = req.body;
+    const { lname, fname, mname, email, cellno, contactnos, bdate, address } =
+      req.body;
 
     // Build a query to find potential duplicates
     const query = { $or: [] };
@@ -428,6 +429,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
     }
 
+    if (bdate) {
+      query.$or.push({ bdate: bdate });
+    }
+
     // Contact-based matching
     if (email && email.includes("@")) {
       query.$or.push({ email: { $regex: new RegExp(`^${email}`, "i") } });
@@ -441,6 +446,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       query.$or.push({ contactnos: { $regex: contactnos } });
     }
 
+    if (address && address.length > 5) {
+      query.$or.push({ address: { $regex: new RegExp(address, "i") } });
+    }
+
     // If we don't have enough criteria, don't bother searching
     if (query.$or.length === 0) {
       return res.json({ matches: [] });
@@ -448,8 +457,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
 
     // Execute query with limit to ensure performance
     const clients = await ClientModel.find(query)
-      .select("id lname fname mname email cellno address")
-      .limit(5)
+      .select(
+        "id lname fname mname sname bdate address street city barangay zipcode contactnos cellno ofcno email "
+      )
+      .limit(10)
       .lean();
 
     res.json({ matches: clients });
