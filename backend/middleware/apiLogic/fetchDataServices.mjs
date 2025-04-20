@@ -74,6 +74,135 @@ async function fetchDataServices(
       });
     }
 
+    // Handle fullName search
+    if (advancedFilterData.fullName) {
+      const fullName = advancedFilterData.fullName.trim();
+      // Split the full name into parts
+      const nameParts = fullName.split(/\s+/);
+
+      // Create a more comprehensive search for full names
+      // This will check if any part of the name matches any name field
+      if (nameParts.length > 0) {
+        const nameQueries = [];
+
+        // For exact name matching (all parts must be present)
+        const exactMatchQueries = [];
+
+        // For each name part, check all name fields
+        nameParts.forEach((part) => {
+          if (part.trim()) {
+            nameQueries.push({ lname: { $regex: part, $options: "i" } });
+            nameQueries.push({ fname: { $regex: part, $options: "i" } });
+            nameQueries.push({ mname: { $regex: part, $options: "i" } });
+            nameQueries.push({ sname: { $regex: part, $options: "i" } });
+          }
+        });
+
+        // For 2-part names, try both first-last and last-first combinations
+        if (nameParts.length === 2) {
+          const [part1, part2] = nameParts;
+          // Scenario: "John Doe" where John is fname and Doe is lname
+          exactMatchQueries.push({
+            $and: [
+              { fname: { $regex: `^${part1}$`, $options: "i" } },
+              { lname: { $regex: `^${part2}$`, $options: "i" } },
+            ],
+          });
+          // Scenario: "Doe John" where Doe is lname and John is fname
+          exactMatchQueries.push({
+            $and: [
+              { lname: { $regex: `^${part1}$`, $options: "i" } },
+              { fname: { $regex: `^${part2}$`, $options: "i" } },
+            ],
+          });
+        }
+
+        // For 3-part names like "John Middle Doe"
+        if (nameParts.length === 3) {
+          const [part1, part2, part3] = nameParts;
+          // Scenario: "John Middle Doe" (fname mname lname)
+          exactMatchQueries.push({
+            $and: [
+              { fname: { $regex: `^${part1}$`, $options: "i" } },
+              { mname: { $regex: `^${part2}$`, $options: "i" } },
+              { lname: { $regex: `^${part3}$`, $options: "i" } },
+            ],
+          });
+          // Scenario: "Doe John Middle" (lname fname mname)
+          exactMatchQueries.push({
+            $and: [
+              { lname: { $regex: `^${part1}$`, $options: "i" } },
+              { fname: { $regex: `^${part2}$`, $options: "i" } },
+              { mname: { $regex: `^${part3}$`, $options: "i" } },
+            ],
+          });
+        }
+
+        // Add both exact matches and partial matches to the query
+        baseFilter.push({
+          $or: [
+            ...exactMatchQueries,
+            // If we have multiple name parts, try to match them all
+            ...(nameParts.length > 1
+              ? [
+                  {
+                    $and: nameParts.map((part) => ({
+                      $or: [
+                        { lname: { $regex: part, $options: "i" } },
+                        { fname: { $regex: part, $options: "i" } },
+                        { mname: { $regex: part, $options: "i" } },
+                        { sname: { $regex: part, $options: "i" } },
+                      ],
+                    })),
+                  },
+                ]
+              : []),
+            // If everything else fails, try individual part matching
+            ...(nameQueries.length > 0 ? [{ $or: nameQueries }] : []),
+          ],
+        });
+      }
+    }
+
+    // Handle clientId search (specific ID search from the tag search)
+    if (advancedFilterData.clientId) {
+      const clientId = parseInt(advancedFilterData.clientId);
+      if (!isNaN(clientId)) {
+        baseFilter.push({ id: clientId });
+      }
+    }
+
+    // Handle paymentRef search
+    if (advancedFilterData.paymentRef) {
+      // Add search for payment reference in WMM records
+      // We'll need to find all clients with matching payment references first
+      try {
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+        const paymentRef = advancedFilterData.paymentRef.trim();
+
+        // Find clients with matching payment references
+        const clientsWithPaymentRef = await WmmModel.find({
+          or: { $regex: paymentRef, $options: "i" },
+        }).distinct("clientid");
+
+        if (clientsWithPaymentRef.length > 0) {
+          // Convert client IDs to numbers and filter out invalid ones
+          const validClientIds = clientsWithPaymentRef
+            .map((id) => parseInt(id))
+            .filter((id) => !isNaN(id));
+
+          if (validClientIds.length > 0) {
+            baseFilter.push({ id: { $in: validClientIds } });
+          }
+        } else {
+          // If no matching payment refs were found, ensure no results are returned
+          baseFilter.push({ id: -1 }); // No client will have ID -1
+        }
+      } catch (error) {
+        console.error("Error searching for payment references:", error);
+      }
+    }
+
     const personalInfoFields = [
       "fname",
       "lname",
