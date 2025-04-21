@@ -101,6 +101,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     subsyear: 1,
     remarks: "",
     paymtamt: 0,
+    paymtref: "",
     paymtmasses: 0,
     calendar: false,
   });
@@ -1370,6 +1371,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     </div>
                   </div>
                   
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={roleSpecificData.paymtref || ""}
+                        onChange={handleRoleSpecificChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={roleSpecificData.paymtamt || 0}
+                        onChange={handleRoleSpecificChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Remarks:
@@ -1474,6 +1501,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       {validationErrors.subsclass && (
                         <p className="text-red-500 text-xs mt-1">{validationErrors.subsclass}</p>
                       )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={newSubscriptionData.paymtref || ""}
+                        onChange={handleNewSubscriptionChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newSubscriptionData.paymtamt || 0}
+                        onChange={handleNewSubscriptionChange}
+                        className="w-full p-2 border rounded-md"
+                      />
                     </div>
                   </div>
                   

@@ -172,6 +172,13 @@ export function TableComponent({
                                   {sub.subsdate} - {sub.enddate}, Cps:{" "}
                                   {sub.copies}
                                 </span>
+                                {(sub.paymtref || sub.paymtamt) && (
+                                  <div className="text-xs ml-4 text-gray-600">
+                                    {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
+                                    {sub.paymtref && sub.paymtamt && <span> • </span>}
+                                    {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
+                                  </div>
+                                )}
                               </li>
                             );
                           })

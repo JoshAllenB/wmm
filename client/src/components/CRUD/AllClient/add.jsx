@@ -1335,6 +1335,26 @@ const Add = ({ fetchClients }) => {
                           />
                         </div>
                       </div>
+
+                      <div className="mt-4">
+                        <InputField
+                          label="Payment Reference:"
+                          id="paymtref"
+                          name="paymtref"
+                          value={roleSpecificData.paymtref}
+                          onChange={handleRoleSpecificChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                        
+                        <InputField
+                          label="Payment Amount:"
+                          id="paymtamt"
+                          name="paymtamt"
+                          value={roleSpecificData.paymtamt}
+                          onChange={handleRoleSpecificChange}
+                          className="w-full p-2 border rounded-md"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

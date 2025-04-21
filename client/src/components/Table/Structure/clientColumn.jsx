@@ -172,7 +172,7 @@ export const useColumns = () => {
                   return dateB - dateA;
                 })
                 .map((subscription) => {
-                  let { subsdate, enddate, copies, subsclass } = subscription;
+                  let { subsdate, enddate, copies, subsclass, paymtref, paymtamt } = subscription;
 
                   if (subsdate) {
                     subsdate = `${new Date(subsdate).toLocaleDateString(
@@ -190,6 +190,11 @@ export const useColumns = () => {
                     enddate = "N/A";
                   }
 
+                  // Format payment amount if exists
+                  const formattedPayment = paymtamt 
+                    ? `₱${parseFloat(paymtamt).toFixed(2)}` 
+                    : null;
+
                   // Determine subscription status
                   const status = getSubscriptionStatus(enddate);
 
@@ -198,6 +203,8 @@ export const useColumns = () => {
                     subsdate,
                     enddate,
                     copies: `${copies || "N/A"}`,
+                    paymtref: paymtref || null,
+                    paymtamt: formattedPayment,
                     status,
                   };
                 });
@@ -228,6 +235,13 @@ export const useColumns = () => {
                           <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
                           {sub.enddate}, Cps: {sub.copies}
                         </span>
+                        {(sub.paymtref || sub.paymtamt) && (
+                          <div className="text-xs ml-4 text-gray-600">
+                            {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
+                            {sub.paymtref && sub.paymtamt && <span> • </span>}
+                            {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
