@@ -15,21 +15,34 @@ export function useTableLogic(
   page,
   pageSize,
   rowSelection,
-  setRowSelection
+  setRowSelection,
+  userRole,
+  columnVisibility,
+  setColumnVisibility
 ) {
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
-  
-  // Initialize column visibility based on columns
-  const initialColumnVisibility = useMemo(() => {
-    const visibility = {};
-    columns.forEach((column) => {
-      visibility[column.id] = column.isVisible !== undefined ? column.isVisible : true;
-    });
-    return visibility;
-  }, [columns]);
 
-  const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility);
+  // Initialize column visibility if not provided
+  const effectiveColumnVisibility = useMemo(() => {
+    if (columnVisibility && Object.keys(columnVisibility).length > 0) {
+      return columnVisibility;
+    }
+
+    // Create default visibility if none provided
+    const defaultVisibility = {};
+    columns.forEach((column) => {
+      defaultVisibility[column.id] =
+        column.isVisible !== undefined ? column.isVisible : true;
+    });
+
+    // Update parent state if setter provided
+    if (setColumnVisibility) {
+      setColumnVisibility(defaultVisibility);
+    }
+
+    return defaultVisibility;
+  }, [columns, columnVisibility, setColumnVisibility]);
 
   // Ensure data and columns are valid arrays
   const tableData = useMemo(() => {
@@ -69,15 +82,16 @@ export function useTableLogic(
         pageIndex: Math.max(0, page - 1),
         pageSize: Math.max(1, pageSize),
       },
-      columnVisibility,
+      columnVisibility: effectiveColumnVisibility,
     },
     onRowSelectionChange: setRowSelection || (() => {}),
     getRowId: (row) => row?.id || row?._id || uuidv4(),
     onSortingChange: setSorting,
     onGlobalFilterChange: setFiltering,
+    onColumnVisibilityChange: setColumnVisibility || (() => {}),
     enableRowSelection: true,
     enableMultiRowSelection: true,
   });
 
-  return { table, setColumnVisibility, columnVisibility };
+  return { table };
 }
