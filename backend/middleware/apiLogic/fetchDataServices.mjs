@@ -179,10 +179,25 @@ async function fetchDataServices(
       try {
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         const paymentRef = advancedFilterData.paymentRef.trim();
+        
+        // For MS references, extract the core reference number
+        let refPattern = paymentRef;
+        
+        // Extract the core MS number (e.g., "MS 001488" becomes "MS001488" or "MS.*001488")
+        const msMatch = paymentRef.match(/^([A-Z]{2})\s*(\d{6})/i);
+        if (msMatch) {
+          // Create a regex pattern that's flexible about spaces and leading zeros
+          const prefix = msMatch[1].toUpperCase();
+          const numbers = msMatch[2];
+          
+          // Create a regex that will match the pattern regardless of spaces, but preserve digits
+          refPattern = `${prefix}.*${numbers.replace(/^0+/, '')}`;
+          console.log(`Searching for payment reference with pattern: ${refPattern}`);
+        }
 
         // Find clients with matching payment references
         const clientsWithPaymentRef = await WmmModel.find({
-          or: { $regex: paymentRef, $options: "i" },
+          paymtref: { $regex: refPattern, $options: "i" }
         }).distinct("clientid");
 
         if (clientsWithPaymentRef.length > 0) {
