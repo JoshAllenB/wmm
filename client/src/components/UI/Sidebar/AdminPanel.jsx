@@ -10,7 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ShadCN/components/ui/select";
+} from "../ShadCN/select";
 import userService from "../../../services/userService";
 import { toast } from "react-hot-toast";
 
