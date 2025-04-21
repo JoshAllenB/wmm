@@ -115,7 +115,7 @@ const AllClient = () => {
 
     // Get role-based services
     const roleBasedServices = [];
-    if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
+    if (hasRole("WMM")) roleBasedServices.push("WMM");
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
@@ -180,7 +180,7 @@ const AllClient = () => {
     const roleBasedServices = [];
 
     // Check each role and add corresponding service
-    if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
+    if (hasRole("WMM")) roleBasedServices.push("WMM");
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
@@ -306,7 +306,7 @@ const AllClient = () => {
         // Properly handle services array
         // Get role-based services first
         const roleBasedServices = [];
-        if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
+        if (hasRole("WMM")) roleBasedServices.push("WMM");
         if (hasRole("FOM")) roleBasedServices.push("FOM");
         if (hasRole("HRG")) roleBasedServices.push("HRG");
         if (hasRole("CAL")) roleBasedServices.push("CAL");
