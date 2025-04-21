@@ -13,7 +13,6 @@ import {
   handleLastPage,
   handlePageJump,
 } from "./Features/PaginationUtils";
-import { ColumnToggle } from "./ColumnToggle";
 import { LinearProgress } from "@mui/material";
 
 export default function DataTable({
@@ -42,6 +41,8 @@ export default function DataTable({
   setTableInstance,
   advancedFilterData,
   isLoading = false,
+  columnVisibility,
+  setColumnVisibility,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -61,7 +62,7 @@ export default function DataTable({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
 
-  const { table, setColumnVisibility, columnVisibility } = useTableLogic(
+  const { table } = useTableLogic(
     localData,
     columns,
     usePagination,
@@ -69,7 +70,9 @@ export default function DataTable({
     pageSize,
     rowSelection,
     setRowSelection,
-    userRole
+    userRole,
+    columnVisibility,
+    setColumnVisibility
   );
 
   useEffect(() => {
@@ -213,15 +216,8 @@ export default function DataTable({
     );
   }
 
-  const toggleableColumns = columns.filter((column) => column.id !== "select");
-
   return (
     <>
-      {/* <ColumnToggle
-        columns={toggleableColumns}
-        columnVisibility={columnVisibility}
-        setColumnVisibility={setColumnVisibility}
-      /> */}
       <div
         className={`transition-opacity duration-300 ease-in-out ${
           isTransitioning ? "opacity-0" : "opacity-100"
