@@ -18,6 +18,26 @@ const formatDateToInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Utility function to format date to "MM/DD/YY"
+const formatDateToMMDDYY = (date) => {
+  if (!date) return "";
+  
+  let d;
+  try {
+    d = new Date(date);
+    if (isNaN(d.getTime())) {
+      return date; // Return original if not valid date
+    }
+  } catch (error) {
+    return date; // Return original if parsing fails
+  }
+  
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear().toString().slice(-2);
+  return `${month}/${day}/${year}`;
+};
+
 const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole } = useUser();
   const [formData, setFormData] = useState({
@@ -68,11 +88,58 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
   const [selectedRole, setSelectedRole] = useState("HRG"); // Default to HRG
+  
+  // Track if we're editing an existing subscription or adding a new one
+  const [subscriptionMode, setSubscriptionMode] = useState("edit");
+  const [selectedSubscription, setSelectedSubscription] = useState(null);
+  const [availableSubscriptions, setAvailableSubscriptions] = useState([]);
+  const [newSubscriptionData, setNewSubscriptionData] = useState({
+    subsdate: formatDateToMMDDYY(new Date()),
+    enddate: "",
+    subsclass: "",
+    copies: 1,
+    subsyear: 1,
+    remarks: "",
+    paymtamt: 0,
+    paymtmasses: 0,
+    calendar: false,
+  });
+
+  // Add validation function for new subscription data
+  const validateNewSubscription = (data) => {
+    const errors = {};
+    
+    if (!data.subsdate) {
+      errors.subsdate = "Subscription start date is required";
+    }
+    
+    if (!data.enddate) {
+      errors.enddate = "Subscription end date is required";
+    }
+    
+    if (!data.subsclass) {
+      errors.subsclass = "Subscription class is required";
+    }
+    
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors
+    };
+  };
+
+  // Add state for validation errors
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     if (rowData) {
       console.log("Row data available:", rowData);
-      setFormData(rowData);
+      setFormData({
+        ...rowData,
+        // Initialize subscription-related fields
+        subscriptionFreq: rowData.subscriptionFreq || "",
+        subscriptionStart: rowData.subsdate || "",
+        subscriptionEnd: rowData.enddate || "",
+      });
       setShowModal(true);
 
       const addressParts = rowData.address ? rowData.address.split(", ") : [];
@@ -99,20 +166,55 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }
 
       if (hasRole("WMM")) {
-        const wmmData = {
-          subsdate: rowData.subsdate || "",
-          enddate: rowData.enddate || "",
-          renewdate: rowData.renewdate || "",
-          subsyear: rowData.subsyear || 0,
-          copies: rowData.copies || 1,
-          paymtamt: rowData.paymtamt || 0,
-          paymtmasses: rowData.paymtmasses || 0,
-          calendar: rowData.calendar || false,
-          subsclass: rowData.subsclass || "",
-          donorid: rowData.donorid || 0,
-        };
-        console.log("WMM role-specific data:", wmmData);
-        setRoleSpecificData(wmmData);
+        // If WMM data is available as a nested object
+        if (rowData.wmmData?.records && rowData.wmmData.records.length > 0) {
+          // Get all subscription records and sort them by date (newest first)
+          const subscriptions = [...rowData.wmmData.records].sort((a, b) => {
+            const dateA = new Date(a.subsdate || 0);
+            const dateB = new Date(b.subsdate || 0);
+            return dateB - dateA;
+          });
+          
+          setAvailableSubscriptions(subscriptions);
+          
+          // Set the most recent subscription as the selected one
+          const latestSubscription = subscriptions[0];
+          setSelectedSubscription(latestSubscription);
+          
+          const wmmData = {
+            id: latestSubscription.id,
+            subsdate: latestSubscription.subsdate || "",
+            enddate: latestSubscription.enddate || "",
+            renewdate: latestSubscription.renewdate || "",
+            subsyear: latestSubscription.subsyear || 0,
+            copies: latestSubscription.copies || 1,
+            paymtamt: latestSubscription.paymtamt || 0,
+            paymtmasses: latestSubscription.paymtmasses || 0,
+            calendar: latestSubscription.calendar || false,
+            subsclass: latestSubscription.subsclass || "",
+            donorid: latestSubscription.donorid || 0,
+            remarks: latestSubscription.remarks || "",
+          };
+          console.log("WMM role-specific data from record:", wmmData);
+          setRoleSpecificData(wmmData);
+        } else {
+          // No subscription records, initialize with empty data
+          const wmmData = {
+            subsdate: rowData.subsdate || "",
+            enddate: rowData.enddate || "",
+            renewdate: rowData.renewdate || "",
+            subsyear: rowData.subsyear || 0,
+            copies: rowData.copies || 1,
+            paymtamt: rowData.paymtamt || 0,
+            paymtmasses: rowData.paymtmasses || 0,
+            calendar: rowData.calendar || false,
+            subsclass: rowData.subsclass || "",
+            donorid: rowData.donorid || 0,
+            remarks: rowData.remarks || "",
+          };
+          console.log("WMM role-specific data from client:", wmmData);
+          setRoleSpecificData(wmmData);
+        }
       } else if (hasRole("HRG")) {
         const hrgData = {
           recvdate: rowData.recvdate || "",
@@ -175,12 +277,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       try {
         const subclassesData = await fetchSubclasses();
         setSubclasses(subclassesData);
+        console.log("Subclasses loaded:", subclassesData);
       } catch (error) {
         console.error("Error loading subclasses:", error);
       }
     };
     loadSubclasses();
-  }, [hasRole]);
+  }, []);
 
   useEffect(() => {
     const loadTypes = async () => {
@@ -200,19 +303,72 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const formatDateToMonthYear = (date) => {
-    const d = new Date(date);
-    const month = d.toLocaleString("en-US", { month: "long" });
+    if (!date) return "";
+    
+    let d;
+    try {
+      // Try to create a new date from the input
+      d = new Date(date);
+      
+      // Check if date is valid
+      if (isNaN(d.getTime())) {
+        // Try parsing MM/DD/YY format
+        const parts = date.split('/');
+        if (parts.length === 3) {
+          const month = parseInt(parts[0]) - 1;
+          const day = parseInt(parts[1]);
+          let year = parseInt(parts[2]);
+          // Adjust two-digit year
+          if (year < 100) {
+            year = year < 50 ? 2000 + year : 1900 + year;
+          }
+          d = new Date(year, month, day);
+        }
+      }
+      
+      // Check if date is now valid
+      if (isNaN(d.getTime())) {
+        return date; // Return original string if cannot parse
+      }
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      return date; // Return original string if error
+    }
+    
+    // Format the date
+    const month = d.toLocaleString("en-US", { month: "short" });
+    const day = d.getDate();
     const year = d.getFullYear();
-    return `${month} ${year}`;
+    return `${month} ${day}, ${year}`;
   };
 
   const calculateEndMonth = (startDate, monthsToAdd) => {
-    const start = new Date(startDate);
-    const endDate = new Date(start.setMonth(start.getMonth() + monthsToAdd));
-
-    // Adjust the end date to the last day of the calculated month
-    endDate.setDate(0);
-    return endDate;
+    if (!startDate || !monthsToAdd) return null;
+    
+    try {
+      const start = new Date(startDate);
+      if (isNaN(start.getTime())) {
+        throw new Error("Invalid start date");
+      }
+      
+      // Create a new date object and add months
+      const endDate = new Date(start);
+      endDate.setMonth(endDate.getMonth() + parseInt(monthsToAdd));
+      
+      // Adjust for month length differences
+      // If the start date is the last day of the month, make the end date the last day of its month
+      const startDay = start.getDate();
+      const endDay = endDate.getDate();
+      
+      if (startDay !== endDay) {
+        endDate.setDate(0); // Set to the last day of the previous month
+      }
+      
+      return endDate;
+    } catch (error) {
+      console.error("Error calculating end date:", error);
+      return null;
+    }
   };
 
   const handleChange = async (e) => {
@@ -222,13 +378,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const upperCaseValue = value.toUpperCase();
 
     if (name === "subscriptionFreq") {
-      const today = new Date();
       const monthsToAdd = parseInt(value);
-      const startDate = today;
-
+      
+      // Use subsdate from roleSpecificData or today if not available
+      const startDate = roleSpecificData.subsdate 
+        ? new Date(roleSpecificData.subsdate) 
+        : new Date();
+        
       const subscriptionStart = new Date(
         startDate.getFullYear(),
-        startDate.getMonth()
+        startDate.getMonth(),
+        startDate.getDate()
       );
       const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
 
@@ -236,14 +396,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       setFormData({
         ...formData,
         subscriptionFreq: value,
-        subscriptionStart: formatDateToMonthYear(subscriptionStart),
-        subscriptionEnd: formatDateToMonthYear(subscriptionEnd),
+        subscriptionStart: formatDateToMMDDYY(subscriptionStart),
+        subscriptionEnd: formatDateToMMDDYY(subscriptionEnd),
       });
 
       setRoleSpecificData((prev) => ({
         ...prev,
-        subsdate: formatDateToMonthYear(subscriptionStart),
-        enddate: formatDateToMonthYear(subscriptionEnd),
+        subsdate: formatDateToMMDDYY(subscriptionStart),
+        enddate: formatDateToMMDDYY(subscriptionEnd),
         copies: prev.copies || 1,
       }));
       return;
@@ -357,8 +517,118 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     setRoleSpecificData(roleData);
   };
 
+  const handleNewSubscriptionChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setNewSubscriptionData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleSubscriptionModeChange = (mode) => {
+    setSubscriptionMode(mode);
+    
+    if (mode === "edit" && selectedSubscription) {
+      // Switch to edit mode and load the selected subscription
+      setRoleSpecificData({
+        id: selectedSubscription.id,
+        subsdate: selectedSubscription.subsdate || "",
+        enddate: selectedSubscription.enddate || "",
+        renewdate: selectedSubscription.renewdate || "",
+        subsyear: selectedSubscription.subsyear || 0,
+        copies: selectedSubscription.copies || 1,
+        paymtamt: selectedSubscription.paymtamt || 0,
+        paymtmasses: selectedSubscription.paymtmasses || 0,
+        calendar: selectedSubscription.calendar || false,
+        subsclass: selectedSubscription.subsclass || "",
+        donorid: selectedSubscription.donorid || 0,
+        remarks: selectedSubscription.remarks || "",
+      });
+    } else if (mode === "add") {
+      // Switch to add mode and initialize with new subscription data
+      setRoleSpecificData(newSubscriptionData);
+    }
+  };
+
+  const handleSelectedSubscriptionChange = (e) => {
+    const subscriptionId = parseInt(e.target.value);
+    const subscription = availableSubscriptions.find(sub => sub.id === subscriptionId);
+    
+    if (subscription) {
+      setSelectedSubscription(subscription);
+      
+      // Update role-specific data with selected subscription
+      setRoleSpecificData({
+        id: subscription.id,
+        subsdate: subscription.subsdate || "",
+        enddate: subscription.enddate || "",
+        renewdate: subscription.renewdate || "",
+        subsyear: subscription.subsyear || 0,
+        copies: subscription.copies || 1,
+        paymtamt: subscription.paymtamt || 0,
+        paymtmasses: subscription.paymtmasses || 0,
+        calendar: subscription.calendar || false,
+        subsclass: subscription.subsclass || "",
+        donorid: subscription.donorid || 0,
+        remarks: subscription.remarks || "",
+      });
+    }
+  };
+
+  const handleSubscriptionFreqChange = (e) => {
+    const { value } = e.target;
+    const monthsToAdd = parseInt(value);
+    
+    // Use current start date or today
+    let startDate;
+    if (subscriptionMode === "edit" && roleSpecificData.subsdate) {
+      startDate = new Date(roleSpecificData.subsdate);
+    } else if (subscriptionMode === "add" && newSubscriptionData.subsdate) {
+      startDate = new Date(newSubscriptionData.subsdate);
+    } else {
+      startDate = new Date();
+    }
+    
+    // Calculate end date
+    const endDate = calculateEndMonth(startDate, monthsToAdd);
+    
+    // Format dates
+    const formattedStart = formatDateToMMDDYY(startDate);
+    const formattedEnd = formatDateToMMDDYY(endDate);
+    
+    // Update the appropriate state
+    if (subscriptionMode === "edit") {
+      setRoleSpecificData(prev => ({
+        ...prev,
+        subsdate: formattedStart,
+        enddate: formattedEnd,
+        subsyear: Math.round(monthsToAdd / 12),
+      }));
+    } else {
+      setNewSubscriptionData(prev => ({
+        ...prev,
+        subsdate: formattedStart,
+        enddate: formattedEnd,
+        subsyear: Math.round(monthsToAdd / 12),
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (hasRole("WMM") && subscriptionMode === "add") {
+      // Validate new subscription data
+      const { isValid, errors } = validateNewSubscription(newSubscriptionData);
+      
+      if (!isValid) {
+        setValidationErrors(errors);
+        return; // Stop submission if validation fails
+      }
+    }
+    
+    // Clear any existing validation errors
+    setValidationErrors({});
 
     const addressComponents = [
       addressData.street1,
@@ -383,29 +653,115 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       ...areaData, // Include area data in clientData
     };
 
-    const submissionData = {
-      clientData: updatedClientData,
-      roleType: selectedRole,
-      roleData: roleSpecificData,
-    };
-
-    if (
-      hasRole("WMM") &&
-      !hasRole("HRG") &&
-      !hasRole("FOM") &&
-      !hasRole("CAL")
-    ) {
-      submissionData.roleType = "WMM";
-      submissionData.roleData = {
-        ...roleSpecificData,
-        subscriptionFreq,
-        subscriptionStart,
-        subscriptionEnd,
-        subsclass,
-      };
-    } else {
-      switch (selectedRole) {
-        case "HRG":
+    try {
+      if (hasRole("WMM") && subscriptionMode === "add") {
+        // When adding a new subscription, send a separate request specifically for adding a subscription
+        console.log("Adding new subscription for client:", rowData.id);
+        
+        // Create current timestamp
+        const timestamp = new Date().toLocaleString("en-US", {
+          month: "numeric",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        }).replace(",", "");
+        
+        // Prepare new subscription data
+        const newSubscriptionRequest = {
+          clientid: parseInt(rowData.id),
+          subsdate: newSubscriptionData.subsdate,
+          enddate: newSubscriptionData.enddate,
+          subsclass: newSubscriptionData.subsclass,
+          copies: parseInt(newSubscriptionData.copies) || 1,
+          subsyear: parseInt(newSubscriptionData.subsyear) || 1,
+          remarks: newSubscriptionData.remarks || "",
+          paymtamt: parseFloat(newSubscriptionData.paymtamt) || 0,
+          paymtmasses: parseInt(newSubscriptionData.paymtmasses) || 0,
+          calendar: newSubscriptionData.calendar || false,
+          // Add the current date as the add date
+          adddate: timestamp
+        };
+        
+        console.log("New subscription data:", newSubscriptionRequest);
+        
+        // Make a direct call to create a new WMM entry
+        const subscriptionResponse = await axios.post(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/wmm/add`,
+          newSubscriptionRequest,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        
+        if (subscriptionResponse.data && subscriptionResponse.data.id) {
+          console.log("New subscription created:", subscriptionResponse.data);
+          
+          // Now update the client data separately
+          const clientUpdateResponse = await axios.put(
+            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${rowData.id}`,
+            {
+              clientData: updatedClientData,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }
+          );
+          
+          if (clientUpdateResponse.data.success) {
+            onEditSuccess({
+              ...updatedClientData,
+              // Add new subscription data to the response so the UI updates
+              wmmData: {
+                records: [
+                  ...(rowData.wmmData?.records || []),
+                  subscriptionResponse.data
+                ]
+              }
+            });
+            closeModal();
+          }
+        }
+      } else {
+        // Regular update for editing existing subscriptions or other roles
+        let submissionData = {
+          clientData: updatedClientData,
+          roleType: selectedRole,
+          roleData: {},
+        };
+        
+        if (hasRole("WMM") && subscriptionMode === "edit") {
+          // Edit existing subscription
+          submissionData.roleType = "WMM";
+          submissionData.roleData = {
+            ...roleSpecificData,
+            subsdate: roleSpecificData.subsdate || formData.subscriptionStart,
+            enddate: roleSpecificData.enddate || formData.subscriptionEnd,
+            subsclass: roleSpecificData.subsclass || formData.subsclass,
+            copies: roleSpecificData.copies || 1,
+            id: selectedSubscription?.id, // Include the subscription ID for reference
+          };
+          
+          // Calculate subsyear based on subsdate and enddate if not provided
+          if (!roleSpecificData.subsyear && roleSpecificData.subsdate && roleSpecificData.enddate) {
+            try {
+              const startDate = new Date(roleSpecificData.subsdate);
+              const endDate = new Date(roleSpecificData.enddate);
+              const monthsApart = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                                endDate.getMonth() - startDate.getMonth();
+              submissionData.roleData.subsyear = Math.round(monthsApart / 12);
+            } catch (error) {
+              console.error("Error calculating subscription year:", error);
+            }
+          }
+        } else if (hasRole("HRG")) {
+          submissionData.roleType = "HRG";
           submissionData.roleData = {
             recvdate: roleSpecificData.recvdate,
             renewdate: roleSpecificData.renewdate,
@@ -414,8 +770,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtamt: roleSpecificData.paymtamt,
             unsubscribe: roleSpecificData.unsubscribe,
           };
-          break;
-        case "FOM":
+        } else if (hasRole("FOM")) {
+          submissionData.roleType = "FOM";
           submissionData.roleData = {
             recvdate: roleSpecificData.recvdate,
             paymtamt: roleSpecificData.paymtamt,
@@ -423,8 +779,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtref: roleSpecificData.paymtref,
             unsubscribe: roleSpecificData.unsubscribe,
           };
-          break;
-        case "CAL":
+        } else if (hasRole("CAL")) {
+          submissionData.roleType = "CAL";
           submissionData.roleData = {
             recvdate: roleSpecificData.recvdate,
             caltype: roleSpecificData.caltype,
@@ -435,23 +791,27 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtform: roleSpecificData.paymtform,
             paymtdate: roleSpecificData.paymtdate,
           };
-          break;
-      }
-    }
-
-    try {
-      const response = await axios.put(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
-          rowData.id
-        }`,
-        submissionData
-      );
-      if (response.data.success) {
-        onEditSuccess(updatedClientData);
-        closeModal();
+        }
+        
+        console.log("Submitting data for update:", submissionData);
+        
+        const response = await axios.put(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${rowData.id}`,
+          submissionData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        
+        if (response.data.success) {
+          onEditSuccess(updatedClientData);
+          closeModal();
+        }
       }
     } catch (error) {
-      console.error("Error updating client:", error);
+      console.error("Error processing client data:", error);
     }
   };
 
@@ -882,6 +1242,261 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   onChange={handleChange}
                 />
               </div>
+            </div>
+          )}
+
+          {/* Subscription Card for WMM users */}
+          {hasRole("WMM") && (
+            <div className="p-4 border rounded-lg shadow-sm mt-4">
+              <div className="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 className="text-black text-lg font-bold">
+                  Subscription Management
+                </h2>
+                <div className="flex space-x-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="subscriptionMode"
+                      value="edit"
+                      checked={subscriptionMode === "edit"}
+                      onChange={() => handleSubscriptionModeChange("edit")}
+                      className="form-radio h-4 w-4 text-blue-600"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Edit Existing</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="subscriptionMode"
+                      value="add"
+                      checked={subscriptionMode === "add"}
+                      onChange={() => handleSubscriptionModeChange("add")}
+                      className="form-radio h-4 w-4 text-green-600"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Add New</span>
+                  </label>
+                </div>
+              </div>
+              
+              {/* Edit existing subscription section */}
+              {subscriptionMode === "edit" && availableSubscriptions.length > 0 && (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Subscription to Edit:
+                    </label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={selectedSubscription?.id || ""}
+                      onChange={handleSelectedSubscriptionChange}
+                    >
+                      {availableSubscriptions.map((sub) => (
+                        <option key={sub.id} value={sub.id}>
+                          {sub.subsclass || "Unknown"} - {sub.subsdate ? new Date(sub.subsdate).toLocaleDateString() : "N/A"} to {sub.enddate ? new Date(sub.enddate).toLocaleDateString() : "N/A"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <InputField
+                    label="Subscription Start (MM/DD/YY):"
+                    id="subsdate"
+                    name="subsdate"
+                    value={roleSpecificData.subsdate || ""}
+                    onChange={handleRoleSpecificChange}
+                    placeholder="MM/DD/YY"
+                    className="w-full p-2 border rounded-md"
+                  />
+                  
+                  <div className="my-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Subscription Duration:
+                    </label>
+                    <select
+                      id="subscriptionFreq"
+                      name="subscriptionFreq"
+                      onChange={handleSubscriptionFreqChange}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Select Duration</option>
+                      <option value="5">6 Months</option>
+                      <option value="12">1 Year</option>
+                      <option value="23">2 Years</option>
+                      <option value="others">Others</option>
+                    </select>
+                  </div>
+                  
+                  <InputField
+                    label="Subscription End (MM/DD/YY):"
+                    id="enddate"
+                    name="enddate"
+                    value={roleSpecificData.enddate || ""}
+                    onChange={handleRoleSpecificChange}
+                    placeholder="MM/DD/YY"
+                    className="w-full p-2 border rounded-md"
+                  />
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <InputField
+                        label="Copies:"
+                        id="copies"
+                        name="copies"
+                        type="number"
+                        min="1"
+                        value={roleSpecificData.copies || 1}
+                        onChange={handleRoleSpecificChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Class:
+                      </label>
+                      <select
+                        id="subsclass"
+                        name="subsclass"
+                        value={roleSpecificData.subsclass || ""}
+                        onChange={handleRoleSpecificChange}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        <option value="">Select a classification</option>
+                        {subclasses.map((subclass) => (
+                          <option key={subclass.id} value={subclass.id}>
+                            {subclass.name} ({subclass.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Remarks:
+                    </label>
+                    <textarea
+                      id="remarks"
+                      name="remarks"
+                      value={roleSpecificData.remarks || ""}
+                      onChange={handleRoleSpecificChange}
+                      className="w-full p-2 border rounded-md h-24"
+                    ></textarea>
+                  </div>
+                </>
+              )}
+              
+              {/* Add new subscription section */}
+              {subscriptionMode === "add" && (
+                <>
+                  <div className="bg-green-50 p-2 rounded-md mb-4 text-sm text-green-700">
+                    Adding a new subscription record for this client. The client's details will remain unchanged.
+                  </div>
+                  
+                  <div className="mb-4">
+                    <InputField
+                      label="Subscription Start (MM/DD/YY):"
+                      id="subsdate"
+                      name="subsdate"
+                      value={newSubscriptionData.subsdate || ""}
+                      onChange={handleNewSubscriptionChange}
+                      placeholder="MM/DD/YY"
+                      className={`w-full p-2 border rounded-md ${validationErrors.subsdate ? 'border-red-500' : ''}`}
+                    />
+                    {validationErrors.subsdate && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.subsdate}</p>
+                    )}
+                  </div>
+                  
+                  <div className="my-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Subscription Duration:
+                    </label>
+                    <select
+                      id="subscriptionFreq"
+                      name="subscriptionFreq"
+                      onChange={handleSubscriptionFreqChange}
+                      className="w-full p-2 border rounded-md"
+                    >
+                      <option value="">Select Duration</option>
+                      <option value="5">6 Months</option>
+                      <option value="12">1 Year</option>
+                      <option value="23">2 Years</option>
+                      <option value="others">Others</option>
+                    </select>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <InputField
+                      label="Subscription End (MM/DD/YY):"
+                      id="enddate"
+                      name="enddate"
+                      value={newSubscriptionData.enddate || ""}
+                      onChange={handleNewSubscriptionChange}
+                      placeholder="MM/DD/YY"
+                      className={`w-full p-2 border rounded-md ${validationErrors.enddate ? 'border-red-500' : ''}`}
+                    />
+                    {validationErrors.enddate && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.enddate}</p>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <InputField
+                        label="Copies:"
+                        id="copies"
+                        name="copies"
+                        type="number"
+                        min="1"
+                        value={newSubscriptionData.copies || 1}
+                        onChange={handleNewSubscriptionChange}
+                        className="w-full p-2 border rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Class:
+                      </label>
+                      <select
+                        id="subsclass"
+                        name="subsclass"
+                        value={newSubscriptionData.subsclass || ""}
+                        onChange={handleNewSubscriptionChange}
+                        className={`w-full p-2 border rounded-md ${validationErrors.subsclass ? 'border-red-500' : ''}`}
+                      >
+                        <option value="">Select a classification</option>
+                        {subclasses.map((subclass) => (
+                          <option key={subclass.id} value={subclass.id}>
+                            {subclass.name} ({subclass.id})
+                          </option>
+                        ))}
+                      </select>
+                      {validationErrors.subsclass && (
+                        <p className="text-red-500 text-xs mt-1">{validationErrors.subsclass}</p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Remarks:
+                    </label>
+                    <textarea
+                      id="remarks"
+                      name="remarks"
+                      value={newSubscriptionData.remarks || ""}
+                      onChange={handleNewSubscriptionChange}
+                      className="w-full p-2 border rounded-md h-24"
+                    ></textarea>
+                  </div>
+                </>
+              )}
+              
+              {subscriptionMode === "edit" && availableSubscriptions.length === 0 && (
+                <div className="p-4 bg-yellow-50 text-yellow-700 rounded-md">
+                  No existing subscriptions found for this client. Please use "Add New" option to create a subscription.
+                </div>
+              )}
             </div>
           )}
         </div>
