@@ -141,7 +141,7 @@ export function TableComponent({
                       </div>
                     ) : cell.column.id === "Subscription" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
+                      <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((sub, index) => {
                             // Get status color class
