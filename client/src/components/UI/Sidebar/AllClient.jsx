@@ -115,7 +115,7 @@ const AllClient = () => {
 
     // Get role-based services
     const roleBasedServices = [];
-    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
@@ -180,7 +180,7 @@ const AllClient = () => {
     const roleBasedServices = [];
 
     // Check each role and add corresponding service
-    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
@@ -306,7 +306,7 @@ const AllClient = () => {
         // Properly handle services array
         // Get role-based services first
         const roleBasedServices = [];
-        if (hasRole("WMM")) roleBasedServices.push("WMM");
+        if (hasRole("WMM", "Accounting")) roleBasedServices.push("WMM");
         if (hasRole("FOM")) roleBasedServices.push("FOM");
         if (hasRole("HRG")) roleBasedServices.push("HRG");
         if (hasRole("CAL")) roleBasedServices.push("CAL");
@@ -344,13 +344,18 @@ const AllClient = () => {
         // Add addedToday filter if enabled
         if (addedToday) {
           const today = new Date();
-          const formattedDate = `${
-            today.getMonth() + 1
-          }/${today.getDate()}/${today.getFullYear()}`;
-          filtersToUse.adddate = formattedDate;
+          // Create date pattern to match the beginning of the string
+          const month = today.getMonth() + 1;
+          const day = today.getDate();
+          const year = today.getFullYear();
+          // We want to match the date part regardless of the time part
+          // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
+          // Passing a regex as a string since MongoDB will interpret it
+          filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
+          console.log("Added Today filter enabled with pattern:", filtersToUse.adddate_regex);
         } else {
           // Explicitly remove adddate filter when addedToday is false
-          delete filtersToUse.adddate;
+          delete filtersToUse.adddate_regex;
         }
 
         const result = await fetchClients(
