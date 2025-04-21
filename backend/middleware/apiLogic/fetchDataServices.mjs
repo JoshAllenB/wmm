@@ -227,6 +227,14 @@ async function fetchDataServices(
       baseFilter.push({ adddate: advancedFilterData.adddate });
     }
 
+    // Support for regex pattern matching on adddate (for "Added Today" feature)
+    if (advancedFilterData.adddate_regex) {
+      console.log("Backend received adddate_regex pattern:", advancedFilterData.adddate_regex);
+      baseFilter.push({ 
+        adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" } 
+      });
+    }
+
     // Add area filter
     if (advancedFilterData.acode) {
       baseFilter.push({ acode: advancedFilterData.acode });
