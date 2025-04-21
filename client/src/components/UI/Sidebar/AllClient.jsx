@@ -231,7 +231,7 @@ const AllClient = () => {
 
     // Check for tagged search patterns
     const idMatch = searchValue.match(/\bid:\s*(\S+)/i);
-    const refMatch = searchValue.match(/\bref:\s*(\S+\s*\S*)/i);
+    const refMatch = searchValue.match(/\bref:\s*([A-Z]{2}\s*\d{6}[\s\d\/]*)/i);
     const nameMatch = searchValue.match(/\bname:\s*([^:]+?)(?=\s+\w+:|$)/i);
 
     if (idMatch) {
@@ -250,6 +250,14 @@ const AllClient = () => {
       filters.fullName = nameMatch[1].trim();
       // Remove the matched pattern from the search string
       searchValue = searchValue.replace(nameMatch[0], "").trim();
+    }
+
+    // Check if the untagged search looks like a payment reference (MS followed by numbers)
+    const untaggedRefMatch = searchValue.match(/\b([A-Z]{2}\s*\d{6}[\s\d\/]*)\b/i);
+    if (!filters.paymentRef && untaggedRefMatch) {
+      filters.paymentRef = untaggedRefMatch[1];
+      // Remove the matched pattern from the search string
+      searchValue = searchValue.replace(untaggedRefMatch[0], "").trim();
     }
 
     // Check if the untagged search looks like a full name (contains space)
@@ -707,7 +715,7 @@ const AllClient = () => {
       </div>
       <div className="flex gap-4 mb-4">
         <Input
-          placeholder="Search or use tags: id:1234, ref:OR123, name:John Doe"
+          placeholder="Search by name, ID, or payment ref (e.g., MS 001234 or ref:MS 001234)"
           value={filtering}
           onChange={handleSearchChange}
           className="max-w-sm"
