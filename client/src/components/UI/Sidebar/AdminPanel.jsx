@@ -117,11 +117,11 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="m-[30px]">
+    <div className="m-2">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
         <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-blue-500">
           <p className="text-gray-500 text-sm">Total Users</p>
           <p className="text-2xl font-bold">{stats.totalUsers}</p>
@@ -140,7 +140,7 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-4">
         <Add fetchUsers={fetchUsersData} />
 
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
