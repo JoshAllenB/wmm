@@ -133,21 +133,24 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderWmmData = () => {
-    if (wmmData.length === 0) return null;
+    // Check if wmmData exists, is an object, and has records
+    if (!wmmData || !wmmData.records || wmmData.records.length === 0)
+      return null;
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">
-          Subscription History
+          Subscription & Payment History
         </h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
-          {wmmData.map((subscription, index) => {
+        <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-full">
+          {wmmData.records.map((subscription, index) => {
             const status = getSubscriptionStatus(subscription.enddate);
             const statusClass = getStatusColorClass(status);
             const statusIndicator = getStatusIndicator(status);
 
             return (
-              <div key={index}>
-                <div className="flex space-x-1 border-b border-gray-500">
+              <div key={index} className="border-b border-gray-300 pb-2 mb-2">
+                <div className="flex space-x-1">
                   <span className={statusClass}>
                     {statusIndicator}
                     <span className="font-bold">
@@ -157,41 +160,63 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {subscription.copies}
                   </span>
                 </div>
+
+                {/* Payment details */}
+                {subscription.paymtref && (
+                  <div className="mt-1 pl-4 text-sm">
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <div>
+                        <span className="text-black font-semibold">
+                          Payment Ref:
+                        </span>{" "}
+                        <span className="text-black">
+                          {subscription.paymtref}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-black font-semibold">
+                          Amount:
+                        </span>{" "}
+                        <span className="text-black">
+                          {subscription.paymtamt}
+                        </span>
+                      </div>
+                      {subscription.paymtmasses && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Masses:
+                          </span>{" "}
+                          <span className="text-black">
+                            {subscription.paymtmasses}
+                          </span>
+                        </div>
+                      )}
+                      {subscription.donorid && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Donor ID:
+                          </span>{" "}
+                          <span className="text-black">
+                            {subscription.donorid}
+                          </span>
+                        </div>
+                      )}
+                      {subscription.adddate && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Added:
+                          </span>{" "}
+                          <span className="text-black">
+                            {formatDate(subscription.adddate)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderPaymentHistory = () => {
-    // Check if `wmmData` exists and has a `records` property that is an array
-    if (!wmmData?.records || wmmData.records.length === 0) {
-      return <p>No payment history available.</p>;
-    }
-
-    return (
-      <div className="flex flex-col mb-2 p-2">
-        <div>
-          {wmmData.records.map((record, index) => (
-            <div key={index} className="mb-2">
-              <span className="text-black font-bold">Payment Ref:</span>{" "}
-              <span className="text-black"> {record.paymtref}</span>
-              <br />
-              <span className="text-black font-bold">Payment Amount:</span>{" "}
-              <span className="text-black"> {record.paymtamt}</span>
-              <br />
-              <span className="text-black font-bold">Payment Masses:</span>{" "}
-              <span className="text-black"> {record.paymtmasses}</span>
-              <br />
-              <span className="text-black font-bold">Donor ID:</span>{" "}
-              <span className="text-black"> {record.donorid}</span>
-              <br />
-              <span className="text-black font-bold">Add Date:</span>{" "}
-              <span className="text-black"> {record.adddate}</span>
-            </div>
-          ))}
         </div>
       </div>
     );
@@ -425,22 +450,20 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   ])}
                 </div>
 
-                <div className="p-4 border rounded-lg shadow-sm">
-                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                    Payment History
-                  </h2>
-                  {renderPaymentHistory() || (
-                    <p>No payment history available.</p>
-                  )}
-                </div>
-
-                {/* Subscription History Card */}
-                {wmmData.length > 0 && (
-                  <div className="p-4 border rounded-lg shadow-sm">
+                {/* Replace separate payment history and subscription history cards with combined one */}
+                {wmmData && wmmData.records && wmmData.records.length > 0 ? (
+                  <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      Subscription History
+                      Subscription & Payment History
                     </h2>
                     {renderWmmData()}
+                  </div>
+                ) : (
+                  <div className="p-4 border rounded-lg shadow-sm">
+                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      Subscription & Payment History
+                    </h2>
+                    <p>No subscription or payment history available.</p>
                   </div>
                 )}
 

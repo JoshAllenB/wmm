@@ -20,22 +20,15 @@ const logoutUser = async (userId, token, io) => {
       }
     }
 
-    const user = await UserModel.findById(userId);
-    if (user) {
-      // Only set to Logged Off if no other active sessions for this user
-      const hasOtherActiveSessions = Array.from(activeSessions.values()).some(
-        (session) => session.userId === userId.toString()
-      );
+    // Count remaining active sessions for this user
+    const hasOtherActiveSessions = Array.from(activeSessions.values()).some(
+      (session) => session.userId === userId.toString()
+    );
 
-      if (!hasOtherActiveSessions) {
-        user.status = "Logged Off";
-        await user.save();
-      }
-
-      return { message: "Logout successful" };
-    } else {
-      return { error: "User not found" };
-    }
+    return {
+      message: "Logout successful",
+      status: hasOtherActiveSessions ? "Active" : "Logged Off",
+    };
   } catch (error) {
     console.error(error);
     return { error: "Internal Server Error" };

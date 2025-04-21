@@ -6,6 +6,7 @@ import { verifyToken } from "./verifyToken.mjs";
 import User from "../models/userControl/users.mjs";
 import jwt from "jsonwebtoken";
 import { Role, Permission } from "../models/userControl/role.mjs";
+import { isUserActive } from "./login.mjs";
 
 const router = express.Router();
 
@@ -43,6 +44,9 @@ router.post("/login", async (req, res) => {
     }
 
     const { token, user } = loginResult;
+
+    // Make sure user status is updated to real-time status (should be Active after login)
+    user.status = isUserActive(user.id) ? "Active" : "Logged Off";
 
     const refreshToken = jwt.sign(
       { userId: user.id },
@@ -144,12 +148,16 @@ router.post("/verifyToken", async (req, res) => {
       ],
     }));
 
+    // Use isUserActive function to determine real-time status
+    const userStatus = isUserActive(user._id) ? "Active" : "Logged Off";
+
     res.json({
       valid: true,
       user: {
         id: user._id,
         username: user.username,
         roles: rolesAndPermissions,
+        status: userStatus, // Return the real-time status
       },
     });
   } catch (err) {

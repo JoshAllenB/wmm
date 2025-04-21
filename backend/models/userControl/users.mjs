@@ -30,11 +30,8 @@ const UsersSchema = new mongoose.Schema(
       },
     ],
     lastLoginAt: Date,
-    status: {
-      type: String,
-      enum: ["Active", "Inactive", "Logged Off"],
-      default: "Inactive",
-    },
+    // Status is no longer stored in the database
+    // It is determined dynamically from activeSessions
   },
   { timestamps: true, collection: "users" }
 );

@@ -3,6 +3,7 @@ import UserModel from "../../models/userControl/users.mjs";
 import { Role } from "../../models/userControl/role.mjs";
 import { checkRole } from "./checkRole.mjs";
 import { verifyToken } from "../../userAuth/verifyToken.mjs";
+import { isUserActive } from "../../userAuth/login.mjs";
 
 const router = express.Router();
 
@@ -11,7 +12,7 @@ router.get("/", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const users = await UserModel.find()
-      .select("username roles lastLoginAt status")
+      .select("username roles lastLoginAt")
       .populate({
         path: "roles.role",
         populate: { path: "defaultPermissions" },
@@ -19,15 +20,21 @@ router.get("/", verifyToken, async (req, res) => {
       .populate("roles.customPermissions")
       .lean();
 
-    const currentUser = users.find(
+    // Add real-time status to each user
+    const usersWithStatus = users.map((user) => ({
+      ...user,
+      status: isUserActive(user._id) ? "Active" : "Logged Off",
+    }));
+
+    const currentUser = usersWithStatus.find(
       (user) => user._id.toString() === req.user._id.toString()
     );
 
     res.status(200).json({
-      users,
+      users: usersWithStatus,
       currentUser,
     });
-    io.emit("user-update", { type: "init", data: users });
+    io.emit("user-update", { type: "init", data: usersWithStatus });
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: "Failed to fetch users" });

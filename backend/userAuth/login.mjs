@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import UserModel from "../models/userControl/users.mjs";
 import { Permission } from "../models/userControl/role.mjs";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 
 // Track login attempts to prevent brute force attacks
 const loginAttempts = new Map();
@@ -29,6 +30,24 @@ const generateToken = (userId, roles) => {
       algorithm: "HS256", // Explicitly specify the algorithm
     }
   );
+};
+
+/**
+ * Checks if a user is currently active based on active sessions
+ * @param {string} userId - The user ID to check
+ * @returns {boolean} - Whether the user is currently active
+ */
+const isUserActive = (userId) => {
+  if (!userId) return false;
+
+  // Check if user has any active sessions
+  for (const session of activeSessions.values()) {
+    if (session.userId === userId.toString()) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 const loginUser = async (username, password) => {
@@ -95,8 +114,7 @@ const loginUser = async (username, password) => {
     // Reset login attempts on successful login
     loginAttempts.delete(username);
 
-    // Update user status to active and track session
-    user.status = "Active";
+    // Update only the lastLoginAt timestamp, don't store status in DB
     user.lastLoginAt = new Date();
     await user.save();
 
@@ -128,7 +146,7 @@ const loginUser = async (username, password) => {
         id: user._id,
         username: user.username,
         roles: rolesAndPermissions,
-        status: user.status,
+        status: "Active", // Status is Active at login time
       },
       token,
     };
@@ -139,29 +157,22 @@ const loginUser = async (username, password) => {
 };
 
 /**
- * Resets the status of all users marked as "Active" in the database to "Logged Off".
- * This should be run once on server startup to clean up stale statuses after a restart.
+ * Resets all active sessions on server startup.
+ * This should be run once on server startup to clean up stale sessions after a restart.
  */
 const resetActiveUsersStatus = async () => {
   try {
+    console.log("Running startup cleanup: Clearing all active sessions...");
+    // Clear all active sessions
+    activeSessions.clear();
     console.log(
-      'Running startup cleanup: Resetting "Active" user statuses to "Logged Off"...'
-    );
-    const result = await UserModel.updateMany(
-      { status: "Active" },
-      { $set: { status: "Logged Off" } }
-    );
-    console.log(
-      `Startup cleanup finished. Reset status for ${result.modifiedCount} user(s).`
+      "Startup cleanup finished. All active sessions have been cleared."
     );
   } catch (error) {
-    console.error("Error during startup user status cleanup:", error);
-    // Depending on the desired behavior, you might want to throw the error
-    // to prevent the server from starting if the cleanup fails.
-    // throw error;
+    console.error("Error during startup session cleanup:", error);
   }
 };
 
 // Export the active sessions map and the reset function
-export { activeSessions, resetActiveUsersStatus };
+export { activeSessions, resetActiveUsersStatus, isUserActive };
 export default loginUser;

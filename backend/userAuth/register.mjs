@@ -15,7 +15,6 @@ const registerUser = async (userData) => {
       username: userData.username,
       email: userData.email,
       password: userData.password, // This will be hashed by the pre-save middleware
-      status: "Active",
     });
     await newUser.save();
     return {
@@ -23,7 +22,7 @@ const registerUser = async (userData) => {
         id: newUser._id,
         username: newUser.username,
         email: newUser.email,
-        status: newUser.status,
+        status: "Inactive", // Default status for new users until they log in
       },
     };
   } catch (err) {

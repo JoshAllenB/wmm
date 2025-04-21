@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userControl/users.mjs";
-import { activeSessions } from "./login.mjs";
+import { activeSessions, isUserActive } from "./login.mjs";
 
 // Track revoked tokens
 const revokedTokens = new Set();
@@ -63,8 +63,8 @@ const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "User not found" });
     }
 
-    // Check if user is still active
-    if (user.status !== "Active") {
+    // Check if user is active using the isUserActive function
+    if (!isUserActive(user._id)) {
       return res.status(401).json({ error: "User account is not active" });
     }
 
