@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -23,7 +23,7 @@ export function useTableLogic(
   const [sorting, setSorting] = useState([]);
   const [filtering, setFiltering] = useState("");
 
-  // Initialize column visibility if not provided
+  // Calculate effective column visibility without updating state during render
   const effectiveColumnVisibility = useMemo(() => {
     if (columnVisibility && Object.keys(columnVisibility).length > 0) {
       return columnVisibility;
@@ -36,12 +36,23 @@ export function useTableLogic(
         column.isVisible !== undefined ? column.isVisible : true;
     });
 
-    // Update parent state if setter provided
-    if (setColumnVisibility) {
+    return defaultVisibility;
+  }, [columns, columnVisibility]);
+
+  // Update parent state in an effect, not during render
+  useEffect(() => {
+    if (setColumnVisibility && 
+        (!columnVisibility || Object.keys(columnVisibility).length === 0)) {
+      // Create default visibility
+      const defaultVisibility = {};
+      columns.forEach((column) => {
+        defaultVisibility[column.id] =
+          column.isVisible !== undefined ? column.isVisible : true;
+      });
+      
+      // Update parent state
       setColumnVisibility(defaultVisibility);
     }
-
-    return defaultVisibility;
   }, [columns, columnVisibility, setColumnVisibility]);
 
   // Ensure data and columns are valid arrays
