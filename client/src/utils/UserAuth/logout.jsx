@@ -7,6 +7,7 @@ import {
   DropdownMenuRadioItem,
 } from "../../components/UI/ShadCN/dropdown-menu";
 import { removeTokens } from "../Token/tokenStorage";
+import { redirectToLogin } from "../ActivityMonitor";
 
 export default function Logout({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -20,33 +21,54 @@ export default function Logout({ setIsLoggedIn }) {
       const sessionId = localStorage.getItem("sessionId");
       if (!token) {
         console.error("No token found");
-        setIsLoggedIn(false);
-        navigate("/");
+        // Still perform cleanup and redirect
+        performLogoutCleanup();
         return;
       }
 
-      const reponse = await axios.post(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/logout`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (reponse.data.message === "Logout successful") {
-        localStorage.removeItem("accessToken");
-        sessionStorage.removeItem("accessToken");
-        localStorage.removeItem("sessionId");
-        removeTokens();
-        setAuthToken(null);
-        setIsLoggedIn(false);
-        navigate("/");
+      try {
+        const response = await axios.post(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/logout`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log("Logout response:", response.data);
+      } catch (error) {
+        console.error("Error during logout API call:", error);
+        // Continue with cleanup even if the API call fails
       }
+      
+      // Always perform cleanup regardless of API success
+      performLogoutCleanup();
     } catch (err) {
-      console.error(err);
+      console.error("Unexpected error during logout:", err);
+      // Ensure cleanup happens even on unexpected errors
+      performLogoutCleanup();
     }
+  };
+
+  const performLogoutCleanup = () => {
+    // Clear all tokens and session data
+    localStorage.removeItem("accessToken");
+    sessionStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("refreshToken");
+    localStorage.removeItem("sessionId");
+    
+    // Clear auth headers
+    removeTokens();
+    setAuthToken(null);
+    
+    // Update app state
+    setIsLoggedIn(false);
+    
+    // Use the shared redirect function (with custom message for logout)
+    localStorage.setItem("errorMessage", "You have been logged out successfully.");
+    navigate("/");
   };
 
   return (

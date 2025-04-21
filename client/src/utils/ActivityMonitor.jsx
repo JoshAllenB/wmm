@@ -1,9 +1,23 @@
 import { useState, useEffect, useCallback, createContext } from "react";
 import { getAccessToken, removeTokens } from "./Token/tokenStorage";
 
-const TOKEN_EXPIRATION = 10_000; // 30 seconds
+const TOKEN_EXPIRATION = 10_000; // 10 seconds for countdown before logout
 
 export const ActivityContext = createContext();
+
+// Function to handle redirect to login (can be shared across components)
+export const redirectToLogin = () => {
+  // Store error message for login page
+  localStorage.setItem(
+    "errorMessage",
+    "Your session has expired. Please log in again."
+  );
+  
+  // If not already on the login page, redirect
+  if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+    window.location.href = '/';
+  }
+};
 
 const ActivityMonitor = ({
   isLoggedIn,
@@ -62,15 +76,11 @@ const ActivityMonitor = ({
           clearInterval(countDownInterval);
           setIsLoggedIn(false);
           removeTokens();
-          localStorage.setItem(
-            "errorMessage",
-            "Your session has expired. Please log in again."
-          );
-          window.location.reload(); // Reload the app after token expiration
+          redirectToLogin();
         }, 1000);
 
         return () => clearInterval(countDownInterval);
-      }, TOKEN_EXPIRATION); // 30 seconds
+      }, TOKEN_EXPIRATION); // 10 seconds
 
       return () => clearTimeout(countdown);
     }

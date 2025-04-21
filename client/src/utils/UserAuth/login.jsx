@@ -44,6 +44,15 @@ const LoginPage = ({ setIsLoggedIn }) => {
     checkAuth();
   }, [navigate, setIsLoggedIn, setUserData]);
 
+  // Check for stored error messages (e.g. from 401 redirects)
+  useEffect(() => {
+    const storedErrorMessage = localStorage.getItem("errorMessage");
+    if (storedErrorMessage) {
+      setErrorMessage(storedErrorMessage);
+      localStorage.removeItem("errorMessage");
+    }
+  }, []);
+
   const handleUsernameChange = (e) => {
     setUsername(e.target.value);
     // Clear error when user starts typing

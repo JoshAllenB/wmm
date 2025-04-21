@@ -7,6 +7,7 @@ import {
   removeTokens,
   setTokens,
 } from "./tokenStorage";
+import { redirectToLogin } from "../ActivityMonitor";
 
 const decodeToken = (token) => {
   try {
@@ -22,6 +23,8 @@ const refreshAndValidate = async () => {
   if (!refreshToken) {
     removeTokens();
     console.error("No refresh token found");
+    // Redirect to login if refresh token is missing
+    redirectToLogin();
     return false;
   }
   try {
@@ -41,13 +44,19 @@ const refreshAndValidate = async () => {
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
     removeTokens();
+    // Redirect to login on refresh failure
+    redirectToLogin();
     return false;
   }
 };
 
 const validateToken = async () => {
   const token = getAccessToken();
-  if (!token) return false;
+  if (!token) {
+    // No token found, should redirect to login
+    redirectToLogin();
+    return false;
+  }
 
   try {
     const response = await axios.post(
@@ -58,10 +67,23 @@ const validateToken = async () => {
       setAuthToken(token);
       return response.data.user;
     } else {
-      return refreshAndValidate();
+      // Handle invalid token case
+      const refreshResult = await refreshAndValidate();
+      if (!refreshResult) {
+        // If refresh fails, clear tokens and redirect
+        removeTokens();
+        redirectToLogin();
+      }
+      return refreshResult;
     }
   } catch (error) {
     console.error("Token validation error:", error);
+    // If error status is 401, clear tokens immediately
+    if (error.response && error.response.status === 401) {
+      removeTokens();
+      redirectToLogin();
+      return false;
+    }
     return refreshAndValidate();
   }
 };
