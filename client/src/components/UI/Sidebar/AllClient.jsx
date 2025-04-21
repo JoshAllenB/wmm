@@ -12,6 +12,7 @@ import useDebounce from "../../../utils/Hooks/useDebounce";
 import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
+import { ColumnToggle } from "../../Table/ColumnToggle";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -30,6 +31,7 @@ const AllClient = () => {
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState({});
 
   // State for selected row and modal visibility
   const [selectedRow, setSelectedRow] = useState(null);
@@ -223,7 +225,51 @@ const AllClient = () => {
     advancedFilterData,
   ]);
 
-  // Define fetchData before using it in useEffect
+  // Add this function after handleTableInstanceUpdate
+  const parseTaggedSearch = (searchValue) => {
+    const filters = { search: "", clientId: "", paymentRef: "", fullName: "" };
+
+    // Check for tagged search patterns
+    const idMatch = searchValue.match(/\bid:\s*(\S+)/i);
+    const refMatch = searchValue.match(/\bref:\s*(\S+\s*\S*)/i);
+    const nameMatch = searchValue.match(/\bname:\s*([^:]+?)(?=\s+\w+:|$)/i);
+
+    if (idMatch) {
+      filters.clientId = idMatch[1];
+      // Remove the matched pattern from the search string
+      searchValue = searchValue.replace(idMatch[0], "").trim();
+    }
+
+    if (refMatch) {
+      filters.paymentRef = refMatch[1];
+      // Remove the matched pattern from the search string
+      searchValue = searchValue.replace(refMatch[0], "").trim();
+    }
+
+    if (nameMatch) {
+      filters.fullName = nameMatch[1].trim();
+      // Remove the matched pattern from the search string
+      searchValue = searchValue.replace(nameMatch[0], "").trim();
+    }
+
+    // Check if the untagged search looks like a full name (contains space)
+    if (
+      !filters.fullName &&
+      searchValue.includes(" ") &&
+      !filters.clientId &&
+      !filters.paymentRef
+    ) {
+      filters.fullName = searchValue;
+      searchValue = ""; // Since we're treating the whole thing as a full name
+    }
+
+    // Any remaining text is treated as a general search
+    filters.search = searchValue;
+
+    return filters;
+  };
+
+  // Modified fetchData to handle tagged search
   const fetchData = useCallback(
     async (
       currentPage,
@@ -235,6 +281,27 @@ const AllClient = () => {
       try {
         // Clone the filter object to avoid mutations
         let filtersToUse = { ...advancedFilterData };
+
+        // Parse the filter for tagged search
+        if (filter) {
+          const parsedFilters = parseTaggedSearch(filter);
+
+          // Add parsed filters to filtersToUse
+          if (parsedFilters.clientId) {
+            filtersToUse.clientId = parsedFilters.clientId;
+          }
+
+          if (parsedFilters.paymentRef) {
+            filtersToUse.paymentRef = parsedFilters.paymentRef;
+          }
+
+          if (parsedFilters.fullName) {
+            filtersToUse.fullName = parsedFilters.fullName;
+          }
+
+          // Only use general search if there's non-tagged content
+          filter = parsedFilters.search;
+        }
 
         // Properly handle services array
         // Get role-based services first
@@ -397,6 +464,7 @@ const AllClient = () => {
     setSelectedRow(null);
   };
 
+  // Update handleSearchChange function
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setFiltering(value);
@@ -442,8 +510,6 @@ const AllClient = () => {
       services: services,
     };
 
-    console.log("Advanced filter applied with services:", services);
-
     // Create a snapshot of what the filter will be
     const filterSnapshot = JSON.stringify({
       services: services,
@@ -470,12 +536,38 @@ const AllClient = () => {
     );
   };
 
-  // Function to generate readable filter descriptions
+  // Update the getActiveFilters function to display tagged search filters
   const getActiveFilters = () => {
     const filters = [];
 
+    // Parse the current filtering value
+    if (debouncedFiltering) {
+      const parsedFilters = parseTaggedSearch(debouncedFiltering);
+
+      if (parsedFilters.clientId) {
+        filters.push(`Client ID: ${parsedFilters.clientId}`);
+      }
+
+      if (parsedFilters.paymentRef) {
+        filters.push(`Payment Ref: ${parsedFilters.paymentRef}`);
+      }
+
+      if (parsedFilters.fullName) {
+        filters.push(`Full Name: "${parsedFilters.fullName}"`);
+      }
+
+      if (parsedFilters.search) {
+        filters.push(`Search: "${parsedFilters.search}"`);
+      } else if (
+        !parsedFilters.clientId &&
+        !parsedFilters.paymentRef &&
+        !parsedFilters.fullName
+      ) {
+        filters.push(`Search: "${debouncedFiltering}"`);
+      }
+    }
+
     // Check each filter and add readable description if it's active
-    if (debouncedFiltering) filters.push(`Search: "${debouncedFiltering}"`);
     if (selectedGroup) filters.push(`Group: ${selectedGroup}`);
     if (addedToday) filters.push("Added Today");
 
@@ -610,7 +702,7 @@ const AllClient = () => {
       </div>
       <div className="flex gap-4 mb-4">
         <Input
-          placeholder="Search..."
+          placeholder="Search or use tags: id:1234, ref:OR123, name:John Doe"
           value={filtering}
           onChange={handleSearchChange}
           className="max-w-sm"
@@ -629,6 +721,13 @@ const AllClient = () => {
           Added Today
         </Button>
         <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
+
+        {/* Add ColumnToggle component here */}
+        <ColumnToggle
+          columns={columns.filter((column) => column.id !== "select")}
+          columnVisibility={columnVisibility}
+          setColumnVisibility={setColumnVisibility}
+        />
       </div>
 
       {/* Filter Status Display */}
@@ -678,6 +777,8 @@ const AllClient = () => {
         setTableInstance={handleTableInstanceUpdate}
         advancedFilterData={advancedFilterData}
         selectedGroup={selectedGroup}
+        columnVisibility={columnVisibility}
+        setColumnVisibility={setColumnVisibility}
       />
       {showViewModal && (
         <View
