@@ -59,6 +59,12 @@ export default function Logout({ setIsLoggedIn }) {
     sessionStorage.removeItem("refreshToken");
     localStorage.removeItem("sessionId");
     
+    // Clear session expired flags and any existing error messages
+    localStorage.removeItem("errorMessage");
+    localStorage.removeItem("sessionExpired");
+    sessionStorage.removeItem("errorMessage");
+    sessionStorage.removeItem("sessionExpired");
+    
     // Clear auth headers
     removeTokens();
     setAuthToken(null);
@@ -66,8 +72,14 @@ export default function Logout({ setIsLoggedIn }) {
     // Update app state
     setIsLoggedIn(false);
     
-    // Use the shared redirect function (with custom message for logout)
-    localStorage.setItem("errorMessage", "You have been logged out successfully.");
+    // Use a different approach for logout message - set it AFTER clearing previous messages
+    // with a small delay to ensure the state is properly cleared first
+    setTimeout(() => {
+      localStorage.setItem("errorMessage", "You have been logged out successfully.");
+      // Make sure session expired flag stays removed
+      localStorage.removeItem("sessionExpired");
+    }, 100);
+    
     navigate("/");
   };
 

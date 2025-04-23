@@ -52,7 +52,19 @@ apiClient.interceptors.response.use(
         // If refresh fails, redirect to login
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
-        window.location.href = "/login";
+        
+        // First clear any existing messages
+        localStorage.removeItem("errorMessage");
+        localStorage.removeItem("sessionExpired");
+        
+        // Set a small delay before setting new message
+        setTimeout(() => {
+          // Set session expired flag and message
+          localStorage.setItem("errorMessage", "Your session has expired. Please log in again.");
+          localStorage.setItem("sessionExpired", "true");
+          window.location.href = "/login";
+        }, 50);
+        
         return Promise.reject(refreshError);
       }
     }

@@ -46,10 +46,29 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   // Check for stored error messages (e.g. from 401 redirects)
   useEffect(() => {
-    const storedErrorMessage = localStorage.getItem("errorMessage");
-    if (storedErrorMessage) {
-      setErrorMessage(storedErrorMessage);
+    // Clear any session expiration messages on initial page load
+    const isFirstLoad = sessionStorage.getItem("initialLoginLoad") !== "true";
+    if (isFirstLoad) {
       localStorage.removeItem("errorMessage");
+      localStorage.removeItem("sessionExpired");
+      sessionStorage.setItem("initialLoginLoad", "true");
+      return;
+    }
+    
+    const storedErrorMessage = localStorage.getItem("errorMessage");
+    const isSessionExpired = localStorage.getItem("sessionExpired");
+    
+    if (storedErrorMessage) {
+      // Only show the session expired message if the flag is set
+      if (isSessionExpired === "true") {
+        setErrorMessage("Your session has expired. Please log in again.");
+      } else {
+        setErrorMessage(storedErrorMessage);
+      }
+      
+      // Clean up storage
+      localStorage.removeItem("errorMessage");
+      localStorage.removeItem("sessionExpired");
     }
   }, []);
 

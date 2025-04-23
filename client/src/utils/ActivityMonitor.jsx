@@ -7,16 +7,26 @@ export const ActivityContext = createContext();
 
 // Function to handle redirect to login (can be shared across components)
 export const redirectToLogin = () => {
-  // Store error message for login page
-  localStorage.setItem(
-    "errorMessage",
-    "Your session has expired. Please log in again."
-  );
+  // First clear any existing error messages
+  localStorage.removeItem("errorMessage");
+  localStorage.removeItem("sessionExpired");
   
-  // If not already on the login page, redirect
-  if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
-    window.location.href = '/';
-  }
+  // Set a small delay to ensure cleanup happens before setting new message
+  setTimeout(() => {
+    // Store error message for login page
+    localStorage.setItem(
+      "errorMessage",
+      "Your session has expired. Please log in again."
+    );
+    
+    // Set the session expired flag
+    localStorage.setItem("sessionExpired", "true");
+    
+    // If not already on the login page, redirect
+    if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+      window.location.href = '/';
+    }
+  }, 50);
 };
 
 const ActivityMonitor = ({
