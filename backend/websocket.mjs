@@ -136,10 +136,19 @@ const initWebSocket = (io) => {
 
     socket.on("disconnect", (reason) => {
       setTimeout(() => {
-        if (!io.sockets.sockets.has(socket.id)) {
+        // Get the user data from the session
+        const sessionData = sessions.get(sessionId);
+        
+        // Only clean up if:
+        // 1. The socket ID is no longer active AND
+        // 2. The user hasn't reconnected with a different socket ID
+        if (!io.sockets.sockets.has(socket.id) && 
+            (!sessionData || sessionData.socketId === socket.id)) {
           global.socketIdMap.delete(userId);
           sessions.delete(sessionId);
           console.log(`Cleaned up disconnected user: ${userId}`);
+        } else {
+          console.log(`User ${userId} still active with different socket ID, not cleaning up.`);
         }
       }, 5000);
 
