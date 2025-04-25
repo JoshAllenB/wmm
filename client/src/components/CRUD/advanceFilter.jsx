@@ -86,8 +86,46 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     }
   }, [hasRole]);
 
-  const openModal = () => setShowModal(true);
-  const closeModal = () => setShowModal(false);
+  const openModal = () => {
+    // Reset the filter form when opening the modal
+    resetFilterData();
+    setShowModal(true);
+  };
+  
+  // Reset filter fields when closing modal
+  const closeModal = () => {
+    setShowModal(false);
+    // Don't reset here as the filter has already been applied
+  };
+
+  // Initialize/reset filter data
+  const resetFilterData = () => {
+    setFilterData({
+      lname: "",
+      fname: "",
+      mname: "",
+      sname: "",
+      birthdate: "",
+      contactnos: "",
+      cellno: "",
+      ofcno: "",
+      email: "",
+      address: "",
+      startDate: "",
+      endDate: "",
+      wmmActiveMonth: "",
+      wmmExpiringMonth: "",
+      copiesRange: "",
+      minCopies: "",
+      maxCopies: "",
+      group: selectedGroup || "",
+      type: "",
+      subsclass: "",
+      area: "",
+      acode: "",
+      services: [],
+    });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -161,8 +199,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     console.log("Formatted data:", formattedData);
     console.log("Services in formatted data:", formattedData.services);
 
+    // Apply the filter with the formatted data
     onApplyFilter(formattedData);
-    closeModal();
+    
+    // Just close the modal - data will be reset when reopened
+    setShowModal(false);
   };
 
   const clearAllFilters = () => {
