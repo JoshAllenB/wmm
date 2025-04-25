@@ -409,64 +409,374 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { lname, fname, mname, email, cellno, contactnos, bdate, address } =
-      req.body;
+    const { lname, email, cellno, contactnos, bdate, address, acode } = req.body;
+
+    // Track if we have any significant data to search with
+    let hasSearchableData = false;
 
     // Build a query to find potential duplicates
     const query = { $or: [] };
-
-    // Name-based matching
-    if (lname && fname) {
-      query.$or.push({
-        $and: [
-          { lname: { $regex: new RegExp(`^${lname}`, "i") } },
-          { fname: { $regex: new RegExp(`^${fname}`, "i") } },
-        ],
+    
+    // Create a scoring pipeline for prioritizing matches
+    const scoringPipeline = [];
+    
+    // Last name-based matching (highest priority)
+    if (lname && lname.length > 1) {
+      query.$or.push({ lname: { $regex: new RegExp(lname, "i") } });
+      // Add scoring for last name matches
+      scoringPipeline.push({
+        $addFields: {
+          lnameMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$lname", null] },
+                  { $ne: ["$lname", undefined] },
+                  { $eq: [{ $type: "$lname" }, "string"] },
+                  { $regexMatch: { input: "$lname", regex: new RegExp(lname, "i") } }
+                ]
+              },
+              10, // High score for last name match
+              0
+            ]
+          }
+        }
       });
-    } else if (lname && lname.length > 1) {
-      query.$or.push({ lname: { $regex: new RegExp(`^${lname}`, "i") } });
-    } else if (fname && fname.length > 1) {
-      query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
+      hasSearchableData = true;
     }
 
+    // Address matching (second priority)
+    const addressWords = [];
+    if (address && address.length > 2) {
+      try {
+        // Split address into words for more flexible matching
+        addressWords.push(...address
+          .split(/[\s,]+/) // Split by spaces or commas
+          .filter(word => word && word.length > 1) // Only use words with 2+ characters
+          .map(word => word.trim()));
+
+        // For each significant word, create a query
+        addressWords.forEach(word => {
+          if (word && word.length > 1) {
+            query.$or.push({ 
+              address: { $regex: new RegExp(word, "i") } 
+            });
+            hasSearchableData = true;
+          }
+        });
+
+        // Also add the full address for exact matching
+        query.$or.push({ address: { $regex: new RegExp(address, "i") } });
+        
+        // Add scoring for address matches
+        if (addressWords.length > 0) {
+          scoringPipeline.push({
+            $addFields: {
+              addressMatch: {
+                $sum: addressWords.map(word => ({
+                  $cond: [
+                    {
+                      $and: [
+                        { $ne: ["$address", null] },
+                        { $ne: ["$address", undefined] },
+                        { $eq: [{ $type: "$address" }, "string"] },
+                        { $regexMatch: { input: "$address", regex: new RegExp(word, "i") } }
+                      ]
+                    },
+                    5, // Medium score for each address word match
+                    0
+                  ]
+                }))
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error processing address:", error);
+        // Continue with the query even if address processing fails
+      }
+    }
+
+    // Contact-based matching (third priority)
+    if (email && email.includes("@")) {
+      query.$or.push({ email: { $regex: new RegExp(email, "i") } });
+      scoringPipeline.push({
+        $addFields: {
+          emailMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$email", null] },
+                  { $ne: ["$email", undefined] },
+                  { $eq: [{ $type: "$email" }, "string"] },
+                  { $regexMatch: { input: "$email", regex: new RegExp(email, "i") } }
+                ]
+              },
+              3, // Lower score for email match
+              0
+            ]
+          }
+        }
+      });
+      hasSearchableData = true;
+    }
+
+    if (cellno && cellno.length > 3) {
+      query.$or.push({ cellno: { $regex: cellno } });
+      scoringPipeline.push({
+        $addFields: {
+          cellnoMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$cellno", null] },
+                  { $ne: ["$cellno", undefined] },
+                  { $eq: [{ $type: "$cellno" }, "string"] },
+                  { $regexMatch: { input: "$cellno", regex: cellno } }
+                ]
+              },
+              3, // Lower score for cellno match
+              0
+            ]
+          }
+        }
+      });
+      hasSearchableData = true;
+    }
+
+    if (contactnos && contactnos.length > 3) {
+      query.$or.push({ contactnos: { $regex: contactnos } });
+      scoringPipeline.push({
+        $addFields: {
+          contactnosMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$contactnos", null] },
+                  { $ne: ["$contactnos", undefined] },
+                  { $eq: [{ $type: "$contactnos" }, "string"] },
+                  { $regexMatch: { input: "$contactnos", regex: contactnos } }
+                ]
+              },
+              3, // Lower score for contactnos match
+              0
+            ]
+          }
+        }
+      });
+      hasSearchableData = true;
+    }
+
+    // Birthdate matching (exact match is valuable)
     if (bdate) {
       query.$or.push({ bdate: bdate });
+      scoringPipeline.push({
+        $addFields: {
+          bdateMatch: {
+            $cond: [
+              { $eq: ["$bdate", bdate] },
+              4, // Medium-high score for exact birthdate match
+              0
+            ]
+          }
+        }
+      });
+      hasSearchableData = true;
     }
 
-    // Contact-based matching
-    if (email && email.includes("@")) {
-      query.$or.push({ email: { $regex: new RegExp(`^${email}`, "i") } });
-    }
-
-    if (cellno && cellno.length > 5) {
-      query.$or.push({ cellno: { $regex: cellno } });
-    }
-
-    if (contactnos && contactnos.length > 5) {
-      query.$or.push({ contactnos: { $regex: contactnos } });
-    }
-
-    if (address && address.length > 5) {
-      query.$or.push({ address: { $regex: new RegExp(address, "i") } });
+    // Area code matching
+    if (acode) {
+      query.$or.push({ acode: acode });
+      scoringPipeline.push({
+        $addFields: {
+          acodeMatch: {
+            $cond: [
+              { $eq: ["$acode", acode] },
+              2, // Lower score for acode match
+              0
+            ]
+          }
+        }
+      });
+      hasSearchableData = true;
     }
 
     // If we don't have enough criteria, don't bother searching
-    if (query.$or.length === 0) {
+    if (!hasSearchableData) {
       return res.json({ matches: [] });
     }
 
-    // Execute query with limit to ensure performance
-    const clients = await ClientModel.find(query)
-      .select(
-        "id lname fname mname sname bdate address street city barangay zipcode contactnos cellno ofcno email "
-      )
-      .limit(10)
-      .lean();
+    // Create the aggregation pipeline
+    const pipeline = [
+      { $match: query },
+      {
+        $project: {
+          id: 1, lname: 1, fname: 1, mname: 1, sname: 1, bdate: 1,
+          address: 1, street: 1, city: 1, barangay: 1, zipcode: 1,
+          area: 1, acode: 1, contactnos: 1, cellno: 1, ofcno: 1, email: 1
+        }
+      }
+    ];
 
-    res.json({ matches: clients });
+    // Add scoring pipeline stages
+    pipeline.push(...scoringPipeline);
+    
+    // Calculate total score from all match fields
+    pipeline.push({
+      $addFields: {
+        totalScore: {
+          $sum: [
+            { $ifNull: ["$lnameMatch", 0] },
+            { $ifNull: ["$addressMatch", 0] },
+            { $ifNull: ["$emailMatch", 0] },
+            { $ifNull: ["$cellnoMatch", 0] },
+            { $ifNull: ["$contactnosMatch", 0] },
+            { $ifNull: ["$bdateMatch", 0] },
+            { $ifNull: ["$acodeMatch", 0] }
+          ]
+        }
+      }
+    });
+    
+    // Sort by score (highest first)
+    pipeline.push({ $sort: { totalScore: -1 } });
+    
+    // Limit results (use a more conservative limit under load)
+    pipeline.push({ $limit: 15 });
+
+    let clients = [];
+    try {
+      // Set operation timeout and limit batch size for better performance under load
+      const options = { 
+        maxTimeMS: 5000,  // 5 second timeout
+        allowDiskUse: true // Allow using disk for large operations
+      };
+      
+      // Execute the aggregation pipeline with timeout
+      clients = await ClientModel.aggregate(pipeline, options);
+    } catch (dbError) {
+      console.error("Database error during client search:", dbError);
+      // Return empty results rather than failing
+      return res.json({ 
+        matches: [], 
+        error: "Search operation timed out, please try with more specific criteria." 
+      });
+    }
+
+    // If we have matches, check which services each client has
+    let clientsWithServices = [...clients];
+    
+    if (clients.length > 0) {
+      try {
+        // Get client IDs for service lookup
+        const clientIds = clients.map(client => parseInt(client.id)).filter(id => !isNaN(id));
+        
+        if (clientIds.length > 0) {
+          // Import service models
+          const serviceModels = await Promise.all([
+            import("../../models/wmm.mjs").then(m => m.default).catch(() => null),
+            import("../../models/hrg.mjs").then(m => m.default).catch(() => null),
+            import("../../models/fom.mjs").then(m => m.default).catch(() => null),
+            import("../../models/cal.mjs").then(m => m.default).catch(() => null)
+          ]);
+          
+          const [WmmModel, HrgModel, FomModel, CalModel] = serviceModels.filter(model => model !== null);
+          
+          // Use Promise.all with timeouts to prevent hanging
+          const servicePromises = [];
+          
+          if (WmmModel) {
+            const wmmPromise = WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
+              .maxTimeMS(2000)  // 2 second timeout
+              .exec()
+              .catch(err => {
+                console.error("Error fetching WMM services:", err);
+                return [];
+              });
+            servicePromises.push(wmmPromise);
+          } else {
+            servicePromises.push(Promise.resolve([]));
+          }
+          
+          if (HrgModel) {
+            const hrgPromise = HrgModel.distinct("clientid", { clientid: { $in: clientIds } })
+              .maxTimeMS(2000)
+              .exec()
+              .catch(err => {
+                console.error("Error fetching HRG services:", err);
+                return [];
+              });
+            servicePromises.push(hrgPromise);
+          } else {
+            servicePromises.push(Promise.resolve([]));
+          }
+          
+          if (FomModel) {
+            const fomPromise = FomModel.distinct("clientid", { clientid: { $in: clientIds } })
+              .maxTimeMS(2000)
+              .exec()
+              .catch(err => {
+                console.error("Error fetching FOM services:", err);
+                return [];
+              });
+            servicePromises.push(fomPromise);
+          } else {
+            servicePromises.push(Promise.resolve([]));
+          }
+          
+          if (CalModel) {
+            const calPromise = CalModel.distinct("clientid", { clientid: { $in: clientIds } })
+              .maxTimeMS(2000)
+              .exec()
+              .catch(err => {
+                console.error("Error fetching CAL services:", err);
+                return [];
+              });
+            servicePromises.push(calPromise);
+          } else {
+            servicePromises.push(Promise.resolve([]));
+          }
+          
+          // Wait for all service queries with a timeout
+          const serviceResults = await Promise.allSettled(servicePromises);
+          const [wmmClientsResult, hrgClientsResult, fomClientsResult, calClientsResult] = serviceResults;
+          
+          // Extract client IDs from successful promises
+          const wmmClients = wmmClientsResult.status === 'fulfilled' ? wmmClientsResult.value : [];
+          const hrgClients = hrgClientsResult.status === 'fulfilled' ? hrgClientsResult.value : [];
+          const fomClients = fomClientsResult.status === 'fulfilled' ? fomClientsResult.value : [];
+          const calClients = calClientsResult.status === 'fulfilled' ? calClientsResult.value : [];
+          
+          // Add service information to each client
+          clientsWithServices = clients.map(client => {
+            const clientId = parseInt(client.id);
+            const clientCopy = { ...client, services: [] };
+            
+            if (!isNaN(clientId)) {
+              if (wmmClients.includes(clientId)) clientCopy.services.push("WMM");
+              if (hrgClients.includes(clientId)) clientCopy.services.push("HRG");
+              if (fomClients.includes(clientId)) clientCopy.services.push("FOM");
+              if (calClients.includes(clientId)) clientCopy.services.push("CAL");
+            }
+            
+            return clientCopy;
+          });
+        }
+      } catch (serviceError) {
+        console.error("Error fetching client services:", serviceError);
+        // Continue with clients without service information
+      }
+    }
+
+    res.json({ matches: clientsWithServices });
   } catch (err) {
     console.error("Error checking for duplicates:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    // Send a more informative error message
+    res.status(500).json({ 
+      error: "Internal Server Error", 
+      message: "An error occurred while checking for duplicates",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
