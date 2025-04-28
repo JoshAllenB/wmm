@@ -409,17 +409,18 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { lname, email, cellno, contactnos, bdate, address, acode } = req.body;
+    const { fname, lname, email, cellno, contactnos, bdate, address, acode } =
+      req.body;
 
     // Track if we have any significant data to search with
     let hasSearchableData = false;
 
     // Build a query to find potential duplicates
     const query = { $or: [] };
-    
+
     // Create a scoring pipeline for prioritizing matches
     const scoringPipeline = [];
-    
+
     // Last name-based matching (highest priority)
     if (lname && lname.length > 1) {
       query.$or.push({ lname: { $regex: new RegExp(lname, "i") } });
@@ -433,14 +434,48 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $ne: ["$lname", null] },
                   { $ne: ["$lname", undefined] },
                   { $eq: [{ $type: "$lname" }, "string"] },
-                  { $regexMatch: { input: "$lname", regex: new RegExp(lname, "i") } }
-                ]
+                  {
+                    $regexMatch: {
+                      input: "$lname",
+                      regex: new RegExp(lname, "i"),
+                    },
+                  },
+                ],
               },
               10, // High score for last name match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
+      });
+      hasSearchableData = true;
+    }
+
+    if (fname && fname.length > 1) {
+      query.$or.push({ fname: { regex: new RegExp(fname, "i") } });
+
+      scoringPipeline.push({
+        $addFields: {
+          fnameMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$fname", null] },
+                  { $ne: ["$fname", null] },
+                  { $eq: [{ $type: "fname" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$fname",
+                      regex: new RegExp(fname, "i"),
+                    },
+                  },
+                ],
+              },
+              5,
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -450,16 +485,18 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
     if (address && address.length > 2) {
       try {
         // Split address into words for more flexible matching
-        addressWords.push(...address
-          .split(/[\s,]+/) // Split by spaces or commas
-          .filter(word => word && word.length > 1) // Only use words with 2+ characters
-          .map(word => word.trim()));
+        addressWords.push(
+          ...address
+            .split(/[\s,]+/) // Split by spaces or commas
+            .filter((word) => word && word.length > 1) // Only use words with 2+ characters
+            .map((word) => word.trim())
+        );
 
         // For each significant word, create a query
-        addressWords.forEach(word => {
+        addressWords.forEach((word) => {
           if (word && word.length > 1) {
-            query.$or.push({ 
-              address: { $regex: new RegExp(word, "i") } 
+            query.$or.push({
+              address: { $regex: new RegExp(word, "i") },
             });
             hasSearchableData = true;
           }
@@ -467,28 +504,33 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
 
         // Also add the full address for exact matching
         query.$or.push({ address: { $regex: new RegExp(address, "i") } });
-        
+
         // Add scoring for address matches
         if (addressWords.length > 0) {
           scoringPipeline.push({
             $addFields: {
               addressMatch: {
-                $sum: addressWords.map(word => ({
+                $sum: addressWords.map((word) => ({
                   $cond: [
                     {
                       $and: [
                         { $ne: ["$address", null] },
                         { $ne: ["$address", undefined] },
                         { $eq: [{ $type: "$address" }, "string"] },
-                        { $regexMatch: { input: "$address", regex: new RegExp(word, "i") } }
-                      ]
+                        {
+                          $regexMatch: {
+                            input: "$address",
+                            regex: new RegExp(word, "i"),
+                          },
+                        },
+                      ],
                     },
                     5, // Medium score for each address word match
-                    0
-                  ]
-                }))
-              }
-            }
+                    0,
+                  ],
+                })),
+              },
+            },
           });
         }
       } catch (error) {
@@ -509,14 +551,19 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $ne: ["$email", null] },
                   { $ne: ["$email", undefined] },
                   { $eq: [{ $type: "$email" }, "string"] },
-                  { $regexMatch: { input: "$email", regex: new RegExp(email, "i") } }
-                ]
+                  {
+                    $regexMatch: {
+                      input: "$email",
+                      regex: new RegExp(email, "i"),
+                    },
+                  },
+                ],
               },
               3, // Lower score for email match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -532,14 +579,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $ne: ["$cellno", null] },
                   { $ne: ["$cellno", undefined] },
                   { $eq: [{ $type: "$cellno" }, "string"] },
-                  { $regexMatch: { input: "$cellno", regex: cellno } }
-                ]
+                  { $regexMatch: { input: "$cellno", regex: cellno } },
+                ],
               },
               3, // Lower score for cellno match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -555,14 +602,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $ne: ["$contactnos", null] },
                   { $ne: ["$contactnos", undefined] },
                   { $eq: [{ $type: "$contactnos" }, "string"] },
-                  { $regexMatch: { input: "$contactnos", regex: contactnos } }
-                ]
+                  { $regexMatch: { input: "$contactnos", regex: contactnos } },
+                ],
               },
               3, // Lower score for contactnos match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -576,10 +623,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
             $cond: [
               { $eq: ["$bdate", bdate] },
               4, // Medium-high score for exact birthdate match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -593,10 +640,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
             $cond: [
               { $eq: ["$acode", acode] },
               2, // Lower score for acode match
-              0
-            ]
-          }
-        }
+              0,
+            ],
+          },
+        },
       });
       hasSearchableData = true;
     }
@@ -611,85 +658,115 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       { $match: query },
       {
         $project: {
-          id: 1, lname: 1, fname: 1, mname: 1, sname: 1, bdate: 1,
-          address: 1, street: 1, city: 1, barangay: 1, zipcode: 1,
-          area: 1, acode: 1, contactnos: 1, cellno: 1, ofcno: 1, email: 1
-        }
-      }
+          id: 1,
+          lname: 1,
+          fname: 1,
+          mname: 1,
+          sname: 1,
+          bdate: 1,
+          address: 1,
+          street: 1,
+          city: 1,
+          barangay: 1,
+          zipcode: 1,
+          area: 1,
+          acode: 1,
+          contactnos: 1,
+          cellno: 1,
+          ofcno: 1,
+          email: 1,
+        },
+      },
     ];
 
     // Add scoring pipeline stages
     pipeline.push(...scoringPipeline);
-    
+
     // Calculate total score from all match fields
     pipeline.push({
       $addFields: {
         totalScore: {
           $sum: [
+            { $ifNull: ["$fnameMatch", 0] },
             { $ifNull: ["$lnameMatch", 0] },
             { $ifNull: ["$addressMatch", 0] },
             { $ifNull: ["$emailMatch", 0] },
             { $ifNull: ["$cellnoMatch", 0] },
             { $ifNull: ["$contactnosMatch", 0] },
             { $ifNull: ["$bdateMatch", 0] },
-            { $ifNull: ["$acodeMatch", 0] }
-          ]
-        }
-      }
+            { $ifNull: ["$acodeMatch", 0] },
+          ],
+        },
+      },
     });
-    
+
     // Sort by score (highest first)
     pipeline.push({ $sort: { totalScore: -1 } });
-    
+
     // Limit results (use a more conservative limit under load)
     pipeline.push({ $limit: 15 });
 
     let clients = [];
     try {
       // Set operation timeout and limit batch size for better performance under load
-      const options = { 
-        maxTimeMS: 5000,  // 5 second timeout
-        allowDiskUse: true // Allow using disk for large operations
+      const options = {
+        maxTimeMS: 5000, // 5 second timeout
+        allowDiskUse: true, // Allow using disk for large operations
       };
-      
+
       // Execute the aggregation pipeline with timeout
       clients = await ClientModel.aggregate(pipeline, options);
     } catch (dbError) {
       console.error("Database error during client search:", dbError);
       // Return empty results rather than failing
-      return res.json({ 
-        matches: [], 
-        error: "Search operation timed out, please try with more specific criteria." 
+      return res.json({
+        matches: [],
+        error:
+          "Search operation timed out, please try with more specific criteria.",
       });
     }
 
     // If we have matches, check which services each client has
     let clientsWithServices = [...clients];
-    
+
     if (clients.length > 0) {
       try {
         // Get client IDs for service lookup
-        const clientIds = clients.map(client => parseInt(client.id)).filter(id => !isNaN(id));
-        
+        const clientIds = clients
+          .map((client) => parseInt(client.id))
+          .filter((id) => !isNaN(id));
+
         if (clientIds.length > 0) {
           // Import service models
           const serviceModels = await Promise.all([
-            import("../../models/wmm.mjs").then(m => m.default).catch(() => null),
-            import("../../models/hrg.mjs").then(m => m.default).catch(() => null),
-            import("../../models/fom.mjs").then(m => m.default).catch(() => null),
-            import("../../models/cal.mjs").then(m => m.default).catch(() => null)
+            import("../../models/wmm.mjs")
+              .then((m) => m.default)
+              .catch(() => null),
+            import("../../models/hrg.mjs")
+              .then((m) => m.default)
+              .catch(() => null),
+            import("../../models/fom.mjs")
+              .then((m) => m.default)
+              .catch(() => null),
+            import("../../models/cal.mjs")
+              .then((m) => m.default)
+              .catch(() => null),
           ]);
-          
-          const [WmmModel, HrgModel, FomModel, CalModel] = serviceModels.filter(model => model !== null);
-          
+
+          const [WmmModel, HrgModel, FomModel, CalModel] = serviceModels.filter(
+            (model) => model !== null
+          );
+
           // Use Promise.all with timeouts to prevent hanging
           const servicePromises = [];
-          
+
           if (WmmModel) {
-            const wmmPromise = WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
-              .maxTimeMS(2000)  // 2 second timeout
+            const wmmPromise = WmmModel.distinct("clientid", {
+              clientid: { $in: clientIds },
+            })
+              .maxTimeMS(2000) // 2 second timeout
               .exec()
-              .catch(err => {
+              .catch((err) => {
                 console.error("Error fetching WMM services:", err);
                 return [];
               });
@@ -697,12 +774,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           } else {
             servicePromises.push(Promise.resolve([]));
           }
-          
+
           if (HrgModel) {
-            const hrgPromise = HrgModel.distinct("clientid", { clientid: { $in: clientIds } })
+            const hrgPromise = HrgModel.distinct("clientid", {
+              clientid: { $in: clientIds },
+            })
               .maxTimeMS(2000)
               .exec()
-              .catch(err => {
+              .catch((err) => {
                 console.error("Error fetching HRG services:", err);
                 return [];
               });
@@ -710,12 +789,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           } else {
             servicePromises.push(Promise.resolve([]));
           }
-          
+
           if (FomModel) {
-            const fomPromise = FomModel.distinct("clientid", { clientid: { $in: clientIds } })
+            const fomPromise = FomModel.distinct("clientid", {
+              clientid: { $in: clientIds },
+            })
               .maxTimeMS(2000)
               .exec()
-              .catch(err => {
+              .catch((err) => {
                 console.error("Error fetching FOM services:", err);
                 return [];
               });
@@ -723,12 +804,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           } else {
             servicePromises.push(Promise.resolve([]));
           }
-          
+
           if (CalModel) {
-            const calPromise = CalModel.distinct("clientid", { clientid: { $in: clientIds } })
+            const calPromise = CalModel.distinct("clientid", {
+              clientid: { $in: clientIds },
+            })
               .maxTimeMS(2000)
               .exec()
-              .catch(err => {
+              .catch((err) => {
                 console.error("Error fetching CAL services:", err);
                 return [];
               });
@@ -736,29 +819,50 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           } else {
             servicePromises.push(Promise.resolve([]));
           }
-          
+
           // Wait for all service queries with a timeout
           const serviceResults = await Promise.allSettled(servicePromises);
-          const [wmmClientsResult, hrgClientsResult, fomClientsResult, calClientsResult] = serviceResults;
-          
+          const [
+            wmmClientsResult,
+            hrgClientsResult,
+            fomClientsResult,
+            calClientsResult,
+          ] = serviceResults;
+
           // Extract client IDs from successful promises
-          const wmmClients = wmmClientsResult.status === 'fulfilled' ? wmmClientsResult.value : [];
-          const hrgClients = hrgClientsResult.status === 'fulfilled' ? hrgClientsResult.value : [];
-          const fomClients = fomClientsResult.status === 'fulfilled' ? fomClientsResult.value : [];
-          const calClients = calClientsResult.status === 'fulfilled' ? calClientsResult.value : [];
-          
+          const wmmClients =
+            wmmClientsResult.status === "fulfilled"
+              ? wmmClientsResult.value
+              : [];
+          const hrgClients =
+            hrgClientsResult.status === "fulfilled"
+              ? hrgClientsResult.value
+              : [];
+          const fomClients =
+            fomClientsResult.status === "fulfilled"
+              ? fomClientsResult.value
+              : [];
+          const calClients =
+            calClientsResult.status === "fulfilled"
+              ? calClientsResult.value
+              : [];
+
           // Add service information to each client
-          clientsWithServices = clients.map(client => {
+          clientsWithServices = clients.map((client) => {
             const clientId = parseInt(client.id);
             const clientCopy = { ...client, services: [] };
-            
+
             if (!isNaN(clientId)) {
-              if (wmmClients.includes(clientId)) clientCopy.services.push("WMM");
-              if (hrgClients.includes(clientId)) clientCopy.services.push("HRG");
-              if (fomClients.includes(clientId)) clientCopy.services.push("FOM");
-              if (calClients.includes(clientId)) clientCopy.services.push("CAL");
+              if (wmmClients.includes(clientId))
+                clientCopy.services.push("WMM");
+              if (hrgClients.includes(clientId))
+                clientCopy.services.push("HRG");
+              if (fomClients.includes(clientId))
+                clientCopy.services.push("FOM");
+              if (calClients.includes(clientId))
+                clientCopy.services.push("CAL");
             }
-            
+
             return clientCopy;
           });
         }
@@ -772,10 +876,10 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
   } catch (err) {
     console.error("Error checking for duplicates:", err);
     // Send a more informative error message
-    res.status(500).json({ 
-      error: "Internal Server Error", 
+    res.status(500).json({
+      error: "Internal Server Error",
       message: "An error occurred while checking for duplicates",
-      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 });
