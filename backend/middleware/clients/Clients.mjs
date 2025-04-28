@@ -409,7 +409,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { fname, lname, email, cellno, contactnos, bdate, address, acode } =
+    const { fname, lname, email, cellno, contactnos, bdate, address, acode, company } =
       req.body;
 
     // Track if we have any significant data to search with
@@ -424,6 +424,9 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
     // Last name-based matching (highest priority)
     if (lname && lname.length > 1) {
       query.$or.push({ lname: { $regex: new RegExp(lname, "i") } });
+      // Also check if last name appears in company name
+      query.$or.push({ company: { $regex: new RegExp(lname, "i") } });
+      
       // Add scoring for last name matches
       scoringPipeline.push({
         $addFields: {
@@ -448,11 +451,69 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           },
         },
       });
+      
+      // Add scoring for last name in company match
+      scoringPipeline.push({
+        $addFields: {
+          lnameInCompanyMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$company", null] },
+                  { $ne: ["$company", undefined] },
+                  { $eq: [{ $type: "$company" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$company",
+                      regex: new RegExp(lname, "i"),
+                    },
+                  },
+                ],
+              },
+              6, // Medium-high score for last name in company match
+              0,
+            ],
+          },
+        },
+      });
+      
+      hasSearchableData = true;
+    }
+
+    // Company name matching (high priority)
+    if (company && company.length > 2) {
+      query.$or.push({ company: { $regex: new RegExp(company, "i") } });
+      // Add scoring for company name matches
+      scoringPipeline.push({
+        $addFields: {
+          companyMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$company", null] },
+                  { $ne: ["$company", undefined] },
+                  { $eq: [{ $type: "$company" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$company",
+                      regex: new RegExp(company, "i"),
+                    },
+                  },
+                ],
+              },
+              8, // High score for company match (slightly lower than last name)
+              0,
+            ],
+          },
+        },
+      });
       hasSearchableData = true;
     }
 
     if (fname && fname.length > 1) {
-      query.$or.push({ fname: { regex: new RegExp(fname, "i") } });
+      query.$or.push({ fname: { $regex: new RegExp(fname, "i") } });
+      // Also check if first name appears in company name
+      query.$or.push({ company: { $regex: new RegExp(fname, "i") } });
 
       scoringPipeline.push({
         $addFields: {
@@ -462,7 +523,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                 $and: [
                   { $ne: ["$fname", null] },
                   { $ne: ["$fname", null] },
-                  { $eq: [{ $type: "fname" }, "string"] },
+                  { $eq: [{ $type: "$fname" }, "string"] },
                   {
                     $regexMatch: {
                       input: "$fname",
@@ -471,12 +532,38 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              5,
+              8,
               0,
             ],
           },
         },
       });
+      
+      // Add scoring for first name in company match
+      scoringPipeline.push({
+        $addFields: {
+          fnameInCompanyMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$company", null] },
+                  { $ne: ["$company", undefined] },
+                  { $eq: [{ $type: "$company" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$company",
+                      regex: new RegExp(fname, "i"),
+                    },
+                  },
+                ],
+              },
+              5, // Medium score for first name in company match
+              0,
+            ],
+          },
+        },
+      });
+      
       hasSearchableData = true;
     }
 
@@ -664,6 +751,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           mname: 1,
           sname: 1,
           bdate: 1,
+          company: 1,
           address: 1,
           street: 1,
           city: 1,
@@ -689,6 +777,9 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           $sum: [
             { $ifNull: ["$fnameMatch", 0] },
             { $ifNull: ["$lnameMatch", 0] },
+            { $ifNull: ["$fnameInCompanyMatch", 0] },
+            { $ifNull: ["$lnameInCompanyMatch", 0] },
+            { $ifNull: ["$companyMatch", 0] },
             { $ifNull: ["$addressMatch", 0] },
             { $ifNull: ["$emailMatch", 0] },
             { $ifNull: ["$cellnoMatch", 0] },

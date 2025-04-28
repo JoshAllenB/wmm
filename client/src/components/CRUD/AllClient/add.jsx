@@ -291,6 +291,7 @@ const Add = ({ fetchClients }) => {
         !checkData.fname &&
         !checkData.lname &&
         !checkData.bdate &&
+        !checkData.company &&
         (!checkData.address || checkData.address.length < 3) &&
         (!checkData.cellno || checkData.cellno.length < 5) &&
         !checkData.email.includes("@") &&
@@ -355,6 +356,7 @@ const Add = ({ fetchClients }) => {
       "email",
       "cellno",
       "contactnos",
+      "company",
     ];
     if (duplicateRelatedFields.includes(name)) {
       immediatelyClearDuplicates();
@@ -418,6 +420,7 @@ const Add = ({ fetchClients }) => {
         "email",
         "cellno",
         "contactnos",
+        "company",
       ];
       if (fieldsToCheck.includes(name) || name === "address") {
         // Only check if we have at least one identifying field with enough content
@@ -425,6 +428,7 @@ const Add = ({ fetchClients }) => {
           (newData.fname && newData.fname.length > 1) ||
           (newData.lname && newData.lname.length > 1) ||
           (newData.bdate && newData.bdate.length > 0) ||
+          (newData.company && newData.company.length > 2) ||
           (newData.cellno && newData.cellno.length > 5) ||
           (newData.email && newData.email.includes("@")) ||
           (combinedAddress && combinedAddress.length > 3) ||
@@ -434,6 +438,7 @@ const Add = ({ fetchClients }) => {
             fname: newData.fname,
             lname: newData.lname,
             bdate: newData.bdate,
+            company: newData.company,
             email: newData.email,
             cellno: newData.cellno,
             contactnos: newData.contactnos,
@@ -488,6 +493,7 @@ const Add = ({ fetchClients }) => {
         fname: formData.fname,
         lname: formData.lname,
         bdate: formData.bdate,
+        company: formData.company,
         email: formData.email,
         cellno: formData.cellno,
         contactnos: formData.contactnos,
@@ -516,6 +522,7 @@ const Add = ({ fetchClients }) => {
           fname: formData.fname,
           lname: formData.lname,
           bdate: formData.bdate,
+          company: formData.company,
           email: formData.email,
           cellno: formData.cellno,
           contactnos: formData.contactnos,
@@ -711,7 +718,6 @@ const Add = ({ fetchClients }) => {
       adddate: formatDate(new Date()),
     };
 
-    console.log("Submission Data:", submissionData);
 
     try {
       const response = await axios.post(
@@ -744,6 +750,8 @@ const Add = ({ fetchClients }) => {
           },
         }
       );
+
+      console.log("Response:", response.data);
 
       if (response.data) {
         setSelectedDuplicate(response.data);
@@ -839,17 +847,19 @@ const Add = ({ fetchClients }) => {
                   className="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden hover:border-blue-300 hover:shadow transition-all duration-200"
                 >
                   <div className="px-3 py-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                    <div className="flex justify-between items-center">
-                      <div className="font-medium text-gray-800 truncate pr-2">
-                        {client.lname}, {client.fname}{" "}
-                        {client.mname && client.mname.charAt(0)}.
+                    <div className="flex flex-col">
+                      <div className="font-medium text-gray-800 w-full">
+                        {client.lname || client.fname || client.mname ? 
+                          `${client.lname || ""}, ${client.fname || ""} ${client.mname ? client.mname.charAt(0) + "." : ""}`
+                          : client.company ? client.company : "No Name"
+                        }
                       </div>
 
                       {/* Match strength indicator */}
                       {client.totalScore !== undefined && (
-                        <div className="flex-shrink-0">
+                        <div className="mt-0.5">
                           <div
-                            className={`text-xs font-medium px-2 py-1 rounded-md ${
+                            className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm inline-block ${
                               client.totalScore > 15
                                 ? "bg-red-50 text-red-600 border border-red-100"
                                 : client.totalScore > 10
@@ -877,6 +887,7 @@ const Add = ({ fetchClients }) => {
                       client.contactnosMatch > 0 ||
                       client.emailMatch > 0 ||
                       client.bdateMatch > 0 ||
+                      client.companyMatch > 0 ||
                       client.acodeMatch > 0) && (
                       <div className="flex flex-wrap gap-1.5 mb-2.5">
                         {client.fnameMatch > 0 && (
@@ -908,6 +919,11 @@ const Add = ({ fetchClients }) => {
                         {client.bdateMatch > 0 && (
                           <span className="bg-purple-50 text-purple-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
                             Birthdate
+                          </span>
+                        )}
+                        {client.companyMatch > 0 && (
+                          <span className="bg-indigo-50 text-indigo-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-indigo-100">
+                            Company
                           </span>
                         )}
                         {client.acodeMatch > 0 && (
@@ -1047,6 +1063,26 @@ const Add = ({ fetchClients }) => {
                         </div>
                       )}
 
+                      {client.company && (
+                        <div className="flex items-center text-gray-600">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-3.5 w-3.5 mr-1.5 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                            />
+                          </svg>
+                          <span className="truncate">{client.company}</span>
+                        </div>
+                      )}
+
                       {client.address && (
                         <div className="flex items-center text-gray-600">
                           <svg
@@ -1146,6 +1182,7 @@ const Add = ({ fetchClients }) => {
       formData.fname ||
       formData.lname ||
       formData.bdate ||
+      formData.company ||
       combinedAddress ||
       formData.cellno ||
       formData.email ||
@@ -1157,6 +1194,7 @@ const Add = ({ fetchClients }) => {
         fname: formData.fname || "",
         lname: formData.lname || "",
         bdate: formData.bdate || "",
+        company: formData.company || "",
         email: formData.email || "",
         cellno: formData.cellno || "",
         contactnos: formData.contactnos || "",
@@ -1177,6 +1215,7 @@ const Add = ({ fetchClients }) => {
     formData.fname,
     formData.lname,
     formData.bdate,
+    formData.company,
     formData.cellno,
     formData.email,
     formData.contactnos,
