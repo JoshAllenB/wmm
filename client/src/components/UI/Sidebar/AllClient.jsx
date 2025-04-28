@@ -715,7 +715,7 @@ const AllClient = () => {
       </div>
       <div className="flex gap-4 mb-4">
         <Input
-          placeholder="Search by name, ID, or payment ref (e.g., MS 001234 or ref:MS 001234)"
+          placeholder="Search by name, company, ID, or payment ref (e.g., MS 001234 or ref:MS 001234)"
           value={filtering}
           onChange={handleSearchChange}
           className="max-w-sm"
