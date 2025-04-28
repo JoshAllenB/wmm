@@ -112,9 +112,11 @@ export function TableComponent({
                     {cell.column.id === "Client Name" ? (
                       <div style={{ textAlign: "left" }}>
                         <div>{cell.getValue().split("<br>")[0]}</div>
-                        <div className="text font-bold">
-                          {cell.getValue().split("<br>")[1]}
-                        </div>
+                        {cell.getValue().split("<br>")[1] && (
+                          <div className="text font-bold">
+                            {cell.getValue().split("<br>")[1]}
+                          </div>
+                        )}
                       </div>
                     ) : cell.column.id === "Address" ? (
                       <div style={{ textAlign: "left" }}>

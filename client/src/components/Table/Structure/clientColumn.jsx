@@ -93,9 +93,12 @@ export const useColumns = () => {
           .filter(Boolean)
           .join(" ");
 
+        // If no name parts are available, use company name as fallback
+        const displayName = nameParts.trim() || (row.company ? row.company : "No Name");
+
         const typePart = row.type ? `<br>Type: ${row.type}` : "";
 
-        return `${nameParts}${typePart}`.trim();
+        return `${displayName}${typePart}`;
       },
       size: 200,
     },
