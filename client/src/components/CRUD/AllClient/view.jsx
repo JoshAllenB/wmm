@@ -32,7 +32,19 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
 
       // Set data regardless of role if it exists in rowData
-      setWmmData(rowData.wmmData || []);
+      // Check if wmmData is an array or has records property
+      if (rowData.wmmData) {
+        if (Array.isArray(rowData.wmmData)) {
+          setWmmData(rowData.wmmData);
+        } else if (rowData.wmmData.records) {
+          setWmmData(rowData.wmmData.records);
+        } else {
+          setWmmData([]);
+        }
+      } else {
+        setWmmData([]);
+      }
+      
       setHrgData(rowData.hrgData || {});
       setFomData(rowData.fomData || {});
       setCalData(rowData.calData || {});
@@ -45,6 +57,14 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditClick = () => {
+    // Ensure subscription data is properly structured before passing to edit
+    const editData = {
+      ...formData,
+      wmmData: {
+        records: Array.isArray(wmmData) ? wmmData : wmmData.records || []
+      }
+    };
+    setFormData(editData);
     setIsEditing(true);
   };
 
@@ -133,9 +153,15 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const renderWmmData = () => {
-    // Check if wmmData exists, is an object, and has records
-    if (!wmmData || !wmmData.records || wmmData.records.length === 0)
-      return null;
+    // Check if wmmData exists and has items
+    if (!wmmData || wmmData.length === 0) return null;
+
+    // Sort wmmData by subsdate in descending order (latest to oldest)
+    const sortedWmmData = [...wmmData].sort((a, b) => {
+      const dateA = new Date(a.subsdate);
+      const dateB = new Date(b.subsdate);
+      return dateB - dateA;
+    });
 
     return (
       <div className="flex flex-col mb-2 p-2">
@@ -143,7 +169,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           Subscription & Payment History
         </h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-full">
-          {wmmData.records.map((subscription, index) => {
+          {sortedWmmData.map((subscription, index) => {
             const status = getSubscriptionStatus(subscription.enddate);
             const statusClass = getStatusColorClass(status);
             const statusIndicator = getStatusIndicator(status);
@@ -450,8 +476,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   ])}
                 </div>
 
-                {/* Replace separate payment history and subscription history cards with combined one */}
-                {wmmData && wmmData.records && wmmData.records.length > 0 ? (
+                {/* Subscription & Payment History Card */}
+                {wmmData && wmmData.length > 0 ? (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                       Subscription & Payment History

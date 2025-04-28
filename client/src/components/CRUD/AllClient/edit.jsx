@@ -200,10 +200,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }
 
       if (hasRole("WMM")) {
-        // If WMM data is available as a nested object
-        if (rowData.wmmData?.records && rowData.wmmData.records.length > 0) {
+        // Get subscription records from wmmData
+        const subscriptionRecords = rowData.wmmData?.records || [];
+        
+        if (subscriptionRecords.length > 0) {
           // Clean dates in subscription records
-          const cleanedSubscriptions = rowData.wmmData.records.map(record => ({
+          const cleanedSubscriptions = subscriptionRecords.map(record => ({
             ...record,
             subsdate: record.subsdate ? formatDateToMMDDYY(parseDate(record.subsdate)) : "",
             enddate: record.enddate ? formatDateToMMDDYY(parseDate(record.enddate)) : "",
@@ -1322,21 +1324,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       {group.id} - {group.name}
                     </option>
                   ))}
-                </select>
-                <select
-                  id="subsclass"
-                  name="subsclass"
-                  value={formData.subsclass}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded-md"
-                >
-                  <option value="">Select a classification</option>
-                  {subclasses.map((subclass) => (
-                    <option key={subclass.id} value={subclass.id}>
-                      {subclass.name} ({subclass.id})
-                    </option>
-                  ))}
-                </select>
+                </select>                
                 <h6 className="text-black font-bold">Remarks:</h6>
                 <p className="text-gray-500 text-sm">
                   Provide any additional information or notes about the client
@@ -1357,369 +1345,331 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           {/* Subscription Card for WMM users */}
           {hasRole("WMM") && (
             <div className="p-4 border rounded-lg shadow-sm mt-4">
-              <div className="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 className="text-black text-lg font-bold">
-                  Subscription Management
-                </h2>
-                <div className="flex space-x-4">
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      name="subscriptionMode"
-                      value="edit"
-                      checked={subscriptionMode === "edit"}
-                      onChange={() => handleSubscriptionModeChange("edit")}
-                      className="form-radio h-4 w-4 text-blue-600"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Edit Existing
-                    </span>
-                  </label>
-                  <label className="inline-flex items-center">
-                    <input
-                      type="radio"
-                      name="subscriptionMode"
-                      value="add"
-                      checked={subscriptionMode === "add"}
-                      onChange={() => handleSubscriptionModeChange("add")}
-                      className="form-radio h-4 w-4 text-green-600"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Add New</span>
-                  </label>
+              <div className="flex flex-col space-y-4">
+                {/* Mode Selection - More Prominent */}
+                <div className="flex justify-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                  <button
+                    onClick={() => handleSubscriptionModeChange("add")}
+                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      subscriptionMode === "add"
+                        ? "bg-green-600 text-white shadow-md"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Add New Subscription
+                  </button>
+                  <button
+                    onClick={() => handleSubscriptionModeChange("edit")}
+                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      subscriptionMode === "edit"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Edit Existing Subscription
+                  </button>
                 </div>
-              </div>
 
-              {/* Edit existing subscription section */}
-              {subscriptionMode === "edit" &&
-                availableSubscriptions.length > 0 && (
-                  <>
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Select Subscription to Edit:
-                      </label>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={selectedSubscription?.id || ""}
-                        onChange={handleSelectedSubscriptionChange}
-                      >
+                {/* Subscription History - Always Visible */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-semibold mb-3">Subscription History</h3>
+                  <div className="max-h-60 overflow-y-auto">
+                    {availableSubscriptions.length > 0 ? (
+                      <div className="space-y-3">
                         {availableSubscriptions.map((sub) => (
-                          <option key={sub.id} value={sub.id}>
-                            {sub.subsclass || "Unknown"} -{" "}
-                            {sub.subsdate
-                              ? formatDateToMMDDYY(sub.subsdate)
-                              : "N/A"}{" "}
-                            to{" "}
-                            {sub.enddate
-                              ? formatDateToMMDDYY(sub.enddate)
-                              : "N/A"}
-                          </option>
+                          <div
+                            key={sub.id}
+                            className={`p-3 rounded-lg border ${
+                              selectedSubscription?.id === sub.id
+                                ? "border-blue-500 bg-blue-50"
+                                : "border-gray-200"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold">
+                                  {sub.subsclass || "Unknown Class"}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  {sub.subsdate
+                                    ? formatDateToMMDDYY(sub.subsdate)
+                                    : "N/A"}{" "}
+                                  to{" "}
+                                  {sub.enddate ? formatDateToMMDDYY(sub.enddate) : "N/A"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm">Copies: {sub.copies || 1}</p>
+                                {sub.paymtamt > 0 && (
+                                  <p className="text-sm">Amount: {sub.paymtamt}</p>
+                                )}
+                              </div>
+                            </div>
+                            {subscriptionMode === "edit" && (
+                              <button
+                                onClick={() => handleSelectedSubscriptionChange({ target: { value: sub.id } })}
+                                className={`mt-2 w-full py-1 text-sm rounded ${
+                                  selectedSubscription?.id === sub.id
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                                }`}
+                              >
+                                {selectedSubscription?.id === sub.id
+                                  ? "Currently Selected"
+                                  : "Select to Edit"}
+                              </button>
+                            )}
+                          </div>
                         ))}
-                      </select>
-                    </div>
-
-                    <InputField
-                      label="Subscription Start (MM/DD/YY):"
-                      id="subsdate"
-                      name="subsdate"
-                      value={roleSpecificData.subsdate || ""}
-                      onChange={handleRoleSpecificChange}
-                      placeholder="MM/DD/YY"
-                      className="w-full p-2 border rounded-md"
-                    />
-
-                    <div className="my-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Duration:
-                      </label>
-                      <select
-                        id="subscriptionFreq"
-                        name="subscriptionFreq"
-                        onChange={handleSubscriptionFreqChange}
-                        className="w-full p-2 border rounded-md"
-                      >
-                        <option value="">Select Duration</option>
-                        <option value="5">6 Months</option>
-                        <option value="11">1 Year</option>
-                        <option value="22">2 Years</option>
-                        <option value="others">Others</option>
-                      </select>
-                    </div>
-
-                    <InputField
-                      label="Subscription End (MM/DD/YY):"
-                      id="enddate"
-                      name="enddate"
-                      value={roleSpecificData.enddate || ""}
-                      onChange={handleRoleSpecificChange}
-                      placeholder="MM/DD/YY"
-                      className="w-full p-2 border rounded-md"
-                    />
-
-                    <div className="grid grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <InputField
-                          label="Copies:"
-                          id="copies"
-                          name="copies"
-                          type="number"
-                          min="1"
-                          value={roleSpecificData.copies || 1}
-                          onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
-                        />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Subscription Class:
-                        </label>
-                        <select
-                          id="subsclass"
-                          name="subsclass"
-                          value={roleSpecificData.subsclass || ""}
-                          onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
-                        >
-                          <option value="">Select a classification</option>
-                          {subclasses.map((subclass) => (
-                            <option key={subclass.id} value={subclass.id}>
-                              {subclass.name} ({subclass.id})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mt-3">
-                      <div>
-                        <InputField
-                          label="Payment Reference:"
-                          id="paymtref"
-                          name="paymtref"
-                          value={roleSpecificData.paymtref || ""}
-                          onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
-                        />
-                      </div>
-                      <div>
-                        <InputField
-                          label="Payment Amount:"
-                          id="paymtamt"
-                          name="paymtamt"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={roleSpecificData.paymtamt || 0}
-                          onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Remarks:
-                      </label>
-                      <textarea
-                        id="remarks"
-                        name="remarks"
-                        value={roleSpecificData.remarks || ""}
-                        onChange={handleRoleSpecificChange}
-                        className="w-full p-2 border rounded-md h-24"
-                      ></textarea>
-                    </div>
-                  </>
-                )}
-
-              {/* Add new subscription section */}
-              {subscriptionMode === "add" && (
-                <>
-                  <div className="bg-green-50 p-2 rounded-md mb-4 text-sm text-green-700">
-                    Adding a new subscription record for this client. The client
-                    details will remain unchanged.
+                    ) : (
+                      <p className="text-gray-500 text-center py-4">
+                        No subscription history available
+                      </p>
+                    )}
                   </div>
+                </div>
 
-                  {availableSubscriptions.length > 0 &&
-                    (() => {
-                      // Find the latest subscription based on the enddate
-                      const latestSubscription = availableSubscriptions.reduce(
-                        (latest, sub) => {
-                          const latestDate = new Date(latest?.enddate || 0);
-                          const currentDate = new Date(sub.enddate || 0);
-                          return currentDate > latestDate ? sub : latest;
-                        },
-                        null
-                      );
+                {/* Edit/Add Form Section */}
+                <div className="border rounded-lg p-4 bg-white">
+                  {subscriptionMode === "edit" ? (
+                    <>
+                      <h3 className="text-lg font-semibold mb-4">Edit Selected Subscription</h3>
+                      {selectedSubscription ? (
+                        <div className="space-y-4">
+                          <InputField
+                            label="Subscription Start (MM/DD/YY):"
+                            id="subsdate"
+                            name="subsdate"
+                            value={roleSpecificData.subsdate || ""}
+                            onChange={handleRoleSpecificChange}
+                            placeholder="MM/DD/YY"
+                          />
 
-                      return latestSubscription ? (
-                        <div className="flex gap-1 bg-gray-50 p-3 rounded-md mb-4 text-sm text-gray-800 border border-gray-300">
-                          <h1 className="text-black font-bold">Latest Subscription:</h1>
-                          <p>
-                              {latestSubscription.subsclass || "Unknown"}
-                          </p>
-                          <p>
-                              {latestSubscription.subsdate
-                                ? formatDateToMMDDYY(latestSubscription.subsdate)
-                                : "N/A"}
-                          </p>
-                          <p>
-                              {" "}
-                              {latestSubscription.enddate
-                                ? formatDateToMMDDYY(latestSubscription.enddate)
-                                : "N/A"}
-                          </p>
+                          <div className="my-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Subscription Duration:
+                            </label>
+                            <select
+                              id="subscriptionFreq"
+                              name="subscriptionFreq"
+                              onChange={handleSubscriptionFreqChange}
+                              className="w-full p-2 border rounded-md"
+                            >
+                              <option value="">Select Duration</option>
+                              <option value="5">6 Months</option>
+                              <option value="11">1 Year</option>
+                              <option value="22">2 Years</option>
+                              <option value="others">Others</option>
+                            </select>
+                          </div>
+
+                          <InputField
+                            label="Subscription End (MM/DD/YY):"
+                            id="enddate"
+                            name="enddate"
+                            value={roleSpecificData.enddate || ""}
+                            onChange={handleRoleSpecificChange}
+                            placeholder="MM/DD/YY"
+                          />
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <InputField
+                              label="Copies:"
+                              id="copies"
+                              name="copies"
+                              type="number"
+                              min="1"
+                              value={roleSpecificData.copies || 1}
+                              onChange={handleRoleSpecificChange}
+                            />
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Subscription Class:
+                              </label>
+                              <select
+                                id="subsclass"
+                                name="subsclass"
+                                value={roleSpecificData.subsclass || ""}
+                                onChange={handleRoleSpecificChange}
+                                className="w-full p-2 border rounded-md"
+                              >
+                                <option value="">Select a classification</option>
+                                {subclasses.map((subclass) => (
+                                  <option key={subclass.id} value={subclass.id}>
+                                    {subclass.name} ({subclass.id})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <InputField
+                              label="Payment Reference:"
+                              id="paymtref"
+                              name="paymtref"
+                              value={roleSpecificData.paymtref || ""}
+                              onChange={handleRoleSpecificChange}
+                            />
+                            <InputField
+                              label="Payment Amount:"
+                              id="paymtamt"
+                              name="paymtamt"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={roleSpecificData.paymtamt || 0}
+                              onChange={handleRoleSpecificChange}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Remarks:
+                            </label>
+                            <textarea
+                              id="remarks"
+                              name="remarks"
+                              value={roleSpecificData.remarks || ""}
+                              onChange={handleRoleSpecificChange}
+                              className="w-full p-2 border rounded-md h-24"
+                            ></textarea>
+                          </div>
                         </div>
                       ) : (
-                        <p className="text-gray-500 text-sm mb-4">
-                          No previous subscription found.
-                        </p>
-                      );
-                    })()}
-
-                  <div className="mb-4">
-                    <InputField
-                      label="Subscription Start (MM/DD/YY):"
-                      id="subsdate"
-                      name="subsdate"
-                      value={newSubscriptionData.subsdate || ""}
-                      onChange={handleNewSubscriptionChange}
-                      placeholder="MM/DD/YY"
-                      className={`w-full p-2 border rounded-md ${
-                        validationErrors.subsdate ? "border-red-500" : ""
-                      }`}
-                    />
-                    {validationErrors.subsdate && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {validationErrors.subsdate}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="my-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Subscription Duration:
-                    </label>
-                    <select
-                      id="subscriptionFreq"
-                      name="subscriptionFreq"
-                      onChange={handleSubscriptionFreqChange}
-                      className="w-full p-2 border rounded-md"
-                    >
-                      <option value="">Select Duration</option>
-                      <option value="5">6 Months</option>
-                      <option value="12">1 Year</option>
-                      <option value="23">2 Years</option>
-                      <option value="others">Others</option>
-                    </select>
-                  </div>
-
-                  <div className="mb-4">
-                    <InputField
-                      label="Subscription End (MM/DD/YY):"
-                      id="enddate"
-                      name="enddate"
-                      value={newSubscriptionData.enddate || ""}
-                      onChange={handleNewSubscriptionChange}
-                      placeholder="MM/DD/YY"
-                      className={`w-full p-2 border rounded-md ${
-                        validationErrors.enddate ? "border-red-500" : ""
-                      }`}
-                    />
-                    {validationErrors.enddate && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {validationErrors.enddate}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4 mt-3">
-                    <div>
-                      <InputField
-                        label="Copies:"
-                        id="copies"
-                        name="copies"
-                        type="number"
-                        min="1"
-                        value={newSubscriptionData.copies || 1}
-                        onChange={handleNewSubscriptionChange}
-                        className="w-full p-2 border rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Class:
-                      </label>
-                      <select
-                        id="subsclass"
-                        name="subsclass"
-                        value={newSubscriptionData.subsclass || ""}
-                        onChange={handleNewSubscriptionChange}
-                        className={`w-full p-2 border rounded-md ${
-                          validationErrors.subsclass ? "border-red-500" : ""
-                        }`}
-                      >
-                        <option value="">Select a classification</option>
-                        {subclasses.map((subclass) => (
-                          <option key={subclass.id} value={subclass.id}>
-                            {subclass.name} ({subclass.id})
-                          </option>
-                        ))}
-                      </select>
-                      {validationErrors.subsclass && (
-                        <p className="text-red-500 text-xs mt-1">
-                          {validationErrors.subsclass}
+                        <p className="text-gray-500 text-center py-4">
+                          Please select a subscription to edit from the history above
                         </p>
                       )}
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-lg font-semibold mb-4">Add New Subscription</h3>
+                      <div className="space-y-4">
+                        <InputField
+                          label="Subscription Start (MM/DD/YY):"
+                          id="subsdate"
+                          name="subsdate"
+                          value={newSubscriptionData.subsdate || ""}
+                          onChange={handleNewSubscriptionChange}
+                          placeholder="MM/DD/YY"
+                          className={validationErrors.subsdate ? "border-red-500" : ""}
+                        />
+                        {validationErrors.subsdate && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {validationErrors.subsdate}
+                          </p>
+                        )}
 
-                  <div className="grid grid-cols-2 gap-4 mt-3">
-                    <div>
-                      <InputField
-                        label="Payment Reference:"
-                        id="paymtref"
-                        name="paymtref"
-                        value={newSubscriptionData.paymtref || ""}
-                        onChange={handleNewSubscriptionChange}
-                        className="w-full p-2 border rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <InputField
-                        label="Payment Amount:"
-                        id="paymtamt"
-                        name="paymtamt"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={newSubscriptionData.paymtamt || 0}
-                        onChange={handleNewSubscriptionChange}
-                        className="w-full p-2 border rounded-md"
-                      />
-                    </div>
-                  </div>
+                        <div className="my-3">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subscription Duration:
+                          </label>
+                          <select
+                            id="subscriptionFreq"
+                            name="subscriptionFreq"
+                            onChange={handleSubscriptionFreqChange}
+                            className="w-full p-2 border rounded-md"
+                          >
+                            <option value="">Select Duration</option>
+                            <option value="5">6 Months</option>
+                            <option value="11">1 Year</option>
+                            <option value="22">2 Years</option>
+                            <option value="others">Others</option>
+                          </select>
+                        </div>
 
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Remarks:
-                    </label>
-                    <textarea
-                      id="remarks"
-                      name="remarks"
-                      value={newSubscriptionData.remarks || ""}
-                      onChange={handleNewSubscriptionChange}
-                      className="w-full p-2 border rounded-md h-24"
-                    ></textarea>
-                  </div>
-                </>
-              )}
+                        <InputField
+                          label="Subscription End (MM/DD/YY):"
+                          id="enddate"
+                          name="enddate"
+                          value={newSubscriptionData.enddate || ""}
+                          onChange={handleNewSubscriptionChange}
+                          placeholder="MM/DD/YY"
+                          className={validationErrors.enddate ? "border-red-500" : ""}
+                        />
+                        {validationErrors.enddate && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {validationErrors.enddate}
+                          </p>
+                        )}
 
-              {subscriptionMode === "edit" &&
-                availableSubscriptions.length === 0 && (
-                  <div className="p-4 bg-yellow-50 text-yellow-700 rounded-md">
-                    No existing subscriptions found for this client. Please use
-                    "Add New" option to create a subscription.
-                  </div>
-                )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <InputField
+                            label="Copies:"
+                            id="copies"
+                            name="copies"
+                            type="number"
+                            min="1"
+                            value={newSubscriptionData.copies || 1}
+                            onChange={handleNewSubscriptionChange}
+                          />
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Subscription Class:
+                            </label>
+                            <select
+                              id="subsclass"
+                              name="subsclass"
+                              value={newSubscriptionData.subsclass || ""}
+                              onChange={handleNewSubscriptionChange}
+                              className={`w-full p-2 border rounded-md ${
+                                validationErrors.subsclass ? "border-red-500" : ""
+                              }`}
+                            >
+                              <option value="">Select a classification</option>
+                              {subclasses.map((subclass) => (
+                                <option key={subclass.id} value={subclass.id}>
+                                  {subclass.name} ({subclass.id})
+                                </option>
+                              ))}
+                            </select>
+                            {validationErrors.subsclass && (
+                              <p className="text-red-500 text-xs mt-1">
+                                {validationErrors.subsclass}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <InputField
+                            label="Payment Reference:"
+                            id="paymtref"
+                            name="paymtref"
+                            value={newSubscriptionData.paymtref || ""}
+                            onChange={handleNewSubscriptionChange}
+                          />
+                          <InputField
+                            label="Payment Amount:"
+                            id="paymtamt"
+                            name="paymtamt"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newSubscriptionData.paymtamt || 0}
+                            onChange={handleNewSubscriptionChange}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Remarks:
+                          </label>
+                          <textarea
+                            id="remarks"
+                            name="remarks"
+                            value={newSubscriptionData.remarks || ""}
+                            onChange={handleNewSubscriptionChange}
+                            className="w-full p-2 border rounded-md h-24"
+                          ></textarea>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
