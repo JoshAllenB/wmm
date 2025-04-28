@@ -20,7 +20,7 @@ export function useTableLogic(
   columnVisibility,
   setColumnVisibility
 ) {
-  const [sorting, setSorting] = useState([]);
+  const [sorting, setSorting] = useState([{ id: "ID", desc: false }]);
   const [filtering, setFiltering] = useState("");
 
   // Calculate effective column visibility without updating state during render
