@@ -70,6 +70,7 @@ async function fetchDataServices(
           { fname: { $regex: filter, $options: "i" } },
           { mname: { $regex: filter, $options: "i" } },
           { sname: { $regex: filter, $options: "i" } },
+          { company: { $regex: filter, $options: "i" } },
         ],
       });
     }
@@ -85,64 +86,37 @@ async function fetchDataServices(
       if (nameParts.length > 0) {
         const nameQueries = [];
 
-        // For exact name matching (all parts must be present)
-        const exactMatchQueries = [];
+        // Add a direct company phrase match for the full name
+        nameQueries.push({ company: { $regex: fullName, $options: "i" } });
 
-        // For each name part, check all name fields
+        // If multi-word search, require all words to be present in any name or company field
+        if (nameParts.length > 1) {
+          nameQueries.push({
+            $and: nameParts.map((part) => ({
+              $or: [
+                { fname: { $regex: part, $options: "i" } },
+                { lname: { $regex: part, $options: "i" } },
+                { mname: { $regex: part, $options: "i" } },
+                { sname: { $regex: part, $options: "i" } },
+                { company: { $regex: part, $options: "i" } }
+              ]
+            }))
+          });
+        }
+
         nameParts.forEach((part) => {
           if (part.trim()) {
             nameQueries.push({ lname: { $regex: part, $options: "i" } });
             nameQueries.push({ fname: { $regex: part, $options: "i" } });
             nameQueries.push({ mname: { $regex: part, $options: "i" } });
             nameQueries.push({ sname: { $regex: part, $options: "i" } });
+            nameQueries.push({ company: { $regex: part, $options: "i" } });
           }
         });
 
-        // For 2-part names, try both first-last and last-first combinations
-        if (nameParts.length === 2) {
-          const [part1, part2] = nameParts;
-          // Scenario: "John Doe" where John is fname and Doe is lname
-          exactMatchQueries.push({
-            $and: [
-              { fname: { $regex: `^${part1}$`, $options: "i" } },
-              { lname: { $regex: `^${part2}$`, $options: "i" } },
-            ],
-          });
-          // Scenario: "Doe John" where Doe is lname and John is fname
-          exactMatchQueries.push({
-            $and: [
-              { lname: { $regex: `^${part1}$`, $options: "i" } },
-              { fname: { $regex: `^${part2}$`, $options: "i" } },
-            ],
-          });
-        }
-
-        // For 3-part names like "John Middle Doe"
-        if (nameParts.length === 3) {
-          const [part1, part2, part3] = nameParts;
-          // Scenario: "John Middle Doe" (fname mname lname)
-          exactMatchQueries.push({
-            $and: [
-              { fname: { $regex: `^${part1}$`, $options: "i" } },
-              { mname: { $regex: `^${part2}$`, $options: "i" } },
-              { lname: { $regex: `^${part3}$`, $options: "i" } },
-            ],
-          });
-          // Scenario: "Doe John Middle" (lname fname mname)
-          exactMatchQueries.push({
-            $and: [
-              { lname: { $regex: `^${part1}$`, $options: "i" } },
-              { fname: { $regex: `^${part2}$`, $options: "i" } },
-              { mname: { $regex: `^${part3}$`, $options: "i" } },
-            ],
-          });
-        }
-
-        // Add both exact matches and partial matches to the query
         baseFilter.push({
           $or: [
-            ...exactMatchQueries,
-            // If we have multiple name parts, try to match them all
+            ...nameQueries,
             ...(nameParts.length > 1
               ? [
                   {
@@ -152,15 +126,20 @@ async function fetchDataServices(
                         { fname: { $regex: part, $options: "i" } },
                         { mname: { $regex: part, $options: "i" } },
                         { sname: { $regex: part, $options: "i" } },
-                      ],
-                    })),
-                  },
+                        { company: { $regex: part, $options: "i" } }
+                      ]
+                    }))
+                  }
                 ]
-              : []),
-            // If everything else fails, try individual part matching
-            ...(nameQueries.length > 0 ? [{ $or: nameQueries }] : []),
-          ],
+              : [])
+          ]
         });
+
+        // --- Add scoring for relevance ---
+        // This will be used in the aggregation pipeline after the filter is built
+        // We'll add this to the pipeline after the filterQuery is constructed
+        // So, set a flag here
+        filterQuery.__addScoring = nameParts;
       }
     }
 
@@ -507,24 +486,61 @@ async function fetchDataServices(
     }
 
     // After adding all filters, clean up empty $and array
-    if (filterQuery.$and.length === 0) {
+    if (filterQuery.$and && filterQuery.$and.length === 0) {
       delete filterQuery.$and;
-    } else if (filterQuery.$and.length === 1) {
+    } else if (filterQuery.$and && filterQuery.$and.length === 1) {
       // If there's only one condition, use it directly
       filterQuery = filterQuery.$and[0];
     }
 
+    // --- Add scoring to aggregation pipeline if needed ---
+    let scoringStage = null;
+    if (filterQuery.__addScoring) {
+      const nameParts = filterQuery.__addScoring;
+      delete filterQuery.__addScoring;
+      scoringStage = {
+        $addFields: {
+          matchScore: {
+            $add: [
+              // For each part, sum the matches in all fields
+              ...nameParts.map((part) => ({
+                $add: [
+                  { $cond: [{ $regexMatch: { input: "$fname", regex: part, options: "i" } }, 1, 0] },
+                  { $cond: [{ $regexMatch: { input: "$lname", regex: part, options: "i" } }, 1, 0] },
+                  { $cond: [{ $regexMatch: { input: "$mname", regex: part, options: "i" } }, 1, 0] },
+                  { $cond: [{ $regexMatch: { input: "$sname", regex: part, options: "i" } }, 1, 0] },
+                  { $cond: [{ $regexMatch: { input: "$company", regex: part, options: "i" } }, 1, 0] }
+                ]
+              }))
+            ]
+          }
+        }
+      };
+    }
+
     // Optimize client fetching by selecting only needed fields
+    let aggregatePipeline = [];
+    aggregatePipeline.push({ $match: filterQuery });
+    if (scoringStage) {
+      aggregatePipeline.push(scoringStage);
+      aggregatePipeline.push({ $sort: { matchScore: -1, id: -1 } });
+    } else {
+      aggregatePipeline.push({ $sort: { id: -1 } });
+    }
+
+    // Ensure pageSize and skip are numbers
+    const pageSizeNum = Number(pageSize);
+    const skipNum = Number(skip);
+
     const totalClients = await ClientModel.countDocuments(filterQuery);
-    const totalPages = Math.ceil(totalClients / pageSize);
+    const totalPages = Math.ceil(totalClients / pageSizeNum);
 
     // First fetch clients
-    const clients = await ClientModel.find(filterQuery)
-      .select(clientFields)
-      .sort({ id: -1 })
-      .skip(skip)
-      .limit(pageSize)
-      .lean();
+    const clients = await ClientModel.aggregate(aggregatePipeline)
+      .project(clientFields)
+      .skip(skipNum)
+      .limit(pageSizeNum)
+      .exec();
 
     // Then fetch model data in parallel
     const modelDataArrays = await Promise.all(
