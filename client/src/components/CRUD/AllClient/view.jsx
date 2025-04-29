@@ -254,39 +254,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">HRG Data</h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {hrgData.records.map((record, index) => (
-            <div key={index} className="flex flex-col border-b border-gray-500">
-              {record.recvdate && (
-                <div>
-                  <span className="text-black font-bold">Receive Date:</span>{" "}
-                  <span className="text-black">{record.recvdate}</span>
-                </div>
-              )}
-              {record.campaigndate && (
-                <div>
-                  <span className="text-black font-bold">Campaign Date:</span>{" "}
-                  <span className="text-black">{record.campaigndate}</span>
-                </div>
-              )}
-              {record.paymtref && (
-                <div>
-                  <span className="text-black font-bold">Payment Ref:</span>{" "}
-                  <span className="text-black">{record.paymtref}</span>
-                </div>
-              )}
-              {record.paymtamt && (
-                <div>
-                  <span className="text-black font-bold">Payment Amount:</span>{" "}
-                  <span className="text-black">{record.paymtamt}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-black font-bold">Unsubscribe:</span>{" "}
-                <span className="text-black">
-                  {record.unsubscribe ? "Yes" : "No"}
-                </span>
-              </div>
+            <div key={index} className="mb-1 text-sm">
+              <span className="text-gray-600">{record.recvdate}</span>
+              <span className="mx-1">•</span>
+              <span className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
+                {record.unsubscribe ? "Unsubscribed" : "Active"}
+              </span>
+              <span className="mx-1">•</span>
+              <span className="text-gray-600">{record.paymtamt}</span>
             </div>
           ))}
         </div>
@@ -300,39 +277,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">FOM Data</h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {fomData.records.map((record, index) => (
-            <div key={index} className="flex flex-col border-b border-gray-500">
-              {record.recvdate && (
-                <div>
-                  <span className="text-black font-bold">Receive Date:</span>{" "}
-                  <span className="text-black">{record.recvdate}</span>
-                </div>
-              )}
-              {record.paymtref && (
-                <div>
-                  <span className="text-black font-bold">Payment Ref:</span>{" "}
-                  <span className="text-black">{record.paymtref}</span>
-                </div>
-              )}
-              {record.paymtamt && (
-                <div>
-                  <span className="text-black font-bold">Payment Amount:</span>{" "}
-                  <span className="text-black">{record.paymtamt}</span>
-                </div>
-              )}
-              {record.paymtform && (
-                <div>
-                  <span className="text-black font-bold">Payment Form:</span>{" "}
-                  <span className="text-black">{record.paymtform}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-black font-bold">Unsubscribe:</span>{" "}
-                <span className="text-black">
-                  {record.unsubscribe ? "Yes" : "No"}
-                </span>
-              </div>
+            <div key={index} className="mb-1 text-sm">
+              <span className="text-gray-600">{record.recvdate}</span>
+              <span className="mx-1">•</span>
+              <span className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
+                {record.unsubscribe ? "Unsubscribed" : "Active"}
+              </span>
+              <span className="mx-1">•</span>
+              <span className="text-gray-600">{record.paymtamt}</span>
             </div>
           ))}
         </div>
@@ -346,57 +300,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return (
       <div className="flex flex-col mb-2 p-2">
         <h1 className="text-black text-xl mb-2 font-bold">CAL Data</h1>
-        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-[300px]">
+        <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {calData.records.map((record, index) => (
-            <div key={index} className="flex flex-col border-b border-gray-500">
-              {record.recvdate && (
-                <div>
-                  <span className="text-black font-bold">Receive Date:</span>{" "}
-                  <span className="text-black">{record.recvdate}</span>
-                </div>
-              )}
-              {record.caltype && (
-                <div>
-                  <span className="text-black font-bold">Cal Type:</span>{" "}
-                  <span className="text-black">{record.caltype}</span>
-                </div>
-              )}
-              {record.calqty && (
-                <div>
-                  <span className="text-black font-bold">Cal Quantity:</span>{" "}
-                  <span className="text-black">{record.calqty}</span>
-                </div>
-              )}
-              {record.calamt && (
-                <div>
-                  <span className="text-black font-bold">Cal Amount:</span>{" "}
-                  <span className="text-black">{record.calamt}</span>
-                </div>
-              )}
-              {record.paymtref && (
-                <div>
-                  <span className="text-black font-bold">Payment Ref:</span>{" "}
-                  <span className="text-black">{record.paymtref}</span>
-                </div>
-              )}
-              {record.paymtamt && (
-                <div>
-                  <span className="text-black font-bold">Payment Amount:</span>{" "}
-                  <span className="text-black">{record.paymtamt}</span>
-                </div>
-              )}
-              {record.paymtform && (
-                <div>
-                  <span className="text-black font-bold">Payment Form:</span>{" "}
-                  <span className="text-black">{record.paymtform}</span>
-                </div>
-              )}
-              {record.paymtdate && (
-                <div>
-                  <span className="text-black font-bold">Payment Date:</span>{" "}
-                  <span className="text-black">{record.paymtdate}</span>
-                </div>
-              )}
+            <div key={index} className="mb-1 text-sm">
+              <span className="text-gray-600">{record.recvdate}</span>
+              <span className="mx-1">•</span>
+              <span className="text-gray-600">{record.caltype}</span>
+              <span className="mx-1">•</span>
+              <span className="text-gray-600">Qty: {record.calqty}</span>
+              <span className="mx-1">•</span>
+              <span className="text-gray-600">{record.calamt}</span>
             </div>
           ))}
         </div>

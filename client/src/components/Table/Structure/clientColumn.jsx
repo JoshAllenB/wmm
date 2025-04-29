@@ -261,15 +261,12 @@ export const useColumns = () => {
             id: "HRG Data",
             Header: "HRG Data",
             accessorFn: (row) => {
-              // Check if hrgData exists and has records
               if (!row.hrgData || !row.hrgData.records) {
                 return [];
               }
 
-              // Use the records array from hrgData
               const hrgRecords = row.hrgData.records || [];
 
-              // Sort records by recvdate in descending order (most recent first)
               return [...hrgRecords]
                 .sort((a, b) => {
                   const dateA = new Date(a.recvdate || 0);
@@ -277,44 +274,18 @@ export const useColumns = () => {
                   return dateB - dateA;
                 })
                 .map((hrgItem) => {
-                  let {
-                    recvdate,
-                    renewdate,
-                    campaigndate,
-                    paymtref,
-                    paymtamt,
-                    unsubscribe,
-                    adddate,
-                  } = hrgItem;
-
-                  recvdate = recvdate
-                    ? new Date(recvdate).toLocaleDateString("en-US")
+                  const recvdate = hrgItem.recvdate
+                    ? new Date(hrgItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
-
-                  renewdate = renewdate
-                    ? new Date(renewdate).toLocaleDateString("en-US")
-                    : "N/A";
-
-                  campaigndate = campaigndate
-                    ? new Date(campaigndate).toLocaleDateString("en-US")
-                    : "N/A";
-
-                  adddate = adddate
-                    ? new Date(adddate).toLocaleDateString("en-US")
-                    : "N/A";
-
-                  paymtamt = paymtamt
-                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
+                  
+                  const paymtamt = hrgItem.paymtamt
+                    ? `₱${parseFloat(hrgItem.paymtamt).toFixed(2)}`
                     : "N/A";
 
                   return {
                     recvdate,
-                    renewdate,
-                    campaigndate,
-                    paymtref: paymtref || "N/A",
                     paymtamt,
-                    unsubscribe: unsubscribe ? "Unsubscribed" : "Active",
-                    adddate,
+                    status: hrgItem.unsubscribe ? "Unsubscribed" : "Active",
                   };
                 });
             },
@@ -329,60 +300,21 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 p-2 border-b border-gray-100 last:border-0"
+                      className="mb-1 text-sm"
                     >
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Received:
-                          </span>
-                          <span>{record.recvdate}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Renewal:
-                          </span>
-                          <span>{record.renewdate}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Campaign:
-                          </span>
-                          <span>{record.campaigndate}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Ref:
-                          </span>
-                          <span>{record.paymtref}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Amount:
-                          </span>
-                          <span>{record.paymtamt}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Status:
-                          </span>
-                          <span
-                            className={
-                              record.unsubscribe === "Active"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {record.unsubscribe}
-                          </span>
-                        </div>
-                      </div>
+                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="mx-1">•</span>
+                      <span className={record.status === "Active" ? "text-green-600" : "text-red-600"}>
+                        {record.status}
+                      </span>
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-600">{record.paymtamt}</span>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 400,
+            size: 200,
           },
         ]
       : []),
@@ -392,15 +324,12 @@ export const useColumns = () => {
             id: "FOM Data",
             Header: "FOM Data",
             accessorFn: (row) => {
-              // Check if fomData exists and has records
               if (!row.fomData || !row.fomData.records) {
                 return [];
               }
 
-              // Use the records array from fomData
               const fomRecords = row.fomData.records || [];
 
-              // Sort records by recvdate in descending order (most recent first)
               return [...fomRecords]
                 .sort((a, b) => {
                   const dateA = new Date(a.recvdate || 0);
@@ -408,37 +337,18 @@ export const useColumns = () => {
                   return dateB - dateA;
                 })
                 .map((fomItem) => {
-                  let {
-                    recvdate,
-                    remarks,
-                    paymtamt,
-                    paymtform,
-                    paymtref,
-                    unsubscribe,
-                    adddate,
-                    adduser,
-                  } = fomItem;
-
-                  recvdate = recvdate
-                    ? new Date(recvdate).toLocaleDateString("en-US")
+                  const recvdate = fomItem.recvdate
+                    ? new Date(fomItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
 
-                  paymtamt = paymtamt
-                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
-                    : "N/A";
-
-                  adddate = adddate
-                    ? new Date(adddate).toLocaleDateString("en-US")
+                  const paymtamt = fomItem.paymtamt
+                    ? `₱${parseFloat(fomItem.paymtamt).toFixed(2)}`
                     : "N/A";
 
                   return {
                     recvdate,
-                    remarks: remarks || "N/A",
-                    paymtform: paymtform || "N/A",
-                    paymtref: paymtref || "N/A",
                     paymtamt,
-                    unsubscribe: unsubscribe ? "Unsubscribed" : "Active",
-                    adddate,
+                    status: fomItem.unsubscribe ? "Unsubscribed" : "Active",
                   };
                 });
             },
@@ -453,64 +363,21 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 p-2 border-b border-gray-100 last:border-0"
+                      className="mb-1 text-sm"
                     >
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Received:
-                          </span>
-                          <span>{record.recvdate}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Ref:
-                          </span>
-                          <span>{record.paymtref}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Amount:
-                          </span>
-                          <span>{record.paymtamt}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Form:
-                          </span>
-                          <span>{record.paymtform}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Status:
-                          </span>
-                          <span
-                            className={
-                              record.unsubscribe === "Active"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }
-                          >
-                            {record.unsubscribe}
-                          </span>
-                        </div>
-                      </div>
-                      {record.remarks !== "N/A" && (
-                        <div className="mt-1">
-                          <span className="text-gray-600 font-medium">
-                            Remarks:{" "}
-                          </span>
-                          <span className="text-gray-800">
-                            {record.remarks}
-                          </span>
-                        </div>
-                      )}
+                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="mx-1">•</span>
+                      <span className={record.status === "Active" ? "text-green-600" : "text-red-600"}>
+                        {record.status}
+                      </span>
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-600">{record.paymtamt}</span>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 400,
+            size: 200,
           },
         ]
       : []),
@@ -520,15 +387,12 @@ export const useColumns = () => {
             id: "CAL Data",
             Header: "CAL Data",
             accessorFn: (row) => {
-              // Check if calData exists and has records
               if (!row.calData || !row.calData.records) {
                 return [];
               }
 
-              // Use the records array from calData
               const calRecords = row.calData.records || [];
 
-              // Sort records by recvdate in descending order (most recent first)
               return [...calRecords]
                 .sort((a, b) => {
                   const dateA = new Date(a.recvdate || 0);
@@ -536,46 +400,19 @@ export const useColumns = () => {
                   return dateB - dateA;
                 })
                 .map((calItem) => {
-                  let {
-                    recvdate,
-                    caltype,
-                    calqty,
-                    calamt,
-                    paymtref,
-                    paymtamt,
-                    paymtform,
-                    paymtdate,
-                    adddate,
-                    adduser,
-                  } = calItem;
-
-                  recvdate = recvdate
-                    ? new Date(recvdate).toLocaleDateString("en-US")
+                  const recvdate = calItem.recvdate
+                    ? new Date(calItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
 
-                  paymtdate = paymtdate
-                    ? new Date(paymtdate).toLocaleDateString("en-US")
-                    : "N/A";
-
-                  adddate = adddate
-                    ? new Date(adddate).toLocaleDateString("en-US")
-                    : "N/A";
-
-                  calamt = calamt ? `₱${parseFloat(calamt).toFixed(2)}` : "N/A";
-                  paymtamt = paymtamt
-                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
+                  const calamt = calItem.calamt
+                    ? `₱${parseFloat(calItem.calamt).toFixed(2)}`
                     : "N/A";
 
                   return {
                     recvdate,
-                    caltype: caltype || "N/A",
-                    calqty: calqty || "N/A",
+                    caltype: calItem.caltype || "N/A",
+                    calqty: calItem.calqty || "N/A",
                     calamt,
-                    paymtref: paymtref || "N/A",
-                    paymtamt,
-                    paymtform: paymtform || "N/A",
-                    paymtdate,
-                    adddate,
                   };
                 });
             },
@@ -590,64 +427,21 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 p-2 border-b border-gray-100 last:border-0"
+                      className="mb-1 text-sm"
                     >
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Received:
-                          </span>
-                          <span>{record.recvdate}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Cal Type:
-                          </span>
-                          <span>{record.caltype}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Quantity:
-                          </span>
-                          <span>{record.calqty}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Cal Amount:
-                          </span>
-                          <span>{record.calamt}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Ref:
-                          </span>
-                          <span>{record.paymtref}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Amt:
-                          </span>
-                          <span>{record.paymtamt}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Form:
-                          </span>
-                          <span>{record.paymtform}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="text-gray-600 font-medium w-24">
-                            Payment Date:
-                          </span>
-                          <span>{record.paymtdate}</span>
-                        </div>
-                      </div>
+                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-600">{record.caltype}</span>
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-600">Qty: {record.calqty}</span>
+                      <span className="mx-1">•</span>
+                      <span className="text-gray-600">{record.calamt}</span>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 400,
+            size: 200,
           },
         ]
       : []),

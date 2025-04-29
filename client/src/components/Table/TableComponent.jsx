@@ -190,100 +190,61 @@ export function TableComponent({
                       </ul>
                     ) : cell.column.id === "HRG Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
+                      <div className="max-h-[200px] overflow-y-auto pr-2">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((hrg, index) => (
-                            <li key={index} style={{ textAlign: "left" }}>
-                              <div>
-                                <strong>Recv:</strong> {hrg.recvdate}
-                              </div>
-                              <div>
-                                <strong>Renew:</strong> {hrg.renewdate}
-                              </div>
-                              <div>
-                                <strong>Camp:</strong> {hrg.campaigndate}
-                              </div>
-                              <div>
-                                <strong>Ref:</strong> {hrg.paymtref}
-                              </div>
-                              <div>
-                                <strong>Amt:</strong> {hrg.paymtamt}
-                              </div>
-                              <div>
-                                <strong>Status:</strong> {hrg.unsubscribe}
-                              </div>
-                            </li>
+                            <div key={index} className="mb-1 text-sm">
+                              <span className="text-gray-600">{hrg.recvdate}</span>
+                              <span className="mx-1">•</span>
+                              <span className={hrg.status === "Active" ? "text-green-600" : "text-red-600"}>
+                                {hrg.status}
+                              </span>
+                              <span className="mx-1">•</span>
+                              <span className="text-gray-600">{hrg.paymtamt}</span>
+                            </div>
                           ))
                         ) : (
-                          <li>No HRG data</li>
+                          <div className="text-gray-500 italic">No HRG data</div>
                         )}
-                      </ul>
+                      </div>
                     ) : cell.column.id === "FOM Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
+                      <div className="max-h-[200px] overflow-y-auto pr-2">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((fom, index) => (
-                            <li key={index} style={{ textAlign: "left" }}>
-                              <div>
-                                <strong>Recv:</strong> {fom.recvdate}
-                              </div>
-                              <div>
-                                <strong>Amt:</strong> {fom.paymtamt}
-                              </div>
-                              <div>
-                                <strong>Status:</strong> {fom.unsubscribe}
-                              </div>
-                              <div>
-                                <strong>Remarks:</strong> {fom.remarks}
-                              </div>
-                            </li>
+                            <div key={index} className="mb-1 text-sm">
+                              <span className="text-gray-600">{fom.recvdate}</span>
+                              <span className="mx-1">•</span>
+                              <span className={fom.status === "Active" ? "text-green-600" : "text-red-600"}>
+                                {fom.status}
+                              </span>
+                              <span className="mx-1">•</span>
+                              <span className="text-gray-600">{fom.paymtamt}</span>
+                            </div>
                           ))
                         ) : (
-                          <li>No FOM data</li>
+                          <div className="text-gray-500 italic">No FOM data</div>
                         )}
-                      </ul>
+                      </div>
                     ) : cell.column.id === "CAL Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <ul className="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide">
+                      <div className="max-h-[200px] overflow-y-auto pr-2">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((cal, index) => (
-                            <li key={index} style={{ textAlign: "left" }}>
-                              <div>
-                                <strong>Recv:</strong> {cal.recvdate}
-                              </div>
-                              <div>
-                                <strong>Type:</strong> {cal.caltype}
-                              </div>
-                              <div>
-                                <strong>Qty:</strong> {cal.calqty}
-                              </div>
-                              <div>
-                                <strong>Amt:</strong> {cal.calamt}
-                              </div>
-                              <div>
-                                <strong>Ref:</strong> {cal.paymtref}
-                              </div>
-                              <div>
-                                <strong>Pay:</strong> {cal.paymtamt}
-                              </div>
-                              <div>
-                                <strong>Form:</strong> {cal.paymtform}
-                              </div>
-                              <div>
-                                <strong>Date:</strong> {cal.paymtdate}
-                              </div>
-                              <div>
-                                <strong>Added:</strong> {cal.adddate}
-                              </div>
-                              <div>
-                                <strong>By:</strong> {cal.adduser}
-                              </div>
-                            </li>
+                            <div key={index} className="mb-1 text-sm">
+                              <span className="text-gray-600">{cal.recvdate}</span>
+                              <span className="mx-1">•</span>
+                              <span className="text-gray-600">{cal.caltype}</span>
+                              <span className="mx-1">•</span>
+                              <span className="text-gray-600">Qty: {cal.calqty}</span>
+                              <span className="mx-1">•</span>
+                              <span className="text-gray-600">{cal.calamt}</span>
+                            </div>
                           ))
                         ) : (
-                          <li>No CAL data</li>
+                          <div className="text-gray-500 italic">No CAL data</div>
                         )}
-                      </ul>
+                      </div>
                     ) : cell.column.id === "Services" &&
                       Array.isArray(cell.getValue()) ? (
                       <ul className="text-center">
