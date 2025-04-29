@@ -33,7 +33,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     group: selectedGroup || "",
     type: "",
     subsclass: "",
-    area: "",
+    areas: [],
     acode: "",
     services: [],
   });
@@ -72,7 +72,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       if (hasRole("FOM")) roleBasedServices.push("FOM");
       if (hasRole("HRG")) roleBasedServices.push("HRG");
       if (hasRole("CAL")) roleBasedServices.push("CAL");
-
 
       // Only update if we found matching roles
       if (roleBasedServices.length > 0) {
@@ -119,7 +118,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       group: selectedGroup || "",
       type: "",
       subsclass: "",
-      area: "",
+      areas: [],
       acode: "",
       services: [],
     });
@@ -130,9 +129,23 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     setFilterData((prev) => ({
       ...prev,
       [name]: value,
-      // If area is being changed, also update acode
-      ...(name === "area" && value ? { acode: value } : {}),
     }));
+  };
+
+  // New handler for area checkbox changes
+  const handleAreaChange = (areaId) => {
+    setFilterData((prev) => {
+      const areas = [...prev.areas];
+      const areaIndex = areas.indexOf(areaId);
+
+      if (areaIndex === -1) {
+        areas.push(areaId);
+      } else {
+        areas.splice(areaIndex, 1);
+      }
+
+      return { ...prev, areas };
+    });
   };
 
   const handleServiceChange = (service) => {
@@ -217,7 +230,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       group: selectedGroup || "",
       type: "",
       subsclass: "",
-      area: "",
+      areas: [],
       acode: "",
       services: [],
     });
@@ -262,7 +275,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       group: "Group",
       type: "Type",
       subsclass: "Subclass",
-      area: "Area",
+      areas: "Areas",
     };
 
     // Special case formatters
@@ -272,6 +285,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       type: (value) => types.find((t) => t.id === value)?.name || value,
       subsclass: (value) =>
         subclasses.find((s) => s.id === value)?.name || value,
+      areas: (value) => `${value.length} selected`,
     };
 
     // Handle date range special case
@@ -334,7 +348,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         !value ||
         (key === "group" && value === selectedGroup) ||
         key === "startDate" ||
-        key === "endDate"
+        key === "endDate" ||
+        (Array.isArray(value) && value.length === 0)
       ) {
         return;
       }
@@ -362,6 +377,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         case "services":
           updates.services = [];
           break;
+        case "areas":
+          updates.areas = [];
+          break;
         default:
           updates[key] = "";
       }
@@ -369,6 +387,28 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       return { ...prev, ...updates };
     });
   };
+
+  // Helper function to categorize areas
+  const categorizeAreas = () => {
+    const local = [];
+    const foreign = [];
+
+    if (Array.isArray(areas)) {
+      areas.forEach(area => {
+        // Check if area name contains "ZONE" to identify foreign areas
+        const isZone = area._id.includes("ZONE");
+        if (isZone) {
+          foreign.push(area);
+        } else {
+          local.push(area);
+        }
+      });
+    }
+
+    return { local, foreign };
+  };
+
+  const { local, foreign } = categorizeAreas();
 
   return (
     <div>
@@ -751,27 +791,71 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         ))}
                     </select>
                   </div>
-
+                  
+                  {/* Area Filter (Modified to checkboxes grouped by Local/Foreign) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Area
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Areas
                     </label>
-                    <select
-                      name="area"
-                      value={filterData.area}
-                      onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                        filterData.area ? "border-blue-500 bg-blue-50" : ""
-                      }`}
-                    >
-                      <option value="">All Areas</option>
-                      {Array.isArray(areas) &&
-                        areas.map((area) => (
-                          <option key={area._id} value={area._id}>
-                            {area._id}
-                          </option>
-                        ))}
-                    </select>
+                    <p className="text-xs text-gray-500 mb-2">
+                      {filterData.areas.length} areas selected
+                    </p>
+                    
+                    <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
+                      {/* Local Areas */}
+                      <div className="mb-3">
+                        <h3 className="text-sm font-semibold text-gray-600 mb-1 bg-gray-100 p-1">
+                          Local Areas
+                        </h3>
+                        <div className="grid grid-cols-2 gap-1">
+                          {local.map(area => (
+                            <div key={area._id} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`area-${area._id}`}
+                                checked={filterData.areas.includes(area._id)}
+                                onChange={() => handleAreaChange(area._id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <label
+                                htmlFor={`area-${area._id}`}
+                                className="ml-2 text-xs text-gray-700 truncate"
+                                title={area._id}
+                              >
+                                {area._id}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Foreign Areas */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-600 mb-1 bg-gray-100 p-1">
+                          Foreign Areas
+                        </h3>
+                        <div className="grid grid-cols-2 gap-1">
+                          {foreign.map(area => (
+                            <div key={area._id} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                id={`area-${area._id}`}
+                                checked={filterData.areas.includes(area._id)}
+                                onChange={() => handleAreaChange(area._id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                              <label
+                                htmlFor={`area-${area._id}`}
+                                className="ml-2 text-xs text-gray-700 truncate"
+                                title={area._id}
+                              >
+                                {area._id}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
