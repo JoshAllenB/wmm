@@ -63,6 +63,7 @@ const Add = ({ fetchClients }) => {
   const [roleSpecificData, setRoleSpecificData] = useState({});
   const [areaData, setAreaData] = useState({});
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [groups, setGroups] = useState([]);
@@ -145,14 +146,30 @@ const Add = ({ fetchClients }) => {
     const loadSubclasses = async () => {
       try {
         const subclassesData = await fetchSubclasses();
-        setSubclasses(subclassesData);
+        // Sort subclasses by leading numbers in name, then alphabetically
+        const sortedSubclasses = [...subclassesData].sort((a, b) => {
+          // Extract leading numbers from name strings
+          const aMatch = a.name.match(/^(\d+)/);
+          const bMatch = b.name.match(/^(\d+)/);
+          
+          // If both have leading numbers, compare numerically
+          if (aMatch && bMatch) {
+            return parseInt(aMatch[0]) - parseInt(bMatch[0]);
+          }
+          // If only one has a leading number, prioritize it
+          if (aMatch) return -1;
+          if (bMatch) return 1;
+          
+          // Otherwise sort alphabetically
+          return a.name.localeCompare(b.name);
+        });
+        setSubclasses(sortedSubclasses);
       } catch (error) {
         console.error("Error loading subclasses:", error);
       }
     };
     loadSubclasses();
   }, [hasRole]);
-
   useEffect(() => {
     const loadTypes = async () => {
       try {
@@ -587,9 +604,12 @@ const Add = ({ fetchClients }) => {
     );
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
+    setShowConfirmation(true);
+  };
 
+  const handleConfirmedSubmit = async () => {
     const addressComponents = [
       addressData.street1,
       addressData.street2,
@@ -730,6 +750,8 @@ const Add = ({ fetchClients }) => {
       }
     } catch (error) {
       console.error("Error submitting form:", error);
+    } finally {
+      setShowConfirmation(false);
     }
   };
 
@@ -1222,6 +1244,36 @@ const Add = ({ fetchClients }) => {
     checkForDuplicates,
   ]);
 
+  // Confirmation Dialog Component
+  const ConfirmationDialog = () => {
+    if (!showConfirmation) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h3 className="text-xl font-semibold mb-4">Confirm Submission</h3>
+          <p className="mb-6">Are you sure you want to add this client? This action cannot be undone.</p>
+          <div className="flex justify-end space-x-3">
+            <Button 
+              type="button" 
+              onClick={() => setShowConfirmation(false)}
+              className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button" 
+              onClick={handleConfirmedSubmit}
+              className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md"
+            >
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <Button
@@ -1237,6 +1289,9 @@ const Add = ({ fetchClients }) => {
           onClose={closeModal}
           className="bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
         >
+          {/* Confirmation Dialog */}
+          <ConfirmationDialog />
+          
           {/* Show the View component when viewing a duplicate */}
           {viewingDuplicate && selectedDuplicate && (
             <View
