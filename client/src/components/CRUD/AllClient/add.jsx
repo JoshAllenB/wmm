@@ -751,8 +751,6 @@ const Add = ({ fetchClients }) => {
         }
       );
 
-      console.log("Response:", response.data);
-
       if (response.data) {
         setSelectedDuplicate(response.data);
         setViewingDuplicate(true);
@@ -1679,20 +1677,6 @@ const Add = ({ fetchClients }) => {
                             </option>
                           ))}
                         </select>
-                        <select
-                          id="subsclass"
-                          name="subsclass"
-                          value={formData.subsclass}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded-md"
-                        >
-                          <option value="">Select a classification</option>
-                          {subclasses.map((subclass) => (
-                            <option key={subclass.id} value={subclass.id}>
-                              {subclass.name} ({subclass.id})
-                            </option>
-                          ))}
-                        </select>
                         <p className="text-gray-500 text-sm">
                           Provide any additional information or notes about the
                           client here.
@@ -1763,7 +1747,22 @@ const Add = ({ fetchClients }) => {
                           />
                         </div>
                       </div>
-
+                      <div className="mt-4">
+                      <select
+                          id="subsclass"
+                          name="subsclass"
+                          value={formData.subsclass}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md"
+                        >
+                          <option value="">Select a classification</option>
+                          {subclasses.map((subclass) => (
+                            <option key={subclass.id} value={subclass.id}>
+                              {subclass.name} ({subclass.id})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <div className="mt-4">
                         <InputField
                           label="Payment Reference:"

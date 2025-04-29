@@ -73,8 +73,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       if (hasRole("HRG")) roleBasedServices.push("HRG");
       if (hasRole("CAL")) roleBasedServices.push("CAL");
 
-      // Log the role-based services
-      console.log("Role-based services:", roleBasedServices);
 
       // Only update if we found matching roles
       if (roleBasedServices.length > 0) {
@@ -148,9 +146,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         services.splice(serviceIndex, 1);
       }
 
-      // Log the updated services array
-      console.log("Updated services array:", services);
-
       return { ...prev, services };
     });
   };
@@ -178,9 +173,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
     const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
 
-    // Log the filterData before formatting
-    console.log("Filter data before formatting:", filterData);
-    console.log("Services before formatting:", filterData.services);
 
     // Trim text fields and format data
     const formattedData = {
