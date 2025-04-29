@@ -43,6 +43,12 @@ export default function DataTable({
   isLoading = false,
   columnVisibility,
   setColumnVisibility,
+  totalHrgAmt: initialTotalHrgAmt = 0,
+  totalFomAmt: initialTotalFomAmt = 0,
+  totalCalPaymtAmt: initialTotalCalPaymtAmt = 0,
+  pageSpecificHrgAmt: initialPageSpecificHrgAmt = 0,
+  pageSpecificFomAmt: initialPageSpecificFomAmt = 0,
+  pageSpecificCalPaymtAmt: initialPageSpecificCalPaymtAmt = 0,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -58,6 +64,12 @@ export default function DataTable({
   const [error, setError] = useState(null);
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
+  const [totalHrgAmt, setTotalHrgAmt] = useState(initialTotalHrgAmt);
+  const [totalFomAmt, setTotalFomAmt] = useState(initialTotalFomAmt);
+  const [totalCalPaymtAmt, setTotalCalPaymtAmt] = useState(initialTotalCalPaymtAmt);
+  const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(initialPageSpecificHrgAmt);
+  const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(initialPageSpecificFomAmt);
+  const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(initialPageSpecificCalPaymtAmt);
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -90,11 +102,16 @@ export default function DataTable({
           advancedFilterData
         );
 
+        // Debug the entire result
+        console.log("Raw API response:", JSON.stringify(result));
+
         if (Array.isArray(result)) {
           setLocalData(result);
           setTotalPages(1);
-        } else if (result && result.data) {
-          setLocalData([...result.data]);
+        } else if (result && (result.data || result.combinedData)) {
+          // Accept either data or combinedData property
+          const dataArray = result.data || result.combinedData || [];
+          setLocalData([...dataArray]);
           setTotalPages(result.totalPages || 1);
           setTotalCopies(result.totalCopies || 0);
           setPageSpecificCopies(result.pageSpecificCopies || 0);
@@ -102,6 +119,22 @@ export default function DataTable({
           setTotalCalAmt(result.totalCalAmt || 0);
           setPageSpecificCalQty(result.pageSpecificCalQty || 0);
           setPageSpecificCalAmt(result.pageSpecificCalAmt || 0);
+          setTotalHrgAmt(result.totalHrgAmt || 0);
+          setTotalFomAmt(result.totalFomAmt || 0);
+          setTotalCalPaymtAmt(result.totalCalPaymtAmt || 0);
+          setPageSpecificHrgAmt(result.pageSpecificHrgAmt || 0);
+          setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
+          setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
+          
+          // Debug received totals
+          console.log("Received totals from API:", {
+            hrg: result.totalHrgAmt,
+            fom: result.totalFomAmt,
+            calPaymt: result.totalCalPaymtAmt,
+            pageHrg: result.pageSpecificHrgAmt,
+            pageFom: result.pageSpecificFomAmt,
+            pageCalPaymt: result.pageSpecificCalPaymtAmt
+          });
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");
@@ -234,6 +267,12 @@ export default function DataTable({
             totalCalAmt={totalCalAmt}
             pageSpecificCalQty={pageSpecificCalQty}
             pageSpecificCalAmt={pageSpecificCalAmt}
+            totalHrgAmt={totalHrgAmt}
+            totalFomAmt={totalFomAmt}
+            totalCalPaymtAmt={totalCalPaymtAmt}
+            pageSpecificHrgAmt={pageSpecificHrgAmt}
+            pageSpecificFomAmt={pageSpecificFomAmt}
+            pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
             userRole={userRole}
             animationComplete={animationComplete}
           />

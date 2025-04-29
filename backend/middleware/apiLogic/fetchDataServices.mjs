@@ -667,6 +667,9 @@ async function fetchDataServices(
     let totalCopies = 0;
     let totalCalQty = 0;
     let totalCalAmt = 0;
+    let hrgTotalAmt = 0;
+    let fomTotalAmt = 0;
+    let calTotalPaymtAmt = 0;
     let totalFilterQuery = { ...filterQuery };
 
     // Use Promise to get the totalCopies based on the filter
@@ -680,18 +683,41 @@ async function fetchDataServices(
 
         // If no clients match the filter, return zeros
         if (filteredClientIds.length === 0) {
-          return { totalCopies: 0, totalCalQty: 0, totalCalAmt: 0 };
+          return { 
+            totalCopies: 0, 
+            totalCalQty: 0, 
+            totalCalAmt: 0, 
+            totalHrgAmt: 0, 
+            totalFomAmt: 0, 
+            totalCalPaymtAmt: 0 
+          };
         }
 
         // Get WMM model for calculations
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         // Get CAL model for calendar calculations
         const { default: CalModel } = await import("../../models/cal.mjs");
+        // Get HRG model for calculations
+        const { default: HrgModel } = await import("../../models/hrg.mjs");
+        // Get FOM model for calculations
+        const { default: FomModel } = await import("../../models/fom.mjs");
 
         // Build WMM query to match filtered clients
         const wmmQuery = {
           clientid: { $in: filteredClientIds.map((id) => parseInt(id)) },
         };
+
+        // Get all HRG entries for filtered clients
+        const hrgQuery = {
+          clientid: { $in: filteredClientIds.map((id) => parseInt(id)) },
+        };
+        const allHrgEntries = await HrgModel.find(hrgQuery).lean();
+
+        // Get all FOM entries for filtered clients
+        const fomQuery = {
+          clientid: { $in: filteredClientIds.map((id) => parseInt(id)) },
+        };
+        const allFomEntries = await FomModel.find(fomQuery).lean();
 
         // Add subscription class filter if present
         if (advancedFilterData.subsclass) {
@@ -732,6 +758,8 @@ async function fetchDataServices(
         // For both copies and calendar data, we only want to count the most recent entry for each client
         const clientLatestSubscriptions = new Map();
         const clientLatestCalEntries = new Map();
+        const clientLatestHrgEntries = new Map();
+        const clientLatestFomEntries = new Map();
 
         // Find the most recent WMM subscription for each client
         for (const sub of filteredSubscriptions) {
@@ -750,17 +778,49 @@ async function fetchDataServices(
         // Find the most recent calendar entry for each client
         for (const cal of allCalEntries) {
           const clientId = parseInt(cal.clientid);
-          const calDate = cal.caldate ? new Date(cal.caldate) : new Date(0);
+          const calDate = cal.caldate ? new Date(cal.caldate) : cal.recvdate ? new Date(cal.recvdate) : new Date(0);
 
           if (
             !clientLatestCalEntries.has(clientId) ||
-            (cal.caldate &&
-              calDate >
-                new Date(clientLatestCalEntries.get(clientId).caldate || 0))
+            (calDate >
+                new Date(clientLatestCalEntries.get(clientId).caldate || clientLatestCalEntries.get(clientId).recvdate || 0))
           ) {
             clientLatestCalEntries.set(clientId, cal);
           }
         }
+
+        // Find the most recent HRG entry for each client
+        for (const hrg of allHrgEntries) {
+          const clientId = parseInt(hrg.clientid);
+          const hrgDate = hrg.recvdate ? new Date(hrg.recvdate) : new Date(0);
+
+          if (
+            !clientLatestHrgEntries.has(clientId) ||
+            (hrg.recvdate && hrgDate >
+                new Date(clientLatestHrgEntries.get(clientId).recvdate || 0))
+          ) {
+            clientLatestHrgEntries.set(clientId, hrg);
+          }
+        }
+
+        // Find the most recent FOM entry for each client
+        for (const fom of allFomEntries) {
+          const clientId = parseInt(fom.clientid);
+          const fomDate = fom.recvdate ? new Date(fom.recvdate) : new Date(0);
+
+          if (
+            !clientLatestFomEntries.has(clientId) ||
+            (fom.recvdate && fomDate >
+                new Date(clientLatestFomEntries.get(clientId).recvdate || 0))
+          ) {
+            clientLatestFomEntries.set(clientId, fom);
+          }
+        }
+
+        // Log detailed information for debugging
+        console.log(`Found ${clientLatestHrgEntries.size} unique HRG clients`);
+        console.log(`Found ${clientLatestFomEntries.size} unique FOM clients`);
+        console.log(`Found ${clientLatestCalEntries.size} unique CAL clients`);
 
         // Sum up copies from the most recent subscription for each client
         let copiesTotal = 0;
@@ -781,6 +841,14 @@ async function fetchDataServices(
         // Sum up calendar quantities and amounts from the most recent entry for each client
         let calQtyTotal = 0;
         let calAmtTotal = 0;
+        let hrgTotalAmt = 0;
+        let fomTotalAmt = 0;
+        let calTotalPaymtAmt = 0;
+
+        // Debugging counters
+        let validCalQtyEntries = 0;
+        let validCalAmtEntries = 0;
+        let validCalPaymtEntries = 0;
 
         for (const cal of clientLatestCalEntries.values()) {
           // Handle calendar quantity calculation
@@ -793,6 +861,7 @@ async function fetchDataServices(
             // Only add if it's a valid number
             if (!isNaN(calQty) && calQty > 0) {
               calQtyTotal += calQty;
+              validCalQtyEntries++;
             }
           }
 
@@ -800,33 +869,118 @@ async function fetchDataServices(
           if (cal.calamt) {
             const calAmt =
               typeof cal.calamt === "string"
-                ? parseFloat(cal.calamt)
+                ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ''))
                 : cal.calamt;
 
             // Only add if it's a valid number
             if (!isNaN(calAmt) && calAmt > 0) {
               calAmtTotal += calAmt;
+              validCalAmtEntries++;
+            }
+          }
+
+          // Handle calendar payment amount calculation
+          if (cal.paymtamt) {
+            const calPaymtAmt =
+              typeof cal.paymtamt === "string"
+                ? parseFloat(cal.paymtamt.replace(/[^\d.-]/g, ''))
+                : cal.paymtamt;
+
+            // Only add if it's a valid number
+            if (!isNaN(calPaymtAmt) && calPaymtAmt > 0) {
+              calTotalPaymtAmt += calPaymtAmt;
+              validCalPaymtEntries++;
             }
           }
         }
 
+        // Debugging for CAL totals
+        console.log(`CAL: Found ${validCalQtyEntries} valid quantity entries, total: ${calQtyTotal}`);
+        console.log(`CAL: Found ${validCalAmtEntries} valid amount entries, total: ${calAmtTotal}`);
+        console.log(`CAL: Found ${validCalPaymtEntries} valid payment entries, total: ${calTotalPaymtAmt}`);
+
+        // Debugging counters for HRG and FOM
+        let validHrgAmtEntries = 0;
+        let validFomAmtEntries = 0;
+
+        // Calculate HRG payment amounts from most recent entries
+        for (const hrg of clientLatestHrgEntries.values()) {
+          if (hrg.paymtamt) {
+            const hrgAmt =
+              typeof hrg.paymtamt === "string"
+                ? parseFloat(hrg.paymtamt.replace(/[^\d.-]/g, ''))
+                : hrg.paymtamt;
+
+            // Only add if it's a valid number
+            if (!isNaN(hrgAmt) && hrgAmt > 0) {
+              hrgTotalAmt += hrgAmt;
+              validHrgAmtEntries++;
+            }
+          }
+        }
+
+        // Calculate FOM payment amounts from most recent entries
+        for (const fom of clientLatestFomEntries.values()) {
+          if (fom.paymtamt) {
+            const fomAmt =
+              typeof fom.paymtamt === "string"
+                ? parseFloat(fom.paymtamt.replace(/[^\d.-]/g, ''))
+                : fom.paymtamt;
+
+            // Only add if it's a valid number
+            if (!isNaN(fomAmt) && fomAmt > 0) {
+              fomTotalAmt += fomAmt;
+              validFomAmtEntries++;
+            }
+          }
+        }
+
+        // Debugging for HRG and FOM totals
+        console.log(`HRG: Found ${validHrgAmtEntries} valid payment entries, total: ${hrgTotalAmt}`);
+        console.log(`FOM: Found ${validFomAmtEntries} valid payment entries, total: ${fomTotalAmt}`);
+
+        // Return ALL totals
         return {
           totalCopies: copiesTotal,
           totalCalQty: calQtyTotal,
           totalCalAmt: calAmtTotal,
+          totalHrgAmt: hrgTotalAmt,
+          totalFomAmt: fomTotalAmt,
+          totalCalPaymtAmt: calTotalPaymtAmt,
         };
       } catch (error) {
         console.error("Error calculating totals:", error);
-        return { totalCopies: 0, totalCalQty: 0, totalCalAmt: 0 };
+        return { 
+          totalCopies: 0, 
+          totalCalQty: 0, 
+          totalCalAmt: 0, 
+          totalHrgAmt: 0, 
+          totalFomAmt: 0, 
+          totalCalPaymtAmt: 0 
+        };
       }
     };
 
     // Calculate totals based on filter
     const totals = await getTotalValues();
+    
+    // Debug the totals being set
+    console.log("Setting totals from getTotalValues:", JSON.stringify(totals));
+    
     totalCopies = totals.totalCopies;
     totalCalQty = totals.totalCalQty;
     totalCalAmt = totals.totalCalAmt;
+    hrgTotalAmt = totals.totalHrgAmt;
+    fomTotalAmt = totals.totalFomAmt;
+    calTotalPaymtAmt = totals.totalCalPaymtAmt;
 
+    // Log actual values being assigned
+    console.log("Final totals being set:");
+    console.log(`HRG Total: ${hrgTotalAmt}`);
+    console.log(`FOM Total: ${fomTotalAmt}`);
+    console.log(`CAL Payment Total: ${calTotalPaymtAmt}`);
+
+    // Calculate page-specific amounts based on the clients in the current page
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
       const clientCopies = validModelDataArrays.reduce(
         (copiesAcc, modelData) => {
@@ -853,6 +1007,117 @@ async function fetchDataServices(
       }, 0);
       return acc + clientCalAmt;
     }, 0);
+
+    // Add page-specific HRG, FOM, and CAL payment amount calculations
+    const pageSpecificHrgAmt = combinedData.reduce((acc, client) => {
+      // Look for HRG data in the client's data
+      const hrgData = client.hrgData?.records || [];
+      if (hrgData.length === 0) return acc;
+      
+      // Get the most recent HRG record based on recvdate
+      const sortedHrgData = [...hrgData].sort((a, b) => {
+        return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
+      });
+      
+      const mostRecentHrg = sortedHrgData[0];
+      if (mostRecentHrg && mostRecentHrg.paymtamt) {
+        let amt = 0;
+        
+        try {
+          if (typeof mostRecentHrg.paymtamt === 'string') {
+            // Remove any non-numeric characters except decimal point and negative sign
+            const cleanedAmt = mostRecentHrg.paymtamt.replace(/[^\d.-]/g, '');
+            amt = parseFloat(cleanedAmt);
+          } else {
+            amt = mostRecentHrg.paymtamt;
+          }
+          
+          console.log(`Client ${client.id} HRG payment: ${amt}`);
+        } catch (error) {
+          console.error("Error parsing HRG payment amount:", error);
+          return acc;
+        }
+        
+        return acc + (isNaN(amt) ? 0 : amt);
+      }
+      
+      return acc;
+    }, 0);
+
+    const pageSpecificFomAmt = combinedData.reduce((acc, client) => {
+      // Look for FOM data in the client's data
+      const fomData = client.fomData?.records || [];
+      if (fomData.length === 0) return acc;
+      
+      // Get the most recent FOM record based on recvdate
+      const sortedFomData = [...fomData].sort((a, b) => {
+        return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
+      });
+      
+      const mostRecentFom = sortedFomData[0];
+      if (mostRecentFom && mostRecentFom.paymtamt) {
+        let amt = 0;
+        
+        try {
+          if (typeof mostRecentFom.paymtamt === 'string') {
+            // Remove any non-numeric characters except decimal point and negative sign
+            const cleanedAmt = mostRecentFom.paymtamt.replace(/[^\d.-]/g, '');
+            amt = parseFloat(cleanedAmt);
+          } else {
+            amt = mostRecentFom.paymtamt;
+          }
+          
+          console.log(`Client ${client.id} FOM payment: ${amt}`);
+        } catch (error) {
+          console.error("Error parsing FOM payment amount:", error);
+          return acc;
+        }
+        
+        return acc + (isNaN(amt) ? 0 : amt);
+      }
+      
+      return acc;
+    }, 0);
+
+    const pageSpecificCalPaymtAmt = combinedData.reduce((acc, client) => {
+      // Look for CAL data in the client's data
+      const calData = client.calData?.records || [];
+      if (calData.length === 0) return acc;
+      
+      // Get the most recent CAL record based on recvdate
+      const sortedCalData = [...calData].sort((a, b) => {
+        return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
+      });
+      
+      const mostRecentCal = sortedCalData[0];
+      if (mostRecentCal && mostRecentCal.paymtamt) {
+        let amt = 0;
+        
+        try {
+          if (typeof mostRecentCal.paymtamt === 'string') {
+            // Remove any non-numeric characters except decimal point and negative sign
+            const cleanedAmt = mostRecentCal.paymtamt.replace(/[^\d.-]/g, '');
+            amt = parseFloat(cleanedAmt);
+          } else {
+            amt = mostRecentCal.paymtamt;
+          }
+          
+          console.log(`Client ${client.id} CAL payment: ${amt}`);
+        } catch (error) {
+          console.error("Error parsing CAL payment amount:", error);
+          return acc;
+        }
+        
+        return acc + (isNaN(amt) ? 0 : amt);
+      }
+      
+      return acc;
+    }, 0);
+
+    // Log page-specific totals for debugging
+    console.log(`Page-specific HRG Total: ${pageSpecificHrgAmt}`);
+    console.log(`Page-specific FOM Total: ${pageSpecificFomAmt}`);
+    console.log(`Page-specific CAL Payment Total: ${pageSpecificCalPaymtAmt}`);
 
     const serviceData = await Promise.all(
       Object.entries(additionalModels).map(async ([modelName, importFunc]) => {
@@ -910,6 +1175,12 @@ async function fetchDataServices(
       totalCalAmt,
       pageSpecificCalQty,
       pageSpecificCalAmt,
+      totalHrgAmt: hrgTotalAmt || 0,
+      totalFomAmt: fomTotalAmt || 0,
+      totalCalPaymtAmt: calTotalPaymtAmt || 0,
+      pageSpecificHrgAmt: pageSpecificHrgAmt || 0,
+      pageSpecificFomAmt: pageSpecificFomAmt || 0,
+      pageSpecificCalPaymtAmt: pageSpecificCalPaymtAmt || 0,
       clientServices,
     };
   } catch (error) {

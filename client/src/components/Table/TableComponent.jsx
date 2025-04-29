@@ -21,33 +21,101 @@ export function TableComponent({
   pageSpecificCalAmt,
   userRole,
   animationComplete,
+  totalHrgAmt,
+  totalFomAmt,
+  totalCalPaymtAmt,
+  pageSpecificHrgAmt,
+  pageSpecificFomAmt,
+  pageSpecificCalPaymtAmt,
 }) {
   const getTotalLabel = () => {
     switch (userRole) {
       case "WMM":
         return (
-          <div className="flex space-x-1">
-            <div>
-              Page Total Copies: {pageSpecificCopies || 0} | Total Copies:{" "}
-              {totalCopies || 0}
-            </div>
+          <div className="flex justify-between px-2 py-1">
+            <span className="text-sm">
+              Copies: <span className="font-medium">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span>
+            </span>
           </div>
         );
       case "CAL":
         return (
-          <div className="flex justify-between m-1">
-            <div>
-              Page Total Cal Qty: {pageSpecificCalQty || 0} | Page Total Cal
-              Amt: Php {pageSpecificCalAmt || 0}
+          <div className="flex justify-between px-2 py-1">
+            <span className="text-sm">
+              <span className="mr-4">Quantity: <span className="font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span></span>
+              <span>Amount: <span className="font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php</span>
+            </span>
+          </div>
+        );
+      case "HRG":
+        return (
+          <div className="flex justify-between px-2 py-1">
+            <span className="text-sm text-blue-600">
+              HRG Payment: <span className="font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php
+            </span>
+          </div>
+        );
+      case "FOM":
+        return (
+          <div className="flex justify-between px-2 py-1">
+            <span className="text-sm text-green-600">
+              FOM Payment: <span className="font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php
+            </span>
+          </div>
+        );
+      case "HRG FOM CAL":
+        return (
+          <div className="flex items-center justify-between px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
+            <div className="text-blue-600 text-sm whitespace-nowrap">
+              <span className="font-medium">HRG: </span>
+              <span className="font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
             </div>
-            <div>
-              Total Cal Qty: {totalCalQty || 0} | Total Cal Amt: Php{" "}
-              {totalCalAmt || 0}
+            
+            <div className="text-green-600 text-sm mx-4 whitespace-nowrap">
+              <span className="font-medium">FOM: </span>
+              <span className="font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+            </div>
+            
+            <div className="text-amber-600 text-sm whitespace-nowrap">
+              <span className="font-medium">CAL:</span>
+              <div className="inline-flex flex-col ml-1">
+                <div>
+                  <span className="font-medium">Quantity:</span> <span className="font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+                </div>
+                <div>
+                  <span className="font-medium">Amount:</span> <span className="font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+                </div>
+                <div>
+                  <span className="font-medium">Payment:</span> <span className="font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+                </div>
+              </div>
             </div>
           </div>
         );
       default:
-        return "";
+        return (
+          <div className="flex justify-between px-2 py-1">
+            <div className="text-sm">
+              <span className="text-blue-600 mr-4">
+                <span className="font-medium">HRG:</span> {Number(pageSpecificHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+              </span>
+              <span className="text-green-600 mr-4">
+                <span className="font-medium">FOM:</span> {Number(pageSpecificFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+              </span>
+              <span className="text-amber-600">
+                <span className="font-medium">CAL:</span>
+                <div className="inline-block ml-1 border-l-2 border-amber-200 pl-2">
+                  <div>
+                    <span className="font-medium">Quantity:</span> {Number(pageSpecificCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Amount:</span> {Number(pageSpecificCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+                  </div>
+                </div>
+              </span>
+            </div>
+          </div>
+        );
     }
   };
 

@@ -31,14 +31,34 @@ export const fetchClients = async (
     const {
       totalPages,
       combinedData,
+      data,
       totalCopies,
       pageSpecificCopies,
       totalCalQty,
       totalCalAmt,
       pageSpecificCalQty,
       pageSpecificCalAmt,
+      totalHrgAmt,
+      totalFomAmt,
+      totalCalPaymtAmt,
+      pageSpecificHrgAmt,
+      pageSpecificFomAmt,
+      pageSpecificCalPaymtAmt,
       noData,
     } = response.data;
+
+    // Use either combinedData or data, whichever is available
+    const clientsData = combinedData || data;
+
+    // Log the payment totals from the API response
+    console.log("Payment totals in API response:", {
+      totalHrgAmt,
+      totalFomAmt,
+      totalCalPaymtAmt,
+      pageSpecificHrgAmt,
+      pageSpecificFomAmt,
+      pageSpecificCalPaymtAmt
+    });
 
     if (noData) {
       return {
@@ -50,16 +70,22 @@ export const fetchClients = async (
         totalCalAmt: 0,
         pageSpecificCalQty: 0,
         pageSpecificCalAmt: 0,
+        totalHrgAmt: 0,
+        totalFomAmt: 0,
+        totalCalPaymtAmt: 0,
+        pageSpecificHrgAmt: 0,
+        pageSpecificFomAmt: 0, 
+        pageSpecificCalPaymtAmt: 0,
         noData: true,
       };
     }
 
-    if (!combinedData || !Array.isArray(combinedData)) {
+    if (!clientsData || !Array.isArray(clientsData)) {
       console.error("Invalid data format received:", response.data);
       throw new Error("Invalid data format received from server");
     }
 
-    const processedData = combinedData.map((client) => ({
+    const processedData = clientsData.map((client) => ({
       ...client,
       servicesString: client.services ? client.services.join(", ") : "",
     }));
@@ -73,6 +99,12 @@ export const fetchClients = async (
       totalCalAmt,
       pageSpecificCalQty,
       pageSpecificCalAmt,
+      totalHrgAmt,
+      totalFomAmt,
+      totalCalPaymtAmt,
+      pageSpecificHrgAmt,
+      pageSpecificFomAmt,
+      pageSpecificCalPaymtAmt,
       noData: false,
     };
   } catch (e) {

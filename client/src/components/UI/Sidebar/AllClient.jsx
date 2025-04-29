@@ -28,6 +28,12 @@ const AllClient = () => {
   const [totalCalAmt, setTotalCalAmt] = useState(0);
   const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
+  const [totalHrgAmt, setTotalHrgAmt] = useState(0);
+  const [totalFomAmt, setTotalFomAmt] = useState(0);
+  const [totalCalPaymtAmt, setTotalCalPaymtAmt] = useState(0);
+  const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(0);
+  const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(0);
+  const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(false);
@@ -382,6 +388,12 @@ const AllClient = () => {
         setTotalCalAmt(result.totalCalAmt);
         setPageSpecificCalQty(result.pageSpecificCalQty);
         setPageSpecificCalAmt(result.pageSpecificCalAmt);
+        setTotalHrgAmt(result.totalHrgAmt || 0);
+        setTotalFomAmt(result.totalFomAmt || 0);
+        setTotalCalPaymtAmt(result.totalCalPaymtAmt || 0);
+        setPageSpecificHrgAmt(result.pageSpecificHrgAmt || 0);
+        setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
+        setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
         return result;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
@@ -707,6 +719,23 @@ const AllClient = () => {
     return filters;
   };
 
+  // Function to determine the user role for table display
+  const determineUserRole = () => {
+    const roles = [];
+    if (hasRole("WMM")) roles.push("WMM");
+    if (hasRole("HRG")) roles.push("HRG");
+    if (hasRole("FOM")) roles.push("FOM");
+    if (hasRole("CAL")) roles.push("CAL");
+    
+    // Check for the combined role case
+    if (hasRole("HRG") && hasRole("FOM") && hasRole("CAL")) {
+      return "HRG FOM CAL";
+    }
+    
+    // Return single role or default
+    return roles.length === 1 ? roles[0] : (roles.length > 0 ? roles.join(" ") : "default");
+  };
+
   return (
     <div className="mr-[10px] ml-[10px]">
       <div className="flex gap-2">
@@ -784,7 +813,13 @@ const AllClient = () => {
         totalCalAmt={totalCalAmt}
         pageSpecificCalQty={pageSpecificCalQty}
         pageSpecificCalAmt={pageSpecificCalAmt}
-        userRole={hasRole("WMM") ? "WMM" : "CAL"}
+        totalHrgAmt={totalHrgAmt}
+        totalFomAmt={totalFomAmt}
+        totalCalPaymtAmt={totalCalPaymtAmt}
+        pageSpecificHrgAmt={pageSpecificHrgAmt}
+        pageSpecificFomAmt={pageSpecificFomAmt}
+        pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
+        userRole={determineUserRole()}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
         setTableInstance={handleTableInstanceUpdate}
