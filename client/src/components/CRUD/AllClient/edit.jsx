@@ -166,7 +166,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   useEffect(() => {
     if (rowData) {
-      console.log("Row data available:", rowData);
       setFormData({
         ...rowData,
         // Initialize subscription-related fields
@@ -186,7 +185,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
 
       const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
-      console.log("User role detected:", userRole);
 
       if (userRole && roleConfigs[userRole]) {
         const initialRoleData = Object.keys(
@@ -195,7 +193,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           acc[field] = rowData[field] || ""; // Prefill with existing data
           return acc;
         }, {});
-        console.log("Initial role-specific data:", initialRoleData);
         setRoleSpecificData(initialRoleData);
       }
 
@@ -239,7 +236,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             donorid: latestSubscription.donorid || 0,
             remarks: latestSubscription.remarks || "",
           };
-          console.log("WMM role-specific data from record:", wmmData);
           setRoleSpecificData(wmmData);
         } else {
           // No subscription records, initialize with empty data
@@ -256,7 +252,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             donorid: rowData.donorid || 0,
             remarks: rowData.remarks || "",
           };
-          console.log("WMM role-specific data from client:", wmmData);
           setRoleSpecificData(wmmData);
         }
       } else if (hasRole("HRG")) {
@@ -268,7 +263,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           paymtamt: rowData.paymtamt || 0,
           unsubscribe: rowData.unsubscribe || false,
         };
-        console.log("HRG role-specific data:", hrgData);
         setRoleSpecificData(hrgData);
       } else if (hasRole("FOM")) {
         const fomData = {
@@ -278,7 +272,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           paymtref: rowData.paymtref || 0,
           unsubscribe: rowData.unsubscribe || false,
         };
-        console.log("FOM role-specific data:", fomData);
         setRoleSpecificData(fomData);
       } else if (hasRole("CAL")) {
         const calData = {
@@ -291,7 +284,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           paymtform: rowData.paymtform || "",
           paymtdate: rowData.paymtdate || "",
         };
-        console.log("CAL role-specific data:", calData);
         setRoleSpecificData(calData);
       }
     }
@@ -321,7 +313,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       try {
         const subclassesData = await fetchSubclasses();
         setSubclasses(subclassesData);
-        console.log("Subclasses loaded:", subclassesData);
       } catch (error) {
         console.error("Error loading subclasses:", error);
       }
@@ -536,7 +527,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleRoleToggle = (role) => {
-    console.log(`Role toggled to: ${role}`);
     setSelectedRole(role);
 
     // Reset role-specific data
@@ -574,7 +564,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       };
     }
 
-    console.log(`Role-specific data for ${role}:`, roleData);
     setRoleSpecificData(roleData);
   };
 
@@ -737,7 +726,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     try {
       if (hasRole("WMM") && subscriptionMode === "add") {
         // When adding a new subscription, send a separate request specifically for adding a subscription
-        console.log("Adding new subscription for client:", rowData.id);
 
         // Create current timestamp
         const timestamp = new Date()
@@ -777,7 +765,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           adddate: timestamp,
         };
 
-        console.log("New subscription data:", newSubscriptionRequest);
 
         // Make a direct call to create a new WMM entry
         const subscriptionResponse = await axios.post(
@@ -791,7 +778,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         );
 
         if (subscriptionResponse.data && subscriptionResponse.data.id) {
-          console.log("New subscription created:", subscriptionResponse.data);
 
           // Now update the client data separately
           const clientUpdateResponse = await axios.put(
@@ -902,7 +888,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           };
         }
 
-        console.log("Submitting data for update:", submissionData);
 
         const response = await axios.put(
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${

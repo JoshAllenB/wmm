@@ -102,9 +102,6 @@ export default function DataTable({
           advancedFilterData
         );
 
-        // Debug the entire result
-        console.log("Raw API response:", JSON.stringify(result));
-
         if (Array.isArray(result)) {
           setLocalData(result);
           setTotalPages(1);
@@ -126,15 +123,6 @@ export default function DataTable({
           setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
           setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
           
-          // Debug received totals
-          console.log("Received totals from API:", {
-            hrg: result.totalHrgAmt,
-            fom: result.totalFomAmt,
-            calPaymt: result.totalCalPaymtAmt,
-            pageHrg: result.pageSpecificHrgAmt,
-            pageFom: result.pageSpecificFomAmt,
-            pageCalPaymt: result.pageSpecificCalPaymtAmt
-          });
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");

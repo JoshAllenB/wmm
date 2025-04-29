@@ -195,9 +195,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       wmmEndEndDate: expiringMonthRange.end,
     };
 
-    // Log the formatted data
-    console.log("Formatted data:", formattedData);
-    console.log("Services in formatted data:", formattedData.services);
 
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);

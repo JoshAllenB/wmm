@@ -50,16 +50,6 @@ export const fetchClients = async (
     // Use either combinedData or data, whichever is available
     const clientsData = combinedData || data;
 
-    // Log the payment totals from the API response
-    console.log("Payment totals in API response:", {
-      totalHrgAmt,
-      totalFomAmt,
-      totalCalPaymtAmt,
-      pageSpecificHrgAmt,
-      pageSpecificFomAmt,
-      pageSpecificCalPaymtAmt
-    });
-
     if (noData) {
       return {
         data: [],

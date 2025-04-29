@@ -132,11 +132,6 @@ const AllClient = () => {
       group: selectedGroup || "",
     };
 
-    console.log(
-      "Clearing filters and setting role-based services:",
-      roleBasedServices
-    );
-
     // Create a snapshot of what the filter will be
     const filterSnapshot = JSON.stringify({
       services: roleBasedServices,
@@ -190,8 +185,6 @@ const AllClient = () => {
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
-
-    console.log("Initial setting of role-based services:", roleBasedServices);
 
     // Only update if we found matching roles
     if (roleBasedServices.length > 0) {
@@ -352,7 +345,6 @@ const AllClient = () => {
         // Use role-based services if no valid services provided
         if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
           filtersToUse.services = roleBasedServices;
-          console.log("Using role-based services:", roleBasedServices);
         }
 
         // Add addedToday filter if enabled
@@ -366,7 +358,6 @@ const AllClient = () => {
           // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
           // Passing a regex as a string since MongoDB will interpret it
           filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
-          console.log("Added Today filter enabled with pattern:", filtersToUse.adddate_regex);
         } else {
           // Explicitly remove adddate filter when addedToday is false
           delete filtersToUse.adddate_regex;
@@ -431,24 +422,12 @@ const AllClient = () => {
 
     // If this is the same as our last filter, skip to prevent bouncing
     if (lastFilterRef.current === currentFilter) {
-      console.log("Skipping duplicate fetch with same filters");
       return;
     }
 
     // Update our last filter reference
     lastFilterRef.current = currentFilter;
 
-    // Log what's triggering data fetching
-    console.log("Fetching data with filters:", {
-      page,
-      pageSize,
-      filter: debouncedFiltering,
-      group: selectedGroup,
-      services: advancedFilterData.services,
-      hasServices:
-        Array.isArray(advancedFilterData.services) &&
-        advancedFilterData.services.length > 0,
-    });
 
     fetchData(
       page,

@@ -93,17 +93,6 @@ router.get(
         });
       }
 
-      // Log received data before sending to client
-      console.log("Sending totals to client:", {
-        hrg: results.totalHrgAmt,
-        fom: results.totalFomAmt,
-        cal: {
-          amt: results.totalCalAmt,
-          qty: results.totalCalQty,
-          paymtAmt: results.totalCalPaymtAmt
-        }
-      });
-
       res.json({
         totalPages,
         combinedData,

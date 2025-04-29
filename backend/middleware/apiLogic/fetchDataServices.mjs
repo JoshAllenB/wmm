@@ -171,7 +171,6 @@ async function fetchDataServices(
           
           // Create a regex that will match the pattern regardless of spaces, but preserve digits
           refPattern = `${prefix}.*${numbers.replace(/^0+/, '')}`;
-          console.log(`Searching for payment reference with pattern: ${refPattern}`);
         }
 
         // Find clients with matching payment references
@@ -223,7 +222,6 @@ async function fetchDataServices(
 
     // Support for regex pattern matching on adddate (for "Added Today" feature)
     if (advancedFilterData.adddate_regex) {
-      console.log("Backend received adddate_regex pattern:", advancedFilterData.adddate_regex);
       baseFilter.push({ 
         adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" } 
       });
@@ -817,11 +815,6 @@ async function fetchDataServices(
           }
         }
 
-        // Log detailed information for debugging
-        console.log(`Found ${clientLatestHrgEntries.size} unique HRG clients`);
-        console.log(`Found ${clientLatestFomEntries.size} unique FOM clients`);
-        console.log(`Found ${clientLatestCalEntries.size} unique CAL clients`);
-
         // Sum up copies from the most recent subscription for each client
         let copiesTotal = 0;
         for (const sub of clientLatestSubscriptions.values()) {
@@ -894,11 +887,6 @@ async function fetchDataServices(
           }
         }
 
-        // Debugging for CAL totals
-        console.log(`CAL: Found ${validCalQtyEntries} valid quantity entries, total: ${calQtyTotal}`);
-        console.log(`CAL: Found ${validCalAmtEntries} valid amount entries, total: ${calAmtTotal}`);
-        console.log(`CAL: Found ${validCalPaymtEntries} valid payment entries, total: ${calTotalPaymtAmt}`);
-
         // Debugging counters for HRG and FOM
         let validHrgAmtEntries = 0;
         let validFomAmtEntries = 0;
@@ -935,10 +923,6 @@ async function fetchDataServices(
           }
         }
 
-        // Debugging for HRG and FOM totals
-        console.log(`HRG: Found ${validHrgAmtEntries} valid payment entries, total: ${hrgTotalAmt}`);
-        console.log(`FOM: Found ${validFomAmtEntries} valid payment entries, total: ${fomTotalAmt}`);
-
         // Return ALL totals
         return {
           totalCopies: copiesTotal,
@@ -963,22 +947,13 @@ async function fetchDataServices(
 
     // Calculate totals based on filter
     const totals = await getTotalValues();
-    
-    // Debug the totals being set
-    console.log("Setting totals from getTotalValues:", JSON.stringify(totals));
-    
+        
     totalCopies = totals.totalCopies;
     totalCalQty = totals.totalCalQty;
     totalCalAmt = totals.totalCalAmt;
     hrgTotalAmt = totals.totalHrgAmt;
     fomTotalAmt = totals.totalFomAmt;
     calTotalPaymtAmt = totals.totalCalPaymtAmt;
-
-    // Log actual values being assigned
-    console.log("Final totals being set:");
-    console.log(`HRG Total: ${hrgTotalAmt}`);
-    console.log(`FOM Total: ${fomTotalAmt}`);
-    console.log(`CAL Payment Total: ${calTotalPaymtAmt}`);
 
     // Calculate page-specific amounts based on the clients in the current page
     const pageSpecificCopies = combinedData.reduce((acc, client) => {
@@ -1032,7 +1007,6 @@ async function fetchDataServices(
             amt = mostRecentHrg.paymtamt;
           }
           
-          console.log(`Client ${client.id} HRG payment: ${amt}`);
         } catch (error) {
           console.error("Error parsing HRG payment amount:", error);
           return acc;
@@ -1067,7 +1041,6 @@ async function fetchDataServices(
             amt = mostRecentFom.paymtamt;
           }
           
-          console.log(`Client ${client.id} FOM payment: ${amt}`);
         } catch (error) {
           console.error("Error parsing FOM payment amount:", error);
           return acc;
@@ -1102,7 +1075,6 @@ async function fetchDataServices(
             amt = mostRecentCal.paymtamt;
           }
           
-          console.log(`Client ${client.id} CAL payment: ${amt}`);
         } catch (error) {
           console.error("Error parsing CAL payment amount:", error);
           return acc;
@@ -1113,11 +1085,6 @@ async function fetchDataServices(
       
       return acc;
     }, 0);
-
-    // Log page-specific totals for debugging
-    console.log(`Page-specific HRG Total: ${pageSpecificHrgAmt}`);
-    console.log(`Page-specific FOM Total: ${pageSpecificFomAmt}`);
-    console.log(`Page-specific CAL Payment Total: ${pageSpecificCalPaymtAmt}`);
 
     const serviceData = await Promise.all(
       Object.entries(additionalModels).map(async ([modelName, importFunc]) => {
