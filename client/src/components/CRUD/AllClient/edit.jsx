@@ -312,7 +312,24 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const loadSubclasses = async () => {
       try {
         const subclassesData = await fetchSubclasses();
-        setSubclasses(subclassesData);
+        // Sort subclasses by leading numbers in name, then alphabetically
+        const sortedSubclasses = [...subclassesData].sort((a, b) => {
+          // Extract leading numbers from name strings
+          const aMatch = a.name.match(/^(\d+)/);
+          const bMatch = b.name.match(/^(\d+)/);
+          
+          // If both have leading numbers, compare numerically
+          if (aMatch && bMatch) {
+            return parseInt(aMatch[0]) - parseInt(bMatch[0]);
+          }
+          // If only one has a leading number, prioritize it
+          if (aMatch) return -1;
+          if (bMatch) return 1;
+          
+          // Otherwise sort alphabetically
+          return a.name.localeCompare(b.name);
+        });
+        setSubclasses(sortedSubclasses);
       } catch (error) {
         console.error("Error loading subclasses:", error);
       }
