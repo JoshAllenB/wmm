@@ -479,7 +479,7 @@ const Add = ({ fetchClients }) => {
 
     setAddressData((prev) => ({
       ...prev,
-      [type]: value,
+      [type]: value.toUpperCase(),
     }));
   };
 
@@ -557,7 +557,7 @@ const Add = ({ fetchClients }) => {
     const { name, value, type, checked } = e.target;
     setRoleSpecificData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : value.toUpperCase(),
     }));
   };
 
@@ -1384,11 +1384,11 @@ const Add = ({ fetchClients }) => {
                         label="Address (house/building number street name):"
                         id="street1"
                         name="street1"
-                        value={addressData.street1.toUpperCase()}
+                        value={addressData.street1}
                         onChange={(e) =>
                           handleAddressChange(
                             "street1",
-                            e.target.value.toUpperCase()
+                            e.target.value
                           )
                         }
                       />
@@ -1396,11 +1396,11 @@ const Add = ({ fetchClients }) => {
                         label="Address (subdivision/compound name):"
                         id="street2"
                         name="street2"
-                        value={addressData.street2.toUpperCase()}
+                        value={addressData.street2}
                         onChange={(e) =>
                           handleAddressChange(
                             "street2",
-                            e.target.value.toUpperCase()
+                            e.target.value
                           )
                         }
                       />

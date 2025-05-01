@@ -498,7 +498,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const handleAddressChange = (type, value) => {
     setAddressData((prev) => ({
       ...prev,
-      [type]: value,
+      [type]: value.toUpperCase(),
     }));
   };
 
@@ -524,7 +524,21 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleAreaChange = (name, value) => {
-    setAreaData((prev) => ({ ...prev, [name]: value }));
+    // Update the area data with the new value, converting to uppercase for text fields
+    const uppercaseValue = typeof value === 'string' ? value.toUpperCase() : value;
+    
+    setAreaData((prev) => ({ 
+      ...prev, 
+      [name]: uppercaseValue 
+    }));
+    
+    // If zipcode is updated, also update it in the formData to keep states in sync
+    if (name === "zipcode") {
+      setFormData(prev => ({
+        ...prev,
+        zipcode: uppercaseValue ? String(uppercaseValue) : ""
+      }));
+    }
   };
 
   const handleRoleSpecificChange = (e) => {
@@ -1378,9 +1392,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   <div className="max-h-60 overflow-y-auto">
                     {availableSubscriptions.length > 0 ? (
                       <div className="space-y-3">
-                        {availableSubscriptions.map((sub) => (
+                        {availableSubscriptions.map((sub, idx) => (
                           <div
-                            key={sub.id}
+                            key={sub.id || idx}
                             className={`p-3 rounded-lg border ${
                               selectedSubscription?.id === sub.id
                                 ? "border-blue-500 bg-blue-50"
