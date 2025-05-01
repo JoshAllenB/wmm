@@ -36,6 +36,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     areas: [],
     acode: "",
     services: [],
+    clientIncludeIds: "",
+    clientExcludeIds: "",
+    clientIdFilterType: "include",
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -121,6 +124,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       areas: [],
       acode: "",
       services: [],
+      clientIncludeIds: "",
+      clientExcludeIds: "",
+      clientIdFilterType: "include",
     });
   };
 
@@ -163,6 +169,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     });
   };
 
+  // Handle client ID filter type change
+  const handleClientIdFilterTypeChange = (type) => {
+    setFilterData((prev) => ({
+      ...prev,
+      clientIdFilterType: type,
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -186,6 +200,17 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
     const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
 
+    // Process client IDs for inclusion/exclusion
+    const processClientIds = (idsString) => {
+      if (!idsString.trim()) return [];
+      
+      // Split by commas, newlines, or spaces and filter out empty entries
+      return idsString
+        .split(/[\s,]+/)
+        .map(id => id.trim())
+        .filter(id => id !== "" && !isNaN(parseInt(id)))
+        .map(id => parseInt(id));
+    };
 
     // Trim text fields and format data
     const formattedData = {
@@ -198,8 +223,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       wmmEndSubsDate: activeMonthRange.end,
       wmmStartEndDate: expiringMonthRange.start,
       wmmEndEndDate: expiringMonthRange.end,
+      includeClientIds: processClientIds(filterData.clientIncludeIds),
+      excludeClientIds: processClientIds(filterData.clientExcludeIds),
     };
-
 
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);
@@ -233,6 +259,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       areas: [],
       acode: "",
       services: [],
+      clientIncludeIds: "",
+      clientExcludeIds: "",
+      clientIdFilterType: "include",
     });
   };
 
@@ -339,6 +368,25 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       });
     }
 
+    // Handle client ID filters as a special case
+    if (filterData.clientIdFilterType === "include" && filterData.clientIncludeIds.trim()) {
+      const count = filterData.clientIncludeIds.split(/[\s,]+/).filter(id => id.trim() !== "").length;
+      active.push({
+        label: "Include Clients",
+        value: `${count} client(s)`,
+        key: "clientIncludeIds",
+      });
+    }
+    
+    if (filterData.clientIdFilterType === "exclude" && filterData.clientExcludeIds.trim()) {
+      const count = filterData.clientExcludeIds.split(/[\s,]+/).filter(id => id.trim() !== "").length;
+      active.push({
+        label: "Exclude Clients",
+        value: `${count} client(s)`,
+        key: "clientExcludeIds",
+      });
+    }
+
     // Process all other standard fields
     Object.entries(fieldMappings).forEach(([key, label]) => {
       const value = filterData[key];
@@ -379,6 +427,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           break;
         case "areas":
           updates.areas = [];
+          break;
+        case "clientIncludeIds":
+          updates.clientIncludeIds = "";
+          break;
+        case "clientExcludeIds":
+          updates.clientExcludeIds = "";
           break;
         default:
           updates[key] = "";
@@ -960,6 +1014,91 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Client ID Filter Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Client ID Filter
+                </h2>
+                <div className="space-y-3">
+                  <div className="flex space-x-4 mb-2">
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        id="include-clients"
+                        name="clientIdFilterType"
+                        value="include"
+                        checked={filterData.clientIdFilterType === "include"}
+                        onChange={() => handleClientIdFilterTypeChange("include")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label
+                        htmlFor="include-clients"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        Include only these clients
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="radio"
+                        id="exclude-clients"
+                        name="clientIdFilterType"
+                        value="exclude"
+                        checked={filterData.clientIdFilterType === "exclude"}
+                        onChange={() => handleClientIdFilterTypeChange("exclude")}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                      />
+                      <label
+                        htmlFor="exclude-clients"
+                        className="ml-2 text-sm text-gray-700"
+                      >
+                        Exclude these clients
+                      </label>
+                    </div>
+                  </div>
+                  
+                  {filterData.clientIdFilterType === "include" ? (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Client IDs to Include
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Enter client IDs to include in results. Separate with commas or new lines.
+                      </p>
+                      <textarea
+                        id="clientIncludeIds"
+                        name="clientIncludeIds"
+                        value={filterData.clientIncludeIds}
+                        onChange={handleChange}
+                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
+                          filterData.clientIncludeIds ? "border-blue-500 bg-blue-50" : ""
+                        }`}
+                        placeholder="e.g. 1001, 1002, 1003"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Client IDs to Exclude
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Enter client IDs to exclude from results. Separate with commas or new lines.
+                      </p>
+                      <textarea
+                        id="clientExcludeIds"
+                        name="clientExcludeIds"
+                        value={filterData.clientExcludeIds}
+                        onChange={handleChange}
+                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
+                          filterData.clientExcludeIds ? "border-blue-500 bg-blue-50" : ""
+                        }`}
+                        placeholder="e.g. 2001, 2002, 2003"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

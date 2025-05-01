@@ -151,6 +151,30 @@ async function fetchDataServices(
       }
     }
 
+    // Handle client ID inclusion filter (whitelist)
+    if (Array.isArray(advancedFilterData.includeClientIds) && advancedFilterData.includeClientIds.length > 0) {
+      // Convert all IDs to numbers to ensure consistency
+      const validIds = advancedFilterData.includeClientIds
+        .map(id => typeof id === 'string' ? parseInt(id) : id)
+        .filter(id => !isNaN(id));
+      
+      if (validIds.length > 0) {
+        baseFilter.push({ id: { $in: validIds } });
+      }
+    }
+
+    // Handle client ID exclusion filter (blacklist)
+    if (Array.isArray(advancedFilterData.excludeClientIds) && advancedFilterData.excludeClientIds.length > 0) {
+      // Convert all IDs to numbers to ensure consistency
+      const validIds = advancedFilterData.excludeClientIds
+        .map(id => typeof id === 'string' ? parseInt(id) : id)
+        .filter(id => !isNaN(id));
+      
+      if (validIds.length > 0) {
+        baseFilter.push({ id: { $nin: validIds } });
+      }
+    }
+
     // Handle paymentRef search
     if (advancedFilterData.paymentRef) {
       // Add search for payment reference in WMM records
