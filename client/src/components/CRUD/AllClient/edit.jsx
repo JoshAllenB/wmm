@@ -430,9 +430,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const handleChange = async (e) => {
     const { name, value } = e.target;
 
-    // Convert the input value to uppercase
-    const upperCaseValue = value.toUpperCase();
-
     if (name === "subscriptionFreq") {
       const monthsToAdd = parseInt(value);
 
@@ -491,14 +488,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     setFormData({
       ...formData,
-      [name]: upperCaseValue,
+      [name]: value,
     });
   };
 
   const handleAddressChange = (type, value) => {
     setAddressData((prev) => ({
       ...prev,
-      [type]: value.toUpperCase(),
+      [type]: value,
     }));
   };
 
@@ -524,19 +521,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleAreaChange = (name, value) => {
-    // Update the area data with the new value, converting to uppercase for text fields
-    const uppercaseValue = typeof value === 'string' ? value.toUpperCase() : value;
-    
+    // Update the area data with the new value
     setAreaData((prev) => ({ 
       ...prev, 
-      [name]: uppercaseValue 
+      [name]: value 
     }));
     
     // If zipcode is updated, also update it in the formData to keep states in sync
     if (name === "zipcode") {
       setFormData(prev => ({
         ...prev,
-        zipcode: uppercaseValue ? String(uppercaseValue) : ""
+        zipcode: value ? String(value) : ""
       }));
     }
   };
@@ -961,6 +956,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
+                uppercase={true}
               />
               <InputField
                 label="First Name:"
@@ -968,6 +964,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="fname"
                 value={formData.fname}
                 onChange={handleChange}
+                uppercase={true}
               />
               <InputField
                 label="Middle Name:"
@@ -975,6 +972,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="mname"
                 value={formData.mname}
                 onChange={handleChange}
+                uppercase={true}
               />
               <InputField
                 label="Last Name:"
@@ -982,6 +980,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="lname"
                 value={formData.lname}
                 onChange={handleChange}
+                uppercase={true}
               />
               <InputField
                 label="Suffix:"
@@ -989,6 +988,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="sname"
                 value={formData.sname}
                 onChange={handleChange}
+                uppercase={true}
               />
               <InputField
                 label="Birth Date:"
@@ -1003,6 +1003,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="company"
                 value={formData.company}
                 onChange={handleChange}
+                uppercase={true}
               />
             </div>
           </div>
@@ -1019,6 +1020,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="street1"
                 value={addressData.street1}
                 onChange={(e) => handleAddressChange("street1", e.target.value)}
+                uppercase={true}
               />
               <InputField
                 label="Address 2 (subdivision/compound/building name):"
@@ -1026,6 +1028,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="street2"
                 value={addressData.street2}
                 onChange={(e) => handleAddressChange("street2", e.target.value)}
+                uppercase={true}
               />
               <AreaForm
                 onAreaChange={handleAreaChange}
@@ -1040,9 +1043,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   id="combinedAddress"
                   name="combinedAddress"
                   value={combinedAddress}
-                  onChange={(e) =>
-                    setCombinedAddress(e.target.value.toUpperCase())
-                  }
+                  onChange={(e) => {
+                    // Apply uppercase transformation
+                    setCombinedAddress(e.target.value.toUpperCase());
+                  }}
                   className="w-full h-[160px] p-2 border rounded-md"
                 />
               </div>
@@ -1082,6 +1086,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                type="email"
               />
             </div>
           </div>
@@ -1346,13 +1351,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   Provide any additional information or notes about the client
                   here.
                 </p>
-                <textarea
-                  className="w-full h-[160px] p-2 border rounded-md"
-                  label="Remarks:"
+                <InputField
+                  label=""
                   id="remarks"
                   name="remarks"
                   value={formData.remarks}
                   onChange={handleChange}
+                  type="textarea"
+                  uppercase={true}
+                  className="h-[160px]"
                 />
               </div>
             </div>

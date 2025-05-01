@@ -380,9 +380,6 @@ const Add = ({ fetchClients }) => {
       setIsCheckingDuplicates(true); // Show loading state immediately
     }
 
-    // Convert the input value to uppercase
-    const upperCaseValue = value.toUpperCase();
-
     if (name === "subscriptionFreq") {
       const today = new Date();
       const monthsToAdd = parseInt(value);
@@ -426,7 +423,7 @@ const Add = ({ fetchClients }) => {
     setFormData((prevData) => {
       const newData = {
         ...prevData,
-        [name]: upperCaseValue,
+        [name]: value,
       };
 
       // Check for duplicates if this is a field we want to check
@@ -479,7 +476,7 @@ const Add = ({ fetchClients }) => {
 
     setAddressData((prev) => ({
       ...prev,
-      [type]: value.toUpperCase(),
+      [type]: value,
     }));
   };
 
@@ -1328,6 +1325,7 @@ const Add = ({ fetchClients }) => {
                         name="title"
                         value={formData.title}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                       <InputField
                         label="First Name:"
@@ -1335,6 +1333,7 @@ const Add = ({ fetchClients }) => {
                         name="fname"
                         value={formData.fname}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                       <InputField
                         label="Middle Name:"
@@ -1342,6 +1341,7 @@ const Add = ({ fetchClients }) => {
                         name="mname"
                         value={formData.mname}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                       <InputField
                         label="Last Name:"
@@ -1349,6 +1349,7 @@ const Add = ({ fetchClients }) => {
                         name="lname"
                         value={formData.lname}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                       <InputField
                         label="Suffix:"
@@ -1356,6 +1357,7 @@ const Add = ({ fetchClients }) => {
                         name="sname"
                         value={formData.sname}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                       <InputField
                         label="Birth Date:"
@@ -1370,6 +1372,7 @@ const Add = ({ fetchClients }) => {
                         name="company"
                         value={formData.company}
                         onChange={handleChange}
+                        uppercase={true}
                       />
                     </div>
                   </div>
@@ -1391,6 +1394,7 @@ const Add = ({ fetchClients }) => {
                             e.target.value
                           )
                         }
+                        uppercase={true}
                       />
                       <InputField
                         label="Address (subdivision/compound name):"
@@ -1403,6 +1407,7 @@ const Add = ({ fetchClients }) => {
                             e.target.value
                           )
                         }
+                        uppercase={true}
                       />
                       <AddressForm
                         onAddressChange={handleAddressChange}
@@ -1420,7 +1425,7 @@ const Add = ({ fetchClients }) => {
                           id="combinedAddress"
                           name="combinedAddress"
                           value={combinedAddress}
-                          onChange={(e) => setCombinedAddress(e.target.value)}
+                          onChange={(e) => setCombinedAddress(e.target.value.toUpperCase())}
                           className="w-full h-[160px] p-2 border rounded-md"
                         />
                       </div>
@@ -1460,6 +1465,7 @@ const Add = ({ fetchClients }) => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
+                        type="email"
                       />
                     </div>
                   </div>
