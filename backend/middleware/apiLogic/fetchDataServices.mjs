@@ -222,9 +222,77 @@ async function fetchDataServices(
 
     // Support for regex pattern matching on adddate (for "Added Today" feature)
     if (advancedFilterData.adddate_regex) {
-      baseFilter.push({ 
-        adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" } 
-      });
+      // Here we'll create a more comprehensive "Added Today" filter that includes:
+      // 1. Clients added today (already implemented)
+      // 2. Clients that received services today (WMM, FOM, HRG, CAL)
+      
+      try {
+        // Create the today's date regex pattern
+        const todayRegex = advancedFilterData.adddate_regex;
+        
+        // First, find clients with the matching client adddate
+        const clientsAddedToday = await ClientModel.find({
+          adddate: { $regex: todayRegex, $options: "i" }
+        }).select("id").lean();
+        
+        // Create a set of client IDs that match the filter
+        const matchingClientIds = new Set(
+          clientsAddedToday.map(client => client.id)
+        );
+        
+        // Import all service models to check for services added today
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+        const { default: FomModel } = await import("../../models/fom.mjs");
+        const { default: HrgModel } = await import("../../models/hrg.mjs");
+        const { default: CalModel } = await import("../../models/cal.mjs");
+        
+        // Find clients with WMM services added today
+        const wmmClientsToday = await WmmModel.find({
+          adddate: { $regex: todayRegex, $options: "i" }
+        }).distinct("clientid");
+        
+        // Find clients with FOM services added today
+        const fomClientsToday = await FomModel.find({
+          adddate: { $regex: todayRegex, $options: "i" }
+        }).distinct("clientid");
+        
+        // Find clients with HRG services added today
+        const hrgClientsToday = await HrgModel.find({
+          adddate: { $regex: todayRegex, $options: "i" }
+        }).distinct("clientid");
+        
+        // Find clients with CAL services added today
+        const calClientsToday = await CalModel.find({
+          adddate: { $regex: todayRegex, $options: "i" }
+        }).distinct("clientid");
+        
+        // Add all clients with services added today to the set
+        [...wmmClientsToday, ...fomClientsToday, ...hrgClientsToday, ...calClientsToday]
+          .forEach(clientId => {
+            // Convert to number to ensure consistent type
+            const numericId = Number(clientId);
+            if (!isNaN(numericId)) {
+              matchingClientIds.add(numericId);
+            }
+          });
+        
+        // Convert the set back to an array
+        const allMatchingClientIds = Array.from(matchingClientIds);
+        
+        if (allMatchingClientIds.length > 0) {
+          // Replace the simple adddate filter with a more comprehensive one
+          baseFilter.push({ id: { $in: allMatchingClientIds } });
+        } else {
+          // If no clients match our criteria, create a filter that will return no results
+          baseFilter.push({ id: -1 });
+        }
+      } catch (error) {
+        console.error("Error processing Added Today filter for services:", error);
+        // Fall back to the original client-only filter
+        baseFilter.push({ 
+          adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" } 
+        });
+      }
     }
 
     // Add area filter
