@@ -228,6 +228,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     };
 
     // Apply the filter with the formatted data
+    // Note: This will automatically disable the "Added Today" filter in AllClient.jsx
+    // when any non-service filters are applied
     onApplyFilter(formattedData);
     
     // Just close the modal - data will be reset when reopened

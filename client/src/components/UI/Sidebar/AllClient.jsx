@@ -481,6 +481,11 @@ const AllClient = () => {
     const value = e.target.value;
     setFiltering(value);
     setPage(1);
+    
+    // Auto-disable Added Today filter when search is used
+    if (value.trim() !== '') {
+      setAddedToday(false);
+    }
   };
 
   const handleTableInstanceUpdate = useCallback((instance) => {
@@ -522,13 +527,26 @@ const AllClient = () => {
       services: services,
     };
 
+    // Auto-disable Added Today filter when advanced filter is applied
+    // Check if any filter other than services (which are auto-populated) is set
+    const hasNonServiceFilters = Object.entries(formattedFilterData).some(([key, value]) => {
+      if (key === 'services') return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'string') return value.trim() !== '';
+      return !!value;
+    });
+
+    if (hasNonServiceFilters) {
+      setAddedToday(false);
+    }
+
     // Create a snapshot of what the filter will be
     const filterSnapshot = JSON.stringify({
       services: services,
       page: 1, // Always reset to page 1 when applying filters
       filtering: debouncedFiltering,
       group: selectedGroup,
-      addedToday,
+      addedToday: hasNonServiceFilters ? false : addedToday, // Update based on filtered status
     });
 
     // Update last filter ref to prevent bounce
