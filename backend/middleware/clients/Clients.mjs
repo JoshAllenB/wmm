@@ -15,6 +15,50 @@ dotenv.config();
 
 const router = express.Router();
 
+// Address standardization utility function
+const standardizeAddress = (address) => {
+  if (!address || typeof address !== 'string') return '';
+  
+  return address
+    .toUpperCase()
+    // Standardize common street abbreviations
+    .replace(/\bST\b|\bSTREET\b/gi, "STREET")
+    .replace(/\bAVE\b|\bAVENUE\b/gi, "AVENUE")
+    .replace(/\bRD\b|\bROAD\b/gi, "ROAD")
+    .replace(/\bBLVD\b|\bBOULEVARD\b/gi, "BOULEVARD")
+    .replace(/\bLN\b|\bLANE\b/gi, "LANE")
+    .replace(/\bDR\b|\bDRIVE\b/gi, "DRIVE")
+    .replace(/\bCT\b|\bCOURT\b/gi, "COURT")
+    .replace(/\bPL\b|\bPLACE\b/gi, "PLACE")
+    .replace(/\bSQ\b|\bSQUARE\b/gi, "SQUARE")
+    .replace(/\bCIR\b|\bCIRCLE\b/gi, "CIRCLE")
+    .replace(/\bPKWY\b|\bPARKWAY\b/gi, "PARKWAY")
+    .replace(/\bHWY\b|\bHIGHWAY\b/gi, "HIGHWAY")
+    // Remove apartment/unit numbers
+    .replace(/\bAPT\b.*\d+|\bUNIT\b.*\d+|\bNO\b\.?\s*\d+|\bSUITE\b.*\d+/gi, "")
+    .replace(/\b(APARTMENT|SUITE|UNIT|ROOM)\b\s*(\w|\d)+/gi, "")
+    // Remove common punctuation and standardize spacing
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
+// Extract address tokens for partial matching
+const getAddressTokens = (address) => {
+  if (!address || typeof address !== 'string') return [];
+  
+  const standardized = standardizeAddress(address);
+  
+  // Split by spaces and filter out short words and numbers-only tokens
+  return standardized
+    .split(/\s+/)
+    .filter(token => 
+      token.length > 3 && // Only tokens with more than 3 characters
+      !/^\d+$/.test(token) && // Exclude tokens that are just numbers
+      !['STREET', 'AVENUE', 'ROAD', 'BOULEVARD', 'LANE', 'DRIVE', 'THE', 'AND'].includes(token) // Exclude common words
+    );
+};
+
 router.get(
   "/",
   verifyToken,
@@ -421,8 +465,19 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { fname, lname, email, cellno, contactnos, bdate, address, acode, company } =
-      req.body;
+    const { 
+      fname, 
+      lname, 
+      email, 
+      cellno, 
+      contactnos, 
+      bdate, 
+      address, 
+      standardizedAddress, 
+      addressComponents, 
+      acode, 
+      company 
+    } = req.body;
 
     // Track if we have any significant data to search with
     let hasSearchableData = false;
@@ -457,7 +512,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              10, // High score for last name match
+              8, // High score for last name match (reduced from 10)
               0,
             ],
           },
@@ -482,7 +537,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              6, // Medium-high score for last name in company match
+              4, // Medium score for last name in company match (reduced from 6)
               0,
             ],
           },
@@ -513,7 +568,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8, // High score for company match (slightly lower than last name)
+              7, // Score for company match (reduced from 8)
               0,
             ],
           },
@@ -544,7 +599,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8,
+              8, // Score for first name match (unchanged)
               0,
             ],
           },
@@ -569,7 +624,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              5, // Medium score for first name in company match
+              4, // Score for first name in company match (reduced from 5)
               0,
             ],
           },
@@ -579,59 +634,261 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       hasSearchableData = true;
     }
 
-    // Address matching (second priority)
-    const addressWords = [];
-    if (address && address.length > 2) {
+    // Address matching with standardization
+    // Use the standardized address if provided by the client, otherwise standardize it here
+    const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
+    const addressTokens = getAddressTokens(address);
+    
+    if (clientStandardizedAddress && clientStandardizedAddress.length > 2) {
       try {
-        // Split address into words for more flexible matching
-        addressWords.push(
-          ...address
-            .split(/[\s,]+/) // Split by spaces or commas
-            .filter((word) => word && word.length > 1) // Only use words with 2+ characters
-            .map((word) => word.trim())
-        );
-
-        // For each significant word, create a query
-        addressWords.forEach((word) => {
-          if (word && word.length > 1) {
+        // Add standardized full address for better matching - use direct regex instead of $function
+        query.$or.push({
+          address: { $regex: new RegExp(clientStandardizedAddress, "i") }
+        });
+        
+        // For each significant token, create a query
+        addressTokens.forEach((token) => {
+          if (token && token.length > 3) {
             query.$or.push({
-              address: { $regex: new RegExp(word, "i") },
+              address: { $regex: new RegExp(token, "i") }
             });
-            hasSearchableData = true;
           }
         });
 
-        // Also add the full address for exact matching
-        query.$or.push({ address: { $regex: new RegExp(address, "i") } });
+        // Add address component-based matching if address components provided
+        if (addressComponents) {
+          // Match on specific address components for more precise matching
+          if (addressComponents.street1 && addressComponents.street1.length > 3) {
+            query.$or.push({ address: { $regex: new RegExp(addressComponents.street1, "i") } });
+          }
+          
+          if (addressComponents.barangay && addressComponents.barangay.length > 2) {
+            query.$or.push({ address: { $regex: new RegExp(addressComponents.barangay, "i") } });
+            query.$or.push({ barangay: { $regex: new RegExp(addressComponents.barangay, "i") } });
+          }
+          
+          if (addressComponents.city && addressComponents.city.length > 2) {
+            query.$or.push({ address: { $regex: new RegExp(addressComponents.city.replace(/^City of\s+/i, ""), "i") } });
+            query.$or.push({ city: { $regex: new RegExp(addressComponents.city.replace(/^City of\s+/i, ""), "i") } });
+          }
+          
+          if (addressComponents.province && addressComponents.province.length > 2) {
+            query.$or.push({ address: { $regex: new RegExp(addressComponents.province, "i") } });
+            query.$or.push({ province: { $regex: new RegExp(addressComponents.province, "i") } });
+          }
+        }
 
-        // Add scoring for address matches
-        if (addressWords.length > 0) {
+        // Add scoring for address matches using direct field comparison
+        // Instead of standardizing in the database, score based on presence of tokens
+        
+        // Score for exact address match
+        scoringPipeline.push({
+          $addFields: {
+            addressExactMatch: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$address", null] },
+                    { $ne: ["$address", ""] },
+                    { $eq: [{ $type: "$address" }, "string"] },
+                    {
+                      $regexMatch: {
+                        input: "$address",
+                        regex: new RegExp(clientStandardizedAddress, "i"),
+                      },
+                    },
+                  ],
+                },
+                7, // Score for exact address match (reduced from 10)
+                0,
+              ],
+            },
+          },
+        });
+        
+        // Add token-based scoring
+        if (addressTokens.length > 0) {
+          const tokenScoring = addressTokens.map((token, index) => ({
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$address", null] },
+                  { $ne: ["$address", ""] },
+                  { $eq: [{ $type: "$address" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$address",
+                      regex: new RegExp(token, "i"),
+                    },
+                  },
+                ],
+              },
+              Math.max(8 - index, 3), // Increased score for token matches
+              0,
+            ],
+          }));
+          
           scoringPipeline.push({
             $addFields: {
-              addressMatch: {
-                $sum: addressWords.map((word) => ({
-                  $cond: [
+              addressTokenMatch: { $sum: tokenScoring },
+            },
+          });
+        }
+        
+        // Add component-based scoring if address components provided
+        if (addressComponents) {
+          const componentScoring = [];
+          
+          if (addressComponents.street1 && addressComponents.street1.length > 3) {
+            componentScoring.push({
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$address", null] },
+                    { $ne: ["$address", ""] },
+                    { $eq: [{ $type: "$address" }, "string"] },
+                    {
+                      $regexMatch: {
+                        input: "$address",
+                        regex: new RegExp(addressComponents.street1, "i"),
+                      },
+                    },
+                  ],
+                },
+                9, // Increased score for street match
+                0,
+              ],
+            });
+          }
+          
+          if (addressComponents.barangay && addressComponents.barangay.length > 2) {
+            componentScoring.push({
+              $cond: [
+                {
+                  $or: [
                     {
                       $and: [
                         { $ne: ["$address", null] },
-                        { $ne: ["$address", undefined] },
+                        { $ne: ["$address", ""] },
                         { $eq: [{ $type: "$address" }, "string"] },
                         {
                           $regexMatch: {
                             input: "$address",
-                            regex: new RegExp(word, "i"),
+                            regex: new RegExp(addressComponents.barangay, "i"),
                           },
                         },
                       ],
                     },
-                    5, // Medium score for each address word match
-                    0,
+                    {
+                      $and: [
+                        { $ne: ["$barangay", null] },
+                        { $ne: ["$barangay", ""] },
+                        { $eq: [{ $type: "$barangay" }, "string"] },
+                        {
+                          $regexMatch: {
+                            input: "$barangay",
+                            regex: new RegExp(addressComponents.barangay, "i"),
+                          },
+                        },
+                      ],
+                    },
                   ],
-                })),
+                },
+                5, // Medium score for barangay match
+                0,
+              ],
+            });
+          }
+          
+          if (addressComponents.city && addressComponents.city.length > 2) {
+            const cityNoPrefix = addressComponents.city.replace(/^City of\s+/i, "");
+            componentScoring.push({
+              $cond: [
+                {
+                  $or: [
+                    {
+                      $and: [
+                        { $ne: ["$address", null] },
+                        { $ne: ["$address", ""] },
+                        { $eq: [{ $type: "$address" }, "string"] },
+                        {
+                          $regexMatch: {
+                            input: "$address",
+                            regex: new RegExp(cityNoPrefix, "i"),
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      $and: [
+                        { $ne: ["$city", null] },
+                        { $ne: ["$city", ""] },
+                        { $eq: [{ $type: "$city" }, "string"] },
+                        {
+                          $regexMatch: {
+                            input: "$city",
+                            regex: new RegExp(cityNoPrefix, "i"),
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+                5, // Medium score for city match
+                0,
+              ],
+            });
+          }
+          
+          if (addressComponents.province && addressComponents.province.length > 2) {
+            componentScoring.push({
+              $cond: [
+                {
+                  $or: [
+                    {
+                      $and: [
+                        { $ne: ["$address", null] },
+                        { $ne: ["$address", ""] },
+                        { $eq: [{ $type: "$address" }, "string"] },
+                        {
+                          $regexMatch: {
+                            input: "$address",
+                            regex: new RegExp(addressComponents.province, "i"),
+                          },
+                        },
+                      ],
+                    },
+                    {
+                      $and: [
+                        { $ne: ["$province", null] },
+                        { $ne: ["$province", ""] },
+                        { $eq: [{ $type: "$province" }, "string"] },
+                        {
+                          $regexMatch: {
+                            input: "$province",
+                            regex: new RegExp(addressComponents.province, "i"),
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                },
+                4, // Medium score for province match
+                0,
+              ],
+            });
+          }
+          
+          if (componentScoring.length > 0) {
+            scoringPipeline.push({
+              $addFields: {
+                addressComponentMatch: { $sum: componentScoring },
               },
-            },
-          });
+            });
+          }
         }
+        
+        hasSearchableData = true;
       } catch (error) {
         console.error("Error processing address:", error);
         // Continue with the query even if address processing fails
@@ -658,7 +915,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              3, // Lower score for email match
+              8, // Increased score for email match (was 3)
               0,
             ],
           },
@@ -681,7 +938,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$cellno", regex: cellno } },
                 ],
               },
-              3, // Lower score for cellno match
+              8, // Increased score for cell number match (was 3)
               0,
             ],
           },
@@ -704,7 +961,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$contactnos", regex: contactnos } },
                 ],
               },
-              3, // Lower score for contactnos match
+              7, // Increased score for contact numbers match (was 3)
               0,
             ],
           },
@@ -713,7 +970,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       hasSearchableData = true;
     }
 
-    // Birthdate matching (exact match is valuable)
+    // Birthdate matching
     if (bdate) {
       query.$or.push({ bdate: bdate });
       scoringPipeline.push({
@@ -721,7 +978,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           bdateMatch: {
             $cond: [
               { $eq: ["$bdate", bdate] },
-              4, // Medium-high score for exact birthdate match
+              10, // Increased score for exact birthdate match (was 4)
               0,
             ],
           },
@@ -775,6 +1032,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           cellno: 1,
           ofcno: 1,
           email: 1,
+          province: 1, // Add province field if used in your schema
         },
       },
     ];
@@ -792,7 +1050,9 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
             { $ifNull: ["$fnameInCompanyMatch", 0] },
             { $ifNull: ["$lnameInCompanyMatch", 0] },
             { $ifNull: ["$companyMatch", 0] },
-            { $ifNull: ["$addressMatch", 0] },
+            { $ifNull: ["$addressExactMatch", 0] },
+            { $ifNull: ["$addressTokenMatch", 0] },
+            { $ifNull: ["$addressComponentMatch", 0] },
             { $ifNull: ["$emailMatch", 0] },
             { $ifNull: ["$cellnoMatch", 0] },
             { $ifNull: ["$contactnosMatch", 0] },
@@ -1049,3 +1309,4 @@ router.get("/:id", verifyToken, async (req, res) => {
 });
 
 export default router;
+

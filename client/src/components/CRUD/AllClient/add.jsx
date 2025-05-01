@@ -13,6 +13,27 @@ import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
 import { debounce } from "lodash";
 import View from "./view";
 
+// Utility function to normalize address for more consistent duplicate checking
+const normalizeAddress = (address) => {
+  if (!address || typeof address !== 'string') return '';
+  
+  return address
+    .toUpperCase()
+    // Standardize common street abbreviations
+    .replace(/\bST\b|\bSTREET\b/gi, "STREET")
+    .replace(/\bAVE\b|\bAVENUE\b/gi, "AVENUE")
+    .replace(/\bRD\b|\bROAD\b/gi, "ROAD")
+    .replace(/\bBLVD\b|\bBOULEVARD\b/gi, "BOULEVARD")
+    .replace(/\bLN\b|\bLANE\b/gi, "LANE")
+    .replace(/\bDR\b|\bDRIVE\b/gi, "DRIVE")
+    // Remove apartment/unit numbers
+    .replace(/\bAPT\b.*\d+|\bUNIT\b.*\d+|\bNO\b\.?\s*\d+|\bSUITE\b.*\d+/gi, "")
+    // Remove common punctuation and standardize spacing
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
   const d = new Date(date);
@@ -324,11 +345,28 @@ const Add = ({ fetchClients }) => {
       // we'll send all available data to get comprehensive matching results
       try {
         setIsCheckingDuplicates(true);
+        
+        // Prepare the data for sending to the server
+        const duplicateCheckData = {
+          ...checkData,
+          // Send both original and standardized address
+          address: checkData.address,
+          standardizedAddress: normalizeAddress(checkData.address),
+          // Break down address components for better matching
+          addressComponents: {
+            street1: addressData.street1 || '',
+            street2: addressData.street2 || '',
+            barangay: addressData.barangay || '',
+            city: addressData.city || '',
+            province: addressData.province || '',
+          }
+        };
+        
         const response = await axios.post(
           `http://${
             import.meta.env.VITE_IP_ADDRESS
           }:3001/clients/check-duplicates`,
-          checkData,
+          duplicateCheckData,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -877,16 +915,16 @@ const Add = ({ fetchClients }) => {
                         <div className="mt-0.5">
                           <div
                             className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm inline-block ${
-                              client.totalScore > 15
+                              client.totalScore > 25
                                 ? "bg-red-50 text-red-600 border border-red-100"
-                                : client.totalScore > 10
+                                : client.totalScore > 15
                                 ? "bg-amber-50 text-amber-600 border border-amber-100"
                                 : "bg-blue-50 text-blue-600 border border-blue-100"
                             }`}
                           >
-                            {client.totalScore > 15
+                            {client.totalScore > 25
                               ? "Strong match"
-                              : client.totalScore > 10
+                              : client.totalScore > 15
                               ? "Likely match"
                               : "Possible match"}
                           </div>
@@ -899,7 +937,9 @@ const Add = ({ fetchClients }) => {
                     {/* Match indicators */}
                     {(client.fnameMatch > 0 ||
                       client.lnameMatch > 0 ||
-                      client.addressMatch > 0 ||
+                      client.addressExactMatch > 0 ||
+                      client.addressTokenMatch > 0 ||
+                      client.addressComponentMatch > 0 ||
                       client.cellnoMatch > 0 ||
                       client.contactnosMatch > 0 ||
                       client.emailMatch > 0 ||
@@ -917,7 +957,9 @@ const Add = ({ fetchClients }) => {
                             Last name
                           </span>
                         )}
-                        {client.addressMatch > 0 && (
+                        {(client.addressExactMatch > 0 ||
+                          client.addressTokenMatch > 0 ||
+                          client.addressComponentMatch > 0) && (
                           <span className="bg-amber-50 text-amber-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-amber-100">
                             Address
                           </span>
