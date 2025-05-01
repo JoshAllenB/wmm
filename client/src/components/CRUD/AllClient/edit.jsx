@@ -628,38 +628,96 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Add a helper function to check if a subscription is selected
+  const isSubscriptionSelected = (sub, selectedSub) => {
+    if (!sub || !selectedSub) return false;
+    
+    // Compare using string conversion to handle different ID types
+    const subId = sub._id || sub.id;
+    const selectedId = selectedSub._id || selectedSub.id;
+    
+    // Log comparison for debugging
+    console.log(`Comparing: ${subId} with ${selectedId}, result: ${String(subId) === String(selectedId)}`);
+    
+    return String(subId) === String(selectedId);
+  };
+
+  // Update the helper function to handle _id instead of id
+  const selectSubscription = (subscription) => {
+    if (!subscription) {
+      console.error("No subscription provided to selectSubscription");
+      return;
+    }
+    
+    // Get the identifier (either id or _id)
+    const subscriptionId = subscription._id || subscription.id;
+    
+    if (!subscriptionId) {
+      console.error("Subscription has no valid ID:", subscription);
+      return;
+    }
+    
+    // If this subscription is already selected, do nothing
+    if (isSubscriptionSelected(subscription, selectedSubscription)) {
+      console.log("Already selected, not changing");
+      return;
+    }
+    
+    console.log(`Setting selectedSubscription to: ${subscriptionId}`);
+    
+    // Clean any dates before setting them in state
+    const cleanSubscription = {
+      ...subscription,
+      subsdate: subscription.subsdate ? formatDateToMMDDYY(parseDate(subscription.subsdate)) : "",
+      enddate: subscription.enddate ? formatDateToMMDDYY(parseDate(subscription.enddate)) : "",
+      renewdate: subscription.renewdate ? formatDateToMMDDYY(parseDate(subscription.renewdate)) : "",
+    };
+    
+    // Set the selected subscription - make sure it has the ID property properly set
+    setSelectedSubscription(cleanSubscription);
+
+    // Update role-specific data with selected subscription
+    setRoleSpecificData({
+      id: subscriptionId, // Use the identified ID (either id or _id)
+      subsdate: cleanSubscription.subsdate,
+      enddate: cleanSubscription.enddate,
+      renewdate: cleanSubscription.renewdate,
+      subsyear: subscription.subsyear || 0,
+      copies: subscription.copies || 1,
+      paymtamt: subscription.paymtamt || 0,
+      paymtmasses: subscription.paymtmasses || 0,
+      calendar: subscription.calendar || false,
+      subsclass: subscription.subsclass || "",
+      donorid: subscription.donorid || 0,
+      paymtref: subscription.paymtref || "",
+      remarks: subscription.remarks || "",
+    });
+  };
+
+  // Update the existing handler to use _id instead of id
   const handleSelectedSubscriptionChange = (e) => {
-    const subscriptionId = parseInt(e.target.value);
+    // Make sure we have a proper event object
+    if (!e || !e.target) {
+      console.error("Invalid event in handleSelectedSubscriptionChange:", e);
+      return;
+    }
+
+    const subscriptionId = e.target.value;
+    
+    if (!subscriptionId) {
+      console.error("Invalid subscription ID:", e.target.value);
+      return;
+    }
+    
+    // Find subscription by either id or _id
     const subscription = availableSubscriptions.find(
-      (sub) => sub.id === subscriptionId
+      (sub) => String(sub.id) === String(subscriptionId) || String(sub._id) === String(subscriptionId)
     );
 
     if (subscription) {
-      // Clean any dates before setting them in state
-      const cleanSubscription = {
-        ...subscription,
-        subsdate: subscription.subsdate ? formatDateToMMDDYY(parseDate(subscription.subsdate)) : "",
-        enddate: subscription.enddate ? formatDateToMMDDYY(parseDate(subscription.enddate)) : "",
-        renewdate: subscription.renewdate ? formatDateToMMDDYY(parseDate(subscription.renewdate)) : "",
-      };
-      
-      setSelectedSubscription(cleanSubscription);
-
-      // Update role-specific data with selected subscription
-      setRoleSpecificData({
-        id: subscription.id,
-        subsdate: cleanSubscription.subsdate,
-        enddate: cleanSubscription.enddate,
-        renewdate: cleanSubscription.renewdate,
-        subsyear: subscription.subsyear || 0,
-        copies: subscription.copies || 1,
-        paymtamt: subscription.paymtamt || 0,
-        paymtmasses: subscription.paymtmasses || 0,
-        calendar: subscription.calendar || false,
-        subsclass: subscription.subsclass || "",
-        donorid: subscription.donorid || 0,
-        remarks: subscription.remarks || "",
-      });
+      selectSubscription(subscription);
+    } else {
+      console.error("Subscription not found with ID:", subscriptionId);
     }
   };
 
@@ -825,8 +883,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
           if (clientUpdateResponse.data.success) {
             onEditSuccess({
-              ...updatedClientData,
-              // Add new subscription data to the response so the UI updates
+              ...rowData, // Keep all original data
+              ...updatedClientData, // Update with new client data
+              // Add updated subscription data
               wmmData: {
                 records: [
                   ...(rowData.wmmData?.records || []),
@@ -857,33 +916,58 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
           // Edit existing subscription
           submissionData.roleType = "WMM";
+          
+          // Ensure we have the correct ID (either id or _id) for the selected subscription
+          const subscriptionId = selectedSubscription?._id || selectedSubscription?.id;
+          
+          if (!subscriptionId) {
+            console.error("No subscription ID available for update");
+            return;
+          }
+          
+          // Format the subscription data in a way the server expects
+          // Store the subscription ID separately - don't include it in the update fields
+          submissionData.subscriptionId = subscriptionId; // Send this as a separate field
+          
+          // Send only the fields to update, not including _id (which is immutable)
           submissionData.roleData = {
-            ...roleSpecificData,
             subsdate: cleanSubsdate,
             enddate: cleanEnddate,
             subsclass: roleSpecificData.subsclass || formData.subsclass,
-            copies: roleSpecificData.copies || 1,
-            id: selectedSubscription?.id, // Include the subscription ID for reference
+            copies: parseInt(roleSpecificData.copies || 1),
+            subsyear: parseInt(roleSpecificData.subsyear || 0),
+            paymtamt: parseFloat(roleSpecificData.paymtamt || 0),
+            paymtmasses: parseInt(roleSpecificData.paymtmasses || 0),
+            calendar: Boolean(roleSpecificData.calendar),
+            paymtref: roleSpecificData.paymtref || "",
+            remarks: roleSpecificData.remarks || "",
+            donorid: parseInt(roleSpecificData.donorid || 0),
           };
 
           // Calculate subsyear based on subsdate and enddate if not provided
           if (
-            !roleSpecificData.subsyear &&
-            roleSpecificData.subsdate &&
-            roleSpecificData.enddate
+            !submissionData.roleData.subsyear &&
+            cleanSubsdate &&
+            cleanEnddate
           ) {
             try {
-              const startDate = parseDate(roleSpecificData.subsdate);
-              const endDate = parseDate(roleSpecificData.enddate);
-              const monthsApart =
-                (endDate.getFullYear() - startDate.getFullYear()) * 12 +
-                endDate.getMonth() -
-                startDate.getMonth();
-              submissionData.roleData.subsyear = Math.round(monthsApart / 12);
+              const startDate = parseDate(cleanSubsdate);
+              const endDate = parseDate(cleanEnddate);
+              if (startDate && endDate) {
+                const monthsApart =
+                  (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+                  endDate.getMonth() -
+                  startDate.getMonth();
+                submissionData.roleData.subsyear = Math.round(monthsApart / 12);
+              }
             } catch (error) {
               console.error("Error calculating subscription year:", error);
             }
           }
+          
+          // Log the exact data being sent for debugging
+          console.log("Updating subscription:", subscriptionId);
+          console.log("Submission data:", JSON.stringify(submissionData));
         } else if (hasRole("HRG")) {
           submissionData.roleType = "HRG";
           submissionData.roleData = {
@@ -931,12 +1015,82 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         );
 
         if (response.data.success) {
-          onEditSuccess(updatedClientData);
+          // Create a complete updated data structure with all necessary information
+          const updatedFullData = {
+            ...rowData, // Keep all original data not explicitly modified
+            ...updatedClientData, // Update with edited client data
+          };
+          
+          // Handle role-specific data updates
+          if (hasRole("WMM") && subscriptionMode === "edit" && selectedSubscription) {
+            // Get the identifier (either id or _id)
+            const subscriptionId = selectedSubscription._id || selectedSubscription.id;
+            
+            // Update only the specific subscription in the records array
+            const updatedRecords = (rowData.wmmData?.records || []).map(record => {
+              const recordId = record._id || record.id;
+              // Only update the selected subscription
+              if (String(recordId) === String(subscriptionId)) {
+                console.log(`Updating subscription ${recordId} with new data`);
+                return {
+                  ...record,
+                  ...submissionData.roleData,
+                  // Ensure dates are properly formatted
+                  subsdate: submissionData.roleData.subsdate,
+                  enddate: submissionData.roleData.enddate,
+                  subsclass: submissionData.roleData.subsclass,
+                  copies: submissionData.roleData.copies,
+                  paymtamt: submissionData.roleData.paymtamt,
+                  paymtref: submissionData.roleData.paymtref,
+                  remarks: submissionData.roleData.remarks,
+                };
+              }
+              // Return other records unchanged
+              return record;
+            });
+            
+            updatedFullData.wmmData = { records: updatedRecords };
+            
+            // Log the update for debugging
+            console.log("Updated subscription records:", updatedRecords);
+          } else if (hasRole("HRG")) {
+            updatedFullData.hrgData = { 
+              ...(rowData.hrgData || {}),
+              ...submissionData.roleData 
+            };
+          } else if (hasRole("FOM")) {
+            updatedFullData.fomData = { 
+              ...(rowData.fomData || {}),
+              ...submissionData.roleData 
+            };
+          } else if (hasRole("CAL")) {
+            updatedFullData.calData = { 
+              ...(rowData.calData || {}),
+              ...submissionData.roleData 
+            };
+          }
+          
+          onEditSuccess(updatedFullData);
           closeModal();
         }
       }
     } catch (error) {
       console.error("Error processing client data:", error);
+      
+      // Display more useful error information
+      let errorMessage = "An error occurred while saving changes.";
+      if (error.response) {
+        // The server responded with a status code outside the 2xx range
+        console.error("Server error data:", error.response.data);
+        errorMessage = error.response.data.message || 
+                      `Server error (${error.response.status}): ${error.response.statusText}`;
+      } else if (error.request) {
+        // The request was made but no response was received
+        errorMessage = "No response received from server. Please check your connection.";
+      }
+      
+      // You can display this error to the user if needed
+      alert(errorMessage);
     }
   };
 
@@ -1433,15 +1587,31 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             </div>
                             {subscriptionMode === "edit" && (
                               <button
-                                onClick={() => handleSelectedSubscriptionChange({ target: { value: sub.id } })}
+                                onClick={(e) => {
+                                  // Prevent event propagation to stop it from bubbling up to parent elements
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  
+                                  // Make sure we have a valid subscription ID (could be id or _id)
+                                  if (sub) {
+                                    // For debugging - log the IDs
+                                    console.log(`Selecting subscription: ${sub._id || sub.id}`);
+                                    console.log(`Current selection: ${selectedSubscription?._id || selectedSubscription?.id}`);
+                                    
+                                    // Call the selection handler with the subscription object directly
+                                    selectSubscription(sub);
+                                  } else {
+                                    console.error("Invalid subscription selected:", sub);
+                                  }
+                                }}
                                 className={`mt-2 w-full py-1 text-sm rounded ${
-                                  selectedSubscription?.id === sub.id
+                                  isSubscriptionSelected(sub, selectedSubscription)
                                     ? "bg-blue-600 text-white"
                                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                                 }`}
                               >
-                                {selectedSubscription?.id === sub.id
-                                  ? "Currently Selected"
+                                {isSubscriptionSelected(sub, selectedSubscription)
+                                  ? "Currently Editing"
                                   : "Select to Edit"}
                               </button>
                             )}
@@ -1463,6 +1633,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       <h3 className="text-lg font-semibold mb-4">Edit Selected Subscription</h3>
                       {selectedSubscription ? (
                         <div className="space-y-4">
+                          <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
+                            <p className="font-medium text-blue-800">
+                              Editing subscription from {selectedSubscription.subsdate ? formatDateToMMDDYY(parseDate(selectedSubscription.subsdate)) : "N/A"} 
+                              to {selectedSubscription.enddate ? formatDateToMMDDYY(parseDate(selectedSubscription.enddate)) : "N/A"}
+                            </p>
+                          </div>
                           <InputField
                             label="Subscription Start (MM/DD/YY):"
                             id="subsdate"
