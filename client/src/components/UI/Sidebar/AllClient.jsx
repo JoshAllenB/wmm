@@ -34,6 +34,8 @@ const AllClient = () => {
   const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(0);
   const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(0);
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
+  const [totalClients, setTotalClients] = useState(0);
+  const [pageSpecificClients, setPageSpecificClients] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(true);
@@ -284,7 +286,7 @@ const AllClient = () => {
     return filters;
   };
 
-  // Modified fetchData to handle tagged search
+  // Modified fetchData to handle tagged search and client counts
   const fetchData = useCallback(
     async (
       currentPage,
@@ -393,6 +395,15 @@ const AllClient = () => {
         setPageSpecificHrgAmt(result.pageSpecificHrgAmt || 0);
         setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
         setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
+        
+        // Try different property names for totalClients
+        const totalClientsValue = result.totalClients || result.totalCount || result.total || 0;
+        setTotalClients(totalClientsValue);
+        
+        // Use result.data.length as fallback for pageSpecificClients
+        const pageClientsValue = result.pageSpecificClients || (result.data ? result.data.length : 0);
+        setPageSpecificClients(pageClientsValue);
+        
         return result;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
@@ -738,7 +749,8 @@ const AllClient = () => {
     }
     
     // Return single role or default
-    return roles.length === 1 ? roles[0] : (roles.length > 0 ? roles.join(" ") : "default");
+    const roleString = roles.length === 1 ? roles[0] : (roles.length > 0 ? roles.join(" ") : "default");
+    return roleString;
   };
 
   return (
@@ -824,6 +836,8 @@ const AllClient = () => {
         pageSpecificHrgAmt={pageSpecificHrgAmt}
         pageSpecificFomAmt={pageSpecificFomAmt}
         pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
+        totalClients={totalClients}
+        pageSpecificClients={pageSpecificClients}
         userRole={determineUserRole()}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}

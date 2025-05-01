@@ -44,6 +44,9 @@ export const fetchClients = async (
       pageSpecificHrgAmt,
       pageSpecificFomAmt,
       pageSpecificCalPaymtAmt,
+      totalClients,
+      pageSpecificClients,
+      totalCount,
       noData,
     } = response.data;
 
@@ -66,6 +69,8 @@ export const fetchClients = async (
         pageSpecificHrgAmt: 0,
         pageSpecificFomAmt: 0, 
         pageSpecificCalPaymtAmt: 0,
+        totalClients: 0,
+        pageSpecificClients: 0,
         noData: true,
       };
     }
@@ -95,6 +100,8 @@ export const fetchClients = async (
       pageSpecificHrgAmt,
       pageSpecificFomAmt,
       pageSpecificCalPaymtAmt,
+      totalClients: totalClients || totalCount || processedData.length,
+      pageSpecificClients: pageSpecificClients || processedData.length,
       noData: false,
     };
   } catch (e) {

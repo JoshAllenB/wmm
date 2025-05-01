@@ -49,6 +49,8 @@ export default function DataTable({
   pageSpecificHrgAmt: initialPageSpecificHrgAmt = 0,
   pageSpecificFomAmt: initialPageSpecificFomAmt = 0,
   pageSpecificCalPaymtAmt: initialPageSpecificCalPaymtAmt = 0,
+  totalClients: initialTotalClients = 0,
+  pageSpecificClients: initialPageSpecificClients = 0,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -70,6 +72,8 @@ export default function DataTable({
   const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(initialPageSpecificHrgAmt);
   const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(initialPageSpecificFomAmt);
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(initialPageSpecificCalPaymtAmt);
+  const [totalClients, setTotalClients] = useState(initialTotalClients);
+  const [pageSpecificClients, setPageSpecificClients] = useState(initialPageSpecificClients);
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -122,6 +126,8 @@ export default function DataTable({
           setPageSpecificHrgAmt(result.pageSpecificHrgAmt || 0);
           setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
           setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
+          setTotalClients(result.totalClients || 0);
+          setPageSpecificClients(result.pageSpecificClients || dataArray.length || 0);
           
         } else {
           console.error("Invalid data format received:", result);
@@ -156,6 +162,14 @@ export default function DataTable({
       setTotalPages(initialTotalPages);
     }
   }, [initialTotalPages]);
+
+  useEffect(() => {
+    setTotalClients(initialTotalClients);
+  }, [initialTotalClients]);
+
+  useEffect(() => {
+    setPageSpecificClients(initialPageSpecificClients);
+  }, [initialPageSpecificClients]);
 
   useEffect(() => {
     setLocalData(data);
@@ -261,6 +275,8 @@ export default function DataTable({
             pageSpecificHrgAmt={pageSpecificHrgAmt}
             pageSpecificFomAmt={pageSpecificFomAmt}
             pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
+            totalClients={totalClients}
+            pageSpecificClients={pageSpecificClients}
             userRole={userRole}
             animationComplete={animationComplete}
           />

@@ -27,12 +27,25 @@ export function TableComponent({
   pageSpecificHrgAmt,
   pageSpecificFomAmt,
   pageSpecificCalPaymtAmt,
+  totalClients,
+  pageSpecificClients,
 }) {
+  // Check if role contains WMM (either as a single role or part of a composite role)
+  const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
+  
+  // Client count display for roles that include WMM
+  const clientCountDisplay = hasWmmRole ? (
+    <span className="text-sm mr-4">
+      Clients: <span className="font-medium">{Number(pageSpecificClients || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalClients || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span>
+    </span>
+  ) : null;
+  
   const getTotalLabel = () => {
     switch (userRole) {
       case "WMM":
         return (
           <div className="flex justify-between px-2 py-1">
+            {clientCountDisplay}
             <span className="text-sm">
               Copies: <span className="font-medium">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span>
             </span>
@@ -93,8 +106,15 @@ export function TableComponent({
           </div>
         );
       default:
+        // For composite roles or other roles
         return (
-          <div className="flex justify-between px-2 py-1">
+          <div className="flex flex-col px-2 py-1">
+            {/* Add client count here if WMM is part of the role */}
+            {hasWmmRole && (
+              <div className="mb-2">
+                {clientCountDisplay}
+              </div>
+            )}
             <div className="text-sm">
               <span className="text-blue-600 mr-4">
                 <span className="font-medium">HRG:</span> {Number(pageSpecificHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php

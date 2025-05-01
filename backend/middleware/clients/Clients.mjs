@@ -127,7 +127,9 @@ router.get(
         totalCalPaymtAmt,
         pageSpecificHrgAmt,
         pageSpecificFomAmt,
-        pageSpecificCalPaymtAmt
+        pageSpecificCalPaymtAmt,
+        totalClients,
+        pageSpecificClients
       } = results;
 
       if (socketId && io) {
@@ -152,6 +154,8 @@ router.get(
         pageSpecificHrgAmt,
         pageSpecificFomAmt,
         pageSpecificCalPaymtAmt,
+        totalClients,
+        pageSpecificClients,
         clientServices,
       });
     } catch (err) {

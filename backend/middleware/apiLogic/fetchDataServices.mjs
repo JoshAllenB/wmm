@@ -1240,6 +1240,7 @@ async function fetchDataServices(
       pageSpecificHrgAmt: pageSpecificHrgAmt || 0,
       pageSpecificFomAmt: pageSpecificFomAmt || 0,
       pageSpecificCalPaymtAmt: pageSpecificCalPaymtAmt || 0,
+      pageSpecificClients: clients.length,
       clientServices,
     };
   } catch (error) {
