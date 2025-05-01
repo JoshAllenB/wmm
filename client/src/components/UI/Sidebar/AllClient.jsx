@@ -36,7 +36,7 @@ const AllClient = () => {
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
-  const [addedToday, setAddedToday] = useState(false);
+  const [addedToday, setAddedToday] = useState(true);
   const [columnVisibility, setColumnVisibility] = useState({});
 
   // State for selected row and modal visibility
@@ -111,8 +111,9 @@ const AllClient = () => {
   };
 
   const handleAddedTodayClick = () => {
-    setAddedToday(!addedToday);
+    setAddedToday((prev) => !prev);
     setPage(1); // Reset to first page when toggling filter
+    // Do NOT call fetchData here!
   };
 
   const handleClearAllFilters = () => {
@@ -193,6 +194,13 @@ const AllClient = () => {
         ...advancedFilterData,
         services: roleBasedServices,
       };
+      
+      // Add addedToday filter since it's on by default
+      const today = new Date();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const year = today.getFullYear();
+      initialFilter.adddate_regex = `^${month}\\/${day}\\/${year}`;
 
       // Save as last filter to prevent bouncing
       lastFilterRef.current = JSON.stringify({
@@ -200,7 +208,7 @@ const AllClient = () => {
         page,
         filtering: debouncedFiltering,
         group: selectedGroup,
-        addedToday,
+        addedToday: true,
       });
 
       // Set the filter state
@@ -347,7 +355,7 @@ const AllClient = () => {
           filtersToUse.services = roleBasedServices;
         }
 
-        // Add addedToday filter if enabled
+        // Add addedToday filter if enabled - always use state value
         if (addedToday) {
           const today = new Date();
           // Create date pattern to match the beginning of the string
