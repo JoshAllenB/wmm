@@ -123,13 +123,14 @@ const Add = ({ fetchClients }) => {
         calendar: false,
         subsclass: "",
         donorid: 0,
+        paymtref: "",
       });
     } else if (hasRole("HRG")) {
       setRoleSpecificData({
         recvdate: "",
         renewdate: "",
         campaigndate: "",
-        paymtref: 0,
+        paymtref: "",
         paymtamt: 0,
         unsubscribe: 0,
       });
@@ -138,7 +139,7 @@ const Add = ({ fetchClients }) => {
         recvdate: "",
         paymtamt: 0,
         paymtform: "",
-        paymtref: 0,
+        paymtref: "",
         unsubscribe: false,
       });
     }
@@ -264,13 +265,14 @@ const Add = ({ fetchClients }) => {
         calendar: false,
         subsclass: "",
         donorid: 0,
+        paymtref: "",
       });
     } else if (hasRole("HRG")) {
       setRoleSpecificData({
         recvdate: "",
         renewdate: "",
         campaigndate: "",
-        paymtref: 0,
+        paymtref: "",
         paymtamt: 0,
         unsubscribe: 0,
       });
@@ -279,7 +281,7 @@ const Add = ({ fetchClients }) => {
         recvdate: "",
         paymtamt: 0,
         paymtform: "",
-        paymtref: 0,
+        paymtref: "",
         unsubscribe: false,
       });
     } else {

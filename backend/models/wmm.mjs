@@ -17,6 +17,7 @@ const WmmSchema = new mongoose.Schema(
     subsyear: Number,
     copies: Number,
     remarks: String,
+    paymtref: String,
     paymtamt: Number,
     paymtmasses: Number,
     calendar: Boolean,

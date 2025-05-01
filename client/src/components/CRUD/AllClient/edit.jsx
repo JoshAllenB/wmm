@@ -234,6 +234,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             calendar: latestSubscription.calendar || false,
             subsclass: latestSubscription.subsclass || "",
             donorid: latestSubscription.donorid || 0,
+            paymtref: latestSubscription.paymtref || "",
             remarks: latestSubscription.remarks || "",
           };
           setRoleSpecificData(wmmData);
@@ -250,6 +251,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             calendar: rowData.calendar || false,
             subsclass: rowData.subsclass || "",
             donorid: rowData.donorid || 0,
+            paymtref: rowData.paymtref || "",
             remarks: rowData.remarks || "",
           };
           setRoleSpecificData(wmmData);
@@ -259,7 +261,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           recvdate: rowData.recvdate ? formatDateToMMDDYY(parseDate(rowData.recvdate)) : "",
           renewdate: rowData.renewdate ? formatDateToMMDDYY(parseDate(rowData.renewdate)) : "",
           campaigndate: rowData.campaigndate ? formatDateToMMDDYY(parseDate(rowData.campaigndate)) : "",
-          paymtref: rowData.paymtref || 0,
+          paymtref: rowData.paymtref || "",
           paymtamt: rowData.paymtamt || 0,
           unsubscribe: rowData.unsubscribe || false,
         };
@@ -269,7 +271,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           recvdate: rowData.recvdate || "",
           paymtamt: rowData.paymtamt || 0,
           paymtform: rowData.paymtform || "",
-          paymtref: rowData.paymtref || 0,
+          paymtref: rowData.paymtref || "",
           unsubscribe: rowData.unsubscribe || false,
         };
         setRoleSpecificData(fomData);
@@ -279,7 +281,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           caltype: rowData.caltype || "",
           calqty: rowData.calqty || "",
           calamt: rowData.calamt || "",
-          paymtref: rowData.paymtref || 0,
+          paymtref: rowData.paymtref || "",
           paymtamt: rowData.paymtamt || 0,
           paymtform: rowData.paymtform || "",
           paymtdate: rowData.paymtdate || "",
@@ -561,12 +563,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     // Fetch role-specific data from rowData based on the selected role
     if (role === "HRG" && rowData.hrgData) {
       roleData = {
-        recvdate: hrgData.recvdate || "",
-        renewdate: hrgData.renewdate || "",
-        campaigndate: hrgData.campaigndate || "",
-        paymtref: hrgData.paymtref || 0,
-        paymtamt: hrgData.paymtamt || 0,
-        unsubscribe: hrgData.unsubscribe || false,
+        recvdate: rowData.hrgData.recvdate || "",
+        renewdate: rowData.hrgData.renewdate || "",
+        campaigndate: rowData.hrgData.campaigndate || "",
+        paymtref: rowData.hrgData.paymtref || "",
+        paymtamt: rowData.hrgData.paymtamt || 0,
+        unsubscribe: rowData.hrgData.unsubscribe || false,
       };
     } else if (role === "FOM" && rowData.fomData) {
       const fomData = rowData.fomData[0] || {}; // Assuming fomData is an array
@@ -574,19 +576,19 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         recvdate: fomData.recvdate || "",
         paymtamt: fomData.paymtamt || 0,
         paymtform: fomData.paymtform || "",
-        paymtref: fomData.paymtref || 0,
+        paymtref: fomData.paymtref || "",
         unsubscribe: fomData.unsubscribe || false,
       };
     } else if (role === "CAL" && rowData.calData) {
       roleData = {
-        recvdate: calData.recvdate || "",
-        caltype: calData.caltype || "",
-        calqty: calData.calqty || "",
-        calamt: calData.calamt || "",
-        paymtref: calData.paymtref || 0,
-        paymtamt: calData.paymtamt || 0,
-        paymtform: calData.paymtform || "",
-        paymtdate: calData.paymtdate || "",
+        recvdate: rowData.calData.recvdate || "",
+        caltype: rowData.calData.caltype || "",
+        calqty: rowData.calData.calqty || "",
+        calamt: rowData.calData.calamt || "",
+        paymtref: rowData.calData.paymtref || "",
+        paymtamt: rowData.calData.paymtamt || 0,
+        paymtform: rowData.calData.paymtform || "",
+        paymtdate: rowData.calData.paymtdate || "",
       };
     }
 
@@ -787,6 +789,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           paymtamt: parseFloat(newSubscriptionData.paymtamt) || 0,
           paymtmasses: parseInt(newSubscriptionData.paymtmasses) || 0,
           calendar: newSubscriptionData.calendar || false,
+          paymtref: newSubscriptionData.paymtref || "",
           // Add the current date as the add date
           adddate: timestamp,
         };
