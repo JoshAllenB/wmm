@@ -73,8 +73,37 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditSuccess = (updatedData) => {
+    // Update formData with the base client data
     setFormData(updatedData);
+    
+    // Handle subscription data properly
+    if (updatedData.wmmData) {
+      // Ensure wmmData is properly formatted as an array
+      const subscriptionRecords = Array.isArray(updatedData.wmmData) 
+        ? updatedData.wmmData 
+        : (updatedData.wmmData.records || []);
+      setWmmData(subscriptionRecords);
+    }
+    
+    // Update other role-specific data if present
+    if (updatedData.hrgData) setHrgData(updatedData.hrgData);
+    if (updatedData.fomData) setFomData(updatedData.fomData);
+    if (updatedData.calData) setCalData(updatedData.calData);
+    
+    // Update address data if address was changed
+    if (updatedData.address) {
+      const addressParts = updatedData.address.split(", ");
+      setAddressData({
+        region: addressParts[4] || "",
+        province: addressParts[3] || "",
+        city: addressParts[2] || "",
+        barangay: addressParts[1] || "",
+      });
+    }
+    
     setIsEditing(false);
+    
+    // Pass the updated data to any parent component that needs it
     if (onEditSuccess) {
       onEditSuccess(updatedData);
     }
