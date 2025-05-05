@@ -19,14 +19,22 @@ export const UserProvider = ({ children, initialUserData }) => {
 
   const hasRole = useCallback(
     (roleName) => {
+      // Handle case where userData or userData.roles is not available
+      if (!userData || !userData.roles || !Array.isArray(userData.roles)) {
+        return false;
+      }
+      
       // Split the roleName if it's a comma-separated string
       const roleNames =
         typeof roleName === "string"
           ? roleName.split(",").map((r) => r.trim())
           : [roleName];
-      const result = userData.roles.some((roleObj) =>
-        roleNames.includes(roleObj.role)
-      );
+          
+      // Check each role
+      const result = userData.roles.some((roleObj) => {
+        return roleNames.includes(roleObj.role);
+      });
+      
       return result;
     },
     [userData]
