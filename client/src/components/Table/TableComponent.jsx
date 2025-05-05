@@ -10,8 +10,10 @@ import {
 import ArrowDropDownSharp from "@mui/icons-material/ArrowDropDownSharp";
 import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
 import Tooltip from "@mui/material/Tooltip";
+import { memo, useMemo } from "react";
 
-export function TableComponent({
+// Wrap the TableComponent with React.memo to prevent unnecessary re-renders
+export const TableComponent = memo(function TableComponent({
   table,
   handleRowClick,
   totalCopies,
@@ -33,7 +35,7 @@ export function TableComponent({
 }) {
   // Check if role contains WMM (either as a single role or part of a composite role)
   const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
-  
+    
   // Client count display for roles that include WMM
   const clientCountDisplay = hasWmmRole ? (
     <span className="text-base mr-4 text-gray-800">
@@ -41,17 +43,22 @@ export function TableComponent({
     </span>
   ) : null;
   
-  const getTotalLabel = () => {
+  // Memoize the label to prevent recalculation on every render
+  const totalLabel = useMemo(() => {
+    
+    // Force WMM display if user only has WMM role
+    if (userRole === "WMM") {
+      return (
+        <div className="flex flex-wrap justify-between px-2 py-1">
+          {clientCountDisplay}
+          <span className="text-base text-gray-800 font-medium">
+            Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+          </span>
+        </div>
+      );
+    }
+    
     switch (userRole) {
-      case "WMM":
-        return (
-          <div className="flex flex-wrap justify-between px-2 py-1">
-            {clientCountDisplay}
-            <span className="text-base text-gray-800 font-medium">
-              Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
-            </span>
-          </div>
-        );
       case "CAL":
         return (
           <div className="flex flex-wrap justify-between px-2 py-1">
@@ -77,61 +84,132 @@ export function TableComponent({
             </span>
           </div>
         );
-        case "HRG FOM CAL":
+      case "HRG FOM CAL":
+        // If the user has WMM role but is seeing HRG FOM CAL display, show the WMM section first
+        if (hasWmmRole) {
           return (
-            <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
-              {/* HRG Section */}
-              <div className="flex items-center shrink-0">
-                <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-                <span className="text-blue-700 font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 mx-1">/</span>
-                <span className="text-blue-700 font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 ml-1">Php</span>
+            <div className="flex flex-col px-2 py-1">
+              {/* WMM Section */}
+              <div className="mb-2">
+                {clientCountDisplay}
+                <span className="text-base ml-4 text-gray-800 font-medium">
+                  Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+                </span>
               </div>
-        
-              <div className="w-px h-5 bg-gray-300 shrink-0"></div>
-        
-              {/* FOM Section */}
-              <div className="flex items-center shrink-0">
-                <span className="font-semibold text-green-700 mr-1">FOM:</span>
-                <span className="text-green-700 font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 mx-1">/</span>
-                <span className="text-green-700 font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 ml-1">Php</span>
-              </div>
-        
-              <div className="w-px h-5 bg-gray-300 shrink-0"></div>
-        
-              {/* CAL Section - Compact version */}
-              <div className="flex items-center shrink-0">
-                <span className="font-semibold text-amber-700 mr-1">CAL:</span>
-        
-                {/* Quantity */}
-                <span className="text-gray-500 mr-1">Qty:</span>
-                <span className="text-amber-700 font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span>
-                <span className="text-gray-500 mx-1">/</span>
-                <span className="text-amber-700 font-medium">{Number(totalCalQty || 0).toLocaleString()}</span>
-        
-                <span className="mx-2 text-gray-300">|</span>
-        
-                {/* Sold */}
-                <span className="text-gray-500 mr-1">Sold:</span>
-                <span className="text-amber-700 font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 mx-1">/</span>
-                <span className="text-amber-700 font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 ml-1">Php</span>
-        
-                <span className="mx-2 text-gray-300">|</span>
-        
-                {/* Paid */}
-                <span className="text-gray-500 mr-1">Paid:</span>
-                <span className="text-amber-700 font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 mx-1">/</span>
-                <span className="text-amber-700 font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span>
-                <span className="text-gray-500 ml-1">Php</span>
+              
+              {/* Standard HRG FOM CAL display */}
+              <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+                {/* HRG Section */}
+                <div className="flex items-center shrink-0">
+                  <span className="font-semibold text-blue-700 mr-1">HRG:</span>
+                  <span className="text-blue-700 font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-blue-700 font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 ml-1">Php</span>
+                </div>
+                
+                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+            
+                {/* FOM Section */}
+                <div className="flex items-center shrink-0">
+                  <span className="font-semibold text-green-700 mr-1">FOM:</span>
+                  <span className="text-green-700 font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-green-700 font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 ml-1">Php</span>
+                </div>
+            
+                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+            
+                {/* CAL Section - Compact version */}
+                <div className="flex items-center shrink-0">
+                  <span className="font-semibold text-amber-700 mr-1">CAL:</span>
+            
+                  {/* Quantity */}
+                  <span className="text-gray-500 mr-1">Qty:</span>
+                  <span className="text-amber-700 font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-amber-700 font-medium">{Number(totalCalQty || 0).toLocaleString()}</span>
+            
+                  <span className="mx-2 text-gray-300">|</span>
+            
+                  {/* Sold */}
+                  <span className="text-gray-500 mr-1">Sold:</span>
+                  <span className="text-amber-700 font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-amber-700 font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 ml-1">Php</span>
+            
+                  <span className="mx-2 text-gray-300">|</span>
+            
+                  {/* Paid */}
+                  <span className="text-gray-500 mr-1">Paid:</span>
+                  <span className="text-amber-700 font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-amber-700 font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span>
+                  <span className="text-gray-500 ml-1">Php</span>
+                </div>
               </div>
             </div>
-          );              default:
+          );
+        }
+        
+        // Original HRG FOM CAL display (no WMM role)
+        return (
+          <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+            {/* HRG Section */}
+            <div className="flex items-center shrink-0">
+              <span className="font-semibold text-blue-700 mr-1">HRG:</span>
+              <span className="text-blue-700 font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-blue-700 font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 ml-1">Php</span>
+            </div>
+      
+            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+      
+            {/* FOM Section */}
+            <div className="flex items-center shrink-0">
+              <span className="font-semibold text-green-700 mr-1">FOM:</span>
+              <span className="text-green-700 font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-green-700 font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 ml-1">Php</span>
+            </div>
+      
+            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+      
+            {/* CAL Section - Compact version */}
+            <div className="flex items-center shrink-0">
+              <span className="font-semibold text-amber-700 mr-1">CAL:</span>
+      
+              {/* Quantity */}
+              <span className="text-gray-500 mr-1">Qty:</span>
+              <span className="text-amber-700 font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-amber-700 font-medium">{Number(totalCalQty || 0).toLocaleString()}</span>
+      
+              <span className="mx-2 text-gray-300">|</span>
+      
+              {/* Sold */}
+              <span className="text-gray-500 mr-1">Sold:</span>
+              <span className="text-amber-700 font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-amber-700 font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 ml-1">Php</span>
+      
+              <span className="mx-2 text-gray-300">|</span>
+      
+              {/* Paid */}
+              <span className="text-gray-500 mr-1">Paid:</span>
+              <span className="text-amber-700 font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-amber-700 font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span>
+              <span className="text-gray-500 ml-1">Php</span>
+            </div>
+          </div>
+        );
+      default:
         // For composite roles or other roles
         return (
           <div className="flex flex-col px-2 py-1">
@@ -139,6 +217,10 @@ export function TableComponent({
             {hasWmmRole && (
               <div className="mb-2">
                 {clientCountDisplay}
+                {/* Add WMM copies count for users with WMM role */}
+                <span className="text-base ml-4 text-gray-800 font-medium">
+                  Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+                </span>
               </div>
             )}
             <div className="text-base">
@@ -163,7 +245,23 @@ export function TableComponent({
           </div>
         );
     }
-  };
+  }, [
+    userRole, 
+    hasWmmRole, 
+    clientCountDisplay,
+    totalCopies,
+    pageSpecificCopies,
+    totalCalQty,
+    totalCalAmt,
+    pageSpecificCalQty,
+    pageSpecificCalAmt,
+    totalHrgAmt,
+    totalFomAmt,
+    totalCalPaymtAmt,
+    pageSpecificHrgAmt,
+    pageSpecificFomAmt,
+    pageSpecificCalPaymtAmt
+  ]);
 
   const handleCellClick = (event, row, cell) => {
     if (cell.column.id === "select") {
@@ -420,11 +518,11 @@ export function TableComponent({
                 }ms`,
               }}
             >
-              {getTotalLabel()}
+              {totalLabel}
             </TableCell>
           </TableRow>
         </tfoot>
       </Table>
     </div>
   );
-}
+});
