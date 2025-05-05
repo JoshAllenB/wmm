@@ -45,9 +45,44 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         setWmmData([]);
       }
       
-      setHrgData(rowData.hrgData || {});
-      setFomData(rowData.fomData || {});
-      setCalData(rowData.calData || {});
+      // Handle HRG data properly
+      if (rowData.hrgData) {
+        if (Array.isArray(rowData.hrgData)) {
+          setHrgData({ records: rowData.hrgData });
+        } else if (rowData.hrgData.records) {
+          setHrgData(rowData.hrgData);
+        } else {
+          setHrgData({ records: [rowData.hrgData].filter(item => Object.keys(item).length > 0) });
+        }
+      } else {
+        setHrgData({ records: [] });
+      }
+      
+      // Handle FOM data properly
+      if (rowData.fomData) {
+        if (Array.isArray(rowData.fomData)) {
+          setFomData({ records: rowData.fomData });
+        } else if (rowData.fomData.records) {
+          setFomData(rowData.fomData);
+        } else {
+          setFomData({ records: [rowData.fomData].filter(item => Object.keys(item).length > 0) });
+        }
+      } else {
+        setFomData({ records: [] });
+      }
+      
+      // Handle CAL data properly
+      if (rowData.calData) {
+        if (Array.isArray(rowData.calData)) {
+          setCalData({ records: rowData.calData });
+        } else if (rowData.calData.records) {
+          setCalData(rowData.calData);
+        } else {
+          setCalData({ records: [rowData.calData].filter(item => Object.keys(item).length > 0) });
+        }
+      } else {
+        setCalData({ records: [] });
+      }
     }
   }, [rowData]);
 
@@ -78,17 +113,61 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     
     // Handle subscription data properly
     if (updatedData.wmmData) {
-      // Ensure wmmData is properly formatted as an array
-      const subscriptionRecords = Array.isArray(updatedData.wmmData) 
-        ? updatedData.wmmData 
-        : (updatedData.wmmData.records || []);
-      setWmmData(subscriptionRecords);
+      // Ensure wmmData is properly formatted
+      if (Array.isArray(updatedData.wmmData)) {
+        setWmmData(updatedData.wmmData);
+      } else if (updatedData.wmmData.records && Array.isArray(updatedData.wmmData.records)) {
+        setWmmData(updatedData.wmmData.records);
+      } else {
+        // Handle case where wmmData is a single object
+        setWmmData([updatedData.wmmData].filter(item => Object.keys(item).length > 0));
+      }
     }
     
-    // Update other role-specific data if present
-    if (updatedData.hrgData) setHrgData(updatedData.hrgData);
-    if (updatedData.fomData) setFomData(updatedData.fomData);
-    if (updatedData.calData) setCalData(updatedData.calData);
+    // Update HRG data if present
+    if (updatedData.hrgData) {
+      // Handle different possible formats consistently
+      if (Array.isArray(updatedData.hrgData)) {
+        setHrgData({ records: updatedData.hrgData });
+      } else if (updatedData.hrgData.records && Array.isArray(updatedData.hrgData.records)) {
+        setHrgData(updatedData.hrgData);
+      } else {
+        // Handle case where hrgData is a single object
+        setHrgData({ 
+          records: [updatedData.hrgData].filter(item => Object.keys(item).length > 0) 
+        });
+      }
+    }
+    
+    // Update FOM data if present
+    if (updatedData.fomData) {
+      // Handle different possible formats consistently
+      if (Array.isArray(updatedData.fomData)) {
+        setFomData({ records: updatedData.fomData });
+      } else if (updatedData.fomData.records && Array.isArray(updatedData.fomData.records)) {
+        setFomData(updatedData.fomData);
+      } else {
+        // Handle case where fomData is a single object
+        setFomData({ 
+          records: [updatedData.fomData].filter(item => Object.keys(item).length > 0) 
+        });
+      }
+    }
+    
+    // Update CAL data if present
+    if (updatedData.calData) {
+      // Handle different possible formats consistently
+      if (Array.isArray(updatedData.calData)) {
+        setCalData({ records: updatedData.calData });
+      } else if (updatedData.calData.records && Array.isArray(updatedData.calData.records)) {
+        setCalData(updatedData.calData);
+      } else {
+        // Handle case where calData is a single object
+        setCalData({ 
+          records: [updatedData.calData].filter(item => Object.keys(item).length > 0) 
+        });
+      }
+    }
     
     // Update address data if address was changed
     if (updatedData.address) {
@@ -282,10 +361,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return null;
 
     const sortedHrgData = [...hrgData.records].sort((a, b) => {
-      const dateA = new Date(a.recvdate);
-      const dateB = new Date(b.recvdate);
+      const dateA = new Date(a.recvdate || 0);
+      const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
+    
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
@@ -294,8 +374,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
                 {record.unsubscribe ? "Unsubscribed" : "Active"}
               </div>
-              <span className="font-medium">{formatDate(record.recvdate)} | </span>
-              <span className="font-medium">Php {record.paymtamt} - Ref: #{record.paymtref} </span>
+              <span className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | </span>
+              <span className="font-medium">
+                {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'} 
+                {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+              </span>
+              {record.remarks && (
+                <div className="mt-1 text-sm text-gray-600">
+                  <span className="font-semibold">Remarks:</span> {record.remarks}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -308,10 +396,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return null;
 
     const sortedFomData = [...fomData.records].sort((a, b) => {
-      const dateA = new Date(a.recvdate);
-      const dateB = new Date(b.recvdate);
+      const dateA = new Date(a.recvdate || 0);
+      const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
+    
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
@@ -320,8 +409,17 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
                 {record.unsubscribe ? "Unsubscribed" : "Active"}
               </div>
-              <span className="font-medium">{formatDate(record.recvdate)} | </span>
-              <span className="font-medium">Php {record.paymtamt} </span>
+              <span className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | </span>
+              <span className="font-medium">
+                {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'}
+                {record.paymtform ? ` - Form: ${record.paymtform}` : ''}
+                {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+              </span>
+              {record.remarks && (
+                <div className="mt-1 text-sm text-gray-600">
+                  <span className="font-semibold">Remarks:</span> {record.remarks}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -334,17 +432,26 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return null;
 
     const sortedCalData = [...calData.records].sort((a, b) => {
-      const dateA = new Date(a.recvdate);
-      const dateB = new Date(b.recvdate);
+      const dateA = new Date(a.recvdate || 0);
+      const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
+    
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedCalData.map((record, index) => (
             <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-              <div className="font-medium">{formatDate(record.recvdate)} | {record.caltype} </div>
-              <span className="font-medium">Qty: {record.calqty} - Cost: {record.calamt} - Ref: #{record.paymtref} </span>
+              <div className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | {record.caltype || 'N/A'} </div>
+              <span className="font-medium">
+                Qty: {record.calqty || '0'} - Cost: {record.calamt || '0'} 
+                {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+              </span>
+              {record.remarks && (
+                <div className="mt-1 text-sm text-gray-600">
+                  <span className="font-semibold">Remarks:</span> {record.remarks}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -424,24 +531,26 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   ])}
                 </div>
 
-                {/* Subscription & Payment History Card */}
-                {wmmData && wmmData.length > 0 ? (
-                  <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      Subscription & Payment History
-                    </h2>
-                    {renderWmmData()}
-                  </div>
-                ) : (
-                  <div className="p-4 border rounded-lg shadow-sm">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      Subscription & Payment History
-                    </h2>
-                    <p>No subscription or payment history available.</p>
-                  </div>
+                {/* Subscription & Payment History Card - Only show for WMM users */}
+                {(hasRole("WMM") || hasRole("Admin")) && (
+                  wmmData && wmmData.length > 0 ? (
+                    <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        Subscription & Payment History
+                      </h2>
+                      {renderWmmData()}
+                    </div>
+                  ) : (
+                    <div className="p-4 border rounded-lg shadow-sm">
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        Subscription & Payment History
+                      </h2>
+                      <p>No subscription or payment history available.</p>
+                    </div>
+                  )
                 )}
 
-                {/* HRG Data Card */}
+                {/* HRG Data Card - Always show HRG data if available */}
                 {hrgData && hrgData.records && hrgData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -451,7 +560,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   </div>
                 )}
 
-                {/* FOM Data Card */}
+                {/* FOM Data Card - Always show FOM data if available */}
                 {fomData && fomData.records && fomData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -461,7 +570,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   </div>
                 )}
 
-                {/* CAL Data Card */}
+                {/* CAL Data Card - Always show CAL data if available */}
                 {calData && calData.records && calData.records.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
