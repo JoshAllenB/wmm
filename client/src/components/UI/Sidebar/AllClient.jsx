@@ -743,14 +743,18 @@ const AllClient = () => {
     if (hasRole("FOM")) roles.push("FOM");
     if (hasRole("CAL")) roles.push("CAL");
     
-    // Check for the combined role case
+    // Check if the user has Admin role
+    if (hasRole("Admin")) {
+      return "Admin";
+    }
+    
+    // Check for all three specific roles
     if (hasRole("HRG") && hasRole("FOM") && hasRole("CAL")) {
       return "HRG FOM CAL";
     }
     
-    // Return single role or default
-    const roleString = roles.length === 1 ? roles[0] : (roles.length > 0 ? roles.join(" ") : "default");
-    return roleString;
+    // For other combinations, join the roles with spaces
+    return roles.length > 0 ? roles.join(" ") : "default";
   };
 
   return (
@@ -786,6 +790,7 @@ const AllClient = () => {
           columns={columns.filter((column) => column.id !== "select")}
           columnVisibility={columnVisibility}
           setColumnVisibility={setColumnVisibility}
+          serviceFilters={advancedFilterData.services || []}
         />
       </div>
 

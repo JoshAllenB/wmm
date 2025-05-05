@@ -255,7 +255,7 @@ export const useColumns = () => {
             size: 250,
           },
           // Added Info column - only show for WMM role but not for HRG FOM CAL combined role
-          ...(userRole !== "HRG FOM CAL" ? [{
+          ...(userRole !== "HRG FOM CAL" && userRole !== "Admin" ? [{
             id: "Added Info",
             Header: "Added Info",
             accessorFn: (row) =>
@@ -264,17 +264,30 @@ export const useColumns = () => {
           }] : []),
         ]
       : []),
-    ...(hasRole("HRG")
+    // Always include HRG data column if the user has HRG role or Admin role
+    ...((hasRole("HRG") || hasRole("Admin"))
       ? [
           {
             id: "HRG Data",
             Header: "HRG Data",
             accessorFn: (row) => {
-              if (!row.hrgData || !row.hrgData.records) {
+              // More flexible check for HRG data
+              if (
+                !row.hrgData || 
+                ((!row.hrgData.records || row.hrgData.records.length === 0) && 
+                 Object.keys(row.hrgData).length <= 1) // Only has clientid or is empty
+              ) {
                 return [];
               }
 
-              const hrgRecords = row.hrgData.records || [];
+              // If hrgData is not empty but has no records property, wrap it in records array
+              let hrgRecords = [];
+              if (row.hrgData.records && Array.isArray(row.hrgData.records)) {
+                hrgRecords = row.hrgData.records;
+              } else if (Object.keys(row.hrgData).length > 1) {
+                // If hrgData has data but no records property, treat it as a single record
+                hrgRecords = [row.hrgData];
+              }
 
               return [...hrgRecords]
                 .sort((a, b) => {
@@ -331,17 +344,47 @@ export const useColumns = () => {
           },
         ]
       : []),
-    ...(hasRole("FOM")
+    // Always include FOM data column if the user has FOM role or Admin role
+    ...((hasRole("FOM") || hasRole("Admin"))
       ? [
           {
             id: "FOM Data",
             Header: "FOM Data",
             accessorFn: (row) => {
-              if (!row.fomData || !row.fomData.records) {
+              // Even more flexible check for FOM data
+              try {
+                // If fomData doesn't exist at all, return empty
+                if (!row.fomData) {
                 return [];
               }
 
-              const fomRecords = row.fomData.records || [];
+                // Handle different data structures
+                let fomRecords = [];
+                
+                // Case 1: fomData has records array
+                if (row.fomData.records && Array.isArray(row.fomData.records) && row.fomData.records.length > 0) {
+                  fomRecords = row.fomData.records;
+                } 
+                // Case 2: fomData is an array
+                else if (Array.isArray(row.fomData) && row.fomData.length > 0) {
+                  fomRecords = row.fomData;
+                }
+                // Case 3: fomData is a plain object with data
+                else if (typeof row.fomData === 'object' && Object.keys(row.fomData).length > 1) {
+                  // Check if it has any FOM-specific properties
+                  const hasFomProps = ['recvdate', 'paymtamt', 'paymtref', 'unsubscribe', 'remarks'].some(
+                    prop => row.fomData.hasOwnProperty(prop)
+                  );
+                  
+                  if (hasFomProps) {
+                    fomRecords = [row.fomData];
+                  }
+                }
+                
+                // If no valid records found
+                if (fomRecords.length === 0) {
+                  return [];
+                }
 
               return [...fomRecords]
                 .sort((a, b) => {
@@ -357,16 +400,43 @@ export const useColumns = () => {
                   const paymtamt = fomItem.paymtamt
                     ? `₱${parseFloat(fomItem.paymtamt).toFixed(2)}`
                     : "N/A";
+                      
+                    const paymtref = fomItem.paymtref || "N/A";
+                    const remarks = fomItem.remarks || "";
 
                   return {
                     recvdate,
                     paymtamt,
+                      paymtref,
+                      remarks,
                     status: fomItem.unsubscribe ? "Unsubscribed" : "Active",
                   };
                 });
+              } catch (error) {
+                console.error(`Error processing FOM data for client ID ${row.id}:`, error);
+                return [];
+              }
             },
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const records = getValue();
+              
+              // Add a fallback check to look directly at the raw data if needed
+              if ((!records || records.length === 0) && row.original.fomData) {
+                // Check if there's raw data we can display
+                const rawData = row.original.fomData;
+                
+                if (rawData && (
+                    (rawData.records && rawData.records.length > 0) ||
+                    (typeof rawData === 'object' && Object.keys(rawData).length > 1)
+                )) {
+                  return (
+                    <div className="text-blue-600 italic">
+                      FOM data exists but couldn't be processed properly
+                    </div>
+                  );
+                }
+              }
+              
               if (!records || records.length === 0) {
                 return <div className="text-gray-500 italic">No FOM data</div>;
               }
@@ -383,8 +453,16 @@ export const useColumns = () => {
                         <span className={record.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                           {record.status}
                         </span>
-                        <span className="font-medium">{record.paymtamt}</span>
+                        <span className="font-medium ml-1">{record.paymtamt}</span>
+                        {record.paymtref !== "N/A" && (
+                          <span className="font-medium ml-1">(Ref: {record.paymtref})</span>
+                        )}
                       </div>
+                      {record.remarks && (
+                        <div className="text-sm text-gray-600">
+                          {record.remarks}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -394,17 +472,30 @@ export const useColumns = () => {
           },
         ]
       : []),
-    ...(hasRole("CAL")
+    // Always include CAL data column if the user has CAL role or Admin role  
+    ...((hasRole("CAL") || hasRole("Admin"))
       ? [
           {
             id: "CAL Data",
             Header: "CAL Data",
             accessorFn: (row) => {
-              if (!row.calData || !row.calData.records) {
+              // More flexible check for CAL data
+              if (
+                !row.calData || 
+                ((!row.calData.records || row.calData.records.length === 0) && 
+                 Object.keys(row.calData).length <= 1) // Only has clientid or is empty
+              ) {
                 return [];
               }
 
-              const calRecords = row.calData.records || [];
+              // If calData is not empty but has no records property, wrap it in records array
+              let calRecords = [];
+              if (row.calData.records && Array.isArray(row.calData.records)) {
+                calRecords = row.calData.records;
+              } else if (Object.keys(row.calData).length > 1) {
+                // If calData has data but no records property, treat it as a single record
+                calRecords = [row.calData];
+              }
 
               return [...calRecords]
                 .sort((a, b) => {
