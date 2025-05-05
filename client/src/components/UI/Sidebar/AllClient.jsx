@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import DataTable from "../../Table/DataTable";
 import Add from "../../CRUD/AllClient/add";
 import Mailing from "../../mailing";
@@ -735,15 +735,21 @@ const AllClient = () => {
     return filters;
   };
 
-  // Function to determine the user role for table display
-  const determineUserRole = () => {
+  // Function to determine the user role for table display - memoized to prevent re-renders
+  const determineUserRole = useMemo(() => {
     const roles = [];
     if (hasRole("WMM")) roles.push("WMM");
     if (hasRole("HRG")) roles.push("HRG");
     if (hasRole("FOM")) roles.push("FOM");
     if (hasRole("CAL")) roles.push("CAL");
     
-    // Check if the user has Admin role
+    
+    // First check if user has WMM role - PRIORITIZE WMM OVER ADMIN
+    if (hasRole("WMM")) {
+      return "WMM";
+    }
+    
+    // Then check for Admin role
     if (hasRole("Admin")) {
       return "Admin";
     }
@@ -755,7 +761,7 @@ const AllClient = () => {
     
     // For other combinations, join the roles with spaces
     return roles.length > 0 ? roles.join(" ") : "default";
-  };
+  }, [hasRole]); // Only recalculate when hasRole changes
 
   return (
     <div className="mr-[10px] ml-[10px]">
@@ -843,7 +849,7 @@ const AllClient = () => {
         pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
         totalClients={totalClients}
         pageSpecificClients={pageSpecificClients}
-        userRole={determineUserRole()}
+        userRole={determineUserRole}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
         setTableInstance={handleTableInstanceUpdate}
