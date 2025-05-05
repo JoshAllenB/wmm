@@ -12,6 +12,17 @@ const additionalModels = {
   CalModel: () => import("../../models/cal.mjs"),
 };
 
+function validatePaginationParams(page, limit) {
+  // Ensure page and limit are numbers
+  const validPage = typeof page === 'number' && !isNaN(page) ? Math.max(1, page) : 1;
+  const validLimit = typeof limit === 'number' && !isNaN(limit) ? Math.max(1, limit) : 20;
+  
+  // Calculate skip value
+  const skip = (validPage - 1) * validLimit;
+  
+  return { validPage, validLimit, skip };
+}
+
 async function fetchDataServices(
   modelNames,
   filter,
@@ -23,6 +34,13 @@ async function fetchDataServices(
   advancedFilterData = {}
 ) {
   try {
+    // Validate pagination parameters to prevent NaN issues
+    const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
+
+    // Update references to page and limit with the validated values
+    page = validPage;
+    limit = validLimit;
+
     // Cache imported models to avoid repeated dynamic imports
     const modelCache = {};
 
@@ -37,7 +55,6 @@ async function fetchDataServices(
       return modelCache[modelKey];
     }
 
-    const skip = (page - 1) * pageSize;
     let filterQuery = { $and: [] };
 
     const baseFilter = [];
@@ -246,10 +263,6 @@ async function fetchDataServices(
 
     // Support for regex pattern matching on adddate (for "Added Today" feature)
     if (advancedFilterData.adddate_regex) {
-      // Here we'll create a more comprehensive "Added Today" filter that includes:
-      // 1. Clients added today (already implemented)
-      // 2. Clients that received services today (WMM, FOM, HRG, CAL)
-      
       try {
         // Create the today's date regex pattern
         const todayRegex = advancedFilterData.adddate_regex;
@@ -264,44 +277,57 @@ async function fetchDataServices(
           clientsAddedToday.map(client => client.id)
         );
         
-        // Import all service models to check for services added today
+        // Import all service models to check for services added/updated today
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         const { default: FomModel } = await import("../../models/fom.mjs");
         const { default: HrgModel } = await import("../../models/hrg.mjs");
         const { default: CalModel } = await import("../../models/cal.mjs");
         
-        // Find clients with WMM services added today
-        const wmmClientsToday = await WmmModel.find({
-          adddate: { $regex: todayRegex, $options: "i" }
-        }).distinct("clientid");
+        // Define all date fields to check for each model
+        const dateFields = {
+          WmmModel: ["adddate", "subsdate", "updatedate"],
+          FomModel: ["adddate", "recvdate", "updatedate"],
+          HrgModel: ["adddate", "recvdate", "updatedate"],
+          CalModel: ["adddate", "recvdate", "caldate", "updatedate"]
+        };
         
-        // Find clients with FOM services added today
-        const fomClientsToday = await FomModel.find({
-          adddate: { $regex: todayRegex, $options: "i" }
-        }).distinct("clientid");
+        // For each model, find clients with ANY date field matching today
+        const modelQueries = [
+          // WMM model date fields
+          ...dateFields.WmmModel.map(field => 
+            WmmModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ),
+          // FOM model date fields
+          ...dateFields.FomModel.map(field => 
+            FomModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ),
+          // HRG model date fields
+          ...dateFields.HrgModel.map(field => 
+            HrgModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ),
+          // CAL model date fields
+          ...dateFields.CalModel.map(field => 
+            CalModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          )
+        ];
         
-        // Find clients with HRG services added today
-        const hrgClientsToday = await HrgModel.find({
-          adddate: { $regex: todayRegex, $options: "i" }
-        }).distinct("clientid");
+        // Execute all queries in parallel for better performance
+        const results = await Promise.all(modelQueries);
         
-        // Find clients with CAL services added today
-        const calClientsToday = await CalModel.find({
-          adddate: { $regex: todayRegex, $options: "i" }
-        }).distinct("clientid");
-        
-        // Add all clients with services added today to the set
-        [...wmmClientsToday, ...fomClientsToday, ...hrgClientsToday, ...calClientsToday]
-          .forEach(clientId => {
-            // Convert to number to ensure consistent type
-            const numericId = Number(clientId);
-            if (!isNaN(numericId)) {
-              matchingClientIds.add(numericId);
-            }
-          });
+        // Add all clients with services added/updated today to the set
+        results.flat().forEach(clientId => {
+          // Convert to number to ensure consistent type
+          const numericId = Number(clientId);
+          if (!isNaN(numericId)) {
+            matchingClientIds.add(numericId);
+          }
+        });
         
         // Convert the set back to an array
         const allMatchingClientIds = Array.from(matchingClientIds);
+        
+        // Log for debugging
+        console.log(`Found ${allMatchingClientIds.length} clients added/updated today`);
         
         if (allMatchingClientIds.length > 0) {
           // Replace the simple adddate filter with a more comprehensive one
@@ -620,16 +646,15 @@ async function fetchDataServices(
 
     // Ensure pageSize and skip are numbers
     const pageSizeNum = Number(pageSize);
-    const skipNum = Number(skip);
 
     const totalClients = await ClientModel.countDocuments(filterQuery);
-    const totalPages = Math.ceil(totalClients / pageSizeNum);
+    const totalPages = Math.ceil(totalClients / validLimit);
 
     // First fetch clients
     const clients = await ClientModel.aggregate(aggregatePipeline)
       .project(clientFields)
-      .skip(skipNum)
-      .limit(pageSizeNum)
+      .skip(skip)
+      .limit(validLimit)
       .exec();
 
     // Then fetch model data in parallel
