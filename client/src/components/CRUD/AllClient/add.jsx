@@ -133,6 +133,7 @@ const Add = ({ fetchClients }) => {
         paymtref: "",
         paymtamt: 0,
         unsubscribe: 0,
+        remarks: "",
       });
     } else if (hasRole("FOM")) {
       setRoleSpecificData({
@@ -141,6 +142,19 @@ const Add = ({ fetchClients }) => {
         paymtform: "",
         paymtref: "",
         unsubscribe: false,
+        remarks: "",
+      });
+    } else if (hasRole("CAL")) {
+      setRoleSpecificData({
+        recvdate: "",
+        caltype: "",
+        calqty: 0,
+        calamt: 0,
+        paymtref: "",
+        paymtamt: 0,
+        paymtform: "",
+        paymtdate: "",
+        remarks: "",
       });
     }
   }, [hasRole]);
@@ -275,6 +289,7 @@ const Add = ({ fetchClients }) => {
         paymtref: "",
         paymtamt: 0,
         unsubscribe: 0,
+        remarks: "",
       });
     } else if (hasRole("FOM")) {
       setRoleSpecificData({
@@ -283,6 +298,19 @@ const Add = ({ fetchClients }) => {
         paymtform: "",
         paymtref: "",
         unsubscribe: false,
+        remarks: "",
+      });
+    } else if (hasRole("CAL")) {
+      setRoleSpecificData({
+        recvdate: "",
+        caltype: "",
+        calqty: 0,
+        calamt: 0,
+        paymtref: "",
+        paymtamt: 0,
+        paymtform: "",
+        paymtdate: "",
+        remarks: "",
       });
     } else {
       setRoleSpecificData({});
@@ -594,7 +622,7 @@ const Add = ({ fetchClients }) => {
     const { name, value, type, checked } = e.target;
     setRoleSpecificData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value.toUpperCase(),
+      [name]: type === "checkbox" ? checked : type === "textarea" ? value : value.toUpperCase(),
     }));
   };
 
@@ -626,7 +654,8 @@ const Add = ({ fetchClients }) => {
       data.paymtref ||
       data.paymtamt ||
       data.paymtform ||
-      data.paymtdate
+      data.paymtdate ||
+      data.remarks
     );
   };
 
@@ -637,7 +666,8 @@ const Add = ({ fetchClients }) => {
       data.campaigndate ||
       data.paymtref ||
       data.paymtamt ||
-      data.unsubscribe
+      data.unsubscribe ||
+      data.remarks
     );
   };
 
@@ -717,6 +747,7 @@ const Add = ({ fetchClients }) => {
           paymtamt: roleSpecificData.paymtamt,
           paymtform: roleSpecificData.paymtform,
           paymtdate: roleSpecificData.paymtdate,
+          remarks: roleSpecificData.remarks,
         };
       } else {
         submissionRole = "HRG";
@@ -727,6 +758,7 @@ const Add = ({ fetchClients }) => {
           paymtref: roleSpecificData.paymtref,
           paymtamt: roleSpecificData.paymtamt,
           unsubscribe: roleSpecificData.unsubscribe,
+          remarks: roleSpecificData.remarks,
         };
       }
     } else if (hasRole("HRG")) {
@@ -738,6 +770,7 @@ const Add = ({ fetchClients }) => {
         paymtref: roleSpecificData.paymtref,
         paymtamt: roleSpecificData.paymtamt,
         unsubscribe: roleSpecificData.unsubscribe,
+        remarks: roleSpecificData.remarks,
       };
     } else if (hasRole("FOM")) {
       submissionRole = "FOM";
@@ -760,6 +793,7 @@ const Add = ({ fetchClients }) => {
         paymtamt: roleSpecificData.paymtamt,
         paymtform: roleSpecificData.paymtform,
         paymtdate: roleSpecificData.paymtdate,
+        remarks: roleSpecificData.remarks,
       };
     }
 
@@ -811,7 +845,51 @@ const Add = ({ fetchClients }) => {
       );
 
       if (response.data) {
-        setSelectedDuplicate(response.data);
+        // Format the role-specific data properly for the View component
+        const clientData = response.data;
+        
+        // Format WMM data
+        if (clientData.wmmData) {
+          // Ensure it's in the expected format for the View component
+          if (!Array.isArray(clientData.wmmData) && !clientData.wmmData.records) {
+            clientData.wmmData = [clientData.wmmData].filter(item => Object.keys(item).length > 0);
+          }
+        }
+        
+        // Format HRG data
+        if (clientData.hrgData) {
+          if (Array.isArray(clientData.hrgData)) {
+            clientData.hrgData = { records: clientData.hrgData };
+          } else if (!clientData.hrgData.records) {
+            clientData.hrgData = { 
+              records: [clientData.hrgData].filter(item => Object.keys(item).length > 0) 
+            };
+          }
+        }
+        
+        // Format FOM data
+        if (clientData.fomData) {
+          if (Array.isArray(clientData.fomData)) {
+            clientData.fomData = { records: clientData.fomData };
+          } else if (!clientData.fomData.records) {
+            clientData.fomData = { 
+              records: [clientData.fomData].filter(item => Object.keys(item).length > 0) 
+            };
+          }
+        }
+        
+        // Format CAL data
+        if (clientData.calData) {
+          if (Array.isArray(clientData.calData)) {
+            clientData.calData = { records: clientData.calData };
+          } else if (!clientData.calData.records) {
+            clientData.calData = { 
+              records: [clientData.calData].filter(item => Object.keys(item).length > 0) 
+            };
+          }
+        }
+
+        setSelectedDuplicate(clientData);
         setViewingDuplicate(true);
       }
     } catch (error) {
@@ -821,7 +899,51 @@ const Add = ({ fetchClients }) => {
 
   // Handle duplicate edit success
   const handleDuplicateEditSuccess = (updatedData) => {
-    setSelectedDuplicate(updatedData);
+    // Create a properly formatted copy of the updated data
+    const formattedData = { ...updatedData };
+    
+    // Ensure the role-specific data is properly structured for future use
+    // Format WMM data if present
+    if (formattedData.wmmData) {
+      if (!Array.isArray(formattedData.wmmData) && !formattedData.wmmData.records) {
+        formattedData.wmmData = { records: [formattedData.wmmData].filter(item => Object.keys(item).length > 0) };
+      }
+    }
+    
+    // Format HRG data if present
+    if (formattedData.hrgData) {
+      if (Array.isArray(formattedData.hrgData)) {
+        formattedData.hrgData = { records: formattedData.hrgData };
+      } else if (!formattedData.hrgData.records) {
+        formattedData.hrgData = { 
+          records: [formattedData.hrgData].filter(item => Object.keys(item).length > 0) 
+        };
+      }
+    }
+    
+    // Format FOM data if present
+    if (formattedData.fomData) {
+      if (Array.isArray(formattedData.fomData)) {
+        formattedData.fomData = { records: formattedData.fomData };
+      } else if (!formattedData.fomData.records) {
+        formattedData.fomData = { 
+          records: [formattedData.fomData].filter(item => Object.keys(item).length > 0) 
+        };
+      }
+    }
+    
+    // Format CAL data if present
+    if (formattedData.calData) {
+      if (Array.isArray(formattedData.calData)) {
+        formattedData.calData = { records: formattedData.calData };
+      } else if (!formattedData.calData.records) {
+        formattedData.calData = { 
+          records: [formattedData.calData].filter(item => Object.keys(item).length > 0) 
+        };
+      }
+    }
+    
+    setSelectedDuplicate(formattedData);
     fetchClients(); // Refresh client list
   };
 
@@ -1521,37 +1643,42 @@ const Add = ({ fetchClients }) => {
                         Role-Specific Information
                       </h2>
                       <div className="space-y-3">
-                        <div className="flex space-x-4 mb-4 mt-2">
-                          <label>
-                            <input
-                              type="radio"
-                              name="role"
-                              value="HRG"
-                              checked={selectedRole === "HRG"}
-                              onChange={() => handleRoleToggle("HRG")}
-                            />
-                            HRG
-                          </label>
-                          <label>
-                            <input
-                              type="radio"
-                              name="role"
-                              value="FOM"
-                              checked={selectedRole === "FOM"}
-                              onChange={() => handleRoleToggle("FOM")}
-                            />
-                            FOM
-                          </label>
-                          <label>
-                            <input
-                              type="radio"
-                              name="role"
-                              value="CAL"
-                              checked={selectedRole === "CAL"}
-                              onChange={() => handleRoleToggle("CAL")}
-                            />
-                            CAL
-                          </label>
+                        <div className="flex mb-4 mt-2">
+                          <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
+                            <button
+                              type="button"
+                              className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                selectedRole === "HRG"
+                                  ? "bg-blue-600 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              } transition-colors`}
+                              onClick={() => handleRoleToggle("HRG")}
+                            >
+                              HRG
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                selectedRole === "FOM"
+                                  ? "bg-blue-600 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              } transition-colors`}
+                              onClick={() => handleRoleToggle("FOM")}
+                            >
+                              FOM
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                selectedRole === "CAL"
+                                  ? "bg-blue-600 text-white shadow-md"
+                                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              } transition-colors`}
+                              onClick={() => handleRoleToggle("CAL")}
+                            >
+                              CAL
+                            </button>
+                          </div>
                         </div>
                         <div className="flex flex-col-2 gap-5">
                           <div className="flex flex-col-2 gap-4 mb-2 p-2">
@@ -1574,6 +1701,15 @@ const Add = ({ fetchClients }) => {
                                   value={roleSpecificData.renewdate}
                                   onChange={handleRoleSpecificChange}
                                 />
+                                <div className="flex items-center mt-2 mb-2">
+                                  <Button
+                                    className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
+                                    type="button"
+                                    onClick={handleRenewDateToday}
+                                  >
+                                    Set Renewal to Today
+                                  </Button>
+                                </div>
                                 <InputField
                                   label="Campaign Date:"
                                   id="campaigndate"
@@ -1588,24 +1724,49 @@ const Add = ({ fetchClients }) => {
                                   value={roleSpecificData.paymtref}
                                   onChange={handleRoleSpecificChange}
                                 />
-                                <label
-                                  htmlFor="unsubscribe"
-                                  className="text-black font-bold mr-2"
-                                >
-                                  Unsubscribe:
-                                </label>
-                                <input
-                                  type="checkbox"
-                                  id="unsubscribe"
-                                  name="unsubscribe"
-                                  checked={roleSpecificData.unsubscribe}
-                                  onChange={(e) =>
-                                    setRoleSpecificData((prev) => ({
-                                      ...prev,
-                                      unsubscribe: e.target.checked,
-                                    }))
-                                  }
+                                <InputField
+                                  label="Payment Amount:"
+                                  id="paymtamt"
+                                  name="paymtamt"
+                                  value={roleSpecificData.paymtamt}
+                                  onChange={handleRoleSpecificChange}
                                 />
+                                <div className="mb-2">
+                                  <label
+                                    htmlFor="unsubscribe"
+                                    className="text-black font-bold mr-2"
+                                  >
+                                    Unsubscribe:
+                                  </label>
+                                  <input
+                                    type="checkbox"
+                                    id="unsubscribe"
+                                    name="unsubscribe"
+                                    checked={roleSpecificData.unsubscribe}
+                                    onChange={(e) =>
+                                      setRoleSpecificData((prev) => ({
+                                        ...prev,
+                                        unsubscribe: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="mb-2">
+                                  <label
+                                    htmlFor="remarks"
+                                    className="block text-black font-bold mb-1"
+                                  >
+                                    Remarks:
+                                  </label>
+                                  <textarea
+                                    id="remarks"
+                                    name="remarks"
+                                    value={roleSpecificData.remarks || ""}
+                                    onChange={handleRoleSpecificChange}
+                                    className="w-full p-2 border rounded-md"
+                                    rows="3"
+                                  />
+                                </div>
                               </div>
                             )}
                             {selectedRole === "FOM" && (
@@ -1641,31 +1802,42 @@ const Add = ({ fetchClients }) => {
                                   value={roleSpecificData.paymtform}
                                   onChange={handleRoleSpecificChange}
                                 />
-                                <label
-                                  htmlFor="unsubscribe"
-                                  className="text-black font-bold mr-2"
-                                >
-                                  Unsubscribe:
-                                </label>
-                                <input
-                                  type="checkbox"
-                                  id="unsubscribe"
-                                  name="unsubscribe"
-                                  checked={roleSpecificData.unsubscribe}
-                                  onChange={(e) =>
-                                    setRoleSpecificData((prev) => ({
-                                      ...prev,
-                                      unsubscribe: e.target.checked,
-                                    }))
-                                  }
-                                />
-                                <InputField
-                                  label="Remarks:"
-                                  id="remarks"
-                                  name="remarks"
-                                  value={formData.remarks}
-                                  onChange={handleChange}
-                                />
+                                <div className="mb-2">
+                                  <label
+                                    htmlFor="unsubscribe"
+                                    className="text-black font-bold mr-2"
+                                  >
+                                    Unsubscribe:
+                                  </label>
+                                  <input
+                                    type="checkbox"
+                                    id="unsubscribe"
+                                    name="unsubscribe"
+                                    checked={roleSpecificData.unsubscribe}
+                                    onChange={(e) =>
+                                      setRoleSpecificData((prev) => ({
+                                        ...prev,
+                                        unsubscribe: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="mb-2">
+                                  <label
+                                    htmlFor="remarks"
+                                    className="block text-black font-bold mb-1"
+                                  >
+                                    Remarks:
+                                  </label>
+                                  <textarea
+                                    id="remarks"
+                                    name="remarks"
+                                    value={roleSpecificData.remarks || ""}
+                                    onChange={handleRoleSpecificChange}
+                                    className="w-full p-2 border rounded-md"
+                                    rows="3"
+                                  />
+                                </div>
                               </div>
                             )}
                             {selectedRole === "CAL" && (
@@ -1734,6 +1906,22 @@ const Add = ({ fetchClients }) => {
                                       onChange={handleRoleSpecificChange}
                                     />
                                   </div>
+                                </div>
+                                <div className="mb-2 mt-2">
+                                  <label
+                                    htmlFor="remarks"
+                                    className="block text-black font-bold mb-1"
+                                  >
+                                    Remarks:
+                                  </label>
+                                  <textarea
+                                    id="remarks"
+                                    name="remarks"
+                                    value={roleSpecificData.remarks || ""}
+                                    onChange={handleRoleSpecificChange}
+                                    className="w-full p-2 border rounded-md"
+                                    rows="3"
+                                  />
                                 </div>
                               </div>
                             )}
