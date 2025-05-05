@@ -540,48 +540,75 @@ async function fetchDataServices(
 
     // Optimize services filtering with Promise.all and early returns
     if (advancedFilterData.services && advancedFilterData.services.length > 0) {
-      // Fetch client IDs that have the specified services in parallel
-      const serviceClientIds = await Promise.all(
-        advancedFilterData.services.map(async (serviceName) => {
-          const modelKey = Object.keys(additionalModels).find((key) =>
-            key.toLowerCase().includes(serviceName.toLowerCase())
-          );
-
-          if (!modelKey) return [];
-
+      // Handle exact service matching
+      const exactMatchEnabled = !!advancedFilterData.exactServiceMatch;
+      const serviceMatchExcludeWMM = advancedFilterData.serviceMatchExcludeWMM !== false;
+      
+      // Get arrays of client IDs for each service type
+      const allServiceTypeClients = await Promise.all(
+        Object.keys(additionalModels).map(async (modelKey) => {
           const Model = await getModel(modelKey);
-
-          // Use a simpler, more efficient aggregation
+          const serviceName = modelKey.replace("Model", "").toUpperCase();
+          
+          // Use aggregation to get all unique client IDs for this service
           const results = await Model.aggregate([
             { $project: { clientid: 1 } },
             { $group: { _id: "$clientid" } },
           ]);
-
-          return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
+          
+          return {
+            serviceName,
+            clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+          };
         })
       );
+      
+      // Get the target services we want to match
+      const targetServices = advancedFilterData.services.map(s => s.toUpperCase());
+      const targetServicesExceptWMM = targetServices.filter(s => s !== 'WMM');
 
-      // If we have multiple services selected, we need to find the intersection
-      // of clients that have ALL the selected services
-      if (serviceClientIds.length > 0) {
-        // Start with the first service's client list
-        let validServiceClientIds = serviceClientIds[0] || [];
-
-        // For each subsequent service, keep only the clients that exist in both lists
-        for (let i = 1; i < serviceClientIds.length; i++) {
-          if (advancedFilterData.servicesMatchAny) {
-            // OR logic - include clients that have ANY of the selected services
-            validServiceClientIds = [
-              ...new Set([...validServiceClientIds, ...serviceClientIds[i]]),
-            ];
-          } else {
-            // AND logic - include only clients that have ALL selected services
-            validServiceClientIds = validServiceClientIds.filter((id) =>
-              serviceClientIds[i].includes(id)
-            );
+      if (exactMatchEnabled && targetServicesExceptWMM.length > 0) {
+        // For exact match, we need to:
+        // 1. Find clients that have ALL the selected services
+        // 2. Exclude clients that have ANY services we didn't select (except WMM)
+        
+        // Store client IDs that have the services we want
+        let clientsWithTargetServices = [];
+        
+        // For each target service, get clients with that service
+        for (const targetService of targetServicesExceptWMM) {
+          const serviceData = allServiceTypeClients.find(s => 
+            s.serviceName === targetService
+          );
+          
+          if (serviceData) {
+            if (clientsWithTargetServices.length === 0) {
+              // For first service, start with all its clients
+              clientsWithTargetServices = [...serviceData.clientIds];
+            } else {
+              // For subsequent services, keep only clients that have both
+              clientsWithTargetServices = clientsWithTargetServices.filter(id => 
+                serviceData.clientIds.includes(id)
+              );
+            }
           }
         }
-
+        
+        // Now exclude clients that have services we didn't select
+        const unwantedServices = allServiceTypeClients
+          .filter(s => !targetServices.includes(s.serviceName) && 
+                      (s.serviceName !== 'WMM' || !serviceMatchExcludeWMM))
+          .map(s => s.clientIds)
+          .flat();
+          
+        // Remove duplicates from unwanted services list
+        const uniqueUnwantedClients = [...new Set(unwantedServices)];
+        
+        // Filter out clients that have any unwanted services
+        const validServiceClientIds = clientsWithTargetServices.filter(id => 
+          !uniqueUnwantedClients.includes(id)
+        );
+        
         if (validServiceClientIds.length > 0) {
           filterQuery.$and.push({ id: { $in: validServiceClientIds } });
         } else {
@@ -597,6 +624,64 @@ async function fetchDataServices(
             clientServices: [],
             noData: true,
           };
+        }
+      } else {
+        // Non-exact match (original logic) - Fetch client IDs that have the specified services
+        const serviceClientIds = await Promise.all(
+          advancedFilterData.services.map(async (serviceName) => {
+            const modelKey = Object.keys(additionalModels).find((key) =>
+              key.toLowerCase().includes(serviceName.toLowerCase())
+            );
+
+            if (!modelKey) return [];
+
+            const Model = await getModel(modelKey);
+
+            // Use a simpler, more efficient aggregation
+            const results = await Model.aggregate([
+              { $project: { clientid: 1 } },
+              { $group: { _id: "$clientid" } },
+            ]);
+
+            return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
+          })
+        );
+
+        if (serviceClientIds.length > 0) {
+          // Start with the first service's client list
+          let validServiceClientIds = serviceClientIds[0] || [];
+
+          // For each subsequent service, keep only the clients that exist in both lists
+          for (let i = 1; i < serviceClientIds.length; i++) {
+            if (advancedFilterData.servicesMatchAny) {
+              // OR logic - include clients that have ANY of the selected services
+              validServiceClientIds = [
+                ...new Set([...validServiceClientIds, ...serviceClientIds[i]]),
+              ];
+            } else {
+              // AND logic - include only clients that have ALL selected services
+              validServiceClientIds = validServiceClientIds.filter((id) =>
+                serviceClientIds[i].includes(id)
+              );
+            }
+          }
+
+          if (validServiceClientIds.length > 0) {
+            filterQuery.$and.push({ id: { $in: validServiceClientIds } });
+          } else {
+            return {
+              totalPages: 0,
+              combinedData: [],
+              totalCopies: 0,
+              pageSpecificCopies: 0,
+              totalCalQty: 0,
+              totalCalAmt: 0,
+              pageSpecificCalQty: 0,
+              pageSpecificCalAmt: 0,
+              clientServices: [],
+              noData: true,
+            };
+          }
         }
       }
     }
