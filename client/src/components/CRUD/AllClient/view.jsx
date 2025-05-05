@@ -280,19 +280,22 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const renderHrgData = () => {
     if (!hrgData || !hrgData.records || hrgData.records.length === 0)
       return null;
+
+    const sortedHrgData = [...hrgData.records].sort((a, b) => {
+      const dateA = new Date(a.recvdate);
+      const dateB = new Date(b.recvdate);
+      return dateB - dateA;
+    });
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">HRG Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
-          {hrgData.records.map((record, index) => (
-            <div key={index} className="mb-1 text-sm">
-              <span className="text-gray-600">{record.recvdate}</span>
-              <span className="mx-1">•</span>
-              <span className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
+          {sortedHrgData.map((record, index) => (
+            <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
+              <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
                 {record.unsubscribe ? "Unsubscribed" : "Active"}
-              </span>
-              <span className="mx-1">•</span>
-              <span className="text-gray-600">{record.paymtamt}</span>
+              </div>
+              <span className="font-medium">{formatDate(record.recvdate)} | </span>
+              <span className="font-medium">Php {record.paymtamt} - Ref: #{record.paymtref} </span>
             </div>
           ))}
         </div>
@@ -303,19 +306,22 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const renderFomData = () => {
     if (!fomData || !fomData.records || fomData.records.length === 0)
       return null;
+
+    const sortedFomData = [...fomData.records].sort((a, b) => {
+      const dateA = new Date(a.recvdate);
+      const dateB = new Date(b.recvdate);
+      return dateB - dateA;
+    });
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">FOM Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
-          {fomData.records.map((record, index) => (
-            <div key={index} className="mb-1 text-sm">
-              <span className="text-gray-600">{record.recvdate}</span>
-              <span className="mx-1">•</span>
-              <span className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
+          {sortedFomData.map((record, index) => (
+            <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
+              <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
                 {record.unsubscribe ? "Unsubscribed" : "Active"}
-              </span>
-              <span className="mx-1">•</span>
-              <span className="text-gray-600">{record.paymtamt}</span>
+              </div>
+              <span className="font-medium">{formatDate(record.recvdate)} | </span>
+              <span className="font-medium">Php {record.paymtamt} </span>
             </div>
           ))}
         </div>
@@ -326,19 +332,19 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const renderCalData = () => {
     if (!calData || !calData.records || calData.records.length === 0)
       return null;
+
+    const sortedCalData = [...calData.records].sort((a, b) => {
+      const dateA = new Date(a.recvdate);
+      const dateB = new Date(b.recvdate);
+      return dateB - dateA;
+    });
     return (
       <div className="flex flex-col mb-2 p-2">
-        <h1 className="text-black text-xl mb-2 font-bold">CAL Data</h1>
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
-          {calData.records.map((record, index) => (
-            <div key={index} className="mb-1 text-sm">
-              <span className="text-gray-600">{record.recvdate}</span>
-              <span className="mx-1">•</span>
-              <span className="text-gray-600">{record.caltype}</span>
-              <span className="mx-1">•</span>
-              <span className="text-gray-600">Qty: {record.calqty}</span>
-              <span className="mx-1">•</span>
-              <span className="text-gray-600">{record.calamt}</span>
+          {sortedCalData.map((record, index) => (
+            <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
+              <div className="font-medium">{formatDate(record.recvdate)} | {record.caltype} </div>
+              <span className="font-medium">Qty: {record.calqty} - Cost: {record.calamt} - Ref: #{record.paymtref} </span>
             </div>
           ))}
         </div>

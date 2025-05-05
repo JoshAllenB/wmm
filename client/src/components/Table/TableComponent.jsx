@@ -77,36 +77,61 @@ export function TableComponent({
             </span>
           </div>
         );
-      case "HRG FOM CAL":
-        return (
-          <div className="flex items-center justify-between px-2 py-2 bg-gray-50 rounded-md border border-gray-200">
-            <div className="text-blue-700 text-base whitespace-nowrap">
-              <span className="font-bold">HRG: </span>
-              <span className="font-bold">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
-            </div>
-            
-            <div className="text-green-700 text-base mx-4 whitespace-nowrap">
-              <span className="font-bold">FOM: </span>
-              <span className="font-bold">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
-            </div>
-            
-            <div className="text-amber-700 text-base whitespace-nowrap">
-              <span className="font-bold">CAL:</span>
-              <div className="inline-flex flex-col ml-1">
-                <div className="mb-1">
-                  <span className="font-bold">Quantity:</span> <span className="font-bold">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
-                </div>
-                <div className="mb-1">
-                  <span className="font-bold">Amount:</span> <span className="font-bold">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
-                </div>
-                <div>
-                  <span className="font-bold">Payment:</span> <span className="font-bold">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
-                </div>
+        case "HRG FOM CAL":
+          return (
+            <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+              {/* HRG Section */}
+              <div className="flex items-center shrink-0">
+                <span className="font-semibold text-blue-700 mr-1">HRG:</span>
+                <span className="text-blue-700 font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-blue-700 font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 ml-1">Php</span>
+              </div>
+        
+              <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+        
+              {/* FOM Section */}
+              <div className="flex items-center shrink-0">
+                <span className="font-semibold text-green-700 mr-1">FOM:</span>
+                <span className="text-green-700 font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-green-700 font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 ml-1">Php</span>
+              </div>
+        
+              <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+        
+              {/* CAL Section - Compact version */}
+              <div className="flex items-center shrink-0">
+                <span className="font-semibold text-amber-700 mr-1">CAL:</span>
+        
+                {/* Quantity */}
+                <span className="text-gray-500 mr-1">Qty:</span>
+                <span className="text-amber-700 font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-amber-700 font-medium">{Number(totalCalQty || 0).toLocaleString()}</span>
+        
+                <span className="mx-2 text-gray-300">|</span>
+        
+                {/* Sold */}
+                <span className="text-gray-500 mr-1">Sold:</span>
+                <span className="text-amber-700 font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-amber-700 font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 ml-1">Php</span>
+        
+                <span className="mx-2 text-gray-300">|</span>
+        
+                {/* Paid */}
+                <span className="text-gray-500 mr-1">Paid:</span>
+                <span className="text-amber-700 font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 mx-1">/</span>
+                <span className="text-amber-700 font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span>
+                <span className="text-gray-500 ml-1">Php</span>
               </div>
             </div>
-          </div>
-        );
-      default:
+          );              default:
         // For composite roles or other roles
         return (
           <div className="flex flex-col px-2 py-1">
@@ -197,10 +222,13 @@ export function TableComponent({
                     style={{ 
                       width: cellWidth,
                       maxWidth: cellWidth ? `${cellWidth}px` : 'auto',
+                      minWidth: cellWidth ? `${cellWidth}px` : 'auto',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word'
                     }}
                     className={`${
                       cell.column.id === "select" ? "p-0 " : "px-4 py-2"
-                    } overflow-hidden`}
+                    } overflow-visible`}
                     onClick={(event) => handleCellClick(event, row, cell)}
                   >
                     {cell.column.id === "Client Name" ? (
@@ -292,17 +320,20 @@ export function TableComponent({
                       </ul>
                     ) : cell.column.id === "HRG Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <div className="max-h-[200px] overflow-y-auto pr-2">
+                      <div className="w-full max-h-[150px] overflow-y-auto">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((hrg, index) => (
-                            <div key={index} className="mb-1 text-sm">
-                              <span className="text-black font-medium">{hrg.recvdate}</span>
-                              <span className="mx-1">•</span>
-                              <span className={hrg.status === "Active" ? "text-green-600" : "text-red-600"}>
-                                {hrg.status}
-                              </span>
-                              <span className="mx-1">•</span>
-                              <span className="text-black font-medium">{hrg.paymtamt}</span>
+                            <div 
+                              key={index} 
+                              className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                            >
+                              <div className="flex flex-wrap items-center">
+                                <span className="font-xs mr-1">{hrg.recvdate} - {hrg.paymtamt}</span>
+                                <span className="font-xs mr-1">Ref: #{hrg.paymtref}</span>
+                                <span className={hrg.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                                  {hrg.status}
+                                </span>
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -311,17 +342,19 @@ export function TableComponent({
                       </div>
                     ) : cell.column.id === "FOM Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <div className="max-h-[200px] overflow-y-auto pr-2">
+                      <div className="w-full max-h-[150px] overflow-y-auto">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((fom, index) => (
-                            <div key={index} className="mb-1 text-sm">
-                              <span className="text-black font-medium">{fom.recvdate}</span>
-                              <span className="mx-1">•</span>
-                              <span className={fom.status === "Active" ? "text-green-600" : "text-red-600"}>
-                                {fom.status}
-                              </span>
-                              <span className="mx-1">•</span>
-                              <span className="text-black font-medium">{fom.paymtamt}</span>
+                            <div 
+                              key={index} 
+                              className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                            >
+                              <div className="flex flex-wrap items-center">
+                                <span className="font-xs mr-1">{fom.recvdate} - {fom.paymtamt}</span>
+                                <span className={fom.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                                  {fom.status}
+                                </span>
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -330,17 +363,18 @@ export function TableComponent({
                       </div>
                     ) : cell.column.id === "CAL Data" &&
                       Array.isArray(cell.getValue()) ? (
-                      <div className="max-h-[200px] overflow-y-auto pr-2">
+                      <div className="w-full max-h-[150px] overflow-y-auto">
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((cal, index) => (
-                            <div key={index} className="mb-1 text-sm">
-                              <span className="text-black font-medium">{cal.recvdate}</span>
-                              <span className="mx-1">•</span>
-                              <span className="text-black font-medium">{cal.caltype}</span>
-                              <span className="mx-1">•</span>
-                              <span className="text-black font-medium">Qty: {cal.calqty}</span>
-                              <span className="mx-1">•</span>
-                              <span className="text-black font-medium">{cal.calamt}</span>
+                            <div 
+                              key={index} 
+                              className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                            >
+                              <div className="flex flex-wrap items-center">
+                                <span className="font-medium mr-1">{cal.recvdate} - {cal.caltype}</span>
+                                <span className="font-medium mr-1">Qty: {cal.calqty} - Cost: {cal.calamt}</span>
+                                <span className="font-medium">Ref: #{cal.paymtref} - {cal.paymtform}</span>
+                              </div>
                             </div>
                           ))
                         ) : (

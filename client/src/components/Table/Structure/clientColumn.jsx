@@ -291,9 +291,14 @@ export const useColumns = () => {
                     ? `₱${parseFloat(hrgItem.paymtamt).toFixed(2)}`
                     : "N/A";
 
+                  const paymtref = hrgItem.paymtref
+                    ? (hrgItem.paymtref)
+                    : "N/A";                  
+
                   return {
                     recvdate,
                     paymtamt,
+                    paymtref,
                     status: hrgItem.unsubscribe ? "Unsubscribed" : "Active",
                   };
                 });
@@ -305,25 +310,24 @@ export const useColumns = () => {
               }
 
               return (
-                <div className="max-h-[200px] overflow-y-auto pr-2">
+                <div className="w-full max-h-[150px] overflow-y-auto">
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 text-lg"
                     >
-                      <span className="text-black font-medium">{record.recvdate}</span>
-                      <span className="mx-1">•</span>
-                      <span className={record.status === "Active" ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
-                        {record.status}
-                      </span>
-                      <span className="mx-1">•</span>
-                      <span className="text-black font-medium">{record.paymtamt}</span>
+                      <div className="flex flex-wrap items-center">
+                        <span className="font-xs mr-1">{record.recvdate}</span>
+                        <span className="font-xs mr-1">{record.paymtamt}</span>
+                        <span className={record.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                          {record.status}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 180,
+            size: 220,
           },
         ]
       : []),
@@ -368,25 +372,25 @@ export const useColumns = () => {
               }
 
               return (
-                <div className="max-h-[200px] overflow-y-auto pr-2">
+                <div className="w-full max-h-[150px] overflow-y-auto">
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 text-lg"
+                      className="mb-2 pb-2 border-b border-gray-200 last:border-b-0"
                     >
-                      <span className="text-black font-medium">{record.recvdate}</span>
-                      <span className="mx-1">•</span>
-                      <span className={record.status === "Active" ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
-                        {record.status}
-                      </span>
-                      <span className="mx-1">•</span>
-                      <span className="text-black font-medium">{record.paymtamt}</span>
+                      <div className="flex flex-wrap items-center">
+                        <span className="font-medium mr-1">{record.recvdate}</span>
+                        <span className={record.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                          {record.status}
+                        </span>
+                        <span className="font-medium">{record.paymtamt}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 180,
+            size: 220,
           },
         ]
       : []),
@@ -417,11 +421,21 @@ export const useColumns = () => {
                     ? `₱${parseFloat(calItem.calamt).toFixed(2)}`
                     : "N/A";
 
+                  const paymtref = calItem.paymtref
+                    ? (calItem.paymtref)
+                    : "N/A";
+
+                  const paymtform = calItem.paymtform
+                    ? (calItem.paymtform)
+                    : "N/A";
+
                   return {
                     recvdate,
                     caltype: calItem.caltype || "N/A",
                     calqty: calItem.calqty || "N/A",
                     calamt,
+                    paymtref,
+                    paymtform,
                   };
                 });
             },
@@ -432,25 +446,29 @@ export const useColumns = () => {
               }
 
               return (
-                <div className="max-h-[200px] overflow-y-auto pr-2">
+                <div className="w-full max-h-[150px] overflow-y-auto">
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-2 text-lg"
+                      className="mb-2 pb-2 border-b border-gray-200 last:border-b-0"
                     >
-                      <span className="text-black font-medium">{record.recvdate}</span>
-                      <span className="mx-1">•</span>
-                      <span className="text-black font-medium">{record.caltype}</span>
-                      <span className="mx-1">•</span>
-                      <span className="text-black font-medium">Qty: {record.calqty}</span>
-                      <span className="mx-1">•</span>
-                      <span className="text-black font-medium">{record.calamt}</span>
+                      <div className="flex flex-wrap items-center">
+                        <span className="font-medium mr-1">{record.recvdate}</span>
+                        <span className="mx-1">•</span>
+                        <span className="font-medium mr-1">{record.caltype}</span>
+                        <span className="mx-1">•</span>
+                        <span className="font-medium mr-1">Qty: {record.calqty}</span>
+                        <span className="mx-1">•</span>
+                        <span className="font-medium">{record.calamt}</span>
+                        <span className="mx-1">•</span>
+                        <span className="font-medium">Ref: #{record.paymtref} - {record.paymtform}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 200,
+            size: 300,
           },
         ]
       : []),
