@@ -6,11 +6,12 @@ import {
   fetchSubclasses,
   fetchAreas,
   fetchTypes,
+  fetchUsers,
 } from "../Table/Data/utilData";
 import { useUser } from "../../utils/Hooks/userProvider";
 
 const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
-  const { hasRole } = useUser();
+  const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
   const [filterData, setFilterData] = useState({
     lname: "",
@@ -39,24 +40,43 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     clientIncludeIds: "",
     clientExcludeIds: "",
     clientIdFilterType: "include",
+    excludeSPackClients: false,
+    userId: "",
   });
 
   const [subclasses, setSubclasses] = useState([]);
   const [areas, setAreas] = useState([]);
   const [types, setTypes] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Load subclasses, areas, and types on component mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [subclassesData, areasData, typesData] = await Promise.all([
+        const [subclassesData, areasData, typesData, usersData] = await Promise.all([
           fetchSubclasses(),
           fetchAreas(),
           fetchTypes(),
+          fetchUsers(),
         ]);
         setSubclasses(subclassesData);
         setAreas(areasData);
         setTypes(typesData);
+        
+        // Debug the users data
+        console.log("Users API response:", usersData);
+        
+        // Check if users exist in the response and set them properly
+        const receivedUsers = usersData?.users || [];
+        console.log("Extracted users array:", receivedUsers);
+        
+        setUsers(receivedUsers);
+        
+        // Set current user from API response
+        if (usersData?.currentUser) {
+          setCurrentUser(usersData.currentUser);
+        }
       } catch (error) {
         console.error("Error loading filter data:", error);
       }
@@ -127,6 +147,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       clientIncludeIds: "",
       clientExcludeIds: "",
       clientIdFilterType: "include",
+      excludeSPackClients: false,
+      userId: "",
     });
   };
 
@@ -259,6 +281,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       serviceMatchExcludeWMM: true, // Always ignore WMM in exact service matching
       // Process services for exact matching (always exact now)
       exactServices: processExactServices(filterData.services),
+      excludeSPackClients: filterData.excludeSPackClients,
+      userId: filterData.userId || "", // Include userId in formatted data
     };
 
     // Apply the filter with the formatted data
@@ -296,6 +320,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       clientIncludeIds: "",
       clientExcludeIds: "",
       clientIdFilterType: "include",
+      excludeSPackClients: false,
+      userId: "",
     });
   };
 
@@ -421,6 +447,37 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       });
     }
 
+    // Add "Exclude SPack Clients" filter if active
+    if (filterData.excludeSPackClients) {
+      active.push({
+        label: "Exclude SPack",
+        value: "Yes",
+        key: "excludeSPackClients",
+      });
+    }
+
+    // Add User filter as a special case
+    if (filterData.userId) {
+      let userLabel = "Unknown User";
+      
+      // Check if it's the current user
+      if (user && filterData.userId === user._id) {
+        userLabel = `Me (${user.username})`;
+      } else {
+        // Find the user in the users list
+        const selectedUser = users.find(u => u._id === filterData.userId);
+        if (selectedUser) {
+          userLabel = selectedUser.username;
+        }
+      }
+      
+      active.push({
+        label: "User",
+        value: userLabel,
+        key: "userId",
+      });
+    }
+
     // Process all other standard fields
     Object.entries(fieldMappings).forEach(([key, label]) => {
       const value = filterData[key];
@@ -467,6 +524,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           break;
         case "clientExcludeIds":
           updates.clientExcludeIds = "";
+          break;
+        case "excludeSPackClients":
+          updates.excludeSPackClients = false;
           break;
         default:
           updates[key] = "";
@@ -836,6 +896,24 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     )}
                   </div>
 
+                  <div className="flex items-center mt-2">
+                    <input
+                      type="checkbox"
+                      id="excludeSPackClients"
+                      name="excludeSPackClients"
+                      checked={filterData.excludeSPackClients}
+                      onChange={(e) => setFilterData(prev => ({...prev, excludeSPackClients: e.target.checked}))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor="excludeSPackClients"
+                      className="ml-2 text-sm text-gray-700"
+                    >
+                      Exclude SPack Clients
+                    </label>
+                    <span className="ml-2 text-xs text-gray-500">(Hide clients with "SPack" in group name)</span>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Type
@@ -1142,6 +1220,76 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* User Filter Card */}
+              <div className="p-4 border rounded-lg shadow-sm">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  User Filter
+                </h2>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Filter by User
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Show entries created or modified by a specific user with your role
+                  </p>
+                                    
+                  <select
+                    name="userId"
+                    value={filterData.userId}
+                    onChange={handleChange}
+                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      filterData.userId ? "border-blue-500 bg-blue-50" : ""
+                    }`}
+                  >
+                    <option value="">All Users</option>
+                    {currentUser && <option value={currentUser._id}>Me ({currentUser.username})</option>}
+                    
+                    {/* Show all other users */}
+                    {users
+                      .filter(u => {
+                        // Skip current user as they already have the "Me" option
+                        if (!currentUser || u._id === currentUser._id) return false;
+                        
+                        // If we want to show all users without role filtering, uncomment this line:
+                        // return true;
+                        
+                        // Check if the current user has any roles to filter by
+                        if (!currentUser.roles || currentUser.roles.length === 0) return true;
+                        
+                        // Get the current user's roles
+                        const currentUserRoleNames = currentUser.roles.map(role => {
+                          // Handle different role object structures
+                          if (role.role && role.role.name) return role.role.name;
+                          if (typeof role.role === 'string') return role.role;
+                          if (role.name) return role.name;
+                          return null;
+                        }).filter(Boolean); // Remove null values
+                        
+                        // If we can't determine current user roles, show all users
+                        if (currentUserRoleNames.length === 0) return true;
+                        
+                        // Check if this user has any matching roles
+                        return u.roles && u.roles.some(userRole => {
+                          // Get this user's role name
+                          let roleName = null;
+                          if (userRole.role && userRole.role.name) roleName = userRole.role.name;
+                          else if (typeof userRole.role === 'string') roleName = userRole.role;
+                          else if (userRole.name) roleName = userRole.name;
+                          
+                          // Check if this role matches any of the current user's roles
+                          return roleName && currentUserRoleNames.includes(roleName);
+                        });
+                      })
+                      .map(u => (
+                        <option key={u._id} value={u._id}>
+                          {u.username}
+                        </option>
+                      ))
+                    }
+                  </select>
                 </div>
               </div>
             </div>

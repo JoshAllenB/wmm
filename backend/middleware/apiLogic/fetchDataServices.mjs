@@ -110,6 +110,92 @@ async function fetchDataServices(
       }
     }
 
+    // Add exclude SPack clients filter if enabled
+    if (advancedFilterData.excludeSPackClients) {
+      baseFilter.push({ 
+        group: { 
+          $not: { 
+            $regex: "SPack", 
+            $options: "i" 
+          } 
+        } 
+      });
+    }
+
+    // Handle user filter (filter clients by the user who created or modified them)
+    if (advancedFilterData.userId) {
+      try {
+        console.log("Filtering by user ID:", advancedFilterData.userId);
+        
+        // Get the username for this user ID
+        const { default: UserModel } = await import("../../models/userControl/users.mjs");
+        const userRecord = await UserModel.findById(advancedFilterData.userId);
+        
+        if (!userRecord || !userRecord.username) {
+          console.log("Could not find username for user ID:", advancedFilterData.userId);
+          baseFilter.push({ id: -1 }); // No results if we can't find the username
+          return;
+        }
+        
+        const username = userRecord.username;
+        console.log("Found username:", username, "for user ID:", advancedFilterData.userId);
+        
+        // Import all service models to check for entries with this username
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+        const { default: FomModel } = await import("../../models/fom.mjs");
+        const { default: HrgModel } = await import("../../models/hrg.mjs");
+        const { default: CalModel } = await import("../../models/cal.mjs");
+        
+        // Create a simple adduser query that works across all models
+        const adduserQuery = { adduser: { $regex: `^${username}$`, $options: 'i' } };
+        
+        // Find clients created by this user directly in the clients collection
+        const clientsCreatedByUser = await ClientModel.find(adduserQuery).distinct("id");
+        console.log(`Found ${clientsCreatedByUser.length} clients created directly by ${username}`);
+        
+        // Find clients with service records created by this user
+        const [wmmClients, fomClients, hrgClients, calClients] = await Promise.all([
+          WmmModel.find(adduserQuery).distinct("clientid"),
+          FomModel.find(adduserQuery).distinct("clientid"),
+          HrgModel.find(adduserQuery).distinct("clientid"),
+          CalModel.find(adduserQuery).distinct("clientid")
+        ]);
+        
+        console.log(`Service records created by ${username}:`, {
+          wmm: wmmClients.length,
+          fom: fomClients.length,
+          hrg: hrgClients.length,
+          cal: calClients.length
+        });
+        
+        // Combine all unique client IDs
+        const matchingClients = new Set([
+          ...clientsCreatedByUser,
+          ...wmmClients, 
+          ...fomClients, 
+          ...hrgClients, 
+          ...calClients
+        ].map(id => Number(id)));
+        
+        console.log(`Total unique clients with records by ${username}: ${matchingClients.size}`);
+        
+        if (matchingClients.size > 0) {
+          console.log("Found clients for username:", username);
+          baseFilter.push({ id: { $in: Array.from(matchingClients) } });
+          
+          // Store the username in the filter data for use in filtering records later
+          // This will be used to filter the service records to only show those created by this user
+          advancedFilterData.usernameFilter = username;
+        } else {
+          console.log("No clients found for username:", username);
+          baseFilter.push({ id: -1 }); // No client has ID -1
+        }
+      } catch (error) {
+        console.error("Error filtering by username:", error);
+        baseFilter.push({ id: -1 }); // No client has ID -1
+      }
+    }
+
     if (filter) {
       const numericFilter = Number(filter);
       const isNumeric = !isNaN(numericFilter);
@@ -918,6 +1004,21 @@ async function fetchDataServices(
           ...item,
           records: item.records || [],
         };
+        
+        // If a username filter is active, filter the records to only include those created by this user
+        if (advancedFilterData.usernameFilter && dataObject.records && dataObject.records.length > 0) {
+          const username = advancedFilterData.usernameFilter;
+          console.log(`Filtering records by username: ${username} for client ${clientId}`);
+          
+          // Filter records to only include those created by the selected user
+          dataObject.records = dataObject.records.filter(record => {
+            return record.adduser === username || 
+                   (typeof record.adduser === 'string' && 
+                    record.adduser.toLowerCase() === username.toLowerCase());
+          });
+          
+          console.log(`After filtering: ${dataObject.records.length} records remain for client ${clientId}`);
+        }
 
         // Set the data for this model - fixed: ensure consistent casing for service keys
         const modelNameLower = modelNames[index].toLowerCase();
@@ -1024,10 +1125,23 @@ async function fetchDataServices(
     }
 
     // Log a sample of the combined data
-    const combinedData = clients.map((client) => ({
-      ...client,
-      ...modelDataMap.get(client.id),
-    }));
+    const combinedData = clients.map((client) => {
+      // Add a flag if this client was created by the filtered user
+      let createdByFilteredUser = false;
+      if (advancedFilterData.usernameFilter) {
+        const username = advancedFilterData.usernameFilter;
+        createdByFilteredUser = 
+          client.adduser === username || 
+          (typeof client.adduser === 'string' && 
+           client.adduser.toLowerCase() === username.toLowerCase());
+      }
+      
+      return {
+        ...client,
+        ...modelDataMap.get(client.id),
+        createdByFilteredUser // Add flag to indicate if this client was created by the filtered user
+      };
+    });
 
     // Calculate totalCopies using only the most recent copies for each client
     let totalCopies = 0;

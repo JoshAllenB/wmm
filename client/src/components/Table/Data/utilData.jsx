@@ -62,3 +62,38 @@ export const fetchTypes = async () => {
     throw error;
   }
 };
+
+export const fetchUsers = async () => {
+  try {
+    console.log("Fetching users from API...");
+    const response = await axios.get(
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      }
+    );
+    console.log("Users API raw response:", response);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    // Try an alternative endpoint if the first one fails
+    try {
+      console.log("Trying alternative users endpoint...");
+      const altResponse = await axios.get(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/user`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+      console.log("Alternative users endpoint response:", altResponse);
+      return altResponse.data;
+    } catch (altError) {
+      console.error("Alternative endpoint also failed:", altError);
+      return { users: [] }; // Return empty array to prevent errors
+    }
+  }
+};
