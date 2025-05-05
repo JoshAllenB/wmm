@@ -610,7 +610,7 @@ const AllClient = () => {
 
     // Check each filter and add readable description if it's active
     if (selectedGroup) filters.push(`Group: ${selectedGroup}`);
-    if (addedToday) filters.push("Added Today");
+    if (addedToday) filters.push("Added/Updated Today");
 
     // Check advanced filters
     if (advancedFilterData.lname)
@@ -777,7 +777,7 @@ const AllClient = () => {
             addedToday ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
           }`}
         >
-          Added Today
+          Added/Updated Today
         </Button>
         <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
 
