@@ -692,6 +692,42 @@ async function fetchDataServices(
             return result;
           }
 
+          // Special handling for CAL model
+          if (modelKey.toLowerCase() === "calmodel") {
+            return Model.aggregate([
+              {
+                $match: {
+                  clientid: { $in: clientIds.map((id) => parseInt(id)) }, // Convert to integers
+                },
+              },
+              { $project: config.projectFields },
+              {
+                $addFields: {
+                  numericCalQty: { $toInt: "$calqty" },
+                  numericCalAmt: { $toDouble: "$calamt" },
+                  // Calculate the line total (qty * amt) for each record
+                  lineTotal: {
+                    $multiply: [
+                      { $toInt: { $ifNull: ["$calqty", 0] } },
+                      { $toDouble: { $ifNull: ["$calamt", 0] } }
+                    ]
+                  }
+                }
+              },
+              {
+                $group: {
+                  _id: "$clientid", // This will be the integer clientid
+                  totalCalQty: { $sum: "$numericCalQty" },
+                  // Sum of (qty * amt) for each record
+                  totalCalAmt: { $sum: "$lineTotal" },
+                  records: {
+                    $push: "$$ROOT", // Include the entire document in records
+                  },
+                },
+              },
+            ]);
+          }
+
           // For other models
           return Model.aggregate([
             {
@@ -947,25 +983,25 @@ async function fetchDataServices(
             if (!isNaN(calQty) && calQty > 0) {
               calQtyTotal += calQty;
               validCalQtyEntries++;
+              
+              // Calculate total amount by multiplying quantity by amount per unit
+              if (cal.calamt) {
+                const calAmt =
+                  typeof cal.calamt === "string"
+                    ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ''))
+                    : cal.calamt;
+                
+                // Only add if it's a valid number
+                if (!isNaN(calAmt) && calAmt > 0) {
+                  calAmtTotal += (calQty * calAmt);
+                  validCalAmtEntries++;
+                }
+              }
             }
           }
 
-          // Handle calendar amount calculation
-          if (cal.calamt) {
-            const calAmt =
-              typeof cal.calamt === "string"
-                ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ''))
-                : cal.calamt;
-
-            // Only add if it's a valid number
-            if (!isNaN(calAmt) && calAmt > 0) {
-              calAmtTotal += calAmt;
-              validCalAmtEntries++;
-            }
-          }
-
-          // Handle calendar payment amount calculation
-          if (cal.paymtamt) {
+          // Handle calendar payment amount calculation - only count if there's a payment reference
+          if (cal.paymtamt && cal.paymtref) {
             const calPaymtAmt =
               typeof cal.paymtamt === "string"
                 ? parseFloat(cal.paymtamt.replace(/[^\d.-]/g, ''))
@@ -1068,11 +1104,47 @@ async function fetchDataServices(
     }, 0);
 
     const pageSpecificCalAmt = combinedData.reduce((acc, client) => {
-      const clientCalAmt = validModelDataArrays.reduce((amtAcc, modelData) => {
-        const clientRecord = modelData.find((item) => item._id === client.id);
-        return amtAcc + (clientRecord?.totalCalAmt || 0);
-      }, 0);
-      return acc + clientCalAmt;
+      // Look for CAL data in the client's data
+      const calData = client.calData?.records || [];
+      if (calData.length === 0) return acc;
+      
+      // Get the most recent CAL record based on recvdate
+      const sortedCalData = [...calData].sort((a, b) => {
+        return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
+      });
+      
+      const mostRecentCal = sortedCalData[0];
+      if (mostRecentCal && mostRecentCal.calamt && mostRecentCal.calqty) {
+        let amt = 0;
+        let qty = 0;
+        
+        try {
+          // Parse calamt
+          if (typeof mostRecentCal.calamt === 'string') {
+            // Remove any non-numeric characters except decimal point and negative sign
+            const cleanedAmt = mostRecentCal.calamt.replace(/[^\d.-]/g, '');
+            amt = parseFloat(cleanedAmt);
+          } else {
+            amt = mostRecentCal.calamt;
+          }
+          
+          // Parse calqty
+          if (typeof mostRecentCal.calqty === 'string') {
+            qty = parseInt(mostRecentCal.calqty, 10);
+          } else {
+            qty = mostRecentCal.calqty;
+          }
+          
+          // Calculate total by multiplying qty by amt
+          return acc + (isNaN(amt) || isNaN(qty) ? 0 : amt * qty);
+          
+        } catch (error) {
+          console.error("Error calculating CAL total amount:", error);
+          return acc;
+        }
+      }
+      
+      return acc;
     }, 0);
 
     // Add page-specific HRG, FOM, and CAL payment amount calculations
@@ -1155,7 +1227,7 @@ async function fetchDataServices(
       });
       
       const mostRecentCal = sortedCalData[0];
-      if (mostRecentCal && mostRecentCal.paymtamt) {
+      if (mostRecentCal && mostRecentCal.paymtamt && mostRecentCal.paymtref) {
         let amt = 0;
         
         try {
