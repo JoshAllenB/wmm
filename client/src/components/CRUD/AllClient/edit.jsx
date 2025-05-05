@@ -164,6 +164,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({});
 
+  // After the state declarations, around line 50-60, add these new state variables:
+  const [hrgRecords, setHrgRecords] = useState([]);
+  const [fomRecords, setFomRecords] = useState([]);
+  const [calRecords, setCalRecords] = useState([]);
+  const [selectedHrgRecord, setSelectedHrgRecord] = useState(null);
+  const [selectedFomRecord, setSelectedFomRecord] = useState(null);
+  const [selectedCalRecord, setSelectedCalRecord] = useState(null);
+  const [roleRecordMode, setRoleRecordMode] = useState("edit"); // "edit" or "add"
+  const [newRoleData, setNewRoleData] = useState({
+    // HRG default fields
+    recvdate: formatDateToMMDDYY(new Date()),
+    renewdate: "",
+    campaigndate: "",
+    paymtref: "",
+    paymtamt: 0,
+    unsubscribe: false,
+    remarks: "",
+  });
+
   useEffect(() => {
     if (rowData) {
       setFormData({
@@ -257,36 +276,173 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           setRoleSpecificData(wmmData);
         }
       } else if (hasRole("HRG")) {
-        const hrgData = {
-          recvdate: rowData.recvdate ? formatDateToMMDDYY(parseDate(rowData.recvdate)) : "",
-          renewdate: rowData.renewdate ? formatDateToMMDDYY(parseDate(rowData.renewdate)) : "",
-          campaigndate: rowData.campaigndate ? formatDateToMMDDYY(parseDate(rowData.campaigndate)) : "",
-          paymtref: rowData.paymtref || "",
-          paymtamt: rowData.paymtamt || 0,
-          unsubscribe: rowData.unsubscribe || false,
-        };
-        setRoleSpecificData(hrgData);
-      } else if (hasRole("FOM")) {
-        const fomData = {
-          recvdate: rowData.recvdate || "",
-          paymtamt: rowData.paymtamt || 0,
-          paymtform: rowData.paymtform || "",
-          paymtref: rowData.paymtref || "",
-          unsubscribe: rowData.unsubscribe || false,
-        };
-        setRoleSpecificData(fomData);
-      } else if (hasRole("CAL")) {
-        const calData = {
-          recvdate: rowData.recvdate || "",
-          caltype: rowData.caltype || "",
-          calqty: rowData.calqty || "",
-          calamt: rowData.calamt || "",
-          paymtref: rowData.paymtref || "",
-          paymtamt: rowData.paymtamt || 0,
-          paymtform: rowData.paymtform || "",
-          paymtdate: rowData.paymtdate || "",
-        };
-        setRoleSpecificData(calData);
+        // Process HRG data
+        if (rowData.hrgData && rowData.hrgData.records && rowData.hrgData.records.length > 0) {
+          // Clean dates in records
+          const cleanedRecords = rowData.hrgData.records.map(record => ({
+            ...record,
+            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
+            renewdate: record.renewdate ? formatDateToMMDDYY(parseDate(record.renewdate)) : "",
+            campaigndate: record.campaigndate ? formatDateToMMDDYY(parseDate(record.campaigndate)) : "",
+          }));
+          
+          // Sort by date (newest first)
+          const sortedRecords = [...cleanedRecords].sort((a, b) => {
+            const dateA = parseDate(a.recvdate) || new Date(0);
+            const dateB = parseDate(b.recvdate) || new Date(0);
+            return dateB - dateA;
+          });
+          
+          setHrgRecords(sortedRecords);
+          
+          // Set the most recent record as selected
+          const latestRecord = sortedRecords[0];
+          setSelectedHrgRecord(latestRecord);
+          
+          // Populate the form with the latest record
+          const hrgData = {
+            id: latestRecord.id || latestRecord._id,
+            recvdate: latestRecord.recvdate || "",
+            renewdate: latestRecord.renewdate || "",
+            campaigndate: latestRecord.campaigndate || "",
+            paymtref: latestRecord.paymtref || "",
+            paymtamt: latestRecord.paymtamt || 0,
+            unsubscribe: latestRecord.unsubscribe || false,
+            remarks: latestRecord.remarks || "",
+          };
+          
+          if (selectedRole === "HRG") {
+            setRoleSpecificData(hrgData);
+          }
+        } else {
+          // No records, initialize with empty data
+          const hrgData = {
+            recvdate: formatDateToMMDDYY(new Date()),
+            renewdate: "",
+            campaigndate: "",
+            paymtref: "",
+            paymtamt: 0,
+            unsubscribe: false,
+            remarks: "",
+          };
+          
+          if (selectedRole === "HRG") {
+            setRoleSpecificData(hrgData);
+          }
+        }
+      }
+      
+      if (hasRole("FOM")) {
+        // Process FOM data
+        if (rowData.fomData && rowData.fomData.records && rowData.fomData.records.length > 0) {
+          // Clean dates in records
+          const cleanedRecords = rowData.fomData.records.map(record => ({
+            ...record,
+            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
+          }));
+          
+          // Sort by date (newest first)
+          const sortedRecords = [...cleanedRecords].sort((a, b) => {
+            const dateA = parseDate(a.recvdate) || new Date(0);
+            const dateB = parseDate(b.recvdate) || new Date(0);
+            return dateB - dateA;
+          });
+          
+          setFomRecords(sortedRecords);
+          
+          // Set the most recent record as selected
+          const latestRecord = sortedRecords[0];
+          setSelectedFomRecord(latestRecord);
+          
+          // Populate the form with the latest record
+          const fomData = {
+            id: latestRecord.id || latestRecord._id,
+            recvdate: latestRecord.recvdate || "",
+            paymtamt: latestRecord.paymtamt || 0,
+            paymtform: latestRecord.paymtform || "",
+            paymtref: latestRecord.paymtref || "",
+            unsubscribe: latestRecord.unsubscribe || false,
+            remarks: latestRecord.remarks || "",
+          };
+          
+          if (selectedRole === "FOM") {
+            setRoleSpecificData(fomData);
+          }
+        } else {
+          // No records, initialize with empty data
+          const fomData = {
+            recvdate: formatDateToMMDDYY(new Date()),
+            paymtamt: 0,
+            paymtform: "",
+            paymtref: "",
+            unsubscribe: false,
+            remarks: "",
+          };
+          
+          if (selectedRole === "FOM") {
+            setRoleSpecificData(fomData);
+          }
+        }
+      }
+      
+      if (hasRole("CAL")) {
+        // Process CAL data
+        if (rowData.calData && rowData.calData.records && rowData.calData.records.length > 0) {
+          // Clean dates in records
+          const cleanedRecords = rowData.calData.records.map(record => ({
+            ...record,
+            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
+            paymtdate: record.paymtdate ? formatDateToMMDDYY(parseDate(record.paymtdate)) : "",
+          }));
+          
+          // Sort by date (newest first)
+          const sortedRecords = [...cleanedRecords].sort((a, b) => {
+            const dateA = parseDate(a.recvdate) || new Date(0);
+            const dateB = parseDate(b.recvdate) || new Date(0);
+            return dateB - dateA;
+          });
+          
+          setCalRecords(sortedRecords);
+          
+          // Set the most recent record as selected
+          const latestRecord = sortedRecords[0];
+          setSelectedCalRecord(latestRecord);
+          
+          // Populate the form with the latest record
+          const calData = {
+            id: latestRecord.id || latestRecord._id,
+            recvdate: latestRecord.recvdate || "",
+            caltype: latestRecord.caltype || "",
+            calqty: latestRecord.calqty || 0,
+            calamt: latestRecord.calamt || 0,
+            paymtref: latestRecord.paymtref || "",
+            paymtamt: latestRecord.paymtamt || 0,
+            paymtform: latestRecord.paymtform || "",
+            paymtdate: latestRecord.paymtdate || "",
+            remarks: latestRecord.remarks || "",
+          };
+          
+          if (selectedRole === "CAL") {
+            setRoleSpecificData(calData);
+          }
+        } else {
+          // No records, initialize with empty data
+          const calData = {
+            recvdate: formatDateToMMDDYY(new Date()),
+            caltype: "",
+            calqty: 0,
+            calamt: 0,
+            paymtref: "",
+            paymtamt: 0,
+            paymtform: "",
+            paymtdate: "",
+            remarks: "",
+          };
+          
+          if (selectedRole === "CAL") {
+            setRoleSpecificData(calData);
+          }
+        }
       }
     }
   }, [rowData, hasRole]);
@@ -542,7 +698,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const { name, value, type, checked } = e.target;
     setRoleSpecificData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : type === "textarea" ? value : value,
     }));
   };
 
@@ -556,43 +712,62 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const handleRoleToggle = (role) => {
     setSelectedRole(role);
+    setRoleRecordMode("edit"); // Reset to edit mode when changing roles
 
-    // Reset role-specific data
-    let roleData = {};
-
-    // Fetch role-specific data from rowData based on the selected role
-    if (role === "HRG" && rowData.hrgData) {
-      roleData = {
-        recvdate: rowData.hrgData.recvdate || "",
-        renewdate: rowData.hrgData.renewdate || "",
-        campaigndate: rowData.hrgData.campaigndate || "",
-        paymtref: rowData.hrgData.paymtref || "",
-        paymtamt: rowData.hrgData.paymtamt || 0,
-        unsubscribe: rowData.hrgData.unsubscribe || false,
-      };
-    } else if (role === "FOM" && rowData.fomData) {
-      const fomData = rowData.fomData[0] || {}; // Assuming fomData is an array
-      roleData = {
-        recvdate: fomData.recvdate || "",
-        paymtamt: fomData.paymtamt || 0,
-        paymtform: fomData.paymtform || "",
-        paymtref: fomData.paymtref || "",
-        unsubscribe: fomData.unsubscribe || false,
-      };
-    } else if (role === "CAL" && rowData.calData) {
-      roleData = {
-        recvdate: rowData.calData.recvdate || "",
-        caltype: rowData.calData.caltype || "",
-        calqty: rowData.calData.calqty || "",
-        calamt: rowData.calData.calamt || "",
-        paymtref: rowData.calData.paymtref || "",
-        paymtamt: rowData.calData.paymtamt || 0,
-        paymtform: rowData.calData.paymtform || "",
-        paymtdate: rowData.calData.paymtdate || "",
-      };
+    // Reset role-specific data based on selected role and available records
+    if (role === "HRG") {
+      if (hrgRecords.length > 0 && selectedHrgRecord) {
+        setRoleSpecificData({
+          ...selectedHrgRecord,
+        });
+      } else {
+        // No records available, set up empty form
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          renewdate: "",
+          campaigndate: "",
+          paymtref: "",
+          paymtamt: 0,
+          unsubscribe: false,
+          remarks: "",
+        });
+      }
+    } else if (role === "FOM") {
+      if (fomRecords.length > 0 && selectedFomRecord) {
+        setRoleSpecificData({
+          ...selectedFomRecord,
+        });
+      } else {
+        // No records available, set up empty form
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          paymtamt: 0,
+          paymtform: "",
+          paymtref: "",
+          unsubscribe: false,
+          remarks: "",
+        });
+      }
+    } else if (role === "CAL") {
+      if (calRecords.length > 0 && selectedCalRecord) {
+        setRoleSpecificData({
+          ...selectedCalRecord,
+        });
+      } else {
+        // No records available, set up empty form
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          caltype: "",
+          calqty: 0,
+          calamt: 0,
+          paymtref: "",
+          paymtamt: 0,
+          paymtform: "",
+          paymtdate: "",
+          remarks: "",
+        });
+      }
     }
-
-    setRoleSpecificData(roleData);
   };
 
   const handleNewSubscriptionChange = (e) => {
@@ -968,37 +1143,123 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           // Log the exact data being sent for debugging
           console.log("Updating subscription:", subscriptionId);
           console.log("Submission data:", JSON.stringify(submissionData));
-        } else if (hasRole("HRG")) {
-          submissionData.roleType = "HRG";
-          submissionData.roleData = {
-            recvdate: roleSpecificData.recvdate,
-            renewdate: roleSpecificData.renewdate,
-            campaigndate: roleSpecificData.campaigndate,
-            paymtref: roleSpecificData.paymtref,
-            paymtamt: roleSpecificData.paymtamt,
-            unsubscribe: roleSpecificData.unsubscribe,
-          };
-        } else if (hasRole("FOM")) {
-          submissionData.roleType = "FOM";
-          submissionData.roleData = {
-            recvdate: roleSpecificData.recvdate,
-            paymtamt: roleSpecificData.paymtamt,
-            paymtform: roleSpecificData.paymtform,
-            paymtref: roleSpecificData.paymtref,
-            unsubscribe: roleSpecificData.unsubscribe,
-          };
-        } else if (hasRole("CAL")) {
-          submissionData.roleType = "CAL";
-          submissionData.roleData = {
-            recvdate: roleSpecificData.recvdate,
-            caltype: roleSpecificData.caltype,
-            calqty: roleSpecificData.calqty,
-            calamt: roleSpecificData.calamt,
-            paymtref: roleSpecificData.paymtref,
-            paymtamt: roleSpecificData.paymtamt,
-            paymtform: roleSpecificData.paymtform,
-            paymtdate: roleSpecificData.paymtdate,
-          };
+        } else {
+          // If user has multiple roles, use the selected role
+          const isNewRole = 
+            (selectedRole === "HRG" && (!rowData.hrgData || !rowData.hrgData.records || rowData.hrgData.records.length === 0)) ||
+            (selectedRole === "FOM" && (!rowData.fomData || !rowData.fomData.records || rowData.fomData.records.length === 0)) ||
+            (selectedRole === "CAL" && (!rowData.calData || !rowData.calData.records || rowData.calData.records.length === 0));
+
+          // Create current timestamp for new role data
+          const timestamp = new Date()
+            .toLocaleString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
+            .replace(",", "");
+
+          if (selectedRole === "HRG") {
+            submissionData.roleType = "HRG";
+            
+            // Check if we're adding a new record or editing an existing one
+            const isNewRecord = roleRecordMode === "add";
+            
+            // Check if this is the first HRG record for this client
+            const isNewRole = isNewRecord && 
+              (!rowData.hrgData || !rowData.hrgData.records || rowData.hrgData.records.length === 0);
+
+            submissionData.roleData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              renewdate: roleSpecificData.renewdate || "",
+              campaigndate: roleSpecificData.campaigndate || "",
+              paymtref: roleSpecificData.paymtref || "",
+              paymtamt: roleSpecificData.paymtamt || 0,
+              unsubscribe: roleSpecificData.unsubscribe || false,
+              remarks: roleSpecificData.remarks || "",
+              // If adding new record, include timestamp
+              adddate: isNewRecord ? timestamp : undefined,
+            };
+            
+            // If editing an existing record and we have an ID, include it
+            if (!isNewRecord && selectedHrgRecord && (selectedHrgRecord.id || selectedHrgRecord._id)) {
+              submissionData.recordId = selectedHrgRecord.id || selectedHrgRecord._id;
+            }
+            
+            // Flag if this is a new role or new record
+            submissionData.isNewRoleData = isNewRole;
+            submissionData.isNewRecord = isNewRecord;
+          } else if (selectedRole === "FOM") {
+            submissionData.roleType = "FOM";
+            
+            // Check if we're adding a new record or editing an existing one
+            const isNewRecord = roleRecordMode === "add";
+            
+            // Check if this is the first FOM record for this client
+            const isNewRole = isNewRecord && 
+              (!rowData.fomData || !rowData.fomData.records || rowData.fomData.records.length === 0);
+
+            submissionData.roleData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              paymtamt: roleSpecificData.paymtamt || 0,
+              paymtform: roleSpecificData.paymtform || "",
+              paymtref: roleSpecificData.paymtref || "",
+              unsubscribe: roleSpecificData.unsubscribe || false,
+              remarks: roleSpecificData.remarks || "",
+              // If adding new record, include timestamp
+              adddate: isNewRecord ? timestamp : undefined,
+            };
+            
+            // If editing an existing record and we have an ID, include it
+            if (!isNewRecord && selectedFomRecord && (selectedFomRecord.id || selectedFomRecord._id)) {
+              submissionData.recordId = selectedFomRecord.id || selectedFomRecord._id;
+            }
+            
+            // Flag if this is a new role or new record
+            submissionData.isNewRoleData = isNewRole;
+            submissionData.isNewRecord = isNewRecord;
+          } else if (selectedRole === "CAL") {
+            submissionData.roleType = "CAL";
+            
+            // Check if we're adding a new record or editing an existing one
+            const isNewRecord = roleRecordMode === "add";
+            
+            // Check if this is the first CAL record for this client
+            const isNewRole = isNewRecord && 
+              (!rowData.calData || !rowData.calData.records || rowData.calData.records.length === 0);
+
+            submissionData.roleData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              caltype: roleSpecificData.caltype || "",
+              calqty: roleSpecificData.calqty || 0,
+              calamt: roleSpecificData.calamt || 0,
+              paymtref: roleSpecificData.paymtref || "",
+              paymtamt: roleSpecificData.paymtamt || 0,
+              paymtform: roleSpecificData.paymtform || "",
+              paymtdate: roleSpecificData.paymtdate || "",
+              remarks: roleSpecificData.remarks || "",
+              // If adding new record, include timestamp
+              adddate: isNewRecord ? timestamp : undefined,
+            };
+            
+            // If editing an existing record and we have an ID, include it
+            if (!isNewRecord && selectedCalRecord && (selectedCalRecord.id || selectedCalRecord._id)) {
+              submissionData.recordId = selectedCalRecord.id || selectedCalRecord._id;
+            }
+            
+            // Flag if this is a new role or new record
+            submissionData.isNewRoleData = isNewRole;
+            submissionData.isNewRecord = isNewRecord;
+          }
+
+          // Flag if this is a new role being added to the client
+          if (isNewRole) {
+            submissionData.isNewRoleData = true;
+          }
         }
 
 
@@ -1053,21 +1314,130 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             
             // Log the update for debugging
             console.log("Updated subscription records:", updatedRecords);
-          } else if (hasRole("HRG")) {
-            updatedFullData.hrgData = { 
-              ...(rowData.hrgData || {}),
-              ...submissionData.roleData 
+          } else if (selectedRole === "HRG") {
+            // Check if this is a new role being added
+            const isNewRecord = submissionData.isNewRecord;
+            const isNewRole = submissionData.isNewRoleData;
+            
+            // Create properly structured HRG data
+            const hrgData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              renewdate: roleSpecificData.renewdate || "",
+              campaigndate: roleSpecificData.campaigndate || "",
+              paymtref: roleSpecificData.paymtref || "",
+              paymtamt: roleSpecificData.paymtamt || 0,
+              unsubscribe: roleSpecificData.unsubscribe || false,
+              remarks: roleSpecificData.remarks || "",
+              adddate: isNewRecord ? new Date().toLocaleString() : undefined,
+              id: !isNewRecord && selectedHrgRecord ? (selectedHrgRecord.id || selectedHrgRecord._id) : undefined
             };
-          } else if (hasRole("FOM")) {
-            updatedFullData.fomData = { 
-              ...(rowData.fomData || {}),
-              ...submissionData.roleData 
+            
+            if (isNewRole || isNewRecord) {
+              // Adding new HRG record
+              const existingRecords = rowData.hrgData?.records || [];
+              updatedFullData.hrgData = { 
+                records: [hrgData, ...existingRecords]
+              };
+            } else {
+              // Updating existing HRG record
+              const existingRecords = rowData.hrgData?.records || [];
+              const updatedRecords = existingRecords.map(record => {
+                const recordId = record.id || record._id;
+                const selectedId = selectedHrgRecord.id || selectedHrgRecord._id;
+                
+                if (String(recordId) === String(selectedId)) {
+                  return { ...record, ...hrgData };
+                }
+                return record;
+              });
+              
+              updatedFullData.hrgData = { 
+                records: updatedRecords
+              };
+            }
+          } else if (selectedRole === "FOM") {
+            // Check if this is a new role being added
+            const isNewRecord = submissionData.isNewRecord;
+            const isNewRole = submissionData.isNewRoleData;
+            
+            // Create properly structured FOM data
+            const fomData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              paymtamt: roleSpecificData.paymtamt || 0,
+              paymtform: roleSpecificData.paymtform || "",
+              paymtref: roleSpecificData.paymtref || "",
+              unsubscribe: roleSpecificData.unsubscribe || false,
+              remarks: roleSpecificData.remarks || "",
+              adddate: isNewRecord ? new Date().toLocaleString() : undefined,
+              id: !isNewRecord && selectedFomRecord ? (selectedFomRecord.id || selectedFomRecord._id) : undefined
             };
-          } else if (hasRole("CAL")) {
-            updatedFullData.calData = { 
-              ...(rowData.calData || {}),
-              ...submissionData.roleData 
+            
+            if (isNewRole || isNewRecord) {
+              // Adding new FOM record
+              const existingRecords = rowData.fomData?.records || [];
+              updatedFullData.fomData = { 
+                records: [fomData, ...existingRecords]
+              };
+            } else {
+              // Updating existing FOM record
+              const existingRecords = rowData.fomData?.records || [];
+              const updatedRecords = existingRecords.map(record => {
+                const recordId = record.id || record._id;
+                const selectedId = selectedFomRecord.id || selectedFomRecord._id;
+                
+                if (String(recordId) === String(selectedId)) {
+                  return { ...record, ...fomData };
+                }
+                return record;
+              });
+              
+              updatedFullData.fomData = { 
+                records: updatedRecords
+              };
+            }
+          } else if (selectedRole === "CAL") {
+            // Check if this is a new role being added
+            const isNewRecord = submissionData.isNewRecord;
+            const isNewRole = submissionData.isNewRoleData;
+            
+            // Create properly structured CAL data
+            const calData = {
+              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              caltype: roleSpecificData.caltype || "",
+              calqty: roleSpecificData.calqty || 0,
+              calamt: roleSpecificData.calamt || 0,
+              paymtref: roleSpecificData.paymtref || "",
+              paymtamt: roleSpecificData.paymtamt || 0,
+              paymtform: roleSpecificData.paymtform || "",
+              paymtdate: roleSpecificData.paymtdate || "",
+              remarks: roleSpecificData.remarks || "",
+              adddate: isNewRecord ? new Date().toLocaleString() : undefined,
+              id: !isNewRecord && selectedCalRecord ? (selectedCalRecord.id || selectedCalRecord._id) : undefined
             };
+            
+            if (isNewRole || isNewRecord) {
+              // Adding new CAL record
+              const existingRecords = rowData.calData?.records || [];
+              updatedFullData.calData = { 
+                records: [calData, ...existingRecords]
+              };
+            } else {
+              // Updating existing CAL record
+              const existingRecords = rowData.calData?.records || [];
+              const updatedRecords = existingRecords.map(record => {
+                const recordId = record.id || record._id;
+                const selectedId = selectedCalRecord.id || selectedCalRecord._id;
+                
+                if (String(recordId) === String(selectedId)) {
+                  return { ...record, ...calData };
+                }
+                return record;
+              });
+              
+              updatedFullData.calData = { 
+                records: updatedRecords
+              };
+            }
           }
           
           onEditSuccess(updatedFullData);
@@ -1092,6 +1462,178 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // You can display this error to the user if needed
       alert(errorMessage);
     }
+  };
+
+  // Add a function to handle role record mode changes (similar to subscriptionMode)
+  const handleRoleRecordModeChange = (mode) => {
+    setRoleRecordMode(mode);
+    
+    if (mode === "edit") {
+      // Load selected record data based on the current role
+      if (selectedRole === "HRG" && selectedHrgRecord) {
+        setRoleSpecificData({
+          ...selectedHrgRecord,
+        });
+      } else if (selectedRole === "FOM" && selectedFomRecord) {
+        setRoleSpecificData({
+          ...selectedFomRecord,
+        });
+      } else if (selectedRole === "CAL" && selectedCalRecord) {
+        setRoleSpecificData({
+          ...selectedCalRecord,
+        });
+      }
+    } else if (mode === "add") {
+      // Set up template for new record based on role
+      if (selectedRole === "HRG") {
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          renewdate: "",
+          campaigndate: "",
+          paymtref: "",
+          paymtamt: 0,
+          unsubscribe: false,
+          remarks: "",
+        });
+      } else if (selectedRole === "FOM") {
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          paymtamt: 0,
+          paymtform: "",
+          paymtref: "",
+          unsubscribe: false,
+          remarks: "",
+        });
+      } else if (selectedRole === "CAL") {
+        setRoleSpecificData({
+          recvdate: formatDateToMMDDYY(new Date()),
+          caltype: "",
+          calqty: 0,
+          calamt: 0,
+          paymtref: "",
+          paymtamt: 0,
+          paymtform: "",
+          paymtdate: "",
+          remarks: "",
+        });
+      }
+    }
+  };
+  
+  // Add functions to handle record selection for each role type
+  const selectHrgRecord = (record) => {
+    setSelectedHrgRecord(record);
+    if (selectedRole === "HRG" && roleRecordMode === "edit") {
+      setRoleSpecificData({
+        ...record,
+      });
+    }
+  };
+  
+  const selectFomRecord = (record) => {
+    setSelectedFomRecord(record);
+    if (selectedRole === "FOM" && roleRecordMode === "edit") {
+      setRoleSpecificData({
+        ...record,
+      });
+    }
+  };
+  
+  const selectCalRecord = (record) => {
+    setSelectedCalRecord(record);
+    if (selectedRole === "CAL" && roleRecordMode === "edit") {
+      setRoleSpecificData({
+        ...record,
+      });
+    }
+  };
+
+  // Now let's modify the HRG/FOM/CAL card to include record history and add/edit options
+  // Update the Role-Specific Information Card in the return statement:
+
+  // The new Role Record History component - Add this inside the existing jsx after the Modal component declaration
+  const RoleRecordHistory = () => {
+    let records = [];
+    let selectedRecord = null;
+    let selectRecordFunction = null;
+    
+    if (selectedRole === "HRG") {
+      records = hrgRecords;
+      selectedRecord = selectedHrgRecord;
+      selectRecordFunction = selectHrgRecord;
+    } else if (selectedRole === "FOM") {
+      records = fomRecords;
+      selectedRecord = selectedFomRecord;
+      selectRecordFunction = selectFomRecord;
+    } else if (selectedRole === "CAL") {
+      records = calRecords;
+      selectedRecord = selectedCalRecord;
+      selectRecordFunction = selectCalRecord;
+    }
+    
+    if (records.length === 0) {
+      return (
+        <div className="text-gray-500 text-center py-4">
+          No record history available
+        </div>
+      );
+    }
+    
+    return (
+      <div className="space-y-3 max-h-60 overflow-y-auto">
+        {records.map((record, idx) => (
+          <div
+            key={record.id || record._id || idx}
+            className={`p-3 rounded-lg border ${
+              (selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-200"
+            }`}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold">
+                  {record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "N/A"}
+                </p>
+                {selectedRole === "HRG" && record.renewdate && (
+                  <p className="text-sm text-gray-600">
+                    Renewal: {formatDateToMMDDYY(parseDate(record.renewdate))}
+                  </p>
+                )}
+                {selectedRole === "CAL" && (
+                  <p className="text-sm text-gray-600">
+                    {record.caltype || "No type"} - Qty: {record.calqty || 0}
+                  </p>
+                )}
+              </div>
+              <div className="text-right">
+                {record.paymtamt > 0 && (
+                  <p className="text-sm">Amount: {record.paymtamt}</p>
+                )}
+                {record.paymtref && (
+                  <p className="text-sm">Ref: {record.paymtref}</p>
+                )}
+              </div>
+            </div>
+            
+            {roleRecordMode === "edit" && (
+              <button
+                onClick={() => selectRecordFunction(record)}
+                className={`mt-2 w-full py-1 text-sm rounded ${
+                  (selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }`}
+              >
+                {(selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+                  ? "Currently Editing"
+                  : "Select to Edit"}
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -1255,43 +1797,83 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 Role-Specific Information
               </h2>
               <div className="space-y-3">
-                <div className="flex space-x-4 mb-4 mt-2">
-                  <label>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="HRG"
-                      checked={selectedRole === "HRG"}
-                      onChange={() => handleRoleToggle("HRG")}
-                    />
-                    HRG
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="FOM"
-                      checked={selectedRole === "FOM"}
-                      onChange={() => handleRoleToggle("FOM")}
-                    />
-                    FOM
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="CAL"
-                      checked={selectedRole === "CAL"}
-                      onChange={() => handleRoleToggle("CAL")}
-                    />
-                    CAL
-                  </label>
+                <div className="flex mb-4 mt-2">
+                  <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
+                    <button
+                      type="button"
+                      className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                        selectedRole === "HRG"
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      } transition-colors`}
+                      onClick={() => handleRoleToggle("HRG")}
+                    >
+                      HRG
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                        selectedRole === "FOM"
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      } transition-colors`}
+                      onClick={() => handleRoleToggle("FOM")}
+                    >
+                      FOM
+                    </button>
+                    <button
+                      type="button"
+                      className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                        selectedRole === "CAL"
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      } transition-colors`}
+                      onClick={() => handleRoleToggle("CAL")}
+                    >
+                      CAL
+                    </button>
+                  </div>
                 </div>
+                
+                {/* Role Record Mode Selection */}
+                <div className="flex justify-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => handleRoleRecordModeChange("add")}
+                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      roleRecordMode === "add"
+                        ? "bg-green-600 text-white shadow-md"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Add New Record
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRoleRecordModeChange("edit")}
+                    className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                      roleRecordMode === "edit"
+                        ? "bg-blue-600 text-white shadow-md"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Edit Existing Record
+                  </button>
+                </div>
+                
+                {/* Record History */}
+                <div className="border rounded-lg p-4 bg-white">
+                  <h3 className="text-lg font-semibold mb-3">Record History</h3>
+                  <RoleRecordHistory />
+                </div>
+                
                 <div className="flex flex-col-2 gap-5">
                   <div className="flex flex-col-2 gap-4 mb-2 p-2">
                     {selectedRole === "HRG" && (
                       <div>
-                        <h1 className="text-black mb-2 font-bold">HRG Edit</h1>
+                        <h1 className="text-black mb-2 font-bold">
+                          {roleRecordMode === "add" ? "HRG Add" : "HRG Edit"}
+                        </h1>
                         <InputField
                           label="Received Date:"
                           id="recvdate"
@@ -1306,6 +1888,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={roleSpecificData.renewdate}
                           onChange={handleRoleSpecificChange}
                         />
+                        <div className="flex items-center mt-2 mb-2">
+                          <Button
+                            className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
+                            type="button"
+                            onClick={handleRenewDateToday}
+                          >
+                            Set Renewal to Today
+                          </Button>
+                        </div>
                         <InputField
                           label="Campaign Date:"
                           id="campaigndate"
@@ -1320,29 +1911,56 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={roleSpecificData.paymtref}
                           onChange={handleRoleSpecificChange}
                         />
-                        <label
-                          htmlFor="unsubscribe"
-                          className="text-black font-bold mr-2"
-                        >
-                          Unsubscribe:
-                        </label>
-                        <input
-                          type="checkbox"
-                          id="unsubscribe"
-                          name="unsubscribe"
-                          checked={roleSpecificData.unsubscribe}
-                          onChange={(e) =>
-                            setRoleSpecificData((prev) => ({
-                              ...prev,
-                              unsubscribe: e.target.checked,
-                            }))
-                          }
+                        <InputField
+                          label="Payment Amount:"
+                          id="paymtamt"
+                          name="paymtamt"
+                          value={roleSpecificData.paymtamt}
+                          onChange={handleRoleSpecificChange}
                         />
+                        <div className="mb-2">
+                          <label
+                            htmlFor="unsubscribe"
+                            className="text-black font-bold mr-2"
+                          >
+                            Unsubscribe:
+                          </label>
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={roleSpecificData.unsubscribe}
+                            onChange={(e) =>
+                              setRoleSpecificData((prev) => ({
+                                ...prev,
+                                unsubscribe: e.target.checked,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label
+                            htmlFor="remarks"
+                            className="block text-black font-bold mb-1"
+                          >
+                            Remarks:
+                          </label>
+                          <textarea
+                            id="remarks"
+                            name="remarks"
+                            value={roleSpecificData.remarks || ""}
+                            onChange={handleRoleSpecificChange}
+                            className="w-full p-2 border rounded-md"
+                            rows="3"
+                          />
+                        </div>
                       </div>
                     )}
                     {selectedRole === "FOM" && (
                       <div>
-                        <h1 className="text-black mb-2 font-bold">FOM Edit</h1>
+                        <h1 className="text-black mb-2 font-bold">
+                          {roleRecordMode === "add" ? "FOM Add" : "FOM Edit"}
+                        </h1>
                         <InputField
                           label="Received Date:"
                           id="recvdate"
@@ -1371,29 +1989,49 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={roleSpecificData.paymtform}
                           onChange={handleRoleSpecificChange}
                         />
-                        <label
-                          htmlFor="unsubscribe"
-                          className="text-black font-bold mr-2"
-                        >
-                          Unsubscribe:
-                        </label>
-                        <input
-                          type="checkbox"
-                          id="unsubscribe"
-                          name="unsubscribe"
-                          checked={roleSpecificData.unsubscribe}
-                          onChange={(e) =>
-                            setRoleSpecificData((prev) => ({
-                              ...prev,
-                              unsubscribe: e.target.checked,
-                            }))
-                          }
-                        />
+                        <div className="mb-2">
+                          <label
+                            htmlFor="unsubscribe"
+                            className="text-black font-bold mr-2"
+                          >
+                            Unsubscribe:
+                          </label>
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={roleSpecificData.unsubscribe}
+                            onChange={(e) =>
+                              setRoleSpecificData((prev) => ({
+                                ...prev,
+                                unsubscribe: e.target.checked,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <label
+                            htmlFor="remarks"
+                            className="block text-black font-bold mb-1"
+                          >
+                            Remarks:
+                          </label>
+                          <textarea
+                            id="remarks"
+                            name="remarks"
+                            value={roleSpecificData.remarks || ""}
+                            onChange={handleRoleSpecificChange}
+                            className="w-full p-2 border rounded-md"
+                            rows="3"
+                          />
+                        </div>
                       </div>
                     )}
                     {selectedRole === "CAL" && (
                       <div>
-                        <h1 className="text-black mb-2 font-bold">CAL Edit</h1>
+                        <h1 className="text-black mb-2 font-bold">
+                          {roleRecordMode === "add" ? "CAL Add" : "CAL Edit"}
+                        </h1>
                         <div className="flex gap-5">
                           <div>
                             <InputField
@@ -1455,6 +2093,22 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               onChange={handleRoleSpecificChange}
                             />
                           </div>
+                        </div>
+                        <div className="mb-2 mt-2">
+                          <label
+                            htmlFor="remarks"
+                            className="block text-black font-bold mb-1"
+                          >
+                            Remarks:
+                          </label>
+                          <textarea
+                            id="remarks"
+                            name="remarks"
+                            value={roleSpecificData.remarks || ""}
+                            onChange={handleRoleSpecificChange}
+                            className="w-full p-2 border rounded-md"
+                            rows="3"
+                          />
                         </div>
                       </div>
                     )}
