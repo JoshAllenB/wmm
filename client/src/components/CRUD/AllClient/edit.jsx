@@ -811,9 +811,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const subId = sub._id || sub.id;
     const selectedId = selectedSub._id || selectedSub.id;
     
-    // Log comparison for debugging
-    console.log(`Comparing: ${subId} with ${selectedId}, result: ${String(subId) === String(selectedId)}`);
-    
     return String(subId) === String(selectedId);
   };
 
