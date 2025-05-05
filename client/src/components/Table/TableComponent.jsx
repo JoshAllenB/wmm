@@ -233,22 +233,18 @@ export function TableComponent({
                   >
                     {cell.column.id === "Client Name" ? (
                       <div style={{ textAlign: "left" }}>
-                        <Tooltip title={cell.getValue().split("<br>")[0]} arrow placement="top-start">
-                          <div className="truncate">{cell.getValue().split("<br>")[0]}</div>
-                        </Tooltip>
+                        <div>{cell.getValue().split("<br>")[0]}</div>
                         {cell.getValue().split("<br>")[1] && (
-                          <div className="font-bold truncate">
+                          <div className="font-bold">
                             {cell.getValue().split("<br>")[1]}
                           </div>
                         )}
                       </div>
                     ) : cell.column.id === "Address" ? (
                       <div style={{ textAlign: "left" }}>
-                        <Tooltip title={cell.getValue().split("<br>")[0]} arrow placement="top-start">
-                          <div className="truncate">{cell.getValue().split("<br>")[0]}</div>
-                        </Tooltip>
+                        <div>{cell.getValue().split("<br>")[0]}</div>
                         {cell.getValue().split("<br>")[1] && (
-                          <div className="font-bold truncate">
+                          <div className="font-bold">
                             {cell
                               .getValue()
                               .split("<br>")[1]
@@ -257,9 +253,7 @@ export function TableComponent({
                         )}
                       </div>
                     ) : cell.column.id === "Contact Info" ? (
-                      <Tooltip title={cell.getValue()} arrow placement="top-start">
-                        <div className="truncate">{cell.getValue()}</div>
-                      </Tooltip>
+                      <div>{cell.getValue()}</div>
                     ) : cell.column.id === "Added Info" ? (
                       <div style={{ textAlign: "left" }}>
                         <div>
