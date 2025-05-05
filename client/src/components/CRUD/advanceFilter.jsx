@@ -199,11 +199,30 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     // Process services for exact matching (always use exact matching now)
     const processExactServices = (services) => {
-      if (!services.length) return services;
+      if (!services || !services.length) return services || [];
+      
+      // Make sure we're working with an array
+      let serviceArray = services;
+      if (!Array.isArray(serviceArray)) {
+        serviceArray = typeof serviceArray === 'string' ? 
+          serviceArray.split(',').map(s => s.trim()) : [];
+      }
+      
+      // Ensure service names are properly cased
+      serviceArray = serviceArray.map(service => {
+        // Normalize service names to uppercase
+        const normalizedService = String(service).toUpperCase();
+        // Make sure it's one of our valid service types
+        if (['WMM', 'HRG', 'FOM', 'CAL'].includes(normalizedService)) {
+          return normalizedService;
+        }
+        // If not valid, return original
+        return service;
+      });
       
       // When using exact match, we're looking for clients with ONLY these services
       // WMM is ignored in this comparison (it can be present or not)
-      const coreServices = services.filter(service => service !== "WMM");
+      const coreServices = serviceArray.filter(service => service !== "WMM");
       
       return coreServices;
     };
