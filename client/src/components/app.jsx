@@ -9,6 +9,7 @@ import AdminPanel from "./UI/Sidebar/AdminPanel";
 import SubClass from "./UI/Sidebar/SubClass";
 import Hrg from "./UI/Sidebar/Hrg";
 import Area from "./UI/Sidebar/Area";
+import GroupManagement from "./CRUD/Group";
 import DataExport from "../components/DataExport";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
@@ -79,6 +80,10 @@ const App = React.memo(() => {
         <Route
           path="/area"
           element={isLoggedIn ? <Area /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/group"
+          element={isLoggedIn ? <GroupManagement /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/data-export"

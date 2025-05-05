@@ -17,6 +17,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ListIcon from "@mui/icons-material/List";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DownloadIcon from "@mui/icons-material/Download";
+import PeopleIcon from "@mui/icons-material/People";
 import { useUser } from "../../../utils/Hooks/userProvider";
 
 export default function MenuSidebar() {
@@ -127,6 +128,19 @@ export default function MenuSidebar() {
                     selected={selected === "Area"}
                   >
                     Area
+                  </MenuItem>
+                  <MenuItem
+                    icon={<PeopleIcon style={{ color: "#333333" }} />}
+                    component={<Link to="/group" />}
+                    onClick={() => handleSelect("Group")}
+                    selected={selected === "Group"}
+                    style={{
+                      backgroundColor:
+                        selected === "Group" ? "#e3f2fd" : "transparent",
+                      color: selected === "Group" ? "#1976d2" : "#333333",
+                    }}
+                  >
+                    <Typography variant="h6">Groups</Typography>
                   </MenuItem>
                   <MenuItem
                     icon={<DownloadIcon style={{ color: "#333333" }} />}

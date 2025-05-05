@@ -21,6 +21,71 @@ router.get("/groups", verifyToken, async (req, res) => {
   }
 });
 
+// Create group
+router.post("/groups-add", verifyToken, async (req, res) => {
+  try {
+    const { id, name, description } = req.body;
+
+    const existingGroup = await GroupModel.findOne({ id });
+    if (existingGroup) {
+      return res.status(400).json({ error: "Group ID already exists" });
+    }
+
+    const newGroup = new GroupModel({
+      id,
+      name,
+      description,
+    });
+
+    await newGroup.save();
+    res.status(201).json(newGroup);
+  } catch (err) {
+    console.error("Error creating group:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Update group
+router.put("/groups-edit/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, newId } = req.body;
+
+    const updatedGroup = await GroupModel.findOneAndUpdate(
+      { id },
+      { id: newId || id, name, description },
+      { new: true }
+    );
+
+    if (!updatedGroup) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    res.json({ success: true, data: updatedGroup });
+  } catch (err) {
+    console.error("Error updating group:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Delete group
+router.delete("/groups-delete/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedGroup = await GroupModel.findOneAndDelete({ id });
+
+    if (!deletedGroup) {
+      return res.status(404).json({ error: "Group not found" });
+    }
+
+    res.status(200).json({ message: "Group deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting group:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 router.get("/areas", async (req, res) => {
   try {
     const areas = await AreaModel.aggregate([
