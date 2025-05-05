@@ -9,6 +9,7 @@ import {
 } from "../UI/ShadCN/table";
 import ArrowDropDownSharp from "@mui/icons-material/ArrowDropDownSharp";
 import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
+import Tooltip from "@mui/material/Tooltip";
 
 export function TableComponent({
   table,
@@ -35,8 +36,8 @@ export function TableComponent({
   
   // Client count display for roles that include WMM
   const clientCountDisplay = hasWmmRole ? (
-    <span className="text-sm mr-4">
-      Clients: <span className="font-medium">{Number(pageSpecificClients || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalClients || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span>
+    <span className="text-base mr-4 text-gray-800">
+      Clients: <span className="font-bold">{Number(pageSpecificClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
     </span>
   ) : null;
   
@@ -44,62 +45,62 @@ export function TableComponent({
     switch (userRole) {
       case "WMM":
         return (
-          <div className="flex justify-between px-2 py-1">
+          <div className="flex flex-wrap justify-between px-2 py-1">
             {clientCountDisplay}
-            <span className="text-sm">
-              Copies: <span className="font-medium">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span>
+            <span className="text-base text-gray-800 font-medium">
+              Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
             </span>
           </div>
         );
       case "CAL":
         return (
-          <div className="flex justify-between px-2 py-1">
-            <span className="text-sm">
-              <span className="mr-4">Quantity: <span className="font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span></span>
-              <span>Amount: <span className="font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php</span>
+          <div className="flex flex-wrap justify-between px-2 py-1">
+            <span className="text-sm sm:text-base">
+              <span className="mr-2 sm:mr-4 text-gray-800 font-medium">Qty: <span className="font-bold">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span></span>
+              <span className="text-gray-800 font-medium">Amt: <span className="font-bold">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php</span>
             </span>
           </div>
         );
       case "HRG":
         return (
           <div className="flex justify-between px-2 py-1">
-            <span className="text-sm text-blue-600">
-              HRG Payment: <span className="font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php
+            <span className="text-base text-blue-700 font-medium">
+              HRG Payment: <span className="font-bold">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
             </span>
           </div>
         );
       case "FOM":
         return (
           <div className="flex justify-between px-2 py-1">
-            <span className="text-sm text-green-600">
-              FOM Payment: <span className="font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Page)</span> / <span className="font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500">(Total)</span> Php
+            <span className="text-base text-green-700 font-medium">
+              FOM Payment: <span className="font-bold">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
             </span>
           </div>
         );
       case "HRG FOM CAL":
         return (
-          <div className="flex items-center justify-between px-2 py-1 bg-gray-50 rounded-md border border-gray-200">
-            <div className="text-blue-600 text-sm whitespace-nowrap">
-              <span className="font-medium">HRG: </span>
-              <span className="font-medium">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+          <div className="flex items-center justify-between px-2 py-2 bg-gray-50 rounded-md border border-gray-200">
+            <div className="text-blue-700 text-base whitespace-nowrap">
+              <span className="font-bold">HRG: </span>
+              <span className="font-bold">{Number(pageSpecificHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalHrgAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
             </div>
             
-            <div className="text-green-600 text-sm mx-4 whitespace-nowrap">
-              <span className="font-medium">FOM: </span>
-              <span className="font-medium">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+            <div className="text-green-700 text-base mx-4 whitespace-nowrap">
+              <span className="font-bold">FOM: </span>
+              <span className="font-bold">{Number(pageSpecificFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalFomAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
             </div>
             
-            <div className="text-amber-600 text-sm whitespace-nowrap">
-              <span className="font-medium">CAL:</span>
+            <div className="text-amber-700 text-base whitespace-nowrap">
+              <span className="font-bold">CAL:</span>
               <div className="inline-flex flex-col ml-1">
-                <div>
-                  <span className="font-medium">Quantity:</span> <span className="font-medium">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+                <div className="mb-1">
+                  <span className="font-bold">Quantity:</span> <span className="font-bold">{Number(pageSpecificCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalQty || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
+                </div>
+                <div className="mb-1">
+                  <span className="font-bold">Amount:</span> <span className="font-bold">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
                 </div>
                 <div>
-                  <span className="font-medium">Amount:</span> <span className="font-medium">{Number(pageSpecificCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
-                </div>
-                <div>
-                  <span className="font-medium">Payment:</span> <span className="font-medium">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-medium">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
+                  <span className="font-bold">Payment:</span> <span className="font-bold">{Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCalPaymtAmt || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span> Php
                 </div>
               </div>
             </div>
@@ -115,21 +116,21 @@ export function TableComponent({
                 {clientCountDisplay}
               </div>
             )}
-            <div className="text-sm">
-              <span className="text-blue-600 mr-4">
-                <span className="font-medium">HRG:</span> {Number(pageSpecificHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+            <div className="text-base">
+              <span className="text-blue-700 mr-4">
+                <span className="font-bold">HRG:</span> {Number(pageSpecificHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
               </span>
-              <span className="text-green-600 mr-4">
-                <span className="font-medium">FOM:</span> {Number(pageSpecificFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+              <span className="text-green-700 mr-4">
+                <span className="font-bold">FOM:</span> {Number(pageSpecificFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
               </span>
-              <span className="text-amber-600">
-                <span className="font-medium">CAL:</span>
-                <div className="inline-block ml-1 border-l-2 border-amber-200 pl-2">
-                  <div>
-                    <span className="font-medium">Quantity:</span> {Number(pageSpecificCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span>
+              <span className="text-amber-700">
+                <span className="font-bold">CAL:</span>
+                <div className="inline-block ml-1 border-l-2 border-amber-300 pl-2">
+                  <div className="mb-1">
+                    <span className="font-bold">Quantity:</span> {Number(pageSpecificCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span>
                   </div>
                   <div>
-                    <span className="font-medium">Amount:</span> {Number(pageSpecificCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
+                    <span className="font-bold">Amount:</span> {Number(pageSpecificCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
                   </div>
                 </div>
               </span>
@@ -157,7 +158,7 @@ export function TableComponent({
                 <TableHead
                   key={header.id}
                   onClick={header.column.getToggleSortingHandler()}
-                  className="bg-blue-500 text-white sticky top-0 h-12"
+                  className="bg-blue-600 text-white font-bold text-lg sticky top-0 h-14 whitespace-nowrap"
                 >
                   {flexRender(
                     header.column.columnDef.header,
@@ -188,29 +189,38 @@ export function TableComponent({
                   transitionDelay: `${rowIndex * 40}ms`,
                 }}
               >
-                {row.getVisibleCells().map((cell) => (
+                {row.getVisibleCells().map((cell) => {
+                  const cellWidth = cell.column.columnDef.size;
+                  return (
                   <TableCell
                     key={`${cell.id}-${rowIndex}`}
-                    style={{ width: cell.column.columnDef.size }}
+                    style={{ 
+                      width: cellWidth,
+                      maxWidth: cellWidth ? `${cellWidth}px` : 'auto',
+                    }}
                     className={`${
                       cell.column.id === "select" ? "p-0 " : "px-4 py-2"
-                    }`}
+                    } overflow-hidden`}
                     onClick={(event) => handleCellClick(event, row, cell)}
                   >
                     {cell.column.id === "Client Name" ? (
                       <div style={{ textAlign: "left" }}>
-                        <div>{cell.getValue().split("<br>")[0]}</div>
+                        <Tooltip title={cell.getValue().split("<br>")[0]} arrow placement="top-start">
+                          <div className="truncate">{cell.getValue().split("<br>")[0]}</div>
+                        </Tooltip>
                         {cell.getValue().split("<br>")[1] && (
-                          <div className="text font-bold">
+                          <div className="font-bold truncate">
                             {cell.getValue().split("<br>")[1]}
                           </div>
                         )}
                       </div>
                     ) : cell.column.id === "Address" ? (
                       <div style={{ textAlign: "left" }}>
-                        <div>{cell.getValue().split("<br>")[0]}</div>
+                        <Tooltip title={cell.getValue().split("<br>")[0]} arrow placement="top-start">
+                          <div className="truncate">{cell.getValue().split("<br>")[0]}</div>
+                        </Tooltip>
                         {cell.getValue().split("<br>")[1] && (
-                          <div className="font-bold">
+                          <div className="font-bold truncate">
                             {cell
                               .getValue()
                               .split("<br>")[1]
@@ -218,6 +228,10 @@ export function TableComponent({
                           </div>
                         )}
                       </div>
+                    ) : cell.column.id === "Contact Info" ? (
+                      <Tooltip title={cell.getValue()} arrow placement="top-start">
+                        <div className="truncate">{cell.getValue()}</div>
+                      </Tooltip>
                     ) : cell.column.id === "Added Info" ? (
                       <div style={{ textAlign: "left" }}>
                         <div>
@@ -282,13 +296,13 @@ export function TableComponent({
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((hrg, index) => (
                             <div key={index} className="mb-1 text-sm">
-                              <span className="text-gray-600">{hrg.recvdate}</span>
+                              <span className="text-black font-medium">{hrg.recvdate}</span>
                               <span className="mx-1">•</span>
                               <span className={hrg.status === "Active" ? "text-green-600" : "text-red-600"}>
                                 {hrg.status}
                               </span>
                               <span className="mx-1">•</span>
-                              <span className="text-gray-600">{hrg.paymtamt}</span>
+                              <span className="text-black font-medium">{hrg.paymtamt}</span>
                             </div>
                           ))
                         ) : (
@@ -301,13 +315,13 @@ export function TableComponent({
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((fom, index) => (
                             <div key={index} className="mb-1 text-sm">
-                              <span className="text-gray-600">{fom.recvdate}</span>
+                              <span className="text-black font-medium">{fom.recvdate}</span>
                               <span className="mx-1">•</span>
                               <span className={fom.status === "Active" ? "text-green-600" : "text-red-600"}>
                                 {fom.status}
                               </span>
                               <span className="mx-1">•</span>
-                              <span className="text-gray-600">{fom.paymtamt}</span>
+                              <span className="text-black font-medium">{fom.paymtamt}</span>
                             </div>
                           ))
                         ) : (
@@ -320,13 +334,13 @@ export function TableComponent({
                         {cell.getValue().length > 0 ? (
                           cell.getValue().map((cal, index) => (
                             <div key={index} className="mb-1 text-sm">
-                              <span className="text-gray-600">{cal.recvdate}</span>
+                              <span className="text-black font-medium">{cal.recvdate}</span>
                               <span className="mx-1">•</span>
-                              <span className="text-gray-600">{cal.caltype}</span>
+                              <span className="text-black font-medium">{cal.caltype}</span>
                               <span className="mx-1">•</span>
-                              <span className="text-gray-600">Qty: {cal.calqty}</span>
+                              <span className="text-black font-medium">Qty: {cal.calqty}</span>
                               <span className="mx-1">•</span>
-                              <span className="text-gray-600">{cal.calamt}</span>
+                              <span className="text-black font-medium">{cal.calamt}</span>
                             </div>
                           ))
                         ) : (
@@ -351,7 +365,7 @@ export function TableComponent({
                       flexRender(cell.column.columnDef.cell, cell.getContext())
                     )}
                   </TableCell>
-                ))}
+                )})}
               </TableRow>
             ))
           ) : (

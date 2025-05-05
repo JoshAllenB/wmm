@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ScrollArea, ScrollBar } from "../UI/ShadCN/scroll-area";
 import { useTheme } from "@mui/material";
 import { PaginationComponent } from "./Features/Pagination";
@@ -77,6 +77,27 @@ export default function DataTable({
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
+  const [tableHeight, setTableHeight] = useState('700px');
+  const containerRef = useRef(null);
+  
+  // Responsive height adjustment based on viewport
+  useEffect(() => {
+    const updateTableHeight = () => {
+      // Calculate available height (viewport height minus space for other UI elements)
+      const viewportHeight = window.innerHeight;
+      // Reserve space for navigation, headers, pagination (adjust as needed)
+      const reservedSpace = 300; 
+      const calculatedHeight = Math.max(400, viewportHeight - reservedSpace);
+      setTableHeight(`${calculatedHeight}px`);
+    };
+
+    // Set initial height
+    updateTableHeight();
+    
+    // Update on resize
+    window.addEventListener('resize', updateTableHeight);
+    return () => window.removeEventListener('resize', updateTableHeight);
+  }, []);
 
   const { table } = useTableLogic(
     localData,
@@ -254,6 +275,7 @@ export default function DataTable({
   return (
     <>
       <div
+        ref={containerRef}
         className={`transition-opacity duration-300 ease-in-out ${
           isTransitioning ? "opacity-0" : "opacity-100"
         }`}

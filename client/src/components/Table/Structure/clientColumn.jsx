@@ -3,7 +3,8 @@ import { useUser } from "../../../utils/Hooks/userProvider";
 
 /** @type import ('@tanstack/react-table').ColumnDef<any>*/
 export const useColumns = () => {
-  const { hasRole } = useUser();
+  const { hasRole, user } = useUser();
+  const userRole = user?.role;
 
   // Function to determine subscription status based on enddate
   const getSubscriptionStatus = (enddate) => {
@@ -76,9 +77,9 @@ export const useColumns = () => {
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 50,
+      size: 40,
     },
-    { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 50 },
+    { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 40 },
     {
       id: "Client Name",
       Header: "Client Name",
@@ -100,7 +101,7 @@ export const useColumns = () => {
 
         return `${displayName}${typePart}`;
       },
-      size: 200,
+      size: 150,
     },
     {
       id: "Address",
@@ -121,7 +122,7 @@ export const useColumns = () => {
 
         return `${addressParts}${acode}`;
       },
-      size: 500,
+      size: 200,
     },
     {
       id: "Contact Info",
@@ -135,7 +136,7 @@ export const useColumns = () => {
         ]
           .filter(Boolean)
           .join(", "),
-      size: 250,
+      size: 180,
     },
     {
       id: "Services",
@@ -232,14 +233,14 @@ export const useColumns = () => {
                         : "";
 
                     return (
-                      <li key={index} className="">
-                        <span className={statusClass}>
+                      <li key={index} className="text-lg mb-1">
+                        <span className={`${statusClass} text-black`}>
                           {statusIndicator}
                           <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
                           {sub.enddate}, Cps: {sub.copies}
                         </span>
                         {(sub.paymtref || sub.paymtamt) && (
-                          <div className="text-xs ml-4 text-gray-600">
+                          <div className="text-sm ml-4 text-black">
                             {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
                             {sub.paymtref && sub.paymtamt && <span> • </span>}
                             {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
@@ -251,8 +252,16 @@ export const useColumns = () => {
                 </ul>
               );
             },
-            size: 650,
+            size: 250,
           },
+          // Added Info column - only show for WMM role but not for HRG FOM CAL combined role
+          ...(userRole !== "HRG FOM CAL" ? [{
+            id: "Added Info",
+            Header: "Added Info",
+            accessorFn: (row) =>
+              `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
+            size: 150,
+          }] : []),
         ]
       : []),
     ...(hasRole("HRG")
@@ -300,21 +309,21 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-1 text-sm"
+                      className="mb-2 text-lg"
                     >
-                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="text-black font-medium">{record.recvdate}</span>
                       <span className="mx-1">•</span>
-                      <span className={record.status === "Active" ? "text-green-600" : "text-red-600"}>
+                      <span className={record.status === "Active" ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
                         {record.status}
                       </span>
                       <span className="mx-1">•</span>
-                      <span className="text-gray-600">{record.paymtamt}</span>
+                      <span className="text-black font-medium">{record.paymtamt}</span>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 200,
+            size: 180,
           },
         ]
       : []),
@@ -363,21 +372,21 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-1 text-sm"
+                      className="mb-2 text-lg"
                     >
-                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="text-black font-medium">{record.recvdate}</span>
                       <span className="mx-1">•</span>
-                      <span className={record.status === "Active" ? "text-green-600" : "text-red-600"}>
+                      <span className={record.status === "Active" ? "text-green-700 font-medium" : "text-red-700 font-medium"}>
                         {record.status}
                       </span>
                       <span className="mx-1">•</span>
-                      <span className="text-gray-600">{record.paymtamt}</span>
+                      <span className="text-black font-medium">{record.paymtamt}</span>
                     </div>
                   ))}
                 </div>
               );
             },
-            size: 200,
+            size: 180,
           },
         ]
       : []),
@@ -427,15 +436,15 @@ export const useColumns = () => {
                   {records.map((record, index) => (
                     <div
                       key={index}
-                      className="mb-1 text-sm"
+                      className="mb-2 text-lg"
                     >
-                      <span className="text-gray-600">{record.recvdate}</span>
+                      <span className="text-black font-medium">{record.recvdate}</span>
                       <span className="mx-1">•</span>
-                      <span className="text-gray-600">{record.caltype}</span>
+                      <span className="text-black font-medium">{record.caltype}</span>
                       <span className="mx-1">•</span>
-                      <span className="text-gray-600">Qty: {record.calqty}</span>
+                      <span className="text-black font-medium">Qty: {record.calqty}</span>
                       <span className="mx-1">•</span>
-                      <span className="text-gray-600">{record.calamt}</span>
+                      <span className="text-black font-medium">{record.calamt}</span>
                     </div>
                   ))}
                 </div>
@@ -445,13 +454,6 @@ export const useColumns = () => {
           },
         ]
       : []),
-    {
-      id: "Added Info",
-      Header: "Added Info",
-      accessorFn: (row) =>
-        `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
-      size: 300,
-    },
   ];
 
   return [...baseColumns, ...roleSpecificColumns.flat()];
