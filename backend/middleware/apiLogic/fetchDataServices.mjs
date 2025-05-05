@@ -41,6 +41,39 @@ async function fetchDataServices(
     page = validPage;
     limit = validLimit;
 
+    // Ensure service-filtered data is fetched correctly
+    // If advancedFilterData contains services, ensure corresponding model names are added
+    if (advancedFilterData && advancedFilterData.services) {
+      let servicesToAdd = [];
+      const serviceMap = {
+        "WMM": "WmmModel",
+        "HRG": "HrgModel",
+        "FOM": "FomModel",
+        "CAL": "CalModel"
+      };
+      
+      // Process services whether it's an array or comma-separated string
+      const servicesArray = Array.isArray(advancedFilterData.services) 
+        ? advancedFilterData.services 
+        : (typeof advancedFilterData.services === 'string' 
+          ? advancedFilterData.services.split(',').map(s => s.trim())
+          : []);
+          
+      // Map services to model names with correct formatting
+      servicesToAdd = servicesArray.map(service => {
+        // Normalize the service name to handle case inconsistencies
+        const serviceUpper = service.toUpperCase();
+        return serviceMap[serviceUpper];
+      }).filter(Boolean);
+      
+      // Add service models to modelNames if not already included
+      servicesToAdd.forEach(modelName => {
+        if (!modelNames.includes(modelName)) {
+          modelNames.push(modelName);
+        }
+      });
+    }
+
     // Cache imported models to avoid repeated dynamic imports
     const modelCache = {};
 
@@ -886,12 +919,109 @@ async function fetchDataServices(
           records: item.records || [],
         };
 
-        // Set the data for this model
-        const modelKey =
-          modelNames[index].toLowerCase().replace("model", "") + "Data";
-        modelDataMap.get(clientId)[modelKey] = dataObject;
+        // Set the data for this model - fixed: ensure consistent casing for service keys
+        const modelNameLower = modelNames[index].toLowerCase();
+        let serviceType;
+        
+        // Normalize model names to consistent service data keys
+        if (modelNameLower.includes("wmm")) {
+          serviceType = "wmmData";
+        } else if (modelNameLower.includes("hrg")) {
+          serviceType = "hrgData";
+        } else if (modelNameLower.includes("fom")) {
+          serviceType = "fomData";
+        } else if (modelNameLower.includes("cal")) {
+          serviceType = "calData";
+        } else {
+          // Fallback to the original method if not a recognized service
+          serviceType = modelNameLower.replace("model", "") + "Data";
+        }
+        
+        modelDataMap.get(clientId)[serviceType] = dataObject;
       });
     });
+
+    // When using advanced filter with services, ensure model data is fetched for those services
+    if (advancedFilterData && advancedFilterData.services && 
+        advancedFilterData.services.length > 0 && modelNames.length > 0) {
+      
+      // Create a dedicated section to fetch service data for all matching clients
+      try {
+        // Get client IDs for all clients matching the filter
+        const clientsMatchingFilter = await ClientModel.find(filterQuery).select('id').lean();
+        const clientIds = clientsMatchingFilter.map(c => c.id);
+        
+        if (clientIds.length > 0) {
+          // Process services to ensure data is fetched for each requested service type
+          const serviceModels = [];
+          if (advancedFilterData.services.includes('FOM')) {
+            serviceModels.push({ 
+              name: 'FomModel',
+              importFunc: () => import("../../models/fom.mjs")
+            });
+          }
+          if (advancedFilterData.services.includes('HRG')) {
+            serviceModels.push({ 
+              name: 'HrgModel',
+              importFunc: () => import("../../models/hrg.mjs")
+            });
+          }
+          if (advancedFilterData.services.includes('CAL')) {
+            serviceModels.push({ 
+              name: 'CalModel',
+              importFunc: () => import("../../models/cal.mjs")
+            });
+          }
+          if (advancedFilterData.services.includes('WMM')) {
+            serviceModels.push({ 
+              name: 'WmmModel',
+              importFunc: () => import("../../models/wmm.mjs")
+            });
+          }
+          
+          // Fetch data for each service model in parallel
+          const serviceDataPromises = serviceModels.map(async (modelInfo) => {
+            const { default: Model } = await modelInfo.importFunc();
+            const serviceType = modelInfo.name.replace('Model', '').toLowerCase() + 'Data';
+            
+            // Fetch data for these clients
+            const serviceData = await Model.find({
+              clientid: { $in: clientIds }
+            }).lean();
+            
+            // Group data by client ID
+            const groupedData = serviceData.reduce((acc, item) => {
+              const clientId = Number(item.clientid);
+              if (!acc[clientId]) {
+                acc[clientId] = [];
+              }
+              acc[clientId].push(item);
+              return acc;
+            }, {});
+            
+            return { serviceType, groupedData };
+          });
+          
+          const serviceDataResults = await Promise.all(serviceDataPromises);
+          
+          // Add each service's data to the modelDataMap
+          serviceDataResults.forEach(({ serviceType, groupedData }) => {
+            Object.entries(groupedData).forEach(([clientId, records]) => {
+              if (!modelDataMap.has(Number(clientId))) {
+                modelDataMap.set(Number(clientId), {});
+              }
+              
+              modelDataMap.get(Number(clientId))[serviceType] = {
+                records: records,
+                _id: Number(clientId)
+              };
+            });
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching service data for filtered clients:", error);
+      }
+    }
 
     // Log a sample of the combined data
     const combinedData = clients.map((client) => ({
@@ -1385,11 +1515,12 @@ async function fetchDataServices(
       const services = serviceData.reduce(
         (acc, { serviceName, subscriptions }) => {
           const hasService = subscriptions.some(
-            (sub) => sub._id === client.id && sub.hasData > 0
+            (sub) => Number(sub._id) === Number(client.id) && sub.hasData > 0
           );
           if (hasService) {
             acc.push(serviceName);
           }
+          
           return acc;
         },
         []
