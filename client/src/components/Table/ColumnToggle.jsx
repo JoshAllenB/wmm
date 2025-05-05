@@ -10,11 +10,13 @@ import { Checkbox } from "../UI/ShadCN/checkbox";
 import { Button } from "../UI/ShadCN/button";
 import { useUser } from "../../utils/Hooks/userProvider";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
+import { useEffect } from "react";
 
 export function ColumnToggle({
   columns,
   columnVisibility,
   setColumnVisibility,
+  serviceFilters = [],
 }) {
   const { hasRole } = useUser();
 
@@ -35,6 +37,59 @@ export function ColumnToggle({
     (col) =>
       col.id === "HRG Data" || col.id === "FOM Data" || col.id === "CAL Data"
   );
+
+  // Apply service-based column visibility
+  useEffect(() => {
+    if (serviceFilters && serviceFilters.length > 0) {
+      const newVisibility = { ...columnVisibility };
+      
+      // First, show essential columns regardless of service filter
+      newVisibility["ID"] = true;
+      newVisibility["Client Name"] = true;
+      newVisibility["Contact Info"] = true;
+      newVisibility["Address"] = true;
+      newVisibility["Services"] = true;
+      
+      // Handle service-specific columns
+      const hasHRG = serviceFilters.includes("HRG");
+      const hasFOM = serviceFilters.includes("FOM");
+      const hasCAL = serviceFilters.includes("CAL");
+      const hasWMM = serviceFilters.includes("WMM");
+      
+      // Show/hide role columns based on filters
+      newVisibility["HRG Data"] = hasHRG;
+      newVisibility["FOM Data"] = hasFOM;
+      newVisibility["CAL Data"] = hasCAL;
+      
+      // Show WMM-specific columns when WMM is in filter
+      if (hasWMM) {
+        newVisibility["Subscription"] = true;
+      }
+      
+      // If only one service is selected, hide other columns
+      if (serviceFilters.length === 1) {
+        // Hide all non-essential columns first
+        columns.forEach(column => {
+          if (column.id !== "ID" && 
+              column.id !== "Client Name" && 
+              column.id !== "Contact Info" && 
+              column.id !== "Address" &&
+              column.id !== "Services" &&
+              column.id !== "HRG Data" && 
+              column.id !== "FOM Data" && 
+              column.id !== "CAL Data" &&
+              column.id !== "Subscription") {
+            newVisibility[column.id] = false;
+          }
+        });
+        
+        // Always show Address
+        newVisibility["Address"] = true;
+      }
+      
+      setColumnVisibility(newVisibility);
+    }
+  }, [serviceFilters, setColumnVisibility, columns]);
 
   // Preset configurations
   const applyPreset = (preset) => {
