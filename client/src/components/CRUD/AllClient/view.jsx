@@ -31,9 +31,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         barangay: addressParts[1] || "",
       });
 
+      // Determine which services this client actually has
+      const clientServices = rowData.services || [];
+      
       // Set data regardless of role if it exists in rowData
       // Check if wmmData is an array or has records property
-      if (rowData.wmmData) {
+      if (rowData.wmmData && clientServices.includes("WMM")) {
         if (Array.isArray(rowData.wmmData)) {
           setWmmData(rowData.wmmData);
         } else if (rowData.wmmData.records) {
@@ -45,8 +48,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         setWmmData([]);
       }
       
-      // Handle HRG data properly
-      if (rowData.hrgData) {
+      // Handle HRG data properly - only if client has HRG service
+      if (rowData.hrgData && clientServices.includes("HRG")) {
         if (Array.isArray(rowData.hrgData)) {
           setHrgData({ records: rowData.hrgData });
         } else if (rowData.hrgData.records) {
@@ -58,8 +61,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         setHrgData({ records: [] });
       }
       
-      // Handle FOM data properly
-      if (rowData.fomData) {
+      // Handle FOM data properly - show if client has FOM service OR has valid FOM data
+      if ((rowData.fomData && clientServices.includes("FOM")) || 
+          (rowData.fomData && rowData.fomData.records && rowData.fomData.records.length > 0)) {
         if (Array.isArray(rowData.fomData)) {
           setFomData({ records: rowData.fomData });
         } else if (rowData.fomData.records) {
@@ -71,8 +75,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         setFomData({ records: [] });
       }
       
-      // Handle CAL data properly
-      if (rowData.calData) {
+      // Handle CAL data properly - only if client has CAL service
+      if (rowData.calData && clientServices.includes("CAL")) {
         if (Array.isArray(rowData.calData)) {
           setCalData({ records: rowData.calData });
         } else if (rowData.calData.records) {
@@ -111,8 +115,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     // Update formData with the base client data
     setFormData(updatedData);
     
+    // Determine which services this client actually has
+    const clientServices = updatedData.services || [];
+    
     // Handle subscription data properly
-    if (updatedData.wmmData) {
+    if (updatedData.wmmData && clientServices.includes("WMM")) {
       // Ensure wmmData is properly formatted
       if (Array.isArray(updatedData.wmmData)) {
         setWmmData(updatedData.wmmData);
@@ -122,10 +129,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         // Handle case where wmmData is a single object
         setWmmData([updatedData.wmmData].filter(item => Object.keys(item).length > 0));
       }
+    } else {
+      setWmmData([]);
     }
     
-    // Update HRG data if present
-    if (updatedData.hrgData) {
+    // Update HRG data if present and client has HRG service
+    if (updatedData.hrgData && clientServices.includes("HRG")) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.hrgData)) {
         setHrgData({ records: updatedData.hrgData });
@@ -137,10 +146,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           records: [updatedData.hrgData].filter(item => Object.keys(item).length > 0) 
         });
       }
+    } else {
+      setHrgData({ records: [] });
     }
     
-    // Update FOM data if present
-    if (updatedData.fomData) {
+    // Update FOM data if present and client has FOM service OR if there's valid FOM data
+    if ((updatedData.fomData && clientServices.includes("FOM")) ||
+        (updatedData.fomData && updatedData.fomData.records && updatedData.fomData.records.length > 0)) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.fomData)) {
         setFomData({ records: updatedData.fomData });
@@ -152,10 +164,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           records: [updatedData.fomData].filter(item => Object.keys(item).length > 0) 
         });
       }
+    } else {
+      setFomData({ records: [] });
     }
     
-    // Update CAL data if present
-    if (updatedData.calData) {
+    // Update CAL data if present and client has CAL service
+    if (updatedData.calData && clientServices.includes("CAL")) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.calData)) {
         setCalData({ records: updatedData.calData });
@@ -167,6 +181,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           records: [updatedData.calData].filter(item => Object.keys(item).length > 0) 
         });
       }
+    } else {
+      setCalData({ records: [] });
     }
     
     // Update address data if address was changed
