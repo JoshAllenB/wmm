@@ -1,10 +1,18 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { createContext, useState, useContext } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 const UserContext = createContext();
 
 export const UserProvider = ({ children, initialUserData }) => {
   const [userData, setUserData] = useState(initialUserData);
+
+  // Ensure we have a session ID
+  useEffect(() => {
+    if (!localStorage.getItem("sessionId")) {
+      localStorage.setItem("sessionId", uuidv4());
+    }
+  }, []);
 
   const hasPermission = useCallback(
     (permission) => {

@@ -91,74 +91,71 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage("");
     setIsLoading(true);
+    setErrorMessage("");
 
     try {
-      const result = await axios.post(
+      const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/login`,
         {
           username,
           password,
         }
       );
-      handleApiResponse(result.data);
 
-      if (result.data.token) {
-        setTokens(result.data.token, result.data.refreshToken);
-        setAuthToken(result.data.token);
+      const { token, refreshToken, user } = response.data;
 
-        const userData = result.data.user;
-        setUserData(userData);
-        setIsLoggedIn(true);
-        navigate("/all-client");
-
-        // Generate a session ID
-        const sessionId = uuidv4();
-        localStorage.setItem("sessionId", sessionId);
-
-        // Connect to WebSocket with session ID and user data
-        webSocketService.connect({
-          query: {
-            userId: userData.id,
-            username: userData.username,
-            sessionId: sessionId,
-          },
-        });
-
-        resetActivityTimer();
-      } else {
-        setErrorMessage(
-          result.data.error || "An error occurred. Please try again later."
-        );
-        setIsLoading(false);
+      // Store session information for WebSocket
+      if (!localStorage.getItem("sessionId")) {
+        localStorage.setItem("sessionId", uuidv4());
       }
-    } catch (err) {
-      console.error("Error in login request:", err);
+      
+      // Store user information for WebSocket reconnection
+      localStorage.setItem("userId", user.id);
+      localStorage.setItem("username", user.username);
+
+      setTokens(token, refreshToken);
+      setAuthToken(token);
+      setIsLoggedIn(true);
+      setUserData(user);
+      resetActivityTimer();
+
+      // After setting the user data, connect to WebSocket
+      webSocketService.connect({
+        query: {
+          userId: user.id,
+          username: user.username,
+          sessionId: localStorage.getItem("sessionId")
+        }
+      });
+      
+      navigate("/all-client");
+    } catch (error) {
+      console.error("Error in login request:", error);
       setIsLoading(false);
 
-      if (err.response) {
-        console.error("Error response from server:", err.response.data);
+      if (error.response) {
+        console.error("Error response from server:", error.response.data);
 
         // Display specific error messages from the backend
         if (
-          err.response.data.error === "Account locked" &&
-          err.response.data.message
+          error.response.data.error === "Account locked" &&
+          error.response.data.message
         ) {
           // Display account lockout message with time remaining
-          setErrorMessage(err.response.data.message);
-        } else if (err.response.data.error === "Invalid credentials") {
+          setErrorMessage(error.response.data.message);
+        } else if (error.response.data.error === "Invalid credentials") {
           setErrorMessage("Incorrect username or password.");
-        } else if (err.response.data.error === "User already logged in") {
+        } else if (error.response.data.error === "User already logged in") {
           setErrorMessage("You are already logged in on another device.");
         } else {
           setErrorMessage(
-            err.response.data.message ||
-              err.response.data.error ||
+            error.response.data.message ||
+              error.response.data.error ||
               "An error occurred. Please try again."
           );
         }
-      } else if (err.request) {
+      } else if (error.request) {
         // Handle network errors
         setErrorMessage(
           "Unable to connect to the server. Please check your network connection and try again."

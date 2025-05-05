@@ -125,15 +125,15 @@ const App = React.memo(() => {
   return (
     <>
       <CssBaseline />
-      <SocketProvider>
-        <ActivityMonitor
-          isLoggedIn={isLoggedIn}
-          setIsLoggedIn={setIsLoggedIn}
-          setErrorMessage={setErrorMessage}
-          inactivityTimeout={inactivityTimeout}
-        >
-          <BrowserRouter>
-            <UserProvider initialUserData={userData}>
+      <UserProvider initialUserData={userData}>
+        <SocketProvider>
+          <ActivityMonitor
+            isLoggedIn={isLoggedIn}
+            setIsLoggedIn={setIsLoggedIn}
+            setErrorMessage={setErrorMessage}
+            inactivityTimeout={inactivityTimeout}
+          >
+            <BrowserRouter>
               <div className="app">
                 {memoizedSidebar}
                 <div className="content">
@@ -142,11 +142,11 @@ const App = React.memo(() => {
                   {memoizedRoutes}
                 </div>
               </div>
-            </UserProvider>
-          </BrowserRouter>
-          <Toaster />
-        </ActivityMonitor>
-      </SocketProvider>
+            </BrowserRouter>
+            <Toaster />
+          </ActivityMonitor>
+        </SocketProvider>
+      </UserProvider>
     </>
   );
 });
