@@ -210,40 +210,9 @@ export const TableComponent = memo(function TableComponent({
           </div>
         );
       default:
-        // For composite roles or other roles
-        return (
-          <div className="flex flex-col px-2 py-1">
-            {/* Add client count here if WMM is part of the role */}
-            {hasWmmRole && (
-              <div className="mb-2">
-                {clientCountDisplay}
-                {/* Add WMM copies count for users with WMM role */}
-                <span className="text-base ml-4 text-gray-800 font-medium">
-                  Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Total)</span>
-                </span>
-              </div>
-            )}
-            <div className="text-base">
-              <span className="text-blue-700 mr-4">
-                <span className="font-bold">HRG:</span> {Number(pageSpecificHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalHrgAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
-              </span>
-              <span className="text-green-700 mr-4">
-                <span className="font-bold">FOM:</span> {Number(pageSpecificFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalFomAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
-              </span>
-              <span className="text-amber-700">
-                <span className="font-bold">CAL:</span>
-                <div className="inline-block ml-1 border-l-2 border-amber-300 pl-2">
-                  <div className="mb-1">
-                    <span className="font-bold">Quantity:</span> {Number(pageSpecificCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalQty || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span>
-                  </div>
-                  <div>
-                    <span className="font-bold">Amount:</span> {Number(pageSpecificCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Page)</span> / {Number(totalCalAmt || 0).toLocaleString()} <span className="text-gray-500 text-xs">(Total)</span> Php
-                  </div>
-                </div>
-              </span>
-            </div>
-          </div>
-        );
+   
+        // Return empty div if no role matches
+        return <div></div>;
     }
   }, [
     userRole, 
