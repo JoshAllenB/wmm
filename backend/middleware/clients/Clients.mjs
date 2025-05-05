@@ -610,7 +610,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8, // High score for last name match (reduced from 10)
+              15, // Increased from 8 to 15 - highest priority
               0,
             ],
           },
@@ -635,7 +635,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              4, // Medium score for last name in company match (reduced from 6)
+              5, // Slightly increased from 4 to 5
               0,
             ],
           },
@@ -666,7 +666,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              7, // Score for company match (reduced from 8)
+              7, // Keep at 7
               0,
             ],
           },
@@ -697,7 +697,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8, // Score for first name match (unchanged)
+              12, // Increased from 8 to 12 - second highest priority
               0,
             ],
           },
@@ -722,7 +722,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              4, // Score for first name in company match (reduced from 5)
+              4, // Keep at 4
               0,
             ],
           },
@@ -797,7 +797,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                7, // Score for exact address match (reduced from 10)
+                10, // Increased from 7 to 10 - third highest priority
                 0,
               ],
             },
@@ -853,7 +853,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                9, // Increased score for street match
+                9, // Keep at 9
                 0,
               ],
             });
@@ -1013,7 +1013,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8, // Increased score for email match (was 3)
+              8, // Keep at 8
               0,
             ],
           },
@@ -1036,7 +1036,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$cellno", regex: cellno } },
                 ],
               },
-              8, // Increased score for cell number match (was 3)
+              8, // Keep at 8
               0,
             ],
           },
@@ -1059,7 +1059,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$contactnos", regex: contactnos } },
                 ],
               },
-              7, // Increased score for contact numbers match (was 3)
+              7, // Keep at 7
               0,
             ],
           },
@@ -1076,7 +1076,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           bdateMatch: {
             $cond: [
               { $eq: ["$bdate", bdate] },
-              10, // Increased score for exact birthdate match (was 4)
+              7, // Reduced from 10 to 7 as it should be lower priority than name/address
               0,
             ],
           },
