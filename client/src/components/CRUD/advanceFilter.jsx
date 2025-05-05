@@ -197,6 +197,17 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       };
     };
 
+    // Process services for exact matching (always use exact matching now)
+    const processExactServices = (services) => {
+      if (!services.length) return services;
+      
+      // When using exact match, we're looking for clients with ONLY these services
+      // WMM is ignored in this comparison (it can be present or not)
+      const coreServices = services.filter(service => service !== "WMM");
+      
+      return coreServices;
+    };
+
     const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
     const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
 
@@ -225,11 +236,13 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       wmmEndEndDate: expiringMonthRange.end,
       includeClientIds: processClientIds(filterData.clientIncludeIds),
       excludeClientIds: processClientIds(filterData.clientExcludeIds),
+      exactServiceMatch: true, // Always use exact service matching
+      serviceMatchExcludeWMM: true, // Always ignore WMM in exact service matching
+      // Process services for exact matching (always exact now)
+      exactServices: processExactServices(filterData.services),
     };
 
     // Apply the filter with the formatted data
-    // Note: This will automatically disable the "Added Today" filter in AllClient.jsx
-    // when any non-service filters are applied
     onApplyFilter(formattedData);
     
     // Just close the modal - data will be reset when reopened
@@ -934,6 +947,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       You can modify these selections.
                     </p>
                   ) : null}
+                  
+                  {/* Add explanation of exact matching */}
+                  <div className="p-2 bg-blue-50 rounded border border-blue-200 mb-3">
+                    <p className="text-xs text-blue-800">
+                      <span className="font-bold">Note:</span> When you select a service (HRG, FOM, CAL), you'll only see clients 
+                      that have exactly that service and no others. WMM service can be present on any client regardless of this filter.
+                    </p>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-y-2">
                     <div className="flex items-center">
                       <input
