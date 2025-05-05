@@ -74,7 +74,14 @@ router.get(
       group = "",
       ...advancedFilterData
     } = req.query;
-    const limit = parseInt(pageSize);
+    
+    // Ensure page and pageSize are valid integers with fallbacks
+    const parsedPage = parseInt(page, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
+    
+    // Use fallback values if parsing results in NaN
+    const validPage = isNaN(parsedPage) ? 1 : parsedPage;
+    const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
 
     try {
       await req.user.populate({
@@ -93,9 +100,9 @@ router.get(
       const results = await fetchDataServices(
         modelNames,
         filter,
-        page,
-        limit,
-        pageSize,
+        validPage,
+        validPageSize,
+        validPageSize, // Pass validPageSize as pageSize
         group,
         null,
         advancedFilterData
@@ -329,7 +336,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     }
 
     const { id } = req.params;
-    const { clientData, roleType, roleData } = req.body;
+    const { clientData, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
 
     // Update base client data
     const updatedClientData = {
@@ -364,40 +371,56 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       WMM: WmmModel,
       HRG: HrgModel,
       FOM: FomModel,
+      CAL: CalModel
     };
 
-    if (roleType && roleModelMap[roleType]) {
+    if (roleType === "WMM" && req.body.subscriptionId) {
+      const subscriptionId = req.body.subscriptionId;
+      
+      // Check if subscriptionId is an ObjectId (string with 24 hex chars) or a numeric id
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(subscriptionId);
+      
+      let query;
+      if (isObjectId) {
+        // If it's an ObjectId string, only query by _id
+        query = { _id: subscriptionId };
+      } else {
+        // If it's a numeric id, convert to number and query by id
+        query = { id: Number(subscriptionId) };
+      }
+      
+      // Update the specific subscription record
+      const updatedSubscription = await WmmModel.findOneAndUpdate(
+        query,
+        {
+          ...roleData,
+          editdate: new Date(),
+          edituser: user.username,
+        },
+        { new: true }
+      );
+      
+      if (updatedSubscription) {
+        updatedRoleSpecificClient = updatedSubscription;
+      } else {
+        console.error(`Could not find subscription with id ${subscriptionId}`);
+      }
+    } else if (roleType && roleModelMap[roleType]) {
       const RoleModel = roleModelMap[roleType];
 
-      // Find existing role-specific data
-      const existingRoleData = await RoleModel.findOne({ clientid: id });
-
-      if (existingRoleData) {
-        // Update only changed fields
-        const updatedRoleData = {};
-        for (const [key, value] of Object.entries(roleData)) {
-          if (existingRoleData[key] !== value) {
-            updatedRoleData[key] = value;
-          }
-        }
-
-        // Add metadata for the update
-        updatedRoleData.editdate = new Date();
-        updatedRoleData.edituser = user.username;
-
-        // Update role-specific data
-        updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
-          { clientid: id },
-          updatedRoleData,
-          { new: true }
-        );
-      } else {
-        // If role-specific data doesn't exist, create it
+      if (isNewRecord || isNewRoleData) {
+        // If this is a new record, create it
+        
+        // Generate new ID for the role-specific model
+        const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+        
         const newRoleSpecificData = {
+          id: newRoleSpecificId,
           clientid: id,
           ...roleData,
           adduser: user.username,
-          adddate: new Date()
+          adddate: roleData.adddate || new Date()
             .toLocaleString("en-US", {
               month: "numeric",
               day: "numeric",
@@ -409,7 +432,78 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             })
             .replace(",", ""),
         };
+        
+        // Create new role-specific record
         updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
+      } else if (recordId) {
+        // If we have a recordId, find and update that specific record
+        const updatedRoleData = {
+          ...roleData,
+          editdate: new Date(),
+          edituser: user.username,
+        };
+        
+        // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
+        // ObjectIds look like: "6818b6211563c24249e1e027"
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
+        
+        let query;
+        if (isObjectId) {
+          // If it's an ObjectId string, only query by _id
+          query = { _id: recordId };
+        } else {
+          // If it's a numeric id, convert to number and query by id
+          query = { id: Number(recordId) };
+        }
+        
+        updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
+          query,
+          updatedRoleData,
+          { new: true }
+        );
+      } else {
+        // Find existing role-specific data by client ID (legacy behavior)
+        const existingRoleData = await RoleModel.findOne({ clientid: id });
+
+        if (existingRoleData) {
+          // Update only changed fields
+          const updatedRoleData = {};
+          for (const [key, value] of Object.entries(roleData)) {
+            if (existingRoleData[key] !== value) {
+              updatedRoleData[key] = value;
+            }
+          }
+
+          // Add metadata for the update
+          updatedRoleData.editdate = new Date();
+          updatedRoleData.edituser = user.username;
+
+          // Update role-specific data
+          updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
+            { clientid: id },
+            updatedRoleData,
+            { new: true }
+          );
+        } else {
+          // If role-specific data doesn't exist, create it
+          const newRoleSpecificData = {
+            clientid: id,
+            ...roleData,
+            adduser: user.username,
+            adddate: new Date()
+              .toLocaleString("en-US", {
+                month: "numeric",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+              })
+              .replace(",", ""),
+          };
+          updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
+        }
       }
     }
 
