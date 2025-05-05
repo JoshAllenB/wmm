@@ -18,6 +18,7 @@ const CalSchema = new mongoose.Schema({
   paymtamt: Number,
   paymtform: String,
   paymtdate: String,
+  remarks: String,
   adddate: String,
   adduser: String,
 }, {
