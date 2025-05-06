@@ -389,11 +389,9 @@ export const TableComponent = memo(function TableComponent({
                               className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
                             >
                               <div className="flex flex-wrap items-center">
-                                <span className="font-xs mr-1">{hrg.recvdate} - {hrg.paymtamt}</span>
-                                <span className="font-xs mr-1">Ref: #{hrg.paymtref}</span>
-                                <span className={hrg.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                                  {hrg.status}
-                                </span>
+                                <div className="font-bold font-xs mr-1">Campaign Date: {hrg.campaigndate}</div>
+                                <div className="font-xs mr-1">Php {hrg.paymtamt} - Ref: #{hrg.paymtref}</div>
+                                <div className="font-xs mr-1">Receive Date: {hrg.recvdate}</div>
                               </div>
                             </div>
                           ))
@@ -411,10 +409,8 @@ export const TableComponent = memo(function TableComponent({
                               className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
                             >
                               <div className="flex flex-wrap items-center">
-                                <span className="font-xs mr-1">{fom.recvdate} - {fom.paymtamt}</span>
-                                <span className={fom.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                                  {fom.status}
-                                </span>
+                                <div className="font-xs mr-1">Receive Date: {fom.recvdate}</div>
+                                <div className="font-xs mr-1">Php {fom.paymtamt} - Ref: #{fom.paymtref}</div>
                               </div>
                             </div>
                           ))
@@ -426,18 +422,20 @@ export const TableComponent = memo(function TableComponent({
                       Array.isArray(cell.getValue()) ? (
                       <div className="w-full max-h-[150px] overflow-y-auto">
                         {cell.getValue().length > 0 ? (
-                          cell.getValue().map((cal, index) => (
-                            <div 
-                              key={index} 
-                              className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
-                            >
-                              <div className="flex flex-wrap items-center">
-                                <span className="font-medium mr-1">{cal.recvdate} - {cal.caltype}</span>
-                                <span className="font-medium mr-1">Qty: {cal.calqty} - Cost: {cal.calamt}</span>
-                                <span className="font-medium">Ref: #{cal.paymtref} - {cal.paymtform}</span>
+                          <>
+                            {cell.getValue().map((cal, index) => (
+                              <div 
+                                key={index} 
+                                className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                              >
+                                <div className="flex flex-wrap items-center">
+                                  <span className="font-medium mr-1">{cal.recvdate} - {cal.caltype}</span>
+                                  <span className="font-medium mr-1">Qty: {cal.calqty} - Cost: {cal.calamt} = {(parseInt(cal.calqty || 0) * parseFloat(cal.calamt?.replace(/[^\d.-]/g, '') || 0)).toLocaleString()}</span>
+                                  <span className="font-medium">Ref: #{cal.paymtref} - {cal.paymtform}</span>
+                                </div>
                               </div>
-                            </div>
-                          ))
+                            ))}
+                          </>
                         ) : (
                           <div className="text-gray-500 italic">No CAL data</div>
                         )}

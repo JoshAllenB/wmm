@@ -387,14 +387,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedHrgData.map((record, index) => (
             <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-              <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
-                {record.unsubscribe ? "Unsubscribed" : "Active"}
-              </div>
-              <span className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | </span>
-              <span className="font-medium">
+              <div className="font-medium">Campaign Date: {record.campaigndate ? formatDate(record.campaigndate) : 'N/A'} </div>
+              <div className="font-medium">Receive Date: {record.recvdate ? formatDate(record.recvdate) : 'N/A'} </div>
+              <div className="font-medium">
                 {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'} 
                 {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
-              </span>
+              </div>
               {record.remarks && (
                 <div className="mt-1 text-sm text-gray-600">
                   <span className="font-semibold">Remarks:</span> {record.remarks}
@@ -422,15 +420,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedFomData.map((record, index) => (
             <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-              <div className={record.unsubscribe ? "text-red-600" : "text-green-600"}>
-                {record.unsubscribe ? "Unsubscribed" : "Active"}
-              </div>
-              <span className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | </span>
-              <span className="font-medium">
+              <div className="font-medium">Receive Date: {record.recvdate ? formatDate(record.recvdate) : 'N/A'} </div>
+              <div className="font-medium">
                 {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'}
                 {record.paymtform ? ` - Form: ${record.paymtform}` : ''}
                 {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
-              </span>
+              </div>
               {record.remarks && (
                 <div className="mt-1 text-sm text-gray-600">
                   <span className="font-semibold">Remarks:</span> {record.remarks}
@@ -459,10 +454,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           {sortedCalData.map((record, index) => (
             <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
               <div className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | {record.caltype || 'N/A'} </div>
-              <span className="font-medium">
-                Qty: {record.calqty || '0'} - Cost: {record.calamt || '0'} 
+              <div className="font-medium">
+                Qty: {record.calqty || '0'} - Cost: {record.calamt || '0'} = Php {parseFloat(record.calqty) * parseFloat(record.calamt?.replace(/,/g, '')) || '0'}
                 {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
-              </span>
+              </div>
               {record.remarks && (
                 <div className="mt-1 text-sm text-gray-600">
                   <span className="font-semibold">Remarks:</span> {record.remarks}

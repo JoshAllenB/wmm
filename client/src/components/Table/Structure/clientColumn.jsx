@@ -295,7 +295,12 @@ export const useColumns = () => {
                   const dateB = new Date(b.recvdate || 0);
                   return dateB - dateA;
                 })
+
                 .map((hrgItem) => {
+                  const campaigndate = hrgItem.campaigndate
+                    ? new Date(hrgItem.campaigndate).toLocaleDateString("en-US")
+                    : "N/A";
+
                   const recvdate = hrgItem.recvdate
                     ? new Date(hrgItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
@@ -309,6 +314,7 @@ export const useColumns = () => {
                     : "N/A";                  
 
                   return {
+                    campaigndate,
                     recvdate,
                     paymtamt,
                     paymtref,
