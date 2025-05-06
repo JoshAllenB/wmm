@@ -10,7 +10,7 @@ import { Checkbox } from "../UI/ShadCN/checkbox";
 import { Button } from "../UI/ShadCN/button";
 import { useUser } from "../../utils/Hooks/userProvider";
 import ViewColumnIcon from "@mui/icons-material/ViewColumn";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function ColumnToggle({
   columns,
@@ -18,7 +18,10 @@ export function ColumnToggle({
   setColumnVisibility,
   serviceFilters = [],
 }) {
-  const { hasRole } = useUser();
+  const { hasRole, user } = useUser();
+  const userRole = user?.role;
+  // Add a ref to track if service filters have been applied already
+  const serviceFiltersApplied = useRef(false);
 
   const handleToggle = (columnId) => {
     setColumnVisibility((prevVisibility) => ({
@@ -40,7 +43,9 @@ export function ColumnToggle({
 
   // Apply service-based column visibility
   useEffect(() => {
-    if (serviceFilters && serviceFilters.length > 0) {
+    // Only apply service filters if they exist and haven't been applied yet or if they change
+    if (serviceFilters && serviceFilters.length > 0 && 
+        (!serviceFiltersApplied.current || serviceFiltersApplied.current !== JSON.stringify(serviceFilters))) {
       const newVisibility = { ...columnVisibility };
       
       // First, show essential columns regardless of service filter
@@ -49,6 +54,11 @@ export function ColumnToggle({
       newVisibility["Contact Info"] = true;
       newVisibility["Address"] = true;
       newVisibility["Services"] = true;
+      
+      // Keep Added Info visible if it was previously visible
+      if (columnVisibility["Added Info"] !== undefined) {
+        newVisibility["Added Info"] = columnVisibility["Added Info"];
+      }
       
       // Handle service-specific columns
       const hasHRG = serviceFilters.includes("HRG");
@@ -78,7 +88,8 @@ export function ColumnToggle({
               column.id !== "HRG Data" && 
               column.id !== "FOM Data" && 
               column.id !== "CAL Data" &&
-              column.id !== "Subscription") {
+              column.id !== "Subscription" &&
+              column.id !== "Added Info") {
             newVisibility[column.id] = false;
           }
         });
@@ -88,8 +99,11 @@ export function ColumnToggle({
       }
       
       setColumnVisibility(newVisibility);
+      
+      // Mark service filters as applied
+      serviceFiltersApplied.current = JSON.stringify(serviceFilters);
     }
-  }, [serviceFilters, setColumnVisibility, columns]);
+  }, [serviceFilters, setColumnVisibility, columns, columnVisibility]);
 
   // Preset configurations
   const applyPreset = (preset) => {
@@ -108,6 +122,10 @@ export function ColumnToggle({
         newVisibility["ID"] = true;
         newVisibility["Client Name"] = true;
         newVisibility["Contact Info"] = true;
+        // Add Added Info if relevant
+        if (hasRole("WMM") && userRole !== "HRG FOM CAL" && userRole !== "Admin") {
+          newVisibility["Added Info"] = true;
+        }
         // Keep role-specific columns visible if they were visible
         if (hasRole("WMM")) newVisibility["Subscription"] = true;
         if (hasRole("HRG")) newVisibility["HRG Data"] = true;
@@ -121,6 +139,10 @@ export function ColumnToggle({
         newVisibility["Address"] = true;
         newVisibility["Contact Info"] = true;
         newVisibility["Services"] = true;
+        // Add Added Info if relevant
+        if (hasRole("WMM") && userRole !== "HRG FOM CAL" && userRole !== "Admin") {
+          newVisibility["Added Info"] = true;
+        }
         // Keep role-specific columns visible
         if (hasRole("WMM")) newVisibility["Subscription"] = true;
         if (hasRole("HRG")) newVisibility["HRG Data"] = true;
