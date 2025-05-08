@@ -34,6 +34,8 @@ export const TableComponent = memo(function TableComponent({
   pageSpecificClients,
   filteredTotalCopies,
   filteredTotalClients,
+  absoluteTotalClients,
+  absoluteTotalCopies,
 }) {
   // Check if role contains WMM (either as a single role or part of a composite role)
   const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
@@ -41,7 +43,7 @@ export const TableComponent = memo(function TableComponent({
   // Client count display for roles that include WMM
   const clientCountDisplay = hasWmmRole ? (
     <span className="text-base mr-4 text-gray-800">
-      Clients: <span className="font-bold">{Number(pageSpecificClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalClients || totalClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span>
+      Clients: <span className="font-bold">{Number(pageSpecificClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalClients || totalClients || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span> / <span className="font-bold text-blue-700">{Number(absoluteTotalClients || 0).toLocaleString()}</span> <span className="text-blue-700 text-xs">(Total)</span>
     </span>
   ) : null;
   
@@ -54,7 +56,7 @@ export const TableComponent = memo(function TableComponent({
         <div className="flex flex-wrap px-2 py-1">
           {clientCountDisplay}
           <span className="text-base text-gray-800 font-medium">
-            Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalCopies || totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span>
+            Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalCopies || totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span> / <span className="font-bold text-blue-700">{Number(absoluteTotalCopies || 0).toLocaleString()}</span> <span className="text-blue-700 text-xs">(Total)</span>
           </span>
         </div>
       );
@@ -95,7 +97,7 @@ export const TableComponent = memo(function TableComponent({
               <div className="mb-2">
                 {clientCountDisplay}
                 <span className="text-base ml-4 text-gray-800 font-medium">
-                  Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalCopies || totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span>
+                  Copies: <span className="font-bold">{Number(pageSpecificCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Page)</span> / <span className="font-bold">{Number(filteredTotalCopies || totalCopies || 0).toLocaleString()}</span> <span className="text-gray-500 text-xs">(Filter)</span> / <span className="font-bold text-blue-700">{Number(absoluteTotalCopies || 0).toLocaleString()}</span> <span className="text-blue-700 text-xs">(Total)</span>
                 </span>
               </div>
               
@@ -233,7 +235,9 @@ export const TableComponent = memo(function TableComponent({
     pageSpecificFomAmt,
     pageSpecificCalPaymtAmt,
     filteredTotalCopies,
-    filteredTotalClients
+    filteredTotalClients,
+    absoluteTotalClients,
+    absoluteTotalCopies
   ]);
 
   const handleCellClick = (event, row, cell) => {

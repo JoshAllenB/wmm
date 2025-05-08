@@ -36,6 +36,8 @@ const AllClient = () => {
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [pageSpecificClients, setPageSpecificClients] = useState(0);
+  const [absoluteTotalClients, setAbsoluteTotalClients] = useState(0);
+  const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(true);
@@ -373,7 +375,7 @@ const AllClient = () => {
           delete filtersToUse.adddate_regex;
         }
 
-        const result = await fetchClients(
+        const response = await fetchClients(
           currentPage,
           currentPageSize,
           filter,
@@ -381,30 +383,33 @@ const AllClient = () => {
           filtersToUse
         );
 
-        setClientData(result.data);
-        setTotalPages(result.totalPages || 0);
-        setTotalCopies(result.totalCopies);
-        setPageSpecificCopies(result.pageSpecificCopies);
-        setTotalCalQty(result.totalCalQty);
-        setTotalCalAmt(result.totalCalAmt);
-        setPageSpecificCalQty(result.pageSpecificCalQty);
-        setPageSpecificCalAmt(result.pageSpecificCalAmt);
-        setTotalHrgAmt(result.totalHrgAmt || 0);
-        setTotalFomAmt(result.totalFomAmt || 0);
-        setTotalCalPaymtAmt(result.totalCalPaymtAmt || 0);
-        setPageSpecificHrgAmt(result.pageSpecificHrgAmt || 0);
-        setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
-        setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
+        setClientData(response.data);
+        setTotalPages(response.totalPages || 0);
+        setTotalCopies(response.totalCopies);
+        setPageSpecificCopies(response.pageSpecificCopies);
+        setTotalCalQty(response.totalCalQty);
+        setTotalCalAmt(response.totalCalAmt);
+        setPageSpecificCalQty(response.pageSpecificCalQty);
+        setPageSpecificCalAmt(response.pageSpecificCalAmt);
+        setTotalHrgAmt(response.totalHrgAmt || 0);
+        setTotalFomAmt(response.totalFomAmt || 0);
+        setTotalCalPaymtAmt(response.totalCalPaymtAmt || 0);
+        setPageSpecificHrgAmt(response.pageSpecificHrgAmt || 0);
+        setPageSpecificFomAmt(response.pageSpecificFomAmt || 0);
+        setPageSpecificCalPaymtAmt(response.pageSpecificCalPaymtAmt || 0);
         
         // Try different property names for totalClients
-        const totalClientsValue = result.totalClients || result.totalCount || result.total || 0;
+        const totalClientsValue = response.totalClients || response.totalCount || response.total || 0;
         setTotalClients(totalClientsValue);
         
         // Use result.data.length as fallback for pageSpecificClients
-        const pageClientsValue = result.pageSpecificClients || (result.data ? result.data.length : 0);
+        const pageClientsValue = response.pageSpecificClients || (response.data ? response.data.length : 0);
         setPageSpecificClients(pageClientsValue);
         
-        return result;
+        setAbsoluteTotalClients(response.absoluteTotalClients || 0);
+        setAbsoluteTotalCopies(response.absoluteTotalCopies || 0);
+        
+        return response;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
       }
@@ -902,6 +907,8 @@ const AllClient = () => {
         pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
         totalClients={totalClients}
         pageSpecificClients={pageSpecificClients}
+        absoluteTotalClients={absoluteTotalClients}
+        absoluteTotalCopies={absoluteTotalCopies}
         userRole={determineUserRole}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}

@@ -88,6 +88,127 @@ async function fetchDataServices(
       return modelCache[modelKey];
     }
 
+    // Fetch absolute total clients and copies (regardless of filters)
+    let absoluteTotalClients = 0;
+    let absoluteTotalCopies = 0;
+
+    try {
+      // Get total number of clients in the system
+      try {
+        absoluteTotalClients = await ClientModel.countDocuments({});
+        console.log(`Absolute total clients: ${absoluteTotalClients}`);
+      } catch (clientError) {
+        console.error("Error counting total clients:", clientError);
+        absoluteTotalClients = 0;
+      }
+      
+      // Get total number of copies from all WMM records
+      try {
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+        
+        // Calculate total copies by getting the most recent subscription for each client
+        // and then summing those copies
+        try {
+          const wmmTotalResult = await WmmModel.aggregate([
+            // Sort by clientid and subsdate in descending order
+            { $sort: { clientid: 1, subsdate: -1 } },
+            
+            // Group by clientid to get only the most recent record for each client
+            {
+              $group: {
+                _id: "$clientid",
+                copies: { $first: "$copies" } // Get copies from most recent record
+              }
+            },
+            
+            // Add a stage to convert copies to a numeric value
+            {
+              $addFields: {
+                numericCopies: {
+                  $cond: [
+                    { $eq: [{ $type: "$copies" }, "string"] },
+                    // If it's a string, try to convert to int
+                    { 
+                      $toInt: { 
+                        $cond: [
+                          { $regexMatch: { input: { $ifNull: ["$copies", "0"] }, regex: /^\d+$/ } },
+                          { $ifNull: ["$copies", "0"] }, // If it's a valid number string, use it
+                          "0" // Otherwise default to 0
+                        ]
+                      }
+                    },
+                    // If it's already a number or other type, convert safely
+                    { $convert: { input: { $ifNull: ["$copies", 0] }, to: "int", onError: 0, onNull: 0 } }
+                  ]
+                }
+              }
+            },
+            
+            // Convert copies to integer and sum them up
+            {
+              $group: {
+                _id: null,
+                totalCopies: { $sum: "$numericCopies" },
+                clientCount: { $sum: 1 } // Count how many clients have subscriptions
+              }
+            }
+          ]);
+          
+          console.log("WMM total result (most recent subscriptions):", wmmTotalResult);
+          absoluteTotalCopies = wmmTotalResult.length > 0 ? wmmTotalResult[0].totalCopies : 0;
+          const clientsWithSubscriptions = wmmTotalResult.length > 0 ? wmmTotalResult[0].clientCount : 0;
+          console.log(`Absolute total copies (from most recent subscriptions): ${absoluteTotalCopies}`);
+          console.log(`Number of clients with WMM subscriptions: ${clientsWithSubscriptions}`);
+        } catch (aggregationError) {
+          console.error("Error during copies aggregation:", aggregationError);
+          
+          // Fallback method if aggregation fails - simpler approach
+          console.log("Using fallback method to calculate total copies");
+          try {
+            // First get distinct client IDs that have WMM records
+            const clientsWithWmm = await WmmModel.distinct("clientid");
+            
+            // Then for each client, get their most recent subscription
+            let totalCopies = 0;
+            let validRecords = 0;
+            
+            for (const clientId of clientsWithWmm.slice(0, 1000)) { // Limit to first 1000 to avoid timeouts
+              try {
+                const latestSubscription = await WmmModel.findOne(
+                  { clientid: clientId },
+                  { copies: 1 }
+                ).sort({ subsdate: -1 });
+                
+                if (latestSubscription && latestSubscription.copies) {
+                  const copies = parseInt(latestSubscription.copies);
+                  if (!isNaN(copies) && copies > 0) {
+                    totalCopies += copies;
+                    validRecords++;
+                  }
+                }
+              } catch (clientLookupError) {
+                // Skip this client if there's an error
+                console.error(`Error processing client ${clientId}:`, clientLookupError);
+              }
+            }
+            
+            absoluteTotalCopies = totalCopies;
+            console.log(`Fallback method - Total copies: ${totalCopies} from ${validRecords} valid records`);
+          } catch (fallbackError) {
+            console.error("Error in fallback copies calculation:", fallbackError);
+            absoluteTotalCopies = 0;
+          }
+        }
+      } catch (wmmImportError) {
+        console.error("Error importing WMM model:", wmmImportError);
+        absoluteTotalCopies = 0;
+      }
+    } catch (error) {
+      console.error("Error calculating absolute totals:", error);
+      absoluteTotalClients = 0;
+      absoluteTotalCopies = 0;
+    }
+
     let filterQuery = { $and: [] };
 
     const baseFilter = [];
@@ -2028,6 +2149,8 @@ async function fetchDataServices(
       filteredTotalCopies: filteredTotalCopies || 0,
       filteredTotalClients: filteredTotalClients || 0,
       clientServices,
+      absoluteTotalClients,
+      absoluteTotalCopies,
     };
   } catch (error) {
     console.error(`Error in fetchDataServices:`, error);

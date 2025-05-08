@@ -136,7 +136,9 @@ router.get(
         pageSpecificFomAmt,
         pageSpecificCalPaymtAmt,
         totalClients,
-        pageSpecificClients
+        pageSpecificClients,
+        absoluteTotalClients,
+        absoluteTotalCopies
       } = results;
 
       if (socketId && io) {
@@ -164,6 +166,8 @@ router.get(
         totalClients,
         pageSpecificClients,
         clientServices,
+        absoluteTotalClients,
+        absoluteTotalCopies
       });
     } catch (err) {
       console.error("Error in client GET route:", err);

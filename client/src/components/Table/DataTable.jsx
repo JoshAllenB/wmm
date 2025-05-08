@@ -51,6 +51,8 @@ export default function DataTable({
   pageSpecificCalPaymtAmt: initialPageSpecificCalPaymtAmt = 0,
   totalClients: initialTotalClients = 0,
   pageSpecificClients: initialPageSpecificClients = 0,
+  absoluteTotalClients: initialAbsoluteTotalClients = 0,
+  absoluteTotalCopies: initialAbsoluteTotalCopies = 0,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -74,6 +76,8 @@ export default function DataTable({
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(initialPageSpecificCalPaymtAmt);
   const [totalClients, setTotalClients] = useState(initialTotalClients);
   const [pageSpecificClients, setPageSpecificClients] = useState(initialPageSpecificClients);
+  const [absoluteTotalClients, setAbsoluteTotalClients] = useState(initialAbsoluteTotalClients);
+  const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(initialAbsoluteTotalCopies);
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -149,7 +153,8 @@ export default function DataTable({
           setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
           setTotalClients(result.totalClients || 0);
           setPageSpecificClients(result.pageSpecificClients || dataArray.length || 0);
-          
+          setAbsoluteTotalClients(result.absoluteTotalClients || 0);
+          setAbsoluteTotalCopies(result.absoluteTotalCopies || 0);
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");
@@ -299,6 +304,10 @@ export default function DataTable({
             pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
             totalClients={totalClients}
             pageSpecificClients={pageSpecificClients}
+            filteredTotalCopies={totalCopies}
+            filteredTotalClients={totalClients}
+            absoluteTotalClients={absoluteTotalClients}
+            absoluteTotalCopies={absoluteTotalCopies}
             userRole={userRole}
             animationComplete={animationComplete}
           />
