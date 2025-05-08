@@ -13,6 +13,12 @@ import { useUser } from "../../utils/Hooks/userProvider";
 const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
+  
+  // Add a helper function to check if user has only HRG, FOM, or CAL roles but not WMM
+  const hasOnlyNonWMMRoles = () => {
+    return (hasRole("HRG") || hasRole("FOM") || hasRole("CAL")) && !hasRole("WMM");
+  };
+
   const [filterData, setFilterData] = useState({
     lname: "",
     fname: "",
@@ -42,6 +48,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     clientIdFilterType: "include",
     excludeSPackClients: false,
     userId: "",
+    subscriptionStatus: "all",
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -149,6 +156,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       clientIdFilterType: "include",
       excludeSPackClients: false,
       userId: "",
+      subscriptionStatus: "all",
     });
   };
 
@@ -283,6 +291,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       exactServices: processExactServices(filterData.services),
       excludeSPackClients: filterData.excludeSPackClients,
       userId: filterData.userId || "", // Include userId in formatted data
+      subscriptionStatus: filterData.subscriptionStatus || "all", // Include subscription status
     };
 
     // Apply the filter with the formatted data
@@ -322,6 +331,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       clientIdFilterType: "include",
       excludeSPackClients: false,
       userId: "",
+      subscriptionStatus: "all",
     });
   };
 
@@ -334,15 +344,46 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   // Function to count active filters
   const countActiveFilters = () => {
-    return Object.entries(filterData).reduce((count, [key, value]) => {
-      const isActive =
-        value &&
-        key !== "group" &&
-        ((typeof value === "string" && value.trim() !== "") ||
-          (Array.isArray(value) && value.length > 0));
-
-      return isActive ? count + 1 : count;
-    }, 0);
+    let count = 0;
+    
+    // Count standard field filters
+    Object.entries(filterData).forEach(([key, value]) => {
+      // Skip group if it's the selected group from props
+      if (key === 'group' && value === selectedGroup) return;
+      
+      // Count arrays (like areas) if they're not empty
+      if (Array.isArray(value)) {
+        if (value.length > 0) count++;
+        return;
+      }
+      
+      // Count strings if they're not empty
+      if (typeof value === 'string') {
+        if (value.trim() !== '') count++;
+        return;
+      }
+      
+      // Count booleans that are true
+      if (typeof value === 'boolean') {
+        if (value === true) count++;
+        return;
+      }
+      
+      // Count any other truthy values
+      if (value) count++;
+    });
+    
+    // Special case for custom copies range
+    if (filterData.copiesRange === 'custom') {
+      // Don't double count - we already counted copiesRange
+      // But we might need to adjust if min/max copies are set
+      if (!filterData.minCopies && !filterData.maxCopies) {
+        // If neither is set, reduce count since an empty custom range isn't useful
+        count--;
+      }
+    }
+    
+    return count;
   };
 
   // Get active filters for display
@@ -456,6 +497,20 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       });
     }
 
+    // Add subscription status filter if not set to "all"
+    if (filterData.subscriptionStatus && filterData.subscriptionStatus !== "all") {
+      const statusDisplayMap = {
+        active: "Active Only",
+        unsubscribed: "Unsubscribed Only"
+      };
+      
+      active.push({
+        label: "Subscription Status",
+        value: statusDisplayMap[filterData.subscriptionStatus] || filterData.subscriptionStatus,
+        key: "subscriptionStatus",
+      });
+    }
+
     // Add User filter as a special case
     if (filterData.userId) {
       let userLabel = "Unknown User";
@@ -478,8 +533,37 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       });
     }
 
+    // Add Areas as a special case - making sure this works properly
+    if (filterData.areas && filterData.areas.length > 0) {
+      // For simplicity, we'll show how many areas are selected
+      const selectedAreas = filterData.areas.length;
+      
+      // Create area labels by finding area names in the areas array
+      const areaLabels = filterData.areas.map(areaId => {
+        const area = areas.find(a => a._id === areaId);
+        return area ? area._id : areaId;
+      });
+      
+      // Show first few area names if there aren't too many
+      let displayValue = "";
+      if (selectedAreas <= 3) {
+        displayValue = areaLabels.join(", ");
+      } else {
+        displayValue = `${selectedAreas} areas selected`;
+      }
+      
+      active.push({
+        label: "Areas",
+        value: displayValue,
+        key: "areas",
+      });
+    }
+
     // Process all other standard fields
     Object.entries(fieldMappings).forEach(([key, label]) => {
+      // Skip areas since we handled it as a special case
+      if (key === "areas") return;
+      
       const value = filterData[key];
 
       // Skip empty values, group if it matches selectedGroup, and already handled special cases
@@ -513,6 +597,17 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           updates.startDate = "";
           updates.endDate = "";
           break;
+        case "startDate":
+          updates.startDate = "";
+          break;
+        case "endDate": 
+          updates.endDate = "";
+          break;
+        case "copiesRange":
+          updates.copiesRange = "";
+          updates.minCopies = "";
+          updates.maxCopies = "";
+          break;
         case "services":
           updates.services = [];
           break;
@@ -527,6 +622,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           break;
         case "excludeSPackClients":
           updates.excludeSPackClients = false;
+          break;
+        case "subscriptionStatus":
+          updates.subscriptionStatus = "all";
           break;
         default:
           updates[key] = "";
@@ -565,11 +663,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         className="bg-blue-600 text-white hover:bg-blue-700 rounded-md flex items-center gap-2"
       >
         <span>Advanced Filter</span>
-        {countActiveFilters() > 0 && (
-          <span className="bg-white text-blue-600 px-2 py-0.5 rounded-full text-xs font-bold">
-            {countActiveFilters()}
-          </span>
-        )}
       </Button>
 
       {showModal && (
@@ -757,110 +850,117 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700">
-                      Active Subscriptions
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Find clients with active subscriptions during this month
-                    </p>
-                    <InputField
-                      label="Select Month"
-                      id="wmmActiveMonth"
-                      name="wmmActiveMonth"
-                      type="month"
-                      value={filterData.wmmActiveMonth}
-                      onChange={handleChange}
-                      className={`w-full ${
-                        filterData.wmmActiveMonth
-                          ? "border-blue-500 bg-blue-50"
-                          : ""
-                      }`}
-                    />
-                  </div>
+                  {/* Hide subscription date filters for HRG, FOM, CAL roles without WMM */}
+                  {!hasOnlyNonWMMRoles() && (
+                    <>
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-gray-700">
+                          Active Subscriptions
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Find clients with active subscriptions during this month
+                        </p>
+                        <InputField
+                          label="Select Month"
+                          id="wmmActiveMonth"
+                          name="wmmActiveMonth"
+                          type="month"
+                          value={filterData.wmmActiveMonth}
+                          onChange={handleChange}
+                          className={`w-full ${
+                            filterData.wmmActiveMonth
+                              ? "border-blue-500 bg-blue-50"
+                              : ""
+                          }`}
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-gray-700">
-                      Expiring Subscriptions
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      Find clients whose subscriptions expire this month
-                    </p>
-                    <InputField
-                      label="Select Month"
-                      id="wmmExpiringMonth"
-                      name="wmmExpiringMonth"
-                      type="month"
-                      value={filterData.wmmExpiringMonth}
-                      onChange={handleChange}
-                      className={`w-full ${
-                        filterData.wmmExpiringMonth
-                          ? "border-blue-500 bg-blue-50"
-                          : ""
-                      }`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Copies Range Card */}
-              <div className="p-4 border rounded-lg shadow-sm">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                  Copies Range
-                </h2>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Number of Copies
-                  </label>
-                  <select
-                    name="copiesRange"
-                    value={filterData.copiesRange}
-                    onChange={handleChange}
-                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                      filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
-                    }`}
-                  >
-                    <option value="">Any number of copies</option>
-                    <option value="lt5">Less than 5</option>
-                    <option value="5to10">5 to 10</option>
-                    <option value="gt10">More than 10</option>
-                    <option value="custom">Custom range</option>
-                  </select>
-
-                  {filterData.copiesRange === "custom" && (
-                    <div className="grid grid-cols-2 gap-3 mt-3">
-                      <InputField
-                        label="Min copies"
-                        id="minCopies"
-                        name="minCopies"
-                        type="number"
-                        min="0"
-                        value={filterData.minCopies}
-                        onChange={handleChange}
-                        className={`w-full ${
-                          filterData.minCopies
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                      />
-                      <InputField
-                        label="Max copies"
-                        id="maxCopies"
-                        name="maxCopies"
-                        type="number"
-                        min="0"
-                        value={filterData.maxCopies}
-                        onChange={handleChange}
-                        className={`w-full ${
-                          filterData.maxCopies
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                      />
-                    </div>
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-semibold text-gray-700">
+                          Expiring Subscriptions
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Find clients whose subscriptions expire this month
+                        </p>
+                        <InputField
+                          label="Select Month"
+                          id="wmmExpiringMonth"
+                          name="wmmExpiringMonth"
+                          type="month"
+                          value={filterData.wmmExpiringMonth}
+                          onChange={handleChange}
+                          className={`w-full ${
+                            filterData.wmmExpiringMonth
+                              ? "border-blue-500 bg-blue-50"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
+
+              {/* Copies Range Card - Hide for HRG, FOM, CAL roles without WMM */}
+              {!hasOnlyNonWMMRoles() && (
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Copies Range
+                  </h2>
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Number of Copies
+                    </label>
+                    <select
+                      name="copiesRange"
+                      value={filterData.copiesRange}
+                      onChange={handleChange}
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
+                      }`}
+                    >
+                      <option value="">Any number of copies</option>
+                      <option value="lt5">Less than 5</option>
+                      <option value="5to10">5 to 10</option>
+                      <option value="gt10">More than 10</option>
+                      <option value="custom">Custom range</option>
+                    </select>
+
+                    {filterData.copiesRange === "custom" && (
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <InputField
+                          label="Min copies"
+                          id="minCopies"
+                          name="minCopies"
+                          type="number"
+                          min="0"
+                          value={filterData.minCopies}
+                          onChange={handleChange}
+                          className={`w-full ${
+                            filterData.minCopies
+                              ? "border-blue-500 bg-blue-50"
+                              : ""
+                          }`}
+                        />
+                        <InputField
+                          label="Max copies"
+                          id="maxCopies"
+                          name="maxCopies"
+                          type="number"
+                          min="0"
+                          value={filterData.maxCopies}
+                          onChange={handleChange}
+                          className={`w-full ${
+                            filterData.maxCopies
+                              ? "border-blue-500 bg-blue-50"
+                              : ""
+                          }`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Category Filters Card */}
               <div className="p-4 border rounded-lg shadow-sm">
@@ -1052,6 +1152,30 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       that have exactly that service and no others. WMM service can be present on any client regardless of this filter.
                     </p>
                   </div>
+
+                  {/* Replace checkbox with dropdown for subscription status - hide for WMM role */}
+                  {!hasRole("WMM") && (
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Status
+                      </label>
+                      <select
+                        name="subscriptionStatus"
+                        value={filterData.subscriptionStatus}
+                        onChange={handleChange}
+                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                          filterData.subscriptionStatus !== "all" ? "border-blue-500 bg-blue-50" : ""
+                        }`}
+                      >
+                        <option value="all">All Subscriptions</option>
+                        <option value="active">Active Only</option>
+                        <option value="unsubscribed">Unsubscribed Only</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Filter clients by their subscription status
+                      </p>
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-y-2">
                     <div className="flex items-center">
@@ -1223,75 +1347,77 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 </div>
               </div>
 
-              {/* User Filter Card */}
-              <div className="p-4 border rounded-lg shadow-sm">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                  User Filter
-                </h2>
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Filter by User
-                  </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Show entries created or modified by a specific user with your role
-                  </p>
-                                    
-                  <select
-                    name="userId"
-                    value={filterData.userId}
-                    onChange={handleChange}
-                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                      filterData.userId ? "border-blue-500 bg-blue-50" : ""
-                    }`}
-                  >
-                    <option value="">All Users</option>
-                    {currentUser && <option value={currentUser._id}>Me ({currentUser.username})</option>}
-                    
-                    {/* Show all other users */}
-                    {users
-                      .filter(u => {
-                        // Skip current user as they already have the "Me" option
-                        if (!currentUser || u._id === currentUser._id) return false;
-                        
-                        // If we want to show all users without role filtering, uncomment this line:
-                        // return true;
-                        
-                        // Check if the current user has any roles to filter by
-                        if (!currentUser.roles || currentUser.roles.length === 0) return true;
-                        
-                        // Get the current user's roles
-                        const currentUserRoleNames = currentUser.roles.map(role => {
-                          // Handle different role object structures
-                          if (role.role && role.role.name) return role.role.name;
-                          if (typeof role.role === 'string') return role.role;
-                          if (role.name) return role.name;
-                          return null;
-                        }).filter(Boolean); // Remove null values
-                        
-                        // If we can't determine current user roles, show all users
-                        if (currentUserRoleNames.length === 0) return true;
-                        
-                        // Check if this user has any matching roles
-                        return u.roles && u.roles.some(userRole => {
-                          // Get this user's role name
-                          let roleName = null;
-                          if (userRole.role && userRole.role.name) roleName = userRole.role.name;
-                          else if (typeof userRole.role === 'string') roleName = userRole.role;
-                          else if (userRole.name) roleName = userRole.name;
+              {/* User Filter Card - Hide for HRG, FOM, CAL roles without WMM */}
+              {!hasOnlyNonWMMRoles() && (
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    User Filter
+                  </h2>
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Filter by User
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Show entries created or modified by a specific user with your role
+                    </p>
+                                      
+                    <select
+                      name="userId"
+                      value={filterData.userId}
+                      onChange={handleChange}
+                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        filterData.userId ? "border-blue-500 bg-blue-50" : ""
+                      }`}
+                    >
+                      <option value="">All Users</option>
+                      {currentUser && <option value={currentUser._id}>Me ({currentUser.username})</option>}
+                      
+                      {/* Show all other users */}
+                      {users
+                        .filter(u => {
+                          // Skip current user as they already have the "Me" option
+                          if (!currentUser || u._id === currentUser._id) return false;
                           
-                          // Check if this role matches any of the current user's roles
-                          return roleName && currentUserRoleNames.includes(roleName);
-                        });
-                      })
-                      .map(u => (
-                        <option key={u._id} value={u._id}>
-                          {u.username}
-                        </option>
-                      ))
-                    }
-                  </select>
+                          // If we want to show all users without role filtering, uncomment this line:
+                          // return true;
+                          
+                          // Check if the current user has any roles to filter by
+                          if (!currentUser.roles || currentUser.roles.length === 0) return true;
+                          
+                          // Get the current user's roles
+                          const currentUserRoleNames = currentUser.roles.map(role => {
+                            // Handle different role object structures
+                            if (role.role && role.role.name) return role.role.name;
+                            if (typeof role.role === 'string') return role.role;
+                            if (role.name) return role.name;
+                            return null;
+                          }).filter(Boolean); // Remove null values
+                          
+                          // If we can't determine current user roles, show all users
+                          if (currentUserRoleNames.length === 0) return true;
+                          
+                          // Check if this user has any matching roles
+                          return u.roles && u.roles.some(userRole => {
+                            // Get this user's role name
+                            let roleName = null;
+                            if (userRole.role && userRole.role.name) roleName = userRole.role.name;
+                            else if (typeof userRole.role === 'string') roleName = userRole.role;
+                            else if (userRole.name) roleName = userRole.name;
+                            
+                            // Check if this role matches any of the current user's roles
+                            return roleName && currentUserRoleNames.includes(roleName);
+                          });
+                        })
+                        .map(u => (
+                          <option key={u._id} value={u._id}>
+                            {u.username}
+                          </option>
+                        ))
+                      }
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Active Filters Section */}
