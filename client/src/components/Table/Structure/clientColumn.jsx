@@ -265,7 +265,7 @@ export const useColumns = () => {
         ]
       : []),
     // Always include HRG data column if the user has HRG role or Admin role
-    ...((hasRole("HRG") || hasRole("Admin"))
+    ...((hasRole("HRG"))
       ? [
           {
             id: "HRG Data",
@@ -295,7 +295,6 @@ export const useColumns = () => {
                   const dateB = new Date(b.recvdate || 0);
                   return dateB - dateA;
                 })
-
                 .map((hrgItem) => {
                   const campaigndate = hrgItem.campaigndate
                     ? new Date(hrgItem.campaigndate).toLocaleDateString("en-US")
@@ -313,12 +312,22 @@ export const useColumns = () => {
                     ? (hrgItem.paymtref)
                     : "N/A";                  
 
+                  // Check if there's a subscription status override from the backend filter
+                  let status;
+                  if (row.subscriptionStatusOverride) {
+                    // Apply the status based on the filter that was applied
+                    status = row.subscriptionStatusOverride === 'active' ? 'Active' : 'Unsubscribed';
+                  } else {
+                    // Use the original status
+                    status = hrgItem.unsubscribe ? "Unsubscribed" : "Active";
+                  }
+
                   return {
                     campaigndate,
                     recvdate,
                     paymtamt,
                     paymtref,
-                    status: hrgItem.unsubscribe ? "Unsubscribed" : "Active",
+                    status: status,
                   };
                 });
             },
@@ -328,8 +337,17 @@ export const useColumns = () => {
                 return <div className="text-gray-500 italic">No HRG data</div>;
               }
 
+              // Get the latest record's status
+              const latestStatus = records[0].status;
+              const statusColor = latestStatus === "Active" ? "text-green-600" : "text-red-600";
+              const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
+
               return (
                 <div className="w-full max-h-[150px] overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={statusColor}>{statusIcon}</span>
+                    <span className={statusColor}>{latestStatus}</span>
+                  </div>
                   {records.map((record, index) => (
                     <div
                       key={index}
@@ -361,8 +379,8 @@ export const useColumns = () => {
               try {
                 // If fomData doesn't exist at all, return empty
                 if (!row.fomData) {
-                return [];
-              }
+                  return [];
+                }
 
                 // Handle different data structures
                 let fomRecords = [];
@@ -392,63 +410,64 @@ export const useColumns = () => {
                   return [];
                 }
 
-              return [...fomRecords]
-                .sort((a, b) => {
-                  const dateA = new Date(a.recvdate || 0);
-                  const dateB = new Date(b.recvdate || 0);
-                  return dateB - dateA;
-                })
-                .map((fomItem) => {
-                  const recvdate = fomItem.recvdate
-                    ? new Date(fomItem.recvdate).toLocaleDateString("en-US")
-                    : "N/A";
+                return [...fomRecords]
+                  .sort((a, b) => {
+                    const dateA = new Date(a.recvdate || 0);
+                    const dateB = new Date(b.recvdate || 0);
+                    return dateB - dateA;
+                  })
+                  .map((fomItem) => {
+                    const recvdate = fomItem.recvdate
+                      ? new Date(fomItem.recvdate).toLocaleDateString("en-US")
+                      : "N/A";
 
-                  const paymtamt = fomItem.paymtamt
-                    ? `₱${parseFloat(fomItem.paymtamt).toFixed(2)}`
-                    : "N/A";
+                    const paymtamt = fomItem.paymtamt
+                      ? `₱${parseFloat(fomItem.paymtamt).toFixed(2)}`
+                      : "N/A";
                       
                     const paymtref = fomItem.paymtref || "N/A";
                     const remarks = fomItem.remarks || "";
 
-                  return {
-                    recvdate,
-                    paymtamt,
+                    // Check if there's a subscription status override from the backend filter
+                    let status;
+                    if (row.subscriptionStatusOverride) {
+                      // Apply the status based on the filter that was applied
+                      status = row.subscriptionStatusOverride === 'active' ? 'Active' : 'Unsubscribed';
+                    } else {
+                      // Use the original status
+                      status = fomItem.unsubscribe ? "Unsubscribed" : "Active";
+                    }
+
+                    return {
+                      recvdate,
+                      paymtamt,
                       paymtref,
                       remarks,
-                    status: fomItem.unsubscribe ? "Unsubscribed" : "Active",
-                  };
-                });
+                      status: status,
+                    };
+                  });
               } catch (error) {
                 console.error(`Error processing FOM data for client ID ${row.id}:`, error);
                 return [];
               }
             },
-            cell: ({ getValue, row }) => {
+            cell: ({ getValue }) => {
               const records = getValue();
-              
-              // Add a fallback check to look directly at the raw data if needed
-              if ((!records || records.length === 0) && row.original.fomData) {
-                // Check if there's raw data we can display
-                const rawData = row.original.fomData;
-                
-                if (rawData && (
-                    (rawData.records && rawData.records.length > 0) ||
-                    (typeof rawData === 'object' && Object.keys(rawData).length > 1)
-                )) {
-                  return (
-                    <div className="text-blue-600 italic">
-                      FOM data exists but couldn't be processed properly
-                    </div>
-                  );
-                }
-              }
-              
               if (!records || records.length === 0) {
                 return <div className="text-gray-500 italic">No FOM data</div>;
               }
 
+              // Get the latest record's status
+              const latestStatus = records[0].status;
+              const statusColor = latestStatus === "Active" ? "text-green-600" : "text-red-600";
+              const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
+
               return (
                 <div className="w-full max-h-[150px] overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={statusColor}>{statusIcon}</span>
+                    <span className={statusColor}>{latestStatus}</span>
+                  </div>
                   {records.map((record, index) => (
                     <div
                       key={index}
