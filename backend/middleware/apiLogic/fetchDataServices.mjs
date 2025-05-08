@@ -498,6 +498,52 @@ async function fetchDataServices(
       baseFilter.push({ type: advancedFilterData.type });
     }
 
+    // Add subscription status filters for WMM
+    if (advancedFilterData.wmmSubscriptionStatus) {
+      // For WMM subscriptions, we need to find all clients with active/expired subscriptions
+      try {
+        const { default: WmmModel } = await import("../../models/wmm.mjs");
+        const subscriptionStatus = advancedFilterData.wmmSubscriptionStatus;
+        
+        let statusFilter = {};
+        const currentDate = new Date();
+        const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        
+        if (subscriptionStatus === 'active') {
+          // End date is greater than or equal to current date
+          statusFilter = {
+            enddate: { $gte: dateStr }
+          };
+        } else if (subscriptionStatus === 'expired') {
+          // End date is less than current date
+          statusFilter = {
+            enddate: { $lt: dateStr }
+          };
+        }
+        
+        // Only proceed with filtering if we have a specific status filter
+        if (Object.keys(statusFilter).length > 0) {
+          // Find clients with matching subscription status
+          const wmmSubscriptionClients = await WmmModel.find(statusFilter)
+            .distinct("clientid");
+            
+          // Convert to numbers and filter out invalid IDs
+          const validClientIds = wmmSubscriptionClients
+            .map(id => parseInt(id))
+            .filter(id => !isNaN(id));
+            
+          if (validClientIds.length > 0) {
+            baseFilter.push({ id: { $in: validClientIds } });
+          } else {
+            // If no clients match our criteria, create a filter that will return no results
+            baseFilter.push({ id: -1 });
+          }
+        }
+      } catch (error) {
+        console.error("Error filtering by WMM subscription status:", error);
+      }
+    }
+
     // Add subsclass filter (already handled for WMM but might need it for general filtering)
     if (advancedFilterData.subsclass && !modelNames.includes("WMM")) {
       baseFilter.push({ subsclass: advancedFilterData.subsclass });
@@ -1431,6 +1477,10 @@ async function fetchDataServices(
     let fomTotalAmt = 0;
     let calTotalPaymtAmt = 0;
     let totalFilterQuery = { ...filterQuery };
+    
+    // New variables for filter-based WMM totals
+    let filteredTotalCopies = 0;
+    let filteredTotalClients = 0;
 
     // Use Promise to get the totalCopies based on the filter
     const getTotalValues = async () => {
@@ -1441,6 +1491,9 @@ async function fetchDataServices(
           .lean()
           .then((results) => results.map((client) => client.id));
 
+        // Set the filtered total clients count (regardless of pagination)
+        filteredTotalClients = filteredClientIds.length;
+          
         // If no clients match the filter, return zeros
         if (filteredClientIds.length === 0) {
           return { 
@@ -1449,7 +1502,9 @@ async function fetchDataServices(
             totalCalAmt: 0, 
             totalHrgAmt: 0, 
             totalFomAmt: 0, 
-            totalCalPaymtAmt: 0 
+            totalCalPaymtAmt: 0, 
+            filteredTotalCopies: 0,
+            filteredTotalClients: 0
           };
         }
 
@@ -1482,6 +1537,18 @@ async function fetchDataServices(
         // Add subscription class filter if present
         if (advancedFilterData.subsclass) {
           wmmQuery.subsclass = advancedFilterData.subsclass;
+        }
+
+        // For active/expired WMM filtering, add the filter to the query
+        if (advancedFilterData.wmmSubscriptionStatus) {
+          const currentDate = new Date();
+          const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+          
+          if (advancedFilterData.wmmSubscriptionStatus === 'active') {
+            wmmQuery.enddate = { $gte: dateStr };
+          } else if (advancedFilterData.wmmSubscriptionStatus === 'expired') {
+            wmmQuery.enddate = { $lt: dateStr };
+          }
         }
 
         // For date filtering, we'll use a simpler approach
@@ -1592,6 +1659,10 @@ async function fetchDataServices(
             }
           }
         }
+        
+        // Calculate filtered total copies from all matching WMM records
+        // This includes ALL copies for clients matching the filter, regardless of pagination
+        filteredTotalCopies = copiesTotal;
 
         // Sum up calendar quantities and amounts from the most recent entry for each client
         let calQtyTotal = 0;
@@ -1693,6 +1764,8 @@ async function fetchDataServices(
           totalHrgAmt: hrgTotalAmt,
           totalFomAmt: fomTotalAmt,
           totalCalPaymtAmt: calTotalPaymtAmt,
+          filteredTotalCopies: filteredTotalCopies,
+          filteredTotalClients: filteredTotalClients
         };
       } catch (error) {
         console.error("Error calculating totals:", error);
@@ -1702,7 +1775,9 @@ async function fetchDataServices(
           totalCalAmt: 0, 
           totalHrgAmt: 0, 
           totalFomAmt: 0, 
-          totalCalPaymtAmt: 0 
+          totalCalPaymtAmt: 0, 
+          filteredTotalCopies: 0,
+          filteredTotalClients: 0
         };
       }
     };
@@ -1716,6 +1791,8 @@ async function fetchDataServices(
     hrgTotalAmt = totals.totalHrgAmt;
     fomTotalAmt = totals.totalFomAmt;
     calTotalPaymtAmt = totals.totalCalPaymtAmt;
+    filteredTotalCopies = totals.filteredTotalCopies;
+    filteredTotalClients = totals.filteredTotalClients;
 
     // Calculate page-specific amounts based on the clients in the current page
     const pageSpecificCopies = filteredCombinedData.reduce((acc, client) => {
@@ -1948,6 +2025,8 @@ async function fetchDataServices(
       pageSpecificFomAmt: pageSpecificFomAmt || 0,
       pageSpecificCalPaymtAmt: pageSpecificCalPaymtAmt || 0,
       pageSpecificClients: filteredCombinedData.length,
+      filteredTotalCopies: filteredTotalCopies || 0,
+      filteredTotalClients: filteredTotalClients || 0,
       clientServices,
     };
   } catch (error) {
