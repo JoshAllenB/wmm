@@ -446,9 +446,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Handle copies range as a special case
     if (filterData.copiesRange) {
       const rangeMap = {
-        lt5: "Less than 5",
-        "5to10": "5 to 10",
-        gt10: "More than 10",
+        "1": "1",
+        "2": "2",
+        gt1: "More than 1",
         custom: `${filterData.minCopies || "0"} to ${
           filterData.maxCopies || "∞"
         }`,
@@ -990,9 +990,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       }`}
                     >
                       <option value="">Any number of copies</option>
-                      <option value="lt5">Less than 5</option>
-                      <option value="5to10">5 to 10</option>
-                      <option value="gt10">More than 10</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="gt1">More than 1</option>
                       <option value="custom">Custom range</option>
                     </select>
 

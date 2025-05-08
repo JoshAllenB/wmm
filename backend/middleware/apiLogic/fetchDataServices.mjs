@@ -754,9 +754,23 @@ async function fetchDataServices(
         wmmPipeline.push(wmmMatchStage);
       }
 
+      // Add a stage to ensure subsdate is properly formatted for sorting
+      wmmPipeline.push({
+        $addFields: {
+          parsedSubsDate: {
+            $cond: [
+              { $eq: [{ $type: "$subsdate" }, "string"] },
+              { $dateFromString: { dateString: "$subsdate", onError: new Date(0) } },
+              new Date(0)
+            ]
+          }
+        }
+      });
+
       // Sort and group to get latest subscription for each client
       wmmPipeline.push(
-        { $sort: { clientid: 1, subsdate: -1 } },
+        // Sort by clientid and parsed subsdate (descending)
+        { $sort: { clientid: 1, parsedSubsDate: -1 } },
         {
           $group: {
             _id: "$clientid",
@@ -773,27 +787,39 @@ async function fetchDataServices(
             $expr: {
               $let: {
                 vars: {
-                  numericCopies: { $toInt: "$copies" },
+                  // Improved numeric conversion that handles different data types
+                  numericCopies: {
+                    $cond: [
+                      { $eq: [{ $type: "$copies" }, "string"] },
+                      // If it's a string, try to convert to int
+                      { 
+                        $toInt: { 
+                          $cond: [
+                            { $regexMatch: { input: { $ifNull: ["$copies", "0"] }, regex: /^\d+$/ } },
+                            { $ifNull: ["$copies", "0"] }, // If it's a valid number string, use it
+                            "0" // Otherwise default to 0
+                          ]
+                        }
+                      },
+                      // If it's already a number or other type, convert safely
+                      { $convert: { input: { $ifNull: ["$copies", 0] }, to: "int", onError: 0, onNull: 0 } }
+                    ]
+                  }
                 },
                 in: {
                   $cond: {
-                    if: { $eq: [advancedFilterData.copiesRange, "lt5"] },
-                    then: { $lt: ["$$numericCopies", 5] },
+                    if: { $eq: [advancedFilterData.copiesRange, "1"] },
+                    then: { $eq: ["$$numericCopies", 1] },
                     else: {
                       $cond: {
-                        if: { $eq: [advancedFilterData.copiesRange, "5to10"] },
-                        then: {
-                          $and: [
-                            { $gte: ["$$numericCopies", 5] },
-                            { $lte: ["$$numericCopies", 10] },
-                          ],
-                        },
+                        if: { $eq: [advancedFilterData.copiesRange, "2"] },
+                        then: { $eq: ["$$numericCopies", 2] },
                         else: {
                           $cond: {
                             if: {
-                              $eq: [advancedFilterData.copiesRange, "gt10"],
+                              $eq: [advancedFilterData.copiesRange, "gt1"],
                             },
-                            then: { $gt: ["$$numericCopies", 10] },
+                            then: { $gt: ["$$numericCopies", 1] },
                             else: {
                               $cond: {
                                 if: {
