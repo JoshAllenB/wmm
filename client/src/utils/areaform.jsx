@@ -145,7 +145,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
           <div className="text-xs text-blue-600 mt-1">
             <button 
               type="button" 
-              className="underline focus:outline-none"
+              className="underline focus:outline-none text-base"
               onClick={() => setShowZipcodeOptions(true)}
             >
               {availableZipcodes.length} zipcode options available - click to view
