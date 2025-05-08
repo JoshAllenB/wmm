@@ -663,18 +663,82 @@ async function fetchDataServices(
       const exactMatchEnabled = !!advancedFilterData.exactServiceMatch;
       const serviceMatchExcludeWMM = advancedFilterData.serviceMatchExcludeWMM !== false;
       
+      // Replace showActiveOnly boolean with subscriptionStatus check
+      const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
+      
       // Get arrays of client IDs for each service type
       const allServiceTypeClients = await Promise.all(
         Object.keys(additionalModels).map(async (modelKey) => {
           const Model = await getModel(modelKey);
           const serviceName = modelKey.replace("Model", "").toUpperCase();
           
+          // Build match stage for subscription status filtering
+          const matchStage = { $match: {} };
+          
+          // For FOM/HRG with subscription status filter, handle the filtering appropriately
+          if ((serviceName === 'HRG' || serviceName === 'FOM')) {
+            if (subscriptionStatus === 'active') {
+              // Only include active subscriptions (not unsubscribed)
+              return Model.aggregate([
+                { $match: { unsubscribe: { $ne: 1 } } },
+                { $sort: { clientid: 1, recvdate: -1 } },
+                {
+                  $group: {
+                    _id: "$clientid",
+                    mostRecent: { $first: "$$ROOT" }
+                  }
+                },
+                // Ensure the most recent record is not unsubscribed
+                {
+                  $match: {
+                    "mostRecent.unsubscribe": { $ne: 1 }
+                  }
+                },
+                {
+                  $project: {
+                    _id: 1 // Keep only the client ID
+                  }
+                }
+              ]).then(results => ({
+                serviceName,
+                clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+              }));
+            } else if (subscriptionStatus === 'unsubscribed') {
+              // Only include unsubscribed subscriptions
+              return Model.aggregate([
+                { $match: { unsubscribe: 1 } },
+                { $sort: { clientid: 1, recvdate: -1 } },
+                {
+                  $group: {
+                    _id: "$clientid",
+                    mostRecent: { $first: "$$ROOT" }
+                  }
+                },
+                // Ensure the most recent record is unsubscribed
+                {
+                  $match: {
+                    "mostRecent.unsubscribe": 1
+                  }
+                },
+                {
+                  $project: {
+                    _id: 1 // Keep only the client ID
+                  }
+                }
+              ]).then(results => ({
+                serviceName,
+                clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+              }));
+            }
+            // For 'all' status, don't apply any subscription filter
+          }
+          
           // Use aggregation to get all unique client IDs for this service
           const results = await Model.aggregate([
+            matchStage,
             { $project: { clientid: 1 } },
             { $group: { _id: "$clientid" } },
           ]);
-          
           return {
             serviceName,
             clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
@@ -755,8 +819,40 @@ async function fetchDataServices(
             if (!modelKey) return [];
 
             const Model = await getModel(modelKey);
+            
+            // For FOM/HRG with showActiveOnly, only include active clients
+            const showActiveOnly = !!advancedFilterData.showActiveOnly;
+            const serviceNameUpper = serviceName.toUpperCase();
+            
+            if (showActiveOnly && (serviceNameUpper === 'FOM' || serviceNameUpper === 'HRG')) {
+              // Use a more specific approach for active records
+              const results = await Model.aggregate([
+                // Explicitly match only records where unsubscribe is not true
+                { $match: { unsubscribe: { $ne: 1 } } },
+                { $sort: { clientid: 1, recvdate: -1 } },
+                {
+                  $group: {
+                    _id: "$clientid",
+                    mostRecent: { $first: "$$ROOT" }
+                  }
+                },
+                // Ensure again that the most recent record is not unsubscribed
+                {
+                  $match: {
+                    "mostRecent.unsubscribe": { $ne: 1 }
+                  }
+                },
+                {
+                  $project: {
+                    _id: 1 // Keep only the client ID
+                  }
+                }
+              ]);
+              
+              return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
+            }
 
-            // Use a simpler, more efficient aggregation
+            // Use a simpler, more efficient aggregation for other services
             const results = await Model.aggregate([
               { $project: { clientid: 1 } },
               { $group: { _id: "$clientid" } },
@@ -896,7 +992,7 @@ async function fetchDataServices(
             const result = await Model.aggregate([
               {
                 $match: {
-                  clientid: { $in: clientIds.map((id) => parseInt(id)) }, // Convert to integers
+                  clientid: { $in: clientIds.map((id) => parseInt(id)) },
                 },
               },
               { $project: config.projectFields },
@@ -919,6 +1015,48 @@ async function fetchDataServices(
             ]);
 
             return result;
+          }
+
+          // Special handling for FOM and HRG model with showActiveOnly
+          if ((modelKey.toLowerCase() === "fommodel" || modelKey.toLowerCase() === "hrgmodel") && advancedFilterData.showActiveOnly) {
+            // Only include the most recent active (unsubscribe: false) record
+            return Model.aggregate([
+              {
+                $match: {
+                  clientid: { $in: clientIds.map((id) => parseInt(id)) },
+                  unsubscribe: { $ne: 1 },
+                },
+              },
+              { $project: config.projectFields },
+              { $sort: { clientid: 1, recvdate: -1 } },
+              {
+                $group: {
+                  _id: "$clientid",
+                  records: { $push: "$$ROOT" },
+                  mostRecent: { $first: "$$ROOT" },
+                },
+              },
+              // Only include groups where mostRecent exists and is not unsubscribed
+              {
+                $match: {
+                  mostRecent: { $exists: true },
+                  "mostRecent.unsubscribe": { $ne: 1 }
+                }
+              },
+              {
+                $project: {
+                  _id: 1,
+                  records: { $slice: ["$records", 1] }, // Only keep the most recent record
+                  recentCopies: "$mostRecent.copies",
+                  totalCopies: "$mostRecent.copies",
+                  totalCalQty: "$mostRecent.calqty",
+                  totalCalAmt: "$mostRecent.calamt",
+                  subsclass: "$mostRecent.subsclass",
+                  recvdate: "$mostRecent.recvdate",
+                  unsubscribe: "$mostRecent.unsubscribe"
+                }
+              }
+            ]);
           }
 
           // Special handling for CAL model
@@ -1019,6 +1157,18 @@ async function fetchDataServices(
           
           console.log(`After filtering: ${dataObject.records.length} records remain for client ${clientId}`);
         }
+        
+        // If showActiveOnly is enabled, filter out unsubscribed records for HRG and FOM
+        if (advancedFilterData.showActiveOnly && dataObject.records && dataObject.records.length > 0) {
+          const modelNameLower = modelNames[index].toLowerCase();
+          if (modelNameLower.includes("hrg") || modelNameLower.includes("fom")) {
+            // Filter out records with unsubscribe: 1 (since it's stored as 0/1 not true/false)
+            dataObject.records = dataObject.records.filter(record => {
+              return record.unsubscribe !== 1 && record.unsubscribe !== true;
+            });
+            console.log(`After unsubscribe filtering: ${dataObject.records.length} records remain for client ${clientId}`);
+          }
+        }
 
         // Set the data for this model - fixed: ensure consistent casing for service keys
         const modelNameLower = modelNames[index].toLowerCase();
@@ -1085,10 +1235,23 @@ async function fetchDataServices(
             const { default: Model } = await modelInfo.importFunc();
             const serviceType = modelInfo.name.replace('Model', '').toLowerCase() + 'Data';
             
-            // Fetch data for these clients
-            const serviceData = await Model.find({
+            // Create the base query for this service
+            const serviceQuery = {
               clientid: { $in: clientIds }
-            }).lean();
+            };
+            
+            // For FOM/HRG with subscription status, handle accordingly
+            const modelName = modelInfo.name.replace('Model', '').toUpperCase();
+            const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
+            
+            if (subscriptionStatus === 'active' && (modelName === 'FOM' || modelName === 'HRG')) {
+              serviceQuery.unsubscribe = { $ne: 1 };
+            } else if (subscriptionStatus === 'unsubscribed' && (modelName === 'FOM' || modelName === 'HRG')) {
+              serviceQuery.unsubscribe = 1;
+            }
+            
+            // Fetch data for these clients
+            const serviceData = await Model.find(serviceQuery).lean();
             
             // Group data by client ID
             const groupedData = serviceData.reduce((acc, item) => {
@@ -1112,8 +1275,32 @@ async function fetchDataServices(
                 modelDataMap.set(Number(clientId), {});
               }
               
+              // If showActiveOnly is true, filter out unsubscribed records for HRG and FOM
+              let filteredRecords = records;
+              if (advancedFilterData.showActiveOnly) {
+                const serviceTypeUpper = serviceType.replace('Data', '').toUpperCase();
+                if (serviceTypeUpper === 'HRG' || serviceTypeUpper === 'FOM') {
+                  filteredRecords = records.filter(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+                  console.log(`Filtered records for ${serviceTypeUpper}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`);
+                }
+              }
+              
+              // Apply subscription status filtering
+              if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== 'all' && 
+                  records && records.length > 0) {
+                const modelNameLower = modelNames[index].toLowerCase();
+                if (modelNameLower.includes("hrg") || modelNameLower.includes("fom")) {
+                  if (advancedFilterData.subscriptionStatus === 'active') {
+                    filteredRecords = records.filter(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+                  } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
+                    filteredRecords = records.filter(record => record.unsubscribe === 1 || record.unsubscribe === true);
+                  }
+                  console.log(`Filtered records for ${serviceType.replace('Data', '').toUpperCase()}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`);
+                }
+              }
+              
               modelDataMap.get(Number(clientId))[serviceType] = {
-                records: records,
+                records: filteredRecords,
                 _id: Number(clientId)
               };
             });
@@ -1142,6 +1329,75 @@ async function fetchDataServices(
         createdByFilteredUser // Add flag to indicate if this client was created by the filtered user
       };
     });
+    
+    // Filter out clients with only unsubscribed HRG/FOM records when showActiveOnly is true
+    let filteredCombinedData = combinedData;
+    if (advancedFilterData.showActiveOnly) {
+      filteredCombinedData = combinedData.filter(client => {
+        // If filtering by HRG
+        if (advancedFilterData.services.includes('HRG')) {
+          const hrgData = client.hrgData?.records || [];
+          if (hrgData.length === 0) return false; // No HRG data
+          // Check if all HRG records are unsubscribed
+          const hasActiveRecord = hrgData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+          if (!hasActiveRecord) return false;
+        }
+        
+        // If filtering by FOM
+        if (advancedFilterData.services.includes('FOM')) {
+          const fomData = client.fomData?.records || [];
+          if (fomData.length === 0) return false; // No FOM data
+          // Check if all FOM records are unsubscribed
+          const hasActiveRecord = fomData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+          if (!hasActiveRecord) return false;
+        }
+        
+        return true;
+      });
+      
+      console.log(`Filtered ${combinedData.length - filteredCombinedData.length} clients with only unsubscribed records`);
+    }
+
+    // Replace with subscription status filtering
+    if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== 'all') {
+      filteredCombinedData = combinedData.filter(client => {
+        // If filtering by HRG
+        if (advancedFilterData.services.includes('HRG')) {
+          const hrgData = client.hrgData?.records || [];
+          if (hrgData.length === 0) return false; // No HRG data
+          
+          if (advancedFilterData.subscriptionStatus === 'active') {
+            // Check if any HRG record is active
+            const hasActiveRecord = hrgData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+            if (!hasActiveRecord) return false;
+          } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
+            // Check if any HRG record is unsubscribed
+            const hasUnsubscribedRecord = hrgData.some(record => record.unsubscribe === 1 || record.unsubscribe === true);
+            if (!hasUnsubscribedRecord) return false;
+          }
+        }
+        
+        // If filtering by FOM
+        if (advancedFilterData.services.includes('FOM')) {
+          const fomData = client.fomData?.records || [];
+          if (fomData.length === 0) return false; // No FOM data
+          
+          if (advancedFilterData.subscriptionStatus === 'active') {
+            // Check if any FOM record is active
+            const hasActiveRecord = fomData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+            if (!hasActiveRecord) return false;
+          } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
+            // Check if any FOM record is unsubscribed
+            const hasUnsubscribedRecord = fomData.some(record => record.unsubscribe === 1 || record.unsubscribe === true);
+            if (!hasUnsubscribedRecord) return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      console.log(`Filtered ${combinedData.length - filteredCombinedData.length} clients based on subscription status`);
+    }
 
     // Calculate totalCopies using only the most recent copies for each client
     let totalCopies = 0;
@@ -1438,7 +1694,7 @@ async function fetchDataServices(
     calTotalPaymtAmt = totals.totalCalPaymtAmt;
 
     // Calculate page-specific amounts based on the clients in the current page
-    const pageSpecificCopies = combinedData.reduce((acc, client) => {
+    const pageSpecificCopies = filteredCombinedData.reduce((acc, client) => {
       const clientCopies = validModelDataArrays.reduce(
         (copiesAcc, modelData) => {
           const clientRecord = modelData.find((item) => item._id === client.id);
@@ -1449,7 +1705,7 @@ async function fetchDataServices(
       return acc + clientCopies;
     }, 0);
 
-    const pageSpecificCalQty = combinedData.reduce((acc, client) => {
+    const pageSpecificCalQty = filteredCombinedData.reduce((acc, client) => {
       const clientCalQty = validModelDataArrays.reduce((qtyAcc, modelData) => {
         const clientRecord = modelData.find((item) => item._id === client.id);
         return qtyAcc + (clientRecord?.totalCalQty || 0);
@@ -1457,7 +1713,7 @@ async function fetchDataServices(
       return acc + clientCalQty;
     }, 0);
 
-    const pageSpecificCalAmt = combinedData.reduce((acc, client) => {
+    const pageSpecificCalAmt = filteredCombinedData.reduce((acc, client) => {
       // Look for CAL data in the client's data
       const calData = client.calData?.records || [];
       if (calData.length === 0) return acc;
@@ -1502,7 +1758,7 @@ async function fetchDataServices(
     }, 0);
 
     // Add page-specific HRG, FOM, and CAL payment amount calculations
-    const pageSpecificHrgAmt = combinedData.reduce((acc, client) => {
+    const pageSpecificHrgAmt = filteredCombinedData.reduce((acc, client) => {
       // Look for HRG data in the client's data
       const hrgData = client.hrgData?.records || [];
       if (hrgData.length === 0) return acc;
@@ -1536,7 +1792,7 @@ async function fetchDataServices(
       return acc;
     }, 0);
 
-    const pageSpecificFomAmt = combinedData.reduce((acc, client) => {
+    const pageSpecificFomAmt = filteredCombinedData.reduce((acc, client) => {
       // Look for FOM data in the client's data
       const fomData = client.fomData?.records || [];
       if (fomData.length === 0) return acc;
@@ -1570,7 +1826,7 @@ async function fetchDataServices(
       return acc;
     }, 0);
 
-    const pageSpecificCalPaymtAmt = combinedData.reduce((acc, client) => {
+    const pageSpecificCalPaymtAmt = filteredCombinedData.reduce((acc, client) => {
       // Look for CAL data in the client's data
       const calData = client.calData?.records || [];
       if (calData.length === 0) return acc;
@@ -1625,7 +1881,7 @@ async function fetchDataServices(
       })
     );
 
-    const clientServices = clients.map((client) => {
+    const clientServices = filteredCombinedData.map((client) => {
       const services = serviceData.reduce(
         (acc, { serviceName, subscriptions }) => {
           const hasService = subscriptions.some(
@@ -1651,7 +1907,7 @@ async function fetchDataServices(
       totalClients,
       currentPage: page,
       pageSize,
-      combinedData: clients.map((client) => ({
+      combinedData: filteredCombinedData.map((client) => ({
         ...client,
         ...modelDataMap.get(client.id),
       })),
@@ -1667,7 +1923,7 @@ async function fetchDataServices(
       pageSpecificHrgAmt: pageSpecificHrgAmt || 0,
       pageSpecificFomAmt: pageSpecificFomAmt || 0,
       pageSpecificCalPaymtAmt: pageSpecificCalPaymtAmt || 0,
-      pageSpecificClients: clients.length,
+      pageSpecificClients: filteredCombinedData.length,
       clientServices,
     };
   } catch (error) {
