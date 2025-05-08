@@ -1551,6 +1551,7 @@ const Add = ({ fetchClients }) => {
                         onChange={handleChange}
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <InputField
                         label="Middle Name:"
@@ -1560,6 +1561,7 @@ const Add = ({ fetchClients }) => {
                         onChange={handleChange}
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <InputField
                         label="Last Name:"
@@ -1569,6 +1571,7 @@ const Add = ({ fetchClients }) => {
                         onChange={handleChange}
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <InputField
                         label="Suffix:"
@@ -1578,6 +1581,7 @@ const Add = ({ fetchClients }) => {
                         onChange={handleChange}
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <InputField
                         label="Birth Date:"
@@ -1634,6 +1638,7 @@ const Add = ({ fetchClients }) => {
                         }
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <InputField
                         label="Address (subdivision/compound name):"
@@ -1648,6 +1653,7 @@ const Add = ({ fetchClients }) => {
                         }
                         uppercase={true}
                         className="text-base"
+                        autoComplete="off"
                       />
                       <AddressForm
                         onAddressChange={handleAddressChange}

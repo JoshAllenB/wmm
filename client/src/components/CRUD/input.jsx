@@ -9,6 +9,7 @@ const InputField = ({
   placeholder = "",
   uppercase = false,
   className = "",
+  autoComplete = "off", // Default to "off"
 }) => {
   // Use React refs to handle cursor position
   const inputRef = React.useRef(null);
@@ -25,17 +26,17 @@ const InputField = ({
   // Handle input changes, converting to uppercase if needed
   const handleInputChange = (e) => {
     const { type: inputType, selectionStart } = e.target;
-    
+
     // Save cursor position before the state update
     if (uppercase && inputType !== 'checkbox') {
       setCursorPosition(selectionStart);
     }
-    
+
     // Only apply uppercase transformation to text-based inputs
     if (uppercase && typeof e.target.value === 'string' && (type === 'text' || type === 'email' || type === 'textarea')) {
       e.target.value = e.target.value.toUpperCase();
     }
-    
+
     onChange(e);
   };
 
@@ -53,6 +54,7 @@ const InputField = ({
           onChange={handleInputChange}
           placeholder={placeholder}
           className={`w-full p-2 border rounded-md ${className}`}
+          autoComplete={autoComplete} // Add autoComplete prop
         />
       ) : (
         <input
@@ -64,6 +66,7 @@ const InputField = ({
           onChange={handleInputChange}
           placeholder={placeholder}
           className={`w-full p-2 border rounded-md ${className}`}
+          autoComplete={autoComplete} // Add autoComplete prop
         />
       )}
     </div>
