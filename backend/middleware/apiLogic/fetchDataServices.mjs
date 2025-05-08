@@ -693,6 +693,7 @@ async function fetchDataServices(
         wmmMatchStage.$match.subsclass = advancedFilterData.subsclass;
       }
 
+      // Handle active subscriptions during a specific month range
       if (
         advancedFilterData.wmmStartSubsDate &&
         advancedFilterData.wmmEndSubsDate
@@ -713,6 +714,39 @@ async function fetchDataServices(
             },
           ],
         };
+      }
+      
+      // Handle expiring subscriptions in a specific month
+      if (
+        advancedFilterData.wmmStartEndDate &&
+        advancedFilterData.wmmEndEndDate
+      ) {
+        // Create a match expression that checks if the enddate falls within the specified month range
+        const expiringExpr = {
+          $and: [
+            {
+              $gte: [
+                { $dateFromString: { dateString: "$enddate" } },
+                new Date(advancedFilterData.wmmStartEndDate),
+              ],
+            },
+            {
+              $lte: [
+                { $dateFromString: { dateString: "$enddate" } },
+                new Date(advancedFilterData.wmmEndEndDate),
+              ],
+            },
+          ],
+        };
+        
+        // If we already have an expression, combine them with AND
+        if (wmmMatchStage.$match.$expr) {
+          wmmMatchStage.$match.$expr = {
+            $and: [wmmMatchStage.$match.$expr, expiringExpr]
+          };
+        } else {
+          wmmMatchStage.$match.$expr = expiringExpr;
+        }
       }
 
       // Only add match stage if it has conditions
@@ -1692,6 +1726,26 @@ async function fetchDataServices(
               return subDate <= endDate && subEndDate >= startDate;
             } catch (e) {
               console.error("Error parsing date:", e);
+              return false;
+            }
+          });
+        }
+        
+        // Filter subscriptions based on expiry month if needed
+        if (
+          advancedFilterData.wmmStartEndDate &&
+          advancedFilterData.wmmEndEndDate
+        ) {
+          const startDate = new Date(advancedFilterData.wmmStartEndDate);
+          const endDate = new Date(advancedFilterData.wmmEndEndDate);
+
+          filteredSubscriptions = filteredSubscriptions.filter((sub) => {
+            try {
+              const subEndDate = new Date(sub.enddate);
+              // Only include subscriptions where the end date falls within the specified month
+              return subEndDate >= startDate && subEndDate <= endDate;
+            } catch (e) {
+              console.error("Error parsing end date:", e);
               return false;
             }
           });
