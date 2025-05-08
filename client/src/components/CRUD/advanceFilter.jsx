@@ -180,7 +180,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         areas.splice(areaIndex, 1);
       }
 
-      return { ...prev, areas };
+      return { ...prev, areas, exactAreaMatch: true };
     });
   };
 
@@ -292,6 +292,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       excludeSPackClients: filterData.excludeSPackClients,
       userId: filterData.userId || "", // Include userId in formatted data
       subscriptionStatus: filterData.subscriptionStatus || "all", // Include subscription status
+      exactAreaMatch: true, // Always use exact area matching
     };
 
     // Apply the filter with the formatted data
@@ -656,6 +657,62 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   const { local, foreign } = categorizeAreas();
 
+  // Handle select all local areas
+  const handleSelectAllLocal = (e) => {
+    const isChecked = e.target.checked;
+    setFilterData((prev) => {
+      let updatedAreas = [...prev.areas];
+      
+      if (isChecked) {
+        // Add all local area IDs that aren't already selected
+        local.forEach(area => {
+          if (!updatedAreas.includes(area._id)) {
+            updatedAreas.push(area._id);
+          }
+        });
+      } else {
+        // Remove all local area IDs
+        updatedAreas = updatedAreas.filter(areaId => 
+          !local.some(area => area._id === areaId)
+        );
+      }
+      
+      return { ...prev, areas: updatedAreas, exactAreaMatch: true };
+    });
+  };
+
+  // Handle select all foreign areas
+  const handleSelectAllForeign = (e) => {
+    const isChecked = e.target.checked;
+    setFilterData((prev) => {
+      let updatedAreas = [...prev.areas];
+      
+      if (isChecked) {
+        // Add all foreign area IDs that aren't already selected
+        foreign.forEach(area => {
+          if (!updatedAreas.includes(area._id)) {
+            updatedAreas.push(area._id);
+          }
+        });
+      } else {
+        // Remove all foreign area IDs
+        updatedAreas = updatedAreas.filter(areaId => 
+          !foreign.some(area => area._id === areaId)
+        );
+      }
+      
+      return { ...prev, areas: updatedAreas, exactAreaMatch: true };
+    });
+  };
+
+  // Check if all local areas are selected
+  const areAllLocalSelected = local.length > 0 && 
+    local.every(area => filterData.areas.includes(area._id));
+  
+  // Check if all foreign areas are selected
+  const areAllForeignSelected = foreign.length > 0 && 
+    foreign.every(area => filterData.areas.includes(area._id));
+
   return (
     <div>
       <Button
@@ -694,6 +751,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.fname ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                   <InputField
                     label="Last Name"
@@ -704,6 +762,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.lname ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                   <div className="grid grid-cols-2 gap-3">
                     <InputField
@@ -715,6 +774,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       className={`w-full ${
                         filterData.mname ? "border-blue-500 bg-blue-50" : ""
                       }`}
+                      labelClassName="text-lg font-medium text-black"
                     />
                     <InputField
                       label="Suffix"
@@ -725,6 +785,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       className={`w-full ${
                         filterData.sname ? "border-blue-500 bg-blue-50" : ""
                       }`}
+                      labelClassName="text-lg font-medium text-black"
                     />
                   </div>
                   <InputField
@@ -737,6 +798,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.birthdate ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                 </div>
               </div>
@@ -757,6 +819,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.email ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                   <InputField
                     label="Cell Number"
@@ -767,6 +830,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.cellno ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                   <InputField
                     label="Office Number"
@@ -777,6 +841,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.ofcno ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                   <InputField
                     label="Other Contact"
@@ -787,6 +852,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     className={`w-full ${
                       filterData.contactnos ? "border-blue-500 bg-blue-50" : ""
                     }`}
+                    labelClassName="text-lg font-medium text-black"
                   />
                 </div>
               </div>
@@ -797,7 +863,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   Address
                 </h2>
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">
+                  <label className="block text-lg font-medium text-black">
                     Full Address
                   </label>
                   <textarea
@@ -819,7 +885,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 </h2>
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-gray-700">
+                    <h3 className="text-lg font-medium text-black">
                       General Date Range
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -835,6 +901,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             ? "border-blue-500 bg-blue-50"
                             : ""
                         }`}
+                        labelClassName="text-lg font-medium text-black"
                       />
                       <InputField
                         label="End Date"
@@ -846,6 +913,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         className={`w-full ${
                           filterData.endDate ? "border-blue-500 bg-blue-50" : ""
                         }`}
+                        labelClassName="text-lg font-medium text-black"
                       />
                     </div>
                   </div>
@@ -854,7 +922,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   {!hasOnlyNonWMMRoles() && (
                     <>
                       <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-gray-700">
+                        <h3 className="text-lg font-medium text-black">
                           Active Subscriptions
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -872,11 +940,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               ? "border-blue-500 bg-blue-50"
                               : ""
                           }`}
+                          labelClassName="text-lg font-medium text-black"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <h3 className="text-sm font-semibold text-gray-700">
+                        <h3 className="text-lg font-medium text-black">
                           Expiring Subscriptions
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -894,6 +963,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               ? "border-blue-500 bg-blue-50"
                               : ""
                           }`}
+                          labelClassName="text-lg font-medium text-black"
                         />
                       </div>
                     </>
@@ -908,7 +978,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     Copies Range
                   </h2>
                   <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-lg font-medium text-black">
                       Number of Copies
                     </label>
                     <select
@@ -941,6 +1011,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               ? "border-blue-500 bg-blue-50"
                               : ""
                           }`}
+                          labelClassName="text-lg font-medium text-black"
                         />
                         <InputField
                           label="Max copies"
@@ -955,6 +1026,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               ? "border-blue-500 bg-blue-50"
                               : ""
                           }`}
+                          labelClassName="text-lg font-medium text-black"
                         />
                       </div>
                     )}
@@ -969,7 +1041,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-lg font-medium text-black mb-1">
                       Group
                     </label>
                     <select
@@ -1007,7 +1079,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     />
                     <label
                       htmlFor="excludeSPackClients"
-                      className="ml-2 text-sm text-gray-700"
+                      className="ml-2 text-lg text-black"
                     >
                       Exclude SPack Clients
                     </label>
@@ -1015,7 +1087,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-lg font-medium text-black mb-1">
                       Type
                     </label>
                     <select
@@ -1037,7 +1109,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-lg font-medium text-black mb-1">
                       Subclass
                     </label>
                     <select
@@ -1060,7 +1132,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   
                   {/* Area Filter (Modified to checkboxes grouped by Local/Foreign) */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-lg font-medium mb-2">
                       Areas
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
@@ -1070,8 +1142,23 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
                       {/* Local Areas */}
                       <div className="mb-3">
-                        <h3 className="text-sm font-semibold text-gray-600 mb-1 bg-gray-100 p-1">
-                          Local Areas
+                        <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+                          <span>Local Areas</span>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="select-all-local"
+                              checked={areAllLocalSelected}
+                              onChange={handleSelectAllLocal}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label
+                              htmlFor="select-all-local"
+                              className="ml-1 text-md text-gray-700"
+                            >
+                              Select All
+                            </label>
+                          </div>
                         </h3>
                         <div className="grid grid-cols-2 gap-1">
                           {local.map(area => (
@@ -1085,7 +1172,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               />
                               <label
                                 htmlFor={`area-${area._id}`}
-                                className="ml-2 text-xs text-gray-700 truncate"
+                                className="ml-2 text-base font-medium truncate"
                                 title={area._id}
                               >
                                 {area._id}
@@ -1097,8 +1184,23 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       
                       {/* Foreign Areas */}
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-600 mb-1 bg-gray-100 p-1">
-                          Foreign Areas
+                        <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+                          <span>Foreign Areas</span>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="select-all-foreign"
+                              checked={areAllForeignSelected}
+                              onChange={handleSelectAllForeign}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <label
+                              htmlFor="select-all-foreign"
+                              className="ml-1 text-md text-gray-700"
+                            >
+                              Select All
+                            </label>
+                          </div>
                         </h3>
                         <div className="grid grid-cols-2 gap-1">
                           {foreign.map(area => (
@@ -1112,7 +1214,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               />
                               <label
                                 htmlFor={`area-${area._id}`}
-                                className="ml-2 text-xs text-gray-700 truncate"
+                                className="ml-2 text-base font-medium truncate"
                                 title={area._id}
                               >
                                 {area._id}
@@ -1156,7 +1258,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   {/* Replace checkbox with dropdown for subscription status - hide for WMM role */}
                   {!hasRole("WMM") && (
                     <div className="mb-3">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-lg font-medium text-black mb-1">
                         Subscription Status
                       </label>
                       <select
@@ -1188,7 +1290,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-wmm"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         WMM
                       </label>
@@ -1208,7 +1310,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-fom"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         FOM
                       </label>
@@ -1228,7 +1330,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-hrg"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         HRG
                       </label>
@@ -1248,7 +1350,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-cal"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         CAL
                       </label>
@@ -1281,7 +1383,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="include-clients"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         Include only these clients
                       </label>
@@ -1298,7 +1400,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="exclude-clients"
-                        className="ml-2 text-sm text-gray-700"
+                        className="ml-2 text-lg text-black"
                       >
                         Exclude these clients
                       </label>
@@ -1307,7 +1409,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   
                   {filterData.clientIdFilterType === "include" ? (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-lg font-medium text-black">
                         Client IDs to Include
                       </label>
                       <p className="text-xs text-gray-500">
@@ -1326,7 +1428,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-gray-700">
+                      <label className="block text-lg font-medium text-black">
                         Client IDs to Exclude
                       </label>
                       <p className="text-xs text-gray-500">
@@ -1354,7 +1456,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     User Filter
                   </h2>
                   <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-lg font-medium text-black">
                       Filter by User
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
