@@ -957,12 +957,12 @@ const Add = ({ fetchClients }) => {
       if (!showDuplicates && !isCheckingDuplicates) return null;
 
       return (
-        <div className="border-l border-gray-200 w-80 h-full overflow-hidden bg-white shadow-md flex flex-col">
+        <div className="border-l border-gray-200 w-[600px] max-h-[80vh] overflow-hidden bg-white shadow-md flex flex-col">
           <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 py-3 px-4 border-b border-gray-200 z-10">
             <div className="flex items-center justify-between">
               <div>
                 {isCheckingDuplicates ? (
-                  <h3 className="text-gray-800 font-medium flex items-center">
+                  <h3 className="text-gray-800 text-base font-medium flex items-center">
                     <span className="animate-pulse mr-2">Checking...</span>
                     <svg
                       className="animate-spin h-4 w-4 text-blue-500"
@@ -986,19 +986,19 @@ const Add = ({ fetchClients }) => {
                     </svg>
                   </h3>
                 ) : (
-                  <h3 className="text-gray-800 font-medium">
+                  <h3 className="text-gray-800 text-base font-medium">
                     {potentialDuplicates.length} Possible{" "}
                     {potentialDuplicates.length === 1 ? "Match" : "Matches"}
                   </h3>
                 )}
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-sm text-gray-500 mt-0.5">
                   {isCheckingDuplicates
                     ? "Searching for possible duplicates..."
                     : "Similar records found in database"}
                 </p>
               </div>
               {potentialDuplicates.length > 0 && (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-800">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-800">
                   {potentialDuplicates.length}
                 </span>
               )}
@@ -1037,7 +1037,7 @@ const Add = ({ fetchClients }) => {
                         {client.totalScore !== undefined && (
                           <div className="mt-0.5">
                             <div
-                              className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm inline-block ${
+                              className={`text-xs font-medium px-1.5 py-0.5 rounded-sm inline-block ${
                                 client.totalScore > 25
                                   ? "bg-red-50 text-red-600 border border-red-100"
                                   : client.totalScore > 15
@@ -1071,45 +1071,45 @@ const Add = ({ fetchClients }) => {
                         client.acodeMatch > 0) && (
                         <div className="flex flex-wrap gap-1.5 mb-2.5">
                           {client.fnameMatch > 0 && (
-                            <span className="bg-green-50 text-green-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
+                            <span className="bg-green-50 text-green-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
                               First Name
                             </span>
                           )}
                           {client.lnameMatch > 0 && (
-                            <span className="bg-red-50 text-red-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-red-100">
+                            <span className="bg-red-50 text-red-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-red-100">
                               Last name
                             </span>
                           )}
                           {(client.addressExactMatch > 0 ||
                             client.addressTokenMatch > 0 ||
                             client.addressComponentMatch > 0) && (
-                            <span className="bg-amber-50 text-amber-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-amber-100">
+                            <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100">
                               Address
                             </span>
                           )}
                           {(client.cellnoMatch > 0 ||
                             client.contactnosMatch > 0) && (
-                            <span className="bg-green-50 text-green-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
+                            <span className="bg-green-50 text-green-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
                               Phone
                             </span>
                           )}
                           {client.emailMatch > 0 && (
-                            <span className="bg-blue-50 text-blue-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-blue-100">
+                            <span className="bg-blue-50 text-blue-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-blue-100">
                               Email
                             </span>
                           )}
                           {client.bdateMatch > 0 && (
-                            <span className="bg-purple-50 text-purple-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
+                            <span className="bg-purple-50 text-purple-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
                               Birthdate
                             </span>
                           )}
                           {client.companyMatch > 0 && (
-                            <span className="bg-indigo-50 text-indigo-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-indigo-100">
+                            <span className="bg-indigo-50 text-indigo-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-indigo-100">
                               Company
                             </span>
                           )}
                           {client.acodeMatch > 0 && (
-                            <span className="bg-gray-50 text-gray-600 text-[10px] font-medium rounded-sm px-1.5 py-0.5 border border-gray-100">
+                            <span className="bg-gray-50 text-gray-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-gray-100">
                               Area
                             </span>
                           )}
@@ -1151,7 +1151,7 @@ const Add = ({ fetchClients }) => {
                             return (
                               <span
                                 key={service}
-                                className={`${bgColor} ${textColor} text-[10px] font-medium rounded-sm px-1.5 py-0.5 border ${borderColor} flex items-center`}
+                                className={`${bgColor} ${textColor} text-xs font-medium rounded-sm px-1.5 py-0.5 border ${borderColor} flex items-center`}
                               >
                                 <svg
                                   className="w-2.5 h-2.5 mr-0.5"
@@ -1179,14 +1179,14 @@ const Add = ({ fetchClients }) => {
                         client.contactnos ||
                         client.email
                       ) && (
-                        <div className="text-xs text-gray-400 italic mb-1.5">
+                        <div className="text-sm text-gray-400 italic mb-1.5">
                           Only address available
                         </div>
                       )}
 
                       <div className="grid grid-cols-1 gap-1.5">
                         {client.bdate && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1206,7 +1206,7 @@ const Add = ({ fetchClients }) => {
                         )}
 
                         {(client.cellno || client.contactnos) && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1226,7 +1226,7 @@ const Add = ({ fetchClients }) => {
                         )}
 
                         {client.email && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1246,7 +1246,7 @@ const Add = ({ fetchClients }) => {
                         )}
 
                         {client.company && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1266,7 +1266,7 @@ const Add = ({ fetchClients }) => {
                         )}
 
                         {client.address && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1295,7 +1295,7 @@ const Add = ({ fetchClients }) => {
                         )}
 
                         {client.acode && (
-                          <div className="flex items-center text-gray-600">
+                          <div className="flex items-center text-gray-600 text-sm">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               className="h-3.5 w-3.5 mr-1.5 text-gray-400"
@@ -1321,7 +1321,7 @@ const Add = ({ fetchClients }) => {
                       <div className="mt-3 flex justify-end">
                         <button
                           onClick={() => handleViewDuplicate(client.id)}
-                          className="px-2.5 py-1 bg-blue-500 text-white rounded-md text-xs hover:bg-blue-600 transition-colors shadow-sm"
+                          className="px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition-colors shadow-sm"
                         >
                           View Details
                         </button>
@@ -1379,14 +1379,14 @@ const Add = ({ fetchClients }) => {
             <Button 
               type="button" 
               onClick={() => setShowConfirmation(false)}
-              className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+              className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md text-base"
             >
               Cancel
             </Button>
             <Button 
               type="button" 
               onClick={handleConfirmedSubmit}
-              className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md"
+              className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
             >
               Confirm
             </Button>
@@ -1432,12 +1432,12 @@ const Add = ({ fetchClients }) => {
               >
                 <div className="mb-6 border-b pb-4">
                   <h1 className="text-black text-3xl font-bold">Add Client</h1>
-                  <p className="text-gray-500 text-sm">
+                  <p className="text-gray-500 text-base">
                     Fill in the details to add a new client
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-5">
                   {/* Personal Information Card */}
                   <div className="p-4 border rounded-lg shadow-sm">
                     <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -1451,6 +1451,7 @@ const Add = ({ fetchClients }) => {
                         value={formData.title}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="First Name:"
@@ -1459,6 +1460,7 @@ const Add = ({ fetchClients }) => {
                         value={formData.fname}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="Middle Name:"
@@ -1467,6 +1469,7 @@ const Add = ({ fetchClients }) => {
                         value={formData.mname}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="Last Name:"
@@ -1475,6 +1478,7 @@ const Add = ({ fetchClients }) => {
                         value={formData.lname}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="Suffix:"
@@ -1483,6 +1487,7 @@ const Add = ({ fetchClients }) => {
                         value={formData.sname}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="Birth Date:"
@@ -1490,6 +1495,7 @@ const Add = ({ fetchClients }) => {
                         name="bdate"
                         value={formData.bdate}
                         onChange={handleChange}
+                        className="text-base"
                       />
                       <InputField
                         label="Company:"
@@ -1498,7 +1504,24 @@ const Add = ({ fetchClients }) => {
                         value={formData.company}
                         onChange={handleChange}
                         uppercase={true}
+                        className="text-base"
                       />
+                      <div className="mb-2">
+                      <h1 className="text-black font-bold">Remarks</h1>
+                      <p className="text-gray-500 text-base">
+                        Provide any additional information or notes about the
+                        client here.
+                      </p>
+                      <textarea
+                        className="w-full h-[160px] p-2 border rounded-md text-base"
+                        label="Remarks:"
+                        id="remarks"
+                        name="remarks"
+                        value={formData.remarks}
+                        onChange={handleChange}
+                      />
+                      </div>
+
                     </div>
                   </div>
 
@@ -1520,6 +1543,7 @@ const Add = ({ fetchClients }) => {
                           )
                         }
                         uppercase={true}
+                        className="text-base"
                       />
                       <InputField
                         label="Address (subdivision/compound name):"
@@ -1533,6 +1557,7 @@ const Add = ({ fetchClients }) => {
                           )
                         }
                         uppercase={true}
+                        className="text-base"
                       />
                       <AddressForm
                         onAddressChange={handleAddressChange}
@@ -1551,9 +1576,52 @@ const Add = ({ fetchClients }) => {
                           name="combinedAddress"
                           value={combinedAddress}
                           onChange={(e) => setCombinedAddress(e.target.value.toUpperCase())}
-                          className="w-full h-[160px] p-2 border rounded-md"
+                          className="w-full h-[160px] p-2 border rounded-md text-base"
                         />
                       </div>
+                                        {/* Group and Subscription Information Card */}
+                  {(hasRole("WMM")) && (
+                    <div className="p-4 border rounded-lg shadow-sm">
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        Group and Type Information
+                      </h2>
+                      <div className="space-y-3">
+                        <p className="text-gray-500 text-base">
+                          Select the type of client, group, and subscription
+                          classification from the options below.
+                        </p>
+                        <select
+                          id="type"
+                          name="type"
+                          value={formData.type}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md text-base"
+                        >
+                          <option value="">Select a type</option>
+                          {types.map((type) => (
+                            <option key={type.id} value={type.id}>
+                              {type.id} - {type.name}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          id="group"
+                          name="group"
+                          value={formData.group}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded-md text-base"
+                        >
+                          <option value="">Select a group</option>
+                          {groups.map((group) => (
+                            <option key={group.id} value={group.id}>
+                              {group.id} - {group.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                     </div>
                   </div>
 
@@ -1569,6 +1637,7 @@ const Add = ({ fetchClients }) => {
                         name="contactnos"
                         value={formData.contactnos}
                         onChange={handleChange}
+                        className="text-base"
                       />
                       <InputField
                         label="Cell Number:"
@@ -1576,6 +1645,7 @@ const Add = ({ fetchClients }) => {
                         name="cellno"
                         value={formData.cellno}
                         onChange={handleChange}
+                        className="text-base"
                       />
                       <InputField
                         label="Office Number:"
@@ -1583,6 +1653,7 @@ const Add = ({ fetchClients }) => {
                         name="ofcno"
                         value={formData.ofcno}
                         onChange={handleChange}
+                        className="text-base"
                       />
                       <InputField
                         label="Email:"
@@ -1591,10 +1662,10 @@ const Add = ({ fetchClients }) => {
                         value={formData.email}
                         onChange={handleChange}
                         type="email"
+                        className="text-base"
                       />
                     </div>
                   </div>
-
                   {/* Role-Specific Information Card */}
                   {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
                     <div className="p-4 border rounded-lg shadow-sm">
@@ -1643,7 +1714,7 @@ const Add = ({ fetchClients }) => {
                           <div className="flex flex-col-2 gap-4 mb-2 p-2">
                             {selectedRole === "HRG" && (
                               <div>
-                                <h1 className="text-black mb-2 font-bold">
+                                <h1 className="text-black mb-2 font-bold text-lg">
                                   HRG Add
                                 </h1>
                                 <InputField
@@ -1652,6 +1723,7 @@ const Add = ({ fetchClients }) => {
                                   name="recvdate"
                                   value={roleSpecificData.recvdate}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Renewal Date:"
@@ -1659,10 +1731,11 @@ const Add = ({ fetchClients }) => {
                                   name="renewdate"
                                   value={roleSpecificData.renewdate}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <div className="flex items-center mt-2 mb-2">
                                   <Button
-                                    className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
+                                    className="bg-blue-500 text-white text-xs py-1 px-2 rounded text-base"
                                     type="button"
                                     onClick={handleRenewDateToday}
                                   >
@@ -1675,6 +1748,7 @@ const Add = ({ fetchClients }) => {
                                   name="campaigndate"
                                   value={roleSpecificData.campaigndate}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Payment Reference:"
@@ -1682,6 +1756,7 @@ const Add = ({ fetchClients }) => {
                                   name="paymtref"
                                   value={roleSpecificData.paymtref}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Payment Amount:"
@@ -1689,11 +1764,12 @@ const Add = ({ fetchClients }) => {
                                   name="paymtamt"
                                   value={roleSpecificData.paymtamt}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <div className="mb-2">
                                   <label
                                     htmlFor="unsubscribe"
-                                    className="text-black font-bold mr-2"
+                                    className="text-black font-bold mr-2 text-base"
                                   >
                                     Unsubscribe:
                                   </label>
@@ -1708,12 +1784,13 @@ const Add = ({ fetchClients }) => {
                                         unsubscribe: e.target.checked,
                                       }))
                                     }
+                                    className="text-base"
                                   />
                                 </div>
                                 <div className="mb-2">
                                   <label
                                     htmlFor="remarks"
-                                    className="block text-black font-bold mb-1"
+                                    className="block text-black font-bold mb-1 text-base"
                                   >
                                     Remarks:
                                   </label>
@@ -1722,7 +1799,7 @@ const Add = ({ fetchClients }) => {
                                     name="remarks"
                                     value={roleSpecificData.remarks || ""}
                                     onChange={handleRoleSpecificChange}
-                                    className="w-full p-2 border rounded-md"
+                                    className="w-full p-2 border rounded-md text-base"
                                     rows="3"
                                   />
                                 </div>
@@ -1730,7 +1807,7 @@ const Add = ({ fetchClients }) => {
                             )}
                             {selectedRole === "FOM" && (
                               <div>
-                                <h1 className="text-black mb-2 font-bold">
+                                <h1 className="text-black mb-2 font-bold text-lg">
                                   FOM Add
                                 </h1>
                                 <InputField
@@ -1739,6 +1816,7 @@ const Add = ({ fetchClients }) => {
                                   name="recvdate"
                                   value={roleSpecificData.recvdate}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Payment Reference:"
@@ -1746,6 +1824,7 @@ const Add = ({ fetchClients }) => {
                                   name="paymtref"
                                   value={roleSpecificData.paymtref}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Payment Amount:"
@@ -1753,6 +1832,7 @@ const Add = ({ fetchClients }) => {
                                   name="paymtamt"
                                   value={roleSpecificData.paymtamt}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <InputField
                                   label="Payment Form:"
@@ -1760,11 +1840,12 @@ const Add = ({ fetchClients }) => {
                                   name="paymtform"
                                   value={roleSpecificData.paymtform}
                                   onChange={handleRoleSpecificChange}
+                                  className="text-base"
                                 />
                                 <div className="mb-2">
                                   <label
                                     htmlFor="unsubscribe"
-                                    className="text-black font-bold mr-2"
+                                    className="text-black font-bold mr-2 text-base"
                                   >
                                     Unsubscribe:
                                   </label>
@@ -1779,12 +1860,13 @@ const Add = ({ fetchClients }) => {
                                         unsubscribe: e.target.checked,
                                       }))
                                     }
+                                    className="text-base"
                                   />
                                 </div>
                                 <div className="mb-2">
                                   <label
                                     htmlFor="remarks"
-                                    className="block text-black font-bold mb-1"
+                                    className="block text-black font-bold mb-1 text-base"
                                   >
                                     Remarks:
                                   </label>
@@ -1793,7 +1875,7 @@ const Add = ({ fetchClients }) => {
                                     name="remarks"
                                     value={roleSpecificData.remarks || ""}
                                     onChange={handleRoleSpecificChange}
-                                    className="w-full p-2 border rounded-md"
+                                    className="w-full p-2 border rounded-md text-base"
                                     rows="3"
                                   />
                                 </div>
@@ -1801,7 +1883,7 @@ const Add = ({ fetchClients }) => {
                             )}
                             {selectedRole === "CAL" && (
                               <div>
-                                <h1 className="text-black mb-2 font-bold">
+                                <h1 className="text-black mb-2 font-bold text-lg">
                                   CAL Add
                                 </h1>
                                 <div className="flex gap-5">
@@ -1812,6 +1894,7 @@ const Add = ({ fetchClients }) => {
                                       name="recvdate"
                                       value={roleSpecificData.recvdate}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Calendar Type:"
@@ -1819,6 +1902,7 @@ const Add = ({ fetchClients }) => {
                                       name="caltype"
                                       value={roleSpecificData.caltype}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Calendar Quantity:"
@@ -1826,6 +1910,7 @@ const Add = ({ fetchClients }) => {
                                       name="calqty"
                                       value={roleSpecificData.calqty}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Calendar Amount:"
@@ -1833,6 +1918,7 @@ const Add = ({ fetchClients }) => {
                                       name="calamt"
                                       value={roleSpecificData.calamt}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                   </div>
                                   <div>
@@ -1842,6 +1928,7 @@ const Add = ({ fetchClients }) => {
                                       name="paymtref"
                                       value={roleSpecificData.paymtref}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Payment Amount:"
@@ -1849,6 +1936,7 @@ const Add = ({ fetchClients }) => {
                                       name="paymtamt"
                                       value={roleSpecificData.paymtamt}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Payment Form:"
@@ -1856,6 +1944,7 @@ const Add = ({ fetchClients }) => {
                                       name="paymtform"
                                       value={roleSpecificData.paymtform}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                     <InputField
                                       label="Payment Date:"
@@ -1863,13 +1952,14 @@ const Add = ({ fetchClients }) => {
                                       name="paymtdate"
                                       value={roleSpecificData.paymtdate}
                                       onChange={handleRoleSpecificChange}
+                                      className="text-base"
                                     />
                                   </div>
                                 </div>
                                 <div className="mb-2 mt-2">
                                   <label
                                     htmlFor="remarks"
-                                    className="block text-black font-bold mb-1"
+                                    className="block text-black font-bold mb-1 text-base"
                                   >
                                     Remarks:
                                   </label>
@@ -1878,7 +1968,7 @@ const Add = ({ fetchClients }) => {
                                     name="remarks"
                                     value={roleSpecificData.remarks || ""}
                                     onChange={handleRoleSpecificChange}
-                                    className="w-full p-2 border rounded-md"
+                                    className="w-full p-2 border rounded-md text-base"
                                     rows="3"
                                   />
                                 </div>
@@ -1886,61 +1976,6 @@ const Add = ({ fetchClients }) => {
                             )}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Group and Subscription Information Card */}
-                  {(hasRole("WMM") || hasRole("Admin")) && (
-                    <div className="p-4 border rounded-lg shadow-sm">
-                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                        Group and Subscription Information
-                      </h2>
-                      <div className="space-y-3">
-                        <p className="text-gray-500 text-sm">
-                          Select the type of client, group, and subscription
-                          classification from the options below.
-                        </p>
-                        <select
-                          id="type"
-                          name="type"
-                          value={formData.type}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded-md"
-                        >
-                          <option value="">Select a type</option>
-                          {types.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.id} - {type.name}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          id="group"
-                          name="group"
-                          value={formData.group}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded-md"
-                        >
-                          <option value="">Select a group</option>
-                          {groups.map((group) => (
-                            <option key={group.id} value={group.id}>
-                              {group.id} - {group.name}
-                            </option>
-                          ))}
-                        </select>
-                        <p className="text-gray-500 text-sm">
-                          Provide any additional information or notes about the
-                          client here.
-                        </p>
-                        <textarea
-                          className="w-full h-[160px] p-2 border rounded-md"
-                          label="Remarks:"
-                          id="remarks"
-                          name="remarks"
-                          value={formData.remarks}
-                          onChange={handleChange}
-                        />
                       </div>
                     </div>
                   )}
@@ -1957,14 +1992,14 @@ const Add = ({ fetchClients }) => {
                         value={formData.subscriptionStart}
                         onChange={handleChange}
                         placeholder="MM/DD/YY"
-                        className="w-full p-2 border rounded-md"
+                        className="w-full p-2 border rounded-md text-base"
                       />
                       <select
                         id="subscriptionFreq"
                         name="subscriptionFreq"
                         value={formData.subscriptionFreq}
                         onChange={handleChange}
-                        className="w-full p-2 border rounded-md"
+                        className="w-full p-2 border rounded-md text-base"
                       >
                         <option value="">Select Subscription Frequency</option>
                         <option value="5">6 Months</option>
@@ -1980,12 +2015,12 @@ const Add = ({ fetchClients }) => {
                         value={formData.subscriptionEnd}
                         onChange={handleChange}
                         placeholder="MM/DD/YY"
-                        className="w-full p-2 border rounded-md"
+                        className="w-full p-2 border rounded-md text-base"
                       />
 
                       <div className="flex space-x-4">
                         <div className="flex flex-row items-center justify-center gap-2">
-                          <label className="block text-sm font-medium leading-6 text-gray-600">
+                          <label className="block text-sm font-medium leading-6 text-gray-600 text-base">
                             Copies:
                           </label>
                           <input
@@ -1995,7 +2030,7 @@ const Add = ({ fetchClients }) => {
                             onChange={handleRoleSpecificChange}
                             type="number"
                             min="1"
-                            className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3"
+                            className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
                           />
                         </div>
                       </div>
@@ -2005,7 +2040,7 @@ const Add = ({ fetchClients }) => {
                           name="subsclass"
                           value={formData.subsclass}
                           onChange={handleChange}
-                          className="w-full p-2 border rounded-md"
+                          className="w-full p-2 border rounded-md text-base"
                         >
                           <option value="">Select a classification</option>
                           {subclasses.map((subclass) => (
@@ -2022,7 +2057,7 @@ const Add = ({ fetchClients }) => {
                           name="paymtref"
                           value={roleSpecificData.paymtref}
                           onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
+                          className="w-full p-2 border rounded-md text-base"
                         />
 
                         <InputField
@@ -2031,7 +2066,7 @@ const Add = ({ fetchClients }) => {
                           name="paymtamt"
                           value={roleSpecificData.paymtamt}
                           onChange={handleRoleSpecificChange}
-                          className="w-full p-2 border rounded-md"
+                          className="w-full p-2 border rounded-md text-base"
                         />
                       </div>
                     </div>
@@ -2041,14 +2076,21 @@ const Add = ({ fetchClients }) => {
                 <div className="mt-8 pt-4 border-t flex justify-end gap-3">
                   <Button
                     type="button"
+                    onClick={() => resetForm()}
+                    className="px-4 py-2 bg-red-200 hover:bg-red-300 rounded-md text-base"
+                  >
+                    Clear All Fields
+                  </Button>
+                  <Button
+                    type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+                    className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md text-base"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md"
+                    className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
                   >
                     Submit
                   </Button>
