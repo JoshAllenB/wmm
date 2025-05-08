@@ -530,12 +530,28 @@ const AllClient = () => {
       services = [];
     }
 
-    // Create formatted data with properly handled services
+    // Make sure areas is always an array
+    let areas = [];
+    try {
+      if (filterData.areas) {
+        if (Array.isArray(filterData.areas)) {
+          areas = [...filterData.areas];
+        } else if (typeof filterData.areas === "string") {
+          areas = filterData.areas.split(",").map(a => a.trim());
+        }
+      }
+    } catch (error) {
+      console.error("Error processing areas:", error);
+      areas = [];
+    }
+
+    // Create formatted data with properly handled services and areas
     const formattedFilterData = {
       ...filterData,
       startDate: formatDate(filterData.startDate),
       endDate: formatDate(filterData.endDate),
       services: services,
+      areas: areas
     };
 
     // Auto-disable Added Today filter when advanced filter is applied
@@ -666,8 +682,17 @@ const AllClient = () => {
       filters.push(`Type: ${advancedFilterData.type}`);
     if (advancedFilterData.subsclass)
       filters.push(`Subclass: ${advancedFilterData.subsclass}`);
-    if (advancedFilterData.area)
-      filters.push(`Area: ${advancedFilterData.area}`);
+      
+    // Properly handle areas filter
+    if (advancedFilterData.areas && Array.isArray(advancedFilterData.areas) && advancedFilterData.areas.length > 0) {
+      if (advancedFilterData.areas.length <= 3) {
+        // Show specific areas if there are only a few
+        filters.push(`Areas: ${advancedFilterData.areas.join(', ')}`);
+      } else {
+        // Show count if there are many
+        filters.push(`Areas: ${advancedFilterData.areas.length} selected`);
+      }
+    }
 
     if (advancedFilterData.copiesRange) {
       const rangeMap = {
@@ -730,6 +755,34 @@ const AllClient = () => {
       } catch (error) {
         console.error("Error processing services in getActiveFilters:", error);
       }
+    }
+    
+    // Add client ID filters
+    if (advancedFilterData.includeClientIds && advancedFilterData.includeClientIds.length > 0) {
+      filters.push(`Include Clients: ${advancedFilterData.includeClientIds.length} client(s)`);
+    }
+    
+    if (advancedFilterData.excludeClientIds && advancedFilterData.excludeClientIds.length > 0) {
+      filters.push(`Exclude Clients: ${advancedFilterData.excludeClientIds.length} client(s)`);
+    }
+    
+    // Add exclude SPack clients filter
+    if (advancedFilterData.excludeSPackClients) {
+      filters.push("Exclude SPack Clients");
+    }
+    
+    // Add subscription status filter
+    if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== "all") {
+      const statusMap = {
+        active: "Active Only",
+        unsubscribed: "Unsubscribed Only"
+      };
+      filters.push(`Subscription Status: ${statusMap[advancedFilterData.subscriptionStatus] || advancedFilterData.subscriptionStatus}`);
+    }
+    
+    // Add user filter
+    if (advancedFilterData.userId) {
+      filters.push(`User: ${advancedFilterData.userId}`);
     }
 
     return filters;
