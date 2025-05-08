@@ -510,7 +510,7 @@ const Add = ({ fetchClients }) => {
             (newData.cellno && newData.cellno.length > 5) ||
             (newData.email && newData.email.includes("@")) ||
             (combinedAddress && combinedAddress.length > 3) ||
-            (areaData.acode && areaData.acode.length > 0)
+            (areaData.acode && areaData.acode.length > 3)
           ) {
             const checkData = {
               fname: newData.fname,
@@ -876,7 +876,6 @@ const Add = ({ fetchClients }) => {
       if (response.data) {
         // Format the role-specific data properly for the View component
         const clientData = response.data;
-        console.log("Client data in view duplicate:", clientData);
         
         // Critical: Determine which services this client should have based on user roles
         // This is necessary to control visibility of different role sections
@@ -914,15 +913,12 @@ const Add = ({ fetchClients }) => {
         if (clientData.wmmData) {
           if (Array.isArray(clientData.wmmData)) {
             // If it's already an array, no need to change it
-            console.log("WMM data is already an array:", clientData.wmmData);
           } else if (clientData.wmmData.records && Array.isArray(clientData.wmmData.records)) {
             // If it has a records property that's an array, use that
             clientData.wmmData = clientData.wmmData.records;
-            console.log("Using WMM records array:", clientData.wmmData);
           } else {
             // If it's a single object, convert to array
             clientData.wmmData = [clientData.wmmData].filter(item => Object.keys(item).length > 0);
-            console.log("Converted WMM data to array:", clientData.wmmData);
           }
         } else {
           clientData.wmmData = [];
@@ -1159,7 +1155,6 @@ const Add = ({ fetchClients }) => {
                         <div className="flex flex-wrap gap-1.5 mb-2.5">
                           {client.lnameMatch > 0 && (
                             <span className="bg-red-50 text-red-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-red-100 flex items-center">
-                              <span className="mr-1 font-bold">1.</span>
                               Last name
                             </span>
                           )}
@@ -1167,13 +1162,11 @@ const Add = ({ fetchClients }) => {
                             client.addressTokenMatch > 0 ||
                             client.addressComponentMatch > 0) && (
                             <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100 flex items-center">
-                              <span className="mr-1 font-bold">2.</span>
                               Address
                             </span>
                           )}
                           {client.fnameMatch > 0 && (
                             <span className="bg-orange-50 text-orange-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-orange-100 flex items-center">
-                              <span className="mr-1 font-bold">3.</span>
                               First Name
                             </span>
                           )}
@@ -1199,8 +1192,8 @@ const Add = ({ fetchClients }) => {
                             </span>
                           )}
                           {client.acodeMatch > 0 && (
-                            <span className="bg-gray-50 text-gray-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-gray-100">
-                              Area
+                            <span className="bg-gray-50 text-purple-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
+                              Area Code
                             </span>
                           )}
                         </div>

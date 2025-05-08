@@ -1116,7 +1116,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           acodeMatch: {
             $cond: [
               { $eq: ["$acode", acode] },
-              3, // Lowest priority
+              12, // Lowest priority
               0,
             ],
           },
