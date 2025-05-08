@@ -574,7 +574,8 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       standardizedAddress, 
       addressComponents, 
       acode, 
-      company 
+      company,
+      priorities // Get priorities object from client
     } = req.body;
 
     // Track if we have any significant data to search with
@@ -592,7 +593,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       // Also check if last name appears in company name
       query.$or.push({ company: { $regex: new RegExp(lname, "i") } });
       
-      // Add scoring for last name matches
+      // Adjust Last name matching scoring
       scoringPipeline.push({
         $addFields: {
           lnameMatch: {
@@ -605,13 +606,31 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   {
                     $regexMatch: {
                       input: "$lname",
-                      regex: new RegExp(lname, "i"),
+                      regex: new RegExp(`^${lname}$`, "i"), // Exact match (case insensitive)
                     },
                   },
                 ],
               },
-              15, // Increased from 8 to 15 - highest priority
-              0,
+              20, // Full score for exact match
+              {
+                $cond: [
+                  {
+                    $and: [
+                      { $ne: ["$lname", null] },
+                      { $ne: ["$lname", undefined] },
+                      { $eq: [{ $type: "$lname" }, "string"] },
+                      {
+                        $regexMatch: {
+                          input: "$lname",
+                          regex: new RegExp(lname, "i"), // Partial match
+                        },
+                      },
+                    ],
+                  },
+                  15, // Reduced score for partial match
+                  0,
+                ],
+              },
             ],
           },
         },
@@ -635,7 +654,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              5, // Slightly increased from 4 to 5
+              7, // Increased for last name in company matches
               0,
             ],
           },
@@ -645,101 +664,14 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       hasSearchableData = true;
     }
 
-    // Company name matching (high priority)
-    if (company && company.length > 2) {
-      query.$or.push({ company: { $regex: new RegExp(company, "i") } });
-      // Add scoring for company name matches
-      scoringPipeline.push({
-        $addFields: {
-          companyMatch: {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$company", null] },
-                  { $ne: ["$company", undefined] },
-                  { $eq: [{ $type: "$company" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$company",
-                      regex: new RegExp(company, "i"),
-                    },
-                  },
-                ],
-              },
-              7, // Keep at 7
-              0,
-            ],
-          },
-        },
-      });
-      hasSearchableData = true;
-    }
-
-    if (fname && fname.length > 1) {
-      query.$or.push({ fname: { $regex: new RegExp(fname, "i") } });
-      // Also check if first name appears in company name
-      query.$or.push({ company: { $regex: new RegExp(fname, "i") } });
-
-      scoringPipeline.push({
-        $addFields: {
-          fnameMatch: {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$fname", null] },
-                  { $ne: ["$fname", null] },
-                  { $eq: [{ $type: "$fname" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$fname",
-                      regex: new RegExp(fname, "i"),
-                    },
-                  },
-                ],
-              },
-              12, // Increased from 8 to 12 - second highest priority
-              0,
-            ],
-          },
-        },
-      });
-      
-      // Add scoring for first name in company match
-      scoringPipeline.push({
-        $addFields: {
-          fnameInCompanyMatch: {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$company", null] },
-                  { $ne: ["$company", undefined] },
-                  { $eq: [{ $type: "$company" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$company",
-                      regex: new RegExp(fname, "i"),
-                    },
-                  },
-                ],
-              },
-              4, // Keep at 4
-              0,
-            ],
-          },
-        },
-      });
-      
-      hasSearchableData = true;
-    }
-
-    // Address matching with standardization
+    // Address matching with standardization - SECOND PRIORITY
     // Use the standardized address if provided by the client, otherwise standardize it here
     const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
     const addressTokens = getAddressTokens(address);
     
     if (clientStandardizedAddress && clientStandardizedAddress.length > 2) {
       try {
-        // Add standardized full address for better matching - use direct regex instead of $function
+        // Add standardized full address for better matching
         query.$or.push({
           address: { $regex: new RegExp(clientStandardizedAddress, "i") }
         });
@@ -776,10 +708,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           }
         }
 
-        // Add scoring for address matches using direct field comparison
-        // Instead of standardizing in the database, score based on presence of tokens
-        
-        // Score for exact address match
+        // Score for exact address match - SECOND HIGHEST PRIORITY
         scoringPipeline.push({
           $addFields: {
             addressExactMatch: {
@@ -797,7 +726,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                10, // Increased from 7 to 10 - third highest priority
+                15, // Increased to 15 - SECOND PRIORITY
                 0,
               ],
             },
@@ -821,7 +750,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              Math.max(8 - index, 3), // Increased score for token matches
+              Math.max(10 - index, 5), // Increased scores for token matches
               0,
             ],
           }));
@@ -853,7 +782,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                9, // Keep at 9
+                12, // Increased for street match
                 0,
               ],
             });
@@ -892,7 +821,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                5, // Medium score for barangay match
+                8, // Increased for barangay match
                 0,
               ],
             });
@@ -932,7 +861,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                5, // Medium score for city match
+                7, // Increased for city match
                 0,
               ],
             });
@@ -971,7 +900,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                     },
                   ],
                 },
-                4, // Medium score for province match
+                6, // Increased for province match
                 0,
               ],
             });
@@ -993,7 +922,97 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       }
     }
 
-    // Contact-based matching (third priority)
+    // First name matching - THIRD PRIORITY
+    if (fname && fname.length > 1) {
+      query.$or.push({ fname: { $regex: new RegExp(fname, "i") } });
+      // Also check if first name appears in company name
+      query.$or.push({ company: { $regex: new RegExp(fname, "i") } });
+
+      scoringPipeline.push({
+        $addFields: {
+          fnameMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$fname", null] },
+                  { $ne: ["$fname", null] },
+                  { $eq: [{ $type: "$fname" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$fname",
+                      regex: new RegExp(fname, "i"),
+                    },
+                  },
+                ],
+              },
+              12, // Adjusted to 12 - THIRD PRIORITY
+              0,
+            ],
+          },
+        },
+      });
+      
+      // Add scoring for first name in company match
+      scoringPipeline.push({
+        $addFields: {
+          fnameInCompanyMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$company", null] },
+                  { $ne: ["$company", undefined] },
+                  { $eq: [{ $type: "$company" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$company",
+                      regex: new RegExp(fname, "i"),
+                    },
+                  },
+                ],
+              },
+              5, // Slightly increased
+              0,
+            ],
+          },
+        },
+      });
+      
+      hasSearchableData = true;
+    }
+
+    // Company name matching (moderate priority)
+    if (company && company.length > 2) {
+      query.$or.push({ company: { $regex: new RegExp(company, "i") } });
+      // Add scoring for company name matches
+      scoringPipeline.push({
+        $addFields: {
+          companyMatch: {
+            $cond: [
+              {
+                $and: [
+                  { $ne: ["$company", null] },
+                  { $ne: ["$company", undefined] },
+                  { $eq: [{ $type: "$company" }, "string"] },
+                  {
+                    $regexMatch: {
+                      input: "$company",
+                      regex: new RegExp(company, "i"),
+                    },
+                  },
+                ],
+              },
+              8, // Slightly increased
+              0,
+            ],
+          },
+        },
+      });
+      hasSearchableData = true;
+    }
+
+    // Contact-based matching - EQUAL WEIGHT GROUP
+    // All the following fields have similar weights around 6-8
+
     if (email && email.includes("@")) {
       query.$or.push({ email: { $regex: new RegExp(email, "i") } });
       scoringPipeline.push({
@@ -1013,7 +1032,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   },
                 ],
               },
-              8, // Keep at 8
+              8, // Equal contact info weight
               0,
             ],
           },
@@ -1036,7 +1055,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$cellno", regex: cellno } },
                 ],
               },
-              8, // Keep at 8
+              8, // Equal contact info weight
               0,
             ],
           },
@@ -1059,7 +1078,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
                   { $regexMatch: { input: "$contactnos", regex: contactnos } },
                 ],
               },
-              7, // Keep at 7
+              7, // Equal contact info weight
               0,
             ],
           },
@@ -1076,7 +1095,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           bdateMatch: {
             $cond: [
               { $eq: ["$bdate", bdate] },
-              7, // Reduced from 10 to 7 as it should be lower priority than name/address
+              7, // Equal contact info weight
               0,
             ],
           },
@@ -1085,7 +1104,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       hasSearchableData = true;
     }
 
-    // Area code matching
+    // Area code matching (lowest priority)
     if (acode) {
       query.$or.push({ acode: acode });
       scoringPipeline.push({
@@ -1093,7 +1112,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
           acodeMatch: {
             $cond: [
               { $eq: ["$acode", acode] },
-              2, // Lower score for acode match
+              3, // Lowest priority
               0,
             ],
           },
@@ -1138,7 +1157,78 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
     // Add scoring pipeline stages
     pipeline.push(...scoringPipeline);
 
-    // Calculate total score from all match fields
+    // Add special combo scoring for exact matches on multiple fields
+    // This will boost scores for truly identical records
+    pipeline.push({
+      $addFields: {
+        exactMatchCombo: {
+          $sum: [
+            // Exact lname + fname combo
+            {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$lname", null] },
+                    { $ne: ["$lname", undefined] },
+                    { $eq: [{ $type: "$lname" }, "string"] },
+                    { $ne: ["$fname", null] },
+                    { $ne: ["$fname", undefined] },
+                    { $eq: [{ $type: "$fname" }, "string"] },
+                    {
+                      $regexMatch: {
+                        input: "$lname",
+                        regex: new RegExp(`^${lname}$`, "i"),
+                      },
+                    },
+                    {
+                      $regexMatch: {
+                        input: "$fname",
+                        regex: new RegExp(`^${fname}$`, "i"),
+                      },
+                    },
+                  ],
+                },
+                15, // Bonus points for exact name match
+                0,
+              ],
+            },
+            // Exact email match (strongest identifier)
+            {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$email", null] },
+                    { $ne: ["$email", undefined] },
+                    { $eq: [{ $type: "$email" }, "string"] },
+                    { $eq: ["$email", email] },
+                  ],
+                },
+                10, // Bonus points for exact email match
+                0,
+              ],
+            },
+            // Exact cellno match
+            {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$cellno", null] },
+                    { $ne: ["$cellno", undefined] },
+                    { $eq: [{ $type: "$cellno" }, "string"] },
+                    { $eq: ["$cellno", cellno] },
+                  ],
+                },
+                8, // Bonus points for exact phone match
+                0,
+              ],
+            },
+          ],
+        },
+      },
+    });
+
+    // Update the total score calculation to include the combo bonus
+    // Replace the existing totalScore addFields with this one
     pipeline.push({
       $addFields: {
         totalScore: {
@@ -1156,6 +1246,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
             { $ifNull: ["$contactnosMatch", 0] },
             { $ifNull: ["$bdateMatch", 0] },
             { $ifNull: ["$acodeMatch", 0] },
+            { $ifNull: ["$exactMatchCombo", 0] }, // Add the combo bonus
           ],
         },
       },
@@ -1363,36 +1454,69 @@ router.get("/:id", verifyToken, async (req, res) => {
     });
 
     const userRoles = req.user.roles.map((role) => role.role.name);
+    
+    console.log("User roles for client details:", userRoles); // Debug log
 
     // Gather data from each role-specific model
     const roleData = {};
+    
+    // Admin should get data from all models
+    const isAdmin = userRoles.includes("Admin");
 
-    if (userRoles.includes("Admin") || userRoles.includes("WMM")) {
-      const wmmData = await WmmModel.find({ clientid: parseInt(id) })
-        .sort({ subsdate: -1 })
-        .lean();
-      roleData.wmmData = wmmData;
-    }
+    // For Admin users, always fetch all role data regardless of other roles
+    if (isAdmin) {
+      try {
+        const wmmData = await WmmModel.find({ clientid: parseInt(id) })
+          .sort({ subsdate: -1 })
+          .lean();
+        roleData.wmmData = wmmData;
+        
+        const hrgData = await HrgModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.hrgData = hrgData;
+        
+        const fomData = await FomModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.fomData = fomData;
+        
+        const calData = await CalModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.calData = calData;
+      } catch (error) {
+        console.error("Error fetching role data for admin:", error);
+      }
+    } else {
+      // If not admin, fetch data based on user roles
+      if (userRoles.includes("WMM")) {
+        const wmmData = await WmmModel.find({ clientid: parseInt(id) })
+          .sort({ subsdate: -1 })
+          .lean();
+        roleData.wmmData = wmmData;
+      }
 
-    if (userRoles.includes("Admin") || userRoles.includes("HRG")) {
-      const hrgData = await HrgModel.find({ clientid: parseInt(id) })
-        .sort({ recvdate: -1 })
-        .lean();
-      roleData.hrgData = hrgData;
-    }
+      if (userRoles.includes("HRG")) {
+        const hrgData = await HrgModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.hrgData = hrgData;
+      }
 
-    if (userRoles.includes("Admin") || userRoles.includes("FOM")) {
-      const fomData = await FomModel.find({ clientid: parseInt(id) })
-        .sort({ recvdate: -1 })
-        .lean();
-      roleData.fomData = fomData;
-    }
+      if (userRoles.includes("FOM")) {
+        const fomData = await FomModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.fomData = fomData;
+      }
 
-    if (userRoles.includes("Admin") || userRoles.includes("CAL")) {
-      const calData = await CalModel.find({ clientid: parseInt(id) })
-        .sort({ recvdate: -1 })
-        .lean();
-      roleData.calData = calData;
+      if (userRoles.includes("CAL")) {
+        const calData = await CalModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean();
+        roleData.calData = calData;
+      }
     }
 
     // Return combined data
@@ -1402,7 +1526,7 @@ router.get("/:id", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching client details:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({ error: "Internal Server Error", details: err.message });
   }
 });
 
