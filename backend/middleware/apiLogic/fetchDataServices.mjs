@@ -469,6 +469,30 @@ async function fetchDataServices(
       baseFilter.push({ acode: advancedFilterData.acode });
     }
 
+    // Add exact area matching for selected areas
+    if (Array.isArray(advancedFilterData.areas) && advancedFilterData.areas.length > 0) {
+      // If exactAreaMatch is true, use exact matching
+      if (advancedFilterData.exactAreaMatch) {
+        // Create an array of exact match conditions for each area
+        baseFilter.push({ 
+          acode: { 
+            $in: advancedFilterData.areas.map(area => area) 
+          } 
+        });
+      } else {
+        // Use regex matching for backward compatibility - this will find partial matches
+        const areaRegexPatterns = advancedFilterData.areas.map(area => 
+          new RegExp(`^${area}$|^${area}\\s|^${area}$`, 'i')
+        );
+        
+        baseFilter.push({ 
+          acode: { 
+            $in: areaRegexPatterns 
+          } 
+        });
+      }
+    }
+
     // Add type filter
     if (advancedFilterData.type) {
       baseFilter.push({ type: advancedFilterData.type });
