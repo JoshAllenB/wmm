@@ -373,10 +373,10 @@ const Add = ({ fetchClients }) => {
       }
 
       try {
-        // Prepare the data for sending to the server
+        // Prepare the data for sending to the server, prioritizing lname, address, fname
         const duplicateCheckData = {
           ...checkData,
-          // Send both original and standardized address
+          // Send both original and standardized address for better matching
           address: checkData.address,
           standardizedAddress: normalizeAddress(checkData.address),
           // Break down address components for better matching
@@ -386,6 +386,13 @@ const Add = ({ fetchClients }) => {
             barangay: addressData.barangay || '',
             city: addressData.city || '',
             province: addressData.province || '',
+          },
+          // Priority flags to indicate to the server the desired search priority
+          priorities: {
+            lnameHighest: true,     // Highest priority
+            addressSecond: true,     // Second priority
+            fnameThird: true,        // Third priority
+            contactEqualWeight: true // Similar weights for contact/birth info
           }
         };
         
@@ -534,10 +541,44 @@ const Add = ({ fetchClients }) => {
     }
     setIsCheckingDuplicates(true);
 
-    setAddressData((prev) => ({
-      ...prev,
-      [type]: value,
-    }));
+    // Update the address data
+    setAddressData((prev) => {
+      const newAddressData = {
+        ...prev,
+        [type]: value,
+      };
+      
+      // Immediately update the combined address for more responsive UI
+      const addressComponents = [
+        newAddressData.street1,
+        newAddressData.street2,
+        formData.area,
+        newAddressData.barangay,
+        newAddressData.city ? newAddressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
+        newAddressData.province,
+      ];
+      
+      const newCombinedAddress = addressComponents.filter(Boolean).join(", ");
+      setCombinedAddress(newCombinedAddress);
+      
+      // After a brief delay to allow state updates, check for duplicates
+      setTimeout(() => {
+        const checkData = {
+          fname: formData.fname,
+          lname: formData.lname,
+          bdate: formData.bdate,
+          company: formData.company,
+          email: formData.email,
+          cellno: formData.cellno,
+          contactnos: formData.contactnos,
+          address: newCombinedAddress,
+          acode: areaData.acode || "",
+        };
+        checkForDuplicates(checkData, "address");
+      }, 100);
+      
+      return newAddressData;
+    });
   };
 
   const updateCombinedAddress = (addressData) => {
@@ -555,33 +596,24 @@ const Add = ({ fetchClients }) => {
 
   // Update useEffect for combining address and checking duplicates
   useEffect(() => {
-    updateCombinedAddress(addressData);
-
-    // One-time check for duplicates when address changes, avoid triggering loops
-    if (
-      (addressData.street1 ||
-      addressData.street2 ||
-      addressData.city ||
-      addressData.barangay) &&
-      !isCheckingDuplicates
-    ) {
-      setIsCheckingDuplicates(true);
-      setTimeout(() => {
-        const checkData = {
-          fname: formData.fname,
-          lname: formData.lname,
-          bdate: formData.bdate,
-          company: formData.company,
-          email: formData.email,
-          cellno: formData.cellno,
-          contactnos: formData.contactnos,
-          address: combinedAddress,
-          acode: areaData.acode || "",
-        };
-        checkForDuplicates(checkData, "address");
-      }, 0);
+    // Only update combined address if it wasn't already updated by handleAddressChange
+    const addressComponents = [
+      addressData.street1,
+      addressData.street2,
+      formData.area,
+      addressData.barangay,
+      addressData.city ? addressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
+      addressData.province,
+    ];
+    const newAddress = addressComponents.filter(Boolean).join(", ");
+    
+    if (combinedAddress !== newAddress) {
+      setCombinedAddress(newAddress);
     }
-  }, [addressData, checkForDuplicates]);
+    
+    // We don't need to trigger duplicate checking here anymore 
+    // since it's now handled directly in handleAddressChange
+  }, [addressData, formData.area]);
 
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
@@ -844,16 +876,61 @@ const Add = ({ fetchClients }) => {
       if (response.data) {
         // Format the role-specific data properly for the View component
         const clientData = response.data;
+        console.log("Client data in view duplicate:", clientData);
         
-        // Format WMM data
-        if (clientData.wmmData) {
-          // Ensure it's in the expected format for the View component
-          if (!Array.isArray(clientData.wmmData) && !clientData.wmmData.records) {
-            clientData.wmmData = [clientData.wmmData].filter(item => Object.keys(item).length > 0);
+        // Critical: Determine which services this client should have based on user roles
+        // This is necessary to control visibility of different role sections
+        if (!clientData.services) {
+          clientData.services = [];
+        }
+        
+        // For WMM users, always add WMM to services to ensure it's displayed
+        if (hasRole("WMM") || hasRole("Admin")) {
+          if (!clientData.services.includes("WMM")) {
+            clientData.services.push("WMM");
           }
         }
         
-        // Format HRG data
+        // Only add other service types if user has those roles
+        if (hasRole("HRG") || hasRole("Admin")) {
+          if (!clientData.services.includes("HRG")) {
+            clientData.services.push("HRG");
+          }
+        }
+        
+        if (hasRole("FOM") || hasRole("Admin")) {
+          if (!clientData.services.includes("FOM")) {
+            clientData.services.push("FOM");
+          }
+        }
+        
+        if (hasRole("CAL") || hasRole("Admin")) {
+          if (!clientData.services.includes("CAL")) {
+            clientData.services.push("CAL");
+          }
+        }
+        
+        // Handle WMM data - keep as array if it already is one
+        if (clientData.wmmData) {
+          if (Array.isArray(clientData.wmmData)) {
+            // If it's already an array, no need to change it
+            console.log("WMM data is already an array:", clientData.wmmData);
+          } else if (clientData.wmmData.records && Array.isArray(clientData.wmmData.records)) {
+            // If it has a records property that's an array, use that
+            clientData.wmmData = clientData.wmmData.records;
+            console.log("Using WMM records array:", clientData.wmmData);
+          } else {
+            // If it's a single object, convert to array
+            clientData.wmmData = [clientData.wmmData].filter(item => Object.keys(item).length > 0);
+            console.log("Converted WMM data to array:", clientData.wmmData);
+          }
+        } else {
+          clientData.wmmData = [];
+        }
+        
+        // Process other role data in the format expected by View component
+        
+        // Format HRG data if present
         if (clientData.hrgData) {
           if (Array.isArray(clientData.hrgData)) {
             clientData.hrgData = { records: clientData.hrgData };
@@ -862,9 +939,11 @@ const Add = ({ fetchClients }) => {
               records: [clientData.hrgData].filter(item => Object.keys(item).length > 0) 
             };
           }
+        } else {
+          clientData.hrgData = { records: [] };
         }
         
-        // Format FOM data
+        // Format FOM data if present
         if (clientData.fomData) {
           if (Array.isArray(clientData.fomData)) {
             clientData.fomData = { records: clientData.fomData };
@@ -873,9 +952,11 @@ const Add = ({ fetchClients }) => {
               records: [clientData.fomData].filter(item => Object.keys(item).length > 0) 
             };
           }
+        } else {
+          clientData.fomData = { records: [] };
         }
         
-        // Format CAL data
+        // Format CAL data if present
         if (clientData.calData) {
           if (Array.isArray(clientData.calData)) {
             clientData.calData = { records: clientData.calData };
@@ -884,6 +965,8 @@ const Add = ({ fetchClients }) => {
               records: [clientData.calData].filter(item => Object.keys(item).length > 0) 
             };
           }
+        } else {
+          clientData.calData = { records: [] };
         }
 
         setSelectedDuplicate(clientData);
@@ -1038,16 +1121,20 @@ const Add = ({ fetchClients }) => {
                           <div className="mt-0.5">
                             <div
                               className={`text-xs font-medium px-1.5 py-0.5 rounded-sm inline-block ${
-                                client.totalScore > 25
-                                  ? "bg-red-50 text-red-600 border border-red-100"
-                                  : client.totalScore > 15
-                                  ? "bg-amber-50 text-amber-600 border border-amber-100"
+                                client.totalScore > 40
+                                  ? "bg-red-100 text-red-800 border border-red-200"
+                                  : client.totalScore > 30
+                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                  : client.totalScore > 20
+                                  ? "bg-orange-50 text-orange-600 border border-orange-100"
                                   : "bg-blue-50 text-blue-600 border border-blue-100"
                               }`}
                             >
-                              {client.totalScore > 25
+                              {client.totalScore > 40
+                                ? "Very strong match"
+                                : client.totalScore > 30
                                 ? "Strong match"
-                                : client.totalScore > 15
+                                : client.totalScore > 20
                                 ? "Likely match"
                                 : "Possible match"}
                             </div>
@@ -1070,21 +1157,24 @@ const Add = ({ fetchClients }) => {
                         client.companyMatch > 0 ||
                         client.acodeMatch > 0) && (
                         <div className="flex flex-wrap gap-1.5 mb-2.5">
-                          {client.fnameMatch > 0 && (
-                            <span className="bg-green-50 text-green-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
-                              First Name
-                            </span>
-                          )}
                           {client.lnameMatch > 0 && (
-                            <span className="bg-red-50 text-red-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-red-100">
+                            <span className="bg-red-50 text-red-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-red-100 flex items-center">
+                              <span className="mr-1 font-bold">1.</span>
                               Last name
                             </span>
                           )}
                           {(client.addressExactMatch > 0 ||
                             client.addressTokenMatch > 0 ||
                             client.addressComponentMatch > 0) && (
-                            <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100">
+                            <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100 flex items-center">
+                              <span className="mr-1 font-bold">2.</span>
                               Address
+                            </span>
+                          )}
+                          {client.fnameMatch > 0 && (
+                            <span className="bg-orange-50 text-orange-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-orange-100 flex items-center">
+                              <span className="mr-1 font-bold">3.</span>
+                              First Name
                             </span>
                           )}
                           {(client.cellnoMatch > 0 ||
