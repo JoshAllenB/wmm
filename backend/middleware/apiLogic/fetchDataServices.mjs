@@ -619,6 +619,165 @@ async function fetchDataServices(
       baseFilter.push({ type: advancedFilterData.type });
     }
 
+    // Handle general date range filtering for HRG, FOM, and CAL roles
+    if (advancedFilterData.startDate || advancedFilterData.endDate) {
+      try {
+        // Import necessary models
+        const { default: HrgModel } = await import("../../models/hrg.mjs");
+        const { default: FomModel } = await import("../../models/fom.mjs");
+        const { default: CalModel } = await import("../../models/cal.mjs");
+        
+        // Parse dates (they come in MM/DD/YYYY format)
+        const startDate = advancedFilterData.startDate ? new Date(advancedFilterData.startDate) : null;
+        const endDate = advancedFilterData.endDate ? new Date(advancedFilterData.endDate) : null;
+        
+        // Ensure end date is set to end of day for inclusive comparison
+        if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+        }
+        
+        // Find clients with matching date ranges across all service types
+        const matchingClientIds = new Set();
+        
+        // Helper function to parse date strings in various formats
+        const parseDate = (dateStr) => {
+          if (!dateStr) return null;
+          
+          // Try to parse the date string
+          const date = new Date(dateStr);
+          
+          // Check if the date is valid
+          if (isNaN(date.getTime())) {
+            // If standard parsing fails, try to handle common formats
+            
+            // Format: MM/DD/YYYY or M/D/YYYY
+            const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (usMatch) {
+              return new Date(parseInt(usMatch[3]), parseInt(usMatch[1]) - 1, parseInt(usMatch[2]));
+            }
+            
+            // Format: YYYY-MM-DD
+            const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (isoMatch) {
+              return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+            }
+            
+            // Format: DD/MM/YYYY
+            const euMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (euMatch) {
+              // Try to determine if it's DD/MM or MM/DD based on values
+              const first = parseInt(euMatch[1]);
+              const second = parseInt(euMatch[2]);
+              
+              if (first > 12 && second <= 12) {
+                // If first number is > 12, it's likely a day
+                return new Date(parseInt(euMatch[3]), second - 1, first);
+              }
+            }
+            
+            return null; // Failed to parse
+          }
+          
+          return date;
+        };
+        
+        // Function to process records and find matches
+        const processRecords = async (Model, dateField) => {
+          // Add a pre-filter to reduce the number of records we need to process
+          // This uses a simple year-based filter to narrow down the results
+          const yearFilter = {};
+          
+          if (startDate && endDate) {
+            // If the date range spans multiple years, use a year range
+            if (startDate.getFullYear() !== endDate.getFullYear()) {
+              yearFilter[dateField] = { 
+                $regex: new RegExp(`(${startDate.getFullYear()}|${endDate.getFullYear()})`) 
+              };
+            } else {
+              // If same year, use that year in the filter
+              yearFilter[dateField] = { 
+                $regex: new RegExp(`${startDate.getFullYear()}`) 
+              };
+            }
+          } else if (startDate) {
+            // For start date only, include that year and future years (approximation)
+            const currentYear = new Date().getFullYear();
+            const years = Array.from(
+              { length: currentYear - startDate.getFullYear() + 1 }, 
+              (_, i) => startDate.getFullYear() + i
+            );
+            yearFilter[dateField] = { 
+              $regex: new RegExp(`(${years.join('|')})`) 
+            };
+          } else if (endDate) {
+            // For end date only, include that year and past years (approximation)
+            const years = Array.from(
+              { length: endDate.getFullYear() - 2000 + 1 }, // Assuming no records before 2000
+              (_, i) => 2000 + i
+            );
+            yearFilter[dateField] = { 
+              $regex: new RegExp(`(${years.join('|')})`) 
+            };
+          }
+          
+          // Only fetch records where the date field exists and is not empty
+          yearFilter[dateField] = { 
+            ...yearFilter[dateField], 
+            $exists: true, 
+            $ne: "" 
+          };
+          
+          // Fetch records with the year pre-filter
+          const allRecords = await Model.find(yearFilter).lean();
+          
+          console.log(`Date range filter: Found ${allRecords.length} ${Model.modelName} records matching year filter`);
+          
+          // Filter records based on date range
+          const matchingRecords = allRecords.filter(record => {
+            const recordDate = parseDate(record[dateField]);
+            if (!recordDate) return false;
+            
+            if (startDate && endDate) {
+              return recordDate >= startDate && recordDate <= endDate;
+            } else if (startDate) {
+              return recordDate >= startDate;
+            } else if (endDate) {
+              return recordDate <= endDate;
+            }
+            
+            return false;
+          });
+          
+          console.log(`Date range filter: Found ${matchingRecords.length} ${Model.modelName} records in date range`);
+          
+          // Add matching client IDs to the set
+          matchingRecords.forEach(record => {
+            const clientId = Number(record.clientid);
+            if (!isNaN(clientId)) {
+              matchingClientIds.add(clientId);
+            }
+          });
+        };
+        
+        // Process each model with its date field
+        await Promise.all([
+          processRecords(HrgModel, "recvdate"),
+          processRecords(FomModel, "recvdate"),
+          processRecords(CalModel, "recvdate")
+        ]);
+        
+        // If we found matching clients, add them to the filter
+        if (matchingClientIds.size > 0) {
+          baseFilter.push({ id: { $in: Array.from(matchingClientIds) } });
+        } else if (advancedFilterData.startDate || advancedFilterData.endDate) {
+          // If date filter is specified but no matches found, return no results
+          baseFilter.push({ id: -1 }); // No client has ID -1
+        }
+      } catch (error) {
+        console.error("Error filtering by date range for service records:", error);
+      }
+    }
+
     // Add subscription status filters for WMM
     if (advancedFilterData.wmmSubscriptionStatus) {
       // For WMM subscriptions, we need to find all clients with active/expired subscriptions
@@ -1842,6 +2001,80 @@ async function fetchDataServices(
                 new Date(clientLatestFomEntries.get(clientId).recvdate || 0))
           ) {
             clientLatestFomEntries.set(clientId, fom);
+          }
+        }
+
+        // Filter HRG and FOM entries by date range if specified
+        if (advancedFilterData.startDate || advancedFilterData.endDate) {
+          // Helper function to parse date strings
+          const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            try {
+              return new Date(dateStr);
+            } catch (e) {
+              return null;
+            }
+          };
+          
+          // Parse filter dates
+          const startDate = advancedFilterData.startDate ? new Date(advancedFilterData.startDate) : null;
+          const endDate = advancedFilterData.endDate ? new Date(advancedFilterData.endDate) : null;
+          
+          // Set end date to end of day for inclusive comparison
+          if (endDate) {
+            endDate.setHours(23, 59, 59, 999);
+          }
+          
+          // Filter HRG entries
+          if (clientLatestHrgEntries.size > 0) {
+            const filteredHrgEntries = new Map();
+            
+            for (const [clientId, hrg] of clientLatestHrgEntries.entries()) {
+              const recvDate = parseDate(hrg.recvdate);
+              if (!recvDate) continue;
+              
+              let includeEntry = false;
+              if (startDate && endDate) {
+                includeEntry = recvDate >= startDate && recvDate <= endDate;
+              } else if (startDate) {
+                includeEntry = recvDate >= startDate;
+              } else if (endDate) {
+                includeEntry = recvDate <= endDate;
+              }
+              
+              if (includeEntry) {
+                filteredHrgEntries.set(clientId, hrg);
+              }
+            }
+            
+            // Replace with filtered entries
+            clientLatestHrgEntries = filteredHrgEntries;
+          }
+          
+          // Filter FOM entries
+          if (clientLatestFomEntries.size > 0) {
+            const filteredFomEntries = new Map();
+            
+            for (const [clientId, fom] of clientLatestFomEntries.entries()) {
+              const recvDate = parseDate(fom.recvdate);
+              if (!recvDate) continue;
+              
+              let includeEntry = false;
+              if (startDate && endDate) {
+                includeEntry = recvDate >= startDate && recvDate <= endDate;
+              } else if (startDate) {
+                includeEntry = recvDate >= startDate;
+              } else if (endDate) {
+                includeEntry = recvDate <= endDate;
+              }
+              
+              if (includeEntry) {
+                filteredFomEntries.set(clientId, fom);
+              }
+            }
+            
+            // Replace with filtered entries
+            clientLatestFomEntries = filteredFomEntries;
           }
         }
 
