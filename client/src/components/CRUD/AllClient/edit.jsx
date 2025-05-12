@@ -2258,11 +2258,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   e.stopPropagation();
                                   
                                   // Make sure we have a valid subscription ID (could be id or _id)
-                                  if (sub) {
-                                    // For debugging - log the IDs
-                                    console.log(`Selecting subscription: ${sub._id || sub.id}`);
-                                    console.log(`Current selection: ${selectedSubscription?._id || selectedSubscription?.id}`);
-                                    
+                                  if (sub) {                                    
                                     // Call the selection handler with the subscription object directly
                                     selectSubscription(sub);
                                   } else {
@@ -2387,9 +2383,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               label="Payment Amount:"
                               id="paymtamt"
                               name="paymtamt"
-                              type="number"
-                              min="0"
-                              step="0.01"
                               value={roleSpecificData.paymtamt || 0}
                               onChange={handleRoleSpecificChange}
                               className="text-base"
