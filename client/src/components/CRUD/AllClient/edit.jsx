@@ -2804,7 +2804,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             onChange={handleNewSubscriptionChange}
                           />
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1 text-base">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
                               Subscription Class:
                             </label>
                             <select

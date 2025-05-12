@@ -2086,7 +2086,7 @@ const Add = ({ fetchClients }) => {
                                   />
                                   <div className="flex items-center mt-2 mb-2">
                                     <Button
-                                      className="bg-blue-500 text-white text-xs py-1 px-2 rounded text-base"
+                                      className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
                                       type="button"
                                       onClick={handleRenewDateToday}
                                     >
@@ -2373,7 +2373,7 @@ const Add = ({ fetchClients }) => {
 
                         <div className="flex space-x-4">
                           <div className="flex flex-row items-center justify-center gap-2">
-                            <label className="block text-sm font-medium leading-6 text-gray-600 text-base">
+                            <label className="block text-sm font-medium leading-6 text-gray-600">
                               Copies:
                             </label>
                             <input
