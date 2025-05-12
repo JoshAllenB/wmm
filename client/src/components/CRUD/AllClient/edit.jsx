@@ -41,13 +41,13 @@ const formatDateToMMDDYY = (date) => {
 // Add a helper function to parse dates consistently
 const parseDate = (dateString) => {
   if (!dateString) return null;
-  
+
   // Try to handle various date formats
   let date;
-  
+
   // Check if it's already MM/DD/YY format
-  if (typeof dateString === 'string' && dateString.includes('/')) {
-    const parts = dateString.split('/');
+  if (typeof dateString === "string" && dateString.includes("/")) {
+    const parts = dateString.split("/");
     if (parts.length === 3) {
       const month = parseInt(parts[0]) - 1;
       const day = parseInt(parts[1]);
@@ -62,17 +62,34 @@ const parseDate = (dateString) => {
       return date;
     }
   }
-  
+
   // Otherwise use the standard date constructor
   date = new Date(dateString);
   // Set time to midnight
   date.setHours(0, 0, 0, 0);
-  
+
   return date;
 };
 
 const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole } = useUser();
+
+  // Add months array at the top of the component
+  const months = [
+    { value: "01", name: "January" },
+    { value: "02", name: "February" },
+    { value: "03", name: "March" },
+    { value: "04", name: "April" },
+    { value: "05", name: "May" },
+    { value: "06", name: "June" },
+    { value: "07", name: "July" },
+    { value: "08", name: "August" },
+    { value: "09", name: "September" },
+    { value: "10", name: "October" },
+    { value: "11", name: "November" },
+    { value: "12", name: "December" },
+  ];
+
   const [formData, setFormData] = useState({
     lname: "",
     fname: "",
@@ -80,6 +97,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     sname: "",
     title: "",
     bdate: "",
+    bdateMonth: "",
+    bdateDay: "",
+    bdateYear: "",
     company: "",
     address: "",
     zipcode: "",
@@ -185,12 +205,34 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   useEffect(() => {
     if (rowData) {
+      // Parse birth date into components if it exists
+      let bdateMonth = "";
+      let bdateDay = "";
+      let bdateYear = "";
+
+      if (rowData.bdate) {
+        const dateParts = rowData.bdate.split("/");
+        if (dateParts.length === 3) {
+          bdateMonth = dateParts[0];
+          bdateDay = dateParts[1];
+          bdateYear = dateParts[2];
+        }
+      }
+
       setFormData({
         ...rowData,
+        // Initialize birth date components
+        bdateMonth,
+        bdateDay,
+        bdateYear,
         // Initialize subscription-related fields
         subscriptionFreq: rowData.subscriptionFreq || "",
-        subscriptionStart: rowData.subsdate ? formatDateToMMDDYY(parseDate(rowData.subsdate)) : "",
-        subscriptionEnd: rowData.enddate ? formatDateToMMDDYY(parseDate(rowData.enddate)) : "",
+        subscriptionStart: rowData.subsdate
+          ? formatDateToMMDDYY(parseDate(rowData.subsdate))
+          : "",
+        subscriptionEnd: rowData.enddate
+          ? formatDateToMMDDYY(parseDate(rowData.enddate))
+          : "",
       });
       setShowModal(true);
 
@@ -218,16 +260,22 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       if (hasRole("WMM")) {
         // Get subscription records from wmmData
         const subscriptionRecords = rowData.wmmData?.records || [];
-        
+
         if (subscriptionRecords.length > 0) {
           // Clean dates in subscription records
-          const cleanedSubscriptions = subscriptionRecords.map(record => ({
+          const cleanedSubscriptions = subscriptionRecords.map((record) => ({
             ...record,
-            subsdate: record.subsdate ? formatDateToMMDDYY(parseDate(record.subsdate)) : "",
-            enddate: record.enddate ? formatDateToMMDDYY(parseDate(record.enddate)) : "",
-            renewdate: record.renewdate ? formatDateToMMDDYY(parseDate(record.renewdate)) : "",
+            subsdate: record.subsdate
+              ? formatDateToMMDDYY(parseDate(record.subsdate))
+              : "",
+            enddate: record.enddate
+              ? formatDateToMMDDYY(parseDate(record.enddate))
+              : "",
+            renewdate: record.renewdate
+              ? formatDateToMMDDYY(parseDate(record.renewdate))
+              : "",
           }));
-          
+
           // Get all subscription records and sort them by date (newest first)
           const subscriptions = [...cleanedSubscriptions].sort((a, b) => {
             const dateA = parseDate(a.subsdate) || new Date(0);
@@ -260,9 +308,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         } else {
           // No subscription records, initialize with empty data
           const wmmData = {
-            subsdate: rowData.subsdate ? formatDateToMMDDYY(parseDate(rowData.subsdate)) : "",
-            enddate: rowData.enddate ? formatDateToMMDDYY(parseDate(rowData.enddate)) : "",
-            renewdate: rowData.renewdate ? formatDateToMMDDYY(parseDate(rowData.renewdate)) : "",
+            subsdate: rowData.subsdate
+              ? formatDateToMMDDYY(parseDate(rowData.subsdate))
+              : "",
+            enddate: rowData.enddate
+              ? formatDateToMMDDYY(parseDate(rowData.enddate))
+              : "",
+            renewdate: rowData.renewdate
+              ? formatDateToMMDDYY(parseDate(rowData.renewdate))
+              : "",
             subsyear: rowData.subsyear || 0,
             copies: rowData.copies || 1,
             paymtamt: rowData.paymtamt || 0,
@@ -277,28 +331,38 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         }
       } else if (hasRole("HRG")) {
         // Process HRG data
-        if (rowData.hrgData && rowData.hrgData.records && rowData.hrgData.records.length > 0) {
+        if (
+          rowData.hrgData &&
+          rowData.hrgData.records &&
+          rowData.hrgData.records.length > 0
+        ) {
           // Clean dates in records
-          const cleanedRecords = rowData.hrgData.records.map(record => ({
+          const cleanedRecords = rowData.hrgData.records.map((record) => ({
             ...record,
-            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
-            renewdate: record.renewdate ? formatDateToMMDDYY(parseDate(record.renewdate)) : "",
-            campaigndate: record.campaigndate ? formatDateToMMDDYY(parseDate(record.campaigndate)) : "",
+            recvdate: record.recvdate
+              ? formatDateToMMDDYY(parseDate(record.recvdate))
+              : "",
+            renewdate: record.renewdate
+              ? formatDateToMMDDYY(parseDate(record.renewdate))
+              : "",
+            campaigndate: record.campaigndate
+              ? formatDateToMMDDYY(parseDate(record.campaigndate))
+              : "",
           }));
-          
+
           // Sort by date (newest first)
           const sortedRecords = [...cleanedRecords].sort((a, b) => {
             const dateA = parseDate(a.recvdate) || new Date(0);
             const dateB = parseDate(b.recvdate) || new Date(0);
             return dateB - dateA;
           });
-          
+
           setHrgRecords(sortedRecords);
-          
+
           // Set the most recent record as selected
           const latestRecord = sortedRecords[0];
           setSelectedHrgRecord(latestRecord);
-          
+
           // Populate the form with the latest record
           const hrgData = {
             id: latestRecord.id || latestRecord._id,
@@ -310,7 +374,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             unsubscribe: latestRecord.unsubscribe || false,
             remarks: latestRecord.remarks || "",
           };
-          
+
           if (selectedRole === "HRG") {
             setRoleSpecificData(hrgData);
           }
@@ -325,35 +389,41 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             unsubscribe: false,
             remarks: "",
           };
-          
+
           if (selectedRole === "HRG") {
             setRoleSpecificData(hrgData);
           }
         }
       }
-      
+
       if (hasRole("FOM")) {
         // Process FOM data
-        if (rowData.fomData && rowData.fomData.records && rowData.fomData.records.length > 0) {
+        if (
+          rowData.fomData &&
+          rowData.fomData.records &&
+          rowData.fomData.records.length > 0
+        ) {
           // Clean dates in records
-          const cleanedRecords = rowData.fomData.records.map(record => ({
+          const cleanedRecords = rowData.fomData.records.map((record) => ({
             ...record,
-            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
+            recvdate: record.recvdate
+              ? formatDateToMMDDYY(parseDate(record.recvdate))
+              : "",
           }));
-          
+
           // Sort by date (newest first)
           const sortedRecords = [...cleanedRecords].sort((a, b) => {
             const dateA = parseDate(a.recvdate) || new Date(0);
             const dateB = parseDate(b.recvdate) || new Date(0);
             return dateB - dateA;
           });
-          
+
           setFomRecords(sortedRecords);
-          
+
           // Set the most recent record as selected
           const latestRecord = sortedRecords[0];
           setSelectedFomRecord(latestRecord);
-          
+
           // Populate the form with the latest record
           const fomData = {
             id: latestRecord.id || latestRecord._id,
@@ -364,7 +434,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             unsubscribe: latestRecord.unsubscribe || false,
             remarks: latestRecord.remarks || "",
           };
-          
+
           if (selectedRole === "FOM") {
             setRoleSpecificData(fomData);
           }
@@ -378,36 +448,44 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             unsubscribe: false,
             remarks: "",
           };
-          
+
           if (selectedRole === "FOM") {
             setRoleSpecificData(fomData);
           }
         }
       }
-      
+
       if (hasRole("CAL")) {
         // Process CAL data
-        if (rowData.calData && rowData.calData.records && rowData.calData.records.length > 0) {
+        if (
+          rowData.calData &&
+          rowData.calData.records &&
+          rowData.calData.records.length > 0
+        ) {
           // Clean dates in records
-          const cleanedRecords = rowData.calData.records.map(record => ({
+          const cleanedRecords = rowData.calData.records.map((record) => ({
             ...record,
-            recvdate: record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "",
-            paymtdate: record.paymtdate ? formatDateToMMDDYY(parseDate(record.paymtdate)) : "",
+            recvdate: record.recvdate
+              ? formatDateToMMDDYY(parseDate(record.recvdate))
+              : "",
+            paymtdate: record.paymtdate
+              ? formatDateToMMDDYY(parseDate(record.paymtdate))
+              : "",
           }));
-          
+
           // Sort by date (newest first)
           const sortedRecords = [...cleanedRecords].sort((a, b) => {
             const dateA = parseDate(a.recvdate) || new Date(0);
             const dateB = parseDate(b.recvdate) || new Date(0);
             return dateB - dateA;
           });
-          
+
           setCalRecords(sortedRecords);
-          
+
           // Set the most recent record as selected
           const latestRecord = sortedRecords[0];
           setSelectedCalRecord(latestRecord);
-          
+
           // Populate the form with the latest record
           const calData = {
             id: latestRecord.id || latestRecord._id,
@@ -421,7 +499,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtdate: latestRecord.paymtdate || "",
             remarks: latestRecord.remarks || "",
           };
-          
+
           if (selectedRole === "CAL") {
             setRoleSpecificData(calData);
           }
@@ -438,7 +516,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtdate: "",
             remarks: "",
           };
-          
+
           if (selectedRole === "CAL") {
             setRoleSpecificData(calData);
           }
@@ -475,7 +553,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           // Extract leading numbers from name strings
           const aMatch = a.name.match(/^(\d+)/);
           const bMatch = b.name.match(/^(\d+)/);
-          
+
           // If both have leading numbers, compare numerically
           if (aMatch && bMatch) {
             return parseInt(aMatch[0]) - parseInt(bMatch[0]);
@@ -483,7 +561,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           // If only one has a leading number, prioritize it
           if (aMatch) return -1;
           if (bMatch) return 1;
-          
+
           // Otherwise sort alphabetically
           return a.name.localeCompare(b.name);
         });
@@ -565,7 +643,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // Create a new date object and add months
       const endDate = new Date(start);
       endDate.setMonth(endDate.getMonth() + parseInt(monthsToAdd));
-      
+
       // Ensure time component is zeroed out
       endDate.setHours(0, 0, 0, 0);
 
@@ -587,6 +665,27 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const handleChange = async (e) => {
     const { name, value } = e.target;
+
+    // Handle bdate parts
+    if (name === "bdateMonth" || name === "bdateDay" || name === "bdateYear") {
+      setFormData((prevData) => {
+        const newData = {
+          ...prevData,
+          [name]: value,
+        };
+
+        // Combine the date parts into bdate if all are present
+        if (newData.bdateMonth && newData.bdateDay && newData.bdateYear) {
+          newData.bdate = `${newData.bdateMonth}/${newData.bdateDay}/${newData.bdateYear}`;
+        } else {
+          newData.bdate = "";
+        }
+
+        return newData;
+      });
+
+      return;
+    }
 
     if (name === "subscriptionFreq") {
       const monthsToAdd = parseInt(value);
@@ -680,16 +779,16 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const handleAreaChange = (name, value) => {
     // Update the area data with the new value
-    setAreaData((prev) => ({ 
-      ...prev, 
-      [name]: value 
+    setAreaData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
-    
+
     // If zipcode is updated, also update it in the formData to keep states in sync
     if (name === "zipcode") {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        zipcode: value ? String(value) : ""
+        zipcode: value ? String(value) : "",
       }));
     }
   };
@@ -698,7 +797,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const { name, value, type, checked } = e.target;
     setRoleSpecificData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : type === "textarea" ? value : value,
+      [name]:
+        type === "checkbox" ? checked : type === "textarea" ? value : value,
     }));
   };
 
@@ -806,11 +906,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   // Add a helper function to check if a subscription is selected
   const isSubscriptionSelected = (sub, selectedSub) => {
     if (!sub || !selectedSub) return false;
-    
+
     // Compare using string conversion to handle different ID types
     const subId = sub._id || sub.id;
     const selectedId = selectedSub._id || selectedSub.id;
-    
+
     return String(subId) === String(selectedId);
   };
 
@@ -820,31 +920,37 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       console.error("No subscription provided to selectSubscription");
       return;
     }
-    
+
     // Get the identifier (either id or _id)
     const subscriptionId = subscription._id || subscription.id;
-    
+
     if (!subscriptionId) {
       console.error("Subscription has no valid ID:", subscription);
       return;
     }
-    
+
     // If this subscription is already selected, do nothing
     if (isSubscriptionSelected(subscription, selectedSubscription)) {
       console.log("Already selected, not changing");
       return;
     }
-    
+
     console.log(`Setting selectedSubscription to: ${subscriptionId}`);
-    
+
     // Clean any dates before setting them in state
     const cleanSubscription = {
       ...subscription,
-      subsdate: subscription.subsdate ? formatDateToMMDDYY(parseDate(subscription.subsdate)) : "",
-      enddate: subscription.enddate ? formatDateToMMDDYY(parseDate(subscription.enddate)) : "",
-      renewdate: subscription.renewdate ? formatDateToMMDDYY(parseDate(subscription.renewdate)) : "",
+      subsdate: subscription.subsdate
+        ? formatDateToMMDDYY(parseDate(subscription.subsdate))
+        : "",
+      enddate: subscription.enddate
+        ? formatDateToMMDDYY(parseDate(subscription.enddate))
+        : "",
+      renewdate: subscription.renewdate
+        ? formatDateToMMDDYY(parseDate(subscription.renewdate))
+        : "",
     };
-    
+
     // Set the selected subscription - make sure it has the ID property properly set
     setSelectedSubscription(cleanSubscription);
 
@@ -875,15 +981,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
 
     const subscriptionId = e.target.value;
-    
+
     if (!subscriptionId) {
       console.error("Invalid subscription ID:", e.target.value);
       return;
     }
-    
+
     // Find subscription by either id or _id
     const subscription = availableSubscriptions.find(
-      (sub) => String(sub.id) === String(subscriptionId) || String(sub._id) === String(subscriptionId)
+      (sub) =>
+        String(sub.id) === String(subscriptionId) ||
+        String(sub._id) === String(subscriptionId)
     );
 
     if (subscription) {
@@ -919,7 +1027,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       1
     );
     endDate.setHours(0, 0, 0, 0);
-    
+
     // Format dates
     const formattedStart = formatDateToMMDDYY(startDate);
     const formattedEnd = formatDateToMMDDYY(endDate);
@@ -999,10 +1107,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           .replace(",", "");
 
         // Clean and format the dates to ensure no time components
-        const cleanSubsdate = newSubscriptionData.subsdate 
+        const cleanSubsdate = newSubscriptionData.subsdate
           ? formatDateToMMDDYY(parseDate(newSubscriptionData.subsdate))
           : formatDateToMMDDYY(new Date());
-          
+
         const cleanEnddate = newSubscriptionData.enddate
           ? formatDateToMMDDYY(parseDate(newSubscriptionData.enddate))
           : "";
@@ -1024,7 +1132,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           adddate: timestamp,
         };
 
-
         // Make a direct call to create a new WMM entry
         const subscriptionResponse = await axios.post(
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/wmm/add`,
@@ -1037,7 +1144,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         );
 
         if (subscriptionResponse.data && subscriptionResponse.data.id) {
-
           // Now update the client data separately
           const clientUpdateResponse = await axios.put(
             `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
@@ -1081,26 +1187,27 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const cleanSubsdate = roleSpecificData.subsdate
             ? formatDateToMMDDYY(parseDate(roleSpecificData.subsdate))
             : formatDateToMMDDYY(new Date());
-            
+
           const cleanEnddate = roleSpecificData.enddate
             ? formatDateToMMDDYY(parseDate(roleSpecificData.enddate))
             : "";
 
           // Edit existing subscription
           submissionData.roleType = "WMM";
-          
+
           // Ensure we have the correct ID (either id or _id) for the selected subscription
-          const subscriptionId = selectedSubscription?._id || selectedSubscription?.id;
-          
+          const subscriptionId =
+            selectedSubscription?._id || selectedSubscription?.id;
+
           if (!subscriptionId) {
             console.error("No subscription ID available for update");
             return;
           }
-          
+
           // Format the subscription data in a way the server expects
           // Store the subscription ID separately - don't include it in the update fields
           submissionData.subscriptionId = subscriptionId; // Send this as a separate field
-          
+
           // Send only the fields to update, not including _id (which is immutable)
           submissionData.roleData = {
             subsdate: cleanSubsdate,
@@ -1136,16 +1243,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               console.error("Error calculating subscription year:", error);
             }
           }
-          
+
           // Log the exact data being sent for debugging
           console.log("Updating subscription:", subscriptionId);
           console.log("Submission data:", JSON.stringify(submissionData));
         } else {
           // If user has multiple roles, use the selected role
-          const isNewRole = 
-            (selectedRole === "HRG" && (!rowData.hrgData || !rowData.hrgData.records || rowData.hrgData.records.length === 0)) ||
-            (selectedRole === "FOM" && (!rowData.fomData || !rowData.fomData.records || rowData.fomData.records.length === 0)) ||
-            (selectedRole === "CAL" && (!rowData.calData || !rowData.calData.records || rowData.calData.records.length === 0));
+          const isNewRole =
+            (selectedRole === "HRG" &&
+              (!rowData.hrgData ||
+                !rowData.hrgData.records ||
+                rowData.hrgData.records.length === 0)) ||
+            (selectedRole === "FOM" &&
+              (!rowData.fomData ||
+                !rowData.fomData.records ||
+                rowData.fomData.records.length === 0)) ||
+            (selectedRole === "CAL" &&
+              (!rowData.calData ||
+                !rowData.calData.records ||
+                rowData.calData.records.length === 0));
 
           // Create current timestamp for new role data
           const timestamp = new Date()
@@ -1162,16 +1278,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
           if (selectedRole === "HRG") {
             submissionData.roleType = "HRG";
-            
+
             // Check if we're adding a new record or editing an existing one
             const isNewRecord = roleRecordMode === "add";
-            
+
             // Check if this is the first HRG record for this client
-            const isNewRole = isNewRecord && 
-              (!rowData.hrgData || !rowData.hrgData.records || rowData.hrgData.records.length === 0);
+            const isNewRole =
+              isNewRecord &&
+              (!rowData.hrgData ||
+                !rowData.hrgData.records ||
+                rowData.hrgData.records.length === 0);
 
             submissionData.roleData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               renewdate: roleSpecificData.renewdate || "",
               campaigndate: roleSpecificData.campaigndate || "",
               paymtref: roleSpecificData.paymtref || "",
@@ -1181,27 +1301,36 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               // If adding new record, include timestamp
               adddate: isNewRecord ? timestamp : undefined,
             };
-            
+
             // If editing an existing record and we have an ID, include it
-            if (!isNewRecord && selectedHrgRecord && (selectedHrgRecord.id || selectedHrgRecord._id)) {
-              submissionData.recordId = selectedHrgRecord.id || selectedHrgRecord._id;
+            if (
+              !isNewRecord &&
+              selectedHrgRecord &&
+              (selectedHrgRecord.id || selectedHrgRecord._id)
+            ) {
+              submissionData.recordId =
+                selectedHrgRecord.id || selectedHrgRecord._id;
             }
-            
+
             // Flag if this is a new role or new record
             submissionData.isNewRoleData = isNewRole;
             submissionData.isNewRecord = isNewRecord;
           } else if (selectedRole === "FOM") {
             submissionData.roleType = "FOM";
-            
+
             // Check if we're adding a new record or editing an existing one
             const isNewRecord = roleRecordMode === "add";
-            
+
             // Check if this is the first FOM record for this client
-            const isNewRole = isNewRecord && 
-              (!rowData.fomData || !rowData.fomData.records || rowData.fomData.records.length === 0);
+            const isNewRole =
+              isNewRecord &&
+              (!rowData.fomData ||
+                !rowData.fomData.records ||
+                rowData.fomData.records.length === 0);
 
             submissionData.roleData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               paymtamt: roleSpecificData.paymtamt || 0,
               paymtform: roleSpecificData.paymtform || "",
               paymtref: roleSpecificData.paymtref || "",
@@ -1210,27 +1339,36 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               // If adding new record, include timestamp
               adddate: isNewRecord ? timestamp : undefined,
             };
-            
+
             // If editing an existing record and we have an ID, include it
-            if (!isNewRecord && selectedFomRecord && (selectedFomRecord.id || selectedFomRecord._id)) {
-              submissionData.recordId = selectedFomRecord.id || selectedFomRecord._id;
+            if (
+              !isNewRecord &&
+              selectedFomRecord &&
+              (selectedFomRecord.id || selectedFomRecord._id)
+            ) {
+              submissionData.recordId =
+                selectedFomRecord.id || selectedFomRecord._id;
             }
-            
+
             // Flag if this is a new role or new record
             submissionData.isNewRoleData = isNewRole;
             submissionData.isNewRecord = isNewRecord;
           } else if (selectedRole === "CAL") {
             submissionData.roleType = "CAL";
-            
+
             // Check if we're adding a new record or editing an existing one
             const isNewRecord = roleRecordMode === "add";
-            
+
             // Check if this is the first CAL record for this client
-            const isNewRole = isNewRecord && 
-              (!rowData.calData || !rowData.calData.records || rowData.calData.records.length === 0);
+            const isNewRole =
+              isNewRecord &&
+              (!rowData.calData ||
+                !rowData.calData.records ||
+                rowData.calData.records.length === 0);
 
             submissionData.roleData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               caltype: roleSpecificData.caltype || "",
               calqty: roleSpecificData.calqty || 0,
               calamt: roleSpecificData.calamt || 0,
@@ -1242,12 +1380,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               // If adding new record, include timestamp
               adddate: isNewRecord ? timestamp : undefined,
             };
-            
+
             // If editing an existing record and we have an ID, include it
-            if (!isNewRecord && selectedCalRecord && (selectedCalRecord.id || selectedCalRecord._id)) {
-              submissionData.recordId = selectedCalRecord.id || selectedCalRecord._id;
+            if (
+              !isNewRecord &&
+              selectedCalRecord &&
+              (selectedCalRecord.id || selectedCalRecord._id)
+            ) {
+              submissionData.recordId =
+                selectedCalRecord.id || selectedCalRecord._id;
             }
-            
+
             // Flag if this is a new role or new record
             submissionData.isNewRoleData = isNewRole;
             submissionData.isNewRecord = isNewRecord;
@@ -1258,7 +1401,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             submissionData.isNewRoleData = true;
           }
         }
-
 
         const response = await axios.put(
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
@@ -1278,47 +1420,57 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             ...rowData, // Keep all original data not explicitly modified
             ...updatedClientData, // Update with edited client data
           };
-          
+
           // Handle role-specific data updates
-          if (hasRole("WMM") && subscriptionMode === "edit" && selectedSubscription) {
+          if (
+            hasRole("WMM") &&
+            subscriptionMode === "edit" &&
+            selectedSubscription
+          ) {
             // Get the identifier (either id or _id)
-            const subscriptionId = selectedSubscription._id || selectedSubscription.id;
-            
+            const subscriptionId =
+              selectedSubscription._id || selectedSubscription.id;
+
             // Update only the specific subscription in the records array
-            const updatedRecords = (rowData.wmmData?.records || []).map(record => {
-              const recordId = record._id || record.id;
-              // Only update the selected subscription
-              if (String(recordId) === String(subscriptionId)) {
-                console.log(`Updating subscription ${recordId} with new data`);
-                return {
-                  ...record,
-                  ...submissionData.roleData,
-                  // Ensure dates are properly formatted
-                  subsdate: submissionData.roleData.subsdate,
-                  enddate: submissionData.roleData.enddate,
-                  subsclass: submissionData.roleData.subsclass,
-                  copies: submissionData.roleData.copies,
-                  paymtamt: submissionData.roleData.paymtamt,
-                  paymtref: submissionData.roleData.paymtref,
-                  remarks: submissionData.roleData.remarks,
-                };
+            const updatedRecords = (rowData.wmmData?.records || []).map(
+              (record) => {
+                const recordId = record._id || record.id;
+                // Only update the selected subscription
+                if (String(recordId) === String(subscriptionId)) {
+                  console.log(
+                    `Updating subscription ${recordId} with new data`
+                  );
+                  return {
+                    ...record,
+                    ...submissionData.roleData,
+                    // Ensure dates are properly formatted
+                    subsdate: submissionData.roleData.subsdate,
+                    enddate: submissionData.roleData.enddate,
+                    subsclass: submissionData.roleData.subsclass,
+                    copies: submissionData.roleData.copies,
+                    paymtamt: submissionData.roleData.paymtamt,
+                    paymtref: submissionData.roleData.paymtref,
+                    remarks: submissionData.roleData.remarks,
+                  };
+                }
+                // Return other records unchanged
+                return record;
               }
-              // Return other records unchanged
-              return record;
-            });
-            
+            );
+
             updatedFullData.wmmData = { records: updatedRecords };
-            
+
             // Log the update for debugging
             console.log("Updated subscription records:", updatedRecords);
           } else if (selectedRole === "HRG") {
             // Check if this is a new role being added
             const isNewRecord = submissionData.isNewRecord;
             const isNewRole = submissionData.isNewRoleData;
-            
+
             // Create properly structured HRG data
             const hrgData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               renewdate: roleSpecificData.renewdate || "",
               campaigndate: roleSpecificData.campaigndate || "",
               paymtref: roleSpecificData.paymtref || "",
@@ -1326,80 +1478,90 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               unsubscribe: roleSpecificData.unsubscribe || false,
               remarks: roleSpecificData.remarks || "",
               adddate: isNewRecord ? new Date().toLocaleString() : undefined,
-              id: !isNewRecord && selectedHrgRecord ? (selectedHrgRecord.id || selectedHrgRecord._id) : undefined
+              id:
+                !isNewRecord && selectedHrgRecord
+                  ? selectedHrgRecord.id || selectedHrgRecord._id
+                  : undefined,
             };
-            
+
             if (isNewRole || isNewRecord) {
               // Adding new HRG record
               const existingRecords = rowData.hrgData?.records || [];
-              updatedFullData.hrgData = { 
-                records: [hrgData, ...existingRecords]
+              updatedFullData.hrgData = {
+                records: [hrgData, ...existingRecords],
               };
             } else {
               // Updating existing HRG record
               const existingRecords = rowData.hrgData?.records || [];
-              const updatedRecords = existingRecords.map(record => {
+              const updatedRecords = existingRecords.map((record) => {
                 const recordId = record.id || record._id;
-                const selectedId = selectedHrgRecord.id || selectedHrgRecord._id;
-                
+                const selectedId =
+                  selectedHrgRecord.id || selectedHrgRecord._id;
+
                 if (String(recordId) === String(selectedId)) {
                   return { ...record, ...hrgData };
                 }
                 return record;
               });
-              
-              updatedFullData.hrgData = { 
-                records: updatedRecords
+
+              updatedFullData.hrgData = {
+                records: updatedRecords,
               };
             }
           } else if (selectedRole === "FOM") {
             // Check if this is a new role being added
             const isNewRecord = submissionData.isNewRecord;
             const isNewRole = submissionData.isNewRoleData;
-            
+
             // Create properly structured FOM data
             const fomData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               paymtamt: roleSpecificData.paymtamt || 0,
               paymtform: roleSpecificData.paymtform || "",
               paymtref: roleSpecificData.paymtref || "",
               unsubscribe: roleSpecificData.unsubscribe || false,
               remarks: roleSpecificData.remarks || "",
               adddate: isNewRecord ? new Date().toLocaleString() : undefined,
-              id: !isNewRecord && selectedFomRecord ? (selectedFomRecord.id || selectedFomRecord._id) : undefined
+              id:
+                !isNewRecord && selectedFomRecord
+                  ? selectedFomRecord.id || selectedFomRecord._id
+                  : undefined,
             };
-            
+
             if (isNewRole || isNewRecord) {
               // Adding new FOM record
               const existingRecords = rowData.fomData?.records || [];
-              updatedFullData.fomData = { 
-                records: [fomData, ...existingRecords]
+              updatedFullData.fomData = {
+                records: [fomData, ...existingRecords],
               };
             } else {
               // Updating existing FOM record
               const existingRecords = rowData.fomData?.records || [];
-              const updatedRecords = existingRecords.map(record => {
+              const updatedRecords = existingRecords.map((record) => {
                 const recordId = record.id || record._id;
-                const selectedId = selectedFomRecord.id || selectedFomRecord._id;
-                
+                const selectedId =
+                  selectedFomRecord.id || selectedFomRecord._id;
+
                 if (String(recordId) === String(selectedId)) {
                   return { ...record, ...fomData };
                 }
                 return record;
               });
-              
-              updatedFullData.fomData = { 
-                records: updatedRecords
+
+              updatedFullData.fomData = {
+                records: updatedRecords,
               };
             }
           } else if (selectedRole === "CAL") {
             // Check if this is a new role being added
             const isNewRecord = submissionData.isNewRecord;
             const isNewRole = submissionData.isNewRoleData;
-            
+
             // Create properly structured CAL data
             const calData = {
-              recvdate: roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
+              recvdate:
+                roleSpecificData.recvdate || formatDateToMMDDYY(new Date()),
               caltype: roleSpecificData.caltype || "",
               calqty: roleSpecificData.calqty || 0,
               calamt: roleSpecificData.calamt || 0,
@@ -1409,53 +1571,59 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               paymtdate: roleSpecificData.paymtdate || "",
               remarks: roleSpecificData.remarks || "",
               adddate: isNewRecord ? new Date().toLocaleString() : undefined,
-              id: !isNewRecord && selectedCalRecord ? (selectedCalRecord.id || selectedCalRecord._id) : undefined
+              id:
+                !isNewRecord && selectedCalRecord
+                  ? selectedCalRecord.id || selectedCalRecord._id
+                  : undefined,
             };
-            
+
             if (isNewRole || isNewRecord) {
               // Adding new CAL record
               const existingRecords = rowData.calData?.records || [];
-              updatedFullData.calData = { 
-                records: [calData, ...existingRecords]
+              updatedFullData.calData = {
+                records: [calData, ...existingRecords],
               };
             } else {
               // Updating existing CAL record
               const existingRecords = rowData.calData?.records || [];
-              const updatedRecords = existingRecords.map(record => {
+              const updatedRecords = existingRecords.map((record) => {
                 const recordId = record.id || record._id;
-                const selectedId = selectedCalRecord.id || selectedCalRecord._id;
-                
+                const selectedId =
+                  selectedCalRecord.id || selectedCalRecord._id;
+
                 if (String(recordId) === String(selectedId)) {
                   return { ...record, ...calData };
                 }
                 return record;
               });
-              
-              updatedFullData.calData = { 
-                records: updatedRecords
+
+              updatedFullData.calData = {
+                records: updatedRecords,
               };
             }
           }
-          
+
           onEditSuccess(updatedFullData);
           closeModal();
         }
       }
     } catch (error) {
       console.error("Error processing client data:", error);
-      
+
       // Display more useful error information
       let errorMessage = "An error occurred while saving changes.";
       if (error.response) {
         // The server responded with a status code outside the 2xx range
         console.error("Server error data:", error.response.data);
-        errorMessage = error.response.data.message || 
-                      `Server error (${error.response.status}): ${error.response.statusText}`;
+        errorMessage =
+          error.response.data.message ||
+          `Server error (${error.response.status}): ${error.response.statusText}`;
       } else if (error.request) {
         // The request was made but no response was received
-        errorMessage = "No response received from server. Please check your connection.";
+        errorMessage =
+          "No response received from server. Please check your connection.";
       }
-      
+
       // You can display this error to the user if needed
       alert(errorMessage);
     }
@@ -1464,7 +1632,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   // Add a function to handle role record mode changes (similar to subscriptionMode)
   const handleRoleRecordModeChange = (mode) => {
     setRoleRecordMode(mode);
-    
+
     if (mode === "edit") {
       // Load selected record data based on the current role
       if (selectedRole === "HRG" && selectedHrgRecord) {
@@ -1516,7 +1684,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }
     }
   };
-  
+
   // Add functions to handle record selection for each role type
   const selectHrgRecord = (record) => {
     setSelectedHrgRecord(record);
@@ -1526,7 +1694,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
   };
-  
+
   const selectFomRecord = (record) => {
     setSelectedFomRecord(record);
     if (selectedRole === "FOM" && roleRecordMode === "edit") {
@@ -1535,7 +1703,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
   };
-  
+
   const selectCalRecord = (record) => {
     setSelectedCalRecord(record);
     if (selectedRole === "CAL" && roleRecordMode === "edit") {
@@ -1553,7 +1721,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     let records = [];
     let selectedRecord = null;
     let selectRecordFunction = null;
-    
+
     if (selectedRole === "HRG") {
       records = hrgRecords;
       selectedRecord = selectedHrgRecord;
@@ -1567,7 +1735,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       selectedRecord = selectedCalRecord;
       selectRecordFunction = selectCalRecord;
     }
-    
+
     if (records.length === 0) {
       return (
         <div className="text-gray-500 text-center py-4">
@@ -1575,14 +1743,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         </div>
       );
     }
-    
+
     return (
       <div className="space-y-3 max-h-60 overflow-y-auto">
         {records.map((record, idx) => (
           <div
-            key={`record-${record._id || record.id || 'idx-' + idx}-${idx}`}
+            key={`record-${record._id || record.id || "idx-" + idx}-${idx}`}
             className={`p-3 rounded-lg border ${
-              (selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+              selectedRecord?.id === record.id ||
+              selectedRecord?._id === record._id
                 ? "border-blue-500 bg-blue-50"
                 : "border-gray-200"
             }`}
@@ -1590,7 +1759,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-semibold">
-                  {record.recvdate ? formatDateToMMDDYY(parseDate(record.recvdate)) : "N/A"}
+                  {record.recvdate
+                    ? formatDateToMMDDYY(parseDate(record.recvdate))
+                    : "N/A"}
                 </p>
                 {selectedRole === "HRG" && record.renewdate && (
                   <p className="text-sm text-gray-600">
@@ -1612,17 +1783,19 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 )}
               </div>
             </div>
-            
+
             {roleRecordMode === "edit" && (
               <button
                 onClick={() => selectRecordFunction(record)}
                 className={`mt-2 w-full py-1 text-sm rounded ${
-                  (selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+                  selectedRecord?.id === record.id ||
+                  selectedRecord?._id === record._id
                     ? "bg-blue-600 text-white"
                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                 }`}
               >
-                {(selectedRecord?.id === record.id || selectedRecord?._id === record._id)
+                {selectedRecord?.id === record.id ||
+                selectedRecord?._id === record._id
                   ? "Currently Editing"
                   : "Select to Edit"}
               </button>
@@ -1634,11 +1807,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   return (
-    <Modal isOpen={showModal} onClose={closeModal}>
+    <Modal
+      isOpen={showModal}
+      onClose={closeModal}
+      className="max-w-[95vw] w-auto overflow-hidden bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
+    >
       <h2 className="text-xl font-bold text-black mb-4">
         Edit Client Information ID: {rowData.id}
       </h2>
-      <form onSubmit={handleSubmit} className="max-h-[80vh] overflow-y-auto">
+      <form
+        onSubmit={handleSubmit}
+        className="max-h-[90vh] overflow-y-auto p-4"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-5">
           {/* Personal Information Card */}
           <div className="p-4 border rounded-lg shadow-sm">
@@ -1691,14 +1871,51 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 uppercase={true}
                 className="text-base"
               />
-              <InputField
-                label="Birth Date:"
-                id="bdate"
-                name="bdate"
-                value={formData.bdate}
-                onChange={handleChange}
-                className="text-base"
-              />
+              <div className="mb-2">
+                <label className="block text-black text-xl mb-1">
+                  Birth Date:
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="relative">
+                    <select
+                      id="bdateMonth"
+                      name="bdateMonth"
+                      value={formData.bdateMonth}
+                      onChange={handleChange}
+                      className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
+                    >
+                      <option value="">Month</option>
+                      {months.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <input
+                    type="text"
+                    id="bdateDay"
+                    name="bdateDay"
+                    value={formData.bdateDay}
+                    onChange={handleChange}
+                    placeholder="DD"
+                    className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
+                    autoComplete="off"
+                    maxLength="2"
+                  />
+                  <input
+                    type="text"
+                    id="bdateYear"
+                    name="bdateYear"
+                    value={formData.bdateYear}
+                    onChange={handleChange}
+                    placeholder="YYYY"
+                    className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
+                    autoComplete="off"
+                    maxLength="4"
+                  />
+                </div>
+              </div>
               <InputField
                 label="Company:"
                 id="company"
@@ -1708,19 +1925,116 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 uppercase={true}
                 className="text-base"
               />
-              <h6 className="text-black font-bold">Remarks:</h6>
-              <p className="text-gray-500 text-sm">
-                Provide any additional information or notes about the client
-                here.
-              </p>
-              <textarea
-                className="w-full h-[160px] p-2 border rounded-md text-base"
-                label="Remarks:"
-                id="remarks"
-                name="remarks"
-                value={formData.remarks}
-                onChange={handleChange}
-                />
+              <div className="flex gap-2">
+                <div className="relative w-full">
+                  <select
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className="
+                  w-full 
+                  p-2 
+                  pl-3 
+                  pr-8 
+                  border-2 
+                  rounded-md 
+                  text-xl 
+                  bg-white 
+                  appearance-none 
+                  cursor-pointer 
+                  border-gray-300 
+                  focus:border-blue-500 
+                  focus:ring-2 
+                  focus:ring-blue-200 
+                  focus:outline-none 
+                  relative 
+                  z-10
+                "
+                  >
+                    <option value="">Select a type</option>
+                    {types.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.id} - {type.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="
+                              pointer-events-none 
+                              absolute 
+                              inset-y-0 
+                              right-0 
+                              flex 
+                              items-center 
+                              px-2 
+                              text-gray-700
+                            "
+                  >
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <select
+                    id="group"
+                    name="group"
+                    value={formData.group}
+                    onChange={handleChange}
+                    className="
+                  w-full 
+                  p-2 
+                  pl-3 
+                  pr-8 
+                  border-2 
+                  rounded-md 
+                  text-xl 
+                  bg-white 
+                  appearance-none 
+                  cursor-pointer 
+                  border-gray-300 
+                  focus:border-blue-500 
+                  focus:ring-2 
+                  focus:ring-blue-200 
+                  focus:outline-none 
+                  relative 
+                  z-10
+                "
+                  >
+                    <option value="">Select a group</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.id} - {group.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    className="
+                                pointer-events-none 
+                                absolute 
+                                inset-y-0 
+                                right-0 
+                                flex 
+                                items-center 
+                                px-2 
+                                text-gray-700
+                              "
+                  >
+                    <svg
+                      className="fill-current h-4 w-4"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1737,7 +2051,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 value={addressData.street1}
                 onChange={(e) => handleAddressChange("street1", e.target.value)}
                 uppercase={true}
-                className="text-base" 
+                className="text-base"
               />
               <InputField
                 label="Address 2 (subdivision/compound/building name):"
@@ -1769,50 +2083,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 />
               </div>
 
-          {/* Group and Subscription Information Card */}
-          {(hasRole("WMM")) && (
-            <div className="p-4 border rounded-lg shadow-sm">
-              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                Group and Subscription Information
-              </h2>
-              <div className="space-y-3">
-                <p className="text-gray-500 text-sm">
-                  Select the type of client, group, and subscription
-                  classification from the options below.
-                </p>
-                <select
-                  id="type"
-                  name="type"
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded-md text-base"
-                >
-                  <option value="">Select a type</option>
-                  {types.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.id} - {type.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  id="group"
-                  name="group"
-                  value={formData.group}
-                  onChange={handleChange}
-                  className="w-full p-2 border rounded-md text-base"
-                >
-                  <option value="">Select a group</option>
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.id} - {group.name}
-                    </option>
-                  ))}
-                </select>                
-              </div>
-            </div>
-          )}
-
-
+              {/* Group and Subscription Information Card */}
+              {hasRole("WMM") && (
+                <div className="p-4 border rounded-lg shadow-sm">
+                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                    Group and Subscription Information
+                  </h2>
+                  <div className="space-y-3">
+                    <p className="text-gray-500 text-sm">
+                      Select the type of client, group, and subscription
+                      classification from the options below.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1854,6 +2138,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 onChange={handleChange}
                 type="email"
                 className="text-base"
+              />
+              <InputField
+                className="w-full h-[160px] p-2 border rounded-md text-base"
+                label="Remarks:"
+                id="remarks"
+                name="remarks"
+                value={formData.remarks}
+                onChange={handleChange}
+                type="textarea"
               />
             </div>
           </div>
@@ -1902,7 +2195,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Role Record Mode Selection */}
                 <div className="flex justify-center space-x-4 p-4 bg-gray-50 rounded-lg">
                   <button
@@ -1928,13 +2221,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     Edit Existing Record
                   </button>
                 </div>
-                
+
                 {/* Record History */}
                 <div className="border rounded-lg p-4 bg-white">
                   <h3 className="text-lg font-semibold mb-3">Record History</h3>
                   <RoleRecordHistory />
                 </div>
-                
+
                 <div className="flex flex-col-2 gap-5">
                   <div className="flex flex-col-2 gap-4 mb-2 p-2">
                     {selectedRole === "HRG" && (
@@ -2217,13 +2510,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
                 {/* Subscription History - Always Visible */}
                 <div className="border rounded-lg p-4 bg-white">
-                  <h3 className="text-lg font-semibold mb-3">Subscription History</h3>
+                  <h3 className="text-lg font-semibold mb-3">
+                    Subscription History
+                  </h3>
                   <div className="max-h-60 overflow-y-auto">
                     {availableSubscriptions.length > 0 ? (
                       <div className="space-y-3">
                         {availableSubscriptions.map((sub, idx) => (
                           <div
-                            key={`sub-${sub._id || sub.id || 'idx-' + idx}-${idx}`}
+                            key={`sub-${
+                              sub._id || sub.id || "idx-" + idx
+                            }-${idx}`}
                             className={`p-3 rounded-lg border ${
                               selectedSubscription?.id === sub.id
                                 ? "border-blue-500 bg-blue-50"
@@ -2240,13 +2537,19 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                     ? formatDateToMMDDYY(sub.subsdate)
                                     : "N/A"}{" "}
                                   to{" "}
-                                  {sub.enddate ? formatDateToMMDDYY(sub.enddate) : "N/A"}
+                                  {sub.enddate
+                                    ? formatDateToMMDDYY(sub.enddate)
+                                    : "N/A"}
                                 </p>
                               </div>
                               <div className="text-right">
-                                <p className="text-sm">Copies: {sub.copies || 1}</p>
+                                <p className="text-sm">
+                                  Copies: {sub.copies || 1}
+                                </p>
                                 {sub.paymtamt > 0 && (
-                                  <p className="text-sm">Amount: {sub.paymtamt}</p>
+                                  <p className="text-sm">
+                                    Amount: {sub.paymtamt}
+                                  </p>
                                 )}
                               </div>
                             </div>
@@ -2256,22 +2559,31 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   // Prevent event propagation to stop it from bubbling up to parent elements
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  
+
                                   // Make sure we have a valid subscription ID (could be id or _id)
-                                  if (sub) {                                    
+                                  if (sub) {
                                     // Call the selection handler with the subscription object directly
                                     selectSubscription(sub);
                                   } else {
-                                    console.error("Invalid subscription selected:", sub);
+                                    console.error(
+                                      "Invalid subscription selected:",
+                                      sub
+                                    );
                                   }
                                 }}
                                 className={`mt-2 w-full py-1 text-sm rounded ${
-                                  isSubscriptionSelected(sub, selectedSubscription)
+                                  isSubscriptionSelected(
+                                    sub,
+                                    selectedSubscription
+                                  )
                                     ? "bg-blue-600 text-white"
                                     : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                                 }`}
                               >
-                                {isSubscriptionSelected(sub, selectedSubscription)
+                                {isSubscriptionSelected(
+                                  sub,
+                                  selectedSubscription
+                                )
                                   ? "Currently Editing"
                                   : "Select to Edit"}
                               </button>
@@ -2291,13 +2603,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 <div className="border rounded-lg p-4 bg-white">
                   {subscriptionMode === "edit" ? (
                     <>
-                      <h3 className="text-lg font-semibold mb-4">Edit Selected Subscription</h3>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Edit Selected Subscription
+                      </h3>
                       {selectedSubscription ? (
                         <div className="space-y-4">
                           <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
                             <p className="font-medium text-blue-800">
-                              Editing subscription from {selectedSubscription.subsdate ? formatDateToMMDDYY(parseDate(selectedSubscription.subsdate)) : "N/A"} 
-                              to {selectedSubscription.enddate ? formatDateToMMDDYY(parseDate(selectedSubscription.enddate)) : "N/A"}
+                              Editing subscription from{" "}
+                              {selectedSubscription.subsdate
+                                ? formatDateToMMDDYY(
+                                    parseDate(selectedSubscription.subsdate)
+                                  )
+                                : "N/A"}
+                              to{" "}
+                              {selectedSubscription.enddate
+                                ? formatDateToMMDDYY(
+                                    parseDate(selectedSubscription.enddate)
+                                  )
+                                : "N/A"}
                             </p>
                           </div>
                           <InputField
@@ -2360,7 +2684,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                 onChange={handleRoleSpecificChange}
                                 className="w-full p-2 border rounded-md"
                               >
-                                <option value="">Select a classification</option>
+                                <option value="">
+                                  Select a classification
+                                </option>
                                 {subclasses.map((subclass) => (
                                   <option key={subclass.id} value={subclass.id}>
                                     {subclass.name} ({subclass.id})
@@ -2404,13 +2730,16 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         </div>
                       ) : (
                         <p className="text-gray-500 text-center py-4">
-                          Please select a subscription to edit from the history above
+                          Please select a subscription to edit from the history
+                          above
                         </p>
                       )}
                     </>
                   ) : (
                     <>
-                      <h3 className="text-lg font-semibold mb-4">Add New Subscription</h3>
+                      <h3 className="text-lg font-semibold mb-4">
+                        Add New Subscription
+                      </h3>
                       <div className="space-y-4">
                         <InputField
                           label="Subscription Start (MM/DD/YY):"
@@ -2419,7 +2748,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={newSubscriptionData.subsdate || ""}
                           onChange={handleNewSubscriptionChange}
                           placeholder="MM/DD/YY"
-                          className={validationErrors.subsdate ? "border-red-500" : ""}
+                          className={
+                            validationErrors.subsdate ? "border-red-500" : ""
+                          }
                         />
                         {validationErrors.subsdate && (
                           <p className="text-red-500 text-xs mt-1">
@@ -2452,7 +2783,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={newSubscriptionData.enddate || ""}
                           onChange={handleNewSubscriptionChange}
                           placeholder="MM/DD/YY"
-                          className={validationErrors.enddate ? "border-red-500" : ""}
+                          className={
+                            validationErrors.enddate ? "border-red-500" : ""
+                          }
                         />
                         {validationErrors.enddate && (
                           <p className="text-red-500 text-xs mt-1">
@@ -2480,7 +2813,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               value={newSubscriptionData.subsclass || ""}
                               onChange={handleNewSubscriptionChange}
                               className={`w-full p-2 border rounded-md ${
-                                validationErrors.subsclass ? "border-red-500" : ""
+                                validationErrors.subsclass
+                                  ? "border-red-500"
+                                  : ""
                               }`}
                             >
                               <option value="">Select a classification</option>
@@ -2541,7 +2876,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           )}
         </div>
 
-        <div className="mt-8 pt-4 border-t flex justify-end gap-3">
+        <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
           <Button
             type="button"
             onClick={closeModal}

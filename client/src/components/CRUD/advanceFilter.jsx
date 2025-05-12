@@ -13,10 +13,12 @@ import { useUser } from "../../utils/Hooks/userProvider";
 const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
-  
+
   // Add a helper function to check if user has only HRG, FOM, or CAL roles but not WMM
   const hasOnlyNonWMMRoles = () => {
-    return (hasRole("HRG") || hasRole("FOM") || hasRole("CAL")) && !hasRole("WMM");
+    return (
+      (hasRole("HRG") || hasRole("FOM") || hasRole("CAL")) && !hasRole("WMM")
+    );
   };
 
   const [filterData, setFilterData] = useState({
@@ -61,25 +63,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [subclassesData, areasData, typesData, usersData] = await Promise.all([
-          fetchSubclasses(),
-          fetchAreas(),
-          fetchTypes(),
-          fetchUsers(),
-        ]);
+        const [subclassesData, areasData, typesData, usersData] =
+          await Promise.all([
+            fetchSubclasses(),
+            fetchAreas(),
+            fetchTypes(),
+            fetchUsers(),
+          ]);
         setSubclasses(subclassesData);
         setAreas(areasData);
         setTypes(typesData);
-        
-        // Debug the users data
-        console.log("Users API response:", usersData);
-        
+
         // Check if users exist in the response and set them properly
         const receivedUsers = usersData?.users || [];
-        console.log("Extracted users array:", receivedUsers);
-        
+
         setUsers(receivedUsers);
-        
+
         // Set current user from API response
         if (usersData?.currentUser) {
           setCurrentUser(usersData.currentUser);
@@ -118,7 +117,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     resetFilterData();
     setShowModal(true);
   };
-  
+
   // Reset filter fields when closing modal
   const closeModal = () => {
     setShowModal(false);
@@ -230,30 +229,32 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Process services for exact matching (always use exact matching now)
     const processExactServices = (services) => {
       if (!services || !services.length) return services || [];
-      
+
       // Make sure we're working with an array
       let serviceArray = services;
       if (!Array.isArray(serviceArray)) {
-        serviceArray = typeof serviceArray === 'string' ? 
-          serviceArray.split(',').map(s => s.trim()) : [];
+        serviceArray =
+          typeof serviceArray === "string"
+            ? serviceArray.split(",").map((s) => s.trim())
+            : [];
       }
-      
+
       // Ensure service names are properly cased
-      serviceArray = serviceArray.map(service => {
+      serviceArray = serviceArray.map((service) => {
         // Normalize service names to uppercase
         const normalizedService = String(service).toUpperCase();
         // Make sure it's one of our valid service types
-        if (['WMM', 'HRG', 'FOM', 'CAL'].includes(normalizedService)) {
+        if (["WMM", "HRG", "FOM", "CAL"].includes(normalizedService)) {
           return normalizedService;
         }
         // If not valid, return original
         return service;
       });
-      
+
       // When using exact match, we're looking for clients with ONLY these services
       // WMM is ignored in this comparison (it can be present or not)
-      const coreServices = serviceArray.filter(service => service !== "WMM");
-      
+      const coreServices = serviceArray.filter((service) => service !== "WMM");
+
       return coreServices;
     };
 
@@ -263,13 +264,13 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Process client IDs for inclusion/exclusion
     const processClientIds = (idsString) => {
       if (!idsString.trim()) return [];
-      
+
       // Split by commas, newlines, or spaces and filter out empty entries
       return idsString
         .split(/[\s,]+/)
-        .map(id => id.trim())
-        .filter(id => id !== "" && !isNaN(parseInt(id)))
-        .map(id => parseInt(id));
+        .map((id) => id.trim())
+        .filter((id) => id !== "" && !isNaN(parseInt(id)))
+        .map((id) => parseInt(id));
     };
 
     // Trim text fields and format data
@@ -297,7 +298,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);
-    
+
     // Just close the modal - data will be reset when reopened
     setShowModal(false);
   };
@@ -346,36 +347,36 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   // Function to count active filters
   const countActiveFilters = () => {
     let count = 0;
-    
+
     // Count standard field filters
     Object.entries(filterData).forEach(([key, value]) => {
       // Skip group if it's the selected group from props
-      if (key === 'group' && value === selectedGroup) return;
-      
+      if (key === "group" && value === selectedGroup) return;
+
       // Count arrays (like areas) if they're not empty
       if (Array.isArray(value)) {
         if (value.length > 0) count++;
         return;
       }
-      
+
       // Count strings if they're not empty
-      if (typeof value === 'string') {
-        if (value.trim() !== '') count++;
+      if (typeof value === "string") {
+        if (value.trim() !== "") count++;
         return;
       }
-      
+
       // Count booleans that are true
-      if (typeof value === 'boolean') {
+      if (typeof value === "boolean") {
         if (value === true) count++;
         return;
       }
-      
+
       // Count any other truthy values
       if (value) count++;
     });
-    
+
     // Special case for custom copies range
-    if (filterData.copiesRange === 'custom') {
+    if (filterData.copiesRange === "custom") {
       // Don't double count - we already counted copiesRange
       // But we might need to adjust if min/max copies are set
       if (!filterData.minCopies && !filterData.maxCopies) {
@@ -383,7 +384,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         count--;
       }
     }
-    
+
     return count;
   };
 
@@ -446,8 +447,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Handle copies range as a special case
     if (filterData.copiesRange) {
       const rangeMap = {
-        "1": "1",
-        "2": "2",
+        1: "1",
+        2: "2",
         gt1: "More than 1",
         custom: `${filterData.minCopies || "0"} to ${
           filterData.maxCopies || "∞"
@@ -471,17 +472,27 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     }
 
     // Handle client ID filters as a special case
-    if (filterData.clientIdFilterType === "include" && filterData.clientIncludeIds.trim()) {
-      const count = filterData.clientIncludeIds.split(/[\s,]+/).filter(id => id.trim() !== "").length;
+    if (
+      filterData.clientIdFilterType === "include" &&
+      filterData.clientIncludeIds.trim()
+    ) {
+      const count = filterData.clientIncludeIds
+        .split(/[\s,]+/)
+        .filter((id) => id.trim() !== "").length;
       active.push({
         label: "Include Clients",
         value: `${count} client(s)`,
         key: "clientIncludeIds",
       });
     }
-    
-    if (filterData.clientIdFilterType === "exclude" && filterData.clientExcludeIds.trim()) {
-      const count = filterData.clientExcludeIds.split(/[\s,]+/).filter(id => id.trim() !== "").length;
+
+    if (
+      filterData.clientIdFilterType === "exclude" &&
+      filterData.clientExcludeIds.trim()
+    ) {
+      const count = filterData.clientExcludeIds
+        .split(/[\s,]+/)
+        .filter((id) => id.trim() !== "").length;
       active.push({
         label: "Exclude Clients",
         value: `${count} client(s)`,
@@ -499,15 +510,20 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     }
 
     // Add subscription status filter if not set to "all"
-    if (filterData.subscriptionStatus && filterData.subscriptionStatus !== "all") {
+    if (
+      filterData.subscriptionStatus &&
+      filterData.subscriptionStatus !== "all"
+    ) {
       const statusDisplayMap = {
         active: "Active Only",
-        unsubscribed: "Unsubscribed Only"
+        unsubscribed: "Unsubscribed Only",
       };
-      
+
       active.push({
         label: "Subscription Status",
-        value: statusDisplayMap[filterData.subscriptionStatus] || filterData.subscriptionStatus,
+        value:
+          statusDisplayMap[filterData.subscriptionStatus] ||
+          filterData.subscriptionStatus,
         key: "subscriptionStatus",
       });
     }
@@ -515,18 +531,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Add User filter as a special case
     if (filterData.userId) {
       let userLabel = "Unknown User";
-      
+
       // Check if it's the current user
       if (user && filterData.userId === user._id) {
         userLabel = `Me (${user.username})`;
       } else {
         // Find the user in the users list
-        const selectedUser = users.find(u => u._id === filterData.userId);
+        const selectedUser = users.find((u) => u._id === filterData.userId);
         if (selectedUser) {
           userLabel = selectedUser.username;
         }
       }
-      
+
       active.push({
         label: "User",
         value: userLabel,
@@ -538,13 +554,13 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     if (filterData.areas && filterData.areas.length > 0) {
       // For simplicity, we'll show how many areas are selected
       const selectedAreas = filterData.areas.length;
-      
+
       // Create area labels by finding area names in the areas array
-      const areaLabels = filterData.areas.map(areaId => {
-        const area = areas.find(a => a._id === areaId);
+      const areaLabels = filterData.areas.map((areaId) => {
+        const area = areas.find((a) => a._id === areaId);
         return area ? area._id : areaId;
       });
-      
+
       // Show first few area names if there aren't too many
       let displayValue = "";
       if (selectedAreas <= 3) {
@@ -552,7 +568,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       } else {
         displayValue = `${selectedAreas} areas selected`;
       }
-      
+
       active.push({
         label: "Areas",
         value: displayValue,
@@ -564,7 +580,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     Object.entries(fieldMappings).forEach(([key, label]) => {
       // Skip areas since we handled it as a special case
       if (key === "areas") return;
-      
+
       const value = filterData[key];
 
       // Skip empty values, group if it matches selectedGroup, and already handled special cases
@@ -601,7 +617,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         case "startDate":
           updates.startDate = "";
           break;
-        case "endDate": 
+        case "endDate":
           updates.endDate = "";
           break;
         case "copiesRange":
@@ -641,7 +657,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const foreign = [];
 
     if (Array.isArray(areas)) {
-      areas.forEach(area => {
+      areas.forEach((area) => {
         // Check if area name contains "ZONE" to identify foreign areas
         const isZone = area._id.includes("ZONE");
         if (isZone) {
@@ -662,21 +678,21 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const isChecked = e.target.checked;
     setFilterData((prev) => {
       let updatedAreas = [...prev.areas];
-      
+
       if (isChecked) {
         // Add all local area IDs that aren't already selected
-        local.forEach(area => {
+        local.forEach((area) => {
           if (!updatedAreas.includes(area._id)) {
             updatedAreas.push(area._id);
           }
         });
       } else {
         // Remove all local area IDs
-        updatedAreas = updatedAreas.filter(areaId => 
-          !local.some(area => area._id === areaId)
+        updatedAreas = updatedAreas.filter(
+          (areaId) => !local.some((area) => area._id === areaId)
         );
       }
-      
+
       return { ...prev, areas: updatedAreas, exactAreaMatch: true };
     });
   };
@@ -686,32 +702,34 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const isChecked = e.target.checked;
     setFilterData((prev) => {
       let updatedAreas = [...prev.areas];
-      
+
       if (isChecked) {
         // Add all foreign area IDs that aren't already selected
-        foreign.forEach(area => {
+        foreign.forEach((area) => {
           if (!updatedAreas.includes(area._id)) {
             updatedAreas.push(area._id);
           }
         });
       } else {
         // Remove all foreign area IDs
-        updatedAreas = updatedAreas.filter(areaId => 
-          !foreign.some(area => area._id === areaId)
+        updatedAreas = updatedAreas.filter(
+          (areaId) => !foreign.some((area) => area._id === areaId)
         );
       }
-      
+
       return { ...prev, areas: updatedAreas, exactAreaMatch: true };
     });
   };
 
   // Check if all local areas are selected
-  const areAllLocalSelected = local.length > 0 && 
-    local.every(area => filterData.areas.includes(area._id));
-  
+  const areAllLocalSelected =
+    local.length > 0 &&
+    local.every((area) => filterData.areas.includes(area._id));
+
   // Check if all foreign areas are selected
-  const areAllForeignSelected = foreign.length > 0 && 
-    foreign.every(area => filterData.areas.includes(area._id));
+  const areAllForeignSelected =
+    foreign.length > 0 &&
+    foreign.every((area) => filterData.areas.includes(area._id));
 
   return (
     <div>
@@ -723,10 +741,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       </Button>
 
       {showModal && (
-        <Modal isOpen={showModal} onClose={closeModal}>
+        <Modal
+          isOpen={showModal}
+          onClose={closeModal}
+          className="max-w-[95vw] w-auto overflow-hidden bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100"
+        >
           <form
             onSubmit={handleSubmit}
-            className="max-h-[80vh] overflow-y-auto"
+            className="max-h-[90vh] overflow-y-auto p-4"
           >
             <div className="mb-6 border-b pb-4">
               <h1 className="text-black text-2xl font-bold">Advanced Filter</h1>
@@ -735,7 +757,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {/* Personal Information Card */}
               <div className="p-4 border rounded-lg shadow-sm">
                 <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -926,7 +948,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           Active Subscriptions
                         </h3>
                         <p className="text-xs text-gray-500">
-                          Find clients with active subscriptions during this month
+                          Find clients with active subscriptions during this
+                          month
                         </p>
                         <InputField
                           label="Select Month"
@@ -986,7 +1009,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       value={filterData.copiesRange}
                       onChange={handleChange}
                       className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                        filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
+                        filterData.copiesRange
+                          ? "border-blue-500 bg-blue-50"
+                          : ""
                       }`}
                     >
                       <option value="">Any number of copies</option>
@@ -1074,7 +1099,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       id="excludeSPackClients"
                       name="excludeSPackClients"
                       checked={filterData.excludeSPackClients}
-                      onChange={(e) => setFilterData(prev => ({...prev, excludeSPackClients: e.target.checked}))}
+                      onChange={(e) =>
+                        setFilterData((prev) => ({
+                          ...prev,
+                          excludeSPackClients: e.target.checked,
+                        }))
+                      }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                     />
                     <label
@@ -1083,7 +1113,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     >
                       Exclude SPack Clients
                     </label>
-                    <span className="ml-2 text-xs text-gray-500">(Hide clients with "SPack" in group name)</span>
+                    <span className="ml-2 text-xs text-gray-500">
+                      (Hide clients with "SPack" in group name)
+                    </span>
                   </div>
 
                   <div>
@@ -1129,7 +1161,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         ))}
                     </select>
                   </div>
-                  
+
                   {/* Area Filter (Modified to checkboxes grouped by Local/Foreign) */}
                   <div>
                     <label className="block text-lg font-medium mb-2">
@@ -1138,8 +1170,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     <p className="text-xs text-gray-500 mb-2">
                       {filterData.areas.length} areas selected
                     </p>
-                    
-                    <div className="max-h-[200px] overflow-y-auto border rounded-md p-2">
+
+                    <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
                       {/* Local Areas */}
                       <div className="mb-3">
                         <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
@@ -1160,8 +1192,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             </label>
                           </div>
                         </h3>
-                        <div className="grid grid-cols-2 gap-1">
-                          {local.map(area => (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                          {local.map((area) => (
                             <div key={area._id} className="flex items-center">
                               <input
                                 type="checkbox"
@@ -1181,7 +1213,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           ))}
                         </div>
                       </div>
-                      
+
                       {/* Foreign Areas */}
                       <div>
                         <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
@@ -1202,8 +1234,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             </label>
                           </div>
                         </h3>
-                        <div className="grid grid-cols-2 gap-1">
-                          {foreign.map(area => (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                          {foreign.map((area) => (
                             <div key={area._id} className="flex items-center">
                               <input
                                 type="checkbox"
@@ -1224,6 +1256,33 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Add custom scrollbar style */}
+                    <style
+                      dangerouslySetInnerHTML={{
+                        __html: `
+                        .custom-scrollbar {
+                          scrollbar-width: thin;
+                          scrollbar-color: #ccc #f1f1f1;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar {
+                          width: 6px;
+                          height: 6px;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-track {
+                          background: #f1f1f1;
+                          border-radius: 3px;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-thumb {
+                          background: #ccc;
+                          border-radius: 3px;
+                        }
+                        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                          background: #999;
+                        }
+                        `,
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -1246,12 +1305,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       You can modify these selections.
                     </p>
                   ) : null}
-                  
+
                   {/* Add explanation of exact matching */}
                   <div className="p-2 bg-blue-50 rounded border border-blue-200 mb-3">
                     <p className="text-xs text-blue-800">
-                      <span className="font-bold">Note:</span> When you select a service (HRG, FOM, CAL), you'll only see clients 
-                      that have exactly that service and no others. WMM service can be present on any client regardless of this filter.
+                      <span className="font-bold">Note:</span> When you select a
+                      service (HRG, FOM, CAL), you'll only see clients that have
+                      exactly that service and no others. WMM service can be
+                      present on any client regardless of this filter.
                     </p>
                   </div>
 
@@ -1266,7 +1327,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         value={filterData.subscriptionStatus}
                         onChange={handleChange}
                         className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                          filterData.subscriptionStatus !== "all" ? "border-blue-500 bg-blue-50" : ""
+                          filterData.subscriptionStatus !== "all"
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
                         }`}
                       >
                         <option value="all">All Subscriptions</option>
@@ -1278,7 +1341,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       </p>
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-y-2">
                     <div className="flex items-center">
                       <input
@@ -1370,7 +1433,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   Client ID Filter
                 </h2>
                 <div className="space-y-3">
-                  <div className="flex space-x-4 mb-2">
+                  <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 mb-2">
                     <div className="flex items-center">
                       <input
                         type="radio"
@@ -1378,7 +1441,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         name="clientIdFilterType"
                         value="include"
                         checked={filterData.clientIdFilterType === "include"}
-                        onChange={() => handleClientIdFilterTypeChange("include")}
+                        onChange={() =>
+                          handleClientIdFilterTypeChange("include")
+                        }
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label
@@ -1395,7 +1460,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         name="clientIdFilterType"
                         value="exclude"
                         checked={filterData.clientIdFilterType === "exclude"}
-                        onChange={() => handleClientIdFilterTypeChange("exclude")}
+                        onChange={() =>
+                          handleClientIdFilterTypeChange("exclude")
+                        }
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                       />
                       <label
@@ -1406,14 +1473,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       </label>
                     </div>
                   </div>
-                  
+
                   {filterData.clientIdFilterType === "include" ? (
                     <div className="space-y-2">
                       <label className="block text-lg font-medium text-black">
                         Client IDs to Include
                       </label>
                       <p className="text-xs text-gray-500">
-                        Enter client IDs to include in results. Separate with commas or new lines.
+                        Enter client IDs to include in results. Separate with
+                        commas or new lines.
                       </p>
                       <textarea
                         id="clientIncludeIds"
@@ -1421,7 +1489,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         value={filterData.clientIncludeIds}
                         onChange={handleChange}
                         className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
-                          filterData.clientIncludeIds ? "border-blue-500 bg-blue-50" : ""
+                          filterData.clientIncludeIds
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
                         }`}
                         placeholder="e.g. 1001, 1002, 1003"
                       />
@@ -1432,7 +1502,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         Client IDs to Exclude
                       </label>
                       <p className="text-xs text-gray-500">
-                        Enter client IDs to exclude from results. Separate with commas or new lines.
+                        Enter client IDs to exclude from results. Separate with
+                        commas or new lines.
                       </p>
                       <textarea
                         id="clientExcludeIds"
@@ -1440,7 +1511,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         value={filterData.clientExcludeIds}
                         onChange={handleChange}
                         className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
-                          filterData.clientExcludeIds ? "border-blue-500 bg-blue-50" : ""
+                          filterData.clientExcludeIds
+                            ? "border-blue-500 bg-blue-50"
+                            : ""
                         }`}
                         placeholder="e.g. 2001, 2002, 2003"
                       />
@@ -1460,9 +1533,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       Filter by User
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Show entries created or modified by a specific user with your role
+                      Show entries created or modified by a specific user with
+                      your role
                     </p>
-                                      
+
                     <select
                       name="userId"
                       value={filterData.userId}
@@ -1472,50 +1546,70 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       }`}
                     >
                       <option value="">All Users</option>
-                      {currentUser && <option value={currentUser._id}>Me ({currentUser.username})</option>}
-                      
+                      {currentUser && (
+                        <option value={currentUser._id}>
+                          Me ({currentUser.username})
+                        </option>
+                      )}
+
                       {/* Show all other users */}
                       {users
-                        .filter(u => {
+                        .filter((u) => {
                           // Skip current user as they already have the "Me" option
-                          if (!currentUser || u._id === currentUser._id) return false;
-                          
+                          if (!currentUser || u._id === currentUser._id)
+                            return false;
+
                           // If we want to show all users without role filtering, uncomment this line:
                           // return true;
-                          
+
                           // Check if the current user has any roles to filter by
-                          if (!currentUser.roles || currentUser.roles.length === 0) return true;
-                          
+                          if (
+                            !currentUser.roles ||
+                            currentUser.roles.length === 0
+                          )
+                            return true;
+
                           // Get the current user's roles
-                          const currentUserRoleNames = currentUser.roles.map(role => {
-                            // Handle different role object structures
-                            if (role.role && role.role.name) return role.role.name;
-                            if (typeof role.role === 'string') return role.role;
-                            if (role.name) return role.name;
-                            return null;
-                          }).filter(Boolean); // Remove null values
-                          
+                          const currentUserRoleNames = currentUser.roles
+                            .map((role) => {
+                              // Handle different role object structures
+                              if (role.role && role.role.name)
+                                return role.role.name;
+                              if (typeof role.role === "string")
+                                return role.role;
+                              if (role.name) return role.name;
+                              return null;
+                            })
+                            .filter(Boolean); // Remove null values
+
                           // If we can't determine current user roles, show all users
                           if (currentUserRoleNames.length === 0) return true;
-                          
+
                           // Check if this user has any matching roles
-                          return u.roles && u.roles.some(userRole => {
-                            // Get this user's role name
-                            let roleName = null;
-                            if (userRole.role && userRole.role.name) roleName = userRole.role.name;
-                            else if (typeof userRole.role === 'string') roleName = userRole.role;
-                            else if (userRole.name) roleName = userRole.name;
-                            
-                            // Check if this role matches any of the current user's roles
-                            return roleName && currentUserRoleNames.includes(roleName);
-                          });
+                          return (
+                            u.roles &&
+                            u.roles.some((userRole) => {
+                              // Get this user's role name
+                              let roleName = null;
+                              if (userRole.role && userRole.role.name)
+                                roleName = userRole.role.name;
+                              else if (typeof userRole.role === "string")
+                                roleName = userRole.role;
+                              else if (userRole.name) roleName = userRole.name;
+
+                              // Check if this role matches any of the current user's roles
+                              return (
+                                roleName &&
+                                currentUserRoleNames.includes(roleName)
+                              );
+                            })
+                          );
                         })
-                        .map(u => (
+                        .map((u) => (
                           <option key={u._id} value={u._id}>
                             {u.username}
                           </option>
-                        ))
-                      }
+                        ))}
                     </select>
                   </div>
                 </div>
@@ -1525,9 +1619,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
             {/* Active Filters Section */}
             {getActiveFilters().length > 0 && (
               <div className="mt-8 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
+                <div className="flex flex-wrap justify-between items-center mb-2">
                   <h2 className="text-blue-700 text-sm font-bold">
-                    Active Filters
+                    Active Filters ({getActiveFilters().length})
                   </h2>
                   <button
                     type="button"
@@ -1537,11 +1631,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     Clear all
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 max-h-[150px] overflow-y-auto custom-scrollbar p-1">
                   {getActiveFilters().map((filter, index) => (
                     <div
                       key={index}
-                      className="bg-white border border-blue-300 rounded-full px-3 py-1 text-xs flex items-center"
+                      className="bg-white border border-blue-300 rounded-full px-3 py-1 text-xs flex items-center mb-1"
                     >
                       <span className="font-semibold mr-1">
                         {filter.label}:
@@ -1562,7 +1656,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
               </div>
             )}
 
-            <div className="mt-4 pt-4 border-t flex justify-end gap-3">
+            <div className="mt-4 pt-4 border-t flex flex-wrap justify-end gap-3">
               <Button
                 type="button"
                 onClick={clearAllFilters}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 const InputField = ({
   label,
@@ -28,12 +28,16 @@ const InputField = ({
     const { type: inputType, selectionStart } = e.target;
 
     // Save cursor position before the state update
-    if (uppercase && inputType !== 'checkbox') {
+    if (uppercase && inputType !== "checkbox") {
       setCursorPosition(selectionStart);
     }
 
     // Only apply uppercase transformation to text-based inputs
-    if (uppercase && typeof e.target.value === 'string' && (type === 'text' || type === 'email' || type === 'textarea')) {
+    if (
+      uppercase &&
+      typeof e.target.value === "string" &&
+      (type === "text" || type === "email" || type === "textarea")
+    ) {
       e.target.value = e.target.value.toUpperCase();
     }
 
@@ -42,10 +46,10 @@ const InputField = ({
 
   return (
     <div className="mb-2">
-      <label htmlFor={name} className="block text-black font-bold mb-1">
+      <label htmlFor={name} className="block text-black text-xl mb-1">
         {label}
       </label>
-      {type === 'textarea' ? (
+      {type === "textarea" ? (
         <textarea
           ref={inputRef}
           id={name}
@@ -53,7 +57,7 @@ const InputField = ({
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`w-full p-2 border rounded-md ${className}`}
+          className={`w-full p-2 text-lg border-2 rounded-md border-gray-300 ${className}`}
           autoComplete={autoComplete} // Add autoComplete prop
         />
       ) : (
@@ -65,7 +69,17 @@ const InputField = ({
           value={value}
           onChange={handleInputChange}
           placeholder={placeholder}
-          className={`w-full p-2 border rounded-md ${className}`}
+          className={`
+            w-full p-2 text-lg border-2 rounded-md 
+            border-gray-300 
+            focus:border-blue-500 
+            focus:outline-none 
+            focus:ring-4 
+            focus:ring-blue-200 
+            transition-all 
+            duration-300 
+            ${className}
+          `}
           autoComplete={autoComplete} // Add autoComplete prop
         />
       )}
