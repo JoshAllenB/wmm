@@ -165,130 +165,64 @@ const AllClient = () => {
     ? advancedFilterData.services.join(",")
     : "";
 
-  // Auto-set services based on user roles on component mount (run this FIRST)
-  useEffect(() => {
-    if (initialLoadComplete.current) {
-      return; // Only run once on initial load
-    }
+  // Memoized parsing function for tagged search
+  const parseTaggedSearch = useMemo(() => {
+    return (searchValue) => {
+      const filters = { search: "", clientId: "", paymentRef: "", fullName: "" };
 
-    // Load groups first to have them available
-    const loadGroups = async () => {
-      try {
-        const groupsData = await fetchGroups();
-        setGroups(groupsData);
-      } catch (error) {
-        console.error("Error loading groups:", error);
-      }
-    };
-    loadGroups();
-
-    // Initialize services based on user roles
-    const roleBasedServices = [];
-
-    // Check each role and add corresponding service
-    if (hasRole("WMM")) roleBasedServices.push("WMM");
-    if (hasRole("FOM")) roleBasedServices.push("FOM");
-    if (hasRole("HRG")) roleBasedServices.push("HRG");
-    if (hasRole("CAL")) roleBasedServices.push("CAL");
-
-    // Only update if we found matching roles
-    if (roleBasedServices.length > 0) {
-      // Create initial filter with role-based services
-      const initialFilter = {
-        ...advancedFilterData,
-        services: roleBasedServices,
-      };
+      // Avoid computation on empty search
+      if (!searchValue) return filters;
       
-      // Add addedToday filter since it's on by default
-      const today = new Date();
-      const month = today.getMonth() + 1;
-      const day = today.getDate();
-      const year = today.getFullYear();
-      initialFilter.adddate_regex = `^${month}\\/${day}\\/${year}`;
+      // Check for tagged search patterns
+      const idMatch = searchValue.match(/\bid:\s*(\S+)/i);
+      const refMatch = searchValue.match(/\bref:\s*([A-Z]{2}\s*\d{6}[\s\d\/]*)/i);
+      const nameMatch = searchValue.match(/\bname:\s*([^:]+?)(?=\s+\w+:|$)/i);
 
-      // Save as last filter to prevent bouncing
-      lastFilterRef.current = JSON.stringify({
-        services: roleBasedServices,
-        page,
-        filtering: debouncedFiltering,
-        group: selectedGroup,
-        addedToday: true,
-      });
+      if (idMatch) {
+        filters.clientId = idMatch[1];
+        // Remove the matched pattern from the search string
+        searchValue = searchValue.replace(idMatch[0], "").trim();
+      }
 
-      // Set the filter state
-      setAdvancedFilterData(initialFilter);
-    }
+      if (refMatch) {
+        filters.paymentRef = refMatch[1];
+        // Remove the matched pattern from the search string
+        searchValue = searchValue.replace(refMatch[0], "").trim();
+      }
 
-    // Mark initial load as complete
-    initialLoadComplete.current = true;
+      if (nameMatch) {
+        filters.fullName = nameMatch[1].trim();
+        // Remove the matched pattern from the search string
+        searchValue = searchValue.replace(nameMatch[0], "").trim();
+      }
 
-    // Continue to data loading after a short delay
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
-  }, [
-    hasRole,
-    page,
-    pageSize,
-    debouncedFiltering,
-    selectedGroup,
-    addedToday,
-    advancedFilterData,
-  ]);
+      // Check if the untagged search looks like a payment reference (MS followed by numbers)
+      const untaggedRefMatch = searchValue.match(/\b([A-Z]{2}\s*\d{6}[\s\d\/]*)\b/i);
+      if (!filters.paymentRef && untaggedRefMatch) {
+        filters.paymentRef = untaggedRefMatch[1];
+        // Remove the matched pattern from the search string
+        searchValue = searchValue.replace(untaggedRefMatch[0], "").trim();
+      }
 
-  // Add this function after handleTableInstanceUpdate
-  const parseTaggedSearch = (searchValue) => {
-    const filters = { search: "", clientId: "", paymentRef: "", fullName: "" };
+      // Check if the untagged search looks like a full name (contains space)
+      if (
+        !filters.fullName &&
+        searchValue.includes(" ") &&
+        !filters.clientId &&
+        !filters.paymentRef
+      ) {
+        filters.fullName = searchValue;
+        searchValue = ""; // Since we're treating the whole thing as a full name
+      }
 
-    // Check for tagged search patterns
-    const idMatch = searchValue.match(/\bid:\s*(\S+)/i);
-    const refMatch = searchValue.match(/\bref:\s*([A-Z]{2}\s*\d{6}[\s\d\/]*)/i);
-    const nameMatch = searchValue.match(/\bname:\s*([^:]+?)(?=\s+\w+:|$)/i);
+      // Any remaining text is treated as a general search
+      filters.search = searchValue;
 
-    if (idMatch) {
-      filters.clientId = idMatch[1];
-      // Remove the matched pattern from the search string
-      searchValue = searchValue.replace(idMatch[0], "").trim();
-    }
+      return filters;
+    };
+  }, []);
 
-    if (refMatch) {
-      filters.paymentRef = refMatch[1];
-      // Remove the matched pattern from the search string
-      searchValue = searchValue.replace(refMatch[0], "").trim();
-    }
-
-    if (nameMatch) {
-      filters.fullName = nameMatch[1].trim();
-      // Remove the matched pattern from the search string
-      searchValue = searchValue.replace(nameMatch[0], "").trim();
-    }
-
-    // Check if the untagged search looks like a payment reference (MS followed by numbers)
-    const untaggedRefMatch = searchValue.match(/\b([A-Z]{2}\s*\d{6}[\s\d\/]*)\b/i);
-    if (!filters.paymentRef && untaggedRefMatch) {
-      filters.paymentRef = untaggedRefMatch[1];
-      // Remove the matched pattern from the search string
-      searchValue = searchValue.replace(untaggedRefMatch[0], "").trim();
-    }
-
-    // Check if the untagged search looks like a full name (contains space)
-    if (
-      !filters.fullName &&
-      searchValue.includes(" ") &&
-      !filters.clientId &&
-      !filters.paymentRef
-    ) {
-      filters.fullName = searchValue;
-      searchValue = ""; // Since we're treating the whole thing as a full name
-    }
-
-    // Any remaining text is treated as a general search
-    filters.search = searchValue;
-
-    return filters;
-  };
-
-  // Modified fetchData to handle tagged search and client counts
+  // Modified fetchData to handle tagged search and client counts - use memoized version
   const fetchData = useCallback(
     async (
       currentPage,
@@ -298,6 +232,11 @@ const AllClient = () => {
       advancedFilterData = {}
     ) => {
       try {
+        // Show loading state if it will take time
+        if (Object.keys(advancedFilterData).length > 2) {
+          setIsLoading(true);
+        }
+        
         // Clone the filter object to avoid mutations
         let filtersToUse = { ...advancedFilterData };
 
@@ -334,23 +273,22 @@ const AllClient = () => {
         let shouldUseRoleBasedServices = true;
 
         if (filtersToUse.services) {
-          // Convert to array if it's a string
-          if (
-            typeof filtersToUse.services === "string" &&
-            filtersToUse.services.trim() !== ""
-          ) {
+          // Always ensure services is an array to prevent backend errors
+          if (typeof filtersToUse.services === "string" && filtersToUse.services.trim() !== "") {
+            // Convert string to array (e.g. "WMM,FOM" -> ["WMM", "FOM"])
             filtersToUse.services = filtersToUse.services
               .split(",")
               .map((s) => s.trim())
               .filter(Boolean);
             shouldUseRoleBasedServices = false;
-          }
-          // If it's an array and has items, keep it
-          else if (
-            Array.isArray(filtersToUse.services) &&
-            filtersToUse.services.length > 0
-          ) {
+          } 
+          // If it's already an array with items, keep it
+          else if (Array.isArray(filtersToUse.services) && filtersToUse.services.length > 0) {
             shouldUseRoleBasedServices = false;
+          }
+          // If it's neither a valid string nor array, default to role-based
+          else {
+            shouldUseRoleBasedServices = true;
           }
         }
 
@@ -358,18 +296,35 @@ const AllClient = () => {
         if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
           filtersToUse.services = roleBasedServices;
         }
+        
+        // IMPORTANT: Always ensure services is an array even if it's empty
+        if (!Array.isArray(filtersToUse.services)) {
+          filtersToUse.services = [];
+        }
 
         // Add addedToday filter if enabled - always use state value
         if (addedToday) {
-          const today = new Date();
-          // Create date pattern to match the beginning of the string
-          const month = today.getMonth() + 1;
-          const day = today.getDate();
-          const year = today.getFullYear();
-          // We want to match the date part regardless of the time part
-          // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
-          // Passing a regex as a string since MongoDB will interpret it
-          filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
+          try {
+            const today = new Date();
+            // Create date pattern to match the beginning of the string
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            const year = today.getFullYear();
+            
+            // Ensure all parts are valid numbers to prevent regex errors
+            if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+              // We want to match the date part regardless of the time part
+              // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
+              // Passing a regex as a string since MongoDB will interpret it
+              filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
+            } else {
+              console.error("Invalid date components for addedToday filter");
+              delete filtersToUse.adddate_regex;
+            }
+          } catch (error) {
+            console.error("Error creating adddate_regex:", error);
+            delete filtersToUse.adddate_regex;
+          }
         } else {
           // Explicitly remove adddate filter when addedToday is false
           delete filtersToUse.adddate_regex;
@@ -382,6 +337,13 @@ const AllClient = () => {
           group,
           filtersToUse
         );
+
+        // Skip state updates if the request was cancelled (response is null)
+        if (!response) {
+          console.log("Request was cancelled, skipping state updates");
+          setIsLoading(false);
+          return null;
+        }
 
         setClientData(response.data);
         setTotalPages(response.totalPages || 0);
@@ -409,21 +371,27 @@ const AllClient = () => {
         setAbsoluteTotalClients(response.absoluteTotalClients || 0);
         setAbsoluteTotalCopies(response.absoluteTotalCopies || 0);
         
+        // Always remove loading state when done
+        setIsLoading(false);
+        
         return response;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
+        // Ensure loading state is cleared even on error
+        setIsLoading(false);
+        return null;
       }
     },
-    [addedToday, hasRole]
+    [addedToday, hasRole, parseTaggedSearch]
   );
 
-  // Main data loading effect (runs AFTER role-based services are set)
+  // Auto-set services based on user roles on component mount (run this FIRST)
   useEffect(() => {
-    // Skip this effect during initial load when services are being set up
-    if (isLoading) {
-      return;
+    if (initialLoadComplete.current) {
+      return; // Only run once on initial load
     }
 
+    // Load groups first to have them available
     const loadGroups = async () => {
       try {
         const groupsData = await fetchGroups();
@@ -432,8 +400,69 @@ const AllClient = () => {
         console.error("Error loading groups:", error);
       }
     };
-
     loadGroups();
+
+    // Initialize services based on user roles
+    const roleBasedServices = [];
+
+    // Check each role and add corresponding service
+    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("FOM")) roleBasedServices.push("FOM");
+    if (hasRole("HRG")) roleBasedServices.push("HRG");
+    if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+    // Only update if we found matching roles
+    if (roleBasedServices.length > 0) {
+      // Create initial filter with role-based services
+      const initialFilter = {
+        ...advancedFilterData,
+        services: roleBasedServices,
+      };
+      
+      // Add addedToday filter since it's on by default
+      if (addedToday) {
+        const today = new Date();
+        const month = today.getMonth() + 1;
+        const day = today.getDate();
+        const year = today.getFullYear();
+        initialFilter.adddate_regex = `^${month}\\/${day}\\/${year}`;
+      }
+
+      // Save as last filter to prevent bouncing
+      lastFilterRef.current = JSON.stringify({
+        services: roleBasedServices,
+        page,
+        filtering: debouncedFiltering,
+        group: selectedGroup,
+        addedToday,
+      });
+
+      // Set the filter state
+      setAdvancedFilterData(initialFilter);
+    }
+
+    // Mark initial load as complete
+    initialLoadComplete.current = true;
+
+    // Continue to data loading after a short delay
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+  }, [
+    hasRole,
+    advancedFilterData, // Since we're spreading this, we need it as a dependency
+    page,
+    debouncedFiltering,
+    selectedGroup,
+    addedToday,
+  ]);
+
+  // Main data loading effect (runs AFTER role-based services are set)
+  useEffect(() => {
+    // Skip this effect during initial load when services are being set up
+    if (isLoading) {
+      return;
+    }
 
     // Create a snapshot of the current filter
     const currentFilter = JSON.stringify({
@@ -452,22 +481,27 @@ const AllClient = () => {
     // Update our last filter reference
     lastFilterRef.current = currentFilter;
 
+    // Use a single fetch call with a slight delay to avoid race conditions
+    const fetchTimer = setTimeout(() => {
+      fetchData(
+        page,
+        pageSize,
+        debouncedFiltering,
+        selectedGroup,
+        advancedFilterData
+      );
+    }, 50); // Small delay to debounce multiple sequential state updates
 
-    fetchData(
-      page,
-      pageSize,
-      debouncedFiltering,
-      selectedGroup,
-      advancedFilterData
-    );
+    // Clean up timeout if component unmounts or dependencies change
+    return () => clearTimeout(fetchTimer);
   }, [
     page,
     pageSize,
-    debouncedFiltering,
+    debouncedFiltering, // Already debounced so this won't cause rapid re-renders
     selectedGroup,
     fetchData,
     advancedFilterData,
-    servicesDependency,
+    servicesDependency, // This is calculated from advancedFilterData.services
     addedToday,
     isLoading, // Only run when loading is complete
   ]);

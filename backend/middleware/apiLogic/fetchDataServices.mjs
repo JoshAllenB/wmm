@@ -5,12 +5,36 @@ import {
   clientFields,
 } from "../../models/modelConfig.mjs";
 
+// Global model cache to avoid repeated dynamic imports across requests
+const globalModelCache = {};
+
 const additionalModels = {
   WmmModel: () => import("../../models/wmm.mjs"),
   HrgModel: () => import("../../models/hrg.mjs"),
   FomModel: () => import("../../models/fom.mjs"),
   CalModel: () => import("../../models/cal.mjs"),
 };
+
+// Helper function to get model from cache or import it
+async function getModelInstance(modelKey) {
+  if (globalModelCache[modelKey]) {
+    return globalModelCache[modelKey];
+  }
+  
+  const importFunc = additionalModels[modelKey];
+  if (importFunc) {
+    try {
+      const { default: Model } = await importFunc();
+      globalModelCache[modelKey] = Model;
+      return Model;
+    } catch (error) {
+      console.error(`Error importing model ${modelKey}:`, error);
+      throw error;
+    }
+  }
+  
+  throw new Error(`Unknown model key: ${modelKey}`);
+}
 
 function validatePaginationParams(page, limit) {
   // Ensure page and limit are numbers
@@ -21,6 +45,21 @@ function validatePaginationParams(page, limit) {
   const skip = (validPage - 1) * validLimit;
   
   return { validPage, validLimit, skip };
+}
+
+// Response cache to store recent query results (LRU cache)
+const responseCache = new Map();
+const MAX_CACHE_SIZE = 20;
+
+// Helper to generate cache key from query parameters
+function generateCacheKey(filter, page, limit, group, advancedFilterData) {
+  return JSON.stringify({
+    filter,
+    page,
+    limit,
+    group,
+    advancedFilterData
+  });
 }
 
 async function fetchDataServices(
@@ -34,6 +73,15 @@ async function fetchDataServices(
   advancedFilterData = {}
 ) {
   try {
+    // Generate cache key from query parameters
+    const cacheKey = generateCacheKey(filter, page, limit, group, advancedFilterData);
+    
+    // Check cache for this exact query
+    if (responseCache.has(cacheKey)) {
+      console.log('✅ Using cached query result');
+      return responseCache.get(cacheKey);
+    }
+    
     // Validate pagination parameters to prevent NaN issues
     const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
 
@@ -53,39 +101,64 @@ async function fetchDataServices(
       };
       
       // Process services whether it's an array or comma-separated string
-      const servicesArray = Array.isArray(advancedFilterData.services) 
-        ? advancedFilterData.services 
-        : (typeof advancedFilterData.services === 'string' 
-          ? advancedFilterData.services.split(',').map(s => s.trim())
-          : []);
-          
-      // Map services to model names with correct formatting
-      servicesToAdd = servicesArray.map(service => {
-        // Normalize the service name to handle case inconsistencies
-        const serviceUpper = service.toUpperCase();
-        return serviceMap[serviceUpper];
-      }).filter(Boolean);
-      
-      // Add service models to modelNames if not already included
-      servicesToAdd.forEach(modelName => {
-        if (!modelNames.includes(modelName)) {
-          modelNames.push(modelName);
+      let servicesArray = [];
+
+      try {
+        if (Array.isArray(advancedFilterData.services)) {
+          servicesArray = advancedFilterData.services;
+        } else if (typeof advancedFilterData.services === 'string') {
+          // Handle string format - could be a single service or comma-separated list
+          servicesArray = advancedFilterData.services.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (advancedFilterData.services) {
+          // Try to convert to string as fallback
+          console.log("Services is not an array or string, attempting to convert:", advancedFilterData.services);
+          try {
+            const servicesStr = String(advancedFilterData.services);
+            servicesArray = servicesStr.split(',').map(s => s.trim()).filter(Boolean);
+          } catch (e) {
+            console.error("Failed to convert services to string:", e);
+          }
         }
-      });
+        
+        // Map services to model names with correct formatting
+        servicesToAdd = servicesArray.map(service => {
+          if (!service) return null;
+          // Normalize the service name to handle case inconsistencies
+          const serviceUpper = typeof service === 'string' ? service.toUpperCase() : '';
+          return serviceMap[serviceUpper];
+        }).filter(Boolean);
+        
+        // Add service models to modelNames if not already included
+        servicesToAdd.forEach(modelName => {
+          if (!modelNames.includes(modelName)) {
+            modelNames.push(modelName);
+          }
+        });
+      } catch (error) {
+        console.error("Error processing services parameter:", error);
+        console.error("advancedFilterData.services type:", typeof advancedFilterData.services);
+        console.error("advancedFilterData.services value:", advancedFilterData.services);
+      }
     }
 
-    // Cache imported models to avoid repeated dynamic imports
-    const modelCache = {};
+    // Request-specific model cache to avoid repeated imports within this request
+    const requestModelCache = {};
 
     async function getModel(modelKey) {
-      if (!modelCache[modelKey]) {
-        const importFunc = additionalModels[modelKey];
-        if (importFunc) {
-          const { default: Model } = await importFunc();
-          modelCache[modelKey] = Model;
-        }
+      if (requestModelCache[modelKey]) {
+        return requestModelCache[modelKey];
       }
-      return modelCache[modelKey];
+      
+      // Try to get from global cache first
+      if (globalModelCache[modelKey]) {
+        requestModelCache[modelKey] = globalModelCache[modelKey];
+        return globalModelCache[modelKey];
+      }
+      
+      // If not in cache, import it
+      const model = await getModelInstance(modelKey);
+      requestModelCache[modelKey] = model;
+      return model;
     }
 
     // Fetch absolute total clients and copies (regardless of filters)
@@ -505,66 +578,66 @@ async function fetchDataServices(
     if (advancedFilterData.adddate_regex) {
       try {
         // Create the today's date regex pattern
-        const todayRegex = advancedFilterData.adddate_regex;
+        const todayPattern = advancedFilterData.adddate_regex;
         
-        // First, find clients with the matching client adddate
-        const clientsAddedToday = await ClientModel.find({
-          adddate: { $regex: todayRegex, $options: "i" }
-        }).select("id").lean();
-        
-        // Create a set of client IDs that match the filter
-        const matchingClientIds = new Set(
-          clientsAddedToday.map(client => client.id)
-        );
-        
-        // Import all service models to check for services added/updated today
-        const { default: WmmModel } = await import("../../models/wmm.mjs");
-        const { default: FomModel } = await import("../../models/fom.mjs");
-        const { default: HrgModel } = await import("../../models/hrg.mjs");
-        const { default: CalModel } = await import("../../models/cal.mjs");
+        // Import all service models to check for services added/updated today if not already cached
+        const WmmModelInstance = await getModel("WmmModel");
+        const FomModelInstance = await getModel("FomModel");
+        const HrgModelInstance = await getModel("HrgModel");
+        const CalModelInstance = await getModel("CalModel");
         
         // Define all date fields to check for each model
-        const dateFields = {
+        const serviceDateFields = {
           WmmModel: ["adddate", "subsdate", "updatedate"],
           FomModel: ["adddate", "recvdate", "updatedate"],
           HrgModel: ["adddate", "recvdate", "updatedate"],
           CalModel: ["adddate", "recvdate", "caldate", "updatedate"]
         };
         
+        // First, find clients with the matching client adddate
+        const clientsWithTodaysDate = await ClientModel.find({
+          adddate: { $regex: todayPattern, $options: "i" }
+        }).select("id").lean();
+        
+        // Create a set of client IDs that match the filter
+        const clientIdsSet = new Set(
+          clientsWithTodaysDate.map(client => client.id)
+        );
+        
         // For each model, find clients with ANY date field matching today
-        const modelQueries = [
+        const modelQueriesPromises = [
           // WMM model date fields
-          ...dateFields.WmmModel.map(field => 
-            WmmModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.WmmModel.map(field => 
+            WmmModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
           ),
           // FOM model date fields
-          ...dateFields.FomModel.map(field => 
-            FomModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.FomModel.map(field => 
+            FomModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
           ),
           // HRG model date fields
-          ...dateFields.HrgModel.map(field => 
-            HrgModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.HrgModel.map(field => 
+            HrgModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
           ),
           // CAL model date fields
-          ...dateFields.CalModel.map(field => 
-            CalModel.find({ [field]: { $regex: todayRegex, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.CalModel.map(field => 
+            CalModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
           )
         ];
         
         // Execute all queries in parallel for better performance
-        const results = await Promise.all(modelQueries);
+        const queryResults = await Promise.all(modelQueriesPromises);
         
         // Add all clients with services added/updated today to the set
-        results.flat().forEach(clientId => {
+        queryResults.flat().forEach(clientId => {
           // Convert to number to ensure consistent type
           const numericId = Number(clientId);
           if (!isNaN(numericId)) {
-            matchingClientIds.add(numericId);
+            clientIdsSet.add(numericId);
           }
         });
         
         // Convert the set back to an array
-        const allMatchingClientIds = Array.from(matchingClientIds);
+        const allMatchingClientIds = Array.from(clientIdsSet);
         
         // Log for debugging
         console.log(`Found ${allMatchingClientIds.length} clients added/updated today`);
@@ -1076,6 +1149,54 @@ async function fetchDataServices(
       // Replace showActiveOnly boolean with subscriptionStatus check
       const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
       
+      // Normalize services array to ensure we have valid values
+      let targetServices = [];
+      try {
+        if (Array.isArray(advancedFilterData.services)) {
+          targetServices = advancedFilterData.services.map(s => 
+            typeof s === 'string' ? s.toUpperCase() : ''
+          ).filter(Boolean);
+        } else if (typeof advancedFilterData.services === 'string') {
+          targetServices = advancedFilterData.services
+            .split(',')
+            .map(s => s.trim().toUpperCase())
+            .filter(Boolean);
+        } else {
+          // Try to convert to string
+          try {
+            const servicesStr = String(advancedFilterData.services);
+            targetServices = servicesStr
+              .split(',')
+              .map(s => s.trim().toUpperCase())
+              .filter(Boolean);
+          } catch (e) {
+            console.error("Failed to convert services to string:", e);
+            targetServices = [];
+          }
+        }
+        
+        // If we couldn't get any services, return early
+        if (targetServices.length === 0) {
+          console.log("No valid services found, returning empty result");
+          return {
+            totalPages: 0,
+            combinedData: [],
+            totalCopies: 0,
+            pageSpecificCopies: 0,
+            totalCalQty: 0,
+            totalCalAmt: 0,
+            pageSpecificCalQty: 0,
+            pageSpecificCalAmt: 0,
+            clientServices: [],
+            noData: true,
+          };
+        }
+      } catch (error) {
+        console.error("Error normalizing services array:", error);
+        // If we encounter an error, still continue with the function using an empty array
+        targetServices = [];
+      }
+      
       // Get arrays of client IDs for each service type
       const allServiceTypeClients = await Promise.all(
         Object.keys(additionalModels).map(async (modelKey) => {
@@ -1156,10 +1277,9 @@ async function fetchDataServices(
         })
       );
       
-      // Get the target services we want to match
-      const targetServices = advancedFilterData.services.map(s => s.toUpperCase());
+      // Get the target services we want to match (we already normalized to uppercase)
       const targetServicesExceptWMM = targetServices.filter(s => s !== 'WMM');
-
+      
       if (exactMatchEnabled && targetServicesExceptWMM.length > 0) {
         // For exact match, we need to:
         // 1. Find clients that have ALL the selected services
@@ -1221,7 +1341,15 @@ async function fetchDataServices(
       } else {
         // Non-exact match (original logic) - Fetch client IDs that have the specified services
         const serviceClientIds = await Promise.all(
-          advancedFilterData.services.map(async (serviceName) => {
+          // First ensure services is an array to prevent map errors
+          (Array.isArray(advancedFilterData.services) 
+            ? advancedFilterData.services 
+            : typeof advancedFilterData.services === 'string'
+              ? advancedFilterData.services.split(',').map(s => s.trim()).filter(Boolean)
+              : [])
+          .map(async (serviceName) => {
+            if (!serviceName) return [];
+            
             const modelKey = Object.keys(additionalModels).find((key) =>
               key.toLowerCase().includes(serviceName.toLowerCase())
             );
@@ -1232,7 +1360,7 @@ async function fetchDataServices(
             
             // For FOM/HRG with showActiveOnly, only include active clients
             const showActiveOnly = !!advancedFilterData.showActiveOnly;
-            const serviceNameUpper = serviceName.toUpperCase();
+            const serviceNameUpper = typeof serviceName === 'string' ? serviceName.toUpperCase() : '';
             
             if (showActiveOnly && (serviceNameUpper === 'FOM' || serviceNameUpper === 'HRG')) {
               // Use a more specific approach for active records
@@ -2437,7 +2565,8 @@ async function fetchDataServices(
       };
     });
 
-    return {
+    // Store the result in cache before returning
+    const result = {
       totalPages,
       totalClients,
       currentPage: page,
@@ -2465,6 +2594,17 @@ async function fetchDataServices(
       absoluteTotalClients,
       absoluteTotalCopies,
     };
+    
+    // Add to cache
+    responseCache.set(cacheKey, result);
+    
+    // If cache is too large, remove oldest entry (LRU implementation)
+    if (responseCache.size > MAX_CACHE_SIZE) {
+      const oldestKey = responseCache.keys().next().value;
+      responseCache.delete(oldestKey);
+    }
+    
+    return result;
   } catch (error) {
     console.error(`Error in fetchDataServices:`, error);
     throw error;

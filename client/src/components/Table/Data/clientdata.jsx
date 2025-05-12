@@ -2,6 +2,9 @@ import axios from "axios";
 
 export const clientData = []; // Initialize as empty array
 
+// Keep track of in-flight requests to prevent race conditions
+const pendingRequests = new Map();
+
 export const fetchClients = async (
   page = 1,
   pageSize = 20,
@@ -10,23 +13,82 @@ export const fetchClients = async (
   advancedFilterData = {}
 ) => {
   try {
+    // Normalize filter parameters
+    const normalizedParams = {
+      page: Number(page) || 1,
+      pageSize: Number(pageSize) || 20,
+      filter: filter || "",
+      group: group || ""
+    };
+
+    // Process advanced filter data to ensure proper types
+    const processedAdvancedData = { ...advancedFilterData };
+    
+    // Ensure services is always an array
+    if (processedAdvancedData.services) {
+      if (typeof processedAdvancedData.services === 'string') {
+        processedAdvancedData.services = processedAdvancedData.services
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean);
+      } else if (!Array.isArray(processedAdvancedData.services)) {
+        processedAdvancedData.services = [];
+      }
+    }
+    
+    // Create a request ID based on the parameters to detect duplicates
+    const requestId = JSON.stringify({ 
+      ...normalizedParams, 
+      ...processedAdvancedData 
+    });
+    
+    // Cancel previous request with same parameters if it exists
+    if (pendingRequests.has(requestId)) {
+      const controller = pendingRequests.get(requestId);
+      controller.abort();
+      pendingRequests.delete(requestId);
+    }
+    
+    // Create abort controller for this request
+    const controller = new AbortController();
+    pendingRequests.set(requestId, controller);
+    
+    // Prepare URL and params
+    const baseUrl = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients`;
+    
+    // Build query string with proper URL encoding
+    const queryParams = new URLSearchParams();
+    
+    // Add base parameters
+    Object.entries(normalizedParams).forEach(([key, value]) => {
+      queryParams.append(key, value);
+    });
+    
+    // Add advanced filter parameters
+    Object.entries(processedAdvancedData).forEach(([key, value]) => {
+      // Handle arrays properly
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          queryParams.append(key, item);
+        });
+      } else if (value !== null && value !== undefined) {
+        queryParams.append(key, value);
+      }
+    });
+    
+    // Make the request
     const response = await axios.get(
-      `http://${
-        import.meta.env.VITE_IP_ADDRESS
-      }:3001/clients?page=${page}&pageSize=${pageSize}&filter=${encodeURIComponent(
-        filter
-      )}&group=${encodeURIComponent(group)}`,
+      `${baseUrl}?${queryParams.toString()}`,
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
-        params: {
-          ...advancedFilterData, // Include advanced filter data
-          birthdate: advancedFilterData.birthdate,
-          address: advancedFilterData.address,
-        },
+        signal: controller.signal
       }
     );
+    
+    // Remove request from pending list
+    pendingRequests.delete(requestId);
 
     const {
       totalPages,
@@ -83,7 +145,29 @@ export const fetchClients = async (
 
     if (!clientsData || !Array.isArray(clientsData)) {
       console.error("Invalid data format received:", response.data);
-      throw new Error("Invalid data format received from server");
+      
+      // Instead of throwing an error, return a valid object with empty data
+      return {
+        data: [],
+        totalPages: 0,
+        totalCopies: 0,
+        pageSpecificCopies: 0,
+        totalCalQty: 0,
+        totalCalAmt: 0,
+        pageSpecificCalQty: 0,
+        pageSpecificCalAmt: 0,
+        totalHrgAmt: 0,
+        totalFomAmt: 0,
+        totalCalPaymtAmt: 0,
+        pageSpecificHrgAmt: 0,
+        pageSpecificFomAmt: 0, 
+        pageSpecificCalPaymtAmt: 0,
+        totalClients: 0,
+        pageSpecificClients: 0,
+        absoluteTotalClients: 0,
+        absoluteTotalCopies: 0,
+        noData: true,
+      };
     }
 
     const processedData = clientsData.map((client) => ({
@@ -115,6 +199,12 @@ export const fetchClients = async (
       noData: false,
     };
   } catch (e) {
+    // Handle aborted requests (don't treat as errors)
+    if (e.name === 'AbortError' || e.name === 'CanceledError') {
+      console.log('Request was canceled due to a newer request');
+      return null;
+    }
+    
     console.error("Error fetching client data:", e);
     throw e;
   }

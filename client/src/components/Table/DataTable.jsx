@@ -131,6 +131,12 @@ export default function DataTable({
           advancedFilterData
         );
 
+        // Handle null response (cancelled request)
+        if (result === null) {
+          console.log("Request was cancelled, skipping data update");
+          return;
+        }
+
         if (Array.isArray(result)) {
           setLocalData(result);
           setTotalPages(1);
