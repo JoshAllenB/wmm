@@ -584,7 +584,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Company", name: "company" },
                   ])}
                 </div>
-
+  
                 {/* Address Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -594,7 +594,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Address", name: "address" },
                   ])}
                 </div>
-
+  
                 {/* Contact Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -607,7 +607,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Email", name: "email" },
                   ])}
                 </div>
-
+  
                 {/* Group Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -619,7 +619,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Remarks", name: "remarks" },
                   ])}
                 </div>
-
+  
                 {/* Subscription & Payment History Card */}
                 {wmmData && wmmData.length > 0 ? (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
@@ -636,36 +636,39 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     <p>No subscription or payment history available.</p>
                   </div>
                 )}
-
-                {/* HRG Data Card - Always show HRG data if available */}
-                {hrgData && hrgData.records && hrgData.records.length > 0 && (
-                  <div className="p-4 border rounded-lg shadow-sm">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      HRG Data
-                    </h2>
-                    {renderHrgData()}
-                  </div>
-                )}
-
-                {/* FOM Data Card - Always show FOM data if available */}
-                {fomData && fomData.records && fomData.records.length > 0 && (
-                  <div className="p-4 border rounded-lg shadow-sm">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      FOM Data
-                    </h2>
-                    {renderFomData()}
-                  </div>
-                )}
-
-                {/* CAL Data Card - Always show CAL data if available */}
-                {calData && calData.records && calData.records.length > 0 && (
-                  <div className="p-4 border rounded-lg shadow-sm">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      CAL Data
-                    </h2>
-                    {renderCalData()}
-                  </div>
-                )}
+  
+                {/* Always render HRG, FOM, and CAL data at the bottom */}
+                <div className="border border-gray-300 rounded-lg shadow-sm p-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 col-span-3">
+                {/* HRG Data Card */}
+                  {hrgData && hrgData.records && hrgData.records.length > 0 && (
+                    <div>
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        HRG Data
+                      </h2>
+                      {renderHrgData()}
+                    </div>
+                  )}
+  
+                  {/* FOM Data Card */}
+                  {fomData && fomData.records && fomData.records.length > 0 && (
+                    <div>
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        FOM Data
+                      </h2>
+                      {renderFomData()}
+                    </div>
+                  )}
+  
+                  {/* CAL Data Card */}
+                  {calData && calData.records && calData.records.length > 0 && (
+                    <div>
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        CAL Data
+                      </h2>
+                      {renderCalData()}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between mt-8 pt-4 border-t">
                 <div className="flex gap-1">
@@ -714,6 +717,6 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       )}
     </>
   );
-};
+  };
 
 export default View;
