@@ -1698,8 +1698,8 @@ async function fetchDataServices(
               // Apply subscription status filtering
               if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== 'all' && 
                   records && records.length > 0) {
-                const modelNameLower = modelNames[index].toLowerCase();
-                if (modelNameLower.includes("hrg") || modelNameLower.includes("fom")) {
+                const serviceTypeLower = serviceType.replace('Data', '').toLowerCase();
+                if (serviceTypeLower.includes("hrg") || serviceTypeLower.includes("fom")) {
                   if (advancedFilterData.subscriptionStatus === 'active') {
                     filteredRecords = records.filter(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
                   } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
