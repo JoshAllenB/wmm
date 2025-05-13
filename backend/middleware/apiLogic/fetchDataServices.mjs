@@ -86,7 +86,6 @@ async function fetchDataServices(
 
     // Check cache for this exact query
     if (responseCache.has(cacheKey)) {
-      console.log("✅ Using cached query result");
       return responseCache.get(cacheKey);
     }
 
@@ -125,10 +124,6 @@ async function fetchDataServices(
             .filter(Boolean);
         } else if (advancedFilterData.services) {
           // Try to convert to string as fallback
-          console.log(
-            "Services is not an array or string, attempting to convert:",
-            advancedFilterData.services
-          );
           try {
             const servicesStr = String(advancedFilterData.services);
             servicesArray = servicesStr
@@ -198,7 +193,6 @@ async function fetchDataServices(
       // Get total number of clients in the system
       try {
         absoluteTotalClients = await ClientModel.countDocuments({});
-        console.log(`Absolute total clients: ${absoluteTotalClients}`);
       } catch (clientError) {
         console.error("Error counting total clients:", clientError);
         absoluteTotalClients = 0;
@@ -268,25 +262,13 @@ async function fetchDataServices(
             },
           ]);
 
-          console.log(
-            "WMM total result (most recent subscriptions):",
-            wmmTotalResult
-          );
           absoluteTotalCopies =
             wmmTotalResult.length > 0 ? wmmTotalResult[0].totalCopies : 0;
           const clientsWithSubscriptions =
             wmmTotalResult.length > 0 ? wmmTotalResult[0].clientCount : 0;
-          console.log(
-            `Absolute total copies (from most recent subscriptions): ${absoluteTotalCopies}`
-          );
-          console.log(
-            `Number of clients with WMM subscriptions: ${clientsWithSubscriptions}`
-          );
         } catch (aggregationError) {
           console.error("Error during copies aggregation:", aggregationError);
 
-          // Fallback method if aggregation fails - simpler approach
-          console.log("Using fallback method to calculate total copies");
           try {
             // First get distinct client IDs that have WMM records
             const clientsWithWmm = await WmmModel.distinct("clientid");
@@ -320,9 +302,6 @@ async function fetchDataServices(
             }
 
             absoluteTotalCopies = totalCopies;
-            console.log(
-              `Fallback method - Total copies: ${totalCopies} from ${validRecords} valid records`
-            );
           } catch (fallbackError) {
             console.error(
               "Error in fallback copies calculation:",
@@ -378,8 +357,6 @@ async function fetchDataServices(
     // Handle user filter (filter clients by the user who created or modified them)
     if (advancedFilterData.userId) {
       try {
-        console.log("Filtering by user ID:", advancedFilterData.userId);
-
         // Get the username for this user ID
         const { default: UserModel } = await import(
           "../../models/userControl/users.mjs"
@@ -387,21 +364,11 @@ async function fetchDataServices(
         const userRecord = await UserModel.findById(advancedFilterData.userId);
 
         if (!userRecord || !userRecord.username) {
-          console.log(
-            "Could not find username for user ID:",
-            advancedFilterData.userId
-          );
           baseFilter.push({ id: -1 }); // No results if we can't find the username
           return;
         }
 
         const username = userRecord.username;
-        console.log(
-          "Found username:",
-          username,
-          "for user ID:",
-          advancedFilterData.userId
-        );
 
         // Import all service models to check for entries with this username
         const { default: WmmModel } = await import("../../models/wmm.mjs");
@@ -418,9 +385,6 @@ async function fetchDataServices(
         const clientsCreatedByUser = await ClientModel.find(
           adduserQuery
         ).distinct("id");
-        console.log(
-          `Found ${clientsCreatedByUser.length} clients created directly by ${username}`
-        );
 
         // Find clients with service records created by this user
         const [wmmClients, fomClients, hrgClients, calClients] =
@@ -430,13 +394,6 @@ async function fetchDataServices(
             HrgModel.find(adduserQuery).distinct("clientid"),
             CalModel.find(adduserQuery).distinct("clientid"),
           ]);
-
-        console.log(`Service records created by ${username}:`, {
-          wmm: wmmClients.length,
-          fom: fomClients.length,
-          hrg: hrgClients.length,
-          cal: calClients.length,
-        });
 
         // Combine all unique client IDs
         const matchingClients = new Set(
@@ -449,19 +406,13 @@ async function fetchDataServices(
           ].map((id) => Number(id))
         );
 
-        console.log(
-          `Total unique clients with records by ${username}: ${matchingClients.size}`
-        );
-
         if (matchingClients.size > 0) {
-          console.log("Found clients for username:", username);
           baseFilter.push({ id: { $in: Array.from(matchingClients) } });
 
           // Store the username in the filter data for use in filtering records later
           // This will be used to filter the service records to only show those created by this user
           advancedFilterData.usernameFilter = username;
         } else {
-          console.log("No clients found for username:", username);
           baseFilter.push({ id: -1 }); // No client has ID -1
         }
       } catch (error) {
@@ -734,11 +685,6 @@ async function fetchDataServices(
 
         // Convert the set back to an array
         const allMatchingClientIds = Array.from(clientIdsSet);
-
-        // Log for debugging
-        console.log(
-          `Found ${allMatchingClientIds.length} clients added/updated today`
-        );
 
         if (allMatchingClientIds.length > 0) {
           // Replace the simple adddate filter with a more comprehensive one
@@ -1321,7 +1267,6 @@ async function fetchDataServices(
 
         // If we couldn't get any services, return early
         if (targetServices.length === 0) {
-          console.log("No valid services found, returning empty result");
           return {
             totalPages: 0,
             combinedData: [],
@@ -1914,9 +1859,6 @@ async function fetchDataServices(
           dataObject.records.length > 0
         ) {
           const username = advancedFilterData.usernameFilter;
-          console.log(
-            `Filtering records by username: ${username} for client ${clientId}`
-          );
 
           // Filter records to only include those created by the selected user
           dataObject.records = dataObject.records.filter((record) => {
@@ -1926,10 +1868,6 @@ async function fetchDataServices(
                 record.adduser.toLowerCase() === username.toLowerCase())
             );
           });
-
-          console.log(
-            `After filtering: ${dataObject.records.length} records remain for client ${clientId}`
-          );
         }
 
         // If showActiveOnly is enabled, filter out unsubscribed records for HRG and FOM
@@ -1947,9 +1885,6 @@ async function fetchDataServices(
             dataObject.records = dataObject.records.filter((record) => {
               return record.unsubscribe !== 1 && record.unsubscribe !== true;
             });
-            console.log(
-              `After unsubscribe filtering: ${dataObject.records.length} records remain for client ${clientId}`
-            );
           }
         }
 
@@ -2082,9 +2017,6 @@ async function fetchDataServices(
                     (record) =>
                       record.unsubscribe !== 1 && record.unsubscribe !== true
                   );
-                  console.log(
-                    `Filtered records for ${serviceTypeUpper}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`
-                  );
                 }
               }
 
@@ -2115,13 +2047,6 @@ async function fetchDataServices(
                         record.unsubscribe === 1 || record.unsubscribe === true
                     );
                   }
-                  console.log(
-                    `Filtered records for ${serviceType
-                      .replace("Data", "")
-                      .toUpperCase()}, client ${clientId} based on subscription status: ${
-                      records.length
-                    } -> ${filteredRecords.length}`
-                  );
                 }
               }
 
@@ -2187,12 +2112,6 @@ async function fetchDataServices(
 
         return true;
       });
-
-      console.log(
-        `Filtered ${
-          combinedData.length - filteredCombinedData.length
-        } clients with only unsubscribed records`
-      );
     }
 
     // Replace with subscription status filtering
@@ -2247,12 +2166,6 @@ async function fetchDataServices(
 
         return true;
       });
-
-      console.log(
-        `Filtered ${
-          combinedData.length - filteredCombinedData.length
-        } clients based on subscription status`
-      );
     }
 
     // Calculate totalCopies using only the most recent copies for each client
@@ -2391,8 +2304,8 @@ async function fetchDataServices(
         // For both copies and calendar data, we only want to count the most recent entry for each client
         const clientLatestSubscriptions = new Map();
         const clientLatestCalEntries = new Map();
-        const clientLatestHrgEntries = new Map();
-        const clientLatestFomEntries = new Map();
+        let clientLatestHrgEntries = new Map();
+        let clientLatestFomEntries = new Map();
 
         // Find the most recent WMM subscription for each client
         for (const sub of filteredSubscriptions) {
@@ -2561,9 +2474,9 @@ async function fetchDataServices(
         // Sum up calendar quantities and amounts from the most recent entry for each client
         let calQtyTotal = 0;
         let calAmtTotal = 0;
-        let hrgTotalAmt = 0;
-        let fomTotalAmt = 0;
-        let calTotalPaymtAmt = 0;
+        let hrgAmtTotal = 0;
+        let fomAmtTotal = 0;
+        let calPaymtAmtTotal = 0;
 
         // Debugging counters
         let validCalQtyEntries = 0;
@@ -2608,7 +2521,7 @@ async function fetchDataServices(
 
             // Only add if it's a valid number
             if (!isNaN(calPaymtAmt) && calPaymtAmt > 0) {
-              calTotalPaymtAmt += calPaymtAmt;
+              calPaymtAmtTotal += calPaymtAmt;
               validCalPaymtEntries++;
             }
           }
@@ -2628,7 +2541,7 @@ async function fetchDataServices(
 
             // Only add if it's a valid number
             if (!isNaN(hrgAmt) && hrgAmt > 0) {
-              hrgTotalAmt += hrgAmt;
+              hrgAmtTotal += hrgAmt;
               validHrgAmtEntries++;
             }
           }
@@ -2644,7 +2557,7 @@ async function fetchDataServices(
 
             // Only add if it's a valid number
             if (!isNaN(fomAmt) && fomAmt > 0) {
-              fomTotalAmt += fomAmt;
+              fomAmtTotal += fomAmt;
               validFomAmtEntries++;
             }
           }
@@ -2655,9 +2568,9 @@ async function fetchDataServices(
           totalCopies: copiesTotal,
           totalCalQty: calQtyTotal,
           totalCalAmt: calAmtTotal,
-          totalHrgAmt: hrgTotalAmt,
-          totalFomAmt: fomTotalAmt,
-          totalCalPaymtAmt: calTotalPaymtAmt,
+          totalHrgAmt: hrgAmtTotal,
+          totalFomAmt: fomAmtTotal,
+          totalCalPaymtAmt: calPaymtAmtTotal,
           filteredTotalCopies: filteredTotalCopies,
           filteredTotalClients: filteredTotalClients,
         };
