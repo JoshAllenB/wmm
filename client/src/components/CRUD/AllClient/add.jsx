@@ -829,6 +829,16 @@ const Add = ({ fetchClients }) => {
   };
 
   const handleAreaChange = (field, value) => {
+    // If changing acode field, immediately clear duplicates and show loading state
+    if (field === "acode" && potentialDuplicates.length > 0) {
+      immediatelyClearDuplicates();
+    }
+
+    // Set loading state for acode changes
+    if (field === "acode" && value) {
+      setIsCheckingDuplicates(true);
+    }
+
     setAreaData((prevData) => {
       const newAreaData = {
         ...prevData,
@@ -837,18 +847,21 @@ const Add = ({ fetchClients }) => {
 
       // If acode changes, we should check for duplicates
       if (field === "acode" && value) {
-        const checkData = {
-          fname: formData.fname,
-          lname: formData.lname,
-          bdate: formData.bdate,
-          company: formData.company,
-          email: formData.email,
-          cellno: formData.cellno,
-          contactnos: formData.contactnos,
-          address: combinedAddress,
-          acode: value,
-        };
-        checkForDuplicates(checkData, "acode");
+        // Small delay to allow state updates
+        setTimeout(() => {
+          const checkData = {
+            fname: formData.fname,
+            lname: formData.lname,
+            bdate: formData.bdate,
+            company: formData.company,
+            email: formData.email,
+            cellno: formData.cellno,
+            contactnos: formData.contactnos,
+            address: combinedAddress,
+            acode: value,
+          };
+          checkForDuplicates(checkData, "acode");
+        }, 100);
       }
 
       return newAreaData;
