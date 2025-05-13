@@ -147,7 +147,6 @@ export default function DataTable({
 
         // Handle null response (cancelled request)
         if (result === null) {
-          console.log("Request was cancelled, skipping data update");
           return;
         }
 
@@ -328,8 +327,6 @@ export default function DataTable({
             pageSpecificClients={pageSpecificClients}
             filteredTotalCopies={totalCopies}
             filteredTotalClients={totalClients}
-            absoluteTotalClients={absoluteTotalClients}
-            absoluteTotalCopies={absoluteTotalCopies}
             userRole={userRole}
             animationComplete={animationComplete}
           />
