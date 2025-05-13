@@ -559,6 +559,62 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     return count;
   };
 
+  // Helper to get month name
+  const getMonthName = (monthNumber) => {
+    const monthIndex = parseInt(monthNumber) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return months[monthIndex].name;
+    }
+    return monthNumber;
+  };
+
+  // Helper function to safely format dates
+  const formatSafeDate = (dateStr) => {
+    if (!dateStr) return "";
+
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // If invalid date, return the string as is
+        return dateStr;
+      }
+
+      // Format as MM/DD/YYYY
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateStr; // Return original string on error
+    }
+  };
+
+  // Helper function to format dates with month names
+  const formatDateWithMonthName = (dateStr) => {
+    if (!dateStr) return "";
+
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // If invalid date, return the string as is
+        return dateStr;
+      }
+
+      // Get month name from the months array
+      const monthIndex = date.getMonth();
+      const monthName = months[monthIndex].name;
+
+      // Format as "Month Day, Year"
+      const day = date.getDate();
+      const year = date.getFullYear();
+      return `${monthName} ${day}, ${year}`;
+    } catch (error) {
+      console.error("Error formatting date with month name:", error);
+      return dateStr; // Return original string on error
+    }
+  };
+
   // Get active filters for display
   const getActiveFilters = () => {
     // Define field mappings with their display labels
@@ -567,7 +623,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       lname: "Last Name",
       mname: "Middle Name",
       sname: "Suffix",
-      birthdate: "Birth Date",
       email: "Email",
       cellno: "Cell Number",
       ofcno: "Office Number",
@@ -586,20 +641,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       type: (value) => types.find((t) => t.id === value)?.name || value,
       subsclass: (value) =>
         subclasses.find((s) => s.id === value)?.name || value,
-      areas: (value) => `${value.length} selected`,
     };
 
     // Handle date range as a special case
     const active = [];
-
-    // Helper to get month name
-    const getMonthName = (monthNumber) => {
-      const monthIndex = parseInt(monthNumber) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        return months[monthIndex].name;
-      }
-      return monthNumber;
-    };
 
     // Helper to format date from components
     const formatDateDisplay = (month, day, year) => {
@@ -697,18 +742,37 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       filterData.wmmActiveDay ||
       filterData.wmmActiveYear
     ) {
-      const activeDisplay = formatDateDisplay(
-        filterData.wmmActiveMonth,
-        filterData.wmmActiveDay,
-        filterData.wmmActiveYear
-      );
+      // Check if we have all required components
+      if (filterData.wmmActiveMonth) {
+        const monthName = getMonthName(filterData.wmmActiveMonth);
+        const year =
+          filterData.wmmActiveYear || new Date().getFullYear().toString();
+        const day = filterData.wmmActiveDay || "";
 
-      if (activeDisplay) {
+        let displayValue = `${monthName} ${year}`;
+        if (day) {
+          displayValue = `${monthName} ${day}, ${year}`;
+        }
+
         active.push({
           label: "Active Month",
-          value: activeDisplay,
+          value: displayValue,
           key: "wmmActiveMonth",
         });
+      } else {
+        const activeDisplay = formatDateDisplay(
+          filterData.wmmActiveMonth,
+          filterData.wmmActiveDay,
+          filterData.wmmActiveYear
+        );
+
+        if (activeDisplay) {
+          active.push({
+            label: "Active Month",
+            value: activeDisplay,
+            key: "wmmActiveMonth",
+          });
+        }
       }
     }
 
@@ -718,18 +782,37 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       filterData.wmmExpiringDay ||
       filterData.wmmExpiringYear
     ) {
-      const expiringDisplay = formatDateDisplay(
-        filterData.wmmExpiringMonth,
-        filterData.wmmExpiringDay,
-        filterData.wmmExpiringYear
-      );
+      // Check if we have all required components
+      if (filterData.wmmExpiringMonth) {
+        const monthName = getMonthName(filterData.wmmExpiringMonth);
+        const year =
+          filterData.wmmExpiringYear || new Date().getFullYear().toString();
+        const day = filterData.wmmExpiringDay || "";
 
-      if (expiringDisplay) {
+        let displayValue = `${monthName} ${year}`;
+        if (day) {
+          displayValue = `${monthName} ${day}, ${year}`;
+        }
+
         active.push({
           label: "Expiring Month",
-          value: expiringDisplay,
+          value: displayValue,
           key: "wmmExpiringMonth",
         });
+      } else {
+        const expiringDisplay = formatDateDisplay(
+          filterData.wmmExpiringMonth,
+          filterData.wmmExpiringDay,
+          filterData.wmmExpiringYear
+        );
+
+        if (expiringDisplay) {
+          active.push({
+            label: "Expiring Month",
+            value: expiringDisplay,
+            key: "wmmExpiringMonth",
+          });
+        }
       }
     }
 
@@ -765,12 +848,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       filterData.clientIdFilterType === "include" &&
       filterData.clientIncludeIds.trim()
     ) {
-      const count = filterData.clientIncludeIds
+      const idsList = filterData.clientIncludeIds
         .split(/[\s,]+/)
-        .filter((id) => id.trim() !== "").length;
+        .filter((id) => id.trim() !== "");
+
+      let displayValue;
+      if (idsList.length <= 5) {
+        displayValue = idsList.join(", ");
+      } else {
+        displayValue = `${idsList.slice(0, 5).join(", ")}... (${
+          idsList.length
+        } total)`;
+      }
+
       active.push({
         label: "Include Clients",
-        value: `${count} client(s)`,
+        value: displayValue,
         key: "clientIncludeIds",
       });
     }
@@ -779,12 +872,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       filterData.clientIdFilterType === "exclude" &&
       filterData.clientExcludeIds.trim()
     ) {
-      const count = filterData.clientExcludeIds
+      const idsList = filterData.clientExcludeIds
         .split(/[\s,]+/)
-        .filter((id) => id.trim() !== "").length;
+        .filter((id) => id.trim() !== "");
+
+      let displayValue;
+      if (idsList.length <= 5) {
+        displayValue = idsList.join(", ");
+      } else {
+        displayValue = `${idsList.slice(0, 5).join(", ")}... (${
+          idsList.length
+        } total)`;
+      }
+
       active.push({
         label: "Exclude Clients",
-        value: `${count} client(s)`,
+        value: displayValue,
         key: "clientExcludeIds",
       });
     }
@@ -841,21 +944,20 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     // Add Areas as a special case - making sure this works properly
     if (filterData.areas && filterData.areas.length > 0) {
-      // For simplicity, we'll show how many areas are selected
-      const selectedAreas = filterData.areas.length;
-
       // Create area labels by finding area names in the areas array
       const areaLabels = filterData.areas.map((areaId) => {
         const area = areas.find((a) => a._id === areaId);
         return area ? area._id : areaId;
       });
 
-      // Show first few area names if there aren't too many
+      // Show all area names, or first few with ellipsis if there are many
       let displayValue = "";
-      if (selectedAreas <= 3) {
+      if (areaLabels.length <= 3) {
         displayValue = areaLabels.join(", ");
       } else {
-        displayValue = `${selectedAreas} areas selected`;
+        displayValue = `${areaLabels.slice(0, 3).join(", ")}... (${
+          areaLabels.length
+        } total)`;
       }
 
       active.push({
@@ -869,6 +971,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     Object.entries(fieldMappings).forEach(([key, label]) => {
       // Skip areas since we handled it as a special case
       if (key === "areas") return;
+
+      // Skip birthdate too as it's handled separately
+      if (key === "birthdate") return;
 
       const value = filterData[key];
 
@@ -888,6 +993,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
       active.push({ label, value: displayValue, key });
     });
+
+    // Add birthdate separately with proper formatting
+    if (filterData.birthdate) {
+      active.push({
+        label: "Birth Date",
+        value: formatDateWithMonthName(filterData.birthdate),
+        key: "birthdate",
+      });
+    }
 
     return active;
   };
