@@ -34,11 +34,16 @@ export const PaginationComponent = ({
             value={pageSize}
             onChange={handlePageSizeChange}
           >
-            {[10, 20, 30, 50, 100].map((size) => (
-              <option key={size} value={size}>
-                {size}
-              </option>
-            ))}
+            {[10, 20, 30, 50, 100, 500, { label: "All", value: 100000 }].map(
+              (size) => (
+                <option
+                  key={typeof size === "object" ? size.value : size}
+                  value={typeof size === "object" ? size.value : size}
+                >
+                  {typeof size === "object" ? size.label : size}
+                </option>
+              )
+            )}
           </select>
         </div>
 
