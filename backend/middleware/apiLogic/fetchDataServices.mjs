@@ -20,7 +20,7 @@ async function getModelInstance(modelKey) {
   if (globalModelCache[modelKey]) {
     return globalModelCache[modelKey];
   }
-  
+
   const importFunc = additionalModels[modelKey];
   if (importFunc) {
     try {
@@ -32,18 +32,20 @@ async function getModelInstance(modelKey) {
       throw error;
     }
   }
-  
+
   throw new Error(`Unknown model key: ${modelKey}`);
 }
 
 function validatePaginationParams(page, limit) {
   // Ensure page and limit are numbers
-  const validPage = typeof page === 'number' && !isNaN(page) ? Math.max(1, page) : 1;
-  const validLimit = typeof limit === 'number' && !isNaN(limit) ? Math.max(1, limit) : 20;
-  
+  const validPage =
+    typeof page === "number" && !isNaN(page) ? Math.max(1, page) : 1;
+  const validLimit =
+    typeof limit === "number" && !isNaN(limit) ? Math.max(1, limit) : 20;
+
   // Calculate skip value
   const skip = (validPage - 1) * validLimit;
-  
+
   return { validPage, validLimit, skip };
 }
 
@@ -58,7 +60,7 @@ function generateCacheKey(filter, page, limit, group, advancedFilterData) {
     page,
     limit,
     group,
-    advancedFilterData
+    advancedFilterData,
   });
 }
 
@@ -74,16 +76,25 @@ async function fetchDataServices(
 ) {
   try {
     // Generate cache key from query parameters
-    const cacheKey = generateCacheKey(filter, page, limit, group, advancedFilterData);
-    
+    const cacheKey = generateCacheKey(
+      filter,
+      page,
+      limit,
+      group,
+      advancedFilterData
+    );
+
     // Check cache for this exact query
     if (responseCache.has(cacheKey)) {
-      console.log('✅ Using cached query result');
+      console.log("✅ Using cached query result");
       return responseCache.get(cacheKey);
     }
-    
+
     // Validate pagination parameters to prevent NaN issues
-    const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
+    const { validPage, validLimit, skip } = validatePaginationParams(
+      page,
+      limit
+    );
 
     // Update references to page and limit with the validated values
     page = validPage;
@@ -94,50 +105,68 @@ async function fetchDataServices(
     if (advancedFilterData && advancedFilterData.services) {
       let servicesToAdd = [];
       const serviceMap = {
-        "WMM": "WmmModel",
-        "HRG": "HrgModel",
-        "FOM": "FomModel",
-        "CAL": "CalModel"
+        WMM: "WmmModel",
+        HRG: "HrgModel",
+        FOM: "FomModel",
+        CAL: "CalModel",
       };
-      
+
       // Process services whether it's an array or comma-separated string
       let servicesArray = [];
 
       try {
         if (Array.isArray(advancedFilterData.services)) {
           servicesArray = advancedFilterData.services;
-        } else if (typeof advancedFilterData.services === 'string') {
+        } else if (typeof advancedFilterData.services === "string") {
           // Handle string format - could be a single service or comma-separated list
-          servicesArray = advancedFilterData.services.split(',').map(s => s.trim()).filter(Boolean);
+          servicesArray = advancedFilterData.services
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
         } else if (advancedFilterData.services) {
           // Try to convert to string as fallback
-          console.log("Services is not an array or string, attempting to convert:", advancedFilterData.services);
+          console.log(
+            "Services is not an array or string, attempting to convert:",
+            advancedFilterData.services
+          );
           try {
             const servicesStr = String(advancedFilterData.services);
-            servicesArray = servicesStr.split(',').map(s => s.trim()).filter(Boolean);
+            servicesArray = servicesStr
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
           } catch (e) {
             console.error("Failed to convert services to string:", e);
           }
         }
-        
+
         // Map services to model names with correct formatting
-        servicesToAdd = servicesArray.map(service => {
-          if (!service) return null;
-          // Normalize the service name to handle case inconsistencies
-          const serviceUpper = typeof service === 'string' ? service.toUpperCase() : '';
-          return serviceMap[serviceUpper];
-        }).filter(Boolean);
-        
+        servicesToAdd = servicesArray
+          .map((service) => {
+            if (!service) return null;
+            // Normalize the service name to handle case inconsistencies
+            const serviceUpper =
+              typeof service === "string" ? service.toUpperCase() : "";
+            return serviceMap[serviceUpper];
+          })
+          .filter(Boolean);
+
         // Add service models to modelNames if not already included
-        servicesToAdd.forEach(modelName => {
+        servicesToAdd.forEach((modelName) => {
           if (!modelNames.includes(modelName)) {
             modelNames.push(modelName);
           }
         });
       } catch (error) {
         console.error("Error processing services parameter:", error);
-        console.error("advancedFilterData.services type:", typeof advancedFilterData.services);
-        console.error("advancedFilterData.services value:", advancedFilterData.services);
+        console.error(
+          "advancedFilterData.services type:",
+          typeof advancedFilterData.services
+        );
+        console.error(
+          "advancedFilterData.services value:",
+          advancedFilterData.services
+        );
       }
     }
 
@@ -148,13 +177,13 @@ async function fetchDataServices(
       if (requestModelCache[modelKey]) {
         return requestModelCache[modelKey];
       }
-      
+
       // Try to get from global cache first
       if (globalModelCache[modelKey]) {
         requestModelCache[modelKey] = globalModelCache[modelKey];
         return globalModelCache[modelKey];
       }
-      
+
       // If not in cache, import it
       const model = await getModelInstance(modelKey);
       requestModelCache[modelKey] = model;
@@ -174,26 +203,26 @@ async function fetchDataServices(
         console.error("Error counting total clients:", clientError);
         absoluteTotalClients = 0;
       }
-      
+
       // Get total number of copies from all WMM records
       try {
         const { default: WmmModel } = await import("../../models/wmm.mjs");
-        
+
         // Calculate total copies by getting the most recent subscription for each client
         // and then summing those copies
         try {
           const wmmTotalResult = await WmmModel.aggregate([
             // Sort by clientid and subsdate in descending order
             { $sort: { clientid: 1, subsdate: -1 } },
-            
+
             // Group by clientid to get only the most recent record for each client
             {
               $group: {
                 _id: "$clientid",
-                copies: { $first: "$copies" } // Get copies from most recent record
-              }
+                copies: { $first: "$copies" }, // Get copies from most recent record
+              },
             },
-            
+
             // Add a stage to convert copies to a numeric value
             {
               $addFields: {
@@ -201,57 +230,79 @@ async function fetchDataServices(
                   $cond: [
                     { $eq: [{ $type: "$copies" }, "string"] },
                     // If it's a string, try to convert to int
-                    { 
-                      $toInt: { 
+                    {
+                      $toInt: {
                         $cond: [
-                          { $regexMatch: { input: { $ifNull: ["$copies", "0"] }, regex: /^\d+$/ } },
+                          {
+                            $regexMatch: {
+                              input: { $ifNull: ["$copies", "0"] },
+                              regex: /^\d+$/,
+                            },
+                          },
                           { $ifNull: ["$copies", "0"] }, // If it's a valid number string, use it
-                          "0" // Otherwise default to 0
-                        ]
-                      }
+                          "0", // Otherwise default to 0
+                        ],
+                      },
                     },
                     // If it's already a number or other type, convert safely
-                    { $convert: { input: { $ifNull: ["$copies", 0] }, to: "int", onError: 0, onNull: 0 } }
-                  ]
-                }
-              }
+                    {
+                      $convert: {
+                        input: { $ifNull: ["$copies", 0] },
+                        to: "int",
+                        onError: 0,
+                        onNull: 0,
+                      },
+                    },
+                  ],
+                },
+              },
             },
-            
+
             // Convert copies to integer and sum them up
             {
               $group: {
                 _id: null,
                 totalCopies: { $sum: "$numericCopies" },
-                clientCount: { $sum: 1 } // Count how many clients have subscriptions
-              }
-            }
+                clientCount: { $sum: 1 }, // Count how many clients have subscriptions
+              },
+            },
           ]);
-          
-          console.log("WMM total result (most recent subscriptions):", wmmTotalResult);
-          absoluteTotalCopies = wmmTotalResult.length > 0 ? wmmTotalResult[0].totalCopies : 0;
-          const clientsWithSubscriptions = wmmTotalResult.length > 0 ? wmmTotalResult[0].clientCount : 0;
-          console.log(`Absolute total copies (from most recent subscriptions): ${absoluteTotalCopies}`);
-          console.log(`Number of clients with WMM subscriptions: ${clientsWithSubscriptions}`);
+
+          console.log(
+            "WMM total result (most recent subscriptions):",
+            wmmTotalResult
+          );
+          absoluteTotalCopies =
+            wmmTotalResult.length > 0 ? wmmTotalResult[0].totalCopies : 0;
+          const clientsWithSubscriptions =
+            wmmTotalResult.length > 0 ? wmmTotalResult[0].clientCount : 0;
+          console.log(
+            `Absolute total copies (from most recent subscriptions): ${absoluteTotalCopies}`
+          );
+          console.log(
+            `Number of clients with WMM subscriptions: ${clientsWithSubscriptions}`
+          );
         } catch (aggregationError) {
           console.error("Error during copies aggregation:", aggregationError);
-          
+
           // Fallback method if aggregation fails - simpler approach
           console.log("Using fallback method to calculate total copies");
           try {
             // First get distinct client IDs that have WMM records
             const clientsWithWmm = await WmmModel.distinct("clientid");
-            
+
             // Then for each client, get their most recent subscription
             let totalCopies = 0;
             let validRecords = 0;
-            
-            for (const clientId of clientsWithWmm.slice(0, 1000)) { // Limit to first 1000 to avoid timeouts
+
+            for (const clientId of clientsWithWmm.slice(0, 1000)) {
+              // Limit to first 1000 to avoid timeouts
               try {
                 const latestSubscription = await WmmModel.findOne(
                   { clientid: clientId },
                   { copies: 1 }
                 ).sort({ subsdate: -1 });
-                
+
                 if (latestSubscription && latestSubscription.copies) {
                   const copies = parseInt(latestSubscription.copies);
                   if (!isNaN(copies) && copies > 0) {
@@ -261,14 +312,22 @@ async function fetchDataServices(
                 }
               } catch (clientLookupError) {
                 // Skip this client if there's an error
-                console.error(`Error processing client ${clientId}:`, clientLookupError);
+                console.error(
+                  `Error processing client ${clientId}:`,
+                  clientLookupError
+                );
               }
             }
-            
+
             absoluteTotalCopies = totalCopies;
-            console.log(`Fallback method - Total copies: ${totalCopies} from ${validRecords} valid records`);
+            console.log(
+              `Fallback method - Total copies: ${totalCopies} from ${validRecords} valid records`
+            );
           } catch (fallbackError) {
-            console.error("Error in fallback copies calculation:", fallbackError);
+            console.error(
+              "Error in fallback copies calculation:",
+              fallbackError
+            );
             absoluteTotalCopies = 0;
           }
         }
@@ -306,13 +365,13 @@ async function fetchDataServices(
 
     // Add exclude SPack clients filter if enabled
     if (advancedFilterData.excludeSPackClients) {
-      baseFilter.push({ 
-        group: { 
-          $not: { 
-            $regex: "SPack", 
-            $options: "i" 
-          } 
-        } 
+      baseFilter.push({
+        group: {
+          $not: {
+            $regex: "SPack",
+            $options: "i",
+          },
+        },
       });
     }
 
@@ -320,63 +379,84 @@ async function fetchDataServices(
     if (advancedFilterData.userId) {
       try {
         console.log("Filtering by user ID:", advancedFilterData.userId);
-        
+
         // Get the username for this user ID
-        const { default: UserModel } = await import("../../models/userControl/users.mjs");
+        const { default: UserModel } = await import(
+          "../../models/userControl/users.mjs"
+        );
         const userRecord = await UserModel.findById(advancedFilterData.userId);
-        
+
         if (!userRecord || !userRecord.username) {
-          console.log("Could not find username for user ID:", advancedFilterData.userId);
+          console.log(
+            "Could not find username for user ID:",
+            advancedFilterData.userId
+          );
           baseFilter.push({ id: -1 }); // No results if we can't find the username
           return;
         }
-        
+
         const username = userRecord.username;
-        console.log("Found username:", username, "for user ID:", advancedFilterData.userId);
-        
+        console.log(
+          "Found username:",
+          username,
+          "for user ID:",
+          advancedFilterData.userId
+        );
+
         // Import all service models to check for entries with this username
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         const { default: FomModel } = await import("../../models/fom.mjs");
         const { default: HrgModel } = await import("../../models/hrg.mjs");
         const { default: CalModel } = await import("../../models/cal.mjs");
-        
+
         // Create a simple adduser query that works across all models
-        const adduserQuery = { adduser: { $regex: `^${username}$`, $options: 'i' } };
-        
+        const adduserQuery = {
+          adduser: { $regex: `^${username}$`, $options: "i" },
+        };
+
         // Find clients created by this user directly in the clients collection
-        const clientsCreatedByUser = await ClientModel.find(adduserQuery).distinct("id");
-        console.log(`Found ${clientsCreatedByUser.length} clients created directly by ${username}`);
-        
+        const clientsCreatedByUser = await ClientModel.find(
+          adduserQuery
+        ).distinct("id");
+        console.log(
+          `Found ${clientsCreatedByUser.length} clients created directly by ${username}`
+        );
+
         // Find clients with service records created by this user
-        const [wmmClients, fomClients, hrgClients, calClients] = await Promise.all([
-          WmmModel.find(adduserQuery).distinct("clientid"),
-          FomModel.find(adduserQuery).distinct("clientid"),
-          HrgModel.find(adduserQuery).distinct("clientid"),
-          CalModel.find(adduserQuery).distinct("clientid")
-        ]);
-        
+        const [wmmClients, fomClients, hrgClients, calClients] =
+          await Promise.all([
+            WmmModel.find(adduserQuery).distinct("clientid"),
+            FomModel.find(adduserQuery).distinct("clientid"),
+            HrgModel.find(adduserQuery).distinct("clientid"),
+            CalModel.find(adduserQuery).distinct("clientid"),
+          ]);
+
         console.log(`Service records created by ${username}:`, {
           wmm: wmmClients.length,
           fom: fomClients.length,
           hrg: hrgClients.length,
-          cal: calClients.length
+          cal: calClients.length,
         });
-        
+
         // Combine all unique client IDs
-        const matchingClients = new Set([
-          ...clientsCreatedByUser,
-          ...wmmClients, 
-          ...fomClients, 
-          ...hrgClients, 
-          ...calClients
-        ].map(id => Number(id)));
-        
-        console.log(`Total unique clients with records by ${username}: ${matchingClients.size}`);
-        
+        const matchingClients = new Set(
+          [
+            ...clientsCreatedByUser,
+            ...wmmClients,
+            ...fomClients,
+            ...hrgClients,
+            ...calClients,
+          ].map((id) => Number(id))
+        );
+
+        console.log(
+          `Total unique clients with records by ${username}: ${matchingClients.size}`
+        );
+
         if (matchingClients.size > 0) {
           console.log("Found clients for username:", username);
           baseFilter.push({ id: { $in: Array.from(matchingClients) } });
-          
+
           // Store the username in the filter data for use in filtering records later
           // This will be used to filter the service records to only show those created by this user
           advancedFilterData.usernameFilter = username;
@@ -428,9 +508,9 @@ async function fetchDataServices(
                 { lname: { $regex: part, $options: "i" } },
                 { mname: { $regex: part, $options: "i" } },
                 { sname: { $regex: part, $options: "i" } },
-                { company: { $regex: part, $options: "i" } }
-              ]
-            }))
+                { company: { $regex: part, $options: "i" } },
+              ],
+            })),
           });
         }
 
@@ -456,13 +536,13 @@ async function fetchDataServices(
                         { fname: { $regex: part, $options: "i" } },
                         { mname: { $regex: part, $options: "i" } },
                         { sname: { $regex: part, $options: "i" } },
-                        { company: { $regex: part, $options: "i" } }
-                      ]
-                    }))
-                  }
+                        { company: { $regex: part, $options: "i" } },
+                      ],
+                    })),
+                  },
                 ]
-              : [])
-          ]
+              : []),
+          ],
         });
 
         // --- Add scoring for relevance ---
@@ -482,24 +562,30 @@ async function fetchDataServices(
     }
 
     // Handle client ID inclusion filter (whitelist)
-    if (Array.isArray(advancedFilterData.includeClientIds) && advancedFilterData.includeClientIds.length > 0) {
+    if (
+      Array.isArray(advancedFilterData.includeClientIds) &&
+      advancedFilterData.includeClientIds.length > 0
+    ) {
       // Convert all IDs to numbers to ensure consistency
       const validIds = advancedFilterData.includeClientIds
-        .map(id => typeof id === 'string' ? parseInt(id) : id)
-        .filter(id => !isNaN(id));
-      
+        .map((id) => (typeof id === "string" ? parseInt(id) : id))
+        .filter((id) => !isNaN(id));
+
       if (validIds.length > 0) {
         baseFilter.push({ id: { $in: validIds } });
       }
     }
 
     // Handle client ID exclusion filter (blacklist)
-    if (Array.isArray(advancedFilterData.excludeClientIds) && advancedFilterData.excludeClientIds.length > 0) {
+    if (
+      Array.isArray(advancedFilterData.excludeClientIds) &&
+      advancedFilterData.excludeClientIds.length > 0
+    ) {
       // Convert all IDs to numbers to ensure consistency
       const validIds = advancedFilterData.excludeClientIds
-        .map(id => typeof id === 'string' ? parseInt(id) : id)
-        .filter(id => !isNaN(id));
-      
+        .map((id) => (typeof id === "string" ? parseInt(id) : id))
+        .filter((id) => !isNaN(id));
+
       if (validIds.length > 0) {
         baseFilter.push({ id: { $nin: validIds } });
       }
@@ -512,24 +598,24 @@ async function fetchDataServices(
       try {
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         const paymentRef = advancedFilterData.paymentRef.trim();
-        
+
         // For MS references, extract the core reference number
         let refPattern = paymentRef;
-        
+
         // Extract the core MS number (e.g., "MS 001488" becomes "MS001488" or "MS.*001488")
         const msMatch = paymentRef.match(/^([A-Z]{2})\s*(\d{6})/i);
         if (msMatch) {
           // Create a regex pattern that's flexible about spaces and leading zeros
           const prefix = msMatch[1].toUpperCase();
           const numbers = msMatch[2];
-          
+
           // Create a regex that will match the pattern regardless of spaces, but preserve digits
-          refPattern = `${prefix}.*${numbers.replace(/^0+/, '')}`;
+          refPattern = `${prefix}.*${numbers.replace(/^0+/, "")}`;
         }
 
         // Find clients with matching payment references
         const clientsWithPaymentRef = await WmmModel.find({
-          paymtref: { $regex: refPattern, $options: "i" }
+          paymtref: { $regex: refPattern, $options: "i" },
         }).distinct("clientid");
 
         if (clientsWithPaymentRef.length > 0) {
@@ -579,69 +665,81 @@ async function fetchDataServices(
       try {
         // Create the today's date regex pattern
         const todayPattern = advancedFilterData.adddate_regex;
-        
+
         // Import all service models to check for services added/updated today if not already cached
         const WmmModelInstance = await getModel("WmmModel");
         const FomModelInstance = await getModel("FomModel");
         const HrgModelInstance = await getModel("HrgModel");
         const CalModelInstance = await getModel("CalModel");
-        
+
         // Define all date fields to check for each model
         const serviceDateFields = {
           WmmModel: ["adddate", "subsdate", "updatedate"],
           FomModel: ["adddate", "recvdate", "updatedate"],
           HrgModel: ["adddate", "recvdate", "updatedate"],
-          CalModel: ["adddate", "recvdate", "caldate", "updatedate"]
+          CalModel: ["adddate", "recvdate", "caldate", "updatedate"],
         };
-        
+
         // First, find clients with the matching client adddate
         const clientsWithTodaysDate = await ClientModel.find({
-          adddate: { $regex: todayPattern, $options: "i" }
-        }).select("id").lean();
-        
+          adddate: { $regex: todayPattern, $options: "i" },
+        })
+          .select("id")
+          .lean();
+
         // Create a set of client IDs that match the filter
         const clientIdsSet = new Set(
-          clientsWithTodaysDate.map(client => client.id)
+          clientsWithTodaysDate.map((client) => client.id)
         );
-        
+
         // For each model, find clients with ANY date field matching today
         const modelQueriesPromises = [
           // WMM model date fields
-          ...serviceDateFields.WmmModel.map(field => 
-            WmmModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.WmmModel.map((field) =>
+            WmmModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
           ),
           // FOM model date fields
-          ...serviceDateFields.FomModel.map(field => 
-            FomModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.FomModel.map((field) =>
+            FomModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
           ),
           // HRG model date fields
-          ...serviceDateFields.HrgModel.map(field => 
-            HrgModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
+          ...serviceDateFields.HrgModel.map((field) =>
+            HrgModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
           ),
           // CAL model date fields
-          ...serviceDateFields.CalModel.map(field => 
-            CalModelInstance.find({ [field]: { $regex: todayPattern, $options: "i" } }).distinct("clientid")
-          )
+          ...serviceDateFields.CalModel.map((field) =>
+            CalModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
+          ),
         ];
-        
+
         // Execute all queries in parallel for better performance
         const queryResults = await Promise.all(modelQueriesPromises);
-        
+
         // Add all clients with services added/updated today to the set
-        queryResults.flat().forEach(clientId => {
+        queryResults.flat().forEach((clientId) => {
           // Convert to number to ensure consistent type
           const numericId = Number(clientId);
           if (!isNaN(numericId)) {
             clientIdsSet.add(numericId);
           }
         });
-        
+
         // Convert the set back to an array
         const allMatchingClientIds = Array.from(clientIdsSet);
-        
+
         // Log for debugging
-        console.log(`Found ${allMatchingClientIds.length} clients added/updated today`);
-        
+        console.log(
+          `Found ${allMatchingClientIds.length} clients added/updated today`
+        );
+
         if (allMatchingClientIds.length > 0) {
           // Replace the simple adddate filter with a more comprehensive one
           baseFilter.push({ id: { $in: allMatchingClientIds } });
@@ -650,10 +748,13 @@ async function fetchDataServices(
           baseFilter.push({ id: -1 });
         }
       } catch (error) {
-        console.error("Error processing Added Today filter for services:", error);
+        console.error(
+          "Error processing Added Today filter for services:",
+          error
+        );
         // Fall back to the original client-only filter
-        baseFilter.push({ 
-          adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" } 
+        baseFilter.push({
+          adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" },
         });
       }
     }
@@ -664,25 +765,28 @@ async function fetchDataServices(
     }
 
     // Add exact area matching for selected areas
-    if (Array.isArray(advancedFilterData.areas) && advancedFilterData.areas.length > 0) {
+    if (
+      Array.isArray(advancedFilterData.areas) &&
+      advancedFilterData.areas.length > 0
+    ) {
       // If exactAreaMatch is true, use exact matching
       if (advancedFilterData.exactAreaMatch) {
         // Create an array of exact match conditions for each area
-        baseFilter.push({ 
-          acode: { 
-            $in: advancedFilterData.areas.map(area => area) 
-          } 
+        baseFilter.push({
+          acode: {
+            $in: advancedFilterData.areas.map((area) => area),
+          },
         });
       } else {
         // Use regex matching for backward compatibility - this will find partial matches
-        const areaRegexPatterns = advancedFilterData.areas.map(area => 
-          new RegExp(`^${area}$|^${area}\\s|^${area}$`, 'i')
+        const areaRegexPatterns = advancedFilterData.areas.map(
+          (area) => new RegExp(`^${area}$|^${area}\\s|^${area}$`, "i")
         );
-        
-        baseFilter.push({ 
-          acode: { 
-            $in: areaRegexPatterns 
-          } 
+
+        baseFilter.push({
+          acode: {
+            $in: areaRegexPatterns,
+          },
         });
       }
     }
@@ -699,88 +803,102 @@ async function fetchDataServices(
         const { default: HrgModel } = await import("../../models/hrg.mjs");
         const { default: FomModel } = await import("../../models/fom.mjs");
         const { default: CalModel } = await import("../../models/cal.mjs");
-        
+
         // Parse dates (they come in MM/DD/YYYY format)
-        const startDate = advancedFilterData.startDate ? new Date(advancedFilterData.startDate) : null;
-        const endDate = advancedFilterData.endDate ? new Date(advancedFilterData.endDate) : null;
-        
+        const startDate = advancedFilterData.startDate
+          ? new Date(advancedFilterData.startDate)
+          : null;
+        const endDate = advancedFilterData.endDate
+          ? new Date(advancedFilterData.endDate)
+          : null;
+
         // Ensure end date is set to end of day for inclusive comparison
         if (endDate) {
           endDate.setHours(23, 59, 59, 999);
         }
-        
+
         // Find clients with matching date ranges across all service types
         const matchingClientIds = new Set();
-        
+
         // Helper function to parse date strings in various formats
         const parseDate = (dateStr) => {
           if (!dateStr) return null;
-          
+
           // Try to parse the date string
           const date = new Date(dateStr);
-          
+
           // Check if the date is valid
           if (isNaN(date.getTime())) {
             // If standard parsing fails, try to handle common formats
-            
+
             // Format: MM/DD/YYYY or M/D/YYYY
             const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
             if (usMatch) {
-              return new Date(parseInt(usMatch[3]), parseInt(usMatch[1]) - 1, parseInt(usMatch[2]));
+              return new Date(
+                parseInt(usMatch[3]),
+                parseInt(usMatch[1]) - 1,
+                parseInt(usMatch[2])
+              );
             }
-            
+
             // Format: YYYY-MM-DD
             const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
             if (isoMatch) {
-              return new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+              return new Date(
+                parseInt(isoMatch[1]),
+                parseInt(isoMatch[2]) - 1,
+                parseInt(isoMatch[3])
+              );
             }
-            
+
             // Format: DD/MM/YYYY
             const euMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
             if (euMatch) {
               // Try to determine if it's DD/MM or MM/DD based on values
               const first = parseInt(euMatch[1]);
               const second = parseInt(euMatch[2]);
-              
+
               if (first > 12 && second <= 12) {
                 // If first number is > 12, it's likely a day
                 return new Date(parseInt(euMatch[3]), second - 1, first);
               }
             }
-            
+
             return null; // Failed to parse
           }
-          
+
           return date;
         };
-        
+
         // Function to process records and find matches
         const processRecords = async (Model, dateField) => {
           // Add a pre-filter to reduce the number of records we need to process
           // This uses a simple year-based filter to narrow down the results
           const yearFilter = {};
-          
+
           if (startDate && endDate) {
             // If the date range spans multiple years, use a year range
             if (startDate.getFullYear() !== endDate.getFullYear()) {
-              yearFilter[dateField] = { 
-                $regex: new RegExp(`(${startDate.getFullYear()}|${endDate.getFullYear()})`) 
+              yearFilter[dateField] = {
+                $regex: new RegExp(
+                  `(${startDate.getFullYear()}|${endDate.getFullYear()})`
+                ),
               };
             } else {
               // If same year, use that year in the filter
-              yearFilter[dateField] = { 
-                $regex: new RegExp(`${startDate.getFullYear()}`) 
+              yearFilter[dateField] = {
+                $regex: new RegExp(`${startDate.getFullYear()}`),
               };
             }
           } else if (startDate) {
             // For start date only, include that year and future years (approximation)
             const currentYear = new Date().getFullYear();
             const years = Array.from(
-              { length: currentYear - startDate.getFullYear() + 1 }, 
+              { length: currentYear - startDate.getFullYear() + 1 },
               (_, i) => startDate.getFullYear() + i
             );
-            yearFilter[dateField] = { 
-              $regex: new RegExp(`(${years.join('|')})`) 
+            yearFilter[dateField] = {
+              $regex: new RegExp(`(${years.join("|")})`),
             };
           } else if (endDate) {
             // For end date only, include that year and past years (approximation)
@@ -788,28 +906,30 @@ async function fetchDataServices(
               { length: endDate.getFullYear() - 2000 + 1 }, // Assuming no records before 2000
               (_, i) => 2000 + i
             );
-            yearFilter[dateField] = { 
-              $regex: new RegExp(`(${years.join('|')})`) 
+            yearFilter[dateField] = {
+              $regex: new RegExp(`(${years.join("|")})`),
             };
           }
-          
+
           // Only fetch records where the date field exists and is not empty
-          yearFilter[dateField] = { 
-            ...yearFilter[dateField], 
-            $exists: true, 
-            $ne: "" 
+          yearFilter[dateField] = {
+            ...yearFilter[dateField],
+            $exists: true,
+            $ne: "",
           };
-          
+
           // Fetch records with the year pre-filter
           const allRecords = await Model.find(yearFilter).lean();
-          
-          console.log(`Date range filter: Found ${allRecords.length} ${Model.modelName} records matching year filter`);
-          
+
+          console.log(
+            `Date range filter: Found ${allRecords.length} ${Model.modelName} records matching year filter`
+          );
+
           // Filter records based on date range
-          const matchingRecords = allRecords.filter(record => {
+          const matchingRecords = allRecords.filter((record) => {
             const recordDate = parseDate(record[dateField]);
             if (!recordDate) return false;
-            
+
             if (startDate && endDate) {
               return recordDate >= startDate && recordDate <= endDate;
             } else if (startDate) {
@@ -817,28 +937,30 @@ async function fetchDataServices(
             } else if (endDate) {
               return recordDate <= endDate;
             }
-            
+
             return false;
           });
-          
-          console.log(`Date range filter: Found ${matchingRecords.length} ${Model.modelName} records in date range`);
-          
+
+          console.log(
+            `Date range filter: Found ${matchingRecords.length} ${Model.modelName} records in date range`
+          );
+
           // Add matching client IDs to the set
-          matchingRecords.forEach(record => {
+          matchingRecords.forEach((record) => {
             const clientId = Number(record.clientid);
             if (!isNaN(clientId)) {
               matchingClientIds.add(clientId);
             }
           });
         };
-        
+
         // Process each model with its date field
         await Promise.all([
           processRecords(HrgModel, "recvdate"),
           processRecords(FomModel, "recvdate"),
-          processRecords(CalModel, "recvdate")
+          processRecords(CalModel, "recvdate"),
         ]);
-        
+
         // If we found matching clients, add them to the filter
         if (matchingClientIds.size > 0) {
           baseFilter.push({ id: { $in: Array.from(matchingClientIds) } });
@@ -847,7 +969,10 @@ async function fetchDataServices(
           baseFilter.push({ id: -1 }); // No client has ID -1
         }
       } catch (error) {
-        console.error("Error filtering by date range for service records:", error);
+        console.error(
+          "Error filtering by date range for service records:",
+          error
+        );
       }
     }
 
@@ -857,34 +982,35 @@ async function fetchDataServices(
       try {
         const { default: WmmModel } = await import("../../models/wmm.mjs");
         const subscriptionStatus = advancedFilterData.wmmSubscriptionStatus;
-        
+
         let statusFilter = {};
         const currentDate = new Date();
-        const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-        
-        if (subscriptionStatus === 'active') {
+        const dateStr = currentDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+
+        if (subscriptionStatus === "active") {
           // End date is greater than or equal to current date
           statusFilter = {
-            enddate: { $gte: dateStr }
+            enddate: { $gte: dateStr },
           };
-        } else if (subscriptionStatus === 'expired') {
+        } else if (subscriptionStatus === "expired") {
           // End date is less than current date
           statusFilter = {
-            enddate: { $lt: dateStr }
+            enddate: { $lt: dateStr },
           };
         }
-        
+
         // Only proceed with filtering if we have a specific status filter
         if (Object.keys(statusFilter).length > 0) {
           // Find clients with matching subscription status
-          const wmmSubscriptionClients = await WmmModel.find(statusFilter)
-            .distinct("clientid");
-            
+          const wmmSubscriptionClients = await WmmModel.find(
+            statusFilter
+          ).distinct("clientid");
+
           // Convert to numbers and filter out invalid IDs
           const validClientIds = wmmSubscriptionClients
-            .map(id => parseInt(id))
-            .filter(id => !isNaN(id));
-            
+            .map((id) => parseInt(id))
+            .filter((id) => !isNaN(id));
+
           if (validClientIds.length > 0) {
             baseFilter.push({ id: { $in: validClientIds } });
           } else {
@@ -947,7 +1073,7 @@ async function fetchDataServices(
           ],
         };
       }
-      
+
       // Handle expiring subscriptions in a specific month
       if (
         advancedFilterData.wmmStartEndDate &&
@@ -970,11 +1096,11 @@ async function fetchDataServices(
             },
           ],
         };
-        
+
         // If we already have an expression, combine them with AND
         if (wmmMatchStage.$match.$expr) {
           wmmMatchStage.$match.$expr = {
-            $and: [wmmMatchStage.$match.$expr, expiringExpr]
+            $and: [wmmMatchStage.$match.$expr, expiringExpr],
           };
         } else {
           wmmMatchStage.$match.$expr = expiringExpr;
@@ -992,11 +1118,16 @@ async function fetchDataServices(
           parsedSubsDate: {
             $cond: [
               { $eq: [{ $type: "$subsdate" }, "string"] },
-              { $dateFromString: { dateString: "$subsdate", onError: new Date(0) } },
-              new Date(0)
-            ]
-          }
-        }
+              {
+                $dateFromString: {
+                  dateString: "$subsdate",
+                  onError: new Date(0),
+                },
+              },
+              new Date(0),
+            ],
+          },
+        },
       });
 
       // Sort and group to get latest subscription for each client
@@ -1024,19 +1155,31 @@ async function fetchDataServices(
                     $cond: [
                       { $eq: [{ $type: "$copies" }, "string"] },
                       // If it's a string, try to convert to int
-                      { 
-                        $toInt: { 
+                      {
+                        $toInt: {
                           $cond: [
-                            { $regexMatch: { input: { $ifNull: ["$copies", "0"] }, regex: /^\d+$/ } },
+                            {
+                              $regexMatch: {
+                                input: { $ifNull: ["$copies", "0"] },
+                                regex: /^\d+$/,
+                              },
+                            },
                             { $ifNull: ["$copies", "0"] }, // If it's a valid number string, use it
-                            "0" // Otherwise default to 0
-                          ]
-                        }
+                            "0", // Otherwise default to 0
+                          ],
+                        },
                       },
                       // If it's already a number or other type, convert safely
-                      { $convert: { input: { $ifNull: ["$copies", 0] }, to: "int", onError: 0, onNull: 0 } }
-                    ]
-                  }
+                      {
+                        $convert: {
+                          input: { $ifNull: ["$copies", 0] },
+                          to: "int",
+                          onError: 0,
+                          onNull: 0,
+                        },
+                      },
+                    ],
+                  },
                 },
                 in: {
                   $cond: {
@@ -1144,37 +1287,38 @@ async function fetchDataServices(
     if (advancedFilterData.services && advancedFilterData.services.length > 0) {
       // Handle exact service matching
       const exactMatchEnabled = !!advancedFilterData.exactServiceMatch;
-      const serviceMatchExcludeWMM = advancedFilterData.serviceMatchExcludeWMM !== false;
-      
+      const serviceMatchExcludeWMM =
+        advancedFilterData.serviceMatchExcludeWMM !== false;
+
       // Replace showActiveOnly boolean with subscriptionStatus check
-      const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
-      
+      const subscriptionStatus = advancedFilterData.subscriptionStatus || "all";
+
       // Normalize services array to ensure we have valid values
       let targetServices = [];
       try {
         if (Array.isArray(advancedFilterData.services)) {
-          targetServices = advancedFilterData.services.map(s => 
-            typeof s === 'string' ? s.toUpperCase() : ''
-          ).filter(Boolean);
-        } else if (typeof advancedFilterData.services === 'string') {
           targetServices = advancedFilterData.services
-            .split(',')
-            .map(s => s.trim().toUpperCase())
+            .map((s) => (typeof s === "string" ? s.toUpperCase() : ""))
+            .filter(Boolean);
+        } else if (typeof advancedFilterData.services === "string") {
+          targetServices = advancedFilterData.services
+            .split(",")
+            .map((s) => s.trim().toUpperCase())
             .filter(Boolean);
         } else {
           // Try to convert to string
           try {
             const servicesStr = String(advancedFilterData.services);
             targetServices = servicesStr
-              .split(',')
-              .map(s => s.trim().toUpperCase())
+              .split(",")
+              .map((s) => s.trim().toUpperCase())
               .filter(Boolean);
           } catch (e) {
             console.error("Failed to convert services to string:", e);
             targetServices = [];
           }
         }
-        
+
         // If we couldn't get any services, return early
         if (targetServices.length === 0) {
           console.log("No valid services found, returning empty result");
@@ -1196,19 +1340,19 @@ async function fetchDataServices(
         // If we encounter an error, still continue with the function using an empty array
         targetServices = [];
       }
-      
+
       // Get arrays of client IDs for each service type
       const allServiceTypeClients = await Promise.all(
         Object.keys(additionalModels).map(async (modelKey) => {
           const Model = await getModel(modelKey);
           const serviceName = modelKey.replace("Model", "").toUpperCase();
-          
+
           // Build match stage for subscription status filtering
           const matchStage = { $match: {} };
-          
+
           // For FOM/HRG with subscription status filter, handle the filtering appropriately
-          if ((serviceName === 'HRG' || serviceName === 'FOM')) {
-            if (subscriptionStatus === 'active') {
+          if (serviceName === "HRG" || serviceName === "FOM") {
+            if (subscriptionStatus === "active") {
               // Only include active subscriptions (not unsubscribed)
               return Model.aggregate([
                 { $match: { unsubscribe: { $ne: 1 } } },
@@ -1216,25 +1360,27 @@ async function fetchDataServices(
                 {
                   $group: {
                     _id: "$clientid",
-                    mostRecent: { $first: "$$ROOT" }
-                  }
+                    mostRecent: { $first: "$$ROOT" },
+                  },
                 },
                 // Ensure the most recent record is not unsubscribed
                 {
                   $match: {
-                    "mostRecent.unsubscribe": { $ne: 1 }
-                  }
+                    "mostRecent.unsubscribe": { $ne: 1 },
+                  },
                 },
                 {
                   $project: {
-                    _id: 1 // Keep only the client ID
-                  }
-                }
-              ]).then(results => ({
+                    _id: 1, // Keep only the client ID
+                  },
+                },
+              ]).then((results) => ({
                 serviceName,
-                clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+                clientIds: results
+                  .map((r) => Number(r._id))
+                  .filter((id) => !isNaN(id)),
               }));
-            } else if (subscriptionStatus === 'unsubscribed') {
+            } else if (subscriptionStatus === "unsubscribed") {
               // Only include unsubscribed subscriptions
               return Model.aggregate([
                 { $match: { unsubscribe: 1 } },
@@ -1242,28 +1388,30 @@ async function fetchDataServices(
                 {
                   $group: {
                     _id: "$clientid",
-                    mostRecent: { $first: "$$ROOT" }
-                  }
+                    mostRecent: { $first: "$$ROOT" },
+                  },
                 },
                 // Ensure the most recent record is unsubscribed
                 {
                   $match: {
-                    "mostRecent.unsubscribe": 1
-                  }
+                    "mostRecent.unsubscribe": 1,
+                  },
                 },
                 {
                   $project: {
-                    _id: 1 // Keep only the client ID
-                  }
-                }
-              ]).then(results => ({
+                    _id: 1, // Keep only the client ID
+                  },
+                },
+              ]).then((results) => ({
                 serviceName,
-                clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+                clientIds: results
+                  .map((r) => Number(r._id))
+                  .filter((id) => !isNaN(id)),
               }));
             }
             // For 'all' status, don't apply any subscription filter
           }
-          
+
           // Use aggregation to get all unique client IDs for this service
           const results = await Model.aggregate([
             matchStage,
@@ -1272,56 +1420,61 @@ async function fetchDataServices(
           ]);
           return {
             serviceName,
-            clientIds: results.map((r) => Number(r._id)).filter((id) => !isNaN(id))
+            clientIds: results
+              .map((r) => Number(r._id))
+              .filter((id) => !isNaN(id)),
           };
         })
       );
-      
+
       // Get the target services we want to match (we already normalized to uppercase)
-      const targetServicesExceptWMM = targetServices.filter(s => s !== 'WMM');
-      
+      const targetServicesExceptWMM = targetServices.filter((s) => s !== "WMM");
+
       if (exactMatchEnabled && targetServicesExceptWMM.length > 0) {
         // For exact match, we need to:
         // 1. Find clients that have ALL the selected services
         // 2. Exclude clients that have ANY services we didn't select (except WMM)
-        
+
         // Store client IDs that have the services we want
         let clientsWithTargetServices = [];
-        
+
         // For each target service, get clients with that service
         for (const targetService of targetServicesExceptWMM) {
-          const serviceData = allServiceTypeClients.find(s => 
-            s.serviceName === targetService
+          const serviceData = allServiceTypeClients.find(
+            (s) => s.serviceName === targetService
           );
-          
+
           if (serviceData) {
             if (clientsWithTargetServices.length === 0) {
               // For first service, start with all its clients
               clientsWithTargetServices = [...serviceData.clientIds];
             } else {
               // For subsequent services, keep only clients that have both
-              clientsWithTargetServices = clientsWithTargetServices.filter(id => 
-                serviceData.clientIds.includes(id)
+              clientsWithTargetServices = clientsWithTargetServices.filter(
+                (id) => serviceData.clientIds.includes(id)
               );
             }
           }
         }
-        
+
         // Now exclude clients that have services we didn't select
         const unwantedServices = allServiceTypeClients
-          .filter(s => !targetServices.includes(s.serviceName) && 
-                      (s.serviceName !== 'WMM' || !serviceMatchExcludeWMM))
-          .map(s => s.clientIds)
+          .filter(
+            (s) =>
+              !targetServices.includes(s.serviceName) &&
+              (s.serviceName !== "WMM" || !serviceMatchExcludeWMM)
+          )
+          .map((s) => s.clientIds)
           .flat();
-          
+
         // Remove duplicates from unwanted services list
         const uniqueUnwantedClients = [...new Set(unwantedServices)];
-        
+
         // Filter out clients that have any unwanted services
-        const validServiceClientIds = clientsWithTargetServices.filter(id => 
-          !uniqueUnwantedClients.includes(id)
+        const validServiceClientIds = clientsWithTargetServices.filter(
+          (id) => !uniqueUnwantedClients.includes(id)
         );
-        
+
         if (validServiceClientIds.length > 0) {
           filterQuery.$and.push({ id: { $in: validServiceClientIds } });
         } else {
@@ -1342,14 +1495,17 @@ async function fetchDataServices(
         // Non-exact match (original logic) - Fetch client IDs that have the specified services
         const serviceClientIds = await Promise.all(
           // First ensure services is an array to prevent map errors
-          (Array.isArray(advancedFilterData.services) 
-            ? advancedFilterData.services 
-            : typeof advancedFilterData.services === 'string'
-              ? advancedFilterData.services.split(',').map(s => s.trim()).filter(Boolean)
-              : [])
-          .map(async (serviceName) => {
+          (Array.isArray(advancedFilterData.services)
+            ? advancedFilterData.services
+            : typeof advancedFilterData.services === "string"
+            ? advancedFilterData.services
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : []
+          ).map(async (serviceName) => {
             if (!serviceName) return [];
-            
+
             const modelKey = Object.keys(additionalModels).find((key) =>
               key.toLowerCase().includes(serviceName.toLowerCase())
             );
@@ -1357,12 +1513,16 @@ async function fetchDataServices(
             if (!modelKey) return [];
 
             const Model = await getModel(modelKey);
-            
+
             // For FOM/HRG with showActiveOnly, only include active clients
             const showActiveOnly = !!advancedFilterData.showActiveOnly;
-            const serviceNameUpper = typeof serviceName === 'string' ? serviceName.toUpperCase() : '';
-            
-            if (showActiveOnly && (serviceNameUpper === 'FOM' || serviceNameUpper === 'HRG')) {
+            const serviceNameUpper =
+              typeof serviceName === "string" ? serviceName.toUpperCase() : "";
+
+            if (
+              showActiveOnly &&
+              (serviceNameUpper === "FOM" || serviceNameUpper === "HRG")
+            ) {
               // Use a more specific approach for active records
               const results = await Model.aggregate([
                 // Explicitly match only records where unsubscribe is not true
@@ -1371,23 +1531,25 @@ async function fetchDataServices(
                 {
                   $group: {
                     _id: "$clientid",
-                    mostRecent: { $first: "$$ROOT" }
-                  }
+                    mostRecent: { $first: "$$ROOT" },
+                  },
                 },
                 // Ensure again that the most recent record is not unsubscribed
                 {
                   $match: {
-                    "mostRecent.unsubscribe": { $ne: 1 }
-                  }
+                    "mostRecent.unsubscribe": { $ne: 1 },
+                  },
                 },
                 {
                   $project: {
-                    _id: 1 // Keep only the client ID
-                  }
-                }
+                    _id: 1, // Keep only the client ID
+                  },
+                },
               ]);
-              
-              return results.map((r) => Number(r._id)).filter((id) => !isNaN(id));
+
+              return results
+                .map((r) => Number(r._id))
+                .filter((id) => !isNaN(id));
             }
 
             // Use a simpler, more efficient aggregation for other services
@@ -1459,16 +1621,76 @@ async function fetchDataServices(
               // For each part, sum the matches in all fields
               ...nameParts.map((part) => ({
                 $add: [
-                  { $cond: [{ $regexMatch: { input: "$fname", regex: part, options: "i" } }, 1, 0] },
-                  { $cond: [{ $regexMatch: { input: "$lname", regex: part, options: "i" } }, 1, 0] },
-                  { $cond: [{ $regexMatch: { input: "$mname", regex: part, options: "i" } }, 1, 0] },
-                  { $cond: [{ $regexMatch: { input: "$sname", regex: part, options: "i" } }, 1, 0] },
-                  { $cond: [{ $regexMatch: { input: "$company", regex: part, options: "i" } }, 1, 0] }
-                ]
-              }))
-            ]
-          }
-        }
+                  {
+                    $cond: [
+                      {
+                        $regexMatch: {
+                          input: "$fname",
+                          regex: part,
+                          options: "i",
+                        },
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                  {
+                    $cond: [
+                      {
+                        $regexMatch: {
+                          input: "$lname",
+                          regex: part,
+                          options: "i",
+                        },
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                  {
+                    $cond: [
+                      {
+                        $regexMatch: {
+                          input: "$mname",
+                          regex: part,
+                          options: "i",
+                        },
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                  {
+                    $cond: [
+                      {
+                        $regexMatch: {
+                          input: "$sname",
+                          regex: part,
+                          options: "i",
+                        },
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                  {
+                    $cond: [
+                      {
+                        $regexMatch: {
+                          input: "$company",
+                          regex: part,
+                          options: "i",
+                        },
+                      },
+                      1,
+                      0,
+                    ],
+                  },
+                ],
+              })),
+            ],
+          },
+        },
       };
     }
 
@@ -1556,7 +1778,11 @@ async function fetchDataServices(
           }
 
           // Special handling for FOM and HRG model with showActiveOnly
-          if ((modelKey.toLowerCase() === "fommodel" || modelKey.toLowerCase() === "hrgmodel") && advancedFilterData.showActiveOnly) {
+          if (
+            (modelKey.toLowerCase() === "fommodel" ||
+              modelKey.toLowerCase() === "hrgmodel") &&
+            advancedFilterData.showActiveOnly
+          ) {
             // Only include the most recent active (unsubscribe: false) record
             return Model.aggregate([
               {
@@ -1578,8 +1804,8 @@ async function fetchDataServices(
               {
                 $match: {
                   mostRecent: { $exists: true },
-                  "mostRecent.unsubscribe": { $ne: 1 }
-                }
+                  "mostRecent.unsubscribe": { $ne: 1 },
+                },
               },
               {
                 $project: {
@@ -1591,9 +1817,9 @@ async function fetchDataServices(
                   totalCalAmt: "$mostRecent.calamt",
                   subsclass: "$mostRecent.subsclass",
                   recvdate: "$mostRecent.recvdate",
-                  unsubscribe: "$mostRecent.unsubscribe"
-                }
-              }
+                  unsubscribe: "$mostRecent.unsubscribe",
+                },
+              },
             ]);
           }
 
@@ -1614,10 +1840,10 @@ async function fetchDataServices(
                   lineTotal: {
                     $multiply: [
                       { $toInt: { $ifNull: ["$calqty", 0] } },
-                      { $toDouble: { $ifNull: ["$calamt", 0] } }
-                    ]
-                  }
-                }
+                      { $toDouble: { $ifNull: ["$calamt", 0] } },
+                    ],
+                  },
+                },
               },
               {
                 $group: {
@@ -1680,38 +1906,57 @@ async function fetchDataServices(
           ...item,
           records: item.records || [],
         };
-        
+
         // If a username filter is active, filter the records to only include those created by this user
-        if (advancedFilterData.usernameFilter && dataObject.records && dataObject.records.length > 0) {
+        if (
+          advancedFilterData.usernameFilter &&
+          dataObject.records &&
+          dataObject.records.length > 0
+        ) {
           const username = advancedFilterData.usernameFilter;
-          console.log(`Filtering records by username: ${username} for client ${clientId}`);
-          
+          console.log(
+            `Filtering records by username: ${username} for client ${clientId}`
+          );
+
           // Filter records to only include those created by the selected user
-          dataObject.records = dataObject.records.filter(record => {
-            return record.adduser === username || 
-                   (typeof record.adduser === 'string' && 
-                    record.adduser.toLowerCase() === username.toLowerCase());
+          dataObject.records = dataObject.records.filter((record) => {
+            return (
+              record.adduser === username ||
+              (typeof record.adduser === "string" &&
+                record.adduser.toLowerCase() === username.toLowerCase())
+            );
           });
-          
-          console.log(`After filtering: ${dataObject.records.length} records remain for client ${clientId}`);
+
+          console.log(
+            `After filtering: ${dataObject.records.length} records remain for client ${clientId}`
+          );
         }
-        
+
         // If showActiveOnly is enabled, filter out unsubscribed records for HRG and FOM
-        if (advancedFilterData.showActiveOnly && dataObject.records && dataObject.records.length > 0) {
+        if (
+          advancedFilterData.showActiveOnly &&
+          dataObject.records &&
+          dataObject.records.length > 0
+        ) {
           const modelNameLower = modelNames[index].toLowerCase();
-          if (modelNameLower.includes("hrg") || modelNameLower.includes("fom")) {
+          if (
+            modelNameLower.includes("hrg") ||
+            modelNameLower.includes("fom")
+          ) {
             // Filter out records with unsubscribe: 1 (since it's stored as 0/1 not true/false)
-            dataObject.records = dataObject.records.filter(record => {
+            dataObject.records = dataObject.records.filter((record) => {
               return record.unsubscribe !== 1 && record.unsubscribe !== true;
             });
-            console.log(`After unsubscribe filtering: ${dataObject.records.length} records remain for client ${clientId}`);
+            console.log(
+              `After unsubscribe filtering: ${dataObject.records.length} records remain for client ${clientId}`
+            );
           }
         }
 
         // Set the data for this model - fixed: ensure consistent casing for service keys
         const modelNameLower = modelNames[index].toLowerCase();
         let serviceType;
-        
+
         // Normalize model names to consistent service data keys
         if (modelNameLower.includes("wmm")) {
           serviceType = "wmmData";
@@ -1725,72 +1970,85 @@ async function fetchDataServices(
           // Fallback to the original method if not a recognized service
           serviceType = modelNameLower.replace("model", "") + "Data";
         }
-        
+
         modelDataMap.get(clientId)[serviceType] = dataObject;
       });
     });
 
     // When using advanced filter with services, ensure model data is fetched for those services
-    if (advancedFilterData && advancedFilterData.services && 
-        advancedFilterData.services.length > 0 && modelNames.length > 0) {
-      
+    if (
+      advancedFilterData &&
+      advancedFilterData.services &&
+      advancedFilterData.services.length > 0 &&
+      modelNames.length > 0
+    ) {
       // Create a dedicated section to fetch service data for all matching clients
       try {
         // Get client IDs for all clients matching the filter
-        const clientsMatchingFilter = await ClientModel.find(filterQuery).select('id').lean();
-        const clientIds = clientsMatchingFilter.map(c => c.id);
-        
+        const clientsMatchingFilter = await ClientModel.find(filterQuery)
+          .select("id")
+          .lean();
+        const clientIds = clientsMatchingFilter.map((c) => c.id);
+
         if (clientIds.length > 0) {
           // Process services to ensure data is fetched for each requested service type
           const serviceModels = [];
-          if (advancedFilterData.services.includes('FOM')) {
-            serviceModels.push({ 
-              name: 'FomModel',
-              importFunc: () => import("../../models/fom.mjs")
+          if (advancedFilterData.services.includes("FOM")) {
+            serviceModels.push({
+              name: "FomModel",
+              importFunc: () => import("../../models/fom.mjs"),
             });
           }
-          if (advancedFilterData.services.includes('HRG')) {
-            serviceModels.push({ 
-              name: 'HrgModel',
-              importFunc: () => import("../../models/hrg.mjs")
+          if (advancedFilterData.services.includes("HRG")) {
+            serviceModels.push({
+              name: "HrgModel",
+              importFunc: () => import("../../models/hrg.mjs"),
             });
           }
-          if (advancedFilterData.services.includes('CAL')) {
-            serviceModels.push({ 
-              name: 'CalModel',
-              importFunc: () => import("../../models/cal.mjs")
+          if (advancedFilterData.services.includes("CAL")) {
+            serviceModels.push({
+              name: "CalModel",
+              importFunc: () => import("../../models/cal.mjs"),
             });
           }
-          if (advancedFilterData.services.includes('WMM')) {
-            serviceModels.push({ 
-              name: 'WmmModel',
-              importFunc: () => import("../../models/wmm.mjs")
+          if (advancedFilterData.services.includes("WMM")) {
+            serviceModels.push({
+              name: "WmmModel",
+              importFunc: () => import("../../models/wmm.mjs"),
             });
           }
-          
+
           // Fetch data for each service model in parallel
           const serviceDataPromises = serviceModels.map(async (modelInfo) => {
             const { default: Model } = await modelInfo.importFunc();
-            const serviceType = modelInfo.name.replace('Model', '').toLowerCase() + 'Data';
-            
+            const serviceType =
+              modelInfo.name.replace("Model", "").toLowerCase() + "Data";
+
             // Create the base query for this service
             const serviceQuery = {
-              clientid: { $in: clientIds }
+              clientid: { $in: clientIds },
             };
-            
+
             // For FOM/HRG with subscription status, handle accordingly
-            const modelName = modelInfo.name.replace('Model', '').toUpperCase();
-            const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
-            
-            if (subscriptionStatus === 'active' && (modelName === 'FOM' || modelName === 'HRG')) {
+            const modelName = modelInfo.name.replace("Model", "").toUpperCase();
+            const subscriptionStatus =
+              advancedFilterData.subscriptionStatus || "all";
+
+            if (
+              subscriptionStatus === "active" &&
+              (modelName === "FOM" || modelName === "HRG")
+            ) {
               serviceQuery.unsubscribe = { $ne: 1 };
-            } else if (subscriptionStatus === 'unsubscribed' && (modelName === 'FOM' || modelName === 'HRG')) {
+            } else if (
+              subscriptionStatus === "unsubscribed" &&
+              (modelName === "FOM" || modelName === "HRG")
+            ) {
               serviceQuery.unsubscribe = 1;
             }
-            
+
             // Fetch data for these clients
             const serviceData = await Model.find(serviceQuery).lean();
-            
+
             // Group data by client ID
             const groupedData = serviceData.reduce((acc, item) => {
               const clientId = Number(item.clientid);
@@ -1800,52 +2058,85 @@ async function fetchDataServices(
               acc[clientId].push(item);
               return acc;
             }, {});
-            
+
             return { serviceType, groupedData };
           });
-          
+
           const serviceDataResults = await Promise.all(serviceDataPromises);
-          
+
           // Add each service's data to the modelDataMap
           serviceDataResults.forEach(({ serviceType, groupedData }) => {
             Object.entries(groupedData).forEach(([clientId, records]) => {
               if (!modelDataMap.has(Number(clientId))) {
                 modelDataMap.set(Number(clientId), {});
               }
-              
+
               // If showActiveOnly is true, filter out unsubscribed records for HRG and FOM
               let filteredRecords = records;
               if (advancedFilterData.showActiveOnly) {
-                const serviceTypeUpper = serviceType.replace('Data', '').toUpperCase();
-                if (serviceTypeUpper === 'HRG' || serviceTypeUpper === 'FOM') {
-                  filteredRecords = records.filter(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
-                  console.log(`Filtered records for ${serviceTypeUpper}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`);
+                const serviceTypeUpper = serviceType
+                  .replace("Data", "")
+                  .toUpperCase();
+                if (serviceTypeUpper === "HRG" || serviceTypeUpper === "FOM") {
+                  filteredRecords = records.filter(
+                    (record) =>
+                      record.unsubscribe !== 1 && record.unsubscribe !== true
+                  );
+                  console.log(
+                    `Filtered records for ${serviceTypeUpper}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`
+                  );
                 }
               }
-              
+
               // Apply subscription status filtering
-              if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== 'all' && 
-                  records && records.length > 0) {
-                const serviceTypeLower = serviceType.replace('Data', '').toLowerCase();
-                if (serviceTypeLower.includes("hrg") || serviceTypeLower.includes("fom")) {
-                  if (advancedFilterData.subscriptionStatus === 'active') {
-                    filteredRecords = records.filter(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
-                  } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
-                    filteredRecords = records.filter(record => record.unsubscribe === 1 || record.unsubscribe === true);
+              if (
+                advancedFilterData.subscriptionStatus &&
+                advancedFilterData.subscriptionStatus !== "all" &&
+                records &&
+                records.length > 0
+              ) {
+                const serviceTypeLower = serviceType
+                  .replace("Data", "")
+                  .toLowerCase();
+                if (
+                  serviceTypeLower.includes("hrg") ||
+                  serviceTypeLower.includes("fom")
+                ) {
+                  if (advancedFilterData.subscriptionStatus === "active") {
+                    filteredRecords = records.filter(
+                      (record) =>
+                        record.unsubscribe !== 1 && record.unsubscribe !== true
+                    );
+                  } else if (
+                    advancedFilterData.subscriptionStatus === "unsubscribed"
+                  ) {
+                    filteredRecords = records.filter(
+                      (record) =>
+                        record.unsubscribe === 1 || record.unsubscribe === true
+                    );
                   }
-                  console.log(`Filtered records for ${serviceType.replace('Data', '').toUpperCase()}, client ${clientId} based on subscription status: ${records.length} -> ${filteredRecords.length}`);
+                  console.log(
+                    `Filtered records for ${serviceType
+                      .replace("Data", "")
+                      .toUpperCase()}, client ${clientId} based on subscription status: ${
+                      records.length
+                    } -> ${filteredRecords.length}`
+                  );
                 }
               }
-              
+
               modelDataMap.get(Number(clientId))[serviceType] = {
                 records: filteredRecords,
-                _id: Number(clientId)
+                _id: Number(clientId),
               };
             });
           });
         }
       } catch (error) {
-        console.error("Error fetching service data for filtered clients:", error);
+        console.error(
+          "Error fetching service data for filtered clients:",
+          error
+        );
       }
     }
 
@@ -1855,86 +2146,113 @@ async function fetchDataServices(
       let createdByFilteredUser = false;
       if (advancedFilterData.usernameFilter) {
         const username = advancedFilterData.usernameFilter;
-        createdByFilteredUser = 
-          client.adduser === username || 
-          (typeof client.adduser === 'string' && 
-           client.adduser.toLowerCase() === username.toLowerCase());
+        createdByFilteredUser =
+          client.adduser === username ||
+          (typeof client.adduser === "string" &&
+            client.adduser.toLowerCase() === username.toLowerCase());
       }
-      
+
       return {
         ...client,
         ...modelDataMap.get(client.id),
-        createdByFilteredUser // Add flag to indicate if this client was created by the filtered user
+        createdByFilteredUser, // Add flag to indicate if this client was created by the filtered user
       };
     });
-    
+
     // Filter out clients with only unsubscribed HRG/FOM records when showActiveOnly is true
     let filteredCombinedData = combinedData;
     if (advancedFilterData.showActiveOnly) {
-      filteredCombinedData = combinedData.filter(client => {
+      filteredCombinedData = combinedData.filter((client) => {
         // If filtering by HRG
-        if (advancedFilterData.services.includes('HRG')) {
+        if (advancedFilterData.services.includes("HRG")) {
           const hrgData = client.hrgData?.records || [];
           if (hrgData.length === 0) return false; // No HRG data
           // Check if all HRG records are unsubscribed
-          const hasActiveRecord = hrgData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+          const hasActiveRecord = hrgData.some(
+            (record) => record.unsubscribe !== 1 && record.unsubscribe !== true
+          );
           if (!hasActiveRecord) return false;
         }
-        
+
         // If filtering by FOM
-        if (advancedFilterData.services.includes('FOM')) {
+        if (advancedFilterData.services.includes("FOM")) {
           const fomData = client.fomData?.records || [];
           if (fomData.length === 0) return false; // No FOM data
           // Check if all FOM records are unsubscribed
-          const hasActiveRecord = fomData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+          const hasActiveRecord = fomData.some(
+            (record) => record.unsubscribe !== 1 && record.unsubscribe !== true
+          );
           if (!hasActiveRecord) return false;
         }
-        
+
         return true;
       });
-      
-      console.log(`Filtered ${combinedData.length - filteredCombinedData.length} clients with only unsubscribed records`);
+
+      console.log(
+        `Filtered ${
+          combinedData.length - filteredCombinedData.length
+        } clients with only unsubscribed records`
+      );
     }
 
     // Replace with subscription status filtering
-    if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== 'all') {
-      filteredCombinedData = combinedData.filter(client => {
+    if (
+      advancedFilterData.subscriptionStatus &&
+      advancedFilterData.subscriptionStatus !== "all"
+    ) {
+      filteredCombinedData = combinedData.filter((client) => {
         // If filtering by HRG
-        if (advancedFilterData.services.includes('HRG')) {
+        if (advancedFilterData.services.includes("HRG")) {
           const hrgData = client.hrgData?.records || [];
           if (hrgData.length === 0) return false; // No HRG data
-          
-          if (advancedFilterData.subscriptionStatus === 'active') {
+
+          if (advancedFilterData.subscriptionStatus === "active") {
             // Check if any HRG record is active
-            const hasActiveRecord = hrgData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+            const hasActiveRecord = hrgData.some(
+              (record) =>
+                record.unsubscribe !== 1 && record.unsubscribe !== true
+            );
             if (!hasActiveRecord) return false;
-          } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
+          } else if (advancedFilterData.subscriptionStatus === "unsubscribed") {
             // Check if any HRG record is unsubscribed
-            const hasUnsubscribedRecord = hrgData.some(record => record.unsubscribe === 1 || record.unsubscribe === true);
+            const hasUnsubscribedRecord = hrgData.some(
+              (record) =>
+                record.unsubscribe === 1 || record.unsubscribe === true
+            );
             if (!hasUnsubscribedRecord) return false;
           }
         }
-        
+
         // If filtering by FOM
-        if (advancedFilterData.services.includes('FOM')) {
+        if (advancedFilterData.services.includes("FOM")) {
           const fomData = client.fomData?.records || [];
           if (fomData.length === 0) return false; // No FOM data
-          
-          if (advancedFilterData.subscriptionStatus === 'active') {
+
+          if (advancedFilterData.subscriptionStatus === "active") {
             // Check if any FOM record is active
-            const hasActiveRecord = fomData.some(record => record.unsubscribe !== 1 && record.unsubscribe !== true);
+            const hasActiveRecord = fomData.some(
+              (record) =>
+                record.unsubscribe !== 1 && record.unsubscribe !== true
+            );
             if (!hasActiveRecord) return false;
-          } else if (advancedFilterData.subscriptionStatus === 'unsubscribed') {
+          } else if (advancedFilterData.subscriptionStatus === "unsubscribed") {
             // Check if any FOM record is unsubscribed
-            const hasUnsubscribedRecord = fomData.some(record => record.unsubscribe === 1 || record.unsubscribe === true);
+            const hasUnsubscribedRecord = fomData.some(
+              (record) =>
+                record.unsubscribe === 1 || record.unsubscribe === true
+            );
             if (!hasUnsubscribedRecord) return false;
           }
         }
-        
+
         return true;
       });
-      
-      console.log(`Filtered ${combinedData.length - filteredCombinedData.length} clients based on subscription status`);
+
+      console.log(
+        `Filtered ${
+          combinedData.length - filteredCombinedData.length
+        } clients based on subscription status`
+      );
     }
 
     // Calculate totalCopies using only the most recent copies for each client
@@ -1945,7 +2263,7 @@ async function fetchDataServices(
     let fomTotalAmt = 0;
     let calTotalPaymtAmt = 0;
     let totalFilterQuery = { ...filterQuery };
-    
+
     // New variables for filter-based WMM totals
     let filteredTotalCopies = 0;
     let filteredTotalClients = 0;
@@ -1961,18 +2279,18 @@ async function fetchDataServices(
 
         // Set the filtered total clients count (regardless of pagination)
         filteredTotalClients = filteredClientIds.length;
-          
+
         // If no clients match the filter, return zeros
         if (filteredClientIds.length === 0) {
-          return { 
-            totalCopies: 0, 
-            totalCalQty: 0, 
-            totalCalAmt: 0, 
-            totalHrgAmt: 0, 
-            totalFomAmt: 0, 
-            totalCalPaymtAmt: 0, 
+          return {
+            totalCopies: 0,
+            totalCalQty: 0,
+            totalCalAmt: 0,
+            totalHrgAmt: 0,
+            totalFomAmt: 0,
+            totalCalPaymtAmt: 0,
             filteredTotalCopies: 0,
-            filteredTotalClients: 0
+            filteredTotalClients: 0,
           };
         }
 
@@ -2010,11 +2328,11 @@ async function fetchDataServices(
         // For active/expired WMM filtering, add the filter to the query
         if (advancedFilterData.wmmSubscriptionStatus) {
           const currentDate = new Date();
-          const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-          
-          if (advancedFilterData.wmmSubscriptionStatus === 'active') {
+          const dateStr = currentDate.toISOString().split("T")[0]; // Format: YYYY-MM-DD
+
+          if (advancedFilterData.wmmSubscriptionStatus === "active") {
             wmmQuery.enddate = { $gte: dateStr };
-          } else if (advancedFilterData.wmmSubscriptionStatus === 'expired') {
+          } else if (advancedFilterData.wmmSubscriptionStatus === "expired") {
             wmmQuery.enddate = { $lt: dateStr };
           }
         }
@@ -2043,7 +2361,7 @@ async function fetchDataServices(
             }
           });
         }
-        
+
         // Filter subscriptions based on expiry month if needed
         if (
           advancedFilterData.wmmStartEndDate &&
@@ -2093,12 +2411,20 @@ async function fetchDataServices(
         // Find the most recent calendar entry for each client
         for (const cal of allCalEntries) {
           const clientId = parseInt(cal.clientid);
-          const calDate = cal.caldate ? new Date(cal.caldate) : cal.recvdate ? new Date(cal.recvdate) : new Date(0);
+          const calDate = cal.caldate
+            ? new Date(cal.caldate)
+            : cal.recvdate
+            ? new Date(cal.recvdate)
+            : new Date(0);
 
           if (
             !clientLatestCalEntries.has(clientId) ||
-            (calDate >
-                new Date(clientLatestCalEntries.get(clientId).caldate || clientLatestCalEntries.get(clientId).recvdate || 0))
+            calDate >
+              new Date(
+                clientLatestCalEntries.get(clientId).caldate ||
+                  clientLatestCalEntries.get(clientId).recvdate ||
+                  0
+              )
           ) {
             clientLatestCalEntries.set(clientId, cal);
           }
@@ -2111,7 +2437,8 @@ async function fetchDataServices(
 
           if (
             !clientLatestHrgEntries.has(clientId) ||
-            (hrg.recvdate && hrgDate >
+            (hrg.recvdate &&
+              hrgDate >
                 new Date(clientLatestHrgEntries.get(clientId).recvdate || 0))
           ) {
             clientLatestHrgEntries.set(clientId, hrg);
@@ -2125,7 +2452,8 @@ async function fetchDataServices(
 
           if (
             !clientLatestFomEntries.has(clientId) ||
-            (fom.recvdate && fomDate >
+            (fom.recvdate &&
+              fomDate >
                 new Date(clientLatestFomEntries.get(clientId).recvdate || 0))
           ) {
             clientLatestFomEntries.set(clientId, fom);
@@ -2143,24 +2471,28 @@ async function fetchDataServices(
               return null;
             }
           };
-          
+
           // Parse filter dates
-          const startDate = advancedFilterData.startDate ? new Date(advancedFilterData.startDate) : null;
-          const endDate = advancedFilterData.endDate ? new Date(advancedFilterData.endDate) : null;
-          
+          const startDate = advancedFilterData.startDate
+            ? new Date(advancedFilterData.startDate)
+            : null;
+          const endDate = advancedFilterData.endDate
+            ? new Date(advancedFilterData.endDate)
+            : null;
+
           // Set end date to end of day for inclusive comparison
           if (endDate) {
             endDate.setHours(23, 59, 59, 999);
           }
-          
+
           // Filter HRG entries
           if (clientLatestHrgEntries.size > 0) {
             const filteredHrgEntries = new Map();
-            
+
             for (const [clientId, hrg] of clientLatestHrgEntries.entries()) {
               const recvDate = parseDate(hrg.recvdate);
               if (!recvDate) continue;
-              
+
               let includeEntry = false;
               if (startDate && endDate) {
                 includeEntry = recvDate >= startDate && recvDate <= endDate;
@@ -2169,24 +2501,24 @@ async function fetchDataServices(
               } else if (endDate) {
                 includeEntry = recvDate <= endDate;
               }
-              
+
               if (includeEntry) {
                 filteredHrgEntries.set(clientId, hrg);
               }
             }
-            
+
             // Replace with filtered entries
             clientLatestHrgEntries = filteredHrgEntries;
           }
-          
+
           // Filter FOM entries
           if (clientLatestFomEntries.size > 0) {
             const filteredFomEntries = new Map();
-            
+
             for (const [clientId, fom] of clientLatestFomEntries.entries()) {
               const recvDate = parseDate(fom.recvdate);
               if (!recvDate) continue;
-              
+
               let includeEntry = false;
               if (startDate && endDate) {
                 includeEntry = recvDate >= startDate && recvDate <= endDate;
@@ -2195,12 +2527,12 @@ async function fetchDataServices(
               } else if (endDate) {
                 includeEntry = recvDate <= endDate;
               }
-              
+
               if (includeEntry) {
                 filteredFomEntries.set(clientId, fom);
               }
             }
-            
+
             // Replace with filtered entries
             clientLatestFomEntries = filteredFomEntries;
           }
@@ -2221,7 +2553,7 @@ async function fetchDataServices(
             }
           }
         }
-        
+
         // Calculate filtered total copies from all matching WMM records
         // This includes ALL copies for clients matching the filter, regardless of pagination
         filteredTotalCopies = copiesTotal;
@@ -2250,17 +2582,17 @@ async function fetchDataServices(
             if (!isNaN(calQty) && calQty > 0) {
               calQtyTotal += calQty;
               validCalQtyEntries++;
-              
+
               // Calculate total amount by multiplying quantity by amount per unit
               if (cal.calamt) {
                 const calAmt =
                   typeof cal.calamt === "string"
-                    ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ''))
+                    ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ""))
                     : cal.calamt;
-                
+
                 // Only add if it's a valid number
                 if (!isNaN(calAmt) && calAmt > 0) {
-                  calAmtTotal += (calQty * calAmt);
+                  calAmtTotal += calQty * calAmt;
                   validCalAmtEntries++;
                 }
               }
@@ -2271,7 +2603,7 @@ async function fetchDataServices(
           if (cal.paymtamt && cal.paymtref) {
             const calPaymtAmt =
               typeof cal.paymtamt === "string"
-                ? parseFloat(cal.paymtamt.replace(/[^\d.-]/g, ''))
+                ? parseFloat(cal.paymtamt.replace(/[^\d.-]/g, ""))
                 : cal.paymtamt;
 
             // Only add if it's a valid number
@@ -2291,7 +2623,7 @@ async function fetchDataServices(
           if (hrg.paymtamt) {
             const hrgAmt =
               typeof hrg.paymtamt === "string"
-                ? parseFloat(hrg.paymtamt.replace(/[^\d.-]/g, ''))
+                ? parseFloat(hrg.paymtamt.replace(/[^\d.-]/g, ""))
                 : hrg.paymtamt;
 
             // Only add if it's a valid number
@@ -2307,7 +2639,7 @@ async function fetchDataServices(
           if (fom.paymtamt) {
             const fomAmt =
               typeof fom.paymtamt === "string"
-                ? parseFloat(fom.paymtamt.replace(/[^\d.-]/g, ''))
+                ? parseFloat(fom.paymtamt.replace(/[^\d.-]/g, ""))
                 : fom.paymtamt;
 
             // Only add if it's a valid number
@@ -2327,26 +2659,26 @@ async function fetchDataServices(
           totalFomAmt: fomTotalAmt,
           totalCalPaymtAmt: calTotalPaymtAmt,
           filteredTotalCopies: filteredTotalCopies,
-          filteredTotalClients: filteredTotalClients
+          filteredTotalClients: filteredTotalClients,
         };
       } catch (error) {
         console.error("Error calculating totals:", error);
-        return { 
-          totalCopies: 0, 
-          totalCalQty: 0, 
-          totalCalAmt: 0, 
-          totalHrgAmt: 0, 
-          totalFomAmt: 0, 
-          totalCalPaymtAmt: 0, 
+        return {
+          totalCopies: 0,
+          totalCalQty: 0,
+          totalCalAmt: 0,
+          totalHrgAmt: 0,
+          totalFomAmt: 0,
+          totalCalPaymtAmt: 0,
           filteredTotalCopies: 0,
-          filteredTotalClients: 0
+          filteredTotalClients: 0,
         };
       }
     };
 
     // Calculate totals based on filter
     const totals = await getTotalValues();
-        
+
     totalCopies = totals.totalCopies;
     totalCalQty = totals.totalCalQty;
     totalCalAmt = totals.totalCalAmt;
@@ -2380,43 +2712,42 @@ async function fetchDataServices(
       // Look for CAL data in the client's data
       const calData = client.calData?.records || [];
       if (calData.length === 0) return acc;
-      
+
       // Get the most recent CAL record based on recvdate
       const sortedCalData = [...calData].sort((a, b) => {
         return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
       });
-      
+
       const mostRecentCal = sortedCalData[0];
       if (mostRecentCal && mostRecentCal.calamt && mostRecentCal.calqty) {
         let amt = 0;
         let qty = 0;
-        
+
         try {
           // Parse calamt
-          if (typeof mostRecentCal.calamt === 'string') {
+          if (typeof mostRecentCal.calamt === "string") {
             // Remove any non-numeric characters except decimal point and negative sign
-            const cleanedAmt = mostRecentCal.calamt.replace(/[^\d.-]/g, '');
+            const cleanedAmt = mostRecentCal.calamt.replace(/[^\d.-]/g, "");
             amt = parseFloat(cleanedAmt);
           } else {
             amt = mostRecentCal.calamt;
           }
-          
+
           // Parse calqty
-          if (typeof mostRecentCal.calqty === 'string') {
+          if (typeof mostRecentCal.calqty === "string") {
             qty = parseInt(mostRecentCal.calqty, 10);
           } else {
             qty = mostRecentCal.calqty;
           }
-          
+
           // Calculate total by multiplying qty by amt
           return acc + (isNaN(amt) || isNaN(qty) ? 0 : amt * qty);
-          
         } catch (error) {
           console.error("Error calculating CAL total amount:", error);
           return acc;
         }
       }
-      
+
       return acc;
     }, 0);
 
@@ -2425,33 +2756,32 @@ async function fetchDataServices(
       // Look for HRG data in the client's data
       const hrgData = client.hrgData?.records || [];
       if (hrgData.length === 0) return acc;
-      
+
       // Get the most recent HRG record based on recvdate
       const sortedHrgData = [...hrgData].sort((a, b) => {
         return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
       });
-      
+
       const mostRecentHrg = sortedHrgData[0];
       if (mostRecentHrg && mostRecentHrg.paymtamt) {
         let amt = 0;
-        
+
         try {
-          if (typeof mostRecentHrg.paymtamt === 'string') {
+          if (typeof mostRecentHrg.paymtamt === "string") {
             // Remove any non-numeric characters except decimal point and negative sign
-            const cleanedAmt = mostRecentHrg.paymtamt.replace(/[^\d.-]/g, '');
+            const cleanedAmt = mostRecentHrg.paymtamt.replace(/[^\d.-]/g, "");
             amt = parseFloat(cleanedAmt);
           } else {
             amt = mostRecentHrg.paymtamt;
           }
-          
         } catch (error) {
           console.error("Error parsing HRG payment amount:", error);
           return acc;
         }
-        
+
         return acc + (isNaN(amt) ? 0 : amt);
       }
-      
+
       return acc;
     }, 0);
 
@@ -2459,69 +2789,70 @@ async function fetchDataServices(
       // Look for FOM data in the client's data
       const fomData = client.fomData?.records || [];
       if (fomData.length === 0) return acc;
-      
+
       // Get the most recent FOM record based on recvdate
       const sortedFomData = [...fomData].sort((a, b) => {
         return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
       });
-      
+
       const mostRecentFom = sortedFomData[0];
       if (mostRecentFom && mostRecentFom.paymtamt) {
         let amt = 0;
-        
+
         try {
-          if (typeof mostRecentFom.paymtamt === 'string') {
+          if (typeof mostRecentFom.paymtamt === "string") {
             // Remove any non-numeric characters except decimal point and negative sign
-            const cleanedAmt = mostRecentFom.paymtamt.replace(/[^\d.-]/g, '');
+            const cleanedAmt = mostRecentFom.paymtamt.replace(/[^\d.-]/g, "");
             amt = parseFloat(cleanedAmt);
           } else {
             amt = mostRecentFom.paymtamt;
           }
-          
         } catch (error) {
           console.error("Error parsing FOM payment amount:", error);
           return acc;
         }
-        
+
         return acc + (isNaN(amt) ? 0 : amt);
       }
-      
+
       return acc;
     }, 0);
 
-    const pageSpecificCalPaymtAmt = filteredCombinedData.reduce((acc, client) => {
-      // Look for CAL data in the client's data
-      const calData = client.calData?.records || [];
-      if (calData.length === 0) return acc;
-      
-      // Get the most recent CAL record based on recvdate
-      const sortedCalData = [...calData].sort((a, b) => {
-        return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
-      });
-      
-      const mostRecentCal = sortedCalData[0];
-      if (mostRecentCal && mostRecentCal.paymtamt && mostRecentCal.paymtref) {
-        let amt = 0;
-        
-        try {
-          if (typeof mostRecentCal.paymtamt === 'string') {
-            // Remove any non-numeric characters except decimal point and negative sign
-            const cleanedAmt = mostRecentCal.paymtamt.replace(/[^\d.-]/g, '');
-            amt = parseFloat(cleanedAmt);
-          } else {
-            amt = mostRecentCal.paymtamt;
+    const pageSpecificCalPaymtAmt = filteredCombinedData.reduce(
+      (acc, client) => {
+        // Look for CAL data in the client's data
+        const calData = client.calData?.records || [];
+        if (calData.length === 0) return acc;
+
+        // Get the most recent CAL record based on recvdate
+        const sortedCalData = [...calData].sort((a, b) => {
+          return new Date(b.recvdate || 0) - new Date(a.recvdate || 0);
+        });
+
+        const mostRecentCal = sortedCalData[0];
+        if (mostRecentCal && mostRecentCal.paymtamt && mostRecentCal.paymtref) {
+          let amt = 0;
+
+          try {
+            if (typeof mostRecentCal.paymtamt === "string") {
+              // Remove any non-numeric characters except decimal point and negative sign
+              const cleanedAmt = mostRecentCal.paymtamt.replace(/[^\d.-]/g, "");
+              amt = parseFloat(cleanedAmt);
+            } else {
+              amt = mostRecentCal.paymtamt;
+            }
+          } catch (error) {
+            console.error("Error parsing CAL payment amount:", error);
+            return acc;
           }
-          
-        } catch (error) {
-          console.error("Error parsing CAL payment amount:", error);
-          return acc;
+
+          return acc + (isNaN(amt) ? 0 : amt);
         }
-        
-        return acc + (isNaN(amt) ? 0 : amt);
-      }
-      
-      return acc;
-    }, 0);
+
+        return acc;
+      },
+      0
+    );
 
     const serviceData = await Promise.all(
       Object.entries(additionalModels).map(async ([modelName, importFunc]) => {
@@ -2553,7 +2884,7 @@ async function fetchDataServices(
           if (hasService) {
             acc.push(serviceName);
           }
-          
+
           return acc;
         },
         []
@@ -2594,16 +2925,16 @@ async function fetchDataServices(
       absoluteTotalClients,
       absoluteTotalCopies,
     };
-    
+
     // Add to cache
     responseCache.set(cacheKey, result);
-    
+
     // If cache is too large, remove oldest entry (LRU implementation)
     if (responseCache.size > MAX_CACHE_SIZE) {
       const oldestKey = responseCache.keys().next().value;
       responseCache.delete(oldestKey);
     }
-    
+
     return result;
   } catch (error) {
     console.error(`Error in fetchDataServices:`, error);
