@@ -107,8 +107,6 @@ export const fetchClients = async (
       pageSpecificClients,
       filteredTotalCopies,
       filteredTotalClients,
-      absoluteTotalClients,
-      absoluteTotalCopies,
       totalCount,
       noData,
     } = response.data;
@@ -134,8 +132,6 @@ export const fetchClients = async (
         pageSpecificCalPaymtAmt: 0,
         totalClients: 0,
         pageSpecificClients: 0,
-        absoluteTotalClients: 0,
-        absoluteTotalCopies: 0,
         noData: true,
       };
     }
@@ -161,8 +157,6 @@ export const fetchClients = async (
         pageSpecificCalPaymtAmt: 0,
         totalClients: 0,
         pageSpecificClients: 0,
-        absoluteTotalClients: 0,
-        absoluteTotalCopies: 0,
         noData: true,
       };
     }
@@ -195,8 +189,6 @@ export const fetchClients = async (
         totalClients ||
         totalCount ||
         processedData.length,
-      absoluteTotalClients: absoluteTotalClients || 0,
-      absoluteTotalCopies: absoluteTotalCopies || 0,
       noData: false,
     };
   } catch (e) {
