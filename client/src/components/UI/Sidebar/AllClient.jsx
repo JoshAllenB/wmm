@@ -4,7 +4,7 @@ import Add from "../../CRUD/AllClient/add";
 import Mailing from "../../mailing";
 import { Input } from "../ShadCN/input";
 import { fetchClients } from "../../Table/Data/clientdata";
-import { fetchGroups } from "../../Table/Data/utilData";
+import { fetchGroups, fetchUsers } from "../../Table/Data/utilData";
 import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
@@ -13,6 +13,7 @@ import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
 import { ColumnToggle } from "../../Table/ColumnToggle";
+import { ArrowDown } from "lucide-react";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -36,8 +37,6 @@ const AllClient = () => {
   const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
   const [totalClients, setTotalClients] = useState(0);
   const [pageSpecificClients, setPageSpecificClients] = useState(0);
-  const [absoluteTotalClients, setAbsoluteTotalClients] = useState(0);
-  const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(0);
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(true);
@@ -49,6 +48,7 @@ const AllClient = () => {
 
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
+  const [users, setUsers] = useState([]);
 
   const [tableInstance, setTableInstance] = useState(null);
 
@@ -355,7 +355,6 @@ const AllClient = () => {
 
         // Skip state updates if the request was cancelled (response is null)
         if (!response) {
-          console.log("Request was cancelled, skipping state updates");
           setIsLoading(false);
           return null;
         }
@@ -385,9 +384,6 @@ const AllClient = () => {
           response.pageSpecificClients ||
           (response.data ? response.data.length : 0);
         setPageSpecificClients(pageClientsValue);
-
-        setAbsoluteTotalClients(response.absoluteTotalClients || 0);
-        setAbsoluteTotalCopies(response.absoluteTotalCopies || 0);
 
         // Always remove loading state when done
         setIsLoading(false);
@@ -419,6 +415,19 @@ const AllClient = () => {
       }
     };
     loadGroups();
+
+    // Load users for filter display
+    const loadUsers = async () => {
+      try {
+        const userData = await fetchUsers();
+        if (userData && userData.users) {
+          setUsers(userData.users);
+        }
+      } catch (error) {
+        console.error("Error loading users:", error);
+      }
+    };
+    loadUsers();
 
     // Initialize services based on user roles
     const roleBasedServices = [];
@@ -656,6 +665,94 @@ const AllClient = () => {
   const getActiveFilters = () => {
     const filters = [];
 
+    // Helper function to safely format dates
+    const formatSafeDate = (dateStr) => {
+      if (!dateStr) return "";
+
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) {
+          // If invalid date, return the string as is
+          return dateStr;
+        }
+
+        // Format as MM/DD/YYYY
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        const year = date.getFullYear();
+        return `${month}/${day}/${year}`;
+      } catch (error) {
+        console.error("Error formatting date:", error);
+        return dateStr; // Return original string on error
+      }
+    };
+
+    // Helper function to format dates with month names
+    const formatDateWithMonthName = (dateStr) => {
+      if (!dateStr) return "";
+
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) {
+          // If invalid date, return the string as is
+          return dateStr;
+        }
+
+        // List of month names
+        const months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+
+        // Format as "Month Day, Year"
+        const monthName = months[date.getMonth()];
+        const day = date.getDate();
+        const year = date.getFullYear();
+        return `${monthName} ${day}, ${year}`;
+      } catch (error) {
+        console.error("Error formatting date with month name:", error);
+        return dateStr; // Return original string on error
+      }
+    };
+
+    // Helper to get month name from month number
+    const getMonthName = (monthNumber) => {
+      try {
+        const months = [
+          "January",
+          "February",
+          "March",
+          "April",
+          "May",
+          "June",
+          "July",
+          "August",
+          "September",
+          "October",
+          "November",
+          "December",
+        ];
+        const index = parseInt(monthNumber) - 1;
+        if (index >= 0 && index < 12) {
+          return months[index];
+        }
+        return monthNumber;
+      } catch (error) {
+        console.error("Error getting month name:", error);
+        return monthNumber;
+      }
+    };
+
     // Parse the current filtering value
     if (debouncedFiltering) {
       const parsedFilters = parseTaggedSearch(debouncedFiltering);
@@ -692,49 +789,243 @@ const AllClient = () => {
       filters.push(`Last Name: ${advancedFilterData.lname}`);
     if (advancedFilterData.fname)
       filters.push(`First Name: ${advancedFilterData.fname}`);
+    if (advancedFilterData.mname)
+      filters.push(`Middle Name: ${advancedFilterData.mname}`);
+    if (advancedFilterData.sname)
+      filters.push(`Suffix: ${advancedFilterData.sname}`);
+    if (advancedFilterData.address)
+      filters.push(
+        `Address: ${advancedFilterData.address.substring(0, 20)}${
+          advancedFilterData.address.length > 20 ? "..." : ""
+        }`
+      );
+    if (advancedFilterData.email)
+      filters.push(`Email: ${advancedFilterData.email}`);
+    if (advancedFilterData.cellno)
+      filters.push(`Cell Number: ${advancedFilterData.cellno}`);
+    if (advancedFilterData.ofcno)
+      filters.push(`Office Number: ${advancedFilterData.ofcno}`);
+    if (advancedFilterData.contactnos)
+      filters.push(`Other Contact: ${advancedFilterData.contactnos}`);
+    if (advancedFilterData.birthdate)
+      filters.push(
+        `Birth Date: ${formatDateWithMonthName(advancedFilterData.birthdate)}`
+      );
+
     if (advancedFilterData.startDate && advancedFilterData.endDate)
       filters.push(
-        `Date Range: ${advancedFilterData.startDate} to ${advancedFilterData.endDate}`
+        `Date Range: ${formatDateWithMonthName(
+          advancedFilterData.startDate
+        )} to ${formatDateWithMonthName(advancedFilterData.endDate)}`
       );
     else if (advancedFilterData.startDate)
-      filters.push(`From: ${advancedFilterData.startDate}`);
+      filters.push(
+        `From: ${formatDateWithMonthName(advancedFilterData.startDate)}`
+      );
     else if (advancedFilterData.endDate)
-      filters.push(`Until: ${advancedFilterData.endDate}`);
+      filters.push(
+        `Until: ${formatDateWithMonthName(advancedFilterData.endDate)}`
+      );
 
-    // Fix for Active Subscriptions month display
+    // Direct fix for simple month values in active/expiring subscriptions
+    // This checks if the value is just a month number like "01"
     if (advancedFilterData.wmmActiveMonth) {
-      // Use the original month selection directly instead of derived dates
-      const [year, month] = advancedFilterData.wmmActiveMonth.split("-");
-      const date = new Date(year, parseInt(month) - 1);
-      const monthName = date.toLocaleString("default", { month: "long" });
-      filters.push(`Active Subscriptions: ${monthName} ${year}`);
+      const monthStr = advancedFilterData.wmmActiveMonth;
+      // Check if it's just a simple number 1-12
+      const monthNum = parseInt(monthStr);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        const monthName = getMonthName(monthNum);
+        const currentYear = new Date().getFullYear();
+        filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
+      } else {
+        // Continue with existing handling
+        try {
+          const [year, month] = advancedFilterData.wmmActiveMonth.split("-");
+          if (month && year) {
+            const monthName = getMonthName(month);
+            filters.push(`Active Subscriptions: ${monthName} ${year}`);
+          } else {
+            // Handle case where month might be in a different format
+            const parts = advancedFilterData.wmmActiveMonth.split(/[\/\-\s]/);
+            if (parts.length >= 2) {
+              // Try to guess which part is month and which is year
+              let monthPart = parts[0];
+              let yearPart = parts[parts.length - 1];
+
+              // Check if any part could be a month (1-12)
+              for (let part of parts) {
+                const num = parseInt(part);
+                if (!isNaN(num) && num >= 1 && num <= 12) {
+                  monthPart = part;
+                  break;
+                }
+              }
+
+              const monthName = getMonthName(monthPart);
+              filters.push(`Active Subscriptions: ${monthName} ${yearPart}`);
+            } else {
+              // Just display as is if we can't parse
+              filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing active month:", error);
+          const monthName = getMonthName(monthStr);
+          const currentYear = new Date().getFullYear();
+          filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
+        }
+      }
     } else if (
       advancedFilterData.wmmStartSubsDate &&
       advancedFilterData.wmmEndSubsDate
     ) {
       // Fallback to using the start/end dates if wmmActiveMonth isn't available
-      const date = new Date(advancedFilterData.wmmStartSubsDate);
-      const monthName = date.toLocaleString("default", { month: "long" });
-      const year = date.getFullYear();
-      filters.push(`Active Subscriptions: ${monthName} ${year}`);
+      try {
+        const date = new Date(advancedFilterData.wmmStartSubsDate);
+        if (!isNaN(date.getTime())) {
+          const monthIndex = date.getMonth();
+          const monthName = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ][monthIndex];
+          const year = date.getFullYear();
+          filters.push(`Active Subscriptions: ${monthName} ${year}`);
+        } else {
+          // Try to parse month from the date string manually
+          const parts = advancedFilterData.wmmStartSubsDate.split(/[\/\-\s]/);
+          if (parts.length >= 2) {
+            const monthPart = parts[0] || parts[1];
+            const yearPart = parts[parts.length - 1];
+            const monthName = getMonthName(monthPart);
+
+            filters.push(`Active Subscriptions: ${monthName} ${yearPart}`);
+          } else {
+            filters.push(
+              `Active Subscriptions: ${formatSafeDate(
+                advancedFilterData.wmmStartSubsDate
+              )} to ${formatSafeDate(advancedFilterData.wmmEndSubsDate)}`
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing subscription dates:", error);
+        filters.push(
+          `Active Subscriptions: ${formatSafeDate(
+            advancedFilterData.wmmStartSubsDate
+          )} to ${formatSafeDate(advancedFilterData.wmmEndSubsDate)}`
+        );
+      }
     }
 
-    // Fix for Expiring Subscriptions month display
+    // Direct fix for simple month values in expiring subscriptions
     if (advancedFilterData.wmmExpiringMonth) {
-      // Use the original month selection directly
-      const [year, month] = advancedFilterData.wmmExpiringMonth.split("-");
-      const date = new Date(year, parseInt(month) - 1);
-      const monthName = date.toLocaleString("default", { month: "long" });
-      filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+      const monthStr = advancedFilterData.wmmExpiringMonth;
+      // Check if it's just a simple number 1-12
+      const monthNum = parseInt(monthStr);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        const monthName = getMonthName(monthNum);
+        const currentYear = new Date().getFullYear();
+        filters.push(`Expiring Subscriptions: ${monthName} ${currentYear}`);
+      } else {
+        // Continue with existing handling
+        try {
+          const [year, month] = advancedFilterData.wmmExpiringMonth.split("-");
+          if (month && year) {
+            const monthName = getMonthName(month);
+            filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+          } else {
+            // Handle case where month might be in a different format
+            const parts = advancedFilterData.wmmExpiringMonth.split(/[\/\-\s]/);
+            if (parts.length >= 2) {
+              // Try to guess which part is month and which is year
+              let monthPart = parts[0];
+              let yearPart = parts[parts.length - 1];
+
+              // Check if any part could be a month (1-12)
+              for (let part of parts) {
+                const num = parseInt(part);
+                if (!isNaN(num) && num >= 1 && num <= 12) {
+                  monthPart = part;
+                  break;
+                }
+              }
+
+              const monthName = getMonthName(monthPart);
+              filters.push(`Expiring Subscriptions: ${monthName} ${yearPart}`);
+            } else {
+              // Just display as is if we can't parse
+              filters.push(
+                `Expiring Subscriptions: ${monthName} ${currentYear}`
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing expiring month:", error);
+          const monthName = getMonthName(monthStr);
+          const currentYear = new Date().getFullYear();
+          filters.push(`Expiring Subscriptions: ${monthName} ${currentYear}`);
+        }
+      }
     } else if (
       advancedFilterData.wmmStartEndDate &&
       advancedFilterData.wmmEndEndDate
     ) {
       // Fallback
-      const date = new Date(advancedFilterData.wmmStartEndDate);
-      const monthName = date.toLocaleString("default", { month: "long" });
-      const year = date.getFullYear();
-      filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+      try {
+        const date = new Date(advancedFilterData.wmmStartEndDate);
+        if (!isNaN(date.getTime())) {
+          const monthIndex = date.getMonth();
+          const monthName = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+          ][monthIndex];
+          const year = date.getFullYear();
+          filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
+        } else {
+          // Try to parse month from the date string manually
+          const parts = advancedFilterData.wmmStartEndDate.split(/[\/\-\s]/);
+          if (parts.length >= 2) {
+            const monthPart = parts[0] || parts[1];
+            const yearPart = parts[parts.length - 1];
+            const monthName = getMonthName(monthPart);
+
+            filters.push(`Expiring Subscriptions: ${monthName} ${yearPart}`);
+          } else {
+            filters.push(
+              `Expiring Subscriptions: ${formatSafeDate(
+                advancedFilterData.wmmStartEndDate
+              )} to ${formatSafeDate(advancedFilterData.wmmEndEndDate)}`
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing end dates:", error);
+        filters.push(
+          `Expiring Subscriptions: ${formatSafeDate(
+            advancedFilterData.wmmStartEndDate
+          )} to ${formatSafeDate(advancedFilterData.wmmEndEndDate)}`
+        );
+      }
     }
 
     if (advancedFilterData.type)
@@ -752,8 +1043,12 @@ const AllClient = () => {
         // Show specific areas if there are only a few
         filters.push(`Areas: ${advancedFilterData.areas.join(", ")}`);
       } else {
-        // Show count if there are many
-        filters.push(`Areas: ${advancedFilterData.areas.length} selected`);
+        // Show first few areas with a count if there are many
+        filters.push(
+          `Areas: ${advancedFilterData.areas.slice(0, 3).join(", ")}... (${
+            advancedFilterData.areas.length
+          } total)`
+        );
       }
     }
 
@@ -825,18 +1120,38 @@ const AllClient = () => {
       advancedFilterData.includeClientIds &&
       advancedFilterData.includeClientIds.length > 0
     ) {
-      filters.push(
-        `Include Clients: ${advancedFilterData.includeClientIds.length} client(s)`
-      );
+      if (advancedFilterData.includeClientIds.length <= 5) {
+        filters.push(
+          `Include Clients: ${advancedFilterData.includeClientIds.join(", ")}`
+        );
+      } else {
+        filters.push(
+          `Include Clients: ${advancedFilterData.includeClientIds
+            .slice(0, 5)
+            .join(", ")}... (${
+            advancedFilterData.includeClientIds.length
+          } total)`
+        );
+      }
     }
 
     if (
       advancedFilterData.excludeClientIds &&
       advancedFilterData.excludeClientIds.length > 0
     ) {
-      filters.push(
-        `Exclude Clients: ${advancedFilterData.excludeClientIds.length} client(s)`
-      );
+      if (advancedFilterData.excludeClientIds.length <= 5) {
+        filters.push(
+          `Exclude Clients: ${advancedFilterData.excludeClientIds.join(", ")}`
+        );
+      } else {
+        filters.push(
+          `Exclude Clients: ${advancedFilterData.excludeClientIds
+            .slice(0, 5)
+            .join(", ")}... (${
+            advancedFilterData.excludeClientIds.length
+          } total)`
+        );
+      }
     }
 
     // Add exclude SPack clients filter
@@ -861,9 +1176,13 @@ const AllClient = () => {
       );
     }
 
-    // Add user filter
+    // Add user filter with actual username if available
     if (advancedFilterData.userId) {
-      filters.push(`User: ${advancedFilterData.userId}`);
+      // Try to find the username if possible
+      const username = users?.find(
+        (u) => u._id === advancedFilterData.userId
+      )?.username;
+      filters.push(`User: ${username || advancedFilterData.userId}`);
     }
 
     return filters;
@@ -896,6 +1215,13 @@ const AllClient = () => {
     return roles.length > 0 ? roles.join(" ") : "default";
   }, [hasRole]); // Only recalculate when hasRole changes
 
+  // Ref for scrolling to bottom
+  const bottomRef = useRef(null);
+
+  const handleScrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="mr-[10px] ml-[10px]">
       <div className="flex gap-2">
@@ -917,12 +1243,19 @@ const AllClient = () => {
         <Button
           onClick={handleAddedTodayClick}
           className={`${
-            addedToday ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-800"
-          }`}
+            addedToday
+              ? "bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
+              : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+          } transition-colors duration-200 font-medium`}
         >
           Added/Updated Today
         </Button>
-        <Button onClick={handleClearAllFilters}>Clear All Filters</Button>
+        <Button
+          onClick={handleClearAllFilters}
+          className="bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors duration-200 font-medium"
+        >
+          Clear All Filters
+        </Button>
 
         {/* Add ColumnToggle component here */}
         <ColumnToggle
@@ -931,6 +1264,14 @@ const AllClient = () => {
           setColumnVisibility={setColumnVisibility}
           serviceFilters={advancedFilterData.services || []}
         />
+        <Button
+          onClick={handleScrollToBottom}
+          title="Go to Bottom"
+          className="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors duration-200 font-medium flex items-center gap-1"
+        >
+          <ArrowDown className="h-4 w-4" />
+          <span>Go Bottom</span>
+        </Button>
       </div>
 
       {/* Filter Status Display */}
@@ -982,8 +1323,6 @@ const AllClient = () => {
         pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
         totalClients={totalClients}
         pageSpecificClients={pageSpecificClients}
-        absoluteTotalClients={absoluteTotalClients}
-        absoluteTotalCopies={absoluteTotalCopies}
         userRole={determineUserRole}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
@@ -1000,6 +1339,9 @@ const AllClient = () => {
           onDeleteSuccess={handleDeleteSuccess}
         />
       )}
+
+      {/* Reference element for scrolling to bottom */}
+      <div ref={bottomRef} />
     </div>
   );
 };
