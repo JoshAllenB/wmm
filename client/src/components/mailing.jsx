@@ -38,6 +38,13 @@ const Mailing = ({
   const [startClientId, setStartClientId] = useState("");
   const [endClientId, setEndClientId] = useState("");
   const [startPosition, setStartPosition] = useState("left"); // 'left' or 'right'
+  const [csvExportModal, setCsvExportModal] = useState(false); // New state for CSV export modal
+  const [csvIncludeFields, setCsvIncludeFields] = useState([
+    "id",
+    "name",
+    "address",
+    "contactnos",
+  ]); // Fields to include in CSV
 
   // State for A4 preview layout adjustments
   const [renewalLeftMargin, setRenewalLeftMargin] = useState(40);
@@ -1038,6 +1045,135 @@ const Mailing = ({
     printWindow.document.close();
   };
 
+  // Generate CSV content from the selected data
+  const generateCSV = () => {
+    // Filter rows based on start/end Client IDs
+    const filteredRows = selectedRows.filter((row) => {
+      const clientId = row?.original?.id?.toString();
+      if (!clientId) {
+        return false;
+      }
+      const trimmedStartId = startClientId?.trim();
+      const trimmedEndId = endClientId?.trim();
+
+      const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+      const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+      return isAfterStart && isBeforeEnd;
+    });
+
+    if (filteredRows.length === 0) {
+      alert("No data found for the specified criteria.");
+      return null;
+    }
+
+    // Define CSV headers based on selected fields
+    const headers = [];
+
+    if (csvIncludeFields.includes("id")) headers.push("Client ID");
+    if (csvIncludeFields.includes("name")) headers.push("Name");
+    if (csvIncludeFields.includes("address")) headers.push("Address");
+    if (csvIncludeFields.includes("contactnos")) headers.push("Contact Number");
+    if (csvIncludeFields.includes("copies")) headers.push("Copies");
+    if (csvIncludeFields.includes("acode")) headers.push("Area Code");
+    if (csvIncludeFields.includes("subsdate"))
+      headers.push("Subscription Date");
+    if (csvIncludeFields.includes("enddate")) headers.push("End Date");
+    if (csvIncludeFields.includes("subsclass"))
+      headers.push("Subscription Class");
+
+    // Create CSV content
+    let csvContent = headers.join(",") + "\n";
+
+    filteredRows.forEach((row) => {
+      const subscriber = row.original;
+      const wmmData = subscriber?.wmmData;
+      const subscription = wmmData?.records?.[0] || {};
+
+      const rowData = [];
+
+      if (csvIncludeFields.includes("id"))
+        rowData.push(`"${subscriber.id || ""}"`);
+      if (csvIncludeFields.includes("name"))
+        rowData.push(`"${getFullName(subscriber)}"`);
+      if (csvIncludeFields.includes("address"))
+        rowData.push(`"${subscriber.address || ""}"`);
+      if (csvIncludeFields.includes("contactnos"))
+        rowData.push(`"${getContactNumber(subscriber)}"`);
+      if (csvIncludeFields.includes("copies"))
+        rowData.push(`"${subscription.copies || ""}"`);
+      if (csvIncludeFields.includes("acode"))
+        rowData.push(`"${subscriber.acode || ""}"`);
+
+      // Format dates
+      if (csvIncludeFields.includes("subsdate")) {
+        let subsdate = "";
+        if (subscription.subsdate) {
+          const date = new Date(subscription.subsdate);
+          if (!isNaN(date.getTime())) {
+            subsdate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${subsdate}"`);
+      }
+
+      if (csvIncludeFields.includes("enddate")) {
+        let enddate = "";
+        if (subscription.enddate) {
+          const date = new Date(subscription.enddate);
+          if (!isNaN(date.getTime())) {
+            enddate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${enddate}"`);
+      }
+
+      if (csvIncludeFields.includes("subsclass"))
+        rowData.push(`"${subscription.subsclass || ""}"`);
+
+      csvContent += rowData.join(",") + "\n";
+    });
+
+    return csvContent;
+  };
+
+  // Handle CSV export
+  const handleExportCSV = () => {
+    const csvContent = generateCSV();
+    if (!csvContent) return;
+
+    // Create a Blob with the CSV content
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+    // Create a download link
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    // Set link properties
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`
+    );
+
+    // Append to body, click, and clean up
+    document.body.appendChild(link);
+    link.click();
+
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 100);
+
+    setCsvExportModal(false);
+  };
+
+  // Toggle CSV field selection
+  const toggleCsvField = (field) => {
+    setCsvIncludeFields((prev) =>
+      prev.includes(field) ? prev.filter((f) => f !== field) : [...prev, field]
+    );
+  };
+
   if (!table) return null;
 
   return (
@@ -1054,7 +1190,243 @@ const Mailing = ({
             ? `(${table.getSelectedRowModel().rows.length} Selected)`
             : "(Custom Range)"}
         </Button>
+        <Button
+          onClick={() => setCsvExportModal(true)}
+          className="text-sm bg-blue-600 hover:bg-blue-800 text-white"
+        >
+          Export CSV
+        </Button>
       </div>
+
+      {/* CSV Export Modal */}
+      <Modal isOpen={csvExportModal} onClose={() => setCsvExportModal(false)}>
+        <h2 className="flex justify-center text-xl font-bold text-black mb-2">
+          Export Subscriber Data to CSV
+        </h2>
+
+        <p className="text-center text-sm text-gray-500 mb-4">
+          {getRowCount()} {getRowCount() === 1 ? "subscriber" : "subscribers"}{" "}
+          {getDataSourceLabel()}
+        </p>
+
+        <div className="flex flex-col items-center">
+          {/* Data Source Selection - reuse the same as the print modal */}
+          <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+            <h3 className="text-sm font-semibold mb-2">Select Data Source:</h3>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Button
+                onClick={() => handleDataSourceChange("all")}
+                variant={dataSource === "all" ? "default" : "outline"}
+                className="flex-1"
+              >
+                All Records ({table.getFilteredRowModel().rows.length})
+              </Button>
+              <Button
+                onClick={() => handleDataSourceChange("selected")}
+                variant={dataSource === "selected" ? "default" : "outline"}
+                className="flex-1"
+                disabled={table.getSelectedRowModel().rows.length === 0}
+              >
+                Selected Rows ({table.getSelectedRowModel().rows.length})
+              </Button>
+              <Button
+                onClick={() => handleDataSourceChange("range")}
+                variant={dataSource === "range" ? "default" : "outline"}
+                className="flex-1"
+              >
+                ID Range
+              </Button>
+            </div>
+          </div>
+
+          {/* Client ID Range Input - if range is selected */}
+          {dataSource === "range" && (
+            <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
+              <h3 className="text-lg font-semibold mb-2">Export Range</h3>
+
+              <div className="bg-blue-50 p-2 rounded mb-3 w-full text-xs text-blue-700">
+                Specify which subscribers to include using Client IDs.
+              </div>
+
+              <div className="flex items-center space-x-2 w-full mb-2">
+                <label
+                  htmlFor="startId"
+                  className="text-sm w-28 text-right font-medium text-gray-600"
+                >
+                  Start Client ID:
+                </label>
+                <input
+                  type="text"
+                  id="startId"
+                  value={startClientId}
+                  onChange={(e) => setStartClientId(e.target.value)}
+                  placeholder={`First: ${
+                    table.getFilteredRowModel().rows[0]?.original?.id || "N/A"
+                  }`}
+                  className="border border-gray-300 rounded p-2 w-full"
+                />
+              </div>
+              <div className="flex items-center space-x-2 w-full mb-3">
+                <label
+                  htmlFor="endId"
+                  className="text-sm w-28 text-right font-medium text-gray-600"
+                >
+                  End Client ID:
+                </label>
+                <input
+                  type="text"
+                  id="endId"
+                  value={endClientId}
+                  onChange={(e) => setEndClientId(e.target.value)}
+                  placeholder={`Last: ${
+                    table.getFilteredRowModel().rows[
+                      table.getFilteredRowModel().rows.length - 1
+                    ]?.original?.id || "N/A"
+                  }`}
+                  className="border border-gray-300 rounded p-2 w-full"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* CSV Fields Selection */}
+          <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+            <h3 className="text-sm font-semibold mb-2">
+              Select Fields to Include:
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-id"
+                  checked={csvIncludeFields.includes("id")}
+                  onChange={() => toggleCsvField("id")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-id" className="text-sm">
+                  Client ID
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-name"
+                  checked={csvIncludeFields.includes("name")}
+                  onChange={() => toggleCsvField("name")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-name" className="text-sm">
+                  Name
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-address"
+                  checked={csvIncludeFields.includes("address")}
+                  onChange={() => toggleCsvField("address")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-address" className="text-sm">
+                  Address
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-contactnos"
+                  checked={csvIncludeFields.includes("contactnos")}
+                  onChange={() => toggleCsvField("contactnos")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-contactnos" className="text-sm">
+                  Contact Number
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-copies"
+                  checked={csvIncludeFields.includes("copies")}
+                  onChange={() => toggleCsvField("copies")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-copies" className="text-sm">
+                  Copies
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-acode"
+                  checked={csvIncludeFields.includes("acode")}
+                  onChange={() => toggleCsvField("acode")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-acode" className="text-sm">
+                  Area Code
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-subsdate"
+                  checked={csvIncludeFields.includes("subsdate")}
+                  onChange={() => toggleCsvField("subsdate")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-subsdate" className="text-sm">
+                  Subscription Date
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-enddate"
+                  checked={csvIncludeFields.includes("enddate")}
+                  onChange={() => toggleCsvField("enddate")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-enddate" className="text-sm">
+                  End Date
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="csv-subsclass"
+                  checked={csvIncludeFields.includes("subsclass")}
+                  onChange={() => toggleCsvField("subsclass")}
+                  className="mr-2"
+                />
+                <label htmlFor="csv-subsclass" className="text-sm">
+                  Subscription Class
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-4 w-full max-w-lg">
+            <Button
+              onClick={handleExportCSV}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex-grow"
+              disabled={!hasData || csvIncludeFields.length === 0}
+            >
+              Export CSV
+            </Button>
+            <Button
+              onClick={() => setCsvExportModal(false)}
+              variant="secondary"
+              className="flex-grow"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Existing Print Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal}>
         <h2 className="flex justify-center text-xl font-bold text-black mb-2">
           {previewType === "standard"
