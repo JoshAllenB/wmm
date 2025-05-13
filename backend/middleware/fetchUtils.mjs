@@ -282,12 +282,13 @@ router.get("/templates", verifyToken, async (req, res) => {
 
 router.post("/templates-add", verifyToken, async (req, res) => {
   try {
-    const { name, layout, selectedFields } = req.body;
+    const { name, layout, selectedFields, previewType } = req.body;
 
     const newTemplate = new PrintLabelModel({
       name,
       layout,
       selectedFields,
+      previewType,
     });
 
     await newTemplate.save();
@@ -295,6 +296,81 @@ router.post("/templates-add", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Error saving template:", error);
     res.status(500).json({ error: "Failed to save template." });
+  }
+});
+
+// Migrate existing templates to include previewType and renewal settings
+router.get("/migrate-templates", verifyToken, async (req, res) => {
+  try {
+    // Find all templates that don't have previewType
+    const templates = await PrintLabelModel.find({
+      previewType: { $exists: false },
+    });
+
+    // Default renewal settings
+    const defaultRenewalSettings = {
+      renewalFontSize: 14,
+      renewalLeftMargin: 40,
+      renewalTopMargin: 40,
+      renewalRightColumnPosition: 400,
+      leftColumnLineSpacing: 8,
+      rightColumnLineSpacing: 12,
+      nameAddressSpacing: 24,
+      addressContactSpacing: 30,
+      rightColumnItemSpacing: 16,
+      lineSpacing: 8,
+    };
+
+    // Default thank you letter settings
+    const defaultThankYouSettings = {
+      thankYouFontSize: 14,
+      thankYouTopMargin: 60,
+      thankYouLeftMargin: 60,
+      thankYouLineSpacing: 16,
+      thankYouWidth: 400,
+      thankYouDateSpacing: 40,
+      thankYouGreetingSpacing: 30,
+      thankYouContentSpacing: 20,
+    };
+
+    // Default standard settings
+    const defaultStandardSettings = {
+      labelHeight: 100,
+      horizontalSpacing: 20,
+    };
+
+    // Update each template
+    let updatedCount = 0;
+    for (const template of templates) {
+      // Combine layout with default settings
+      const updatedLayout = {
+        ...template.layout.toObject(),
+        ...defaultStandardSettings,
+        ...defaultRenewalSettings,
+        ...defaultThankYouSettings,
+      };
+
+      // Update the template with new fields
+      await PrintLabelModel.updateOne(
+        { _id: template._id },
+        {
+          $set: {
+            previewType: "standard",
+            layout: updatedLayout,
+          },
+        }
+      );
+
+      updatedCount++;
+    }
+
+    res.json({
+      message: `Successfully migrated ${updatedCount} templates`,
+      migratedCount: updatedCount,
+    });
+  } catch (err) {
+    console.error("Error migrating templates:", err);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
