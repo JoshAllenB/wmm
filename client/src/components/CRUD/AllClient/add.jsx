@@ -91,6 +91,12 @@ const Add = ({ fetchClients }) => {
     remarks: "",
     copies: "1", // Set default value to "1"
     roleType: null,
+    subStartMonth: "",
+    subStartDay: "",
+    subStartYear: "",
+    subEndMonth: "",
+    subEndDay: "",
+    subEndYear: "",
   });
 
   const [addressData, setAddressData] = useState({
@@ -273,6 +279,12 @@ const Add = ({ fetchClients }) => {
       remarks: "",
       copies: "1",
       roleType: null,
+      subStartMonth: "",
+      subStartDay: "",
+      subStartYear: "",
+      subEndMonth: "",
+      subEndDay: "",
+      subEndYear: "",
     });
 
     // Reset address data
@@ -372,10 +384,13 @@ const Add = ({ fetchClients }) => {
 
   const calculateEndMonth = (startDate, monthsToAdd) => {
     const start = new Date(startDate);
-    const endDate = new Date(start.setMonth(start.getMonth() + monthsToAdd));
+    // Create a new end date by adding months
+    const endDate = new Date(start);
+    endDate.setMonth(endDate.getMonth() + monthsToAdd);
 
-    // Adjust the end date to the last day of the calculated month
-    endDate.setDate(0);
+    // Keep the same day of the month to count full months correctly
+    // For example, April 15 + 1 month = May 15
+
     return endDate;
   };
 
@@ -535,28 +550,126 @@ const Add = ({ fetchClients }) => {
       return;
     }
 
-    if (name === "subscriptionFreq") {
-      const today = new Date();
-      const monthsToAdd = parseInt(value);
-      const startDate = today;
+    // Handle subscription start date parts
+    if (
+      name === "subStartMonth" ||
+      name === "subStartDay" ||
+      name === "subStartYear"
+    ) {
+      setFormData((prevData) => {
+        const newData = {
+          ...prevData,
+          [name]: value,
+        };
 
-      const subscriptionStart = new Date(
-        startDate.getFullYear(),
-        startDate.getMonth(),
-        1
+        // Combine the date parts into subscriptionStart if all are present
+        if (
+          newData.subStartMonth &&
+          newData.subStartDay &&
+          newData.subStartYear
+        ) {
+          newData.subscriptionStart = `${newData.subStartMonth}/${newData.subStartDay}/${newData.subStartYear}`;
+
+          // If frequency is selected, recalculate end date based on the new start date
+          if (newData.subscriptionFreq) {
+            const startDate = new Date(
+              parseInt(newData.subStartYear),
+              parseInt(newData.subStartMonth) - 1,
+              parseInt(newData.subStartDay)
+            );
+
+            const monthsToAdd = parseInt(newData.subscriptionFreq);
+            const endDate = calculateEndMonth(startDate, monthsToAdd);
+
+            // Format end date parts
+            newData.subEndMonth = String(endDate.getMonth() + 1).padStart(
+              2,
+              "0"
+            );
+            newData.subEndDay = String(endDate.getDate()).padStart(2, "0");
+            newData.subEndYear = String(endDate.getFullYear());
+            newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
+
+            // Also update roleSpecificData
+            setTimeout(() => {
+              setRoleSpecificData((prev) => ({
+                ...prev,
+                subsdate: newData.subscriptionStart,
+                enddate: newData.subscriptionEnd,
+              }));
+            }, 0);
+          }
+        } else {
+          newData.subscriptionStart = "";
+        }
+
+        return newData;
+      });
+
+      return;
+    }
+
+    // Handle subscription end date parts
+    if (
+      name === "subEndMonth" ||
+      name === "subEndDay" ||
+      name === "subEndYear"
+    ) {
+      setFormData((prevData) => {
+        const newData = {
+          ...prevData,
+          [name]: value,
+        };
+
+        // Combine the date parts into subscriptionEnd if all are present
+        if (newData.subEndMonth && newData.subEndDay && newData.subEndYear) {
+          newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
+        } else {
+          newData.subscriptionEnd = "";
+        }
+
+        return newData;
+      });
+
+      return;
+    }
+
+    if (name === "subscriptionFreq") {
+      const monthsToAdd = parseInt(value);
+      // Use current date as the start date
+      const today = new Date();
+
+      // Set start date to today (keeping day of month)
+      const subscriptionStart = new Date(today);
+
+      // Calculate end date by adding months
+      const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
+
+      // Format date parts for start date
+      const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
+        2,
+        "0"
       );
-      const rawEndDate = calculateEndMonth(subscriptionStart, monthsToAdd);
-      const subscriptionEnd = new Date(
-        rawEndDate.getFullYear(),
-        rawEndDate.getMonth(),
-        1
-      );
+      const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
+      const startYear = String(subscriptionStart.getFullYear());
+
+      // Format date parts for end date
+      const endMonth = String(subscriptionEnd.getMonth() + 1).padStart(2, "0");
+      const endDay = String(subscriptionEnd.getDate()).padStart(2, "0");
+      const endYear = String(subscriptionEnd.getFullYear());
+
       // Update `formData` and `roleSpecificData` states for dates
       setFormData({
         ...formData,
-        subscriptionFreq,
+        subscriptionFreq: value,
         subscriptionStart: formatDateToMonthYear(subscriptionStart),
         subscriptionEnd: formatDateToMonthYear(subscriptionEnd),
+        subStartMonth: startMonth,
+        subStartDay: startDay,
+        subStartYear: startYear,
+        subEndMonth: endMonth,
+        subEndDay: endDay,
+        subEndYear: endYear,
       });
 
       setRoleSpecificData((prev) => ({
@@ -575,6 +688,12 @@ const Add = ({ fetchClients }) => {
         subscriptionFreq: "",
         subscriptionStart: "",
         subscriptionEnd: "",
+        subStartMonth: "",
+        subStartDay: "",
+        subStartYear: "",
+        subEndMonth: "",
+        subEndDay: "",
+        subEndYear: "",
       }));
       return;
     }
@@ -2336,41 +2455,114 @@ const Add = ({ fetchClients }) => {
                         <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                           Subscription
                         </h2>
-                        <InputField
-                          label="Subscription Start (MM/DD/YY):"
-                          id="subscriptionStart"
-                          name="subscriptionStart"
-                          value={formData.subscriptionStart}
-                          onChange={handleChange}
-                          placeholder="MM/DD/YY"
-                          className="w-full p-2 border rounded-md text-base"
-                        />
-                        <select
-                          id="subscriptionFreq"
-                          name="subscriptionFreq"
-                          value={formData.subscriptionFreq}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded-md text-base"
-                        >
-                          <option value="">
-                            Select Subscription Frequency
-                          </option>
-                          <option value="5">6 Months</option>
-                          <option value="12">1 Year</option>
-                          <option value="23">2 Years</option>
-                          <option value="others">Others</option>
-                        </select>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subscription Frequency:
+                          </label>
+                          <select
+                            id="subscriptionFreq"
+                            name="subscriptionFreq"
+                            value={formData.subscriptionFreq}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            <option value="">
+                              Select Subscription Frequency
+                            </option>
+                            <option value="6">6 Months</option>
+                            <option value="11">1 Year</option>
+                            <option value="22">2 Years</option>
+                            <option value="others">Others</option>
+                          </select>
+                        </div>
 
-                        <InputField
-                          label="Subscription End (MM/DD/YY):"
-                          id="subscriptionEnd"
-                          name="subscriptionEnd"
-                          value={formData.subscriptionEnd}
-                          onChange={handleChange}
-                          placeholder="MM/DD/YY"
-                          className="w-full p-2 border rounded-md text-base"
-                        />
+                        <div className="mb-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subscription Start:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
+                              <select
+                                id="subStartMonth"
+                                name="subStartMonth"
+                                value={formData.subStartMonth || ""}
+                                onChange={handleChange}
+                                className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              >
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
+                            <input
+                              type="text"
+                              id="subStartDay"
+                              name="subStartDay"
+                              value={formData.subStartDay || ""}
+                              onChange={handleChange}
+                              placeholder="DD"
+                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="2"
+                            />
+                            <input
+                              type="text"
+                              id="subStartYear"
+                              name="subStartYear"
+                              value={formData.subStartYear || ""}
+                              onChange={handleChange}
+                              placeholder="YYYY"
+                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="4"
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subscription End:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
+                              <select
+                                id="subEndMonth"
+                                name="subEndMonth"
+                                value={formData.subEndMonth || ""}
+                                onChange={handleChange}
+                                className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              >
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <input
+                              type="text"
+                              id="subEndDay"
+                              name="subEndDay"
+                              value={formData.subEndDay || ""}
+                              onChange={handleChange}
+                              placeholder="DD"
+                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="2"
+                            />
+                            <input
+                              type="text"
+                              id="subEndYear"
+                              name="subEndYear"
+                              value={formData.subEndYear || ""}
+                              onChange={handleChange}
+                              placeholder="YYYY"
+                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="4"
+                            />
+                          </div>
+                        </div>
                         <div className="flex space-x-4">
                           <div className="flex flex-row items-center justify-center gap-2">
                             <label className="block text-sm font-medium leading-6 text-gray-600">

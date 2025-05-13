@@ -10,9 +10,90 @@ import {
 } from "../Table/Data/utilData";
 import { useUser } from "../../utils/Hooks/userProvider";
 
+// Utility function to format date to "MM/DD/YY"
+const formatDateToMMDDYY = (date) => {
+  if (!date) return "";
+
+  let d;
+  try {
+    d = new Date(date);
+    if (isNaN(d.getTime())) {
+      return date; // Return original if not valid date
+    }
+  } catch (error) {
+    return date; // Return original if parsing fails
+  }
+
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear().toString().slice(-2);
+  return `${month}/${day}/${year}`;
+};
+
+// Parse date from MM/DD/YY format
+const parseDate = (dateString) => {
+  if (!dateString) return null;
+
+  // Try to handle various date formats
+  let date;
+
+  // Check if it's MM/DD/YY format
+  if (typeof dateString === "string" && dateString.includes("/")) {
+    const parts = dateString.split("/");
+    if (parts.length === 3) {
+      const month = parseInt(parts[0]) - 1;
+      const day = parseInt(parts[1]);
+      let year = parseInt(parts[2]);
+      // Adjust two-digit year
+      if (year < 100) {
+        year = year < 50 ? 2000 + year : 1900 + year;
+      }
+      date = new Date(year, month, day);
+      // Set time to midnight
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
+  // Otherwise use the standard date constructor
+  date = new Date(dateString);
+  // Set time to midnight
+  date.setHours(0, 0, 0, 0);
+
+  return date;
+};
+
+// Format date to ISO format for backend (YYYY-MM-DD)
+const formatDateToISO = (date) => {
+  if (!date) return "";
+  const d = parseDate(date);
+  if (!d) return "";
+
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const day = `${d.getDate()}`.padStart(2, "0");
+  const year = d.getFullYear();
+  return `${year}-${month}-${day}`;
+};
+
 const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
+
+  // Add months array for dropdown selection
+  const months = [
+    { value: "01", name: "January" },
+    { value: "02", name: "February" },
+    { value: "03", name: "March" },
+    { value: "04", name: "April" },
+    { value: "05", name: "May" },
+    { value: "06", name: "June" },
+    { value: "07", name: "July" },
+    { value: "08", name: "August" },
+    { value: "09", name: "September" },
+    { value: "10", name: "October" },
+    { value: "11", name: "November" },
+    { value: "12", name: "December" },
+  ];
 
   // Add a helper function to check if user has only HRG, FOM, or CAL roles but not WMM
   const hasOnlyNonWMMRoles = () => {
@@ -32,10 +113,21 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     ofcno: "",
     email: "",
     address: "",
-    startDate: "",
-    endDate: "",
+    // Date range fields with separate Month/Day/Year
+    startDateMonth: "",
+    startDateDay: "",
+    startDateYear: "",
+    endDateMonth: "",
+    endDateDay: "",
+    endDateYear: "",
+    // Active subscription date components
     wmmActiveMonth: "",
+    wmmActiveDay: "",
+    wmmActiveYear: "",
+    // Expiring subscription date components
     wmmExpiringMonth: "",
+    wmmExpiringDay: "",
+    wmmExpiringYear: "",
     copiesRange: "",
     minCopies: "",
     maxCopies: "",
@@ -126,6 +218,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   // Initialize/reset filter data
   const resetFilterData = () => {
+    // Get current date parts for any initial values if needed
+    const today = new Date();
+    const currentMonth = (today.getMonth() + 1).toString();
+    const currentDay = today.getDate().toString();
+    const currentYear = today.getFullYear().toString();
+
     setFilterData({
       lname: "",
       fname: "",
@@ -137,10 +235,21 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       ofcno: "",
       email: "",
       address: "",
-      startDate: "",
-      endDate: "",
+      // Date range components
+      startDateMonth: "",
+      startDateDay: "",
+      startDateYear: "",
+      endDateMonth: "",
+      endDateDay: "",
+      endDateYear: "",
+      // Active subscription date components
       wmmActiveMonth: "",
+      wmmActiveDay: "",
+      wmmActiveYear: "",
+      // Expiring subscription date components
       wmmExpiringMonth: "",
+      wmmExpiringDay: "",
+      wmmExpiringYear: "",
       copiesRange: "",
       minCopies: "",
       maxCopies: "",
@@ -161,10 +270,55 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFilterData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // Handle date components separately
+    const dateComponentFields = [
+      "startDateMonth",
+      "startDateDay",
+      "startDateYear",
+      "endDateMonth",
+      "endDateDay",
+      "endDateYear",
+      "wmmActiveMonth",
+      "wmmActiveDay",
+      "wmmActiveYear",
+      "wmmExpiringMonth",
+      "wmmExpiringDay",
+      "wmmExpiringYear",
+    ];
+
+    if (dateComponentFields.includes(name)) {
+      // Allow only numbers for day and year fields
+      if ((name.endsWith("Day") || name.endsWith("Year")) && value !== "") {
+        if (!/^\d+$/.test(value)) {
+          return; // Skip update if not a number
+        }
+      }
+
+      // For day fields, limit to 1-31
+      if (name.endsWith("Day") && value !== "") {
+        const day = parseInt(value);
+        if (day < 1 || day > 31) {
+          return; // Skip update if outside valid range
+        }
+      }
+
+      // For year fields, limit length
+      if (name.endsWith("Year") && value.length > 4) {
+        return; // Skip update if year is too long
+      }
+
+      setFilterData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    } else {
+      // Regular input handling for non-date fields
+      setFilterData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   // New handler for area checkbox changes
@@ -209,20 +363,34 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Format dates to ensure they span the entire selected month
-    const formatMonthRange = (monthStr) => {
-      if (!monthStr) return { start: "", end: "" };
+    // Format month-based filters from separate components
+    const formatMonthRangeFromComponents = (month, day, year) => {
+      if (!month || !day || !year) return { start: "", end: "" };
 
-      const date = new Date(monthStr);
+      // Create date from components
+      const date = getDateFromComponents(month, day, year);
+
+      if (!date || isNaN(date.getTime())) {
+        return { start: "", end: "" };
+      }
+
+      // Get first day of the month
       const start = new Date(date.getFullYear(), date.getMonth(), 1);
+      // Get last day of the month
       const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
-      // Format dates as YYYY-MM-DD
-      const formatDate = (date) => date.toISOString().split("T")[0];
-
+      // Format dates as YYYY-MM-DD for backend
       return {
-        start: formatDate(start),
-        end: formatDate(end),
+        start: formatDateComponentsToISO(
+          start.getMonth() + 1,
+          start.getDate(),
+          start.getFullYear()
+        ),
+        end: formatDateComponentsToISO(
+          end.getMonth() + 1,
+          end.getDate(),
+          end.getFullYear()
+        ),
       };
     };
 
@@ -258,8 +426,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       return coreServices;
     };
 
-    const activeMonthRange = formatMonthRange(filterData.wmmActiveMonth);
-    const expiringMonthRange = formatMonthRange(filterData.wmmExpiringMonth);
+    // Get the date ranges from components
+    const activeMonthRange = formatMonthRangeFromComponents(
+      filterData.wmmActiveMonth,
+      filterData.wmmActiveDay,
+      filterData.wmmActiveYear
+    );
+
+    const expiringMonthRange = formatMonthRangeFromComponents(
+      filterData.wmmExpiringMonth,
+      filterData.wmmExpiringDay,
+      filterData.wmmExpiringYear
+    );
 
     // Process client IDs for inclusion/exclusion
     const processClientIds = (idsString) => {
@@ -280,6 +458,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       lname: filterData.lname.trim(),
       mname: filterData.mname.trim(),
       sname: filterData.sname.trim(),
+      // Format start/end dates for general date range
+      startDate: formatDateComponentsToISO(
+        filterData.startDateMonth,
+        filterData.startDateDay,
+        filterData.startDateYear
+      ),
+      endDate: formatDateComponentsToISO(
+        filterData.endDateMonth,
+        filterData.endDateDay,
+        filterData.endDateYear
+      ),
+      // Subscription dates
       wmmStartSubsDate: activeMonthRange.start,
       wmmEndSubsDate: activeMonthRange.end,
       wmmStartEndDate: expiringMonthRange.start,
@@ -296,6 +486,16 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       exactAreaMatch: true, // Always use exact area matching
     };
 
+    // Debug log formatted date values
+    console.log("Date values being sent to backend:", {
+      startDate: formattedData.startDate,
+      endDate: formattedData.endDate,
+      wmmStartSubsDate: formattedData.wmmStartSubsDate,
+      wmmEndSubsDate: formattedData.wmmEndSubsDate,
+      wmmStartEndDate: formattedData.wmmStartEndDate,
+      wmmEndEndDate: formattedData.wmmEndEndDate,
+    });
+
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);
 
@@ -304,37 +504,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   };
 
   const clearAllFilters = () => {
-    setFilterData({
-      lname: "",
-      fname: "",
-      mname: "",
-      sname: "",
-      birthdate: "",
-      contactnos: "",
-      cellno: "",
-      ofcno: "",
-      email: "",
-      address: "",
-      startDate: "",
-      endDate: "",
-      wmmActiveMonth: "",
-      wmmExpiringMonth: "",
-      copiesRange: "",
-      minCopies: "",
-      maxCopies: "",
-      group: selectedGroup || "",
-      type: "",
-      subsclass: "",
-      areas: [],
-      acode: "",
-      services: [],
-      clientIncludeIds: "",
-      clientExcludeIds: "",
-      clientIdFilterType: "include",
-      excludeSPackClients: false,
-      userId: "",
-      subscriptionStatus: "all",
-    });
+    // Use resetFilterData for consistency
+    resetFilterData();
   };
 
   const getFilterButtonText = () => {
@@ -402,8 +573,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       ofcno: "Office Number",
       contactnos: "Other Contact",
       address: "Address",
-      wmmActiveMonth: "Active Month",
-      wmmExpiringMonth: "Expiring Month",
       group: "Group",
       type: "Type",
       subsclass: "Subclass",
@@ -420,28 +589,148 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       areas: (value) => `${value.length} selected`,
     };
 
-    // Handle date range special case
+    // Handle date range as a special case
     const active = [];
 
+    // Helper to get month name
+    const getMonthName = (monthNumber) => {
+      const monthIndex = parseInt(monthNumber) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        return months[monthIndex].name;
+      }
+      return monthNumber;
+    };
+
+    // Helper to format date from components
+    const formatDateDisplay = (month, day, year) => {
+      if (!month && !day && !year) return "";
+
+      let displayParts = [];
+
+      if (month) {
+        displayParts.push(getMonthName(month));
+      }
+
+      if (day) {
+        displayParts.push(day);
+      }
+
+      if (year) {
+        // Format year based on length
+        const yearDisplay =
+          year.length <= 2 ? `20${year.padStart(2, "0")}` : year;
+        displayParts.push(yearDisplay);
+      }
+
+      return displayParts.join(" ");
+    };
+
     // Handle date range as a special case
-    if (filterData.startDate && filterData.endDate) {
-      active.push({
-        label: "Date Range",
-        value: `${filterData.startDate} to ${filterData.endDate}`,
-        key: "dateRange",
-      });
-    } else if (filterData.startDate) {
-      active.push({
-        label: "From Date",
-        value: filterData.startDate,
-        key: "startDate",
-      });
-    } else if (filterData.endDate) {
-      active.push({
-        label: "To Date",
-        value: filterData.endDate,
-        key: "endDate",
-      });
+    if (
+      (filterData.startDateMonth ||
+        filterData.startDateDay ||
+        filterData.startDateYear) &&
+      (filterData.endDateMonth ||
+        filterData.endDateDay ||
+        filterData.endDateYear)
+    ) {
+      const startDisplay = formatDateDisplay(
+        filterData.startDateMonth,
+        filterData.startDateDay,
+        filterData.startDateYear
+      );
+
+      const endDisplay = formatDateDisplay(
+        filterData.endDateMonth,
+        filterData.endDateDay,
+        filterData.endDateYear
+      );
+
+      if (startDisplay && endDisplay) {
+        active.push({
+          label: "Date Range",
+          value: `${startDisplay} to ${endDisplay}`,
+          key: "dateRange",
+        });
+      }
+    } else if (
+      filterData.startDateMonth ||
+      filterData.startDateDay ||
+      filterData.startDateYear
+    ) {
+      const startDisplay = formatDateDisplay(
+        filterData.startDateMonth,
+        filterData.startDateDay,
+        filterData.startDateYear
+      );
+
+      if (startDisplay) {
+        active.push({
+          label: "From Date",
+          value: startDisplay,
+          key: "startDate",
+        });
+      }
+    } else if (
+      filterData.endDateMonth ||
+      filterData.endDateDay ||
+      filterData.endDateYear
+    ) {
+      const endDisplay = formatDateDisplay(
+        filterData.endDateMonth,
+        filterData.endDateDay,
+        filterData.endDateYear
+      );
+
+      if (endDisplay) {
+        active.push({
+          label: "To Date",
+          value: endDisplay,
+          key: "endDate",
+        });
+      }
+    }
+
+    // Handle active month as a special case
+    if (
+      filterData.wmmActiveMonth ||
+      filterData.wmmActiveDay ||
+      filterData.wmmActiveYear
+    ) {
+      const activeDisplay = formatDateDisplay(
+        filterData.wmmActiveMonth,
+        filterData.wmmActiveDay,
+        filterData.wmmActiveYear
+      );
+
+      if (activeDisplay) {
+        active.push({
+          label: "Active Month",
+          value: activeDisplay,
+          key: "wmmActiveMonth",
+        });
+      }
+    }
+
+    // Handle expiring month as a special case
+    if (
+      filterData.wmmExpiringMonth ||
+      filterData.wmmExpiringDay ||
+      filterData.wmmExpiringYear
+    ) {
+      const expiringDisplay = formatDateDisplay(
+        filterData.wmmExpiringMonth,
+        filterData.wmmExpiringDay,
+        filterData.wmmExpiringYear
+      );
+
+      if (expiringDisplay) {
+        active.push({
+          label: "Expiring Month",
+          value: expiringDisplay,
+          key: "wmmExpiringMonth",
+        });
+      }
     }
 
     // Handle copies range as a special case
@@ -611,14 +900,32 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       // Handle special cases
       switch (key) {
         case "dateRange":
-          updates.startDate = "";
-          updates.endDate = "";
+          updates.startDateMonth = "";
+          updates.startDateDay = "";
+          updates.startDateYear = "";
+          updates.endDateMonth = "";
+          updates.endDateDay = "";
+          updates.endDateYear = "";
           break;
         case "startDate":
-          updates.startDate = "";
+          updates.startDateMonth = "";
+          updates.startDateDay = "";
+          updates.startDateYear = "";
           break;
         case "endDate":
-          updates.endDate = "";
+          updates.endDateMonth = "";
+          updates.endDateDay = "";
+          updates.endDateYear = "";
+          break;
+        case "wmmActiveMonth":
+          updates.wmmActiveMonth = "";
+          updates.wmmActiveDay = "";
+          updates.wmmActiveYear = "";
+          break;
+        case "wmmExpiringMonth":
+          updates.wmmExpiringMonth = "";
+          updates.wmmExpiringDay = "";
+          updates.wmmExpiringYear = "";
           break;
         case "copiesRange":
           updates.copiesRange = "";
@@ -730,6 +1037,37 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const areAllForeignSelected =
     foreign.length > 0 &&
     foreign.every((area) => filterData.areas.includes(area._id));
+
+  // Function to combine date components into ISO format for backend
+  const formatDateComponentsToISO = (month, day, year) => {
+    if (!month || !day || !year) return "";
+
+    // Handle two-digit years
+    let fullYear = parseInt(year);
+    if (fullYear < 100) {
+      fullYear = fullYear < 50 ? 2000 + fullYear : 1900 + fullYear;
+    }
+
+    // Format with padding
+    const paddedMonth = month.toString().padStart(2, "0");
+    const paddedDay = day.toString().padStart(2, "0");
+
+    return `${fullYear}-${paddedMonth}-${paddedDay}`;
+  };
+
+  // Get a Date object from components
+  const getDateFromComponents = (month, day, year) => {
+    if (!month || !day || !year) return null;
+
+    // Handle two-digit years
+    let fullYear = parseInt(year);
+    if (fullYear < 100) {
+      fullYear = fullYear < 50 ? 2000 + fullYear : 1900 + fullYear;
+    }
+
+    // Create date - month is 0-indexed in JavaScript
+    return new Date(fullYear, parseInt(month) - 1, parseInt(day));
+  };
 
   return (
     <div>
@@ -910,33 +1248,92 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     <h3 className="text-lg font-medium text-black">
                       General Date Range
                     </h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <InputField
-                        label="Start Date"
-                        id="startDate"
-                        name="startDate"
-                        type="date"
-                        value={filterData.startDate}
-                        onChange={handleChange}
-                        className={`w-full ${
-                          filterData.startDate
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                        labelClassName="text-lg font-medium text-black"
-                      />
-                      <InputField
-                        label="End Date"
-                        id="endDate"
-                        name="endDate"
-                        type="date"
-                        value={filterData.endDate}
-                        onChange={handleChange}
-                        className={`w-full ${
-                          filterData.endDate ? "border-blue-500 bg-blue-50" : ""
-                        }`}
-                        labelClassName="text-lg font-medium text-black"
-                      />
+                    <div className="mb-2">
+                      <label className="block text-black text-lg font-medium mb-1">
+                        Start Date:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="relative">
+                          <select
+                            id="startDateMonth"
+                            name="startDateMonth"
+                            value={filterData.startDateMonth}
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          >
+                            <option value="">Month</option>
+                            {months.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="text"
+                          id="startDateDay"
+                          name="startDateDay"
+                          value={filterData.startDateDay}
+                          onChange={handleChange}
+                          placeholder="DD"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          maxLength="2"
+                        />
+                        <input
+                          type="text"
+                          id="startDateYear"
+                          name="startDateYear"
+                          value={filterData.startDateYear}
+                          onChange={handleChange}
+                          placeholder="YYYY"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          maxLength="4"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-2">
+                      <label className="block text-black text-lg font-medium mb-1">
+                        End Date:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="relative">
+                          <select
+                            id="endDateMonth"
+                            name="endDateMonth"
+                            value={filterData.endDateMonth}
+                            onChange={handleChange}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          >
+                            <option value="">Month</option>
+                            {months.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="text"
+                          id="endDateDay"
+                          name="endDateDay"
+                          value={filterData.endDateDay}
+                          onChange={handleChange}
+                          placeholder="DD"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          maxLength="2"
+                        />
+                        <input
+                          type="text"
+                          id="endDateYear"
+                          name="endDateYear"
+                          value={filterData.endDateYear}
+                          onChange={handleChange}
+                          placeholder="YYYY"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          maxLength="4"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -951,20 +1348,53 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           Find clients with active subscriptions during this
                           month
                         </p>
-                        <InputField
-                          label="Select Month"
-                          id="wmmActiveMonth"
-                          name="wmmActiveMonth"
-                          type="month"
-                          value={filterData.wmmActiveMonth}
-                          onChange={handleChange}
-                          className={`w-full ${
-                            filterData.wmmActiveMonth
-                              ? "border-blue-500 bg-blue-50"
-                              : ""
-                          }`}
-                          labelClassName="text-lg font-medium text-black"
-                        />
+                        <div className="mb-2">
+                          <label className="block text-black text-lg font-medium mb-1">
+                            Month:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
+                              <select
+                                id="wmmActiveMonth"
+                                name="wmmActiveMonth"
+                                value={filterData.wmmActiveMonth}
+                                onChange={handleChange}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              >
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <input
+                              type="text"
+                              id="wmmActiveDay"
+                              name="wmmActiveDay"
+                              value={filterData.wmmActiveDay}
+                              onChange={handleChange}
+                              placeholder="DD"
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              maxLength="2"
+                            />
+                            <input
+                              type="text"
+                              id="wmmActiveYear"
+                              name="wmmActiveYear"
+                              value={filterData.wmmActiveYear}
+                              onChange={handleChange}
+                              placeholder="YYYY"
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              maxLength="4"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Day value is optional - entire month will be
+                            considered
+                          </p>
+                        </div>
                       </div>
 
                       <div className="space-y-2">
@@ -974,20 +1404,53 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         <p className="text-xs text-gray-500">
                           Find clients whose subscriptions expire this month
                         </p>
-                        <InputField
-                          label="Select Month"
-                          id="wmmExpiringMonth"
-                          name="wmmExpiringMonth"
-                          type="month"
-                          value={filterData.wmmExpiringMonth}
-                          onChange={handleChange}
-                          className={`w-full ${
-                            filterData.wmmExpiringMonth
-                              ? "border-blue-500 bg-blue-50"
-                              : ""
-                          }`}
-                          labelClassName="text-lg font-medium text-black"
-                        />
+                        <div className="mb-2">
+                          <label className="block text-black text-lg font-medium mb-1">
+                            Month:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
+                              <select
+                                id="wmmExpiringMonth"
+                                name="wmmExpiringMonth"
+                                value={filterData.wmmExpiringMonth}
+                                onChange={handleChange}
+                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              >
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <input
+                              type="text"
+                              id="wmmExpiringDay"
+                              name="wmmExpiringDay"
+                              value={filterData.wmmExpiringDay}
+                              onChange={handleChange}
+                              placeholder="DD"
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              maxLength="2"
+                            />
+                            <input
+                              type="text"
+                              id="wmmExpiringYear"
+                              name="wmmExpiringYear"
+                              value={filterData.wmmExpiringYear}
+                              onChange={handleChange}
+                              placeholder="YYYY"
+                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              maxLength="4"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Day value is optional - entire month will be
+                            considered
+                          </p>
+                        </div>
                       </div>
                     </>
                   )}
