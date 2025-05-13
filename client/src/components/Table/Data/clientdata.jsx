@@ -18,75 +18,72 @@ export const fetchClients = async (
       page: Number(page) || 1,
       pageSize: Number(pageSize) || 20,
       filter: filter || "",
-      group: group || ""
+      group: group || "",
     };
 
     // Process advanced filter data to ensure proper types
     const processedAdvancedData = { ...advancedFilterData };
-    
+
     // Ensure services is always an array
     if (processedAdvancedData.services) {
-      if (typeof processedAdvancedData.services === 'string') {
+      if (typeof processedAdvancedData.services === "string") {
         processedAdvancedData.services = processedAdvancedData.services
-          .split(',')
-          .map(s => s.trim())
+          .split(",")
+          .map((s) => s.trim())
           .filter(Boolean);
       } else if (!Array.isArray(processedAdvancedData.services)) {
         processedAdvancedData.services = [];
       }
     }
-    
+
     // Create a request ID based on the parameters to detect duplicates
-    const requestId = JSON.stringify({ 
-      ...normalizedParams, 
-      ...processedAdvancedData 
+    const requestId = JSON.stringify({
+      ...normalizedParams,
+      ...processedAdvancedData,
     });
-    
+
     // Cancel previous request with same parameters if it exists
     if (pendingRequests.has(requestId)) {
       const controller = pendingRequests.get(requestId);
       controller.abort();
       pendingRequests.delete(requestId);
     }
-    
+
     // Create abort controller for this request
     const controller = new AbortController();
     pendingRequests.set(requestId, controller);
-    
+
     // Prepare URL and params
     const baseUrl = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients`;
-    
+
     // Build query string with proper URL encoding
     const queryParams = new URLSearchParams();
-    
+
     // Add base parameters
     Object.entries(normalizedParams).forEach(([key, value]) => {
       queryParams.append(key, value);
     });
-    
+
     // Add advanced filter parameters
     Object.entries(processedAdvancedData).forEach(([key, value]) => {
       // Handle arrays properly
       if (Array.isArray(value)) {
-        value.forEach(item => {
+        value.forEach((item) => {
           queryParams.append(key, item);
         });
       } else if (value !== null && value !== undefined) {
         queryParams.append(key, value);
       }
     });
-    
+
     // Make the request
-    const response = await axios.get(
-      `${baseUrl}?${queryParams.toString()}`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-        signal: controller.signal
-      }
-    );
-    
+    const response = await axios.get(`${baseUrl}?${queryParams.toString()}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+      signal: controller.signal,
+    });
+
     // Remove request from pending list
     pendingRequests.delete(requestId);
 
@@ -133,7 +130,7 @@ export const fetchClients = async (
         totalFomAmt: 0,
         totalCalPaymtAmt: 0,
         pageSpecificHrgAmt: 0,
-        pageSpecificFomAmt: 0, 
+        pageSpecificFomAmt: 0,
         pageSpecificCalPaymtAmt: 0,
         totalClients: 0,
         pageSpecificClients: 0,
@@ -145,7 +142,7 @@ export const fetchClients = async (
 
     if (!clientsData || !Array.isArray(clientsData)) {
       console.error("Invalid data format received:", response.data);
-      
+
       // Instead of throwing an error, return a valid object with empty data
       return {
         data: [],
@@ -160,7 +157,7 @@ export const fetchClients = async (
         totalFomAmt: 0,
         totalCalPaymtAmt: 0,
         pageSpecificHrgAmt: 0,
-        pageSpecificFomAmt: 0, 
+        pageSpecificFomAmt: 0,
         pageSpecificCalPaymtAmt: 0,
         totalClients: 0,
         pageSpecificClients: 0,
@@ -193,18 +190,22 @@ export const fetchClients = async (
       totalClients: totalClients || totalCount || processedData.length,
       pageSpecificClients: pageSpecificClients || processedData.length,
       filteredTotalCopies: filteredTotalCopies || totalCopies || 0,
-      filteredTotalClients: filteredTotalClients || totalClients || totalCount || processedData.length,
+      filteredTotalClients:
+        filteredTotalClients ||
+        totalClients ||
+        totalCount ||
+        processedData.length,
       absoluteTotalClients: absoluteTotalClients || 0,
       absoluteTotalCopies: absoluteTotalCopies || 0,
       noData: false,
     };
   } catch (e) {
     // Handle aborted requests (don't treat as errors)
-    if (e.name === 'AbortError' || e.name === 'CanceledError') {
-      console.log('Request was canceled due to a newer request');
+    if (e.name === "AbortError" || e.name === "CanceledError") {
+      console.log("Request was canceled due to a newer request");
       return null;
     }
-    
+
     console.error("Error fetching client data:", e);
     throw e;
   }

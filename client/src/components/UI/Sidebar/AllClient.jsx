@@ -168,14 +168,21 @@ const AllClient = () => {
   // Memoized parsing function for tagged search
   const parseTaggedSearch = useMemo(() => {
     return (searchValue) => {
-      const filters = { search: "", clientId: "", paymentRef: "", fullName: "" };
+      const filters = {
+        search: "",
+        clientId: "",
+        paymentRef: "",
+        fullName: "",
+      };
 
       // Avoid computation on empty search
       if (!searchValue) return filters;
-      
+
       // Check for tagged search patterns
       const idMatch = searchValue.match(/\bid:\s*(\S+)/i);
-      const refMatch = searchValue.match(/\bref:\s*([A-Z]{2}\s*\d{6}[\s\d\/]*)/i);
+      const refMatch = searchValue.match(
+        /\bref:\s*([A-Z]{2}\s*\d{6}[\s\d\/]*)/i
+      );
       const nameMatch = searchValue.match(/\bname:\s*([^:]+?)(?=\s+\w+:|$)/i);
 
       if (idMatch) {
@@ -197,7 +204,9 @@ const AllClient = () => {
       }
 
       // Check if the untagged search looks like a payment reference (MS followed by numbers)
-      const untaggedRefMatch = searchValue.match(/\b([A-Z]{2}\s*\d{6}[\s\d\/]*)\b/i);
+      const untaggedRefMatch = searchValue.match(
+        /\b([A-Z]{2}\s*\d{6}[\s\d\/]*)\b/i
+      );
       if (!filters.paymentRef && untaggedRefMatch) {
         filters.paymentRef = untaggedRefMatch[1];
         // Remove the matched pattern from the search string
@@ -236,7 +245,7 @@ const AllClient = () => {
         if (Object.keys(advancedFilterData).length > 2) {
           setIsLoading(true);
         }
-        
+
         // Clone the filter object to avoid mutations
         let filtersToUse = { ...advancedFilterData };
 
@@ -274,16 +283,22 @@ const AllClient = () => {
 
         if (filtersToUse.services) {
           // Always ensure services is an array to prevent backend errors
-          if (typeof filtersToUse.services === "string" && filtersToUse.services.trim() !== "") {
+          if (
+            typeof filtersToUse.services === "string" &&
+            filtersToUse.services.trim() !== ""
+          ) {
             // Convert string to array (e.g. "WMM,FOM" -> ["WMM", "FOM"])
             filtersToUse.services = filtersToUse.services
               .split(",")
               .map((s) => s.trim())
               .filter(Boolean);
             shouldUseRoleBasedServices = false;
-          } 
+          }
           // If it's already an array with items, keep it
-          else if (Array.isArray(filtersToUse.services) && filtersToUse.services.length > 0) {
+          else if (
+            Array.isArray(filtersToUse.services) &&
+            filtersToUse.services.length > 0
+          ) {
             shouldUseRoleBasedServices = false;
           }
           // If it's neither a valid string nor array, default to role-based
@@ -296,7 +311,7 @@ const AllClient = () => {
         if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
           filtersToUse.services = roleBasedServices;
         }
-        
+
         // IMPORTANT: Always ensure services is an array even if it's empty
         if (!Array.isArray(filtersToUse.services)) {
           filtersToUse.services = [];
@@ -310,7 +325,7 @@ const AllClient = () => {
             const month = today.getMonth() + 1;
             const day = today.getDate();
             const year = today.getFullYear();
-            
+
             // Ensure all parts are valid numbers to prevent regex errors
             if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
               // We want to match the date part regardless of the time part
@@ -359,21 +374,24 @@ const AllClient = () => {
         setPageSpecificHrgAmt(response.pageSpecificHrgAmt || 0);
         setPageSpecificFomAmt(response.pageSpecificFomAmt || 0);
         setPageSpecificCalPaymtAmt(response.pageSpecificCalPaymtAmt || 0);
-        
+
         // Try different property names for totalClients
-        const totalClientsValue = response.totalClients || response.totalCount || response.total || 0;
+        const totalClientsValue =
+          response.totalClients || response.totalCount || response.total || 0;
         setTotalClients(totalClientsValue);
-        
+
         // Use result.data.length as fallback for pageSpecificClients
-        const pageClientsValue = response.pageSpecificClients || (response.data ? response.data.length : 0);
+        const pageClientsValue =
+          response.pageSpecificClients ||
+          (response.data ? response.data.length : 0);
         setPageSpecificClients(pageClientsValue);
-        
+
         setAbsoluteTotalClients(response.absoluteTotalClients || 0);
         setAbsoluteTotalCopies(response.absoluteTotalCopies || 0);
-        
+
         // Always remove loading state when done
         setIsLoading(false);
-        
+
         return response;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
@@ -418,7 +436,7 @@ const AllClient = () => {
         ...advancedFilterData,
         services: roleBasedServices,
       };
-      
+
       // Add addedToday filter since it's on by default
       if (addedToday) {
         const today = new Date();
@@ -531,9 +549,9 @@ const AllClient = () => {
     const value = e.target.value;
     setFiltering(value);
     setPage(1);
-    
+
     // Auto-disable Added Today filter when search is used
-    if (value.trim() !== '') {
+    if (value.trim() !== "") {
       setAddedToday(false);
     }
   };
@@ -576,7 +594,7 @@ const AllClient = () => {
         if (Array.isArray(filterData.areas)) {
           areas = [...filterData.areas];
         } else if (typeof filterData.areas === "string") {
-          areas = filterData.areas.split(",").map(a => a.trim());
+          areas = filterData.areas.split(",").map((a) => a.trim());
         }
       }
     } catch (error) {
@@ -590,17 +608,19 @@ const AllClient = () => {
       startDate: formatDate(filterData.startDate),
       endDate: formatDate(filterData.endDate),
       services: services,
-      areas: areas
+      areas: areas,
     };
 
     // Auto-disable Added Today filter when advanced filter is applied
     // Check if any filter other than services (which are auto-populated) is set
-    const hasNonServiceFilters = Object.entries(formattedFilterData).some(([key, value]) => {
-      if (key === 'services') return false;
-      if (Array.isArray(value)) return value.length > 0;
-      if (typeof value === 'string') return value.trim() !== '';
-      return !!value;
-    });
+    const hasNonServiceFilters = Object.entries(formattedFilterData).some(
+      ([key, value]) => {
+        if (key === "services") return false;
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === "string") return value.trim() !== "";
+        return !!value;
+      }
+    );
 
     if (hasNonServiceFilters) {
       setAddedToday(false);
@@ -721,12 +741,16 @@ const AllClient = () => {
       filters.push(`Type: ${advancedFilterData.type}`);
     if (advancedFilterData.subsclass)
       filters.push(`Subclass: ${advancedFilterData.subsclass}`);
-      
+
     // Properly handle areas filter
-    if (advancedFilterData.areas && Array.isArray(advancedFilterData.areas) && advancedFilterData.areas.length > 0) {
+    if (
+      advancedFilterData.areas &&
+      Array.isArray(advancedFilterData.areas) &&
+      advancedFilterData.areas.length > 0
+    ) {
       if (advancedFilterData.areas.length <= 3) {
         // Show specific areas if there are only a few
-        filters.push(`Areas: ${advancedFilterData.areas.join(', ')}`);
+        filters.push(`Areas: ${advancedFilterData.areas.join(", ")}`);
       } else {
         // Show count if there are many
         filters.push(`Areas: ${advancedFilterData.areas.length} selected`);
@@ -795,30 +819,48 @@ const AllClient = () => {
         console.error("Error processing services in getActiveFilters:", error);
       }
     }
-    
+
     // Add client ID filters
-    if (advancedFilterData.includeClientIds && advancedFilterData.includeClientIds.length > 0) {
-      filters.push(`Include Clients: ${advancedFilterData.includeClientIds.length} client(s)`);
+    if (
+      advancedFilterData.includeClientIds &&
+      advancedFilterData.includeClientIds.length > 0
+    ) {
+      filters.push(
+        `Include Clients: ${advancedFilterData.includeClientIds.length} client(s)`
+      );
     }
-    
-    if (advancedFilterData.excludeClientIds && advancedFilterData.excludeClientIds.length > 0) {
-      filters.push(`Exclude Clients: ${advancedFilterData.excludeClientIds.length} client(s)`);
+
+    if (
+      advancedFilterData.excludeClientIds &&
+      advancedFilterData.excludeClientIds.length > 0
+    ) {
+      filters.push(
+        `Exclude Clients: ${advancedFilterData.excludeClientIds.length} client(s)`
+      );
     }
-    
+
     // Add exclude SPack clients filter
     if (advancedFilterData.excludeSPackClients) {
       filters.push("Exclude SPack Clients");
     }
-    
+
     // Add subscription status filter
-    if (advancedFilterData.subscriptionStatus && advancedFilterData.subscriptionStatus !== "all") {
+    if (
+      advancedFilterData.subscriptionStatus &&
+      advancedFilterData.subscriptionStatus !== "all"
+    ) {
       const statusMap = {
         active: "Active Only",
-        unsubscribed: "Unsubscribed Only"
+        unsubscribed: "Unsubscribed Only",
       };
-      filters.push(`Subscription Status: ${statusMap[advancedFilterData.subscriptionStatus] || advancedFilterData.subscriptionStatus}`);
+      filters.push(
+        `Subscription Status: ${
+          statusMap[advancedFilterData.subscriptionStatus] ||
+          advancedFilterData.subscriptionStatus
+        }`
+      );
     }
-    
+
     // Add user filter
     if (advancedFilterData.userId) {
       filters.push(`User: ${advancedFilterData.userId}`);
@@ -834,23 +876,22 @@ const AllClient = () => {
     if (hasRole("HRG")) roles.push("HRG");
     if (hasRole("FOM")) roles.push("FOM");
     if (hasRole("CAL")) roles.push("CAL");
-    
-    
+
     // First check if user has WMM role - PRIORITIZE WMM OVER ADMIN
     if (hasRole("WMM")) {
       return "WMM";
     }
-    
+
     // Then check for Admin role
     if (hasRole("Admin")) {
       return "Admin";
     }
-    
+
     // Check for all three specific roles
     if (hasRole("HRG") && hasRole("FOM") && hasRole("CAL")) {
       return "HRG FOM CAL";
     }
-    
+
     // For other combinations, join the roles with spaces
     return roles.length > 0 ? roles.join(" ") : "default";
   }, [hasRole]); // Only recalculate when hasRole changes

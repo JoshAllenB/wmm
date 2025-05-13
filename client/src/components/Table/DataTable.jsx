@@ -70,37 +70,51 @@ export default function DataTable({
   const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
   const [totalHrgAmt, setTotalHrgAmt] = useState(initialTotalHrgAmt);
   const [totalFomAmt, setTotalFomAmt] = useState(initialTotalFomAmt);
-  const [totalCalPaymtAmt, setTotalCalPaymtAmt] = useState(initialTotalCalPaymtAmt);
-  const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(initialPageSpecificHrgAmt);
-  const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(initialPageSpecificFomAmt);
-  const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(initialPageSpecificCalPaymtAmt);
+  const [totalCalPaymtAmt, setTotalCalPaymtAmt] = useState(
+    initialTotalCalPaymtAmt
+  );
+  const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(
+    initialPageSpecificHrgAmt
+  );
+  const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(
+    initialPageSpecificFomAmt
+  );
+  const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(
+    initialPageSpecificCalPaymtAmt
+  );
   const [totalClients, setTotalClients] = useState(initialTotalClients);
-  const [pageSpecificClients, setPageSpecificClients] = useState(initialPageSpecificClients);
-  const [absoluteTotalClients, setAbsoluteTotalClients] = useState(initialAbsoluteTotalClients);
-  const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(initialAbsoluteTotalCopies);
+  const [pageSpecificClients, setPageSpecificClients] = useState(
+    initialPageSpecificClients
+  );
+  const [absoluteTotalClients, setAbsoluteTotalClients] = useState(
+    initialAbsoluteTotalClients
+  );
+  const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(
+    initialAbsoluteTotalCopies
+  );
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
-  const [tableHeight, setTableHeight] = useState('700px');
+  const [tableHeight, setTableHeight] = useState("700px");
   const containerRef = useRef(null);
-  
+
   // Responsive height adjustment based on viewport
   useEffect(() => {
     const updateTableHeight = () => {
       // Calculate available height (viewport height minus space for other UI elements)
       const viewportHeight = window.innerHeight;
       // Reserve space for navigation, headers, pagination (adjust as needed)
-      const reservedSpace = 300; 
+      const reservedSpace = 300;
       const calculatedHeight = Math.max(400, viewportHeight - reservedSpace);
       setTableHeight(`${calculatedHeight}px`);
     };
 
     // Set initial height
     updateTableHeight();
-    
+
     // Update on resize
-    window.addEventListener('resize', updateTableHeight);
-    return () => window.removeEventListener('resize', updateTableHeight);
+    window.addEventListener("resize", updateTableHeight);
+    return () => window.removeEventListener("resize", updateTableHeight);
   }, []);
 
   const { table } = useTableLogic(
@@ -158,7 +172,9 @@ export default function DataTable({
           setPageSpecificFomAmt(result.pageSpecificFomAmt || 0);
           setPageSpecificCalPaymtAmt(result.pageSpecificCalPaymtAmt || 0);
           setTotalClients(result.totalClients || 0);
-          setPageSpecificClients(result.pageSpecificClients || dataArray.length || 0);
+          setPageSpecificClients(
+            result.pageSpecificClients || dataArray.length || 0
+          );
           setAbsoluteTotalClients(result.absoluteTotalClients || 0);
           setAbsoluteTotalCopies(result.absoluteTotalCopies || 0);
         } else {
