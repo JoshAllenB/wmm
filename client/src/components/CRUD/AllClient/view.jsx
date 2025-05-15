@@ -109,8 +109,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const editData = {
       ...formData,
       wmmData: {
-        records: Array.isArray(wmmData) ? wmmData : wmmData.records || []
-      }
+        records: Array.isArray(wmmData) ? wmmData : []
+      },
+      hrgData: hrgData,
+      fomData: fomData,
+      calData: calData
     };
     setFormData(editData);
     setIsEditing(true);
@@ -717,6 +720,6 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       )}
     </>
   );
-  };
+};
 
 export default View;
