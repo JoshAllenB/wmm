@@ -539,6 +539,76 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   }, [rowData, hasRole]);
 
+  // New effect to initialize subscriptionFreq based on existing subscription data
+  useEffect(() => {
+    if (selectedSubscription && subscriptionMode === "edit") {
+      // Parse start and end dates
+      const subsdate = parseDate(selectedSubscription.subsdate);
+      const enddate = parseDate(selectedSubscription.enddate);
+      
+      if (subsdate && enddate) {
+        // Calculate the difference in months
+        const diffMonths = (enddate.getFullYear() - subsdate.getFullYear()) * 12 + 
+                          (enddate.getMonth() - subsdate.getMonth());
+        
+        // Set subscription frequency based on month difference
+        let frequency = "";
+        if (diffMonths >= 22 && diffMonths <= 26) {
+          frequency = "22"; // 2 years
+        } else if (diffMonths >= 10 && diffMonths <= 14) {
+          frequency = "11"; // 1 year
+        } else if (diffMonths >= 5 && diffMonths <= 7) {
+          frequency = "5";  // 6 months
+        }
+        
+        if (frequency) {
+          setSubscriptionFreq(frequency);
+        }
+        
+        // Extract month, day, year for start date
+        const subStartMonth = String(subsdate.getMonth() + 1).padStart(2, "0");
+        const subStartDay = String(subsdate.getDate()).padStart(2, "0");
+        const subStartYear = String(subsdate.getFullYear());
+
+        // Extract month, day, year for end date
+        const subEndMonth = String(enddate.getMonth() + 1).padStart(2, "0");
+        const subEndDay = String(enddate.getDate()).padStart(2, "0");
+        const subEndYear = String(enddate.getFullYear());
+
+        // Format dates for display
+        const formattedStartDate = `${subStartMonth}/${subStartDay}/${subStartYear}`;
+        const formattedEndDate = `${subEndMonth}/${subEndDay}/${subEndYear}`;
+
+        // Update formData with the date components
+        setFormData(prev => ({
+          ...prev,
+          subscriptionFreq: frequency,
+          subscriptionStart: formattedStartDate,
+          subscriptionEnd: formattedEndDate,
+          subStartMonth,
+          subStartDay,
+          subStartYear,
+          subEndMonth,
+          subEndDay,
+          subEndYear
+        }));
+        
+        // Also update roleSpecificData with formatted dates
+        setRoleSpecificData(prev => ({
+          ...prev,
+          subsdate: formattedStartDate,
+          enddate: formattedEndDate,
+          subsDateMonth: subStartMonth,
+          subsDateDay: subStartDay, 
+          subsDateYear: subStartYear,
+          endDateMonth: subEndMonth,
+          endDateDay: subEndDay,
+          endDateYear: subEndYear
+        }));
+      }
+    }
+  }, [selectedSubscription, subscriptionMode]);
+
   useEffect(() => {
     const fetchGroups = async () => {
       try {
@@ -649,7 +719,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     try {
       // Use our parse function to ensure consistent date handling
-      const start = parseDate(startDate);
+      let start;
+      if (typeof startDate === 'string') {
+        start = parseDate(startDate);
+      } else {
+        start = new Date(startDate);
+      }
+      
       if (!start || isNaN(start.getTime())) {
         throw new Error("Invalid start date");
       }
@@ -781,23 +857,36 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (name === "subscriptionFreq") {
       const monthsToAdd = parseInt(value);
 
-      // Use subsdate from roleSpecificData or today if not available
-      const startDate = roleSpecificData.subsdate
-        ? new Date(roleSpecificData.subsdate)
-        : new Date();
+      // Get current date for defaults
+      let subscriptionStart;
+      
+      // If we have a valid subsdate in roleSpecificData, use that as the start date
+      if (roleSpecificData.subsdate) {
+        subscriptionStart = parseDate(roleSpecificData.subsdate);
+      } else {
+        // Otherwise use today's date
+        subscriptionStart = new Date();
+      }
 
-      // Set start date (keeping day of month)
-      const subscriptionStart = new Date(startDate);
+      // Safety check
+      if (!subscriptionStart || isNaN(subscriptionStart.getTime())) {
+        subscriptionStart = new Date();
+      }
 
       // Calculate end date by adding months
-      const rawEndDate = calculateEndMonth(subscriptionStart, monthsToAdd);
-      const subscriptionEnd = new Date(rawEndDate);
+      const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
+
+      if (!subscriptionEnd) {
+        // If end date calculation failed, just update the frequency
+        setFormData({
+          ...formData,
+          subscriptionFreq: value,
+        });
+        return;
+      }
 
       // Format date parts for start date
-      const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
-        2,
-        "0"
-      );
+      const startMonth = String(subscriptionStart.getMonth() + 1).padStart(2, "0");
       const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
       const startYear = String(subscriptionStart.getFullYear());
 
@@ -806,12 +895,16 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       const endDay = String(subscriptionEnd.getDate()).padStart(2, "0");
       const endYear = String(subscriptionEnd.getFullYear());
 
-      // Update `formData` and `roleSpecificData` states for dates
+      // Format dates for display
+      const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
+      const formattedEndDate = `${endMonth}/${endDay}/${endYear}`;
+
+      // Update `formData` with dates and components
       setFormData({
         ...formData,
         subscriptionFreq: value,
-        subscriptionStart: formatDateToMMDDYY(subscriptionStart),
-        subscriptionEnd: formatDateToMMDDYY(subscriptionEnd),
+        subscriptionStart: formattedStartDate,
+        subscriptionEnd: formattedEndDate,
         subStartMonth: startMonth,
         subStartDay: startDay,
         subStartYear: startYear,
@@ -820,10 +913,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subEndYear: endYear,
       });
 
+      // Also update roleSpecificData with formatted dates
       setRoleSpecificData((prev) => ({
         ...prev,
-        subsdate: formatDateToMMDDYY(subscriptionStart),
-        enddate: formatDateToMMDDYY(subscriptionEnd),
+        subsdate: formattedStartDate,
+        enddate: formattedEndDate,
         copies: prev.copies || 1,
       }));
       return;
@@ -1048,6 +1142,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         : "";
       const endDateYear = enddate ? String(enddate.getFullYear()) : "";
 
+      // Format for display in the subscription form
+      const formattedSubsDate = subsdate ? formatDateToMMDDYY(subsdate) : "";
+      const formattedEndDate = enddate ? formatDateToMMDDYY(enddate) : "";
+
       // Set all values to roleSpecificData
       setRoleSpecificData({
         ...selectedSub,
@@ -1057,8 +1155,49 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subsDateYear,
         endDateMonth,
         endDateDay,
-        endDateYear,
+        endDateYear
       });
+
+      // Also update the formData for consistency
+      setFormData(prevFormData => ({
+        ...prevFormData,
+        subscriptionStart: formattedSubsDate,
+        subscriptionEnd: formattedEndDate,
+        subStartMonth: subsDateMonth,
+        subStartDay: subsDateDay,
+        subStartYear: subsDateYear,
+        subEndMonth: endDateMonth,
+        subEndDay: endDateDay,
+        subEndYear: endDateYear
+      }));
+
+      // Determine subscription frequency based on the subscription period
+      if (subsdate && enddate) {
+        const startDate = new Date(subsdate);
+        const endDate = new Date(enddate);
+        
+        // Calculate the difference in months
+        const diffMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                          (endDate.getMonth() - startDate.getMonth());
+        
+        // Set subscription frequency based on month difference
+        let frequency = "";
+        if (diffMonths >= 22 && diffMonths <= 26) {
+          frequency = "22"; // 2 years
+        } else if (diffMonths >= 10 && diffMonths <= 14) {
+          frequency = "11"; // 1 year
+        } else if (diffMonths >= 5 && diffMonths <= 7) {
+          frequency = "5";  // 6 months
+        }
+        
+        if (frequency) {
+          setSubscriptionFreq(frequency);
+          setFormData(prev => ({
+            ...prev,
+            subscriptionFreq: frequency
+          }));
+        }
+      }
     }
   };
 
@@ -1095,67 +1234,103 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const freq = e.target.value;
     setSubscriptionFreq(freq);
 
-    // Initialize dates
-    let startDate, monthsToAdd;
-
-    // Convert frequency to months
+    // Get months to add based on frequency
+    let monthsToAdd;
     if (freq === "5") monthsToAdd = 6;
     else if (freq === "11") monthsToAdd = 12;
     else if (freq === "22") monthsToAdd = 24;
     else return; // Return if not a standard option
 
-    // Handle subscription mode (edit existing or add new)
+    // Handle different subscription modes
     if (subscriptionMode === "edit" && selectedSubscription) {
-      startDate = parseDate(roleSpecificData.subsdate);
-
-      if (startDate) {
-        // Calculate end date preserving the day of month
-        const newEndDate = new Date(startDate);
-        newEndDate.setMonth(startDate.getMonth() + monthsToAdd);
-
-        // Format for display
-        const formattedDate = formatDateToMMDDYY(newEndDate);
-
-        // Extract month, day, year for end date
-        const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
-        const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
-        const endDateYear = String(newEndDate.getFullYear());
-
-        // Update state with both formatted date and components
-        setRoleSpecificData((prev) => ({
-          ...prev,
-          enddate: formattedDate,
-          endDateMonth,
-          endDateDay,
-          endDateYear,
-        }));
+      // When editing existing subscription
+      let startDate = parseDate(roleSpecificData.subsdate);
+      
+      if (!startDate || isNaN(startDate.getTime())) {
+        // If no valid start date, use today
+        startDate = new Date();
       }
+
+      // Calculate end date preserving the day of month
+      const newEndDate = calculateEndMonth(startDate, monthsToAdd);
+      
+      if (!newEndDate) return; // Safety check
+
+      // Format for display
+      const formattedDate = formatDateToMMDDYY(newEndDate);
+
+      // Extract month, day, year for end date
+      const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
+      const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
+      const endDateYear = String(newEndDate.getFullYear());
+
+      // Update state with both formatted date and components
+      setRoleSpecificData((prev) => ({
+        ...prev,
+        enddate: formattedDate,
+        endDateMonth,
+        endDateDay,
+        endDateYear,
+        subsyear: monthsToAdd === 12 ? 1 : monthsToAdd === 24 ? 2 : 0.5,
+      }));
+
+      // Also update formData for consistency
+      setFormData((prev) => ({
+        ...prev,
+        subscriptionFreq: freq,
+        subscriptionEnd: formattedDate,
+        subEndMonth: endDateMonth,
+        subEndDay: endDateDay,
+        subEndYear: endDateYear,
+      }));
     } else {
       // Handle new subscription
-      startDate = parseDate(newSubscriptionData.subsdate);
-
-      if (startDate) {
-        // Calculate end date preserving the day of month
-        const newEndDate = new Date(startDate);
-        newEndDate.setMonth(startDate.getMonth() + monthsToAdd);
-
-        // Format for display
-        const formattedDate = formatDateToMMDDYY(newEndDate);
-
-        // Extract month, day, year for end date
-        const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
-        const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
-        const endDateYear = String(newEndDate.getFullYear());
-
-        // Update state with both formatted date and components
-        setNewSubscriptionData((prev) => ({
-          ...prev,
-          enddate: formattedDate,
-          endDateMonth,
-          endDateDay,
-          endDateYear,
-        }));
+      let startDate = parseDate(newSubscriptionData.subsdate);
+      
+      if (!startDate || isNaN(startDate.getTime())) {
+        // If no valid start date, use today
+        startDate = new Date();
+        
+        // Also update the start date in newSubscriptionData
+        const today = new Date();
+        const startMonth = String(today.getMonth() + 1).padStart(2, "0");
+        const startDay = String(today.getDate()).padStart(2, "0");
+        const startYear = String(today.getFullYear());
+        const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
+        
+        setTimeout(() => {
+          setNewSubscriptionData((prev) => ({
+            ...prev,
+            subsdate: formattedStartDate,
+            subsDateMonth: startMonth,
+            subsDateDay: startDay,
+            subsDateYear: startYear,
+          }));
+        }, 0);
       }
+
+      // Calculate end date preserving the day of month
+      const newEndDate = calculateEndMonth(startDate, monthsToAdd);
+      
+      if (!newEndDate) return; // Safety check
+
+      // Format for display
+      const formattedDate = formatDateToMMDDYY(newEndDate);
+
+      // Extract month, day, year for end date
+      const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
+      const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
+      const endDateYear = String(newEndDate.getFullYear());
+
+      // Update state with both formatted date and components
+      setNewSubscriptionData((prev) => ({
+        ...prev,
+        enddate: formattedDate,
+        endDateMonth,
+        endDateDay,
+        endDateYear,
+        subsyear: monthsToAdd === 12 ? 1 : monthsToAdd === 24 ? 2 : 0.5,
+      }));
     }
   };
 
@@ -1361,26 +1536,1266 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   return (
-    <Modal isOpen={showModal} onClose={closeModal} title="Edit Client">
-      <form onSubmit={handleSubmit}>
-        {/* Rest of the component content */}
-        <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
-          <Button
-            type="button"
-            onClick={closeModal}
-            className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
-          >
-            Save Changes
-          </Button>
-        </div>
-      </form>
-    </Modal>
+    <>
+      {onClose && onEditSuccess ? (
+        // When rendered inside View component, just render the form without a modal
+        <form onSubmit={handleSubmit} className="w-full">
+          {/* Add form content here (fields, sections, etc.) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
+            {/* Personal Information */}
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                Personal Information
+              </h2>
+              <div className="space-y-3">
+                <InputField
+                  label="Title:"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <InputField
+                  label="First Name:"
+                  id="fname"
+                  name="fname"
+                  value={formData.fname}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <InputField
+                  label="Middle Name:"
+                  id="mname"
+                  name="mname"
+                  value={formData.mname}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <InputField
+                  label="Last Name:"
+                  id="lname"
+                  name="lname"
+                  value={formData.lname}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <InputField
+                  label="Suffix:"
+                  id="sname"
+                  name="sname"
+                  value={formData.sname}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <div className="mb-2">
+                  <label className="block text-black text-base mb-1">Birth Date:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="relative">
+                      <select
+                        id="bdateMonth"
+                        name="bdateMonth"
+                        value={formData.bdateMonth}
+                        onChange={handleChange}
+                        className="w-full p-2 text-base border rounded-md border-gray-300"
+                      >
+                        <option value="">Month</option>
+                        {months.map(month => (
+                          <option key={month.value} value={month.value}>{month.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <input
+                      type="text"
+                      id="bdateDay"
+                      name="bdateDay"
+                      value={formData.bdateDay}
+                      onChange={handleChange}
+                      placeholder="DD"
+                      className="w-full p-2 text-base border rounded-md border-gray-300"
+                      maxLength="2"
+                    />
+                    <input
+                      type="text"
+                      id="bdateYear"
+                      name="bdateYear"
+                      value={formData.bdateYear}
+                      onChange={handleChange}
+                      placeholder="YYYY"
+                      className="w-full p-2 text-base border rounded-md border-gray-300"
+                      maxLength="4"
+                    />
+                  </div>
+                </div>
+                <InputField
+                  label="Company:"
+                  id="company"
+                  name="company"
+                  value={formData.company}
+                  onChange={handleChange}
+                  uppercase={true}
+                  className="text-base"
+                />
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                Address Information
+              </h2>
+              <div className="space-y-3">
+                <InputField
+                  label="Address:"
+                  id="address"
+                  name="address"
+                  value={combinedAddress}
+                  onChange={(e) => setCombinedAddress(e.target.value)}
+                  type="textarea"
+                  className="w-full p-2 border rounded-md text-base"
+                />
+                <AreaForm 
+                  onAreaChange={handleAreaChange}
+                  defaultValues={{
+                    acode: formData.acode || "",
+                    area: formData.area || "",
+                    zipcode: formData.zipcode || ""
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                Contact Information
+              </h2>
+              <div className="space-y-3">
+                <InputField
+                  label="Contact Numbers:"
+                  id="contactnos"
+                  name="contactnos"
+                  value={formData.contactnos}
+                  onChange={handleChange}
+                  className="text-base"
+                />
+                <InputField
+                  label="Cell Number:"
+                  id="cellno"
+                  name="cellno"
+                  value={formData.cellno}
+                  onChange={handleChange}
+                  className="text-base"
+                />
+                <InputField
+                  label="Office Number:"
+                  id="ofcno"
+                  name="ofcno"
+                  value={formData.ofcno}
+                  onChange={handleChange}
+                  className="text-base"
+                />
+                <InputField
+                  label="Email:"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  type="email"
+                  className="text-base"
+                />
+              </div>
+            </div>
+
+            {/* Group Information */}
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                Group Information
+              </h2>
+              <div className="space-y-3">
+                <div className="relative w-full">
+                  <label className="block text-black text-base mb-1">Type:</label>
+                  <select
+                    id="type"
+                    name="type"
+                    value={formData.type}
+                    onChange={handleChange}
+                    className="w-full p-2 text-base border rounded-md border-gray-300"
+                  >
+                    <option value="">Select a type</option>
+                    {types.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.id} - {type.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative w-full">
+                  <label className="block text-black text-base mb-1">Group:</label>
+                  <select
+                    id="group"
+                    name="group"
+                    value={formData.group}
+                    onChange={handleChange}
+                    className="w-full p-2 text-base border rounded-md border-gray-300"
+                  >
+                    <option value="">Select a group</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.id} - {group.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <InputField
+                  label="Remarks:"
+                  id="remarks"
+                  name="remarks"
+                  value={formData.remarks}
+                  onChange={handleChange}
+                  type="textarea"
+                  className="w-full p-2 border rounded-md text-base"
+                />
+              </div>
+            </div>
+
+            {/* WMM Subscription Information - Only show if user has WMM role */}
+            {hasRole("WMM") && (
+              <div className="p-4 border rounded-lg shadow-sm col-span-2">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Subscription Information
+                </h2>
+                
+                {/* Mode toggle - Edit existing or Add new */}
+                <div className="mb-4">
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSubscriptionModeChange("edit")}
+                      className={`px-3 py-1 rounded-md ${
+                        subscriptionMode === "edit"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      Edit Existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSubscriptionModeChange("add")}
+                      className={`px-3 py-1 rounded-md ${
+                        subscriptionMode === "add"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                  
+                  {subscriptionMode === "edit" && availableSubscriptions.length > 0 && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Select Subscription:
+                      </label>
+                      <select
+                        value={selectedSubscription ? (selectedSubscription.id || selectedSubscription._id) : ""}
+                        onChange={handleSelectedSubscriptionChange}
+                        className="w-full p-2 border rounded-md text-base"
+                      >
+                        {availableSubscriptions.map((sub) => (
+                          <option 
+                            key={sub.id || sub._id} 
+                            value={sub.id || sub._id}
+                          >
+                            {sub.subsdate ? formatDateToMonthYear(parseDate(sub.subsdate)) : 'Unknown'} to {sub.enddate ? formatDateToMonthYear(parseDate(sub.enddate)) : 'Unknown'} - {sub.subsclass || 'No Class'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Subscription Form Fields */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                  <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Frequency:
+                      </label>
+                      <select
+                        id="subscriptionFreq"
+                        name="subscriptionFreq"
+                        value={subscriptionFreq}
+                        onChange={handleSubscriptionFreqChange}
+                        className="w-full p-2 border rounded-md text-base"
+                      >
+                        <option value="">Select Frequency</option>
+                        <option value="5">6 Months</option>
+                        <option value="11">1 Year</option>
+                        <option value="22">2 Years</option>
+                      </select>
+                    </div>
+                    
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Start:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="relative">
+                          <select
+                            id="subStartMonth"
+                            name="subStartMonth"
+                            value={
+                              subscriptionMode === "edit"
+                                ? formData.subStartMonth || ""
+                                : newSubscriptionData.subsDateMonth || ""
+                            }
+                            onChange={
+                              subscriptionMode === "edit"
+                                ? handleChange
+                                : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateMonth: e.target.value})
+                            }
+                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          >
+                            <option value="">Month</option>
+                            {months.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="text"
+                          id="subStartDay"
+                          name="subStartDay"
+                          value={
+                            subscriptionMode === "edit"
+                              ? formData.subStartDay || ""
+                              : newSubscriptionData.subsDateDay || ""
+                          }
+                          onChange={
+                            subscriptionMode === "edit"
+                              ? handleChange
+                              : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateDay: e.target.value})
+                          }
+                          placeholder="DD"
+                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          maxLength="2"
+                        />
+                        <input
+                          type="text"
+                          id="subStartYear"
+                          name="subStartYear"
+                          value={
+                            subscriptionMode === "edit"
+                              ? formData.subStartYear || ""
+                              : newSubscriptionData.subsDateYear || ""
+                          }
+                          onChange={
+                            subscriptionMode === "edit"
+                              ? handleChange
+                              : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateYear: e.target.value})
+                          }
+                          placeholder="YYYY"
+                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          maxLength="4"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription End:
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="relative">
+                          <select
+                            id="subEndMonth"
+                            name="subEndMonth"
+                            value={
+                              subscriptionMode === "edit"
+                                ? formData.subEndMonth || ""
+                                : newSubscriptionData.endDateMonth || ""
+                            }
+                            onChange={
+                              subscriptionMode === "edit"
+                                ? handleChange
+                                : (e) => setNewSubscriptionData({...newSubscriptionData, endDateMonth: e.target.value})
+                            }
+                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          >
+                            <option value="">Month</option>
+                            {months.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <input
+                          type="text"
+                          id="subEndDay"
+                          name="subEndDay"
+                          value={
+                            subscriptionMode === "edit"
+                              ? formData.subEndDay || ""
+                              : newSubscriptionData.endDateDay || ""
+                          }
+                          onChange={
+                            subscriptionMode === "edit"
+                              ? handleChange
+                              : (e) => setNewSubscriptionData({...newSubscriptionData, endDateDay: e.target.value})
+                          }
+                          placeholder="DD"
+                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          maxLength="2"
+                        />
+                        <input
+                          type="text"
+                          id="subEndYear"
+                          name="subEndYear"
+                          value={
+                            subscriptionMode === "edit"
+                              ? formData.subEndYear || ""
+                              : newSubscriptionData.endDateYear || ""
+                          }
+                          onChange={
+                            subscriptionMode === "edit"
+                              ? handleChange
+                              : (e) => setNewSubscriptionData({...newSubscriptionData, endDateYear: e.target.value})
+                          }
+                          placeholder="YYYY"
+                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          maxLength="4"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Subscription Class:
+                      </label>
+                      <select
+                        id="subsclass"
+                        name="subsclass"
+                        value={
+                          subscriptionMode === "edit"
+                            ? roleSpecificData.subsclass || ""
+                            : newSubscriptionData.subsclass || ""
+                        }
+                        onChange={
+                          subscriptionMode === "edit"
+                            ? handleRoleSpecificChange
+                            : handleNewSubscriptionChange
+                        }
+                        className="w-full p-2 border rounded-md text-base"
+                      >
+                        <option value="">Select a classification</option>
+                        {subclasses.map((subclass) => (
+                          <option key={subclass.id} value={subclass.id}>
+                            {subclass.name} ({subclass.id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <InputField
+                      label="Renewal Date:"
+                      id="renewdate"
+                      name="renewdate"
+                      value={
+                        subscriptionMode === "edit"
+                          ? roleSpecificData.renewdate || ""
+                          : newSubscriptionData.renewdate || ""
+                      }
+                      onChange={
+                        subscriptionMode === "edit"
+                          ? handleRoleSpecificChange
+                          : handleNewSubscriptionChange
+                      }
+                      className="text-base"
+                    />
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mr-2">
+                        Copies:
+                      </label>
+                      <input
+                        type="number"
+                        id="copies"
+                        name="copies"
+                        value={
+                          subscriptionMode === "edit"
+                            ? roleSpecificData.copies || 1
+                            : newSubscriptionData.copies || 1
+                        }
+                        onChange={
+                          subscriptionMode === "edit"
+                            ? handleRoleSpecificChange
+                            : handleNewSubscriptionChange
+                        }
+                        min="1"
+                        className="w-20 p-2 border rounded-md text-base"
+                      />
+                    </div>
+                    
+                    <InputField
+                      label="Payment Reference:"
+                      id="paymtref"
+                      name="paymtref"
+                      value={
+                        subscriptionMode === "edit"
+                          ? roleSpecificData.paymtref || ""
+                          : newSubscriptionData.paymtref || ""
+                      }
+                      onChange={
+                        subscriptionMode === "edit"
+                          ? handleRoleSpecificChange
+                          : handleNewSubscriptionChange
+                      }
+                      className="text-base"
+                    />
+                    
+                    <InputField
+                      label="Payment Amount:"
+                      id="paymtamt"
+                      name="paymtamt"
+                      value={
+                        subscriptionMode === "edit"
+                          ? roleSpecificData.paymtamt || ""
+                          : newSubscriptionData.paymtamt || ""
+                      }
+                      onChange={
+                        subscriptionMode === "edit"
+                          ? handleRoleSpecificChange
+                          : handleNewSubscriptionChange
+                      }
+                      className="text-base"
+                    />
+                    
+                    <InputField
+                      label="Payment Masses:"
+                      id="paymtmasses"
+                      name="paymtmasses"
+                      value={
+                        subscriptionMode === "edit"
+                          ? roleSpecificData.paymtmasses || ""
+                          : newSubscriptionData.paymtmasses || ""
+                      }
+                      onChange={
+                        subscriptionMode === "edit"
+                          ? handleRoleSpecificChange
+                          : handleNewSubscriptionChange
+                      }
+                      className="text-base"
+                    />
+                    
+                    <div className="mb-4">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="calendar"
+                          name="calendar"
+                          checked={
+                            subscriptionMode === "edit"
+                              ? roleSpecificData.calendar || false
+                              : newSubscriptionData.calendar || false
+                          }
+                          onChange={
+                            subscriptionMode === "edit"
+                              ? handleRoleSpecificChange
+                              : handleNewSubscriptionChange
+                          }
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          Include Calendar
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Role-specific sections for HRG, FOM, CAL */}
+            {(hasRole("HRG") || hasRole("FOM") || hasRole("CAL")) && (
+              <div className="p-4 border rounded-lg shadow-sm col-span-2">
+                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                  Role-Specific Information
+                </h2>
+                
+                {/* Role toggle buttons */}
+                {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
+                  <div className="flex mb-4 mt-2">
+                    <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
+                      {hasRole("HRG") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "HRG"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("HRG")}
+                        >
+                          HRG
+                        </button>
+                      )}
+                      {hasRole("FOM") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "FOM"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("FOM")}
+                        >
+                          FOM
+                        </button>
+                      )}
+                      {hasRole("CAL") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "CAL"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("CAL")}
+                        >
+                          CAL
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Mode toggle - Edit existing or Add new */}
+                <div className="mb-4">
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setRoleRecordMode("edit")}
+                      className={`px-3 py-1 rounded-md ${
+                        roleRecordMode === "edit"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      Edit Existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoleRecordMode("add")}
+                      className={`px-3 py-1 rounded-md ${
+                        roleRecordMode === "add"
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 text-gray-700"
+                      }`}
+                    >
+                      Add New
+                    </button>
+                  </div>
+                  
+                  {/* Record selection for editing */}
+                  {roleRecordMode === "edit" && (
+                    <div className="mb-4">
+                      {selectedRole === "HRG" && hrgRecords.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select HRG Record:
+                          </label>
+                          <select
+                            value={selectedHrgRecord ? (selectedHrgRecord.id || selectedHrgRecord._id || "") : ""}
+                            onChange={(e) => {
+                              const record = hrgRecords.find(
+                                (r) => String(r.id || r._id) === e.target.value
+                              );
+                              if (record) {
+                                setSelectedHrgRecord(record);
+                                setRoleSpecificData({
+                                  ...record
+                                });
+                              }
+                            }}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            {hrgRecords.map((record) => (
+                              <option 
+                                key={record.id || record._id} 
+                                value={record.id || record._id}
+                              >
+                                {record.recvdate ? formatDateToMonthYear(parseDate(record.recvdate)) : 'Unknown'} 
+                                {record.paymtamt ? ` - Php ${record.paymtamt}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
+                      {selectedRole === "FOM" && fomRecords.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select FOM Record:
+                          </label>
+                          <select
+                            value={selectedFomRecord ? (selectedFomRecord.id || selectedFomRecord._id || "") : ""}
+                            onChange={(e) => {
+                              const record = fomRecords.find(
+                                (r) => String(r.id || r._id) === e.target.value
+                              );
+                              if (record) {
+                                setSelectedFomRecord(record);
+                                setRoleSpecificData({
+                                  ...record
+                                });
+                              }
+                            }}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            {fomRecords.map((record) => (
+                              <option 
+                                key={record.id || record._id} 
+                                value={record.id || record._id}
+                              >
+                                {record.recvdate ? formatDateToMonthYear(parseDate(record.recvdate)) : 'Unknown'} 
+                                {record.paymtamt ? ` - Php ${record.paymtamt}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      
+                      {selectedRole === "CAL" && calRecords.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select CAL Record:
+                          </label>
+                          <select
+                            value={selectedCalRecord ? (selectedCalRecord.id || selectedCalRecord._id || "") : ""}
+                            onChange={(e) => {
+                              const record = calRecords.find(
+                                (r) => String(r.id || r._id) === e.target.value
+                              );
+                              if (record) {
+                                setSelectedCalRecord(record);
+                                setRoleSpecificData({
+                                  ...record
+                                });
+                              }
+                            }}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            {calRecords.map((record) => (
+                              <option 
+                                key={record.id || record._id} 
+                                value={record.id || record._id}
+                              >
+                                {record.recvdate ? formatDateToMonthYear(parseDate(record.recvdate)) : 'Unknown'} 
+                                {record.caltype ? ` - ${record.caltype}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Role-specific form fields */}
+                {selectedRole === "HRG" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <InputField
+                        label="Received Date:"
+                        id="recvdate"
+                        name="recvdate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.recvdate || ""
+                            : newRoleData.recvdate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, recvdate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Renewal Date:"
+                        id="renewdate"
+                        name="renewdate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.renewdate || ""
+                            : newRoleData.renewdate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, renewdate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <div className="flex items-center mt-2 mb-2">
+                        <Button
+                          className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
+                          type="button"
+                          onClick={handleRenewDateToday}
+                        >
+                          Set Renewal to Today
+                        </Button>
+                      </div>
+                      
+                      <InputField
+                        label="Campaign Date:"
+                        id="campaigndate"
+                        name="campaigndate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.campaigndate || ""
+                            : newRoleData.campaigndate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, campaigndate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                    </div>
+                    
+                    <div>
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtref: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtamt: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <div className="mb-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.unsubscribe || false
+                                : newRoleData.unsubscribe || false
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) => setNewRoleData({...newRoleData, unsubscribe: e.target.checked})
+                            }
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Unsubscribe
+                          </span>
+                        </label>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) => setNewRoleData({...newRoleData, remarks: e.target.value})
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedRole === "FOM" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <InputField
+                        label="Received Date:"
+                        id="recvdate"
+                        name="recvdate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.recvdate || ""
+                            : newRoleData.recvdate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, recvdate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtref: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                    </div>
+                    
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtamt: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Form:"
+                        id="paymtform"
+                        name="paymtform"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtform || ""
+                            : newRoleData.paymtform || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtform: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <div className="mb-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="unsubscribe"
+                            name="unsubscribe"
+                            checked={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.unsubscribe || false
+                                : newRoleData.unsubscribe || false
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) => setNewRoleData({...newRoleData, unsubscribe: e.target.checked})
+                            }
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Unsubscribe
+                          </span>
+                        </label>
+                      </div>
+                      
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) => setNewRoleData({...newRoleData, remarks: e.target.value})
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {selectedRole === "CAL" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <InputField
+                        label="Received Date:"
+                        id="recvdate"
+                        name="recvdate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.recvdate || ""
+                            : newRoleData.recvdate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, recvdate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Calendar Type:"
+                        id="caltype"
+                        name="caltype"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.caltype || ""
+                            : newRoleData.caltype || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, caltype: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Calendar Quantity:"
+                        id="calqty"
+                        name="calqty"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.calqty || ""
+                            : newRoleData.calqty || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, calqty: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Calendar Amount:"
+                        id="calamt"
+                        name="calamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.calamt || ""
+                            : newRoleData.calamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, calamt: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                    </div>
+                    
+                    <div>
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtref: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtamt: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Form:"
+                        id="paymtform"
+                        name="paymtform"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtform || ""
+                            : newRoleData.paymtform || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtform: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <InputField
+                        label="Payment Date:"
+                        id="paymtdate"
+                        name="paymtdate"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtdate || ""
+                            : newRoleData.paymtdate || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) => setNewRoleData({...newRoleData, paymtdate: e.target.value})
+                        }
+                        className="text-base"
+                      />
+                      
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) => setNewRoleData({...newRoleData, remarks: e.target.value})
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
+            <Button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      ) : (
+        // When rendered as a standalone component, use a modal
+        <Modal isOpen={showModal} onClose={closeModal} title="Edit Client">
+          <form onSubmit={handleSubmit}>
+            {/* Rest of the component content */}
+            <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
+              <Button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </>
   );
 };
 
