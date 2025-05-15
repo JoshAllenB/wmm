@@ -18,6 +18,18 @@ const Mailing = ({
   officeno,
   copies,
 }) => {
+  // Define the fields at component level
+  const defaultFields = [
+    "id",
+    "name",
+    "address",
+    "contactnos",
+    "copies",
+    "acode",
+    "enddate"
+  ];
+  const optionalFields = ["mname", "subsdate", "subsclass", "email"];
+
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
   const [topPosition, setTopPosition] = useState(10);
@@ -40,10 +52,13 @@ const Mailing = ({
   const [startPosition, setStartPosition] = useState("left"); // 'left' or 'right'
   const [csvExportModal, setCsvExportModal] = useState(false); // New state for CSV export modal
   const [csvIncludeFields, setCsvIncludeFields] = useState([
-    "id",
-    "name",
-    "address",
-    "contactnos",
+    "id",           // ClientID
+    "name",         // Name
+    "address",      // Address
+    "contactnos",   // Contact Number
+    "copies",       // Copies
+    "acode",        // AreaCode
+    "enddate"       // Expiry Date
   ]); // Fields to include in CSV
 
   // State for A4 preview layout adjustments
@@ -742,7 +757,7 @@ const Mailing = ({
             width: ${thankYouWidth}px;
             word-wrap: break-word;
             white-space: normal;
-            overflow-wrap: break-word;
+            overflowWrap: break-word;
           }
           
           .address-container p:last-child {
@@ -1206,6 +1221,84 @@ const Mailing = ({
     printWindow.document.close();
   };
 
+  // Get the maximum number of address lines used in the dataset
+  const getMaxAddressLines = () => {
+    let maxLines = 0;
+    selectedRows.forEach((row) => {
+      const addressLines = row?.original?.address?.split('\n') || [];
+      // Only count non-empty lines
+      const nonEmptyLines = addressLines.filter(line => line.trim().length > 0).length;
+      maxLines = Math.max(maxLines, nonEmptyLines);
+    });
+    return maxLines;
+  };
+
+  // Analyze dataset to find which fields have data
+  const getFieldsWithData = () => {
+    const fieldsWithData = {
+      id: false,
+      title: false,
+      lname: false,
+      fname: false,
+      mname: false,
+      address: false,
+      cellno: false,
+      officeno: false,
+      copies: false,
+      acode: false,
+      enddate: false,
+      subsdate: false,
+      subsclass: false,
+      email: false
+    };
+
+    // Track address lines separately
+    const addressLinesUsed = new Set();
+
+    selectedRows.forEach((row) => {
+      const subscriber = row.original;
+      const wmmData = subscriber?.wmmData;
+      const subscription = wmmData?.records?.[0] || {};
+
+      // Check each field for non-empty values
+      if (subscriber.id) fieldsWithData.id = true;
+      if (subscriber.title?.trim()) fieldsWithData.title = true;
+      if (subscriber.lname?.trim()) fieldsWithData.lname = true;
+      if (subscriber.fname?.trim()) fieldsWithData.fname = true;
+      if (subscriber.mname?.trim()) fieldsWithData.mname = true;
+      if (subscriber.cellno?.trim()) fieldsWithData.cellno = true;
+      if (subscriber.officeno?.trim()) fieldsWithData.officeno = true;
+      if (subscription.copies) fieldsWithData.copies = true;
+      if (subscriber.acode?.trim()) fieldsWithData.acode = true;
+      if (subscriber.email?.trim()) fieldsWithData.email = true;
+      if (subscription.subsclass?.trim()) fieldsWithData.subsclass = true;
+
+      // Check dates
+      if (subscription.enddate) {
+        const date = new Date(subscription.enddate);
+        if (!isNaN(date.getTime())) fieldsWithData.enddate = true;
+      }
+      if (subscription.subsdate) {
+        const date = new Date(subscription.subsdate);
+        if (!isNaN(date.getTime())) fieldsWithData.subsdate = true;
+      }
+
+      // Check address lines
+      const addressLines = subscriber.address?.split('\n') || [];
+      addressLines.forEach((line, index) => {
+        if (line.trim()) {
+          addressLinesUsed.add(index);
+          fieldsWithData.address = true;
+        }
+      });
+    });
+
+    return {
+      fieldsWithData,
+      addressLinesUsed: Array.from(addressLinesUsed).sort((a, b) => a - b)
+    };
+  };
+
   // Generate CSV content from the selected data
   const generateCSV = () => {
     // Filter rows based on start/end Client IDs
@@ -1227,20 +1320,46 @@ const Mailing = ({
       return null;
     }
 
-    // Define CSV headers based on selected fields
+    // Get fields that have data
+    const { fieldsWithData, addressLinesUsed } = getFieldsWithData();
+
+    // Define CSV headers based on selected fields and data presence
     const headers = [];
 
-    if (csvIncludeFields.includes("id")) headers.push("Client ID");
-    if (csvIncludeFields.includes("name")) headers.push("Name");
-    if (csvIncludeFields.includes("address")) headers.push("Address");
-    if (csvIncludeFields.includes("contactnos")) headers.push("Contact Number");
-    if (csvIncludeFields.includes("copies")) headers.push("Copies");
-    if (csvIncludeFields.includes("acode")) headers.push("Area Code");
-    if (csvIncludeFields.includes("subsdate"))
+    // Add default fields to headers only if they have data
+    if (csvIncludeFields.includes("id") && fieldsWithData.id) 
+      headers.push("Client ID");
+    if (csvIncludeFields.includes("name")) {
+      if (fieldsWithData.title) headers.push("Title");
+      if (fieldsWithData.lname) headers.push("Last Name");
+      if (fieldsWithData.fname) headers.push("First Name");
+    }
+    if (csvIncludeFields.includes("address") && fieldsWithData.address) {
+      // Add address headers based on actual used lines
+      addressLinesUsed.forEach(index => {
+        headers.push(`Address Line ${index + 1}`);
+      });
+    }
+    if (csvIncludeFields.includes("contactnos")) {
+      if (fieldsWithData.cellno) headers.push("Cell Number");
+      if (fieldsWithData.officeno) headers.push("Telephone Number");
+    }
+    if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
+      headers.push("Copies");
+    if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
+      headers.push("Area Code");
+    if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate)
+      headers.push("Expiry Date");
+
+    // Add optional fields to headers only if they have data
+    if (csvIncludeFields.includes("mname") && fieldsWithData.mname)
+      headers.push("Middle Name");
+    if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate)
       headers.push("Subscription Date");
-    if (csvIncludeFields.includes("enddate")) headers.push("End Date");
-    if (csvIncludeFields.includes("subsclass"))
+    if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
       headers.push("Subscription Class");
+    if (csvIncludeFields.includes("email") && fieldsWithData.email)
+      headers.push("Email");
 
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
@@ -1249,35 +1368,33 @@ const Mailing = ({
       const subscriber = row.original;
       const wmmData = subscriber?.wmmData;
       const subscription = wmmData?.records?.[0] || {};
-
       const rowData = [];
 
-      if (csvIncludeFields.includes("id"))
+      // Add data only for fields that have content
+      if (csvIncludeFields.includes("id") && fieldsWithData.id)
         rowData.push(`"${subscriber.id || ""}"`);
-      if (csvIncludeFields.includes("name"))
-        rowData.push(`"${getFullName(subscriber)}"`);
-      if (csvIncludeFields.includes("address"))
-        rowData.push(`"${subscriber.address || ""}"`);
-      if (csvIncludeFields.includes("contactnos"))
-        rowData.push(`"${getContactNumber(subscriber)}"`);
-      if (csvIncludeFields.includes("copies"))
+      if (csvIncludeFields.includes("name")) {
+        if (fieldsWithData.title) rowData.push(`"${subscriber.title || ""}"`);
+        if (fieldsWithData.lname) rowData.push(`"${subscriber.lname || ""}"`);
+        if (fieldsWithData.fname) rowData.push(`"${subscriber.fname || ""}"`);
+      }
+      if (csvIncludeFields.includes("address") && fieldsWithData.address) {
+        const addressLines = subscriber.address?.split("\n") || [];
+        addressLinesUsed.forEach(index => {
+          rowData.push(`"${(addressLines[index] || "").trim()}"`);
+        });
+      }
+      if (csvIncludeFields.includes("contactnos")) {
+        if (fieldsWithData.cellno) rowData.push(`"${subscriber.cellno || ""}"`);
+        if (fieldsWithData.officeno) rowData.push(`"${subscriber.officeno || ""}"`);
+      }
+      if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
         rowData.push(`"${subscription.copies || ""}"`);
-      if (csvIncludeFields.includes("acode"))
+      if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
         rowData.push(`"${subscriber.acode || ""}"`);
 
-      // Format dates
-      if (csvIncludeFields.includes("subsdate")) {
-        let subsdate = "";
-        if (subscription.subsdate) {
-          const date = new Date(subscription.subsdate);
-          if (!isNaN(date.getTime())) {
-            subsdate = date.toLocaleDateString();
-          }
-        }
-        rowData.push(`"${subsdate}"`);
-      }
-
-      if (csvIncludeFields.includes("enddate")) {
+      // Format and add dates if they exist
+      if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate) {
         let enddate = "";
         if (subscription.enddate) {
           const date = new Date(subscription.enddate);
@@ -1288,13 +1405,43 @@ const Mailing = ({
         rowData.push(`"${enddate}"`);
       }
 
-      if (csvIncludeFields.includes("subsclass"))
+      if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate) {
+        let subsdate = "";
+        if (subscription.subsdate) {
+          const date = new Date(subscription.subsdate);
+          if (!isNaN(date.getTime())) {
+            subsdate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${subsdate}"`);
+      }
+
+      if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
         rowData.push(`"${subscription.subsclass || ""}"`);
+      if (csvIncludeFields.includes("email") && fieldsWithData.email)
+        rowData.push(`"${subscriber.email || ""}"`);
 
       csvContent += rowData.join(",") + "\n";
     });
 
     return csvContent;
+  };
+
+  // Update the field labels to show if they contain data
+  const renderFieldLabel = (field, label) => {
+    const { fieldsWithData } = getFieldsWithData();
+    if (!fieldsWithData[field]) {
+      return <span className="text-gray-400">{label} (No Data)</span>;
+    }
+    return label;
+  };
+
+  // Update the CSV Fields Selection UI to show which fields have data
+  const renderAddressFieldLabel = () => {
+    const maxLines = getMaxAddressLines();
+    if (maxLines === 0) return "Address";
+    if (maxLines === 1) return "Address";
+    return `Address (Line 1${maxLines > 1 ? ` to ${maxLines}` : ""})`;
   };
 
   // Handle CSV export
@@ -1455,114 +1602,150 @@ const Mailing = ({
             <h3 className="text-sm font-semibold mb-2">
               Select Fields to Include:
             </h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-id"
-                  checked={csvIncludeFields.includes("id")}
-                  onChange={() => toggleCsvField("id")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-id" className="text-sm">
-                  Client ID
-                </label>
+
+            {/* Default Fields */}
+            <div className="mb-4">
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Default Fields:</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-id"
+                    checked={csvIncludeFields.includes("id")}
+                    onChange={() => toggleCsvField("id")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-id" className="text-sm">
+                    {renderFieldLabel("id", "Client ID")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-name"
+                    checked={csvIncludeFields.includes("name")}
+                    onChange={() => toggleCsvField("name")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-name" className="text-sm">
+                    {renderFieldLabel("name", "Name (Title, Last, First)")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-address"
+                    checked={csvIncludeFields.includes("address")}
+                    onChange={() => toggleCsvField("address")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-address" className="text-sm">
+                    {renderAddressFieldLabel()}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-contactnos"
+                    checked={csvIncludeFields.includes("contactnos")}
+                    onChange={() => toggleCsvField("contactnos")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-contactnos" className="text-sm">
+                    {renderFieldLabel("contactnos", "Contact Numbers (Cell, Telephone)")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-copies"
+                    checked={csvIncludeFields.includes("copies")}
+                    onChange={() => toggleCsvField("copies")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-copies" className="text-sm">
+                    {renderFieldLabel("copies", "Copies")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-acode"
+                    checked={csvIncludeFields.includes("acode")}
+                    onChange={() => toggleCsvField("acode")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-acode" className="text-sm">
+                    {renderFieldLabel("acode", "Area Code")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-enddate"
+                    checked={csvIncludeFields.includes("enddate")}
+                    onChange={() => toggleCsvField("enddate")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-enddate" className="text-sm">
+                    {renderFieldLabel("enddate", "Expiry Date")}
+                  </label>
+                </div>
               </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-name"
-                  checked={csvIncludeFields.includes("name")}
-                  onChange={() => toggleCsvField("name")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-name" className="text-sm">
-                  Name
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-address"
-                  checked={csvIncludeFields.includes("address")}
-                  onChange={() => toggleCsvField("address")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-address" className="text-sm">
-                  Address
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-contactnos"
-                  checked={csvIncludeFields.includes("contactnos")}
-                  onChange={() => toggleCsvField("contactnos")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-contactnos" className="text-sm">
-                  Contact Number
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-copies"
-                  checked={csvIncludeFields.includes("copies")}
-                  onChange={() => toggleCsvField("copies")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-copies" className="text-sm">
-                  Copies
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-acode"
-                  checked={csvIncludeFields.includes("acode")}
-                  onChange={() => toggleCsvField("acode")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-acode" className="text-sm">
-                  Area Code
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-subsdate"
-                  checked={csvIncludeFields.includes("subsdate")}
-                  onChange={() => toggleCsvField("subsdate")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-subsdate" className="text-sm">
-                  Subscription Date
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-enddate"
-                  checked={csvIncludeFields.includes("enddate")}
-                  onChange={() => toggleCsvField("enddate")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-enddate" className="text-sm">
-                  End Date
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-subsclass"
-                  checked={csvIncludeFields.includes("subsclass")}
-                  onChange={() => toggleCsvField("subsclass")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-subsclass" className="text-sm">
-                  Subscription Class
-                </label>
+            </div>
+
+            {/* Optional Fields */}
+            <div>
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Optional Fields:</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-mname"
+                    checked={csvIncludeFields.includes("mname")}
+                    onChange={() => toggleCsvField("mname")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-mname" className="text-sm">
+                    {renderFieldLabel("mname", "Middle Name")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-subsdate"
+                    checked={csvIncludeFields.includes("subsdate")}
+                    onChange={() => toggleCsvField("subsdate")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-subsdate" className="text-sm">
+                    {renderFieldLabel("subsdate", "Subscription Date")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-subsclass"
+                    checked={csvIncludeFields.includes("subsclass")}
+                    onChange={() => toggleCsvField("subsclass")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-subsclass" className="text-sm">
+                    {renderFieldLabel("subsclass", "Subscription Class")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-email"
+                    checked={csvIncludeFields.includes("email")}
+                    onChange={() => toggleCsvField("email")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-email" className="text-sm">
+                    {renderFieldLabel("email", "Email")}
+                  </label>
+                </div>
               </div>
             </div>
           </div>
