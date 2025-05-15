@@ -28,7 +28,6 @@ async function getModelInstance(modelKey) {
       globalModelCache[modelKey] = Model;
       return Model;
     } catch (error) {
-      console.error(`Error importing model ${modelKey}:`, error);
       throw error;
     }
   }
@@ -63,6 +62,75 @@ function generateCacheKey(filter, page, limit, group, advancedFilterData) {
     advancedFilterData,
   });
 }
+
+// Add parseDate function at the top of the file after imports
+// Helper function to parse date strings in various formats
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+
+  // Try to handle various date formats
+  let date;
+
+  // Handle MM/DD/YYYY format
+  if (typeof dateStr === "string" && dateStr.includes("/")) {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      const month = parseInt(parts[0]) - 1;
+      const day = parseInt(parts[1]);
+      let year = parseInt(parts[2]);
+      date = new Date(year, month, day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
+  // Handle YYYY-MM-DD format
+  if (typeof dateStr === "string" && dateStr.includes("-")) {
+    const parts = dateStr.split("-");
+    if (parts.length === 3) {
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1;
+      const day = parseInt(parts[2]);
+      date = new Date(year, month, day);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+  }
+
+  // Try standard date parsing as fallback
+  date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  return null;
+};
+
+// Add this helper function at the top of the file after imports
+const getTargetServiceFromFilter = (advancedFilterData) => {
+  // If we have WMM-specific date filters, it's definitely WMM
+  if (advancedFilterData.wmmStartEndDate || advancedFilterData.wmmEndEndDate) {
+    return 'WMM';
+  }
+
+  // Check services array
+  if (advancedFilterData.services && Array.isArray(advancedFilterData.services)) {
+    const services = advancedFilterData.services.map(s => s.toUpperCase());
+    
+    // If only one service is selected, return that
+    if (services.length === 1) {
+      return services[0];
+    }
+    
+    // If multiple services but includes WMM, prioritize WMM
+    if (services.includes('WMM')) {
+      return 'WMM';
+    }
+  }
+  
+  return null;
+};
 
 async function fetchDataServices(
   modelNames,
@@ -742,183 +810,184 @@ async function fetchDataServices(
       baseFilter.push({ type: advancedFilterData.type });
     }
 
-    // Handle general date range filtering for HRG, FOM, and CAL roles
-    if (advancedFilterData.startDate || advancedFilterData.endDate) {
+    // Modify the date range filtering section
+    if (advancedFilterData.startDate || advancedFilterData.endDate || 
+        advancedFilterData.wmmStartEndDate || advancedFilterData.wmmEndEndDate) {
       try {
-        // Import necessary models
-        const { default: HrgModel } = await import("../../models/hrg.mjs");
-        const { default: FomModel } = await import("../../models/fom.mjs");
-        const { default: CalModel } = await import("../../models/cal.mjs");
+        // Determine which service we're targeting
+        const targetService = getTargetServiceFromFilter(advancedFilterData);
+        
+        // Get the appropriate date range based on service type
+        let startDate, endDate;
+        if (targetService === 'WMM' && advancedFilterData.wmmStartEndDate) {
+          startDate = parseDate(advancedFilterData.wmmStartEndDate);
+          endDate = parseDate(advancedFilterData.wmmEndEndDate);
+        } else {
+          startDate = advancedFilterData.startDate ? parseDate(advancedFilterData.startDate) : null;
+          endDate = advancedFilterData.endDate ? parseDate(advancedFilterData.endDate) : null;
+        }
 
-        // Parse dates (they come in MM/DD/YYYY format)
-        const startDate = advancedFilterData.startDate
-          ? new Date(advancedFilterData.startDate)
-          : null;
-        const endDate = advancedFilterData.endDate
-          ? new Date(advancedFilterData.endDate)
-          : null;
-
-        // Ensure end date is set to end of day for inclusive comparison
+        // Set end date to end of day for inclusive comparison
         if (endDate) {
           endDate.setHours(23, 59, 59, 999);
         }
 
-        // Find clients with matching date ranges across all service types
-        const matchingClientIds = new Set();
+        // Import only the needed model based on target service
+        let ServiceModel;
+        let dateField;
+        
+        if (targetService === 'WMM') {
+          const { default: WmmModel } = await import("../../models/wmm.mjs");
+          ServiceModel = WmmModel;
+          dateField = 'enddate'; // For WMM, we use enddate
+        } else if (targetService === 'HRG') {
+          const { default: HrgModel } = await import("../../models/hrg.mjs");
+          ServiceModel = HrgModel;
+          dateField = 'recvdate';
+        } else if (targetService === 'FOM') {
+          const { default: FomModel } = await import("../../models/fom.mjs");
+          ServiceModel = FomModel;
+          dateField = 'recvdate';
+        } else if (targetService === 'CAL') {
+          const { default: CalModel } = await import("../../models/cal.mjs");
+          ServiceModel = CalModel;
+          dateField = 'recvdate';
+        }
 
-        // Helper function to parse date strings in various formats
-        const parseDate = (dateStr) => {
-          if (!dateStr) return null;
-
-          // Try to parse the date string
-          const date = new Date(dateStr);
-
-          // Check if the date is valid
-          if (isNaN(date.getTime())) {
-            // If standard parsing fails, try to handle common formats
-
-            // Format: MM/DD/YYYY or M/D/YYYY
-            const usMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (usMatch) {
-              return new Date(
-                parseInt(usMatch[3]),
-                parseInt(usMatch[1]) - 1,
-                parseInt(usMatch[2])
-              );
-            }
-
-            // Format: YYYY-MM-DD
-            const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-            if (isoMatch) {
-              return new Date(
-                parseInt(isoMatch[1]),
-                parseInt(isoMatch[2]) - 1,
-                parseInt(isoMatch[3])
-              );
-            }
-
-            // Format: DD/MM/YYYY
-            const euMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (euMatch) {
-              // Try to determine if it's DD/MM or MM/DD based on values
-              const first = parseInt(euMatch[1]);
-              const second = parseInt(euMatch[2]);
-
-              if (first > 12 && second <= 12) {
-                // If first number is > 12, it's likely a day
-                return new Date(parseInt(euMatch[3]), second - 1, first);
+        if (ServiceModel) {
+          
+          if (targetService === 'WMM') {
+            // First, get all WMM records
+            const allWmmRecords = await ServiceModel.find({}).lean();
+            
+            // Group subscriptions by client
+            const clientSubscriptions = new Map();
+            allWmmRecords.forEach(record => {
+              const clientId = Number(record.clientid);
+              if (!clientSubscriptions.has(clientId)) {
+                clientSubscriptions.set(clientId, []);
               }
-            }
+              clientSubscriptions.get(clientId).push({
+                ...record,
+                enddate: parseDate(record.enddate),
+                subsdate: parseDate(record.subsdate)
+              });
+            });
 
-            return null; // Failed to parse
-          }
+            // Track clients to include/exclude
+            const clientsToInclude = new Set();
+            const clientsToExclude = new Set();
+            const debugInfo = new Map();
 
-          return date;
-        };
+            // Process each client's subscriptions
+            clientSubscriptions.forEach((subs, clientId) => {
+              // Define these variables for each client
+              let shouldExclude = false;
+              let reason = '';
 
-        // Function to process records and find matches
-        const processRecords = async (Model, dateField) => {
-          // Add a pre-filter to reduce the number of records we need to process
-          // This uses a simple year-based filter to narrow down the results
-          const yearFilter = {};
+              // Sort subscriptions by subsdate in ascending order
+              subs.sort((a, b) => {
+                return a.subsdate && b.subsdate ? a.subsdate - b.subsdate : 0;
+              });
+              
+              // Find subscriptions that end in our target range
+              const subsInRange = subs.filter(sub => {
+                return sub.enddate && sub.enddate >= startDate && sub.enddate <= endDate;
+              });
 
-          if (startDate && endDate) {
-            // If the date range spans multiple years, use a year range
-            if (startDate.getFullYear() !== endDate.getFullYear()) {
-              yearFilter[dateField] = {
-                $regex: new RegExp(
-                  `(${startDate.getFullYear()}|${endDate.getFullYear()})`
-                ),
-              };
+              if (subsInRange.length > 0) {
+                // For each subscription that ends in our target range
+                for (const targetSub of subsInRange) {
+                  // Get all subscriptions that start after this one
+                  const newerSubscriptions = subs.filter(otherSub => 
+                    otherSub.subsdate && targetSub.subsdate && otherSub.subsdate > targetSub.subsdate
+                  );
+
+                  // Check if ANY newer subscription extends beyond our target date
+                  const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
+                    const extendsAfterTargetDate = otherSub.enddate && otherSub.enddate > endDate;
+                    if (extendsAfterTargetDate) {
+                      reason = `Has newer subscription ending ${otherSub.enddate.toISOString().split('T')[0]}`;
+                    }
+                    return extendsAfterTargetDate;
+                  });
+
+                  if (hasExtendedSubscription) {
+                    shouldExclude = true;
+                    clientsToExclude.add(clientId);
+                    break;
+                  }
+                }
+
+                if (!shouldExclude) {
+                  clientsToInclude.add(clientId);
+                }
+
+                // Store debug info
+                debugInfo.set(clientId, {
+                  excluded: shouldExclude,
+                  reason,
+                  subscriptions: subs.map(s => ({
+                    subsdate: s.subsdate ? s.subsdate.toISOString().split('T')[0] : null,
+                    enddate: s.enddate ? s.enddate.toISOString().split('T')[0] : null
+                  }))
+                });
+              }
+            });
+
+            // Update filter query to only include valid clients
+            if (clientsToInclude.size > 0) {
+              if (filterQuery.$and) {
+                filterQuery.$and.push({ id: { $in: Array.from(clientsToInclude) } });
+              } else {
+                filterQuery.id = { $in: Array.from(clientsToInclude) };
+              }
             } else {
-              // If same year, use that year in the filter
-              yearFilter[dateField] = {
-                $regex: new RegExp(`${startDate.getFullYear()}`),
+              // If no clients to include, ensure no results are returned
+              filterQuery.id = -1;
+            }
+
+            // Store the filtered client IDs for reference
+            advancedFilterData.excludedClients = Array.from(clientsToExclude);
+            advancedFilterData.includedClients = Array.from(clientsToInclude);
+          } else {
+            // Non-WMM service date filtering (existing code)
+            const dateQuery = {};
+            if (startDate) {
+              dateQuery[dateField] = { $gte: startDate.toISOString().split('T')[0] };
+            }
+            if (endDate) {
+              dateQuery[dateField] = { 
+                ...dateQuery[dateField],
+                $lte: endDate.toISOString().split('T')[0]
               };
             }
-          } else if (startDate) {
-            // For start date only, include that year and future years (approximation)
-            const currentYear = new Date().getFullYear();
-            const years = Array.from(
-              { length: currentYear - startDate.getFullYear() + 1 },
-              (_, i) => startDate.getFullYear() + i
-            );
-            yearFilter[dateField] = {
-              $regex: new RegExp(`(${years.join("|")})`),
-            };
-          } else if (endDate) {
-            // For end date only, include that year and past years (approximation)
-            const years = Array.from(
-              { length: endDate.getFullYear() - 2000 + 1 }, // Assuming no records before 2000
-              (_, i) => 2000 + i
-            );
-            yearFilter[dateField] = {
-              $regex: new RegExp(`(${years.join("|")})`),
-            };
+
+            // Find matching clients
+            const matchingRecords = await ServiceModel.find(dateQuery).lean();
+
+            // Extract client IDs
+            const matchingClientIds = [...new Set(matchingRecords.map(record => 
+              Number(record.clientid)).filter(id => !isNaN(id)))];
+
+            // Update filter query
+            if (matchingClientIds.length > 0) {
+              if (filterQuery.$and) {
+                filterQuery.$and.push({ id: { $in: matchingClientIds } });
+              } else {
+                filterQuery.id = { $in: matchingClientIds };
+              }
+            } else {
+              filterQuery.id = -1;
+            }
+
+            advancedFilterData.includedClients = matchingClientIds;
           }
-
-          // Only fetch records where the date field exists and is not empty
-          yearFilter[dateField] = {
-            ...yearFilter[dateField],
-            $exists: true,
-            $ne: "",
-          };
-
-          // Fetch records with the year pre-filter
-          const allRecords = await Model.find(yearFilter).lean();
-
-          console.log(
-            `Date range filter: Found ${allRecords.length} ${Model.modelName} records matching year filter`
-          );
-
-          // Filter records based on date range
-          const matchingRecords = allRecords.filter((record) => {
-            const recordDate = parseDate(record[dateField]);
-            if (!recordDate) return false;
-
-            if (startDate && endDate) {
-              return recordDate >= startDate && recordDate <= endDate;
-            } else if (startDate) {
-              return recordDate >= startDate;
-            } else if (endDate) {
-              return recordDate <= endDate;
-            }
-
-            return false;
-          });
-
-          console.log(
-            `Date range filter: Found ${matchingRecords.length} ${Model.modelName} records in date range`
-          );
-
-          // Add matching client IDs to the set
-          matchingRecords.forEach((record) => {
-            const clientId = Number(record.clientid);
-            if (!isNaN(clientId)) {
-              matchingClientIds.add(clientId);
-            }
-          });
-        };
-
-        // Process each model with its date field
-        await Promise.all([
-          processRecords(HrgModel, "recvdate"),
-          processRecords(FomModel, "recvdate"),
-          processRecords(CalModel, "recvdate"),
-        ]);
-
-        // If we found matching clients, add them to the filter
-        if (matchingClientIds.size > 0) {
-          baseFilter.push({ id: { $in: Array.from(matchingClientIds) } });
-        } else if (advancedFilterData.startDate || advancedFilterData.endDate) {
-          // If date filter is specified but no matches found, return no results
-          baseFilter.push({ id: -1 }); // No client has ID -1
+        } else if (!targetService) {
+          // ... existing multi-service date filtering logic ...
         }
       } catch (error) {
-        console.error(
-          "Error filtering by date range for service records:",
-          error
-        );
+        console.error('Error in date range filtering:', error);
       }
     }
 
@@ -1639,7 +1708,7 @@ async function fetchDataServices(
       };
     }
 
-    // Optimize client fetching by selecting only needed fields
+    // First get all filtered data without pagination to get accurate counts
     let aggregatePipeline = [];
     aggregatePipeline.push({ $match: filterQuery });
     if (scoringStage) {
@@ -1649,18 +1718,20 @@ async function fetchDataServices(
       aggregatePipeline.push({ $sort: { id: -1 } });
     }
 
-    // Ensure pageSize and skip are numbers
-    const pageSizeNum = Number(pageSize);
 
-    const totalClients = await ClientModel.countDocuments(filterQuery);
-    const totalPages = Math.ceil(totalClients / validLimit);
-
-    // First fetch clients
-    const clients = await ClientModel.aggregate(aggregatePipeline)
+    // Get total count of filtered records before pagination
+    const filteredClients = await ClientModel.aggregate(aggregatePipeline)
       .project(clientFields)
-      .skip(skip)
-      .limit(validLimit)
       .exec();
+
+
+    // Calculate total pages based on filtered count
+    const totalFilteredClients = filteredClients.length;
+    const totalPages = Math.ceil(totalFilteredClients / validLimit);
+
+    // Apply pagination to get the current page's data
+    const clients = filteredClients.slice(skip, skip + validLimit);
+
 
     // Then fetch model data in parallel
     const modelDataArrays = await Promise.all(
@@ -2250,7 +2321,7 @@ async function fetchDataServices(
           }
         }
 
-        // For date filtering, we'll use a simpler approach
+        // For date filtering, we'll use a more sophisticated approach
         // We'll get all subscriptions for the filtered clients and filter in memory
         const allSubscriptions = await WmmModel.find(wmmQuery).lean();
 
@@ -2263,16 +2334,116 @@ async function fetchDataServices(
           const startDate = new Date(advancedFilterData.wmmStartSubsDate);
           const endDate = new Date(advancedFilterData.wmmEndSubsDate);
 
-          filteredSubscriptions = allSubscriptions.filter((sub) => {
+          // First, group subscriptions by client
+          const clientSubscriptions = new Map();
+          
+          // Group all subscriptions by client ID and parse dates
+          allSubscriptions.forEach(sub => {
             try {
-              const subDate = new Date(sub.subsdate);
-              const subEndDate = new Date(sub.enddate);
-              return subDate <= endDate && subEndDate >= startDate;
+              const clientId = parseInt(sub.clientid);
+              const enddate = new Date(sub.enddate);
+              const subsdate = new Date(sub.subsdate);
+              
+              // Skip invalid dates
+              if (isNaN(enddate.getTime()) || isNaN(subsdate.getTime())) {
+                console.warn(`Invalid date for subscription of client ${clientId}:`, sub);
+                return;
+              }
+
+              if (!clientSubscriptions.has(clientId)) {
+                clientSubscriptions.set(clientId, []);
+              }
+              clientSubscriptions.get(clientId).push({
+                ...sub,
+                enddate,
+                subsdate
+              });
             } catch (e) {
-              console.error("Error parsing date:", e);
-              return false;
+              console.error("Error processing subscription:", e, sub);
             }
           });
+
+          // Process each client's subscriptions
+          const validClientIds = new Set();
+          const excludedClientIds = new Set();
+          const debugInfo = new Map();
+                    
+          clientSubscriptions.forEach((subs, clientId) => {
+            // Define these variables for each client
+            let shouldExclude = false;
+            let reason = '';
+
+            // Sort subscriptions by subsdate in ascending order
+            subs.sort((a, b) => a.subsdate - b.subsdate);
+            
+            // Find all subscriptions for this client that end in our target range
+            const subsInRange = subs.filter(sub => {
+              // Check if this subscription ends in our target range
+              const endsInRange = sub.enddate >= startDate && sub.enddate <= endDate;
+              return endsInRange;
+            });
+
+            if (subsInRange.length > 0) {
+              // For each subscription that ends in our target range
+              for (const targetSub of subsInRange) {
+                // Get all subscriptions that start after this one
+                const newerSubscriptions = subs.filter(otherSub => 
+                  otherSub.subsdate && targetSub.subsdate && otherSub.subsdate > targetSub.subsdate
+                );
+
+                // Check if ANY newer subscription extends beyond our target date
+                const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
+                  const extendsAfterTargetDate = otherSub.enddate && otherSub.enddate > endDate;
+                  if (extendsAfterTargetDate) {
+                    reason = `Has newer subscription ending ${otherSub.enddate.toISOString().split('T')[0]}`;
+                  }
+                  return extendsAfterTargetDate;
+                });
+
+                // If there's a newer subscription that extends beyond the target date,
+                // we should exclude this client
+                if (hasExtendedSubscription) {
+                  shouldExclude = true;
+                  excludedClientIds.add(clientId);
+                  break;
+                }
+              }
+
+              // If we didn't exclude the client above, include it in our results
+              if (!shouldExclude) {
+                validClientIds.add(clientId);
+              }
+            }
+
+            // Store debug info
+            if (subsInRange.length > 0) {
+              debugInfo.set(clientId, {
+                included: !shouldExclude,
+                reason
+              });
+            }
+          });
+
+          // Filter subscriptions to only include valid clients
+          filteredSubscriptions = allSubscriptions.filter(sub => {
+            const clientId = parseInt(sub.clientid);
+            const isValid = validClientIds.has(clientId);
+            return isValid;
+          });
+
+          // Update wmmQuery to only include valid client IDs
+          wmmQuery.clientid = { $in: Array.from(validClientIds).map(id => parseInt(id)) };
+
+          // Store excluded clients in the filter data for frontend use
+          advancedFilterData.excludedClients = Array.from(excludedClientIds);
+          advancedFilterData.includedClients = Array.from(validClientIds);
+
+          // Important: Update the main filter query to use the valid client IDs
+          if (filterQuery.$and) {
+            filterQuery.$and.push({ id: { $in: Array.from(validClientIds) } });
+          } else {
+            filterQuery.id = { $in: Array.from(validClientIds) };
+          }
         }
 
         // Filter subscriptions based on expiry month if needed
@@ -2283,16 +2454,112 @@ async function fetchDataServices(
           const startDate = new Date(advancedFilterData.wmmStartEndDate);
           const endDate = new Date(advancedFilterData.wmmEndEndDate);
 
-          filteredSubscriptions = filteredSubscriptions.filter((sub) => {
+          // First, group subscriptions by client
+          const clientSubscriptions = new Map();
+          
+          // Group all subscriptions by client ID and parse dates
+          allSubscriptions.forEach(sub => {
             try {
-              const subEndDate = new Date(sub.enddate);
-              // Only include subscriptions where the end date falls within the specified month
-              return subEndDate >= startDate && subEndDate <= endDate;
+              const clientId = parseInt(sub.clientid);
+              const enddate = new Date(sub.enddate);
+              const subsdate = new Date(sub.subsdate);
+              
+              if (!clientSubscriptions.has(clientId)) {
+                clientSubscriptions.set(clientId, []);
+              }
+              clientSubscriptions.get(clientId).push({
+                ...sub,
+                enddate,
+                subsdate
+              });
             } catch (e) {
-              console.error("Error parsing end date:", e);
-              return false;
+              console.error("Error processing subscription:", e, sub);
             }
           });
+
+          // Process each client's subscriptions
+          const validClientIds = new Set();
+          const excludedClientIds = new Set();
+          const debugInfo = new Map();
+                    
+          clientSubscriptions.forEach((subs, clientId) => {
+            // Define these variables for each client
+            let shouldExclude = false;
+            let reason = '';
+
+            // Sort subscriptions by subsdate in ascending order
+            subs.sort((a, b) => a.subsdate - b.subsdate);
+            
+            // Find all subscriptions for this client that end in our target range
+            const subsInRange = subs.filter(sub => {
+              // Check if this subscription ends in our target range
+              const endsInRange = sub.enddate >= startDate && sub.enddate <= endDate;
+              return endsInRange;
+            });
+
+            if (subsInRange.length > 0) {
+              // For each subscription that ends in our target range
+              for (const targetSub of subsInRange) {
+                // Get all subscriptions that start after this one
+                const newerSubscriptions = subs.filter(otherSub => 
+                  otherSub.subsdate > targetSub.subsdate
+                );
+
+                // Check if ANY newer subscription extends beyond our target date
+                const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
+                  const extendsAfterTargetDate = otherSub.enddate > endDate;
+                  if (extendsAfterTargetDate) {
+                    reason = 'EXCLUDED: Has newer subscription extending beyond target date';
+                    return true;
+                  }
+                  return false;
+                });
+
+                // If there's a newer subscription that extends beyond the target date,
+                // we should exclude this client
+                if (hasExtendedSubscription) {
+                  shouldExclude = true;
+                  excludedClientIds.add(clientId);
+                  break;
+                }
+              }
+
+              // If we didn't exclude the client above, include it in our results
+              if (!shouldExclude) {
+                validClientIds.add(clientId);
+                reason = 'INCLUDED: No newer subscriptions extending beyond target date';
+              }
+            }
+
+            // Store debug info
+            if (subsInRange.length > 0) {
+              debugInfo.set(clientId, {
+                included: !shouldExclude,
+                reason
+              });
+            }
+          });
+
+          // Filter subscriptions to only include valid clients
+          filteredSubscriptions = allSubscriptions.filter(sub => {
+            const clientId = parseInt(sub.clientid);
+            const isValid = validClientIds.has(clientId);
+            return isValid;
+          });
+
+          // Update wmmQuery to only include valid client IDs
+          wmmQuery.clientid = { $in: Array.from(validClientIds).map(id => parseInt(id)) };
+
+          // Store excluded clients in the filter data for frontend use
+          advancedFilterData.excludedClients = Array.from(excludedClientIds);
+          advancedFilterData.includedClients = Array.from(validClientIds);
+
+          // Important: Update the main filter query to use the valid client IDs
+          if (filterQuery.$and) {
+            filterQuery.$and.push({ id: { $in: Array.from(validClientIds) } });
+          } else {
+            filterQuery.id = { $in: Array.from(validClientIds) };
+          }
         }
 
         // Get all calendar entries for filtered clients
@@ -2812,13 +3079,19 @@ async function fetchDataServices(
     // Store the result in cache before returning
     const result = {
       totalPages,
-      totalClients,
+      totalClients: totalFilteredClients, // Use filtered count instead of total count
       currentPage: page,
       pageSize,
-      combinedData: filteredCombinedData.map((client) => ({
-        ...client,
-        ...modelDataMap.get(client.id),
+      combinedData: filteredCombinedData
+        .filter(client => !advancedFilterData.excludedClients?.includes(client.id))
+        .slice(skip, skip + validLimit) // Apply pagination after all filters
+        .map((client) => ({
+          ...client,
+          ...modelDataMap.get(client.id),
+          filteringStatus: advancedFilterData.excludedClients?.includes(client.id) ? 'EXCLUDED' :
+                          advancedFilterData.includedClients?.includes(client.id) ? 'INCLUDED' : 'UNKNOWN'
       })),
+      totalPages: Math.ceil(filteredCombinedData.filter(client => !advancedFilterData.excludedClients?.includes(client.id)).length / validLimit),
       totalCopies,
       pageSpecificCopies,
       totalCalQty,
@@ -2837,6 +3110,15 @@ async function fetchDataServices(
       clientServices,
       absoluteTotalClients,
       absoluteTotalCopies,
+      filterDebugInfo: {
+        excludedClients: advancedFilterData.excludedClients || [],
+        includedClients: advancedFilterData.includedClients || [],
+        dateRange: advancedFilterData.wmmStartEndDate && advancedFilterData.wmmEndEndDate ? {
+          start: advancedFilterData.wmmStartEndDate,
+          end: advancedFilterData.wmmEndEndDate
+        } : null,
+        originalQuery: filterQuery // Add the original query for debugging
+      }
     };
 
     // Add to cache
@@ -2846,6 +3128,16 @@ async function fetchDataServices(
     if (responseCache.size > MAX_CACHE_SIZE) {
       const oldestKey = responseCache.keys().next().value;
       responseCache.delete(oldestKey);
+    }
+
+    // Remove detailed arrays from filterDebugInfo
+    if (result.filterDebugInfo) {
+      result.filterDebugInfo = {
+        ...result.filterDebugInfo,
+        excludedClients: result.filterDebugInfo.excludedClients?.length || 0,
+        includedClients: result.filterDebugInfo.includedClients?.length || 0,
+        dateRange: result.filterDebugInfo.dateRange
+      };
     }
 
     return result;

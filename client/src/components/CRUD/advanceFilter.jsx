@@ -487,13 +487,19 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     };
 
     // Debug log formatted date values
-    console.log("Date values being sent to backend:", {
+    console.log("[AdvancedFilter] Date Encoded/Added Range:", {
       startDate: formattedData.startDate,
       endDate: formattedData.endDate,
-      wmmStartSubsDate: formattedData.wmmStartSubsDate,
-      wmmEndSubsDate: formattedData.wmmEndSubsDate,
-      wmmStartEndDate: formattedData.wmmStartEndDate,
-      wmmEndEndDate: formattedData.wmmEndEndDate,
+      rawStartDate: {
+        month: filterData.startDateMonth,
+        day: filterData.startDateDay,
+        year: filterData.startDateYear
+      },
+      rawEndDate: {
+        month: filterData.endDateMonth,
+        day: filterData.endDateDay,
+        year: filterData.endDateYear
+      }
     });
 
     // Apply the filter with the formatted data
@@ -1360,11 +1366,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 <div className="space-y-4">
                   <div className="space-y-3">
                     <h3 className="text-lg font-medium text-black">
-                      General Date Range
+                      Date Encoded/Added
                     </h3>
                     <div className="mb-2">
                       <label className="block text-black text-lg font-medium mb-1">
-                        Start Date:
+                        From:
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="relative">
@@ -1408,7 +1414,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
                     <div className="mb-2">
                       <label className="block text-black text-lg font-medium mb-1">
-                        End Date:
+                        To:
                       </label>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="relative">
