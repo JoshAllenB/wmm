@@ -70,6 +70,19 @@ const Mailing = ({
   const [addressContactSpacing, setAddressContactSpacing] = useState(30); // Space between address and contact info
   const [rightColumnItemSpacing, setRightColumnItemSpacing] = useState(16); // Space between each item in right column
 
+  // State variables for spacing between data
+  const [dataVerticalSpacing, setDataVerticalSpacing] = useState(4);
+  const [dataHorizontalSpacing, setDataHorizontalSpacing] = useState(0);
+  const [contentLeftMargin, setContentLeftMargin] = useState(4);
+  const [contentRightMargin, setContentRightMargin] = useState(4);
+  const [contentTopMargin, setContentTopMargin] = useState(4);
+  const [labelsToSkip, setLabelsToSkip] = useState(0);
+  const [labelsPerPage, setLabelsPerPage] = useState(16); // Default 8 rows of 2 labels
+  const [verticalGap, setVerticalGap] = useState(0); // Gap between rows of labels
+  const [fixedLabelWidth, setFixedLabelWidth] = useState(192); // 2 inches at 96dpi
+  const [fixedLabelHeight, setFixedLabelHeight] = useState(96); // 1 inch at 96dpi
+  const [showFixedLabels, setShowFixedLabels] = useState(true); // Toggle fixed label boundaries
+
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
 
   const columns = useColumns();
@@ -213,115 +226,213 @@ const Mailing = ({
     }
 
     // Calculate layout based on filtered rows
-    const numRowsToPrint = filteredRows.length;
     let layoutRows = [...filteredRows];
     let emptySlots = 0;
 
     // If starting on the right, add a placeholder at the beginning
-    if (startColumn === "right" && numRowsToPrint > 0) {
+    if (startColumn === "right" && layoutRows.length > 0) {
       layoutRows.unshift(null); // Add placeholder for the first slot
       emptySlots = 1;
     }
 
-    const addressPerColumn = Math.ceil(layoutRows.length / 2);
-    const column1 = layoutRows.slice(0, addressPerColumn);
-    const column2 = layoutRows.slice(addressPerColumn);
+    // If we need to skip labels at the beginning, add empty placeholders
+    if (labelsToSkip > 0) {
+      const placeholders = Array(labelsToSkip).fill(null);
+      layoutRows = [...placeholders, ...layoutRows];
+      emptySlots += labelsToSkip;
+    }
 
-    const labelHtml = [column1, column2]
-      .map((column, columnIndex) => {
-        return column
+    // Group labels into pairs (one row with two labels)
+    const labelRows = [];
+    for (let i = 0; i < layoutRows.length; i += 2) {
+      const leftLabel = layoutRows[i];
+      const rightLabel = i + 1 < layoutRows.length ? layoutRows[i + 1] : null;
+      labelRows.push([leftLabel, rightLabel]);
+    }
+
+    // Split rows into pages based on labelsPerPage
+    const labelsPerRow = 2; // We have 2 labels per row
+    const rowsPerPage = labelsPerPage / labelsPerRow;
+    const pages = [];
+    for (let i = 0; i < labelRows.length; i += rowsPerPage) {
+      pages.push(labelRows.slice(i, i + rowsPerPage));
+    }
+
+    // Determine label dimensions based on settings
+    const labelWidth = showFixedLabels ? fixedLabelWidth : columnWidth;
+    const labelHeight = showFixedLabels ? fixedLabelHeight : labelHeight;
+
+    // Generate HTML for each page
+    const pagesHtml = pages
+      .map((page, pageIndex) => {
+        const pageHtml = page
           .map((row, rowIndex) => {
-            // Skip rendering the placeholder if it exists
-            if (row === null) {
-              return "<!-- Placeholder -->";
-            }
-
-            // Calculate the actual data row index (needed if placeholder was added)
-            const dataRowIndex =
-              columnIndex * addressPerColumn + rowIndex - emptySlots;
-            const actualRowData = filteredRows[dataRowIndex];
-
-            if (!actualRowData) {
-              console.error(
-                "Mismatch finding actual row data for index",
-                dataRowIndex
-              );
-              return "<!-- Error -->";
-            }
-
-            // Access data directly from the wmmData object
-            const wmmData = actualRowData?.original?.wmmData; // Get the object
-            const copies = wmmData?.records?.[0]?.copies ?? "N/A"; // Use copies from first record, fallback N/A
-            let subsdate = "N/A";
-            if (wmmData?.records?.[0]?.subsdate) {
-              // Check for subsdate directly on the first record
-              const date = new Date(wmmData.records[0].subsdate);
-              if (!isNaN(date.getTime())) {
-                subsdate = date.toLocaleDateString();
-              }
-            }
-
+            const [leftLabel, rightLabel] = row;
+            
+            // Generate HTML for left label
+            const leftLabelHtml = leftLabel 
+              ? `<div class="label left-label" style="${showFixedLabels ? 'position: relative;' : ''}">
+                  ${showFixedLabels 
+                    ? `<div class="content-container">
+                        <div class="id-line">${leftLabel?.original?.id || ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(leftLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${leftLabel?.original?.acode || ""}</div>
+                        <div class="name-line">${getFullName(leftLabel?.original || {})}</div>
+                        <div class="address-line">${leftLabel?.original?.address || ""}</div>
+                        ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(leftLabel?.original || {})}</div>` : ""}
+                      </div>`
+                    : `<div class="id-line">${leftLabel?.original?.id || ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(leftLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${leftLabel?.original?.acode || ""}</div>
+                      <div class="name-line">${getFullName(leftLabel?.original || {})}</div>
+                      <div class="address-line">${leftLabel?.original?.address || ""}</div>
+                      ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(leftLabel?.original || {})}</div>` : ""}`
+                  }
+                </div>` 
+              : `<div class="label left-label empty"></div>`;
+            
+            // Generate HTML for right label
+            const rightLabelHtml = rightLabel 
+              ? `<div class="label right-label" style="${showFixedLabels ? 'position: relative;' : ''}">
+                  ${showFixedLabels 
+                    ? `<div class="content-container">
+                        <div class="id-line">${rightLabel?.original?.id || ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(rightLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${rightLabel?.original?.acode || ""}</div>
+                        <div class="name-line">${getFullName(rightLabel?.original || {})}</div>
+                        <div class="address-line">${rightLabel?.original?.address || ""}</div>
+                        ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(rightLabel?.original || {})}</div>` : ""}
+                      </div>`
+                    : `<div class="id-line">${rightLabel?.original?.id || ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(rightLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${rightLabel?.original?.acode || ""}</div>
+                      <div class="name-line">${getFullName(rightLabel?.original || {})}</div>
+                      <div class="address-line">${rightLabel?.original?.address || ""}</div>
+                      ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(rightLabel?.original || {})}</div>` : ""}`
+                  }
+                </div>` 
+              : `<div class="label right-label empty"></div>`;
+            
+            // Return the complete row
             return `
-          <div class="address-container" style="left: ${
-            columnIndex * (columnWidth + horizontalSpacing)
-          }px; top: ${
-              topPosition + rowIndex * labelHeight
-            }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
-            <p>${
-              actualRowData?.original?.id || ""
-            } - ${subsdate} - ${copies}cps/${
-              actualRowData?.original?.acode || ""
-            }</p>
-            <p>${getFullName(actualRowData?.original || {})}</p>
-            <p>${actualRowData?.original?.address || ""}</p>
-            ${
-              selectedFields.includes("contactnos")
-                ? `<p>${getContactNumber(actualRowData?.original || {})}</p>`
-                : "" /* Render contact paragraph conditionally */
-            }
+              <div class="label-row">
+                ${leftLabelHtml}
+                <div class="spacer"></div>
+                ${rightLabelHtml}
           </div>
         `;
           })
           .join("");
+
+        return `
+          <div class="page">
+            ${pageHtml}
+          </div>
+        `;
       })
       .join("");
+
+    // Information about the label sheet
+    const labelInfo = `
+      <div class="label-info">
+        Label Configuration: ${labelsPerPage} labels per page (${labelsPerPage/2} rows × 2 columns)
+        ${labelsToSkip > 0 ? `• Skipped first ${labelsToSkip} labels` : ''}
+        • ${filteredRows.length} addresses printed
+        • Physical Size: ${(fixedLabelWidth/96).toFixed(2)}″×${(fixedLabelHeight/96).toFixed(2)}″
+        • Generated on ${new Date().toLocaleString()}
+      </div>
+    `;
 
     return `
       <html>
       <head>
-         <title>Mailing Labels (${startId || "Start"} to ${
-      endId || "End"
-    })</title>
+         <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
           <style>
-            body { font-family: Arial, sans-serif; }
-            .mailing-label {
-              position: relative;
-              width: ${columnWidth * 2 + horizontalSpacing}px;
-              height: ${topPosition + labelHeight * addressPerColumn}px;
-            }
-            .address-container {
-              position: absolute;
-              margin-bottom: 20px;
-            }
-            .address-container p {
+            @page {
+              size: auto;
               margin: 0;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 0;
+            }
+            .mailing-container {
+              margin-top: ${topPosition}px;
+              margin-left: ${leftPosition}px;
+              position: relative;
+              width: ${(showFixedLabels ? (fixedLabelWidth * 2) : (columnWidth * 2)) + horizontalSpacing}px;
+            }
+            .page {
+              page-break-after: always;
+            }
+            .label-row {
+              clear: both;
+              page-break-inside: avoid;
+              white-space: nowrap;
+              margin-bottom: ${verticalGap}px;
+              display: flex;
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: flex-start;
+            }
+            .label {
+              box-sizing: border-box;
+              overflow: hidden;
+              width: ${labelWidth}px;
+              height: ${labelHeight}px;
+              display: inline-block;
+              vertical-align: top;
+              ${showFixedLabels ? '' : `padding: ${dataHorizontalSpacing}px;`}
+            }
+            .content-container {
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: ${columnWidth}px;
+              border: 1px dotted #ccc;
+              padding: ${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px;
+            }
+            .spacer {
+              display: none; /* Hide the spacer since we're using space-between */
+            }
+            .id-line, .name-line, .address-line, .contact-line {
+              margin: 0 0 ${dataVerticalSpacing}px 0;
               padding: 0;
               font-size: ${fontSize}px;
               color: black;
-              width: ${columnWidth}px;
               word-wrap: break-word;
               white-space: normal;
               overflow-wrap: break-word;
             }
+            .name-line {
+              font-weight: bold;
+            }
+            .contact-line {
+              margin-bottom: 0;
+            }
+            .label-info {
+              font-size: 9px;
+              color: #999;
+              text-align: center;
+              margin-top: 5px;
+              page-break-before: always;
+            }
              @media print {
-               body { margin: ${topPosition}px 0 0 ${leftPosition}px !important; }
+              body {
+                margin: 0;
+                padding: 0;
+              }
+              .mailing-container {
+                margin-top: ${topPosition}px;
+                margin-left: ${leftPosition}px;
+                width: ${(showFixedLabels ? (fixedLabelWidth * 2) : (columnWidth * 2)) + horizontalSpacing}px;
+              }
+              .label-row {
+                justify-content: space-between;
+                width: 100%;
+              }
              }
           </style>
         </head>
         <body>
-          <div class="mailing-label" style="position: absolute; left: ${leftPosition}px; top: ${topPosition}px;">
-              ${labelHtml}
+          <div class="mailing-container">
+            ${pagesHtml}
           </div>
+          ${labelInfo}
           <script>
              window.print();
              window.close();
@@ -387,16 +498,16 @@ const Mailing = ({
           <div class="renewal-page">
             <!-- Left column: Name, Address, Contact -->
             <div class="left-column">
-              <p class="name">${getFullName(subscriber)}</p>
-              <p class="address">${subscriber.address || ""}</p>
-              <p class="contact">${getContactNumber(subscriber)}</p>
+              <p class="name" style="margin-bottom: ${nameAddressSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${getFullName(subscriber)}</p>
+              <p class="address" style="margin-bottom: ${addressContactSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${subscriber.address || ""}</p>
+              <p class="contact" style="margin-bottom: ${leftColumnLineSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${getContactNumber(subscriber)}</p>
             </div>
             
             <!-- Right column: Subscriber ID, Expiry Date, Last Issue -->
             <div class="right-column">
-              <p class="id">${subscriber.id || ""}</p>
-              <p class="expiry">${expiryDate}</p>
-              <p class="last-issue">${lastIssue}</p>
+              <p class="id" style="margin-bottom: ${rightColumnItemSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${subscriber.id || ""}</p>
+              <p class="expiry" style="margin-bottom: ${rightColumnItemSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${expiryDate}</p>
+              <p class="last-issue" style="margin-bottom: ${rightColumnLineSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${lastIssue}</p>
             </div>
           </div>
         `;
@@ -451,7 +562,12 @@ const Mailing = ({
             width: ${210 * 3.78 - renewalRightColumnPosition - 40}px;
           }
           
-          /* Specific spacing for each element */
+          /* Specific spacing for each element - will be overridden by inline styles */
+          .name, .address, .contact, .id, .expiry, .last-issue {
+            padding-left: ${dataHorizontalSpacing}px !important;
+            padding-right: ${dataHorizontalSpacing}px !important;
+          }
+          
           .name {
             margin-bottom: ${nameAddressSpacing}px !important;
           }
@@ -490,6 +606,11 @@ const Mailing = ({
             }
             
             /* Reinforce spacing in print mode */
+            .name, .address, .contact, .id, .expiry, .last-issue {
+              padding-left: ${dataHorizontalSpacing}px !important;
+              padding-right: ${dataHorizontalSpacing}px !important;
+            }
+            
             .name {
               margin-bottom: ${nameAddressSpacing}px !important;
             }
@@ -561,14 +682,14 @@ const Mailing = ({
         return `
           <div class="thankyou-page">
             <div class="address-container">
-              <p>${subscriber.id || ""} - ${subsdate} - ${
+              <p class="id-line" style="margin-bottom: ${dataVerticalSpacing}px; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${subscriber.id || ""} - ${subsdate} - ${
           subscription.copies || "N/A"
         }cps/${subscriber.acode || ""}</p>
-              <p>${getFullName(subscriber)}</p>
-              <p>${subscriber.address || ""}</p>
+              <p class="name-line" style="margin-bottom: ${dataVerticalSpacing}px; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px; font-weight: bold;">${getFullName(subscriber)}</p>
+              <p class="address-line" style="margin-bottom: ${dataVerticalSpacing}px; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${subscriber.address || ""}</p>
               ${
                 selectedFields.includes("contactnos")
-                  ? `<p>${getContactNumber(subscriber)}</p>`
+                  ? `<p class="contact-line" style="padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${getContactNumber(subscriber)}</p>`
                   : ""
               }
             </div>
@@ -614,7 +735,7 @@ const Mailing = ({
           }
           
           .address-container p {
-            margin: 0 0 ${thankYouLineSpacing}px 0;
+            margin: 0;
             padding: 0;
             font-size: ${thankYouFontSize}px;
             color: black;
@@ -622,6 +743,10 @@ const Mailing = ({
             word-wrap: break-word;
             white-space: normal;
             overflow-wrap: break-word;
+          }
+          
+          .address-container p:last-child {
+            margin-bottom: 0 !important;
           }
           
           @media print {
@@ -749,6 +874,16 @@ const Mailing = ({
         columnWidth,
         labelHeight,
         horizontalSpacing,
+        dataVerticalSpacing,
+        contentLeftMargin,
+        contentRightMargin,
+        contentTopMargin,
+        labelsToSkip,
+        labelsPerPage,
+        verticalGap,
+        fixedLabelWidth,
+        fixedLabelHeight,
+        showFixedLabels,
 
         // Renewal notice settings
         renewalFontSize,
@@ -852,7 +987,33 @@ const Mailing = ({
       setLabelHeight(selected.layout.labelHeight || 100);
       setHorizontalSpacing(selected.layout.horizontalSpacing || 20);
       setSelectedFields(selected.selectedFields);
+      
+      // Set data spacing settings if they exist
+      if (selected.layout.dataVerticalSpacing !== undefined)
+        setDataVerticalSpacing(selected.layout.dataVerticalSpacing);
+      if (selected.layout.contentLeftMargin !== undefined)
+        setContentLeftMargin(selected.layout.contentLeftMargin);
+      if (selected.layout.contentRightMargin !== undefined)
+        setContentRightMargin(selected.layout.contentRightMargin);
+      if (selected.layout.contentTopMargin !== undefined)
+        setContentTopMargin(selected.layout.contentTopMargin);
+        
+      // Set advanced label controls if they exist
+      if (selected.layout.labelsToSkip !== undefined)
+        setLabelsToSkip(selected.layout.labelsToSkip);
+      if (selected.layout.labelsPerPage !== undefined)
+        setLabelsPerPage(selected.layout.labelsPerPage);
+      if (selected.layout.verticalGap !== undefined)
+        setVerticalGap(selected.layout.verticalGap);
+      if (selected.layout.fixedLabelWidth !== undefined)
+        setFixedLabelWidth(selected.layout.fixedLabelWidth);
+      if (selected.layout.fixedLabelHeight !== undefined)
+        setFixedLabelHeight(selected.layout.fixedLabelHeight);
+      if (selected.layout.showFixedLabels !== undefined)
+        setShowFixedLabels(selected.layout.showFixedLabels);
 
+      // Also update renewal notice settings if they exist in the template
+      if (selected.layout.renewalFontSize)
       // Also update renewal notice settings if they exist in the template
       if (selected.layout.renewalFontSize)
         setRenewalFontSize(selected.layout.renewalFontSize);
@@ -1429,11 +1590,7 @@ const Mailing = ({
       {/* Existing Print Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal}>
         <h2 className="flex justify-center text-xl font-bold text-black mb-2">
-          {previewType === "standard"
-            ? "Mailing Label Options"
-            : previewType === "renewal"
-            ? "Renewal Notice Options"
-            : "Thank You Letter Options"}
+          Mailing & Print Options
         </h2>
 
         <p className="text-center text-sm text-gray-500 mb-4">
@@ -1441,59 +1598,9 @@ const Mailing = ({
           {getDataSourceLabel()}
         </p>
 
-        <div className="flex flex-col items-center ">
-          {/* Data Source Selection */}
-          <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-            <h3 className="text-sm font-semibold mb-2">Select Data Source:</h3>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <Button
-                onClick={() => handleDataSourceChange("all")}
-                variant={dataSource === "all" ? "default" : "outline"}
-                className="flex-1"
-              >
-                All Records ({table.getFilteredRowModel().rows.length})
-              </Button>
-              <Button
-                onClick={() => handleDataSourceChange("selected")}
-                variant={dataSource === "selected" ? "default" : "outline"}
-                className="flex-1"
-                disabled={table.getSelectedRowModel().rows.length === 0}
-              >
-                Selected Rows ({table.getSelectedRowModel().rows.length})
-              </Button>
-              <Button
-                onClick={() => handleDataSourceChange("range")}
-                variant={dataSource === "range" ? "default" : "outline"}
-                className="flex-1"
-              >
-                ID Range
-              </Button>
-            </div>
-            {dataSource === "selected" &&
-              table.getSelectedRowModel().rows.length === 0 && (
-                <p className="text-xs text-red-500">
-                  No rows selected. Please select rows in the table first.
-                </p>
-              )}
-          </div>
-
-          {/* Configuration Toggle and Checklist Button */}
-          <div className="flex justify-center gap-2 mb-4">
-            <Button onClick={toggleShowInputs} variant="outline">
-              {showInputs ? "Hide Configuration" : "Show Configuration"}
-            </Button>
-            <Button
-              onClick={handlePrintChecklist}
-              variant="outline"
-              disabled={!hasData}
-            >
-              Print Checklist
-            </Button>
-          </div>
-
-          {/* Preview Type Selection */}
-          <div className="flex justify-center mb-4 w-full max-w-lg">
-            <div className="w-full border rounded overflow-hidden">
+        <div className="flex flex-col items-center">
+          {/* Main Tabs Navigation */}
+          <div className="w-full max-w-xl mb-4 border rounded overflow-hidden">
               <div className="flex w-full bg-gray-100">
                 <button
                   className={`flex-1 py-2 font-medium text-sm ${
@@ -1525,69 +1632,182 @@ const Mailing = ({
                 >
                   Thank You Letter
                 </button>
+            </div>
               </div>
 
-              {/* Template Selection - now inside the tabbed interface */}
-              <div className="p-3 bg-white border-t">
-                <div className="flex flex-col mb-3">
-                  <label className="text-sm font-medium mb-1 text-gray-700">
-                    Select Template:
-                  </label>
-                  <select
-                    onChange={handleTemplateSelect}
-                    value={selectedTemplate?.name || ""}
-                    className="border border-gray-300 rounded p-2 w-full"
-                  >
-                    <option value="" disabled>
-                      Choose a template...
-                    </option>
-                    {savedTemplates
-                      .filter(
-                        (template) =>
-                          template.previewType === previewType ||
-                          !template.previewType
-                      )
-                      .map((template) => (
-                        <option key={template.name} value={template.name}>
-                          {template.name}
-                        </option>
-                      ))}
-                  </select>
-                  {selectedTemplate && (
-                    <div className="mt-1">
-                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
-                        {selectedTemplate.previewType === "renewal"
-                          ? "Renewal Notice Template"
-                          : selectedTemplate.previewType === "thankyou"
-                          ? "Thank You Letter Template"
-                          : "Standard Label Template"}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* Secondary Tabs Navigation for each section */}
+          <div className="w-full max-w-xl mb-4">
+            <div className="flex border-b">
+              <button
+                className={`px-4 py-2 font-medium text-sm border-b-2 ${
+                  !showInputs
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+                onClick={() => setShowInputs(false)}
+              >
+                Print Options
+              </button>
+              <button
+                className={`px-4 py-2 font-medium text-sm border-b-2 ${
+                  showInputs
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+                onClick={() => setShowInputs(true)}
+              >
+                Configuration
+              </button>
+              <button
+                className="px-4 py-2 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 ml-auto"
+                onClick={handlePrintChecklist}
+                disabled={!hasData}
+              >
+                Print Checklist
+              </button>
             </div>
           </div>
 
-          {/* Client ID Range Input - improved UI */}
-          {dataSource === "range" && (
-            <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
-              <h3 className="text-lg font-semibold mb-2">
-                Print Range & Position
-              </h3>
-
-              <div className="bg-blue-50 p-2 rounded mb-3 w-full text-xs text-blue-700">
-                {previewType === "standard"
-                  ? "Specify which labels to print using Client IDs. Useful for continuing after a paper jam."
-                  : "Specify which subscribers to include using Client IDs. Each subscriber gets their own page."}
+          {/* Template Selection - Improved UI */}
+          <div className="w-full max-w-xl p-4 mb-4 border rounded bg-white">
+            <h3 className="text-sm font-semibold mb-3 text-gray-700">
+              Template Selection
+            </h3>
+            
+            <div className="grid grid-cols-1 gap-3">
+              {savedTemplates.filter(
+                template => template.previewType === previewType || !template.previewType
+              ).length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {savedTemplates
+                      .filter(
+                        template => template.previewType === previewType || !template.previewType
+                      )
+                      .map((template) => (
+                        <button
+                          key={template.name}
+                          onClick={() => {
+                            const event = { target: { value: template.name } };
+                            handleTemplateSelect(event);
+                          }}
+                          className={`px-3 py-2 text-sm rounded-md border ${
+                            selectedTemplate?.name === template.name
+                              ? "bg-blue-50 border-blue-300 text-blue-700"
+                              : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          }`}
+                        >
+                          {template.name}
+                        </button>
+                      ))}
+                  </div>
+                  
+                  {selectedTemplate && (
+                    <div className="mt-1 bg-blue-50 p-2 rounded-md">
+                      <p className="text-xs text-blue-700">
+                        <strong>Using:</strong> {selectedTemplate.name} 
+                        <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                        {selectedTemplate.previewType === "renewal"
+                            ? "Renewal Notice"
+                          : selectedTemplate.previewType === "thankyou"
+                            ? "Thank You Letter"
+                            : "Standard Label"}
+                      </span>
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No templates available for this format. Configure settings and save a template.</p>
+              )}
+              
+              <div className="mt-2">
+                <Button
+                  onClick={handleSaveClick}
+                  variant="outline"
+                  className="w-full text-sm"
+                >
+                  Save Current Settings as Template
+                </Button>
+                </div>
+              
+              {showTemplateNameInput && (
+                <div className="flex flex-col mt-2 bg-gray-50 p-3 rounded-md border">
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={handleTemplateNameChange}
+                    placeholder={`Enter template name`}
+                    className="border border-gray-300 rounded p-2 text-sm mb-3 w-full"
+                  />
+                  <div className="flex space-x-2 w-full">
+                    <Button onClick={saveTemplate} className="w-full text-sm">
+                      Save
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setShowTemplateNameInput(false);
+                        setTemplateName("");
+                      }}
+                      variant="outline"
+                      className="w-full text-sm"
+                    >
+                      Cancel
+                    </Button>
               </div>
+                </div>
+              )}
+            </div>
+          </div>
 
-              <div className="flex items-center space-x-2 w-full mb-2">
+          {/* Data Source Selection */}
+          {!showInputs && (
+            <div className="w-full max-w-xl p-4 mb-4 bg-white rounded border">
+              <h3 className="text-sm font-semibold mb-3 text-gray-700">Data Source</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Button
+                  onClick={() => handleDataSourceChange("all")}
+                  variant={dataSource === "all" ? "default" : "outline"}
+                  className="flex-1 text-sm"
+                >
+                  All Records ({table.getFilteredRowModel().rows.length})
+                </Button>
+                <Button
+                  onClick={() => handleDataSourceChange("selected")}
+                  variant={dataSource === "selected" ? "default" : "outline"}
+                  className="flex-1 text-sm"
+                  disabled={table.getSelectedRowModel().rows.length === 0}
+                >
+                  Selected ({table.getSelectedRowModel().rows.length})
+                </Button>
+                <Button
+                  onClick={() => handleDataSourceChange("range")}
+                  variant={dataSource === "range" ? "default" : "outline"}
+                  className="flex-1 text-sm"
+                >
+                  ID Range
+                </Button>
+              </div>
+              {dataSource === "selected" &&
+                table.getSelectedRowModel().rows.length === 0 && (
+                  <p className="text-xs text-red-500">
+                    No rows selected. Please select rows in the table first.
+                  </p>
+                )}
+            </div>
+          )}
+
+          {/* Client ID Range Input - improved UI */}
+          {!showInputs && dataSource === "range" && (
+            <div className="w-full max-w-xl p-4 mb-4 bg-white rounded border">
+              <h3 className="text-sm font-semibold mb-3 text-gray-700">ID Range Selection</h3>
+
+              <div className="flex items-center space-x-3 w-full mb-3">
                 <label
                   htmlFor="startId"
-                  className="text-sm w-28 text-right font-medium text-gray-600"
+                  className="text-sm w-24 text-right font-medium text-gray-600"
                 >
-                  Start Client ID:
+                  Start ID:
                 </label>
                 <input
                   type="text"
@@ -1597,15 +1817,15 @@ const Mailing = ({
                   placeholder={`First: ${
                     table.getFilteredRowModel().rows[0]?.original?.id || "N/A"
                   }`}
-                  className="border border-gray-300 rounded p-2 w-full"
+                  className="border border-gray-300 rounded p-2 w-full text-sm"
                 />
               </div>
-              <div className="flex items-center space-x-2 w-full mb-3">
+              <div className="flex items-center space-x-3 w-full mb-3">
                 <label
                   htmlFor="endId"
-                  className="text-sm w-28 text-right font-medium text-gray-600"
+                  className="text-sm w-24 text-right font-medium text-gray-600"
                 >
-                  End Client ID:
+                  End ID:
                 </label>
                 <input
                   type="text"
@@ -1617,14 +1837,14 @@ const Mailing = ({
                       table.getFilteredRowModel().rows.length - 1
                     ]?.original?.id || "N/A"
                   }`}
-                  className="border border-gray-300 rounded p-2 w-full"
+                  className="border border-gray-300 rounded p-2 w-full text-sm"
                 />
               </div>
 
               {previewType === "standard" && (
-                <div className="flex items-center justify-center space-x-4 w-full bg-white p-2 rounded">
+                <div className="flex items-center justify-center space-x-4 w-full bg-gray-50 p-3 rounded mt-3">
                   <span className="text-sm font-medium text-gray-600">
-                    Start Printing At:
+                    Start Position:
                   </span>
                   <div className="flex items-center">
                     <input
@@ -1637,7 +1857,7 @@ const Mailing = ({
                       className="mr-1 text-blue-600"
                     />
                     <label htmlFor="startLeft" className="text-sm">
-                      Label 1 (Left)
+                      Left
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -1651,7 +1871,7 @@ const Mailing = ({
                       className="mr-1 text-blue-600"
                     />
                     <label htmlFor="startRight" className="text-sm">
-                      Label 2 (Right)
+                      Right
                     </label>
                   </div>
                 </div>
@@ -1659,10 +1879,12 @@ const Mailing = ({
             </div>
           )}
 
-          {/* Configuration Inputs (Initially Hidden) */}
+          {/* Configuration Inputs (in dedicated tab) */}
           {showInputs && (
-            <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
-              <h3 className="text-lg font-semibold mb-3">
+            <div className="w-full max-w-xl">
+              {/* Show a condensed configuration UI based on the previewType */}
+              <div className="p-4 border rounded mb-4 w-full bg-white">
+                <h3 className="text-md font-semibold mb-3 text-gray-700">
                 {previewType === "standard"
                   ? "Standard Label Settings"
                   : previewType === "renewal"
@@ -1734,7 +1956,7 @@ const Mailing = ({
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Label Height (Vertical Space):
+                            Label Height (px):
                         </label>
                         <input
                           type="number"
@@ -1747,7 +1969,7 @@ const Mailing = ({
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Horizontal Spacing:
+                            Horizontal Spacing (px):
                         </label>
                         <input
                           type="number"
@@ -1762,77 +1984,42 @@ const Mailing = ({
                       </div>
                     </div>
 
-                    {/* Field Selection - Better organized */}
-                    <div className="mb-4 w-full bg-gray-100 p-2 rounded mt-3">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                        Content Options
-                      </h4>
-                      <div className="flex flex-wrap gap-4 justify-start">
-                        {fields.map((field) => (
-                          <div
-                            key={field.value}
-                            className="flex items-center gap-1 text-black text-sm"
-                          >
-                            <input
-                              type="checkbox"
-                              id={`field-${field.value}`}
-                              checked={selectedFields.includes(field.value)}
-                              onChange={() => handleFieldChange(field.value)}
-                              className="text-blue-600 border-gray-300 h-4 w-4"
-                            />
-                            <label htmlFor={`field-${field.value}`}>
-                              {field.label}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </>
-              ) : previewType === "renewal" ? (
-                <>
-                  {/* Renewal Notice A4 Settings - Improved organization */}
-                  <div className="w-full">
-                    <div className="bg-blue-50 p-2 rounded mb-3 text-xs text-blue-700">
-                      These settings control how renewal notices appear on A4
-                      paper. Each subscriber will get their own page.
-                    </div>
-
+                      {/* Data Spacing Controls - New section */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
                       <div className="col-span-2 mb-1">
                         <h4 className="text-sm font-semibold text-gray-700">
-                          Basic Settings
+                            Content Positioning
                         </h4>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Font Size:
+                            Left Margin (px):
                         </label>
                         <input
                           type="number"
-                          value={renewalFontSize}
+                            min="0"
+                            value={contentLeftMargin}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setRenewalFontSize(
-                              parseInt(e.target.value, 10) || 14
-                            )
+                              setContentLeftMargin(parseInt(e.target.value, 10) || 4)
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Space on the left side of content</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Left Margin (px):
+                            Right Margin (px):
                         </label>
                         <input
                           type="number"
-                          value={renewalLeftMargin}
+                            min="0"
+                            value={contentRightMargin}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setRenewalLeftMargin(
-                              parseInt(e.target.value, 10) || 40
-                            )
+                              setContentRightMargin(parseInt(e.target.value, 10) || 4)
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Space on the right side of content</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
@@ -1840,120 +2027,185 @@ const Mailing = ({
                         </label>
                         <input
                           type="number"
-                          value={renewalTopMargin}
+                            min="0"
+                            value={contentTopMargin}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setRenewalTopMargin(
-                              parseInt(e.target.value, 10) || 40
-                            )
+                              setContentTopMargin(parseInt(e.target.value, 10) || 4)
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Space at the top of content</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Right Column Position (px):
+                            Line Spacing (px):
                         </label>
                         <input
                           type="number"
-                          value={renewalRightColumnPosition}
+                            min="0"
+                            value={dataVerticalSpacing}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setRenewalRightColumnPosition(
-                              parseInt(e.target.value, 10) || 400
-                            )
+                              setDataVerticalSpacing(parseInt(e.target.value, 10) || 4)
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Space between lines of data</p>
                       </div>
                     </div>
 
+                      {/* Advanced Label Controls - New section */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
                       <div className="col-span-2 mb-1">
                         <h4 className="text-sm font-semibold text-gray-700">
-                          Left Column Spacing
+                            Advanced Label Controls
                         </h4>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Between Name & Address:
+                            Skip First Labels:
                         </label>
                         <input
                           type="number"
-                          value={nameAddressSpacing}
+                            min="0"
+                            value={labelsToSkip}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setNameAddressSpacing(
-                              parseInt(e.target.value, 10) || 24
-                            )
+                              setLabelsToSkip(parseInt(e.target.value, 10) || 0)
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Labels to skip at the beginning (for partially used sheets)</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Between Address & Contact:
+                            Labels Per Page:
                         </label>
                         <input
                           type="number"
-                          value={addressContactSpacing}
+                            min="2"
+                            step="2"
+                            value={labelsPerPage}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setAddressContactSpacing(
-                              parseInt(e.target.value, 10) || 30
-                            )
+                              setLabelsPerPage(Math.max(2, parseInt(e.target.value, 10) || 16))
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Total labels per page (must be even)</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Line Spacing:
+                            Horizontal Spacing (px):
                         </label>
                         <input
                           type="number"
-                          value={leftColumnLineSpacing}
+                            min="0"
+                            value={horizontalSpacing}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setLeftColumnLineSpacing(
-                              parseInt(e.target.value, 10) || 8
-                            )
-                          }
-                        />
+                              setHorizontalSpacing(parseInt(e.target.value, 10) || 20)
+                            }
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Space between columns</p>
+                        </div>
+                        <div className="flex flex-col">
+                          <label className="text-xs text-gray-600 mb-1">
+                            Vertical Gap (px):
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={verticalGap}
+                            className="border border-gray-300 rounded p-1 text-center w-full"
+                            onChange={(e) =>
+                              setVerticalGap(parseInt(e.target.value, 10) || 0)
+                            }
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Space between rows</p>
                       </div>
                     </div>
 
+                      {/* Physical Label Size Controls - New section */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
                       <div className="col-span-2 mb-1">
                         <h4 className="text-sm font-semibold text-gray-700">
-                          Right Column Spacing
+                            Physical Label Size
                         </h4>
                       </div>
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600 mb-1">
-                          Between Items:
-                        </label>
-                        <input
-                          type="number"
-                          value={rightColumnItemSpacing}
-                          className="border border-gray-300 rounded p-1 text-center w-full"
-                          onChange={(e) =>
-                            setRightColumnItemSpacing(
-                              parseInt(e.target.value, 10) || 16
-                            )
-                          }
-                        />
+                        <div className="col-span-2 mb-2">
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="show-fixed-labels"
+                              checked={showFixedLabels}
+                              onChange={() => setShowFixedLabels(!showFixedLabels)}
+                              className="mr-2"
+                            />
+                            <label htmlFor="show-fixed-labels" className="text-sm text-gray-700">
+                              Show fixed label boundaries in preview
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Enable to see the physical label size separate from content area</p>
                       </div>
                       <div className="flex flex-col">
                         <label className="text-xs text-gray-600 mb-1">
-                          Line Spacing:
+                            Fixed Label Width (px):
                         </label>
                         <input
                           type="number"
-                          value={rightColumnLineSpacing}
+                            min="96"
+                            value={fixedLabelWidth}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                            setRightColumnLineSpacing(
-                              parseInt(e.target.value, 10) || 12
-                            )
+                              setFixedLabelWidth(Math.max(96, parseInt(e.target.value, 10) || 192))
                           }
                         />
+                          <p className="text-xs text-gray-500 mt-1">Physical width of each label (≈ {(fixedLabelWidth/96).toFixed(2)} inches)</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                            Fixed Label Height (px):
+                        </label>
+                        <input
+                          type="number"
+                            min="72"
+                            value={fixedLabelHeight}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                              setFixedLabelHeight(Math.max(72, parseInt(e.target.value, 10) || 96))
+                            }
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Physical height of each label (≈ {(fixedLabelHeight/96).toFixed(2)} inches)</p>
+                        </div>
+                        <div className="col-span-2 mt-1">
+                          <p className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                            The column width setting controls how much space your data occupies within the fixed label size. 
+                            This helps match your printing to pre-sized sticker labels.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Field Selection - Better organized */}
+                      <div className="mb-3 w-full bg-gray-50 p-3 rounded mt-3">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                          Content Options
+                        </h4>
+                        <div className="flex flex-wrap gap-4 justify-start">
+                          {fields.map((field) => (
+                            <div
+                              key={field.value}
+                              className="flex items-center gap-1 text-black text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                id={`field-${field.value}`}
+                                checked={selectedFields.includes(field.value)}
+                                onChange={() => handleFieldChange(field.value)}
+                                className="text-blue-600 border-gray-300 h-4 w-4"
+                              />
+                              <label htmlFor={`field-${field.value}`}>
+                                {field.label}
+                              </label>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </div>
@@ -2051,7 +2303,7 @@ const Mailing = ({
                     </div>
 
                     {/* Field Selection for Thank You Letter */}
-                    <div className="mb-4 w-full bg-gray-100 p-2 rounded mt-3">
+                      <div className="mb-3 w-full bg-gray-50 p-3 rounded mt-3">
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">
                         Content Options
                       </h4>
@@ -2077,219 +2329,316 @@ const Mailing = ({
                     </div>
                   </div>
                 </>
-              )}
-
-              {/* Template Saving (for both types) */}
-              <div className="w-full border-t mt-4 pt-4">
-                <h4 className="text-md font-semibold mb-3">Save Template</h4>
-                <div className="flex flex-col">
-                  <Button
-                    onClick={handleSaveClick}
-                    variant="secondary"
-                    className="w-full mb-2"
-                  >
-                    Save Current{" "}
-                    {previewType === "standard"
-                      ? "Label"
-                      : previewType === "renewal"
-                      ? "Renewal Notice"
-                      : "Thank You Letter"}{" "}
-                    Settings as Template
-                  </Button>
-                  {showTemplateNameInput && (
-                    <div className="flex flex-col items-center mt-1 bg-gray-100 p-3 rounded">
-                      <p className="text-xs text-gray-600 mb-2">
-                        This will save a template specifically for{" "}
-                        {previewType === "standard"
-                          ? "standard mailing labels"
-                          : previewType === "renewal"
-                          ? "renewal notices"
-                          : "thank you letters"}
-                        .
-                      </p>
-                      <input
-                        type="text"
-                        value={templateName}
-                        onChange={handleTemplateNameChange}
-                        placeholder={`Enter template name for ${previewType} format`}
-                        className="border border-gray-300 rounded p-2 text-center mb-3 w-full"
-                      />
-                      <div className="flex space-x-2 w-full">
-                        <Button onClick={saveTemplate} className="w-full">
-                          Save Template
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setShowTemplateNameInput(false);
-                            setTemplateName("");
-                          }}
-                          variant="outline"
-                          className="w-full"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
           )}
 
           {/* Preview Area */}
-          <div className="mb-4">
-            <h3 className="text-center font-semibold mb-1">
-              {previewType === "standard"
-                ? "Standard Mailing Labels Preview"
-                : previewType === "renewal"
-                ? "Renewal Notice Preview (A4)"
-                : "Thank You Letter Preview (A4)"}
-            </h3>
-
+          <div className="w-full max-w-xl mb-4 border rounded bg-white">
+            <h3 className="text-md font-semibold p-3 border-b text-gray-700">Preview</h3>
+            
             {previewType === "standard" ? (
-              // Standard Mailing Labels Preview
+              // Standard Mailing Labels Preview - Updated to match continuous feed sticker paper
               <div
-                className="mailing-label-preview border border-dashed border-gray-400 relative bg-white"
                 style={{
-                  width: `${columnWidth * 2 + horizontalSpacing}px`,
-                  height: `${topPosition + labelHeight * 1.5}px`,
+                  padding: "20px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  position: "relative"
                 }}
               >
-                {/* Preview box 1 with actual data from first selected row */}
-                <div
-                  className="address-container-preview border border-gray-300 absolute"
-                  style={{
-                    left: `${leftPosition}px`,
-                    top: `${topPosition}px`,
-                    width: `${columnWidth}px`,
-                    height: `${labelHeight}px`,
-                    fontSize: `${fontSize}px`,
-                    padding: "2px",
+                {/* Measurement indicators */}
+                <div className="measurement-indicators" style={{ marginBottom: "10px", fontSize: "11px", color: "#555" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <span className="font-semibold">Left margin:</span> {leftPosition}px
+                      </div>
+                    <div>
+                      <span className="font-semibold">Column width:</span> {columnWidth}px
+                    </div>
+                    <div>
+                      <span className="font-semibold">Spacing:</span> {horizontalSpacing}px
+                </div>
+              </div>
+                  <div style={{ display: "flex", alignItems: "center", marginTop: "4px", flexWrap: "wrap" }}>
+                    <span className="font-semibold mr-1">Top margin:</span> {topPosition}px
+                    <span className="mx-3">|</span>
+                    <span className="font-semibold mr-1">Label height:</span> {labelHeight}px
+                    <span className="mx-3">|</span>
+                    <span className="font-semibold mr-1">Font size:</span> {fontSize}px
+                    <span className="mx-3">|</span>
+                    <span className="font-semibold mr-1">Vertical gap:</span> {verticalGap}px
+            </div>
+                  <div style={{ display: "flex", alignItems: "center", marginTop: "4px", flexWrap: "wrap", fontSize: "10px", color: "#666" }}>
+                    <span>Content margins: L:{contentLeftMargin}px R:{contentRightMargin}px T:{contentTopMargin}px | Line spacing: {dataVerticalSpacing}px</span>
+                  </div>
+                </div>
+
+                {/* Container with dashed border to represent continuous feed paper */}
+                <div 
+                style={{
+                    border: "1px solid #ccc", 
+                    borderRadius: "0",
+                    position: "relative",
+                    width: "100%",
+                    height: "380px",
+                    boxSizing: "border-box",
                     overflow: "hidden",
+                    backgroundColor: "#fff"
                   }}
                 >
-                  {selectedRows.length > 0 ? (
-                    <>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[0]?.original?.id || ""}
-                        {selectedRows[0]?.original?.wmmData?.records?.[0]
-                          ?.subsdate
-                          ? ` - ${new Date(
-                              selectedRows[0].original.wmmData.records[0].subsdate
-                            ).toLocaleDateString()}`
-                          : ""}
-                        {selectedRows[0]?.original?.wmmData?.records?.[0]
-                          ?.copies
-                          ? ` - ${selectedRows[0].original.wmmData.records[0].copies}cps`
-                          : ""}
-                        /{selectedRows[0]?.original?.acode || ""}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {getFullName(selectedRows[0]?.original || {})}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[0]?.original?.address || ""}
-                      </p>
+                  {/* Left perforation marks */}
+                  <div style={{ position: "absolute", left: "0", top: "0", width: "15px", height: "100%", borderRight: "1px dashed #aaa" }}>
+                    {Array.from({ length: 15 }).map((_, i) => (
+                      <div key={`left-${i}`} style={{ 
+                        position: "absolute", 
+                        left: "0", 
+                        top: `${i * 25}px`, 
+                        width: "10px", 
+                        height: "5px", 
+                        backgroundColor: "#ddd",
+                        borderRadius: "50%"
+                      }}></div>
+                    ))}
+                  </div>
+                  
+                  {/* Right perforation marks */}
+                  <div style={{ position: "absolute", right: "0", top: "0", width: "15px", height: "100%", borderLeft: "1px dashed #aaa" }}>
+                    {Array.from({ length: 15 }).map((_, i) => (
+                      <div key={`right-${i}`} style={{ 
+                        position: "absolute", 
+                        right: "0", 
+                        top: `${i * 25}px`, 
+                        width: "10px", 
+                        height: "5px", 
+                        backgroundColor: "#ddd",
+                        borderRadius: "50%"
+                      }}></div>
+                    ))}
+                  </div>
+                  
+                  {/* Labels container */}
+                  <div style={{ 
+                    position: "relative", 
+                    width: "calc(100% - 30px)", 
+                    height: "100%", 
+                    margin: "0 15px",
+                    paddingLeft: `${leftPosition}px` // Added left padding for the entire container
+                  }}>
+                    {/* Guides for the labels - showing multiple rows */}
+                    {Array.from({ length: Math.min(8, Math.ceil(labelsPerPage/2)) }).map((_, rowIndex) => {
+                      // Calculate the label index for this row (2 labels per row)
+                      const leftLabelIndex = rowIndex * 2;
+                      const rightLabelIndex = rowIndex * 2 + 1;
+                      
+                      // Check if this label should be skipped
+                      const isLeftSkipped = leftLabelIndex < labelsToSkip;
+                      const isRightSkipped = rightLabelIndex < labelsToSkip;
+                      
+                      // Calculate top margin with vertical gap
+                      const topMargin = rowIndex === 0 
+                        ? topPosition 
+                        : (rowIndex > 0 ? verticalGap : 0);
+                      
+                      return (
+                        <div key={`row-${rowIndex}`} style={{ 
+                          display: "flex", 
+                          justifyContent: "space-between", // Changed to space-between for equal spacing
+                          marginTop: rowIndex > 0 ? `${verticalGap}px` : '0',
+                          width: "100%",
+                          maxWidth: `${(showFixedLabels ? (fixedLabelWidth * 2) : (columnWidth * 2)) + horizontalSpacing}px`
+                        }}>
+                          {/* Left column label */}
+                          <div
+                  style={{
+                              width: showFixedLabels ? `${fixedLabelWidth}px` : `${columnWidth}px`,
+                              height: showFixedLabels ? `${fixedLabelHeight}px` : `${labelHeight}px`,
+                              border: "1px solid #ddd",
+                              margin: `${rowIndex === 0 ? topPosition : 0}px 0 0 0`, // Removed left margin
+                              padding: "0",
+                              position: "relative",
+                              backgroundColor: isLeftSkipped ? "#f8f8f8" : "#fff",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                              overflow: "hidden"
+                            }}
+                          >
+                            {/* Content container inside fixed label */}
+                            <div style={{ 
+                    width: `${columnWidth}px`,
+                    height: `${labelHeight}px`,
+                              padding: `${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px`,
+                    fontSize: `${fontSize}px`,
+                              position: showFixedLabels ? "absolute" : "static",
+                              top: "50%",
+                              left: "50%",
+                              transform: showFixedLabels ? "translate(-50%, -50%)" : "none",
+                              border: showFixedLabels ? "1px dashed #ccc" : "none",
+                              boxSizing: "border-box",
+                              wordBreak: "break-word",
+                              overflow: "hidden"
+                            }}>
+                              {isLeftSkipped ? (
+                                <div className="skipped-label" style={{ 
+                                  position: "absolute", 
+                                  top: "50%", 
+                                  left: "50%", 
+                                  transform: "translate(-50%, -50%)",
+                                  fontSize: "14px",
+                                  color: "#aaa",
+                                  fontStyle: "italic",
+                                  textAlign: "center"
+                                }}>
+                                  <span>Skipped</span>
+                                  <div style={{ fontSize: "10px", marginTop: "5px" }}>Label #{leftLabelIndex + 1}</div>
+                                </div>
+                              ) : selectedRows.length > (leftLabelIndex - labelsToSkip) && (leftLabelIndex - labelsToSkip) >= 0 ? (
+                                <>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {selectedRows[leftLabelIndex - labelsToSkip]?.original?.id || ""} - {selectedRows[leftLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.subsdate ? new Date(selectedRows[leftLabelIndex - labelsToSkip].original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - {selectedRows[leftLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.copies || ""}cps/{selectedRows[leftLabelIndex - labelsToSkip]?.original?.acode || ""}
+                                  </div>
+                                  <div style={{ fontSize: `${fontSize}px`, fontWeight: "bold", marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {getFullName(selectedRows[leftLabelIndex - labelsToSkip]?.original || {})}
+                                  </div>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {selectedRows[leftLabelIndex - labelsToSkip]?.original?.address || ""}
+                                  </div>
                       {selectedFields.includes("contactnos") && (
-                        <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                          {getContactNumber(selectedRows[0]?.original || {})}
-                        </p>
+                                    <div style={{ fontSize: `${fontSize}px` }}>
+                                      {getContactNumber(selectedRows[leftLabelIndex - labelsToSkip]?.original || {})}
+                                    </div>
                       )}
                     </>
                   ) : (
-                    <p>No data available</p>
+                                <span className="text-xs text-gray-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">[Empty]</span>
                   )}
                 </div>
 
-                {/* Preview box 2 with actual data from second selected row */}
-                <div
-                  className="address-container-preview border border-gray-300 absolute"
+                            {/* Size indicators - only shown when fixed labels are enabled */}
+                            {showFixedLabels && (
+                              <div style={{ position: "absolute", bottom: "2px", right: "2px", fontSize: "8px", color: "#aaa" }}>
+                                {(fixedLabelWidth/96).toFixed(2)}″×{(fixedLabelHeight/96).toFixed(2)}″
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Explicit spacing div */}
+                          <div style={{ width: `${horizontalSpacing}px`, height: "1px" }}></div>
+
+                          {/* Right column label */}
+                          <div
                   style={{
-                    left: `${leftPosition + columnWidth + horizontalSpacing}px`,
-                    top: `${topPosition}px`,
+                              width: showFixedLabels ? `${fixedLabelWidth}px` : `${columnWidth}px`,
+                              height: showFixedLabels ? `${fixedLabelHeight}px` : `${labelHeight}px`,
+                              border: "1px solid #ddd",
+                              margin: `${rowIndex === 0 ? topPosition : 0}px 0 0 0`,
+                              padding: "0",
+                              position: "relative",
+                              backgroundColor: isRightSkipped ? "#f8f8f8" : "#fff",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                              overflow: "hidden"
+                            }}
+                          >
+                            {/* Content container inside fixed label */}
+                            <div style={{ 
                     width: `${columnWidth}px`,
                     height: `${labelHeight}px`,
+                              padding: `${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px`,
                     fontSize: `${fontSize}px`,
-                    padding: "2px",
-                    overflow: "hidden",
-                  }}
-                >
-                  {selectedRows.length > 1 ? (
-                    <>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[1]?.original?.id || ""}
-                        {selectedRows[1]?.original?.wmmData?.records?.[0]
-                          ?.subsdate
-                          ? ` - ${new Date(
-                              selectedRows[1].original.wmmData.records[0].subsdate
-                            ).toLocaleDateString()}`
-                          : ""}
-                        {selectedRows[1]?.original?.wmmData?.records?.[0]
-                          ?.copies
-                          ? ` - ${selectedRows[1].original.wmmData.records[0].copies}cps`
-                          : ""}
-                        /{selectedRows[1]?.original?.acode || ""}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {getFullName(selectedRows[1]?.original || {})}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[1]?.original?.address || ""}
-                      </p>
+                              position: showFixedLabels ? "absolute" : "static",
+                              top: "50%",
+                              left: "50%",
+                              transform: showFixedLabels ? "translate(-50%, -50%)" : "none",
+                              border: showFixedLabels ? "1px dashed #ccc" : "none",
+                              boxSizing: "border-box",
+                              wordBreak: "break-word",
+                              overflow: "hidden"
+                            }}>
+                              {isRightSkipped ? (
+                                <div className="skipped-label" style={{ 
+                                  position: "absolute", 
+                                  top: "50%", 
+                                  left: "50%", 
+                                  transform: "translate(-50%, -50%)",
+                                  fontSize: "14px",
+                                  color: "#aaa",
+                                  fontStyle: "italic",
+                                  textAlign: "center"
+                                }}>
+                                  <span>Skipped</span>
+                                  <div style={{ fontSize: "10px", marginTop: "5px" }}>Label #{rightLabelIndex + 1}</div>
+                                </div>
+                              ) : selectedRows.length > (rightLabelIndex - labelsToSkip) && (rightLabelIndex - labelsToSkip) >= 0 ? (
+                                <>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {selectedRows[rightLabelIndex - labelsToSkip]?.original?.id || ""} - {selectedRows[rightLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.subsdate ? new Date(selectedRows[rightLabelIndex - labelsToSkip].original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - {selectedRows[rightLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.copies || ""}cps/{selectedRows[rightLabelIndex - labelsToSkip]?.original?.acode || ""}
+                                  </div>
+                                  <div style={{ fontSize: `${fontSize}px`, fontWeight: "bold", marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {getFullName(selectedRows[rightLabelIndex - labelsToSkip]?.original || {})}
+                                  </div>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
+                                    {selectedRows[rightLabelIndex - labelsToSkip]?.original?.address || ""}
+                                  </div>
                       {selectedFields.includes("contactnos") && (
-                        <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                          {getContactNumber(selectedRows[1]?.original || {})}
-                        </p>
-                      )}
-                    </>
-                  ) : startPosition === "right" && selectedRows.length > 0 ? (
-                    <>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[0]?.original?.id || ""}
-                        {selectedRows[0]?.original?.wmmData?.records?.[0]
-                          ?.subsdate
-                          ? ` - ${new Date(
-                              selectedRows[0].original.wmmData.records[0].subsdate
-                            ).toLocaleDateString()}`
-                          : ""}
-                        {selectedRows[0]?.original?.wmmData?.records?.[0]
-                          ?.copies
-                          ? ` - ${selectedRows[0].original.wmmData.records[0].copies}cps`
-                          : ""}
-                        /{selectedRows[0]?.original?.acode || ""}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {getFullName(selectedRows[0]?.original || {})}
-                      </p>
-                      <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                        {selectedRows[0]?.original?.address || ""}
-                      </p>
-                      {selectedFields.includes("contactnos") && (
-                        <p style={{ margin: 0, fontSize: `${fontSize}px` }}>
-                          {getContactNumber(selectedRows[0]?.original || {})}
-                        </p>
+                                    <div style={{ fontSize: `${fontSize}px` }}>
+                                      {getContactNumber(selectedRows[rightLabelIndex - labelsToSkip]?.original || {})}
+                                    </div>
                       )}
                     </>
                   ) : (
-                    <p>No data available</p>
-                  )}
+                                <span className="text-xs text-gray-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">[Empty]</span>
+                              )}
+                            </div>
+                            
+                            {/* Size indicators - only shown when fixed labels are enabled */}
+                            {showFixedLabels && (
+                              <div style={{ position: "absolute", bottom: "2px", right: "2px", fontSize: "8px", color: "#aaa" }}>
+                                {(fixedLabelWidth/96).toFixed(2)}″×{(fixedLabelHeight/96).toFixed(2)}″
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Label count indicator */}
+                    {labelsPerPage > 16 && (
+                      <div style={{ 
+                        position: "absolute", 
+                        bottom: "-20px", 
+                        left: "0", 
+                        width: "100%", 
+                        textAlign: "center", 
+                        fontSize: "11px", 
+                        color: "#777"
+                      }}>
+                        {labelsPerPage} labels per page ({labelsPerPage/2} rows × 2 columns)
+                        {labelsToSkip > 0 ? ` • First ${labelsToSkip} labels skipped` : ''}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Simple hint about start position */}
+                <div className="text-xs text-gray-500 text-center mt-2 mb-1">
+                  Starting on {startPosition}
                 </div>
               </div>
             ) : previewType === "renewal" ? (
-              // A4 Renewal Notice Preview
+              // A4 Renewal Notice Preview remains the same
               <div
-                className="renewal-preview border border-dashed border-gray-400 relative bg-white mx-auto"
+                className="renewal-preview border border-dashed border-gray-300 relative bg-white mx-auto"
                 style={{
                   width: "215.9mm",
                   height: "279.4mm",
                   padding: "0.5in",
                   maxWidth: "650px",
                   maxHeight: "900px",
-                  transform: "scale(0.7)",
+                  transform: "scale(0.55)",
                   transformOrigin: "top center",
                   overflow: "hidden",
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  margin: "0 auto 50px auto",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  margin: "0 auto",
                 }}
               >
                 {selectedRows.length > 0 ? (
@@ -2401,27 +2750,25 @@ const Mailing = ({
                       height: "100%",
                     }}
                   >
-                    <p style={{ fontSize: "20px" }}>
-                      Select a row to preview renewal notice
-                    </p>
+                    <p className="text-gray-500">Select a row to preview renewal notice</p>
                   </div>
                 )}
               </div>
             ) : (
               // Thank You Letter Preview
               <div
-                className="thankyou-preview border border-dashed border-gray-400 relative bg-white mx-auto"
+                className="thankyou-preview border border-dashed border-gray-300 relative bg-white mx-auto"
                 style={{
                   width: "215.9mm",
                   height: "279.4mm",
                   padding: "0.5in",
                   maxWidth: "650px",
                   maxHeight: "900px",
-                  transform: "scale(0.7)",
+                  transform: "scale(0.55)",
                   transformOrigin: "top center",
                   overflow: "hidden",
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  margin: "0 auto 50px auto",
+                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                  margin: "0 auto",
                 }}
               >
                 {selectedRows.length > 0 ? (
@@ -2513,39 +2860,30 @@ const Mailing = ({
                       height: "100%",
                     }}
                   >
-                    <p style={{ fontSize: "20px" }}>
-                      Select a row to preview label
-                    </p>
+                    <p className="text-gray-500">Select a row to preview thank you letter</p>
                   </div>
                 )}
               </div>
             )}
-
-            <div className="text-center text-xs text-gray-500 mt-1">
-              {previewType === "standard" &&
-                (startPosition === "right"
-                  ? "First label will start on right side"
-                  : "First label will start on left side")}
-            </div>
           </div>
 
           {/* Action Buttons - improved UI */}
-          <div className="flex justify-center space-x-4 w-full max-w-lg">
+          <div className="flex justify-center space-x-3 w-full max-w-xl">
             <Button
               onClick={handlePrintWithRange}
-              className="bg-green-600 hover:bg-green-700 text-white flex-grow"
+              className="bg-green-600 hover:bg-green-700 text-white flex-grow text-sm"
               disabled={!hasData}
             >
               {previewType === "standard"
-                ? `Print Mailing Labels (${getRowCount()})`
+                ? `Print Labels (${getRowCount()})`
                 : previewType === "renewal"
-                ? `Print Renewal Notices (${getRowCount()})`
-                : `Print Thank You Letters (${getRowCount()})`}
+                ? `Print Notices (${getRowCount()})`
+                : `Print Letters (${getRowCount()})`}
             </Button>
             <Button
               onClick={closeModal}
-              variant="secondary"
-              className="flex-grow"
+              variant="outline"
+              className="flex-grow text-sm"
             >
               Close
             </Button>
