@@ -2780,7 +2780,7 @@ async function fetchDataServices(
           }
 
           // Handle calendar payment amount calculation - only count if there's a payment reference
-          if (cal.paymtamt && cal.paymtref) {
+          if (cal.paymtamt && cal.paymtref && (cal.paymtdate || cal.paymtform)) {
             const calPaymtAmt =
               typeof cal.paymtamt === "string"
                 ? parseFloat(cal.paymtamt.replace(/[^\d.-]/g, ""))
@@ -3010,7 +3010,7 @@ async function fetchDataServices(
         });
 
         const mostRecentCal = sortedCalData[0];
-        if (mostRecentCal && mostRecentCal.paymtamt && mostRecentCal.paymtref) {
+        if (mostRecentCal && mostRecentCal.paymtamt && mostRecentCal.paymtref && (mostRecentCal.paymtdate || mostRecentCal.paymtform)) {
           let amt = 0;
 
           try {
