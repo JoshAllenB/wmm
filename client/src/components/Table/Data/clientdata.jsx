@@ -87,6 +87,7 @@ export const fetchClients = async (
     // Remove request from pending list
     pendingRequests.delete(requestId);
 
+    // Extract all relevant values from the response
     const {
       totalPages,
       combinedData,
@@ -107,6 +108,8 @@ export const fetchClients = async (
       pageSpecificClients,
       filteredTotalCopies,
       filteredTotalClients,
+      absoluteTotalClients,
+      absoluteTotalCopies,
       totalCount,
       noData,
     } = response.data;
@@ -189,6 +192,8 @@ export const fetchClients = async (
         totalClients ||
         totalCount ||
         processedData.length,
+      absoluteTotalClients: absoluteTotalClients || 0,
+      absoluteTotalCopies: absoluteTotalCopies || 0,
       noData: false,
     };
   } catch (e) {

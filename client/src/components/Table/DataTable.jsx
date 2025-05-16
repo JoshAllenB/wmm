@@ -92,6 +92,8 @@ export default function DataTable({
   const [absoluteTotalCopies, setAbsoluteTotalCopies] = useState(
     initialAbsoluteTotalCopies
   );
+  const [filteredTotalClients, setFilteredTotalClients] = useState(0);
+  const [filteredTotalCopies, setFilteredTotalCopies] = useState(0);
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
@@ -176,6 +178,8 @@ export default function DataTable({
           );
           setAbsoluteTotalClients(result.absoluteTotalClients || 0);
           setAbsoluteTotalCopies(result.absoluteTotalCopies || 0);
+          setFilteredTotalClients(result.filteredTotalClients || result.totalClients || 0);
+          setFilteredTotalCopies(result.filteredTotalCopies || result.totalCopies || 0);
         } else {
           console.error("Invalid data format received:", result);
           setError("Invalid data format received from server");
@@ -325,8 +329,10 @@ export default function DataTable({
             pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
             totalClients={totalClients}
             pageSpecificClients={pageSpecificClients}
-            filteredTotalCopies={totalCopies}
-            filteredTotalClients={totalClients}
+            filteredTotalCopies={filteredTotalCopies}
+            filteredTotalClients={filteredTotalClients}
+            absoluteTotalClients={absoluteTotalClients}
+            absoluteTotalCopies={absoluteTotalCopies}
             userRole={userRole}
             animationComplete={animationComplete}
           />

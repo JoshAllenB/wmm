@@ -83,6 +83,17 @@ export const TableComponent = memo(function TableComponent({
           <div className="flex flex-wrap justify-between px-2 py-1">
             <span className="text-sm sm:text-base">
               <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
+                Clients:{" "}
+                <span className="font-bold">
+                  {Number(pageSpecificClients || 0).toLocaleString()}
+                </span>{" "}
+                <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+                <span className="font-bold">
+                  {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                </span>{" "}
+                <span className="text-gray-500 text-xs">(Filter)</span>
+              </span>
+              <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
                 Qty:{" "}
                 <span className="font-bold">
                   {Number(pageSpecificCalQty || 0).toLocaleString()}
@@ -104,6 +115,21 @@ export const TableComponent = memo(function TableComponent({
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Total)</span> Php
               </span>
+              <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
+                Paid:{" "}
+                <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                  <span className="font-bold">
+                    {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+                <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                  <span className="font-bold">
+                    {Number(totalCalPaymtAmt || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Total)</span> Php
+              </span>
             </span>
           </div>
         );
@@ -111,6 +137,16 @@ export const TableComponent = memo(function TableComponent({
         return (
           <div className="flex justify-between px-2 py-1">
             <span className="text-base text-blue-700 font-medium">
+              Clients:{" "}
+              <span className="font-bold">
+                {Number(pageSpecificClients || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <span className="font-bold">
+                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Filter)</span>
+              <span className="mx-4"></span>
               HRG Payment:{" "}
               <span className="font-bold">
                 {Number(pageSpecificHrgAmt || 0).toLocaleString()}
@@ -127,6 +163,16 @@ export const TableComponent = memo(function TableComponent({
         return (
           <div className="flex justify-between px-2 py-1">
             <span className="text-base text-green-700 font-medium">
+              Clients:{" "}
+              <span className="font-bold">
+                {Number(pageSpecificClients || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <span className="font-bold">
+                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Filter)</span>
+              <span className="mx-4"></span>
               FOM Payment:{" "}
               <span className="font-bold">
                 {Number(pageSpecificFomAmt || 0).toLocaleString()}
@@ -164,16 +210,34 @@ export const TableComponent = memo(function TableComponent({
 
               {/* Standard HRG FOM CAL display */}
               <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+                {/* Clients Count for HRG FOM CAL */}
+                <div className="flex items-center shrink-0">
+                  <span className="font-semibold text-gray-700 mr-1">Clients:</span>
+                  <span className="text-gray-700 font-medium">
+                    {Number(pageSpecificClients || 0).toLocaleString()}
+                  </span>
+                  <span className="text-gray-500 mx-1">/</span>
+                  <span className="text-gray-700 font-medium">
+                    {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+
                 {/* HRG Section */}
                 <div className="flex items-center shrink-0">
                   <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-                  <span className="text-blue-700 font-medium">
-                    {Number(pageSpecificHrgAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                    <span className="text-blue-700 font-medium">
+                      {Number(pageSpecificHrgAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-blue-700 font-medium">
-                    {Number(totalHrgAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                    <span className="text-blue-700 font-medium">
+                      {Number(totalHrgAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 ml-1">Php</span>
                 </div>
 
@@ -184,13 +248,17 @@ export const TableComponent = memo(function TableComponent({
                   <span className="font-semibold text-green-700 mr-1">
                     FOM:
                   </span>
-                  <span className="text-green-700 font-medium">
-                    {Number(pageSpecificFomAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                    <span className="text-green-700 font-medium">
+                      {Number(pageSpecificFomAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-green-700 font-medium">
-                    {Number(totalFomAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                    <span className="text-green-700 font-medium">
+                      {Number(totalFomAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 ml-1">Php</span>
                 </div>
 
@@ -229,13 +297,17 @@ export const TableComponent = memo(function TableComponent({
 
                   {/* Paid */}
                   <span className="text-gray-500 mr-1">Paid:</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                    <span className="text-amber-700 font-medium">
+                      {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(totalCalPaymtAmt || 0).toLocaleString()}
-                  </span>
+                  <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                    <span className="text-amber-700 font-medium">
+                      {Number(totalCalPaymtAmt || 0).toLocaleString()}
+                    </span>
+                  </Tooltip>
                   <span className="text-gray-500 ml-1">Php</span>
                 </div>
               </div>
@@ -246,16 +318,34 @@ export const TableComponent = memo(function TableComponent({
         // Original HRG FOM CAL display (no WMM role)
         return (
           <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+            {/* Clients Count for HRG FOM CAL */}
+            <div className="flex items-center shrink-0">
+              <span className="font-semibold text-gray-700 mr-1">Clients:</span>
+              <span className="text-gray-700 font-medium">
+                {Number(pageSpecificClients || 0).toLocaleString()}
+              </span>
+              <span className="text-gray-500 mx-1">/</span>
+              <span className="text-gray-700 font-medium">
+                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+              </span>
+            </div>
+
+            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
+            
             {/* HRG Section */}
             <div className="flex items-center shrink-0">
               <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-              <span className="text-blue-700 font-medium">
-                {Number(pageSpecificHrgAmt || 0).toLocaleString()}
-              </span>
+              <Tooltip title="Totals from most recent records based on receive date" arrow>
+                <span className="text-blue-700 font-medium">
+                  {Number(pageSpecificHrgAmt || 0).toLocaleString()}
+                </span>
+              </Tooltip>
               <span className="text-gray-500 mx-1">/</span>
-              <span className="text-blue-700 font-medium">
-                {Number(totalHrgAmt || 0).toLocaleString()}
-              </span>
+              <Tooltip title="Totals from most recent records based on receive date" arrow>
+                <span className="text-blue-700 font-medium">
+                  {Number(totalHrgAmt || 0).toLocaleString()}
+                </span>
+              </Tooltip>
               <span className="text-gray-500 ml-1">Php</span>
             </div>
 
@@ -264,13 +354,17 @@ export const TableComponent = memo(function TableComponent({
             {/* FOM Section */}
             <div className="flex items-center shrink-0">
               <span className="font-semibold text-green-700 mr-1">FOM:</span>
-              <span className="text-green-700 font-medium">
-                {Number(pageSpecificFomAmt || 0).toLocaleString()}
-              </span>
+              <Tooltip title="Totals from most recent records based on receive date" arrow>
+                <span className="text-green-700 font-medium">
+                  {Number(pageSpecificFomAmt || 0).toLocaleString()}
+                </span>
+              </Tooltip>
               <span className="text-gray-500 mx-1">/</span>
-              <span className="text-green-700 font-medium">
-                {Number(totalFomAmt || 0).toLocaleString()}
-              </span>
+              <Tooltip title="Totals from most recent records based on receive date" arrow>
+                <span className="text-green-700 font-medium">
+                  {Number(totalFomAmt || 0).toLocaleString()}
+                </span>
+              </Tooltip>
               <span className="text-gray-500 ml-1">Php</span>
             </div>
 
@@ -340,6 +434,8 @@ export const TableComponent = memo(function TableComponent({
     pageSpecificCalPaymtAmt,
     filteredTotalCopies,
     filteredTotalClients,
+    totalClients,
+    pageSpecificClients,
   ]);
 
   const handleCellClick = (event, row, cell) => {
