@@ -58,7 +58,12 @@ const Mailing = ({
     "contactnos",   // Contact Number
     "copies",       // Copies
     "acode",        // AreaCode
-    "enddate"       // Expiry Date
+    "enddate",      // Expiry Date
+    // Add new service-specific fields
+    "subsclass",    // Subscription Class (WMM)
+    "hrgData",      // HRG Data
+    "fomData",      // FOM Data
+    "calData"       // CAL Data
   ]); // Fields to include in CSV
 
   // State for A4 preview layout adjustments
@@ -1249,7 +1254,11 @@ const Mailing = ({
       enddate: false,
       subsdate: false,
       subsclass: false,
-      email: false
+      email: false,
+      // Add service-specific data fields
+      hrgData: false,
+      fomData: false,
+      calData: false
     };
 
     // Track address lines separately
@@ -1262,16 +1271,16 @@ const Mailing = ({
 
       // Check each field for non-empty values
       if (subscriber.id) fieldsWithData.id = true;
-      if (subscriber.title?.trim()) fieldsWithData.title = true;
-      if (subscriber.lname?.trim()) fieldsWithData.lname = true;
-      if (subscriber.fname?.trim()) fieldsWithData.fname = true;
-      if (subscriber.mname?.trim()) fieldsWithData.mname = true;
-      if (subscriber.cellno?.trim()) fieldsWithData.cellno = true;
-      if (subscriber.officeno?.trim()) fieldsWithData.officeno = true;
+      if (typeof subscriber.title === 'string' && subscriber.title.trim()) fieldsWithData.title = true;
+      if (typeof subscriber.lname === 'string' && subscriber.lname.trim()) fieldsWithData.lname = true;
+      if (typeof subscriber.fname === 'string' && subscriber.fname.trim()) fieldsWithData.fname = true;
+      if (typeof subscriber.mname === 'string' && subscriber.mname.trim()) fieldsWithData.mname = true;
+      if (typeof subscriber.cellno === 'string' && subscriber.cellno.trim()) fieldsWithData.cellno = true;
+      if (typeof subscriber.officeno === 'string' && subscriber.officeno.trim()) fieldsWithData.officeno = true;
       if (subscription.copies) fieldsWithData.copies = true;
-      if (subscriber.acode?.trim()) fieldsWithData.acode = true;
-      if (subscriber.email?.trim()) fieldsWithData.email = true;
-      if (subscription.subsclass?.trim()) fieldsWithData.subsclass = true;
+      if (subscriber.acode !== undefined && subscriber.acode !== null) fieldsWithData.acode = true;
+      if (typeof subscriber.email === 'string' && subscriber.email.trim()) fieldsWithData.email = true;
+      if (typeof subscription.subsclass === 'string' && subscription.subsclass.trim()) fieldsWithData.subsclass = true;
 
       // Check dates
       if (subscription.enddate) {
@@ -1283,8 +1292,19 @@ const Mailing = ({
         if (!isNaN(date.getTime())) fieldsWithData.subsdate = true;
       }
 
+      // Check service-specific data
+      if (subscriber.hrgData && Object.keys(subscriber.hrgData).length > 0) {
+        fieldsWithData.hrgData = true;
+      }
+      if (subscriber.fomData && Object.keys(subscriber.fomData).length > 0) {
+        fieldsWithData.fomData = true;
+      }
+      if (subscriber.calData && Object.keys(subscriber.calData).length > 0) {
+        fieldsWithData.calData = true;
+      }
+
       // Check address lines
-      const addressLines = subscriber.address?.split('\n') || [];
+      const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split('\n') : [];
       addressLines.forEach((line, index) => {
         if (line.trim()) {
           addressLinesUsed.add(index);
@@ -1361,6 +1381,25 @@ const Mailing = ({
     if (csvIncludeFields.includes("email") && fieldsWithData.email)
       headers.push("Email");
 
+    // Add service-specific headers if included and data exists
+    if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
+      headers.push("HRG Quantity");
+      headers.push("HRG Total Amount");
+      headers.push("HRG Last Payment Date");
+    }
+    
+    if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
+      headers.push("FOM Quantity");
+      headers.push("FOM Total Amount");
+      headers.push("FOM Last Payment Date");
+    }
+    
+    if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
+      headers.push("CAL Quantity");
+      headers.push("CAL Total Amount");
+      headers.push("CAL Last Payment Date");
+    }
+
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
 
@@ -1374,24 +1413,24 @@ const Mailing = ({
       if (csvIncludeFields.includes("id") && fieldsWithData.id)
         rowData.push(`"${subscriber.id || ""}"`);
       if (csvIncludeFields.includes("name")) {
-        if (fieldsWithData.title) rowData.push(`"${subscriber.title || ""}"`);
-        if (fieldsWithData.lname) rowData.push(`"${subscriber.lname || ""}"`);
-        if (fieldsWithData.fname) rowData.push(`"${subscriber.fname || ""}"`);
+        if (fieldsWithData.title) rowData.push(`"${typeof subscriber.title === 'string' ? subscriber.title : ""}"`);
+        if (fieldsWithData.lname) rowData.push(`"${typeof subscriber.lname === 'string' ? subscriber.lname : ""}"`);
+        if (fieldsWithData.fname) rowData.push(`"${typeof subscriber.fname === 'string' ? subscriber.fname : ""}"`);
       }
       if (csvIncludeFields.includes("address") && fieldsWithData.address) {
-        const addressLines = subscriber.address?.split("\n") || [];
+        const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split("\n") : [];
         addressLinesUsed.forEach(index => {
           rowData.push(`"${(addressLines[index] || "").trim()}"`);
         });
       }
       if (csvIncludeFields.includes("contactnos")) {
-        if (fieldsWithData.cellno) rowData.push(`"${subscriber.cellno || ""}"`);
-        if (fieldsWithData.officeno) rowData.push(`"${subscriber.officeno || ""}"`);
+        if (fieldsWithData.cellno) rowData.push(`"${typeof subscriber.cellno === 'string' ? subscriber.cellno : ""}"`);
+        if (fieldsWithData.officeno) rowData.push(`"${typeof subscriber.officeno === 'string' ? subscriber.officeno : ""}"`);
       }
       if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
         rowData.push(`"${subscription.copies || ""}"`);
       if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
-        rowData.push(`"${subscriber.acode || ""}"`);
+        rowData.push(`"${subscriber.acode !== undefined ? subscriber.acode : ""}"`);
 
       // Format and add dates if they exist
       if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate) {
@@ -1417,9 +1456,55 @@ const Mailing = ({
       }
 
       if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
-        rowData.push(`"${subscription.subsclass || ""}"`);
+        rowData.push(`"${typeof subscription.subsclass === 'string' ? subscription.subsclass : ""}"`);
       if (csvIncludeFields.includes("email") && fieldsWithData.email)
-        rowData.push(`"${subscriber.email || ""}"`);
+        rowData.push(`"${typeof subscriber.email === 'string' ? subscriber.email : ""}"`);
+
+      // Add service-specific data if included and data exists
+      if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
+        const hrgData = subscriber.hrgData || {};
+        rowData.push(`"${hrgData.quantity || 0}"`);
+        rowData.push(`"${hrgData.totalAmount || 0}"`);
+        
+        let lastPaymentDate = "";
+        if (hrgData.lastPaymentDate) {
+          const date = new Date(hrgData.lastPaymentDate);
+          if (!isNaN(date.getTime())) {
+            lastPaymentDate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${lastPaymentDate}"`);
+      }
+      
+      if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
+        const fomData = subscriber.fomData || {};
+        rowData.push(`"${fomData.quantity || 0}"`);
+        rowData.push(`"${fomData.totalAmount || 0}"`);
+        
+        let lastPaymentDate = "";
+        if (fomData.lastPaymentDate) {
+          const date = new Date(fomData.lastPaymentDate);
+          if (!isNaN(date.getTime())) {
+            lastPaymentDate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${lastPaymentDate}"`);
+      }
+      
+      if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
+        const calData = subscriber.calData || {};
+        rowData.push(`"${calData.quantity || 0}"`);
+        rowData.push(`"${calData.totalAmount || 0}"`);
+        
+        let lastPaymentDate = "";
+        if (calData.lastPaymentDate) {
+          const date = new Date(calData.lastPaymentDate);
+          if (!isNaN(date.getTime())) {
+            lastPaymentDate = date.toLocaleDateString();
+          }
+        }
+        rowData.push(`"${lastPaymentDate}"`);
+      }
 
       csvContent += rowData.join(",") + "\n";
     });
@@ -1695,7 +1780,7 @@ const Mailing = ({
             </div>
 
             {/* Optional Fields */}
-            <div>
+            <div className="mb-4">
               <h4 className="text-xs font-medium text-gray-600 mb-2">Optional Fields:</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
@@ -1744,6 +1829,49 @@ const Mailing = ({
                   />
                   <label htmlFor="csv-email" className="text-sm">
                     {renderFieldLabel("email", "Email")}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Service-specific Fields */}
+            <div>
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Data:</h4>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-hrgData"
+                    checked={csvIncludeFields.includes("hrgData")}
+                    onChange={() => toggleCsvField("hrgData")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-hrgData" className="text-sm">
+                    {renderFieldLabel("hrgData", "HRG Data")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-fomData"
+                    checked={csvIncludeFields.includes("fomData")}
+                    onChange={() => toggleCsvField("fomData")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-fomData" className="text-sm">
+                    {renderFieldLabel("fomData", "FOM Data")}
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-calData"
+                    checked={csvIncludeFields.includes("calData")}
+                    onChange={() => toggleCsvField("calData")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-calData" className="text-sm">
+                    {renderFieldLabel("calData", "CAL Data")}
                   </label>
                 </div>
               </div>
