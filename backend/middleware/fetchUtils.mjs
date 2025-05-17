@@ -302,10 +302,33 @@ router.post("/templates-add", verifyToken, async (req, res) => {
 // Migrate existing templates to include previewType and renewal settings
 router.get("/migrate-templates", verifyToken, async (req, res) => {
   try {
-    // Find all templates that don't have previewType
+    // Find all templates that need migration (don't have the new fields)
     const templates = await PrintLabelModel.find({
-      previewType: { $exists: false },
+      "layout.dataVerticalSpacing": { $exists: false }
     });
+
+    // Default data spacing settings
+    const defaultDataSpacingSettings = {
+      dataVerticalSpacing: 4,
+      dataHorizontalSpacing: 0,
+      contentLeftMargin: 4,
+      contentRightMargin: 4,
+      contentTopMargin: 4,
+    };
+
+    // Default advanced label controls
+    const defaultAdvancedLabelSettings = {
+      labelsToSkip: 0,
+      labelsPerPage: 16,
+      verticalGap: 0,
+    };
+
+    // Default physical label size settings
+    const defaultPhysicalLabelSettings = {
+      fixedLabelWidth: 192,
+      fixedLabelHeight: 96,
+      showFixedLabels: true,
+    };
 
     // Default renewal settings
     const defaultRenewalSettings = {
@@ -346,16 +369,22 @@ router.get("/migrate-templates", verifyToken, async (req, res) => {
       const updatedLayout = {
         ...template.layout.toObject(),
         ...defaultStandardSettings,
+        ...defaultDataSpacingSettings,
+        ...defaultAdvancedLabelSettings,
+        ...defaultPhysicalLabelSettings,
         ...defaultRenewalSettings,
         ...defaultThankYouSettings,
       };
+
+      // Set previewType if not already set
+      const previewType = template.previewType || "standard";
 
       // Update the template with new fields
       await PrintLabelModel.updateOne(
         { _id: template._id },
         {
           $set: {
-            previewType: "standard",
+            previewType: previewType,
             layout: updatedLayout,
           },
         }
@@ -370,6 +399,82 @@ router.get("/migrate-templates", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error("Error migrating templates:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Add template migration endpoint for new fields
+router.get("/migrate-templates-v2", verifyToken, async (req, res) => {
+  try {
+    // Find all templates that need migration (don't have the new fields)
+    const templates = await PrintLabelModel.find();
+
+    // Default data spacing settings
+    const defaultDataSpacingSettings = {
+      dataVerticalSpacing: 4,
+      dataHorizontalSpacing: 0,
+      contentLeftMargin: 4,
+      contentRightMargin: 4,
+      contentTopMargin: 4,
+    };
+
+    // Default advanced label controls
+    const defaultAdvancedLabelSettings = {
+      labelsToSkip: 0,
+      labelsPerPage: 16,
+      verticalGap: 0,
+    };
+
+    // Default physical label size settings
+    const defaultPhysicalLabelSettings = {
+      fixedLabelWidth: 192,
+      fixedLabelHeight: 96,
+      showFixedLabels: true,
+    };
+
+    // Update each template
+    let updatedCount = 0;
+    for (const template of templates) {
+      // Create updates object with only missing fields
+      const updates = {};
+      
+      // Check data spacing settings
+      for (const [key, value] of Object.entries(defaultDataSpacingSettings)) {
+        if (template.layout[key] === undefined) {
+          updates[`layout.${key}`] = value;
+        }
+      }
+      
+      // Check advanced label controls
+      for (const [key, value] of Object.entries(defaultAdvancedLabelSettings)) {
+        if (template.layout[key] === undefined) {
+          updates[`layout.${key}`] = value;
+        }
+      }
+      
+      // Check physical label size settings
+      for (const [key, value] of Object.entries(defaultPhysicalLabelSettings)) {
+        if (template.layout[key] === undefined) {
+          updates[`layout.${key}`] = value;
+        }
+      }
+      
+      // Only update if there are missing fields
+      if (Object.keys(updates).length > 0) {
+        await PrintLabelModel.updateOne(
+          { _id: template._id },
+          { $set: updates }
+        );
+        updatedCount++;
+      }
+    }
+
+    res.json({
+      message: `Successfully updated ${updatedCount} templates with new fields`,
+      migratedCount: updatedCount,
+    });
+  } catch (err) {
+    console.error("Error updating templates with new fields:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });

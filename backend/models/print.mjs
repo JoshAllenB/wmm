@@ -15,6 +15,23 @@ const layoutSchema = new mongoose.Schema({
   columnWidth: { type: Number, required: true, default: 300 },
   labelHeight: { type: Number, default: 100 },
   horizontalSpacing: { type: Number, default: 20 },
+  
+  // Data spacing controls
+  dataVerticalSpacing: { type: Number, default: 4 },
+  dataHorizontalSpacing: { type: Number, default: 0 },
+  contentLeftMargin: { type: Number, default: 4 },
+  contentRightMargin: { type: Number, default: 4 },
+  contentTopMargin: { type: Number, default: 4 },
+
+  // Advanced label controls
+  labelsToSkip: { type: Number, default: 0 },
+  labelsPerPage: { type: Number, default: 16 },
+  verticalGap: { type: Number, default: 0 },
+  
+  // Physical label size
+  fixedLabelWidth: { type: Number, default: 192 },
+  fixedLabelHeight: { type: Number, default: 96 },
+  showFixedLabels: { type: Boolean, default: true },
 
   // Renewal notice settings
   renewalFontSize: { type: Number, default: 14 },
