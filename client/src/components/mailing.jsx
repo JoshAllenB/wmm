@@ -31,12 +31,12 @@ const Mailing = ({
   const optionalFields = ["mname", "subsdate", "subsclass", "email"];
 
   const [modalOpen, setModalOpen] = useState(false);
-  const [leftPosition, setLeftPosition] = useState(10);
-  const [topPosition, setTopPosition] = useState(10);
+  const [leftPosition, setLeftPosition] = useState(-40);
+  const [topPosition, setTopPosition] = useState(-10);
   const [columnWidth, setColumnWidth] = useState(300);
-  const [fontSize, setFontSize] = useState(12);
-  const [labelHeight, setLabelHeight] = useState(100);
-  const [horizontalSpacing, setHorizontalSpacing] = useState(20);
+  const [fontSize, setFontSize] = useState(15);
+  const [labelHeight, setLabelHeight] = useState(85);
+  const [horizontalSpacing, setHorizontalSpacing] = useState(10);
   const [selectedFields, setSelectedFields] = useState(["contactnos"]);
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -68,7 +68,7 @@ const Mailing = ({
 
   // State for A4 preview layout adjustments
   const [renewalLeftMargin, setRenewalLeftMargin] = useState(40);
-  const [renewalTopMargin, setRenewalTopMargin] = useState(40);
+  const [renewalTopMargin, setRenewalTopMargin] = useState(50);
   const [renewalRightColumnPosition, setRenewalRightColumnPosition] =
     useState(400);
   const [renewalFontSize, setRenewalFontSize] = useState(14);
@@ -77,30 +77,32 @@ const Mailing = ({
   const [thankYouTopMargin, setThankYouTopMargin] = useState(60);
   const [thankYouLeftMargin, setThankYouLeftMargin] = useState(60);
   const [thankYouFontSize, setThankYouFontSize] = useState(14);
-  const [thankYouLineSpacing, setThankYouLineSpacing] = useState(16);
-  const [thankYouWidth, setThankYouWidth] = useState(400); // New width setting
-  const [thankYouDateSpacing, setThankYouDateSpacing] = useState(40);
+  const [thankYouLineSpacing, setThankYouLineSpacing] = useState(1);
+  const [thankYouWidth, setThankYouWidth] = useState(250); // New width setting
+  const [thankYouDateSpacing, setThankYouDateSpacing] = useState(1);
   const [thankYouGreetingSpacing, setThankYouGreetingSpacing] = useState(30);
   const [thankYouContentSpacing, setThankYouContentSpacing] = useState(20);
+  const [thankYouGreetingTopSpacing, setThankYouGreetingTopSpacing] = useState(165); // Add this for greeting position
 
   // Additional precise controls for renewal notice
   const [leftColumnLineSpacing, setLeftColumnLineSpacing] = useState(8);
   const [rightColumnLineSpacing, setRightColumnLineSpacing] = useState(12);
-  const [nameAddressSpacing, setNameAddressSpacing] = useState(24); // Space between name and address
-  const [addressContactSpacing, setAddressContactSpacing] = useState(30); // Space between address and contact info
-  const [rightColumnItemSpacing, setRightColumnItemSpacing] = useState(16); // Space between each item in right column
+  const [nameAddressSpacing, setNameAddressSpacing] = useState(1); // Space between name and address
+  const [addressContactSpacing, setAddressContactSpacing] = useState(1); // Space between address and contact info
+  const [rightColumnItemSpacing, setRightColumnItemSpacing] = useState(10); // Space between each item in right column
+  const [greetingTopSpacing, setGreetingTopSpacing] = useState(165); // Space above the greeting line
 
   // State variables for spacing between data
-  const [dataVerticalSpacing, setDataVerticalSpacing] = useState(4);
+  const [dataVerticalSpacing, setDataVerticalSpacing] = useState(2);
   const [dataHorizontalSpacing, setDataHorizontalSpacing] = useState(0);
-  const [contentLeftMargin, setContentLeftMargin] = useState(4);
+  const [contentLeftMargin, setContentLeftMargin] = useState(-40);
   const [contentRightMargin, setContentRightMargin] = useState(4);
-  const [contentTopMargin, setContentTopMargin] = useState(4);
+  const [contentTopMargin, setContentTopMargin] = useState(1);
   const [labelsToSkip, setLabelsToSkip] = useState(0);
   const [labelsPerPage, setLabelsPerPage] = useState(16); // Default 8 rows of 2 labels
-  const [verticalGap, setVerticalGap] = useState(0); // Gap between rows of labels
-  const [fixedLabelWidth, setFixedLabelWidth] = useState(192); // 2 inches at 96dpi
-  const [fixedLabelHeight, setFixedLabelHeight] = useState(96); // 1 inch at 96dpi
+  const [verticalGap, setVerticalGap] = useState(3); // Gap between rows of labels
+  const [fixedLabelWidth, setFixedLabelWidth] = useState(408); // 2 inches at 96dpi
+  const [fixedLabelHeight, setFixedLabelHeight] = useState(336); // 1 inch at 96dpi
   const [showFixedLabels, setShowFixedLabels] = useState(true); // Toggle fixed label boundaries
 
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
@@ -299,10 +301,12 @@ const Mailing = ({
                         <div class="address-line">${leftLabel?.original?.address || ""}</div>
                         ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(leftLabel?.original || {})}</div>` : ""}
                       </div>`
-                    : `<div class="id-line">${leftLabel?.original?.id || ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(leftLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${leftLabel?.original?.acode || ""}</div>
-                      <div class="name-line">${getFullName(leftLabel?.original || {})}</div>
-                      <div class="address-line">${leftLabel?.original?.address || ""}</div>
-                      ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(leftLabel?.original || {})}</div>` : ""}`
+                    : `<div style="padding: ${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px;">
+                        <div class="id-line">${leftLabel?.original?.id || ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(leftLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${leftLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${leftLabel?.original?.acode || ""}</div>
+                        <div class="name-line">${getFullName(leftLabel?.original || {})}</div>
+                        <div class="address-line">${leftLabel?.original?.address || ""}</div>
+                        ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(leftLabel?.original || {})}</div>` : ""}
+                      </div>`
                   }
                 </div>` 
               : `<div class="label left-label empty"></div>`;
@@ -317,10 +321,12 @@ const Mailing = ({
                         <div class="address-line">${rightLabel?.original?.address || ""}</div>
                         ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(rightLabel?.original || {})}</div>` : ""}
                       </div>`
-                    : `<div class="id-line">${rightLabel?.original?.id || ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(rightLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${rightLabel?.original?.acode || ""}</div>
-                      <div class="name-line">${getFullName(rightLabel?.original || {})}</div>
-                      <div class="address-line">${rightLabel?.original?.address || ""}</div>
-                      ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(rightLabel?.original || {})}</div>` : ""}`
+                    : `<div style="padding: ${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px;">
+                        <div class="id-line">${rightLabel?.original?.id || ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.subsdate ? new Date(rightLabel.original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - ${rightLabel?.original?.wmmData?.records?.[0]?.copies || ""}cps/${rightLabel?.original?.acode || ""}</div>
+                        <div class="name-line">${getFullName(rightLabel?.original || {})}</div>
+                        <div class="address-line">${rightLabel?.original?.address || ""}</div>
+                        ${selectedFields.includes("contactnos") ? `<div class="contact-line">${getContactNumber(rightLabel?.original || {})}</div>` : ""}
+                      </div>`
                   }
                 </div>` 
               : `<div class="label right-label empty"></div>`;
@@ -358,14 +364,16 @@ const Mailing = ({
     return `
       <html>
       <head>
-         <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
+        <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
           <style>
             @page {
               size: auto;
               margin: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
             body {
-              font-family: Arial, sans-serif;
+              font-family: "Arial", sans-serif;
               margin: 0;
               padding: 0;
             }
@@ -403,8 +411,13 @@ const Mailing = ({
               left: 50%;
               transform: translate(-50%, -50%);
               width: ${columnWidth}px;
+              text-align: center;
               border: 1px dotted #ccc;
               padding: ${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px;
+            }
+            .left-label .content-container, .right-label .content-container {
+              left: 50%;
+              transform: translate(-50%, -50%);
             }
             .spacer {
               display: none; /* Hide the spacer since we're using space-between */
@@ -413,13 +426,15 @@ const Mailing = ({
               margin: 0 0 ${dataVerticalSpacing}px 0;
               padding: 0;
               font-size: ${fontSize}px;
-              color: black;
+              color: #000000;
+              font-weight: 600;
               word-wrap: break-word;
               white-space: normal;
               overflow-wrap: break-word;
+              text-align: center;
             }
             .name-line {
-              font-weight: bold;
+              font-weight: 700;
             }
             .contact-line {
               margin-bottom: 0;
@@ -431,10 +446,13 @@ const Mailing = ({
               margin-top: 5px;
               page-break-before: always;
             }
-             @media print {
+            @media print {
               body {
                 margin: 0;
                 padding: 0;
+                font-family: "Arial", sans-serif;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
               }
               .mailing-container {
                 margin-top: ${topPosition}px;
@@ -445,7 +463,26 @@ const Mailing = ({
                 justify-content: space-between;
                 width: 100%;
               }
-             }
+              .id-line, .name-line, .address-line, .contact-line {
+                color: #000000 !important;
+                font-weight: 600 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .name-line {
+                font-weight: 700 !important;
+              }
+              .left-label, .right-label {
+                position: relative !important;
+              }
+              .left-label .content-container, .right-label .content-container {
+                left: 50% !important;
+                transform: translate(-50%, -50%) !important;
+              }
+              .content-container {
+                padding: ${contentTopMargin}px ${contentRightMargin}px ${dataVerticalSpacing}px ${contentLeftMargin}px !important;
+              }
+            }
           </style>
         </head>
         <body>
@@ -529,6 +566,13 @@ const Mailing = ({
               <p class="expiry" style="margin-bottom: ${rightColumnItemSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${expiryDate}</p>
               <p class="last-issue" style="margin-bottom: ${rightColumnLineSpacing}px !important; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">${lastIssue}</p>
             </div>
+            
+            <!-- Greeting Line at Bottom -->
+            <div class="greeting" style="position: absolute; left: ${renewalLeftMargin}px; top: ${renewalTopMargin + greetingTopSpacing}px; width: 80%;">
+              <p style="font-size: ${renewalFontSize}px; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">
+                Dear ${subscriber.title ? `${subscriber.title} ` : ""}${subscriber.fname ? `${subscriber.fname} ` : ""}${subscriber.lname || ""}
+              </p>
+            </div>
           </div>
         `;
       })
@@ -542,11 +586,11 @@ const Mailing = ({
     })</title>
         <style>
           @page {
-            size: A4;
+            size: letter; /* US Letter (8.5in × 11in) */
             margin: 0;
           }
           body {
-            font-family: Arial, sans-serif;
+            font-family: "Arial", sans-serif;
             margin: 0;
             padding: 0;
           }
@@ -554,8 +598,8 @@ const Mailing = ({
             box-sizing: border-box;
             page-break-after: always;
             position: relative;
-            width: 210mm;
-            height: 297mm;
+            width: 215.9mm; /* Letter width (8.5 inches) */
+            height: 279.4mm; /* Letter height (11 inches) */
             overflow: hidden;
             padding: 0.5in;
           }
@@ -579,7 +623,7 @@ const Mailing = ({
             position: absolute;
             left: ${renewalRightColumnPosition}px;
             top: ${renewalTopMargin}px;
-            width: ${210 * 3.78 - renewalRightColumnPosition - 40}px;
+            width: ${215.9 * 3.78 - renewalRightColumnPosition - 40}px;
           }
           
           /* Specific spacing for each element - will be overridden by inline styles */
@@ -611,8 +655,9 @@ const Mailing = ({
           
           @media print {
             body {
-              width: 210mm;
-              height: 297mm;
+              width: 215.9mm;
+              height: 279.4mm;
+              font-family: "Arial", sans-serif;
             }
             .renewal-page {
               margin: 0;
@@ -713,6 +758,13 @@ const Mailing = ({
                   : ""
               }
             </div>
+            
+            <!-- Add greeting line -->
+            <div class="greeting" style="position: absolute; left: ${thankYouLeftMargin}px; top: ${thankYouTopMargin + thankYouGreetingTopSpacing}px; width: 80%;">
+              <p style="font-size: ${thankYouFontSize}px; padding-left: ${dataHorizontalSpacing}px; padding-right: ${dataHorizontalSpacing}px;">
+                Dear ${subscriber.title ? `${subscriber.title} ` : ""}${subscriber.fname ? `${subscriber.fname} ` : ""}${subscriber.lname || ""}
+              </p>
+            </div>
           </div>
         `;
       })
@@ -726,11 +778,11 @@ const Mailing = ({
     })</title>
         <style>
           @page {
-            size: A4;
+            size: letter; /* US Letter (8.5in × 11in) */
             margin: 0;
           }
           body {
-            font-family: Arial, sans-serif;
+            font-family: "Arial", sans-serif;
             margin: 0;
             padding: 0;
           }
@@ -738,8 +790,8 @@ const Mailing = ({
             box-sizing: border-box;
             page-break-after: always;
             position: relative;
-            width: 210mm;
-            height: 297mm;
+            width: 215.9mm; /* Letter width (8.5 inches) */
+            height: 279.4mm; /* Letter height (11 inches) */
             overflow: hidden;
             padding: 0.5in;
           }
@@ -751,7 +803,7 @@ const Mailing = ({
             width: ${thankYouWidth}px;
             word-wrap: break-word;
             white-space: normal;
-            overflow-wrap: break-word;
+            overflowWrap: break-word;
           }
           
           .address-container p {
@@ -771,9 +823,10 @@ const Mailing = ({
           
           @media print {
             body {
-              width: 210mm;
-              height: 297mm;
+              width: 215.9mm;
+              height: 279.4mm;
               margin: ${thankYouTopMargin}px 0 0 ${thankYouLeftMargin}px !important;
+              font-family: "Arial", sans-serif;
             }
             .thankyou-page {
               margin: 0;
@@ -916,6 +969,7 @@ const Mailing = ({
         addressContactSpacing,
         rightColumnItemSpacing,
         lineSpacing,
+        greetingTopSpacing,
 
         // Thank you letter settings
         thankYouFontSize,
@@ -926,6 +980,7 @@ const Mailing = ({
         thankYouDateSpacing,
         thankYouGreetingSpacing,
         thankYouContentSpacing,
+        thankYouGreetingTopSpacing,
       };
 
       const newTemplate = {
@@ -1034,8 +1089,6 @@ const Mailing = ({
 
       // Also update renewal notice settings if they exist in the template
       if (selected.layout.renewalFontSize)
-      // Also update renewal notice settings if they exist in the template
-      if (selected.layout.renewalFontSize)
         setRenewalFontSize(selected.layout.renewalFontSize);
       if (selected.layout.renewalLeftMargin)
         setRenewalLeftMargin(selected.layout.renewalLeftMargin);
@@ -1057,6 +1110,8 @@ const Mailing = ({
         setRightColumnItemSpacing(selected.layout.rightColumnItemSpacing);
       if (selected.layout.lineSpacing)
         setLineSpacing(selected.layout.lineSpacing);
+      if (selected.layout.greetingTopSpacing)
+        setGreetingTopSpacing(selected.layout.greetingTopSpacing);
 
       // Update thank you letter settings if they exist in the template
       if (selected.layout.thankYouFontSize)
@@ -1075,6 +1130,8 @@ const Mailing = ({
         setThankYouGreetingSpacing(selected.layout.thankYouGreetingSpacing);
       if (selected.layout.thankYouContentSpacing)
         setThankYouContentSpacing(selected.layout.thankYouContentSpacing);
+      if (selected.layout.thankYouGreetingTopSpacing)
+        setThankYouGreetingTopSpacing(selected.layout.thankYouGreetingTopSpacing);
     }
     setSelectedTemplate(selected);
   };
@@ -2357,7 +2414,7 @@ const Mailing = ({
                             value={dataVerticalSpacing}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                              setDataVerticalSpacing(parseInt(e.target.value, 10) || 4)
+                              setDataVerticalSpacing(parseInt(e.target.value, 10) || 1)
                           }
                         />
                           <p className="text-xs text-gray-500 mt-1">Space between lines of data</p>
@@ -2466,7 +2523,7 @@ const Mailing = ({
                             value={fixedLabelWidth}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                              setFixedLabelWidth(Math.max(96, parseInt(e.target.value, 10) || 192))
+                              setFixedLabelWidth(Math.max(96, parseInt(e.target.value, 10) || 408))
                           }
                         />
                           <p className="text-xs text-gray-500 mt-1">Physical width of each label (≈ {(fixedLabelWidth/96).toFixed(2)} inches)</p>
@@ -2481,7 +2538,7 @@ const Mailing = ({
                             value={fixedLabelHeight}
                           className="border border-gray-300 rounded p-1 text-center w-full"
                           onChange={(e) =>
-                              setFixedLabelHeight(Math.max(72, parseInt(e.target.value, 10) || 96))
+                              setFixedLabelHeight(Math.max(72, parseInt(e.target.value, 10) || 336))
                             }
                           />
                           <p className="text-xs text-gray-500 mt-1">Physical height of each label (≈ {(fixedLabelHeight/96).toFixed(2)} inches)</p>
@@ -2521,13 +2578,256 @@ const Mailing = ({
                     </div>
                   </div>
                 </>
+              ) : previewType === "renewal" ? (
+                // Renewal Notice Settings - Added proper configuration UI
+                <>
+                  <div className="w-full">
+                    <div className="bg-blue-50 p-2 rounded mb-3 text-xs text-blue-700">
+                      These settings control how renewal notices appear on letter size paper (8.5" × 11"). 
+                      Each subscriber will get their own page with two columns.
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                      <div className="col-span-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Page Layout Settings
+                        </h4>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Font Size:
+                        </label>
+                        <input
+                          type="number"
+                          value={renewalFontSize}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRenewalFontSize(
+                              parseInt(e.target.value, 10) || 14
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Left Margin (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={renewalLeftMargin}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRenewalLeftMargin(
+                              parseInt(e.target.value, 10) || 40
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Top Margin (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={renewalTopMargin}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRenewalTopMargin(
+                              parseInt(e.target.value, 10) || 40
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Right Column Position (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={renewalRightColumnPosition}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRenewalRightColumnPosition(
+                              parseInt(e.target.value, 10) || 400
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Distance from left edge where right column starts</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                      <div className="col-span-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Left Column Spacing
+                        </h4>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Name-Address Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={nameAddressSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setNameAddressSpacing(
+                              parseInt(e.target.value, 10) || 1
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space between name and address</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Address-Contact Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={addressContactSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setAddressContactSpacing(
+                              parseInt(e.target.value, 10) || 1
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space between address and contact info</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Left Column Line Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={leftColumnLineSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setLeftColumnLineSpacing(
+                              parseInt(e.target.value, 10) || 8
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space at bottom of contact info</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                      <div className="col-span-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Right Column Spacing
+                        </h4>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Item Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={rightColumnItemSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRightColumnItemSpacing(
+                              parseInt(e.target.value, 10) || 16
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space between items in right column</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Line Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          value={rightColumnLineSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setRightColumnLineSpacing(
+                              parseInt(e.target.value, 10) || 12
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Bottom space after last item</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Horizontal Text Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={dataHorizontalSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setDataHorizontalSpacing(
+                              parseInt(e.target.value, 10) || 0
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Left/right padding for text</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                      <div className="col-span-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Greeting Settings
+                        </h4>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Greeting Top Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={greetingTopSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setGreetingTopSpacing(
+                              parseInt(e.target.value, 10) || 80
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space above the "Dear" greeting</p>
+                      </div>
+                    </div>
+
+                    {/* Field Selection for Renewal Notice */}
+                    <div className="mb-3 w-full bg-gray-50 p-3 rounded mt-3">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                        Content Options
+                      </h4>
+                      <div className="flex flex-wrap gap-4 justify-start">
+                        {fields.map((field) => (
+                          <div
+                            key={field.value}
+                            className="flex items-center gap-1 text-black text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              id={`field-renewal-${field.value}`}
+                              checked={selectedFields.includes(field.value)}
+                              onChange={() => handleFieldChange(field.value)}
+                              className="text-blue-600 border-gray-300 h-4 w-4"
+                            />
+                            <label htmlFor={`field-renewal-${field.value}`}>
+                              {field.label}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
               ) : (
                 // Thank You Letter Settings - Improved organization
                 <>
                   <div className="w-full">
                     <div className="bg-blue-50 p-2 rounded mb-3 text-xs text-blue-700">
-                      These settings control how thank you letters appear on A4
-                      paper. Each subscriber will get their own page.
+                      These settings control how thank you letters appear on letter size paper (8.5" × 11").
+                      Each subscriber will get their own page.
                     </div>
 
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
@@ -2612,9 +2912,52 @@ const Mailing = ({
                         />
                       </div>
                     </div>
+                    
+                    {/* Greeting Settings for Thank You Letter - added from renewal */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
+                      <div className="col-span-2 mb-1">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          Greeting Settings
+                        </h4>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Greeting Top Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={thankYouGreetingTopSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setThankYouGreetingTopSpacing(
+                              parseInt(e.target.value, 10) || 165
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Space above the "Dear" greeting</p>
+                      </div>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">
+                          Horizontal Text Spacing (px):
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={dataHorizontalSpacing}
+                          className="border border-gray-300 rounded p-1 text-center w-full"
+                          onChange={(e) =>
+                            setDataHorizontalSpacing(
+                              parseInt(e.target.value, 10) || 0
+                            )
+                          }
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Left/right padding for text</p>
+                      </div>
+                    </div>
 
                     {/* Field Selection for Thank You Letter */}
-                      <div className="mb-3 w-full bg-gray-50 p-3 rounded mt-3">
+                    <div className="mb-3 w-full bg-gray-50 p-3 rounded mt-3">
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">
                         Content Options
                       </h4>
@@ -2656,7 +2999,8 @@ const Mailing = ({
                   padding: "20px",
                   width: "100%",
                   boxSizing: "border-box",
-                  position: "relative"
+                  position: "relative",
+                  fontFamily: "Arial, sans-serif"
                 }}
               >
                 {/* Measurement indicators */}
@@ -2696,7 +3040,8 @@ const Mailing = ({
                     height: "380px",
                     boxSizing: "border-box",
                     overflow: "hidden",
-                    backgroundColor: "#fff"
+                    backgroundColor: "#fff",
+                    fontFamily: "Arial, sans-serif"
                   }}
                 >
                   {/* Left perforation marks */}
@@ -2808,7 +3153,7 @@ const Mailing = ({
                                   <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
                                     {selectedRows[leftLabelIndex - labelsToSkip]?.original?.id || ""} - {selectedRows[leftLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.subsdate ? new Date(selectedRows[leftLabelIndex - labelsToSkip].original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - {selectedRows[leftLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.copies || ""}cps/{selectedRows[leftLabelIndex - labelsToSkip]?.original?.acode || ""}
                                   </div>
-                                  <div style={{ fontSize: `${fontSize}px`, fontWeight: "bold", marginBottom: `${dataVerticalSpacing}px` }}>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
                                     {getFullName(selectedRows[leftLabelIndex - labelsToSkip]?.original || {})}
                                   </div>
                                   <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
@@ -2884,7 +3229,7 @@ const Mailing = ({
                                   <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
                                     {selectedRows[rightLabelIndex - labelsToSkip]?.original?.id || ""} - {selectedRows[rightLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.subsdate ? new Date(selectedRows[rightLabelIndex - labelsToSkip].original.wmmData.records[0].subsdate).toLocaleDateString() : ""} - {selectedRows[rightLabelIndex - labelsToSkip]?.original?.wmmData?.records?.[0]?.copies || ""}cps/{selectedRows[rightLabelIndex - labelsToSkip]?.original?.acode || ""}
                                   </div>
-                                  <div style={{ fontSize: `${fontSize}px`, fontWeight: "bold", marginBottom: `${dataVerticalSpacing}px` }}>
+                                  <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
                                     {getFullName(selectedRows[rightLabelIndex - labelsToSkip]?.original || {})}
                                   </div>
                                   <div style={{ fontSize: `${fontSize}px`, marginBottom: `${dataVerticalSpacing}px` }}>
@@ -2936,24 +3281,27 @@ const Mailing = ({
                 </div>
               </div>
             ) : previewType === "renewal" ? (
-              // A4 Renewal Notice Preview remains the same
-              <div
-                className="renewal-preview border border-dashed border-gray-300 relative bg-white mx-auto"
-                style={{
-                  width: "215.9mm",
-                  height: "279.4mm",
-                  padding: "0.5in",
-                  maxWidth: "650px",
-                  maxHeight: "900px",
-                  transform: "scale(0.55)",
-                  transformOrigin: "top center",
-                  overflow: "hidden",
-                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                  margin: "0 auto",
-                }}
-              >
-                {selectedRows.length > 0 ? (
-                  <>
+              // Renewal Letter Preview with constrained height container
+              <div className="preview-container" style={{ height: "400px", overflow: "hidden", position: "relative", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+                <div
+                  className="renewal-preview border border-dashed border-gray-300 relative bg-white mx-auto"
+                  style={{
+                    width: "215.9mm", // Letter width (8.5 inches)
+                    height: "279.4mm", // Letter height (11 inches)
+                    padding: "0",
+                    maxWidth: "none",
+                    maxHeight: "none",
+                    transform: "scale(0.35)",
+                    transformOrigin: "top center",
+                    overflow: "hidden",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    margin: "0 auto",
+                    display: "block",
+                    fontFamily: "Arial, sans-serif"
+                  }}
+                >
+                  {selectedRows.length > 0 ? (
+                    <div style={{ padding: "0.5in", width: "100%", height: "100%", position: "relative" }}>
                     {/* Left column */}
                     <div
                       style={{
@@ -2969,7 +3317,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${nameAddressSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                         }}
                       >
                         {getFullName(selectedRows[0]?.original || {})}
@@ -2978,7 +3326,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${addressContactSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                           whiteSpace: "pre-line",
                         }}
                       >
@@ -2988,7 +3336,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${leftColumnLineSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                         }}
                       >
                         {getContactNumber(selectedRows[0]?.original || {})}
@@ -3002,7 +3350,7 @@ const Mailing = ({
                         left: `${renewalRightColumnPosition}px`,
                         top: `${renewalTopMargin}px`,
                         width: `${
-                          210 * 3.78 - renewalRightColumnPosition - 40
+                          215.9 * 3.78 - renewalRightColumnPosition - 40
                         }px`,
                       }}
                     >
@@ -3010,7 +3358,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${rightColumnItemSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                         }}
                       >
                         {selectedRows[0]?.original?.id || ""}
@@ -3019,7 +3367,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${rightColumnItemSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                         }}
                       >
                         {selectedRows[0]?.original?.wmmData?.records?.[0]
@@ -3033,7 +3381,7 @@ const Mailing = ({
                         style={{
                           fontSize: `${renewalFontSize}px`,
                           margin: `0 0 ${rightColumnLineSpacing}px 0`,
-                          padding: 0,
+                          padding: `0 ${dataHorizontalSpacing}px`,
                         }}
                       >
                         {selectedRows[0]?.original?.wmmData?.records?.[0]
@@ -3051,129 +3399,174 @@ const Mailing = ({
                           : "N/A"}
                       </p>
                     </div>
-                  </>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      height: "100%",
-                    }}
-                  >
-                    <p className="text-gray-500">Select a row to preview renewal notice</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Thank You Letter Preview
-              <div
-                className="thankyou-preview border border-dashed border-gray-300 relative bg-white mx-auto"
-                style={{
-                  width: "215.9mm",
-                  height: "279.4mm",
-                  padding: "0.5in",
-                  maxWidth: "650px",
-                  maxHeight: "900px",
-                  transform: "scale(0.55)",
-                  transformOrigin: "top center",
-                  overflow: "hidden",
-                  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                  margin: "0 auto",
-                }}
-              >
-                {selectedRows.length > 0 ? (
-                  <div
-                    className="address-container"
-                    style={{
-                      position: "absolute",
-                      left: `${thankYouLeftMargin}px`,
-                      top: `${thankYouTopMargin}px`,
-                      width: `${thankYouWidth}px`,
-                      wordWrap: "break-word",
-                      whiteSpace: "normal",
-                      overflowWrap: "break-word",
-                    }}
-                  >
-                    <p
+                    
+                    {/* Greeting Line at Bottom */}
+                    <div
                       style={{
-                        margin: `0 0 ${thankYouLineSpacing}px 0`,
-                        padding: 0,
-                        fontSize: `${thankYouFontSize}px`,
-                        width: `${thankYouWidth}px`,
-                        wordWrap: "break-word",
-                        whiteSpace: "normal",
-                        overflowWrap: "break-word",
+                        position: "absolute",
+                        left: `${renewalLeftMargin}px`,
+                        top: `${renewalTopMargin + greetingTopSpacing}px`,
+                        width: "80%",
                       }}
                     >
-                      {selectedRows[0]?.original?.id || ""} -
-                      {selectedRows[0]?.original?.wmmData?.records?.[0]
-                        ?.subsdate
-                        ? new Date(
-                            selectedRows[0].original.wmmData.records[0].subsdate
-                          ).toLocaleDateString()
-                        : "N/A"}{" "}
-                      -
-                      {selectedRows[0]?.original?.wmmData?.records?.[0]
-                        ?.copies || "N/A"}
-                      cps/
-                      {selectedRows[0]?.original?.acode || ""}
-                    </p>
-
-                    <p
-                      style={{
-                        margin: `0 0 ${thankYouLineSpacing}px 0`,
-                        padding: 0,
-                        fontSize: `${thankYouFontSize}px`,
-                        width: `${thankYouWidth}px`,
-                        wordWrap: "break-word",
-                        whiteSpace: "normal",
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {getFullName(selectedRows[0]?.original || {})}
-                    </p>
-                    <p
-                      style={{
-                        margin: `0 0 ${thankYouLineSpacing}px 0`,
-                        padding: 0,
-                        fontSize: `${thankYouFontSize}px`,
-                        width: `${thankYouWidth}px`,
-                        wordWrap: "break-word",
-                        whiteSpace: "normal",
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {selectedRows[0]?.original?.address || ""}
-                    </p>
-                    {selectedFields.includes("contactnos") && (
                       <p
                         style={{
-                          margin: `0 0 ${thankYouLineSpacing}px 0`,
-                          padding: 0,
-                          fontSize: `${thankYouFontSize}px`,
+                          fontSize: `${renewalFontSize}px`,
+                          padding: `0 ${dataHorizontalSpacing}px`,
+                        }}
+                      >
+                        Dear {selectedRows[0]?.original?.title ? `${selectedRows[0].original.title} ` : ""}{selectedRows[0]?.original?.fname ? `${selectedRows[0].original.fname} ` : ""}{selectedRows[0]?.original?.lname || ""}
+                      </p>
+                    </div>
+                  </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: "100%",
+                      }}
+                    >
+                      <p className="text-gray-500">Select a row to preview renewal notice</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              // Thank You Letter Preview with constrained height container
+              <div className="preview-container" style={{ height: "400px", overflow: "hidden", position: "relative", display: "flex", justifyContent: "center", alignItems: "flex-start" }}>
+                <div
+                  className="thankyou-preview border border-dashed border-gray-300 relative bg-white mx-auto"
+                  style={{
+                    width: "215.9mm", // Letter width (8.5 inches)
+                    height: "279.4mm", // Letter height (11 inches)
+                    padding: "0",
+                    maxWidth: "none",
+                    maxHeight: "none",
+                    transform: "scale(0.35)",
+                    transformOrigin: "top center",
+                    overflow: "hidden",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    margin: "0 auto",
+                    display: "block",
+                    fontFamily: "Arial, sans-serif"
+                  }}
+                >
+                  {selectedRows.length > 0 ? (
+                    <div style={{ padding: "0.5in", width: "100%", height: "100%", position: "relative" }}>
+                      <div
+                        className="address-container"
+                        style={{
+                          position: "absolute",
+                          left: `${thankYouLeftMargin}px`,
+                          top: `${thankYouTopMargin}px`,
                           width: `${thankYouWidth}px`,
                           wordWrap: "break-word",
                           whiteSpace: "normal",
                           overflowWrap: "break-word",
                         }}
                       >
-                        {getContactNumber(selectedRows[0]?.original || {})}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      height: "100%",
-                    }}
-                  >
-                    <p className="text-gray-500">Select a row to preview thank you letter</p>
-                  </div>
-                )}
+                        <p
+                          style={{
+                            margin: `0 0 ${thankYouLineSpacing}px 0`,
+                            padding: `0 ${dataHorizontalSpacing}px`,
+                            fontSize: `${thankYouFontSize}px`,
+                            width: `${thankYouWidth}px`,
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            overflowWrap: "break-word",
+                          }}
+                        >
+                          {selectedRows[0]?.original?.id || ""} -
+                          {selectedRows[0]?.original?.wmmData?.records?.[0]
+                            ?.subsdate
+                            ? new Date(
+                                selectedRows[0].original.wmmData.records[0].subsdate
+                              ).toLocaleDateString()
+                            : "N/A"}{" "}
+                          -
+                          {selectedRows[0]?.original?.wmmData?.records?.[0]
+                            ?.copies || "N/A"}
+                          cps/
+                          {selectedRows[0]?.original?.acode || ""}
+                        </p>
+
+                        <p
+                          style={{
+                            margin: `0 0 ${thankYouLineSpacing}px 0`,
+                            padding: `0 ${dataHorizontalSpacing}px`,
+                            fontSize: `${thankYouFontSize}px`,
+                            width: `${thankYouWidth}px`,
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            overflowWrap: "break-word",
+                          }}
+                        >
+                          {getFullName(selectedRows[0]?.original || {})}
+                        </p>
+                        <p
+                          style={{
+                            margin: `0 0 ${thankYouLineSpacing}px 0`,
+                            padding: `0 ${dataHorizontalSpacing}px`,
+                            fontSize: `${thankYouFontSize}px`,
+                            width: `${thankYouWidth}px`,
+                            wordWrap: "break-word",
+                            whiteSpace: "normal",
+                            overflowWrap: "break-word",
+                          }}
+                        >
+                          {selectedRows[0]?.original?.address || ""}
+                        </p>
+                        {selectedFields.includes("contactnos") && (
+                          <p
+                            style={{
+                              margin: `0 0 ${thankYouLineSpacing}px 0`,
+                              padding: `0 ${dataHorizontalSpacing}px`,
+                              fontSize: `${thankYouFontSize}px`,
+                              width: `${thankYouWidth}px`,
+                              wordWrap: "break-word",
+                              whiteSpace: "normal",
+                              overflowWrap: "break-word",
+                            }}
+                          >
+                            {getContactNumber(selectedRows[0]?.original || {})}
+                          </p>
+                        )}
+                      </div>
+                      
+                      {/* Add greeting to preview */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: `${thankYouLeftMargin}px`,
+                          top: `${thankYouTopMargin + thankYouGreetingTopSpacing}px`,
+                          width: "80%",
+                        }}
+                      >
+                        <p
+                          style={{
+                            fontSize: `${thankYouFontSize}px`,
+                            padding: `0 ${dataHorizontalSpacing}px`,
+                          }}
+                        >
+                          Dear {selectedRows[0]?.original?.title ? `${selectedRows[0].original.title} ` : ""}{selectedRows[0]?.original?.fname ? `${selectedRows[0].original.fname} ` : ""}{selectedRows[0]?.original?.lname || ""}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        height: "100%",
+                      }}
+                    >
+                      <p className="text-gray-500">Select a row to preview thank you letter</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
