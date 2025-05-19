@@ -65,70 +65,150 @@ function generateCacheKey(filter, page, limit, group, advancedFilterData) {
 
 // Add parseDate function at the top of the file after imports
 // Helper function to parse date strings in various formats
-const parseDate = (dateStr) => {
-  if (!dateStr) return null;
-
-  // Try to handle various date formats
-  let date;
-
-  // Handle MM/DD/YYYY format
-  if (typeof dateStr === "string" && dateStr.includes("/")) {
-    const parts = dateStr.split("/");
+const parseDate = (dateString) => {
+  if (!dateString) return null;
+    
+  try {
+    // Handle "MM/DD/YYYY" format (common in US format)
+    if (typeof dateString === 'string' && dateString.includes('/')) {
+      const parts = dateString.split('/');
     if (parts.length === 3) {
-      const month = parseInt(parts[0]) - 1;
-      const day = parseInt(parts[1]);
-      let year = parseInt(parts[2]);
-      date = new Date(year, month, day);
-      date.setHours(0, 0, 0, 0);
+        const month = parseInt(parts[0], 10) - 1; // JS months are 0-indexed
+        const day = parseInt(parts[1], 10);
+        let year = parseInt(parts[2], 10);
+        
+        // Handle 2-digit years
+        if (year < 100) {
+          year = year < 50 ? 2000 + year : 1900 + year;
+        }
+        
+        // Create date using UTC to avoid timezone issues
+        // This ensures the date components remain the same regardless of local timezone
+        const date = new Date(Date.UTC(year, month, day));
+        
+        // Log the parsed components and result for debugging
+        console.log(`Parsed MM/DD/YYYY: Month=${month+1}, Day=${day}, Year=${year} => ${date.toISOString().split('T')[0]}`);
+        
+        // Validation check - make sure the date is valid
+        // Use getUTC methods to match our UTC date creation
+        if (
+          date.getUTCFullYear() === year &&
+          date.getUTCMonth() === month &&
+          date.getUTCDate() === day
+        ) {
       return date;
+        } else {
+          console.log(`Invalid date components detected: ${dateString}`);
+        }
+      }
     }
-  }
-
-  // Handle YYYY-MM-DD format
-  if (typeof dateStr === "string" && dateStr.includes("-")) {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      const year = parseInt(parts[0]);
-      const month = parseInt(parts[1]) - 1;
-      const day = parseInt(parts[2]);
-      date = new Date(year, month, day);
-      date.setHours(0, 0, 0, 0);
-      return date;
-    }
-  }
-
-  // Try standard date parsing as fallback
-  date = new Date(dateStr);
+    
+    // Try as standard ISO date if not MM/DD/YYYY
+    // Use UTC date creation for consistency
+    const date = new Date(dateString);
+    
+    // For ISO string dates, set the time to noon UTC to avoid any potential
+    // timezone issues shifting the date to the previous or next day
   if (!isNaN(date.getTime())) {
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }
-
+      // Extract year, month, day from the parsed date
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const day = date.getDate();
+      
+      // Create a new UTC date at noon to ensure it's the same date in all timezones
+      const utcDate = new Date(Date.UTC(year, month, day, 12, 0, 0));
+      
+      console.log(`Parsed as standard date: ${utcDate.toISOString().split('T')[0]}`);
+      return utcDate;
+    }
+    
+    console.log(`Failed to parse date: ${dateString}`);
   return null;
+  } catch (error) {
+    console.error(`Error parsing date ${dateString}:`, error);
+    return null;
+  }
 };
 
 // Add this helper function at the top of the file after imports
 const getTargetServiceFromFilter = (advancedFilterData) => {
-  // If we have WMM-specific date filters, it's definitely WMM
-  if (advancedFilterData.wmmStartEndDate || advancedFilterData.wmmEndEndDate) {
-    return 'WMM';
-  }
-
-  // Check services array
-  if (advancedFilterData.services && Array.isArray(advancedFilterData.services)) {
-    const services = advancedFilterData.services.map(s => s.toUpperCase());
+  // Define known service types (in order of priority)
+  const KNOWN_SERVICES = ['HRG', 'FOM', 'CAL', 'WMM'];
+  
+  // Helper to safely convert any value to an array of uppercase service strings
+  const normalizeServiceArray = (value) => {
+    if (!value) return [];
     
-    // If only one service is selected, return that
-    if (services.length === 1) {
-      return services[0];
+    // Handle string (single service or comma-separated)
+    if (typeof value === 'string') {
+      return value.split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(s => KNOWN_SERVICES.includes(s));
     }
     
-    // If multiple services but includes WMM, prioritize WMM
-    if (services.includes('WMM')) {
-      return 'WMM';
+    // Handle array
+    if (Array.isArray(value)) {
+      return value
+        .filter(s => s) // Filter out falsy values
+        .map(s => typeof s === 'string' ? s.trim().toUpperCase() : String(s).toUpperCase())
+        .filter(s => KNOWN_SERVICES.includes(s));
+    }
+    
+    return [];
+  };
+  
+  // Helper to convert string boolean to actual boolean
+  const normalizeBooleanValue = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return !!value;
+  };
+
+  // Extract and normalize all relevant filter data
+  const exactServices = normalizeServiceArray(advancedFilterData.exactServices);
+  const services = normalizeServiceArray(advancedFilterData.services);
+  const serviceMatchExcludeWMM = normalizeBooleanValue(advancedFilterData.serviceMatchExcludeWMM);
+  const hasDateRange = !!(advancedFilterData.startDate || advancedFilterData.endDate);
+  
+  // Log processed data for debugging
+  console.log("Service filter data (processed):", {
+    exactServices,
+    services,
+    serviceMatchExcludeWMM,
+    rawServices: advancedFilterData.services,
+    hasDateRange,
+    startDate: advancedFilterData.startDate,
+    endDate: advancedFilterData.endDate
+  });
+
+  // For service selection, check services in priority order
+  // First check in exactServices (from frontend)
+  if (exactServices.length > 0) {
+    for (const service of KNOWN_SERVICES) {
+      if (exactServices.includes(service)) {
+        console.log(`Using service ${service} from exactServices for data filtering`);
+        return service;
+      }
     }
   }
   
+  // Then check in regular services
+  if (services.length > 0) {
+    for (const service of KNOWN_SERVICES) {
+      if (services.includes(service)) {
+        console.log(`Using service ${service} from services for data filtering`);
+        return service;
+      }
+    }
+  }
+  
+  // Default to HRG if we have date range but no specific service
+  if (hasDateRange) {
+    console.log("Using default service (HRG) for date range filter");
+    return 'HRG';
+  }
+  
+  // No specific service identified
   return null;
 };
 
@@ -645,6 +725,9 @@ async function fetchDataServices(
 
           if (validClientIds.length > 0) {
             baseFilter.push({ id: { $in: validClientIds } });
+          } else {
+            // If no matching payment refs were found, ensure no results are returned
+            baseFilter.push({ id: -1 }); // No client will have ID -1
           }
         } else {
           // If no matching payment refs were found, ensure no results are returned
@@ -816,21 +899,22 @@ async function fetchDataServices(
       try {
         // Determine which service we're targeting
         const targetService = getTargetServiceFromFilter(advancedFilterData);
+        console.log(`Target service for date filtering: ${targetService || 'none'}`);
         
-        // Get the appropriate date range based on service type
-        let startDate, endDate;
-        if (targetService === 'WMM' && advancedFilterData.wmmStartEndDate) {
-          startDate = parseDate(advancedFilterData.wmmStartEndDate);
-          endDate = parseDate(advancedFilterData.wmmEndEndDate);
-        } else {
-          startDate = advancedFilterData.startDate ? parseDate(advancedFilterData.startDate) : null;
-          endDate = advancedFilterData.endDate ? parseDate(advancedFilterData.endDate) : null;
-        }
+        // Get the appropriate date range - use the general date range for all services
+        let startDate = advancedFilterData.startDate ? parseDate(advancedFilterData.startDate) : null;
+        let endDate = advancedFilterData.endDate ? parseDate(advancedFilterData.endDate) : null;
 
         // Set end date to end of day for inclusive comparison
         if (endDate) {
           endDate.setHours(23, 59, 59, 999);
         }
+
+        // Format dates for MongoDB queries - strip time component
+        const startDateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+        const endDateStr = endDate ? endDate.toISOString().split('T')[0] : null;
+        
+        console.log(`Date range to filter: ${startDateStr || 'none'} to ${endDateStr || 'none'}`);
 
         // Import only the needed model based on target service
         let ServiceModel;
@@ -839,7 +923,8 @@ async function fetchDataServices(
         if (targetService === 'WMM') {
           const { default: WmmModel } = await import("../../models/wmm.mjs");
           ServiceModel = WmmModel;
-          dateField = 'enddate'; // For WMM, we use enddate
+          // For WMM, use adddate for filtering when records were added
+          dateField = 'adddate';
         } else if (targetService === 'HRG') {
           const { default: HrgModel } = await import("../../models/hrg.mjs");
           ServiceModel = HrgModel;
@@ -855,122 +940,196 @@ async function fetchDataServices(
         }
 
         if (ServiceModel) {
+          let matchingClientIds = [];
           
           if (targetService === 'WMM') {
-            // First, get all WMM records
-            const allWmmRecords = await ServiceModel.find({}).lean();
+            // Handle WMM with specialized aggregation for date ranges
             
-            // Group subscriptions by client
-            const clientSubscriptions = new Map();
-            allWmmRecords.forEach(record => {
-              const clientId = Number(record.clientid);
-              if (!clientSubscriptions.has(clientId)) {
-                clientSubscriptions.set(clientId, []);
-              }
-              clientSubscriptions.get(clientId).push({
-                ...record,
-                enddate: parseDate(record.enddate),
-                subsdate: parseDate(record.subsdate)
-              });
-            });
-
-            // Track clients to include/exclude
-            const clientsToInclude = new Set();
-            const clientsToExclude = new Set();
-            const debugInfo = new Map();
-
-            // Process each client's subscriptions
-            clientSubscriptions.forEach((subs, clientId) => {
-              // Define these variables for each client
-              let shouldExclude = false;
-              let reason = '';
-
-              // Sort subscriptions by subsdate in ascending order
-              subs.sort((a, b) => {
-                return a.subsdate && b.subsdate ? a.subsdate - b.subsdate : 0;
-              });
-              
-              // Find subscriptions that end in our target range
-              const subsInRange = subs.filter(sub => {
-                return sub.enddate && sub.enddate >= startDate && sub.enddate <= endDate;
-              });
-
-              if (subsInRange.length > 0) {
-                // For each subscription that ends in our target range
-                for (const targetSub of subsInRange) {
-                  // Get all subscriptions that start after this one
-                  const newerSubscriptions = subs.filter(otherSub => 
-                    otherSub.subsdate && targetSub.subsdate && otherSub.subsdate > targetSub.subsdate
-                  );
-
-                  // Check if ANY newer subscription extends beyond our target date
-                  const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
-                    const extendsAfterTargetDate = otherSub.enddate && otherSub.enddate > endDate;
-                    if (extendsAfterTargetDate) {
-                      reason = `Has newer subscription ending ${otherSub.enddate.toISOString().split('T')[0]}`;
-                    }
-                    return extendsAfterTargetDate;
-                  });
-
-                  if (hasExtendedSubscription) {
-                    shouldExclude = true;
-                    clientsToExclude.add(clientId);
-                    break;
+            // Get total count before filtering for comparison
+            const totalCount = await ServiceModel.countDocuments({});
+            console.log(`Total WMM records before filtering: ${totalCount}`);
+            
+            // Convert start and end dates to proper ISO date objects
+            const startISODate = startDateStr ? new Date(startDateStr) : null;
+            const endISODate = endDateStr ? new Date(endDateStr) : null;
+            
+            if (endISODate) {
+              // Set end date to end of day for inclusive comparison
+              endISODate.setHours(23, 59, 59, 999);
+            }
+            
+            console.log(`Date range as ISO objects: ${startISODate ? startISODate.toISOString() : 'none'} to ${endISODate ? endISODate.toISOString() : 'none'}`);
+            
+            // Build the aggregation pipeline based on the provided specification
+            let pipeline = [
+              // Step 1: Match records with non-null adddate
+              {
+                $match: {
+                  adddate: {
+                    $ne: null,
+                    $exists: true
                   }
                 }
-
-                if (!shouldExclude) {
-                  clientsToInclude.add(clientId);
+              },
+              // Step 2: Convert date strings to ISO date objects
+              {
+                $addFields: {
+                  "dateISO": {
+                    $dateFromString: {
+                      dateString: "$adddate",
+                      format: "%m/%d/%Y %H:%M:%S",
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null
+                    }
+                  }
                 }
-
-                // Store debug info
-                debugInfo.set(clientId, {
-                  excluded: shouldExclude,
-                  reason,
-                  subscriptions: subs.map(s => ({
-                    subsdate: s.subsdate ? s.subsdate.toISOString().split('T')[0] : null,
-                    enddate: s.enddate ? s.enddate.toISOString().split('T')[0] : null
-                  }))
-                });
+              },
+              // Step 3: Truncate to day precision
+              {
+                $addFields: {
+                  "dateTruncated": {
+                    $dateTrunc: {
+                      date: "$dateISO",
+                      unit: "day",
+                      timezone: "UTC"
+                    }
+                  }
+                }
               }
-            });
-
-            // Update filter query to only include valid clients
-            if (clientsToInclude.size > 0) {
-              if (filterQuery.$and) {
-                filterQuery.$and.push({ id: { $in: Array.from(clientsToInclude) } });
-              } else {
-                filterQuery.id = { $in: Array.from(clientsToInclude) };
+            ];
+            
+            // Step 4: Add date range filter if dates are provided
+            if (startISODate || endISODate) {
+              const dateMatch = { $match: { dateTruncated: {} } };
+              
+              if (startISODate) {
+                dateMatch.$match.dateTruncated.$gte = startISODate;
               }
-            } else {
-              // If no clients to include, ensure no results are returned
-              filterQuery.id = -1;
+              
+              if (endISODate) {
+                dateMatch.$match.dateTruncated.$lte = endISODate;
+              }
+              
+              pipeline.push(dateMatch);
             }
-
-            // Store the filtered client IDs for reference
-            advancedFilterData.excludedClients = Array.from(clientsToExclude);
-            advancedFilterData.includedClients = Array.from(clientsToInclude);
+            
+            // Steps 5-6: Project and group to get unique client IDs
+            pipeline.push(
+              { $project: { clientid: 1 } },
+              { $group: { _id: "$clientid" } }
+            );
+            
+            console.log(`${targetService} aggregation pipeline:`, JSON.stringify(pipeline, null, 2));
+            
+            // Execute the aggregation
+            const results = await ServiceModel.aggregate(pipeline);
+            matchingClientIds = results.map(r => Number(r._id)).filter(id => !isNaN(id));
+            console.log(`Found ${matchingClientIds.length} clients matching date range for ${targetService}`);
+            
+            // Sample records for verification
+            if (matchingClientIds.length > 0) {
+              const sampleSize = Math.min(5, matchingClientIds.length);
+              const sampleIds = matchingClientIds.slice(0, sampleSize);
+              const sampleRecords = await ServiceModel.find({
+                clientid: { $in: sampleIds.map(id => id.toString()) }
+              }).select('clientid adddate').limit(sampleSize);
+                          }
+            
+            advancedFilterData.includedClients = matchingClientIds;
           } else {
-            // Non-WMM service date filtering (existing code)
-            const dateQuery = {};
-            if (startDate) {
-              dateQuery[dateField] = { $gte: startDate.toISOString().split('T')[0] };
+            // For non-WMM services (HRG, FOM, CAL), use recvdate field but with the same aggregation approach
+            
+            // Get total count before filtering
+            const totalCount = await ServiceModel.countDocuments({});
+
+            // Convert start and end dates to proper ISO date objects
+            const startISODate = startDateStr ? new Date(startDateStr) : null;
+            const endISODate = endDateStr ? new Date(endDateStr) : null;
+            
+            if (endISODate) {
+              // Set end date to end of day for inclusive comparison
+              endISODate.setHours(23, 59, 59, 999);
             }
-            if (endDate) {
-              dateQuery[dateField] = { 
-                ...dateQuery[dateField],
-                $lte: endDate.toISOString().split('T')[0]
-              };
+                        
+            // Build aggregation pipeline for HRG, FOM, CAL
+            let pipeline = [
+              // Step 1: Match records with non-null receiving date
+              {
+                $match: {
+                  [dateField]: {
+                    $ne: null,
+                    $exists: true
+                  }
+                }
+              },
+              // Step 2: Convert date strings to ISO date objects
+              {
+                $addFields: {
+                  "dateISO": {
+                    $dateFromString: {
+                      dateString: `$${dateField}`,
+                      format: "%m/%d/%Y %H:%M:%S",
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null
+                    }
+                  }
+                }
+              },
+              // Step 3: Truncate to day precision
+              {
+                $addFields: {
+                  "dateTruncated": {
+                    $dateTrunc: {
+                      date: "$dateISO",
+                      unit: "day",
+                      timezone: "UTC"
+                    }
+                  }
+                }
+              }
+            ];
+            
+            // Step 4: Add date range filter if dates are provided
+            if (startISODate || endISODate) {
+              const dateMatch = { $match: { dateTruncated: {} } };
+              
+              if (startISODate) {
+                dateMatch.$match.dateTruncated.$gte = startISODate;
+              }
+              
+              if (endISODate) {
+                dateMatch.$match.dateTruncated.$lte = endISODate;
+              }
+              
+              pipeline.push(dateMatch);
             }
-
-            // Find matching clients
-            const matchingRecords = await ServiceModel.find(dateQuery).lean();
-
-            // Extract client IDs
-            const matchingClientIds = [...new Set(matchingRecords.map(record => 
-              Number(record.clientid)).filter(id => !isNaN(id)))];
-
-            // Update filter query
+            
+            // Steps 5-6: Project and group to get unique client IDs
+            pipeline.push(
+              { $project: { clientid: 1 } },
+              { $group: { _id: "$clientid" } }
+            );
+                        
+            // Execute the aggregation
+            const results = await ServiceModel.aggregate(pipeline);
+            matchingClientIds = results.map(r => Number(r._id)).filter(id => !isNaN(id));
+            
+            // Sample records for verification
+            if (matchingClientIds.length > 0) {
+              const sampleSize = Math.min(5, matchingClientIds.length);
+              const sampleIds = matchingClientIds.slice(0, sampleSize);
+              const sampleRecords = await ServiceModel.find({
+                clientid: { $in: sampleIds.map(id => id.toString()) }
+              }).select(`clientid ${dateField}`).limit(sampleSize);
+              
+            }
+            
+            advancedFilterData.includedClients = matchingClientIds;
+          }
+          
+          // Update filter query with client IDs
             if (matchingClientIds.length > 0) {
               if (filterQuery.$and) {
                 filterQuery.$and.push({ id: { $in: matchingClientIds } });
@@ -978,13 +1137,9 @@ async function fetchDataServices(
                 filterQuery.id = { $in: matchingClientIds };
               }
             } else {
+            // If no matching clients, ensure no results are returned
               filterQuery.id = -1;
             }
-
-            advancedFilterData.includedClients = matchingClientIds;
-          }
-        } else if (!targetService) {
-          // ... existing multi-service date filtering logic ...
         }
       } catch (error) {
         console.error('Error in date range filtering:', error);
@@ -1075,13 +1230,13 @@ async function fetchDataServices(
           $and: [
             {
               $lte: [
-                { $dateFromString: { dateString: "$subsdate" } },
+                { $dateFromString: { dateString: "$subsdate", timezone: "UTC" } },
                 new Date(advancedFilterData.wmmEndSubsDate),
               ],
             },
             {
               $gte: [
-                { $dateFromString: { dateString: "$enddate" } },
+                { $dateFromString: { dateString: "$enddate", timezone: "UTC" } },
                 new Date(advancedFilterData.wmmStartSubsDate),
               ],
             },
@@ -1099,13 +1254,13 @@ async function fetchDataServices(
           $and: [
             {
               $gte: [
-                { $dateFromString: { dateString: "$enddate" } },
+                { $dateFromString: { dateString: "$enddate", timezone: "UTC" } },
                 new Date(advancedFilterData.wmmStartEndDate),
               ],
             },
             {
               $lte: [
-                { $dateFromString: { dateString: "$enddate" } },
+                { $dateFromString: { dateString: "$enddate", timezone: "UTC" } },
                 new Date(advancedFilterData.wmmEndEndDate),
               ],
             },
@@ -1136,6 +1291,7 @@ async function fetchDataServices(
               {
                 $dateFromString: {
                   dateString: "$subsdate",
+                  timezone: "UTC",
                   onError: new Date(0),
                 },
               },
@@ -2322,244 +2478,274 @@ async function fetchDataServices(
         }
 
         // For date filtering, we'll use a more sophisticated approach
-        // We'll get all subscriptions for the filtered clients and filter in memory
-        const allSubscriptions = await WmmModel.find(wmmQuery).lean();
+        // utilizing MongoDB aggregation rather than loading all data in memory
+        if (advancedFilterData.wmmStartSubsDate && advancedFilterData.wmmEndSubsDate) {
+          const startDateStr = advancedFilterData.wmmStartSubsDate;
+          const endDateStr = advancedFilterData.wmmEndSubsDate;
 
-        // Filter subscriptions based on date if needed
-        let filteredSubscriptions = allSubscriptions;
-        if (
-          advancedFilterData.wmmStartSubsDate &&
-          advancedFilterData.wmmEndSubsDate
-        ) {
-          const startDate = new Date(advancedFilterData.wmmStartSubsDate);
-          const endDate = new Date(advancedFilterData.wmmEndSubsDate);
-
-          // First, group subscriptions by client
-          const clientSubscriptions = new Map();
-          
-          // Group all subscriptions by client ID and parse dates
-          allSubscriptions.forEach(sub => {
-            try {
-              const clientId = parseInt(sub.clientid);
-              const enddate = new Date(sub.enddate);
-              const subsdate = new Date(sub.subsdate);
-              
-              // Skip invalid dates
-              if (isNaN(enddate.getTime()) || isNaN(subsdate.getTime())) {
-                console.warn(`Invalid date for subscription of client ${clientId}:`, sub);
-                return;
-              }
-
-              if (!clientSubscriptions.has(clientId)) {
-                clientSubscriptions.set(clientId, []);
-              }
-              clientSubscriptions.get(clientId).push({
-                ...sub,
-                enddate,
-                subsdate
-              });
-            } catch (e) {
-              console.error("Error processing subscription:", e, sub);
-            }
-          });
-
-          // Process each client's subscriptions
-          const validClientIds = new Set();
-          const excludedClientIds = new Set();
-          const debugInfo = new Map();
-                    
-          clientSubscriptions.forEach((subs, clientId) => {
-            // Define these variables for each client
-            let shouldExclude = false;
-            let reason = '';
-
-            // Sort subscriptions by subsdate in ascending order
-            subs.sort((a, b) => a.subsdate - b.subsdate);
+          // Create an aggregation pipeline that efficiently handles active subscription filtering
+          const pipeline = [
+            // Match initial filter conditions that were already defined
+            { $match: wmmQuery },
             
-            // Find all subscriptions for this client that end in our target range
-            const subsInRange = subs.filter(sub => {
-              // Check if this subscription ends in our target range
-              const endsInRange = sub.enddate >= startDate && sub.enddate <= endDate;
-              return endsInRange;
-            });
-
-            if (subsInRange.length > 0) {
-              // For each subscription that ends in our target range
-              for (const targetSub of subsInRange) {
-                // Get all subscriptions that start after this one
-                const newerSubscriptions = subs.filter(otherSub => 
-                  otherSub.subsdate && targetSub.subsdate && otherSub.subsdate > targetSub.subsdate
-                );
-
-                // Check if ANY newer subscription extends beyond our target date
-                const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
-                  const extendsAfterTargetDate = otherSub.enddate && otherSub.enddate > endDate;
-                  if (extendsAfterTargetDate) {
-                    reason = `Has newer subscription ending ${otherSub.enddate.toISOString().split('T')[0]}`;
+            // Sort to ensure consistent grouping later
+            { $sort: { clientid: 1, subsdate: -1 } },
+            
+            // Group by clientid to collect all subscriptions for each client
+            {
+              $group: {
+                _id: "$clientid",
+                subscriptions: { 
+                  $push: {
+                    subsdate: "$subsdate",
+                    enddate: "$enddate",
+                    _id: "$_id"
                   }
-                  return extendsAfterTargetDate;
-                });
-
-                // If there's a newer subscription that extends beyond the target date,
-                // we should exclude this client
-                if (hasExtendedSubscription) {
-                  shouldExclude = true;
-                  excludedClientIds.add(clientId);
-                  break;
                 }
               }
-
-              // If we didn't exclude the client above, include it in our results
-              if (!shouldExclude) {
-                validClientIds.add(clientId);
+            },
+            
+            // Add fields to determine if client should be included based on date ranges
+            {
+              $addFields: {
+                // Find subscriptions in the target date range
+                subsInRange: {
+                  $filter: {
+                    input: "$subscriptions",
+                    as: "sub",
+                    cond: {
+                      $and: [
+                        { $ne: ["$$sub.enddate", null] },
+                        { $ne: ["$$sub.subsdate", null] },
+                        { $gte: ["$$sub.enddate", startDateStr] },
+                        { $lte: ["$$sub.enddate", endDateStr] }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            
+            // Only include clients that have subscriptions in the range
+            {
+              $match: {
+                $expr: {
+                  $gt: [{ $size: "$subsInRange" }, 0]
+                }
+              }
+            },
+            
+            // Check for extended subscriptions
+            {
+              $addFields: {
+                hasExtendedSubscription: {
+                  $reduce: {
+                    input: "$subsInRange",
+                    initialValue: false,
+                    in: {
+                      $or: [
+                        "$$value",
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: {
+                                $filter: {
+                                  input: "$subscriptions",
+                                  as: "otherSub",
+                                  cond: {
+                                    $and: [
+                                      { $ne: ["$$otherSub.subsdate", null] },
+                                      { $gt: ["$$otherSub.subsdate", "$$this.subsdate"] },
+                                      { $gt: ["$$otherSub.enddate", endDateStr] }
+                                    ]
+                                  }
+                                }
+                              },
+                              as: "newerSub",
+                              in: true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            
+            // Only keep clients without extended subscriptions
+            {
+              $match: {
+                hasExtendedSubscription: false
+              }
+            },
+            
+            // Project just the client IDs
+            {
+              $project: {
+                _id: 1
               }
             }
-
-            // Store debug info
-            if (subsInRange.length > 0) {
-              debugInfo.set(clientId, {
-                included: !shouldExclude,
-                reason
-              });
-            }
-          });
-
-          // Filter subscriptions to only include valid clients
-          filteredSubscriptions = allSubscriptions.filter(sub => {
-            const clientId = parseInt(sub.clientid);
-            const isValid = validClientIds.has(clientId);
-            return isValid;
-          });
-
-          // Update wmmQuery to only include valid client IDs
-          wmmQuery.clientid = { $in: Array.from(validClientIds).map(id => parseInt(id)) };
-
-          // Store excluded clients in the filter data for frontend use
-          advancedFilterData.excludedClients = Array.from(excludedClientIds);
-          advancedFilterData.includedClients = Array.from(validClientIds);
-
-          // Important: Update the main filter query to use the valid client IDs
+          ];
+          
+          // Execute the aggregation
+          const validClients = await WmmModel.aggregate(pipeline);
+          
+          // Extract the client IDs
+          const validClientIds = validClients.map(c => parseInt(c._id)).filter(id => !isNaN(id));
+          
+          // Update the filter query with these client IDs
+          if (validClientIds.length > 0) {
           if (filterQuery.$and) {
-            filterQuery.$and.push({ id: { $in: Array.from(validClientIds) } });
+              filterQuery.$and.push({ id: { $in: validClientIds } });
           } else {
-            filterQuery.id = { $in: Array.from(validClientIds) };
+              filterQuery.id = { $in: validClientIds };
+            }
+            
+            // Also update the WMM query to match these clients
+            wmmQuery.clientid = { $in: validClientIds };
+          } else {
+            // No matching clients, ensure no results
+            filterQuery.id = -1;
+            wmmQuery.clientid = -1;
           }
+          
+          // Store client IDs for reference
+          advancedFilterData.includedClients = validClientIds;
         }
 
         // Filter subscriptions based on expiry month if needed
-        if (
-          advancedFilterData.wmmStartEndDate &&
-          advancedFilterData.wmmEndEndDate
-        ) {
-          const startDate = new Date(advancedFilterData.wmmStartEndDate);
-          const endDate = new Date(advancedFilterData.wmmEndEndDate);
+        if (advancedFilterData.wmmStartEndDate && advancedFilterData.wmmEndEndDate) {
+          const startDateStr = advancedFilterData.wmmStartEndDate;
+          const endDateStr = advancedFilterData.wmmEndEndDate;
 
-          // First, group subscriptions by client
-          const clientSubscriptions = new Map();
-          
-          // Group all subscriptions by client ID and parse dates
-          allSubscriptions.forEach(sub => {
-            try {
-              const clientId = parseInt(sub.clientid);
-              const enddate = new Date(sub.enddate);
-              const subsdate = new Date(sub.subsdate);
-              
-              if (!clientSubscriptions.has(clientId)) {
-                clientSubscriptions.set(clientId, []);
-              }
-              clientSubscriptions.get(clientId).push({
-                ...sub,
-                enddate,
-                subsdate
-              });
-            } catch (e) {
-              console.error("Error processing subscription:", e, sub);
-            }
-          });
-
-          // Process each client's subscriptions
-          const validClientIds = new Set();
-          const excludedClientIds = new Set();
-          const debugInfo = new Map();
-                    
-          clientSubscriptions.forEach((subs, clientId) => {
-            // Define these variables for each client
-            let shouldExclude = false;
-            let reason = '';
-
-            // Sort subscriptions by subsdate in ascending order
-            subs.sort((a, b) => a.subsdate - b.subsdate);
+          // Create an efficient aggregation pipeline for expiring subscriptions
+          const pipeline = [
+            // Initial match against the query
+            { $match: wmmQuery },
             
-            // Find all subscriptions for this client that end in our target range
-            const subsInRange = subs.filter(sub => {
-              // Check if this subscription ends in our target range
-              const endsInRange = sub.enddate >= startDate && sub.enddate <= endDate;
-              return endsInRange;
-            });
-
-            if (subsInRange.length > 0) {
-              // For each subscription that ends in our target range
-              for (const targetSub of subsInRange) {
-                // Get all subscriptions that start after this one
-                const newerSubscriptions = subs.filter(otherSub => 
-                  otherSub.subsdate > targetSub.subsdate
-                );
-
-                // Check if ANY newer subscription extends beyond our target date
-                const hasExtendedSubscription = newerSubscriptions.some(otherSub => {
-                  const extendsAfterTargetDate = otherSub.enddate > endDate;
-                  if (extendsAfterTargetDate) {
-                    reason = 'EXCLUDED: Has newer subscription extending beyond target date';
-                    return true;
+            // Sort to ensure consistent grouping
+            { $sort: { clientid: 1, subsdate: -1 } },
+            
+            // Group subscriptions by client ID
+            {
+              $group: {
+                _id: "$clientid",
+                subscriptions: { 
+                  $push: {
+                    subsdate: "$subsdate",
+                    enddate: "$enddate",
+                    _id: "$_id"
                   }
-                  return false;
-                });
-
-                // If there's a newer subscription that extends beyond the target date,
-                // we should exclude this client
-                if (hasExtendedSubscription) {
-                  shouldExclude = true;
-                  excludedClientIds.add(clientId);
-                  break;
                 }
               }
-
-              // If we didn't exclude the client above, include it in our results
-              if (!shouldExclude) {
-                validClientIds.add(clientId);
-                reason = 'INCLUDED: No newer subscriptions extending beyond target date';
+            },
+            
+            // Find subscriptions that end in our target range
+            {
+              $addFields: {
+                subsInRange: {
+                  $filter: {
+                    input: "$subscriptions",
+                    as: "sub",
+                    cond: {
+                      $and: [
+                        { $ne: ["$$sub.enddate", null] },
+                        { $gte: ["$$sub.enddate", startDateStr] },
+                        { $lte: ["$$sub.enddate", endDateStr] }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            
+            // Only keep clients with subscriptions in the date range
+            {
+              $match: {
+                $expr: {
+                  $gt: [{ $size: "$subsInRange" }, 0]
+                }
+              }
+            },
+            
+            // Check for extended subscriptions (subscriptions that extend beyond the end date)
+            {
+              $addFields: {
+                hasExtendedSubscription: {
+                  $reduce: {
+                    input: "$subsInRange",
+                    initialValue: false,
+                    in: {
+                      $or: [
+                        "$$value",
+                        {
+                          $anyElementTrue: {
+                            $map: {
+                              input: {
+                                $filter: {
+                                  input: "$subscriptions",
+                                  as: "otherSub",
+                                  cond: {
+                                    $and: [
+                                      { $ne: ["$$otherSub.subsdate", null] },
+                                      { $gt: ["$$otherSub.subsdate", "$$this.subsdate"] },
+                                      { $gt: ["$$otherSub.enddate", endDateStr] }
+                                    ]
+                                  }
+                                }
+                              },
+                              as: "newerSub",
+                              in: true
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            
+            // Only include clients that don't have extended subscriptions
+            {
+              $match: {
+                hasExtendedSubscription: false
+              }
+            },
+            
+            // Project just client IDs for final output
+            {
+              $project: {
+                _id: 1
               }
             }
-
-            // Store debug info
-            if (subsInRange.length > 0) {
-              debugInfo.set(clientId, {
-                included: !shouldExclude,
-                reason
-              });
-            }
-          });
-
-          // Filter subscriptions to only include valid clients
-          filteredSubscriptions = allSubscriptions.filter(sub => {
-            const clientId = parseInt(sub.clientid);
-            const isValid = validClientIds.has(clientId);
-            return isValid;
-          });
-
-          // Update wmmQuery to only include valid client IDs
-          wmmQuery.clientid = { $in: Array.from(validClientIds).map(id => parseInt(id)) };
-
-          // Store excluded clients in the filter data for frontend use
-          advancedFilterData.excludedClients = Array.from(excludedClientIds);
-          advancedFilterData.includedClients = Array.from(validClientIds);
-
-          // Important: Update the main filter query to use the valid client IDs
+          ];
+          
+          // Execute the aggregation
+          const validClients = await WmmModel.aggregate(pipeline);
+          
+          // Extract client IDs
+          const validClientIds = validClients.map(c => parseInt(c._id)).filter(id => !isNaN(id));
+          
+          // Update filter query with validated client IDs
+          if (validClientIds.length > 0) {
           if (filterQuery.$and) {
-            filterQuery.$and.push({ id: { $in: Array.from(validClientIds) } });
+              filterQuery.$and.push({ id: { $in: validClientIds } });
           } else {
-            filterQuery.id = { $in: Array.from(validClientIds) };
+              filterQuery.id = { $in: validClientIds };
+            }
+            
+            // Also update the WMM query
+            wmmQuery.clientid = { $in: validClientIds };
+          } else {
+            // No matching clients, ensure no results
+            filterQuery.id = -1;
+            wmmQuery.clientid = -1;
           }
+          
+          // Store client IDs for reference
+          advancedFilterData.includedClients = validClientIds;
         }
 
         // Get all calendar entries for filtered clients
@@ -2573,6 +2759,10 @@ async function fetchDataServices(
         const clientLatestCalEntries = new Map();
         let clientLatestHrgEntries = new Map();
         let clientLatestFomEntries = new Map();
+
+        // Fetch WMM subscriptions that match our query
+        const allWmmSubscriptions = await WmmModel.find(wmmQuery).lean();
+        let filteredSubscriptions = allWmmSubscriptions;
 
         // Find the most recent WMM subscription for each client
         for (const sub of filteredSubscriptions) {
