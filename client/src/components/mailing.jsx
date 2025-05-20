@@ -13,6 +13,7 @@ import CsvExport from "./Mailing/CsvExport";
 import CsvImport from "./Mailing/CsvImport";
 import MailingActions from "./Mailing/MailingActions";
 import RenewalNoticeDataOverlay from "./Mailing/RenewalNotice";
+import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
 
 // Import utility functions
 import { generatePrintHTML, generateChecklistHTML } from "./Mailing/PrintGenerator";
@@ -127,10 +128,16 @@ const Mailing = ({
 
   // Inside the Mailing component, add state for the renewal notice modal
   const [renewalNoticeModalOpen, setRenewalNoticeModalOpen] = useState(false);
+  // Add state for the thank you letter modal
+  const [thankYouLetterModalOpen, setThankYouLetterModalOpen] = useState(false);
 
   // Renewal notice configuration
   const [renewalNoticeConfig, setRenewalNoticeConfig] = useState(null);
   const renewalNoticeRef = useRef(null);
+  
+  // Thank you letter configuration
+  const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
+  const thankYouLetterRef = useRef(null);
 
   // Get rows from table
   const getAvailableRows = useCallback(() => {
@@ -705,6 +712,39 @@ const Mailing = ({
     }
   };
 
+  // Function to update thank you letter positions from shared config
+  const updateThankYouLetterPositions = (positions) => {
+    setThankYouLetterConfig(prev => ({
+      ...prev,
+      positions: positions
+    }));
+  };
+
+  // Function to sync configurations for thank you letter
+  const syncConfigToThankYouLetter = () => {
+    if (thankYouLetterRef.current) {
+      const currentPositions = thankYouLetterRef.current.getPositions();
+      setThankYouLetterConfig({
+        positions: currentPositions,
+        updatePositions: updateThankYouLetterPositions
+      });
+    }
+  };
+  
+  // Function to preview thank you letter in the mailing modal
+  const previewThankYouLetter = () => {
+    if (thankYouLetterRef.current) {
+      // First sync the config if needed
+      syncConfigToThankYouLetter();
+      
+      // Generate the preview using the component's method
+      thankYouLetterRef.current.generatePreview();
+    } else {
+      // If the ref isn't available, open the modal to create it
+      setThankYouLetterModalOpen(true);
+    }
+  };
+
   if (!table) return null;
 
   return (
@@ -719,13 +759,22 @@ const Mailing = ({
             {isLoading ? 'Loading Templates...' : `Print Mailing Label (${availableRows.length})`}
           </Button>
           
-          {/* Add Renewal Notice Button */}
+          {/* Renewal Notice Button */}
           <Button
             onClick={() => setRenewalNoticeModalOpen(true)}
             className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
             disabled={isLoading}
           >
             <span className="mr-1">🖨️</span> Renewal Notice
+          </Button>
+          
+          {/* Thank You Letter Button */}
+          <Button
+            onClick={() => setThankYouLetterModalOpen(true)}
+            className="text-sm bg-purple-600 hover:bg-purple-700 text-white"
+            disabled={isLoading}
+          >
+            <span className="mr-1">🖨️</span> Thank You Letter
           </Button>
           
           {/* Add CSV Export Component */}
@@ -794,18 +843,18 @@ const Mailing = ({
               />
             )}
 
-            {/* Add Renewal Notice Config Access */}
+            {/* Configuration Panel with Thank You Letter options */}
             {showInputs && (
               <div className="mt-4 border rounded p-3 bg-blue-50">
-                <h4 className="font-medium mb-2">Renewal Notice Integration</h4>
-                <div className="flex gap-2">
+                <h4 className="font-medium mb-2">Form Integration</h4>
+                <div className="flex gap-2 flex-wrap">
                   <Button 
                     onClick={syncConfigToRenewalNotice}
                     variant="outline"
                     size="sm"
                     className="text-xs"
                   >
-                    Sync Configuration
+                    Sync Renewal Notice
                   </Button>
                   <Button 
                     onClick={previewRenewalNotice}
@@ -815,9 +864,25 @@ const Mailing = ({
                   >
                     Preview Renewal Notice
                   </Button>
+                  <Button 
+                    onClick={syncConfigToThankYouLetter}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    Sync Thank You Letter
+                  </Button>
+                  <Button 
+                    onClick={previewThankYouLetter}
+                    variant="outline"
+                    size="sm" 
+                    className="text-xs bg-white"
+                  >
+                    Preview Thank You Letter
+                  </Button>
                 </div>
                 <p className="text-xs mt-2 text-blue-700">
-                  Use these options to configure renewal notices from this interface
+                  Use these options to configure form overlays from this interface
                 </p>
               </div>
             )}
@@ -938,6 +1003,25 @@ const Mailing = ({
             availableRows={availableRows}
             useSharedConfig={!!renewalNoticeConfig}
             sharedConfig={renewalNoticeConfig}
+          />
+        </div>
+      </Modal>
+
+      {/* Thank You Letter Modal */}
+      <Modal isOpen={thankYouLetterModalOpen} onClose={() => setThankYouLetterModalOpen(false)}>
+        <div className="w-full max-w-[1500px]">
+          <h2 className="text-2xl font-bold mb-3 text-center">Thank You Letter Printing</h2>
+          <p className="text-sm text-gray-600 mb-5 text-center max-w-2xl mx-auto border-b pb-4">
+            This tool allows you to print variable data onto pre-printed thank you letter forms.
+            You can adjust positions of all data fields to match your specific form layout.
+          </p>
+          <ThankYouLetterDataOverlay 
+            ref={thankYouLetterRef}
+            startId={startClientId}
+            endId={endClientId}
+            availableRows={availableRows}
+            useSharedConfig={!!thankYouLetterConfig}
+            sharedConfig={thankYouLetterConfig}
           />
         </div>
       </Modal>
