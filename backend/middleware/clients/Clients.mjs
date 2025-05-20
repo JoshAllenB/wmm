@@ -1534,5 +1534,280 @@ router.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
+router.post(
+  "/import-csv",
+  verifyToken,
+  checkRole(["Admin"]),
+  async (req, res) => {
+    try {
+      const { subscribers, updateExisting = true } = req.body;
+      
+      if (!Array.isArray(subscribers) || subscribers.length === 0) {
+        return res.status(400).json({ 
+          error: "Invalid request", 
+          message: "No valid subscriber data provided" 
+        });
+      }
+      
+      // Track results
+      const results = {
+        success: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        errorDetails: []
+      };
+      
+      // Process each subscriber
+      for (let i = 0; i < subscribers.length; i++) {
+        const subscriber = subscribers[i];
+        
+        try {
+          // Check if this is a new subscriber or existing one
+          const existingSubscriber = subscriber.id ? 
+            await ClientModel.findOne({ id: subscriber.id }) : 
+            await ClientModel.findOne({ 
+              lname: subscriber.lname,
+              fname: subscriber.fname,
+              address: { $regex: subscriber.address.split('\n')[0], $options: 'i' }
+            });
+          
+          if (existingSubscriber) {
+            // Skip if we're not updating existing subscribers
+            if (!updateExisting) {
+              results.skipped++;
+              continue;
+            }
+            
+            // Update existing subscriber
+            const subscrId = existingSubscriber.id;
+            
+            // Update main client record
+            await ClientModel.updateOne(
+              { id: subscrId },
+              { $set: {
+                title: subscriber.title || existingSubscriber.title,
+                fname: subscriber.fname || existingSubscriber.fname,
+                mname: subscriber.mname || existingSubscriber.mname,
+                lname: subscriber.lname || existingSubscriber.lname,
+                address: subscriber.address || existingSubscriber.address,
+                cellno: subscriber.cellno || existingSubscriber.cellno,
+                officeno: subscriber.officeno || existingSubscriber.officeno,
+                email: subscriber.email || existingSubscriber.email,
+                acode: subscriber.acode !== undefined ? subscriber.acode : existingSubscriber.acode
+              }}
+            );
+            
+            // Handle service-specific data (WMM)
+            if (subscriber.copies || subscriber.enddate || subscriber.subsdate || subscriber.subsclass) {
+              // Check for existing WMM subscription
+              let wmmSubscription = await WmmModel.findOne({ clientid: subscrId });
+              
+              if (wmmSubscription) {
+                // Update existing WMM subscription
+                await WmmModel.updateOne(
+                  { clientid: subscrId },
+                  { $set: {
+                    copies: subscriber.copies || wmmSubscription.copies,
+                    enddate: subscriber.enddate || wmmSubscription.enddate,
+                    subsdate: subscriber.subsdate || wmmSubscription.subsdate,
+                    subsclass: subscriber.subsclass || wmmSubscription.subsclass
+                  }}
+                );
+              } else {
+                // Create new WMM subscription
+                const newWmmSubscription = new WmmModel({
+                  clientid: subscrId,
+                  copies: subscriber.copies || 1,
+                  enddate: subscriber.enddate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+                  subsdate: subscriber.subsdate || new Date(),
+                  subsclass: subscriber.subsclass || "Regular"
+                });
+                await newWmmSubscription.save();
+              }
+            }
+            
+            // Handle HRG data if present
+            if (subscriber.hrgData) {
+              let hrgSubscription = await HrgModel.findOne({ clientid: subscrId });
+              
+              if (hrgSubscription) {
+                // Update existing
+                await HrgModel.updateOne(
+                  { clientid: subscrId },
+                  { $set: {
+                    quantity: subscriber.hrgData.quantity || hrgSubscription.quantity,
+                    totalAmount: subscriber.hrgData.totalAmount || hrgSubscription.totalAmount,
+                    lastPaymentDate: subscriber.hrgData.lastPaymentDate || hrgSubscription.lastPaymentDate
+                  }}
+                );
+              } else if (subscriber.hrgData.quantity || subscriber.hrgData.totalAmount) {
+                // Create new
+                const newHrg = new HrgModel({
+                  clientid: subscrId,
+                  quantity: subscriber.hrgData.quantity || 1,
+                  totalAmount: subscriber.hrgData.totalAmount || 0,
+                  lastPaymentDate: subscriber.hrgData.lastPaymentDate || new Date()
+                });
+                await newHrg.save();
+              }
+            }
+            
+            // Handle FOM data if present
+            if (subscriber.fomData) {
+              let fomSubscription = await FomModel.findOne({ clientid: subscrId });
+              
+              if (fomSubscription) {
+                // Update existing
+                await FomModel.updateOne(
+                  { clientid: subscrId },
+                  { $set: {
+                    quantity: subscriber.fomData.quantity || fomSubscription.quantity,
+                    totalAmount: subscriber.fomData.totalAmount || fomSubscription.totalAmount,
+                    lastPaymentDate: subscriber.fomData.lastPaymentDate || fomSubscription.lastPaymentDate
+                  }}
+                );
+              } else if (subscriber.fomData.quantity || subscriber.fomData.totalAmount) {
+                // Create new
+                const newFom = new FomModel({
+                  clientid: subscrId,
+                  quantity: subscriber.fomData.quantity || 1,
+                  totalAmount: subscriber.fomData.totalAmount || 0,
+                  lastPaymentDate: subscriber.fomData.lastPaymentDate || new Date()
+                });
+                await newFom.save();
+              }
+            }
+            
+            // Handle CAL data if present
+            if (subscriber.calData) {
+              let calSubscription = await CalModel.findOne({ clientid: subscrId });
+              
+              if (calSubscription) {
+                // Update existing
+                await CalModel.updateOne(
+                  { clientid: subscrId },
+                  { $set: {
+                    quantity: subscriber.calData.quantity || calSubscription.quantity,
+                    totalAmount: subscriber.calData.totalAmount || calSubscription.totalAmount,
+                    lastPaymentDate: subscriber.calData.lastPaymentDate || calSubscription.lastPaymentDate
+                  }}
+                );
+              } else if (subscriber.calData.quantity || subscriber.calData.totalAmount) {
+                // Create new
+                const newCal = new CalModel({
+                  clientid: subscrId,
+                  quantity: subscriber.calData.quantity || 1,
+                  totalAmount: subscriber.calData.totalAmount || 0,
+                  lastPaymentDate: subscriber.calData.lastPaymentDate || new Date()
+                });
+                await newCal.save();
+              }
+            }
+            
+            results.updated++;
+          } else {
+            // Create new subscriber
+            
+            // Get next available ID
+            const lastClient = await ClientModel.findOne().sort({ id: -1 });
+            const nextId = lastClient ? lastClient.id + 1 : 1;
+            
+            // Create client record
+            const newClient = new ClientModel({
+              id: nextId,
+              title: subscriber.title || "",
+              fname: subscriber.fname || "",
+              mname: subscriber.mname || "",
+              lname: subscriber.lname || "",
+              address: subscriber.address || "",
+              cellno: subscriber.cellno || "",
+              officeno: subscriber.officeno || "",
+              email: subscriber.email || "",
+              acode: subscriber.acode !== undefined ? subscriber.acode : ""
+            });
+            
+            await newClient.save();
+            
+            // Create WMM subscription if data provided
+            if (subscriber.copies || subscriber.enddate || subscriber.subsdate || subscriber.subsclass) {
+              const newWmmSubscription = new WmmModel({
+                clientid: nextId,
+                copies: subscriber.copies || 1,
+                enddate: subscriber.enddate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+                subsdate: subscriber.subsdate || new Date(),
+                subsclass: subscriber.subsclass || "Regular"
+              });
+              await newWmmSubscription.save();
+            }
+            
+            // Create HRG subscription if data provided
+            if (subscriber.hrgData && (subscriber.hrgData.quantity || subscriber.hrgData.totalAmount)) {
+              const newHrg = new HrgModel({
+                clientid: nextId,
+                quantity: subscriber.hrgData.quantity || 1,
+                totalAmount: subscriber.hrgData.totalAmount || 0,
+                lastPaymentDate: subscriber.hrgData.lastPaymentDate || new Date()
+              });
+              await newHrg.save();
+            }
+            
+            // Create FOM subscription if data provided
+            if (subscriber.fomData && (subscriber.fomData.quantity || subscriber.fomData.totalAmount)) {
+              const newFom = new FomModel({
+                clientid: nextId,
+                quantity: subscriber.fomData.quantity || 1,
+                totalAmount: subscriber.fomData.totalAmount || 0,
+                lastPaymentDate: subscriber.fomData.lastPaymentDate || new Date()
+              });
+              await newFom.save();
+            }
+            
+            // Create CAL subscription if data provided
+            if (subscriber.calData && (subscriber.calData.quantity || subscriber.calData.totalAmount)) {
+              const newCal = new CalModel({
+                clientid: nextId,
+                quantity: subscriber.calData.quantity || 1,
+                totalAmount: subscriber.calData.totalAmount || 0,
+                lastPaymentDate: subscriber.calData.lastPaymentDate || new Date()
+              });
+              await newCal.save();
+            }
+            
+            results.success++;
+          }
+        } catch (error) {
+          results.errors++;
+          results.errorDetails.push({
+            row: i + 1,
+            message: error.message,
+            subscriber: subscriber.id || `${subscriber.lname}, ${subscriber.fname}`
+          });
+          console.error(`Error processing subscriber at row ${i + 1}:`, error);
+        }
+      }
+      
+      // Broadcast update notification through socket.io if available
+      if (req.io) {
+        req.io.emit("data-update", {
+          type: "subscribers-imported",
+          count: results.success + results.updated
+        });
+      }
+      
+      res.json({
+        ...results,
+        message: `Import complete: ${results.success} added, ${results.updated} updated, ${results.skipped} skipped, ${results.errors} errors`
+      });
+    } catch (error) {
+      console.error("Error in CSV import:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message
+      });
+    }
+  }
+);
+
 export default router;
 
