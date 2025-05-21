@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 import axios from "axios";
+import { useUser } from "../utils/Hooks/userProvider";
 
 // Import components
 import TemplateSelector from "./Mailing/TemplateSelector";
@@ -76,6 +77,28 @@ const Mailing = ({
   officeno,
   copies,
 }) => {
+  const { hasRole } = useUser();
+  
+  // Determine user role
+  const userRole = React.useMemo(() => {
+    const roles = [];
+    
+    // Check for admin first
+    if (hasRole("ADMIN")) {
+      return "ADMIN";
+    }
+    
+    // Add other roles
+    if (hasRole("WMM")) roles.push("WMM");
+    if (hasRole("HRG")) roles.push("HRG");
+    if (hasRole("FOM")) roles.push("FOM");
+    if (hasRole("CAL")) roles.push("CAL");
+    if (hasRole("COMP")) roles.push("COMP");
+    if (hasRole("PROMO")) roles.push("PROMO");
+    
+    return roles.length > 0 ? roles.join(" ") : "";
+  }, [hasRole]);
+
   // State variables
   const [modalOpen, setModalOpen] = useState(false);
   const [leftPosition, setLeftPosition] = useState(10);
@@ -199,17 +222,8 @@ const Mailing = ({
       let legacyTemplates = [];
       
       if (legacyLabelsData && legacyLabelsData.length > 0) {
-        // First try to filter only WMM types
-        const wmmLabels = legacyLabelsData.filter(label => {
-          const isWMM = label && label.type === "WMM";
-          return isWMM;
-        });
-        
-        // If no WMM labels, use all labels
-        const labelsToConvert = wmmLabels.length > 0 ? wmmLabels : legacyLabelsData;
-        
-        // Safely convert each label, skipping any that cause errors
-        legacyTemplates = labelsToConvert
+        // Convert all labels to templates
+        legacyTemplates = legacyLabelsData
           .map(label => {
             try {
               const template = convertLegacyLabelToTemplate(label);
@@ -893,6 +907,7 @@ const Mailing = ({
               savedTemplates={savedTemplates}
               isLoading={isLoading}
               onTemplateSelect={handleTemplateSelect}
+              userRole={userRole}
             />
 
             {/* Range Selector */}

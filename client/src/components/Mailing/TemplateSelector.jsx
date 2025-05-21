@@ -4,8 +4,94 @@ const TemplateSelector = ({
   selectedTemplate, 
   savedTemplates, 
   isLoading, 
-  onTemplateSelect 
+  onTemplateSelect,
+  userRole // Add userRole prop
 }) => {
+  // Function to check if template type matches user role
+  const isTemplateAllowed = (templateType) => {
+    if (!templateType || !userRole) return false;
+    
+    // Convert template type to uppercase for case-insensitive comparison
+    const type = templateType.toUpperCase();
+    
+    // Split user roles and convert to uppercase
+    const roles = userRole.toUpperCase().split(' ');
+    
+    // If user has ADMIN role, they can see all templates
+    if (roles.includes('ADMIN')) return true;
+    
+    // Check if template type matches any of the user's roles
+    return roles.some(role => {
+      switch(role) {
+        case 'WMM':
+          return type === 'WMM';
+        case 'HRG':
+          return type === 'HRG';
+        case 'FOM':
+          return type === 'FOM';
+        case 'CAL':
+          return type === 'CAL';
+        case 'COMP':
+          return type === 'COMP';
+        case 'PROMO':
+          return type === 'PROMO';
+        default:
+          return false;
+      }
+    });
+  };
+
+  // Add console logging for debugging
+  React.useEffect(() => {
+    console.group('Template Selector Debug');
+    console.log('Total templates received:', savedTemplates.length);
+    console.log('User Role:', userRole);
+    
+    if (savedTemplates.length > 0) {
+      // Log all templates basic info
+      console.log('All templates basic info:', savedTemplates.map(t => ({
+        id: t.id,
+        name: t.name,
+        type: t.type,
+        isLegacy: t.isLegacy,
+        allowed: isTemplateAllowed(t.type)
+      })));
+      
+      const legacyTemplates = savedTemplates.filter(template => template.isLegacy);
+      console.log('Legacy templates count:', legacyTemplates.length);
+      
+      // Group by type for better visibility
+      const typeGroups = legacyTemplates.reduce((acc, template) => {
+        const type = template.type || "Other";
+        if (!acc[type]) acc[type] = [];
+        acc[type].push({
+          id: template.id,
+          name: template.name,
+          description: template.description,
+          allowed: isTemplateAllowed(type)
+        });
+        return acc;
+      }, {});
+      
+      console.log('Templates grouped by type:', typeGroups);
+      
+      // Check for potential issues
+      const templatesWithoutType = legacyTemplates.filter(t => !t.type);
+      if (templatesWithoutType.length > 0) {
+        console.warn('Templates without type:', templatesWithoutType);
+      }
+    }
+    console.groupEnd();
+  }, [savedTemplates, userRole]);
+
+  // Filter templates based on user role
+  const filteredTemplates = React.useMemo(() => {
+    return savedTemplates.filter(template => {
+      if (!template.isLegacy) return true; // Always show modern templates
+      return isTemplateAllowed(template.type);
+    });
+  }, [savedTemplates, userRole]);
+
   return (
     <div className="flex flex-col mb-4">
       <div className="flex justify-start items-center mb-2">
@@ -20,11 +106,11 @@ const TemplateSelector = ({
             onChange={(e) => onTemplateSelect(e.target.value)}
             value={selectedTemplate?.name || ""}
             className="border border-gray-300 rounded p-1 flex-grow"
-            disabled={savedTemplates.length === 0}
+            disabled={filteredTemplates.length === 0}
           >
-            {savedTemplates.length === 0 ? (
+            {filteredTemplates.length === 0 ? (
               <option value="" disabled>
-                No templates available
+                No templates available for {userRole || 'current user'}
               </option>
             ) : (
               <>
@@ -33,7 +119,7 @@ const TemplateSelector = ({
                 </option>
                 {/* Group regular templates */}
                 {(() => {
-                  const regularTemplates = savedTemplates.filter(template => !template.isLegacy);
+                  const regularTemplates = filteredTemplates.filter(template => !template.isLegacy);
                   return regularTemplates.length > 0 ? (
                     <optgroup label="Modern Templates">
                       {regularTemplates.map((template) => (
@@ -45,29 +131,38 @@ const TemplateSelector = ({
                   ) : null;
                 })()}
                 
-                {/* Group legacy templates with more details */}
+                {/* Group legacy templates by type */}
                 {(() => {
                   // Filter legacy templates
-                  const legacyTemplates = savedTemplates.filter(template => template.isLegacy);
+                  const legacyTemplates = filteredTemplates.filter(template => template.isLegacy);
                   
-                  // Further filter to only show templates matching the role
-                  // For WMM role, only show WMM type templates
-                  const roleFilteredTemplates = legacyTemplates.filter(template => {
-                    // If type is WMM, then we're showing a WMM template
-                    return template.type === "WMM";
+                  // Group templates by type
+                  const templatesByType = legacyTemplates.reduce((acc, template) => {
+                    const type = template.type || "Other";
+                    if (!acc[type]) acc[type] = [];
+                    acc[type].push(template);
+                    return acc;
+                  }, {});
+                  
+                  // Sort types alphabetically, but ensure "Other" is last if it exists
+                  const sortedTypes = Object.keys(templatesByType).sort((a, b) => {
+                    if (a === "Other") return 1;
+                    if (b === "Other") return -1;
+                    return a.localeCompare(b);
                   });
                   
-                  const templatesToShow = roleFilteredTemplates.length > 0 ? roleFilteredTemplates : legacyTemplates;
-                  
-                  return templatesToShow.length > 0 ? (
-                    <optgroup label="Legacy Dot Matrix Templates">
-                      {templatesToShow.map((template) => (
-                        <option key={template.name} value={template.name}>
-                          {template.name}  
-                        </option>
-                      ))}
+                  // Render each type group
+                  return sortedTypes.map(type => (
+                    <optgroup key={type} label={`${type} Templates`}>
+                      {templatesByType[type]
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((template) => (
+                          <option key={template.name} value={template.name}>
+                            {template.name}
+                          </option>
+                        ))}
                     </optgroup>
-                  ) : null;
+                  ));
                 })()}
               </>
             )}
@@ -85,10 +180,7 @@ const TemplateSelector = ({
             <span className="font-medium">Legacy Format:</span>
           </div>
           <p className="mt-1 text-xs">
-            {selectedTemplate.type === "WMM" ? 
-              <strong className="text-green-700">WMM Magazine Format</strong> : 
-              <span>Type: {selectedTemplate.type || "LEGACY"}</span>
-            }
+            <span>Type: {selectedTemplate.type || "LEGACY"}</span>
             <br />
             Optimized for {selectedTemplate.printer || "dot matrix printer"}.
             <br />

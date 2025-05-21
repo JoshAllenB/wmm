@@ -131,29 +131,8 @@ export const fetchLegacyLabels = async () => {
     const url = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/labels`;
     const token = localStorage.getItem("accessToken");
     
-    // Try fetch API first for more detailed error handling
-    try {
-      const fetchResponse = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-            
-      if (fetchResponse.ok) {
-        const data = await fetchResponse.json();
-        return data;
-      } else {
-        console.error(`Fetch failed with status: ${fetchResponse.status}`);
-        const errorText = await fetchResponse.text();
-        console.error(`Error response body: ${errorText}`);
-        // Continue to axios as fallback
-      }
-    } catch (fetchError) {
-      console.error("Fetch API error:", fetchError);
-      // Continue to axios as fallback
-    }
+    console.group('Fetching Legacy Labels');
+    console.log('Requesting from:', url);
     
     const response = await axios.get(url, {
       headers: {
@@ -161,57 +140,76 @@ export const fetchLegacyLabels = async () => {
       },
     });
     
+    console.log('Raw response data count:', response.data?.length || 0);
     
     if (response.data?.length > 0) {
+      // Convert each label to a template format
+      const convertedTemplates = response.data.map(label => ({
+        id: label.id,
+        name: label.description || label.id,
+        description: label.description,
+        layout: {
+          left: label.left || 1,
+          width: label.width || 43,
+          height: label.height || 22,
+          columns: label.columns || 2,
+          fontSize: 12,
+          leftPosition: label.left || 1,
+          topPosition: 10,
+          columnWidth: (label.width || 43) * 6,
+          labelHeight: (label.height || 22) * 12,
+          horizontalSpacing: 20,
+        },
+        selectedFields: label.format?.includes('cellno') ? ['contactnos'] : [],
+        isLegacy: true,
+        type: label.type || 'LEGACY',
+        printer: label.printer || 'Dot Matrix Printer',
+        init: label.init || '',
+        format: label.format || '',
+        reset: label.reset || ''
+      }));
+
+      console.log('Converted templates count:', convertedTemplates.length);
+      
+      // Group by type for analysis
+      const typeGroups = convertedTemplates.reduce((acc, template) => {
+        const type = template.type || 'Unspecified';
+        if (!acc[type]) acc[type] = [];
+        acc[type].push({
+          id: template.id,
+          name: template.name,
+          type: template.type
+        });
+        return acc;
+      }, {});
+      
+      console.log('Templates by type:', typeGroups);
+      console.log('Sample converted template:', convertedTemplates[0]);
+      console.groupEnd();
+      
+      return convertedTemplates;
     } else {
-      console.warn("No legacy labels found in the response");
+      console.warn("No labels found in response");
+      console.log('Response data:', response.data);
+      console.groupEnd();
+      return [];
     }
-    
-    return response.data;
   } catch (error) {
+    console.group('Legacy Labels Error');
     console.error("Error fetching legacy labels:", error);
     
-    // Check for specific error types
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
-      console.error(`Response error: ${error.response.status}`);
-      console.error(`Response data: ${JSON.stringify(error.response.data)}`);
-      
-      // If we got a 401, the token might be invalid
-      if (error.response.status === 401) {
-        console.error("Authentication error - token might be invalid or expired");
-      }
-    } else if (error.request) {
-      // The request was made but no response was received
-      console.error("No response received from server");
-      console.error("Request details:", error.request);
-    } else {
-      // Something happened in setting up the request that triggered an Error
-      console.error(`Request setup error: ${error.message}`);
+      console.error('Response status:', error.response.status);
+      console.error('Response headers:', error.response.headers);
+      console.error('Response data:', error.response.data);
     }
     
-    // Let's try a direct fetch to see if there's any difference
-    try {
-      const directResponse = await fetch(`http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/labels`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
-      
-      if (directResponse.ok) {
-        const data = await directResponse.json();
-        return data;
-      } else {
-        console.error(`Direct fetch failed with status: ${directResponse.status} ${directResponse.statusText}`);
-        const errorText = await directResponse.text();
-        console.error(`Error response body: ${errorText}`);
-      }
-    } catch (fetchError) {
-      console.error("Direct fetch also failed:", fetchError);
+    if (error.config) {
+      console.log('Request URL:', error.config.url);
+      console.log('Request headers:', error.config.headers);
     }
     
-    // Return empty array to prevent further errors
+    console.groupEnd();
     return [];
   }
 };
