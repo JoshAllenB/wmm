@@ -1659,7 +1659,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
                         filterData.group ? "border-blue-500 bg-blue-50" : ""
                       }`}
-                      disabled={!hasRole("WMM")}
                     >
                       <option value="">All Groups</option>
                       {Array.isArray(groups) &&
@@ -1669,11 +1668,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           </option>
                         ))}
                     </select>
-                    {!hasRole("WMM") && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Group filtering not available for your role
-                      </p>
-                    )}
                   </div>
 
                   <div className="flex items-center mt-2">
@@ -1689,6 +1683,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         }))
                       }
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      disabled={!hasRole("WMM")}
                     />
                     <label
                       htmlFor="excludeSPackClients"
@@ -1697,7 +1692,16 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       Exclude SPack Clients
                     </label>
                     <span className="ml-2 text-xs text-gray-500">
-                      (Hide clients with "SPack" in group name)
+                      {!hasRole("WMM") && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        SPack filtering not available for your role
+                      </p>
+                    )} 
+                      {hasRole("WMM") && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          (Hide clients with "SPack" in group name)
+                        </p>
+                      )}
                     </span>
                   </div>
 
