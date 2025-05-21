@@ -45,6 +45,11 @@ const ThankYouLetterDataOverlay = forwardRef(({
           fontSize: 14,
           fontWeight: "normal",
           fontFamily: "Arial"
+        },
+        // Spacing configurations
+        spacing: {
+          monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
+          addressToGreeting: 0.8, // Spacing between Address Group and Greeting
         }
       };
     }
@@ -85,6 +90,11 @@ const ThankYouLetterDataOverlay = forwardRef(({
         fontSize: 14,
         fontWeight: "normal",
         fontFamily: "Arial"
+      },
+      // Spacing configurations
+      spacing: {
+        monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
+        addressToGreeting: 1.0, // Spacing between Address Group and Greeting
       }
     };
   });
@@ -289,6 +299,11 @@ const ThankYouLetterDataOverlay = forwardRef(({
           fontSize: 14,
           fontWeight: "normal",
           fontFamily: "Arial"
+        },
+        // Spacing configurations
+        spacing: {
+          monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
+          addressToGreeting: 1.0, // Spacing between Address Group and Greeting
         }
       });
     }
@@ -765,6 +780,33 @@ const ThankYouLetterDataOverlay = forwardRef(({
               </div>
               
               <div className="grid grid-cols-1 gap-4 mb-4">
+                {/* Spacing Configuration */}
+                <fieldset className="border rounded p-3">
+                  <legend className="text-sm font-medium px-1">Spacing Configuration</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs mb-1">Month Year to Address (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.spacing.monthYearToAddress} 
+                        onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1">Address to Greeting (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.spacing.addressToGreeting} 
+                        onChange={(e) => handleGroupPositionChange('spacing', 'addressToGreeting', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                </fieldset>
+
                 {/* Address Group Configuration */}
                 <fieldset className="border rounded p-3">
                   <legend className="text-sm font-medium px-1">Address Group</legend>
@@ -892,6 +934,16 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <option value="Tahoma">Tahoma</option>
                       </select>
                     </div>
+                  </div>
+                  <div className="mt-2">
+                    <label className="block text-xs mb-1">Spacing to Address Group (in)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={positions.spacing.monthYearToAddress} 
+                      onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                    />
                   </div>
                 </fieldset>
 
@@ -1095,7 +1147,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
                             <div 
                               className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
                               style={{
-                                top: `${(positions.addressGroup.top - 0.5) * scaleY}px`,
+                                top: `${(positions.addressGroup.top - positions.spacing.monthYearToAddress) * scaleY}px`,
                                 left: '0',
                                 width: '100%',
                                 textAlign: 'center',
@@ -1217,7 +1269,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
                             <div 
                               className="absolute bg-purple-50 border border-purple-200 p-1 text-sm font-mono"
                               style={{
-                                top: `${(positions.addressGroup.top + positions.addressGroup.lineSpacing * 12) * scaleY}px`,
+                                top: `${(positions.addressGroup.top + positions.addressGroup.lineSpacing * 12 + positions.spacing.addressToGreeting) * scaleY}px`,
                                 left: `${positions.addressGroup.left * scaleX}px`,
                                 fontFamily: positions.addressGroup.fontFamily,
                                 fontSize: `${parseInt(positions.addressGroup.fontSize) + 2}px`,

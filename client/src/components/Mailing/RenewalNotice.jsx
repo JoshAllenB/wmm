@@ -572,15 +572,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
       overlayHTML += `
         <div class="data-overlay">
           <!-- Group 1: ID, Expiry, Last Issue (Right side) -->
-          <div class="data-field group1-field" style="top: ${positions.group1.top * scaleY}px; left: ${positions.group1.left * scaleX}px;">
+          <div class="data-field group1-field" style="top: ${positions.group1.top}in; left: ${positions.group1.left}in;">
             <strong>${subscriber.id}</strong>
           </div>
           
-          <div class="data-field group1-field" style="top: ${positions.group1.top + positions.group1.lineSpacing * scaleY}px; left: ${positions.group1.left * scaleX}px; z-index: 1000; visibility: visible;">
+          <div class="data-field group1-field" style="top: ${positions.group1.top + positions.group1.lineSpacing}in; left: ${positions.group1.left}in;">
             <strong>${subscriber.expiryDate}</strong>
           </div>
           
-          <div class="data-field group1-field" style="top: ${positions.group1.top + positions.group1.lineSpacing * 2}in; left: ${positions.group1.left}in; z-index: 1000; visibility: visible;">
+          <div class="data-field group1-field" style="top: ${positions.group1.top + positions.group1.lineSpacing * 2}in; left: ${positions.group1.left}in;">
             <strong>${subscriber.lastIssue}</strong>
           </div>
           
