@@ -15,17 +15,24 @@ const CsvExport = ({
 }) => {
   // State for CSV export modal
   const [csvExportModal, setCsvExportModal] = useState(false);
+  // State for custom filename
+  const [csvFilename, setCsvFilename] = useState("");
   // Fields to include in CSV
   const [csvIncludeFields, setCsvIncludeFields] = useState([
+    // Basic fields (All users)
     "id",           // ClientID
     "name",         // Name
     "address",      // Address
     "contactnos",   // Contact Number
-    "copies",       // Copies
     "acode",        // AreaCode
+    
+    // WMM fields
+    "copies",       // Copies
     "enddate",      // Expiry Date
-    // Add new service-specific fields
-    "subsclass",    // Subscription Class (WMM)
+    "subsclass",    // Subscription Class
+    "subsdate",     // Subscription Date
+    
+    // Service-specific fields
     "hrgData",      // HRG Data
     "fomData",      // FOM Data
     "calData"       // CAL Data
@@ -114,13 +121,13 @@ const CsvExport = ({
       }
 
       // Check service-specific data
-      if (subscriber.hrgData && Object.keys(subscriber.hrgData).length > 0) {
+      if (subscriber.hrgData?.records?.length > 0) {
         fieldsWithData.hrgData = true;
       }
-      if (subscriber.fomData && Object.keys(subscriber.fomData).length > 0) {
+      if (subscriber.fomData?.records?.length > 0) {
         fieldsWithData.fomData = true;
       }
-      if (subscriber.calData && Object.keys(subscriber.calData).length > 0) {
+      if (subscriber.calData?.records?.length > 0) {
         fieldsWithData.calData = true;
       }
 
@@ -204,21 +211,29 @@ const CsvExport = ({
 
     // Add service-specific headers if included and data exists
     if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
-      headers.push("HRG Quantity");
-      headers.push("HRG Total Amount");
-      headers.push("HRG Last Payment Date");
+      headers.push("HRG Campaign Date");
+      headers.push("HRG Payment Date");
+      headers.push("HRG Payment Amount");
+      headers.push("HRG Payment Form");
+      headers.push("HRG Payment Reference");
     }
     
     if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
-      headers.push("FOM Quantity");
-      headers.push("FOM Total Amount");
-      headers.push("FOM Last Payment Date");
+      headers.push("FOM Payment Date");
+      headers.push("FOM Payment Amount");
+      headers.push("FOM Payment Form");
+      headers.push("FOM Payment Reference");
+      headers.push("FOM Unsubscribe Status");
     }
     
     if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
+      headers.push("CAL Type");
       headers.push("CAL Quantity");
-      headers.push("CAL Total Amount");
-      headers.push("CAL Last Payment Date");
+      headers.push("CAL Unit Amount");
+      headers.push("CAL Payment Date");
+      headers.push("CAL Payment Amount");
+      headers.push("CAL Payment Form");
+      headers.push("CAL Payment Reference");
     }
 
     // Create CSV content
@@ -281,50 +296,34 @@ const CsvExport = ({
       if (csvIncludeFields.includes("email") && fieldsWithData.email)
         rowData.push(`"${typeof subscriber.email === 'string' ? subscriber.email : ""}"`);
 
-      // Add service-specific data if included and data exists
+      // Add service-specific data
       if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
-        const hrgData = subscriber.hrgData || {};
-        rowData.push(`"${hrgData.quantity || 0}"`);
-        rowData.push(`"${hrgData.totalAmount || 0}"`);
-        
-        let lastPaymentDate = "";
-        if (hrgData.lastPaymentDate) {
-          const date = new Date(hrgData.lastPaymentDate);
-          if (!isNaN(date.getTime())) {
-            lastPaymentDate = date.toLocaleDateString();
-          }
-        }
-        rowData.push(`"${lastPaymentDate}"`);
+        const hrgRecord = subscriber.hrgData?.records?.[0] || {};
+        rowData.push(`"${hrgRecord.campaigndate ? new Date(hrgRecord.campaigndate).toLocaleDateString() : ""}"`);
+        rowData.push(`"${hrgRecord.recvdate ? new Date(hrgRecord.recvdate).toLocaleDateString() : ""}"`);
+        rowData.push(`"${hrgRecord.paymtamt || ""}"`);
+        rowData.push(`"${hrgRecord.paymtform || ""}"`);
+        rowData.push(`"${hrgRecord.paymtref || ""}"`);
       }
       
       if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
-        const fomData = subscriber.fomData || {};
-        rowData.push(`"${fomData.quantity || 0}"`);
-        rowData.push(`"${fomData.totalAmount || 0}"`);
-        
-        let lastPaymentDate = "";
-        if (fomData.lastPaymentDate) {
-          const date = new Date(fomData.lastPaymentDate);
-          if (!isNaN(date.getTime())) {
-            lastPaymentDate = date.toLocaleDateString();
-          }
-        }
-        rowData.push(`"${lastPaymentDate}"`);
+        const fomRecord = subscriber.fomData?.records?.[0] || {};
+        rowData.push(`"${fomRecord.recvdate ? new Date(fomRecord.recvdate).toLocaleDateString() : ""}"`);
+        rowData.push(`"${fomRecord.paymtamt || ""}"`);
+        rowData.push(`"${fomRecord.paymtform || ""}"`);
+        rowData.push(`"${fomRecord.paymtref || ""}"`);
+        rowData.push(`"${fomRecord.unsubscribe ? "Yes" : "No"}"`);
       }
       
       if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
-        const calData = subscriber.calData || {};
-        rowData.push(`"${calData.quantity || 0}"`);
-        rowData.push(`"${calData.totalAmount || 0}"`);
-        
-        let lastPaymentDate = "";
-        if (calData.lastPaymentDate) {
-          const date = new Date(calData.lastPaymentDate);
-          if (!isNaN(date.getTime())) {
-            lastPaymentDate = date.toLocaleDateString();
-          }
-        }
-        rowData.push(`"${lastPaymentDate}"`);
+        const calRecord = subscriber.calData?.records?.[0] || {};
+        rowData.push(`"${calRecord.caltype || ""}"`);
+        rowData.push(`"${calRecord.calqty || ""}"`);
+        rowData.push(`"${calRecord.calamt || ""}"`);
+        rowData.push(`"${calRecord.paymtdate ? new Date(calRecord.paymtdate).toLocaleDateString() : ""}"`);
+        rowData.push(`"${calRecord.paymtamt || ""}"`);
+        rowData.push(`"${calRecord.paymtform || ""}"`);
+        rowData.push(`"${calRecord.paymtref || ""}"`);
       }
 
       csvContent += rowData.join(",") + "\n";
@@ -362,12 +361,16 @@ const CsvExport = ({
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
 
+    // Generate default filename if custom filename is empty
+    const defaultFilename = `subscribers_export_${new Date().toISOString().slice(0, 10)}`;
+    const filename = csvFilename.trim() || defaultFilename;
+    
+    // Ensure filename ends with .csv
+    const finalFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+
     // Set link properties
     link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `subscribers_export_${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    link.setAttribute("download", finalFilename);
 
     // Append to body, click, and clean up
     document.body.appendChild(link);
@@ -379,6 +382,7 @@ const CsvExport = ({
     }, 100);
 
     setCsvExportModal(false);
+    setCsvFilename(""); // Reset filename after download
   };
 
   // Toggle CSV field selection
@@ -411,7 +415,25 @@ const CsvExport = ({
         </p>
 
         <div className="flex flex-col items-center">
-          {/* Data Source Selection - reuse the same as the print modal */}
+          {/* Filename Input */}
+          <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+            <h3 className="text-sm font-semibold mb-2">File Name:</h3>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={csvFilename}
+                onChange={(e) => setCsvFilename(e.target.value)}
+                placeholder={`subscribers_export_${new Date().toISOString().slice(0, 10)}`}
+                className="border border-gray-300 rounded p-2 w-full"
+              />
+              <span className="text-sm text-gray-500">.csv</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Leave blank to use default filename
+            </p>
+          </div>
+
+          {/* Data Source Selection */}
           <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
             <h3 className="text-sm font-semibold mb-2">Select Data Source:</h3>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -492,13 +514,11 @@ const CsvExport = ({
 
           {/* CSV Fields Selection */}
           <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-            <h3 className="text-sm font-semibold mb-2">
-              Select Fields to Include:
-            </h3>
+            <h3 className="text-sm font-semibold mb-2">Select Fields to Include:</h3>
 
-            {/* Default Fields */}
+            {/* Basic Fields (All Users) */}
             <div className="mb-4">
-              <h4 className="text-xs font-medium text-gray-600 mb-2">Default Fields:</h4>
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Basic Information (All Users):</h4>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
                   <input
@@ -507,10 +527,9 @@ const CsvExport = ({
                     checked={csvIncludeFields.includes("id")}
                     onChange={() => toggleCsvField("id")}
                     className="mr-2"
+                    disabled
                   />
-                  <label htmlFor="csv-id" className="text-sm">
-                    {renderFieldLabel("id", "Client ID")}
-                  </label>
+                  <label htmlFor="csv-id" className="text-sm">Client ID</label>
                 </div>
                 <div className="flex items-center">
                   <input
@@ -519,10 +538,9 @@ const CsvExport = ({
                     checked={csvIncludeFields.includes("name")}
                     onChange={() => toggleCsvField("name")}
                     className="mr-2"
+                    disabled
                   />
-                  <label htmlFor="csv-name" className="text-sm">
-                    {renderFieldLabel("name", "Name (Title, Last, First)")}
-                  </label>
+                  <label htmlFor="csv-name" className="text-sm">Name</label>
                 </div>
                 <div className="flex items-center">
                   <input
@@ -531,10 +549,20 @@ const CsvExport = ({
                     checked={csvIncludeFields.includes("address")}
                     onChange={() => toggleCsvField("address")}
                     className="mr-2"
+                    disabled
                   />
-                  <label htmlFor="csv-address" className="text-sm">
-                    {renderAddressFieldLabel()}
-                  </label>
+                  <label htmlFor="csv-address" className="text-sm">Address</label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-acode"
+                    checked={csvIncludeFields.includes("acode")}
+                    onChange={() => toggleCsvField("acode")}
+                    className="mr-2"
+                    disabled
+                  />
+                  <label htmlFor="csv-acode" className="text-sm">Area Code</label>
                 </div>
                 <div className="flex items-center">
                   <input
@@ -543,11 +571,17 @@ const CsvExport = ({
                     checked={csvIncludeFields.includes("contactnos")}
                     onChange={() => toggleCsvField("contactnos")}
                     className="mr-2"
+                    disabled
                   />
-                  <label htmlFor="csv-contactnos" className="text-sm">
-                    {renderFieldLabel("contactnos", "Contact Numbers (Cell, Telephone)")}
-                  </label>
+                  <label htmlFor="csv-contactnos" className="text-sm">Contact Numbers</label>
                 </div>
+              </div>
+            </div>
+
+            {/* WMM Fields */}
+            <div className="mb-4">
+              <h4 className="text-xs font-medium text-gray-600 mb-2">WMM Information:</h4>
+              <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -563,18 +597,6 @@ const CsvExport = ({
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="csv-acode"
-                    checked={csvIncludeFields.includes("acode")}
-                    onChange={() => toggleCsvField("acode")}
-                    className="mr-2"
-                  />
-                  <label htmlFor="csv-acode" className="text-sm">
-                    {renderFieldLabel("acode", "Area Code")}
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
                     id="csv-enddate"
                     checked={csvIncludeFields.includes("enddate")}
                     onChange={() => toggleCsvField("enddate")}
@@ -582,37 +604,6 @@ const CsvExport = ({
                   />
                   <label htmlFor="csv-enddate" className="text-sm">
                     {renderFieldLabel("enddate", "Expiry Date")}
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Optional Fields */}
-            <div className="mb-4">
-              <h4 className="text-xs font-medium text-gray-600 mb-2">Optional Fields:</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="csv-mname"
-                    checked={csvIncludeFields.includes("mname")}
-                    onChange={() => toggleCsvField("mname")}
-                    className="mr-2"
-                  />
-                  <label htmlFor="csv-mname" className="text-sm">
-                    {renderFieldLabel("mname", "Middle Name")}
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="csv-subsdate"
-                    checked={csvIncludeFields.includes("subsdate")}
-                    onChange={() => toggleCsvField("subsdate")}
-                    className="mr-2"
-                  />
-                  <label htmlFor="csv-subsdate" className="text-sm">
-                    {renderFieldLabel("subsdate", "Subscription Date")}
                   </label>
                 </div>
                 <div className="flex items-center">
@@ -630,13 +621,13 @@ const CsvExport = ({
                 <div className="flex items-center">
                   <input
                     type="checkbox"
-                    id="csv-email"
-                    checked={csvIncludeFields.includes("email")}
-                    onChange={() => toggleCsvField("email")}
+                    id="csv-subsdate"
+                    checked={csvIncludeFields.includes("subsdate")}
+                    onChange={() => toggleCsvField("subsdate")}
                     className="mr-2"
                   />
-                  <label htmlFor="csv-email" className="text-sm">
-                    {renderFieldLabel("email", "Email")}
+                  <label htmlFor="csv-subsdate" className="text-sm">
+                    {renderFieldLabel("subsdate", "Subscription Date")}
                   </label>
                 </div>
               </div>
@@ -644,8 +635,8 @@ const CsvExport = ({
 
             {/* Service-specific Fields */}
             <div>
-              <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Data:</h4>
-              <div className="grid grid-cols-2 gap-2">
+              <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Information:</h4>
+              <div className="grid grid-cols-1 gap-2">
                 <div className="flex items-center">
                   <input
                     type="checkbox"
@@ -655,7 +646,7 @@ const CsvExport = ({
                     className="mr-2"
                   />
                   <label htmlFor="csv-hrgData" className="text-sm">
-                    {renderFieldLabel("hrgData", "HRG Data")}
+                    {renderFieldLabel("hrgData", "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)")}
                   </label>
                 </div>
                 <div className="flex items-center">
@@ -667,7 +658,7 @@ const CsvExport = ({
                     className="mr-2"
                   />
                   <label htmlFor="csv-fomData" className="text-sm">
-                    {renderFieldLabel("fomData", "FOM Data")}
+                    {renderFieldLabel("fomData", "FOM Data (Payment Details + Unsubscribe Status)")}
                   </label>
                 </div>
                 <div className="flex items-center">
@@ -679,7 +670,7 @@ const CsvExport = ({
                     className="mr-2"
                   />
                   <label htmlFor="csv-calData" className="text-sm">
-                    {renderFieldLabel("calData", "CAL Data")}
+                    {renderFieldLabel("calData", "CAL Data (Type, Quantity, Unit Amount + Payment Details)")}
                   </label>
                 </div>
               </div>
