@@ -26,6 +26,31 @@ const formatIdLegacy = (id) => {
   return id.toString().padStart(6, '0');
 };
 
+// Generate raw printer data for USB printing
+const generateRawPrinterData = (data, template) => {
+  // Initialize printer commands
+  const commands = [];
+  
+  // Add initialization commands
+  commands.push(0x1B, 0x40); // ESC @ - Initialize printer
+  
+  // Add character set and encoding
+  commands.push(0x1B, 0x74, 0x00); // ESC t 0 - Select character code table (PC437)
+  
+  // Add line spacing
+  commands.push(0x1B, 0x33, 0x00); // ESC 3 0 - Set line spacing to 0
+  
+  // Add data
+  const textEncoder = new TextEncoder();
+  const textData = textEncoder.encode(data);
+  commands.push(...textData);
+  
+  // Add paper cut command
+  commands.push(0x1D, 0x56, 0x41); // GS V A - Full cut
+  
+  return new Uint8Array(commands);
+};
+
 // Generate HTML for a specific range of Client IDs and starting position
 export const generatePrintHTML = (
   startId, 
@@ -38,9 +63,11 @@ export const generatePrintHTML = (
   topPosition,
   columnWidth,
   horizontalSpacing,
+  verticalSpacing,
   fontSize,
   labelHeight,
-  selectedFields
+  selectedFields,
+  userRole
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = availableRows.filter((row) => {
@@ -85,6 +112,9 @@ export const generatePrintHTML = (
   const column1 = layoutRows.slice(0, addressPerColumn);
   const column2 = layoutRows.slice(addressPerColumn);
 
+  // Check if user role should hide expiry and copies
+  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
+
   const labelHtml = [column1, column2]
     .map((column, columnIndex) => {
       return column
@@ -120,21 +150,22 @@ export const generatePrintHTML = (
           }
 
           return `
-        <div class="address-container" style="left: ${
+        <div class="address-container column-${columnIndex + 1}" style="left: ${
           columnIndex * (columnWidth + horizontalSpacing)
         }px; top: ${
-            topPosition + rowIndex * labelHeight
+            topPosition + rowIndex * (labelHeight + verticalSpacing)
           }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
-          <p>${
+          <p style="width: ${columnWidth}px;">${
             actualRowData?.original?.id || ""
-          } - ${enddate} - ${copies}cps/${
-            actualRowData?.original?.acode || ""
+          }${
+            !shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${actualRowData?.original?.acode || ""}` : 
+            (actualRowData?.original?.acode ? `/${actualRowData?.original?.acode}` : "")
           }</p>
-          <p>${getFullName(actualRowData?.original || {})}</p>
-          <p>${actualRowData?.original?.address || ""}</p>
+          <p style="width: ${columnWidth}px;">${getFullName(actualRowData?.original || {})}</p>
+          <p style="width: ${columnWidth}px;">${actualRowData?.original?.address || ""}</p>
           ${
             selectedFields.includes("contactnos")
-              ? `<p>${getContactNumber(actualRowData?.original || {})}</p>`
+              ? `<p style="width: ${columnWidth}px;">${getContactNumber(actualRowData?.original || {})}</p>`
               : "" /* Render contact paragraph conditionally */
           }
         </div>
@@ -151,15 +182,20 @@ export const generatePrintHTML = (
     endId || "End"
   })</title>
         <style>
-          body { font-family: Arial, sans-serif; }
+          body { 
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+          }
           .mailing-label {
             position: relative;
             width: ${columnWidth * 2 + horizontalSpacing}px;
-            height: ${topPosition + labelHeight * addressPerColumn}px;
+            height: ${topPosition + (labelHeight + verticalSpacing) * addressPerColumn}px;
           }
           .address-container {
             position: absolute;
-            margin-bottom: 20px;
+            margin-bottom: ${verticalSpacing}px;
+            width: ${columnWidth}px;
           }
           .address-container p {
             margin: 0;
@@ -172,12 +208,33 @@ export const generatePrintHTML = (
             overflow-wrap: break-word;
           }
           @media print {
-             body { margin: ${topPosition}px 0 0 ${leftPosition}px !important; }
+            @page {
+              margin: 0;
+              padding: 0;
+            }
+            body { 
+              margin: ${topPosition}px 0 0 ${leftPosition}px !important;
+              padding: 0 !important;
+            }
+            .mailing-label {
+              position: absolute;
+              left: ${leftPosition}px;
+              top: ${topPosition}px;
+              width: ${columnWidth * 2 + horizontalSpacing}px;
+            }
+            .column-1 {
+              left: ${leftPosition}px !important;
+              width: ${columnWidth}px !important;
+            }
+            .column-2 {
+              left: ${leftPosition + columnWidth + horizontalSpacing}px !important;
+              width: ${columnWidth}px !important;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="mailing-label" style="position: absolute; left: ${leftPosition}px; top: ${topPosition}px;">
+        <div class="mailing-label">
             ${labelHtml}
         </div>
         <script>
@@ -209,92 +266,6 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
   const columnArray = Array.from({ length: numColumns }, (_, colIndex) => {
     return layoutRows.slice(colIndex * rowsPerColumn, (colIndex + 1) * rowsPerColumn);
   });
-
-  // Generate raw printer data (for direct printing to dot matrix)
-  let rawPrinterData = "";
-  
-  // Add printer initialization sequence
-  if (template.init) {
-    rawPrinterData += template.init.replace(/\\(\d+)/g, (match, code) => 
-      String.fromCharCode(parseInt(code, 8))
-    );
-  }
-  
-  // Process rows for raw printer output
-  columnArray.forEach((column, columnIndex) => {
-    column.forEach((row, rowIndex) => {
-      // Skip rendering the placeholder if it exists
-      if (row === null) return;
-
-      // Calculate the actual data row index
-      const dataRowIndex = columnIndex * rowsPerColumn + rowIndex - emptySlots;
-      const actualRowData = filteredRows[dataRowIndex];
-      if (!actualRowData) return;
-
-      // Get the subscription data
-      const wmmData = actualRowData?.original?.wmmData;
-      const subscription = wmmData?.records?.[0] || wmmData || {};
-      const copies = subscription.copies ?? "N/A";
-      const expdate = subscription.enddate || "";
-      
-      // Extract all the needed data
-      const id = formatIdLegacy(actualRowData?.original?.id);
-      const formattedDate = formatDateLegacy(expdate);
-      const acode = actualRowData?.original?.acode || "";
-      const title = actualRowData?.original?.title || "";
-      const lname = actualRowData?.original?.lname || "";
-      const fname = actualRowData?.original?.fname || "";
-      const mname = actualRowData?.original?.mname || "";
-      const company = actualRowData?.original?.company || "";
-      const address = actualRowData?.original?.address || "";
-      const contactNumber = getContactNumber(actualRowData?.original || {});
-      const cellno = actualRowData?.original?.cellno || "";
-      
-      // Create a format string dynamically based on the template format
-      // This is a simplified version that focuses on the key parts visible in the UI
-      let formatString = template.format || "";
-      
-      // For actual implementation, we'd need to parse and process the full format string
-      // with all the special functions like TRANSFORM, STR_Check, etc.
-      // For now, we'll create a simplified output
-      
-      let labelText = '';
-      if (columnIndex === 0) {
-        labelText = `${id}-S-${formattedDate}-${copies}cps/${acode}\r\n`;
-        labelText += `${getFullName(actualRowData?.original || {})}\r\n`;
-        labelText += `${address}\r\n`;
-        
-        if (selectedFields.includes("contactnos")) {
-          labelText += `Cell# ${cellno}\r\n`;
-        }
-        
-        // Add extra line feeds to move to next label
-        labelText += "\r\n\r\n";
-      } else {
-        // Similar format for second column but with appropriate spacing
-        // This would need to be adjusted based on the actual printer requirements
-        labelText = `${id}-S-${formattedDate}-${copies}cps/${acode}\r\n`;
-        labelText += `${getFullName(actualRowData?.original || {})}\r\n`;
-        labelText += `${address}\r\n`;
-        
-        if (selectedFields.includes("contactnos")) {
-          labelText += `Cell# ${cellno}\r\n`;
-        }
-        
-        // Add extra line feeds to move to next row
-        labelText += "\r\n\r\n\r\n\r\n\r\n";
-      }
-      
-      rawPrinterData += labelText;
-    });
-  });
-  
-  // Add printer reset sequence at the end
-  if (template.reset) {
-    rawPrinterData += template.reset.replace(/\\(\d+)/g, (match, code) => 
-      String.fromCharCode(parseInt(code, 8))
-    );
-  }
 
   // Generate labels in the legacy format for HTML preview
   const labelContent = columnArray
@@ -355,9 +326,6 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
     })
     .join("\n");
 
-  // Encode the raw printer data for download
-  const base64Data = btoa(unescape(encodeURIComponent(rawPrinterData)));
-  
   // Generate the HTML with styling appropriate for legacy format
   return `
     <html>
@@ -384,41 +352,38 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
             grid-template-columns: repeat(${numColumns}, 1fr);
             column-gap: ${layout.horizontalSpacing || 20}px;
           }
-          .download-section {
+          .printer-info {
             margin: 20px 0;
             padding: 10px;
             background-color: #f5f5f5;
             border: 1px solid #ddd;
             border-radius: 5px;
           }
-          .download-btn {
-            display: inline-block;
-            padding: 8px 16px;
-            background-color: #4a5568;
-            color: white;
-            border-radius: 4px;
-            text-decoration: none;
-            margin-right: 10px;
-            cursor: pointer;
-          }
-          .printer-info {
+          .printer-status {
             margin-top: 8px;
             font-size: 12px;
             color: #666;
           }
+          @media print {
+            .printer-info {
+              display: none;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+          }
        </style>
      </head>
      <body>
-       <div class="download-section">
+       <div class="printer-info">
          <h3>Legacy Dot Matrix Printer Format</h3>
          <p>These labels are formatted for: <strong>${template.printer || "Dot Matrix Printer"}</strong></p>
-         <p>For direct printing to dot matrix printer, download the raw printer data:</p>
-         <a href="data:application/octet-stream;base64,${base64Data}" download="label_print_data.prn" class="download-btn">
-           Download Raw Printer Data (.prn)
-         </a>
-         <div class="printer-info">
-           <strong>Note:</strong> Send the downloaded .prn file directly to your ${template.printer} printer
-         </div>
+         <p>Click the button below to send directly to printer:</p>
+         <button onclick="sendToPrinter()" class="download-btn">
+           Send to Printer
+         </button>
+         <div class="printer-status" id="printerStatus"></div>
        </div>
        
        <h3>Preview (simplified display)</h3>
@@ -426,9 +391,42 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
          ${labelContent}
        </div>
        <script>
-          // Don't auto-print, let user choose to download or print
-          // window.print();
-          // window.close();
+          // Function to send to printer via WebUSB
+          async function sendToPrinter() {
+            const statusDiv = document.getElementById('printerStatus');
+            statusDiv.textContent = 'Sending to printer...';
+            
+            try {
+              // Get printer settings from localStorage
+              const printerSettings = JSON.parse(localStorage.getItem('dotMatrixPrinterSettings') || '{}');
+              
+              if (!printerSettings.vendorId || !printerSettings.productId) {
+                throw new Error('Printer settings not found. Please configure your printer first.');
+              }
+              
+              // Connect to the printer
+              const device = await window.printerWebSocketService.connectToUsbPrinter(
+                parseInt(printerSettings.vendorId, 16),
+                parseInt(printerSettings.productId, 16)
+              );
+              
+              // Generate raw printer data
+              const rawData = generateRawPrinterData(labelContent, template);
+              
+              // Send data to printer
+              await window.printerWebSocketService.sendToUsbPrinter(device, rawData);
+              
+              statusDiv.textContent = 'Print job sent successfully!';
+            } catch (error) {
+              statusDiv.textContent = 'Error: ' + error.message;
+            }
+          }
+          
+          // Auto-print after a short delay to ensure content is loaded
+          setTimeout(() => {
+            window.print();
+            window.close();
+          }, 500);
        </script>
      </body>
     </html>
