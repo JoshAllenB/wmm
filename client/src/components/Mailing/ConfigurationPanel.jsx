@@ -14,6 +14,8 @@ const ConfigurationPanel = ({
   setLabelHeight,
   horizontalSpacing,
   setHorizontalSpacing,
+  verticalSpacing,
+  setVerticalSpacing,
   selectedFields,
   setSelectedFields,
   templateName,
@@ -42,6 +44,31 @@ const ConfigurationPanel = ({
     <div className="flex flex-col p-4 border rounded mb-4 w-full bg-gray-50">
       <h3 className="text-lg font-semibold mb-3">Configuration</h3>
       
+      {/* Label Position Settings */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium mb-2">Label Position</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Top Margin (px):</label>
+            <input
+              type="number"
+              value={topPosition}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => setTopPosition(parseInt(e.target.value, 10))}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Left Margin (px):</label>
+            <input
+              type="number"
+              value={leftPosition}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => setLeftPosition(parseInt(e.target.value, 10))}
+            />
+          </div>
+        </div>
+      </div>
+      
       {/* Layout Settings */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
         <div className="flex flex-col">
@@ -63,27 +90,7 @@ const ConfigurationPanel = ({
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-sm mb-1">Left Position (px):</label>
-          <input
-            type="number"
-            value={leftPosition}
-            className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => setLeftPosition(parseInt(e.target.value, 10))}
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm mb-1">Top Position (px):</label>
-          <input
-            type="number"
-            value={topPosition}
-            className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => setTopPosition(parseInt(e.target.value, 10))}
-          />
-        </div>
-        <div className="flex flex-col">
-          <label className="text-sm mb-1">
-            Label Height (Vertical Space):
-          </label>
+          <label className="text-sm mb-1">Label Height (px):</label>
           <input
             type="number"
             value={labelHeight}
@@ -92,12 +99,21 @@ const ConfigurationPanel = ({
           />
         </div>
         <div className="flex flex-col">
-          <label className="text-sm mb-1">Horizontal Spacing:</label>
+          <label className="text-sm mb-1">Horizontal Spacing (px):</label>
           <input
             type="number"
             value={horizontalSpacing}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => setHorizontalSpacing(parseInt(e.target.value, 10) || 20)}
+            onChange={(e) => setHorizontalSpacing(parseInt(e.target.value, 10) || 96)}
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-sm mb-1">Vertical Spacing (px):</label>
+          <input
+            type="number"
+            value={verticalSpacing}
+            className="border border-gray-300 rounded p-1 text-center w-full"
+            onChange={(e) => setVerticalSpacing(parseInt(e.target.value, 10) || 144)}
           />
         </div>
       </div>

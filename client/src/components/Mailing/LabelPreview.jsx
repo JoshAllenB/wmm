@@ -38,6 +38,10 @@ const LabelPreview = ({
   labelHeight,
   selectedFields,
   startPosition,
+  verticalSpacing,
+  topPosition,
+  leftPosition,
+  userRole
 }) => {
   // Show loading message in preview when appropriate
   if (isLoading) {
@@ -165,19 +169,22 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
       style={{
         width: `${Math.max(effectiveColumnWidth * 2 + effectiveSpacing, 200)}px`,
         margin: '0 auto',
+        paddingTop: `${topPosition}px`,
+        paddingLeft: `${leftPosition}px`,
+        position: 'relative'
       }}
     >
-      <div className="p-2 bg-gray-100 text-gray-700 text-xs">
+      <div className="p-2 bg-gray-100 text-gray-700 text-xs" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
         Real-time preview of how labels will print
         <div className="text-gray-500">
           Label size: 4.25" × 3.5" (approx {effectiveColumnWidth}px × {effectiveHeight}px)
         </div>
       </div>
 
-      <div className="flex-grow overflow-auto relative">
+      <div className="flex-grow overflow-auto relative" style={{ marginTop: `${topPosition}px` }}>
         {/* Create rows of labels with 2 columns */}
         {Array.from({ length: Math.ceil(availableRows.length / 2) }).map((_, rowIdx) => (
-          <div key={`row-${rowIdx}`} className="flex relative">
+          <div key={`row-${rowIdx}`} className="flex relative" style={{ marginBottom: `${verticalSpacing}px` }}>
             {/* Left column */}
             {availableRows[rowIdx * 2] && (
               <LabelItem 
@@ -187,6 +194,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 fontSize={fontSize}
                 selectedFields={selectedFields}
                 align="left"
+                userRole={userRole}
               />
             )}
             
@@ -202,6 +210,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 fontSize={fontSize}
                 selectedFields={selectedFields}
                 align="right"
+                userRole={userRole}
               />
             )}
           </div>
@@ -218,7 +227,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
 };
 
 // Helper component for individual label items
-const LabelItem = ({ rowData, width, height, fontSize, selectedFields }) => {
+const LabelItem = ({ rowData, width, height, fontSize, selectedFields, userRole }) => {
   if (!rowData) return null;
   
   const wmmData = rowData.wmmData;
@@ -231,6 +240,9 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields }) => {
       enddate = date.toLocaleDateString();
     }
   }
+  
+  // Check if user role should hide expiry and copies
+  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
   
   return (
     <div
@@ -245,7 +257,9 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields }) => {
       }}
     >
       <p className="m-0 p-0 text-xs overflow-hidden text-ellipsis">
-        {rowData.id || ""} - {enddate} - {copies}cps/{rowData.acode || ""}
+        {rowData.id || ""}
+        {!shouldHideExpiryAndCopies && ` - ${enddate} - ${copies}cps/${rowData.acode || ""}`}
+        {shouldHideExpiryAndCopies && rowData.acode && `/${rowData.acode}`}
       </p>
       <p className="m-0 p-0 overflow-hidden text-ellipsis font-bold">
         {getFullName(rowData)}
