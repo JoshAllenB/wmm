@@ -27,6 +27,7 @@ const CsvExport = ({
     "acode",        // AreaCode
     
     // WMM fields
+    "company",      // Company Name
     "copies",       // Copies
     "enddate",      // Expiry Date
     "subsclass",    // Subscription Class
@@ -74,6 +75,7 @@ const CsvExport = ({
       lname: false,
       fname: false,
       mname: false,
+      company: false,
       address: false,
       cellno: false,
       officeno: false,
@@ -103,6 +105,7 @@ const CsvExport = ({
       if (typeof subscriber.lname === 'string' && subscriber.lname.trim()) fieldsWithData.lname = true;
       if (typeof subscriber.fname === 'string' && subscriber.fname.trim()) fieldsWithData.fname = true;
       if (typeof subscriber.mname === 'string' && subscriber.mname.trim()) fieldsWithData.mname = true;
+      if (typeof subscriber.company === 'string' && subscriber.company.trim()) fieldsWithData.company = true;
       if (typeof subscriber.cellno === 'string' && subscriber.cellno.trim()) fieldsWithData.cellno = true;
       if (typeof subscriber.officeno === 'string' && subscriber.officeno.trim()) fieldsWithData.officeno = true;
       if (subscription.copies) fieldsWithData.copies = true;
@@ -182,6 +185,8 @@ const CsvExport = ({
       if (fieldsWithData.lname) headers.push("Last Name");
       if (fieldsWithData.fname) headers.push("First Name");
     }
+    if (csvIncludeFields.includes("company") && fieldsWithData.company)
+      headers.push("Company");
     if (csvIncludeFields.includes("address") && fieldsWithData.address) {
       // Add address headers based on actual used lines
       addressLinesUsed.forEach(index => {
@@ -253,6 +258,8 @@ const CsvExport = ({
         if (fieldsWithData.lname) rowData.push(`"${typeof subscriber.lname === 'string' ? subscriber.lname : ""}"`);
         if (fieldsWithData.fname) rowData.push(`"${typeof subscriber.fname === 'string' ? subscriber.fname : ""}"`);
       }
+      if (csvIncludeFields.includes("company") && fieldsWithData.company)
+        rowData.push(`"${typeof subscriber.company === 'string' ? subscriber.company : ""}"`);
       if (csvIncludeFields.includes("address") && fieldsWithData.address) {
         const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split("\n") : [];
         addressLinesUsed.forEach(index => {
@@ -582,6 +589,18 @@ const CsvExport = ({
             <div className="mb-4">
               <h4 className="text-xs font-medium text-gray-600 mb-2">WMM Information:</h4>
               <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="csv-company"
+                    checked={csvIncludeFields.includes("company")}
+                    onChange={() => toggleCsvField("company")}
+                    className="mr-2"
+                  />
+                  <label htmlFor="csv-company" className="text-sm">
+                    {renderFieldLabel("company", "Company")}
+                  </label>
+                </div>
                 <div className="flex items-center">
                   <input
                     type="checkbox"
