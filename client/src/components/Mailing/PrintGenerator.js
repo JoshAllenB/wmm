@@ -26,6 +26,70 @@ const formatIdLegacy = (id) => {
   return id.toString().padStart(6, '0');
 };
 
+// Function to handle STR_MLINE - splits text into multiple lines of specified width
+const handleStrMline = (text, lineNum, width) => {
+  if (!text) return "";
+  const words = text.split(" ");
+  const lines = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    if (currentLine.length + word.length + 1 <= width) {
+      currentLine += (currentLine ? " " : "") + word;
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+
+  // Pad with empty lines if needed
+  while (lines.length < lineNum) {
+    lines.push("");
+  }
+
+  // Return the requested line, padded to width
+  return (lines[lineNum - 1] || "").padEnd(width);
+};
+
+// Function to handle STR_Name formatting
+const handleStrName = (data, format) => {
+  const { title, lname, fname, mname, sname } = data;
+  
+  // Format "T F M L, S" - Title FirstName MiddleName LastName, Suffix
+  if (format === "T F M L, S") {
+    const parts = [
+      title,
+      fname,
+      mname,
+      lname,
+      sname ? `, ${sname}` : ""
+    ].filter(Boolean);
+    return parts.join(" ");
+  }
+  
+  // Default to basic name format if format not recognized
+  return [title, fname, mname, lname, sname].filter(Boolean).join(" ");
+};
+
+// Function to handle STR_Check - validates and formats data according to conditions
+const handleStrCheck = (check, ...args) => {
+  if (check !== 1) return ""; // Only handle check=1 for now
+  
+  // Filter out empty lines and join with newlines
+  return args.filter(arg => arg && arg.trim()).join("\n");
+};
+
+// Function to convert ESC/P commands from octal to binary
+const convertEscPCommands = (command) => {
+  if (!command) return '';
+  return command.replace(/\\(\d+)/g, (match, code) => 
+    String.fromCharCode(parseInt(code, 8))
+  );
+};
+
 // Generate raw printer data for USB printing
 const generateRawPrinterData = (data, template) => {
   // Initialize printer commands
@@ -49,6 +113,69 @@ const generateRawPrinterData = (data, template) => {
   commands.push(0x1D, 0x56, 0x41); // GS V A - Full cut
   
   return new Uint8Array(commands);
+};
+
+// Function to generate .prn file content for legacy templates
+export const generatePrnContent = (template, data) => {
+  let content = '';
+  
+  // Add initialization commands with proper ESC/P conversion
+  if (template.init) {
+    content += convertEscPCommands(template.init);
+  }
+  
+  // Process each row of data
+  data.forEach(row => {
+    let rowContent = template.format;
+    
+    // Replace STR_Check function calls
+    rowContent = rowContent.replace(/<<STR_Check\(([^)]+)\)>>/g, (match, params) => {
+      const args = params.split(',').map(arg => {
+        // Handle nested function calls within STR_Check
+        if (arg.includes('STR_MLINE')) {
+          const mlineMatch = arg.match(/STR_MLINE\(([^,]+),(\d+),(\d+)\)/);
+          if (mlineMatch) {
+            const [_, text, lineNum, width] = mlineMatch;
+            // Handle STR_Name within STR_MLINE
+            if (text.includes('STR_Name')) {
+              const nameMatch = text.match(/STR_Name\(([^)]+)\)/);
+              if (nameMatch) {
+                const nameParams = nameMatch[1].split(',').map(p => p.trim());
+                const nameData = {
+                  title: row.original[nameParams[0]] || '',
+                  lname: row.original[nameParams[1]] || '',
+                  fname: row.original[nameParams[2]] || '',
+                  mname: row.original[nameParams[3]] || '',
+                  sname: row.original[nameParams[4]] || ''
+                };
+                const nameFormat = nameParams[5]?.replace(/"/g, '');
+                return handleStrMline(handleStrName(nameData, nameFormat), parseInt(lineNum), parseInt(width));
+              }
+            }
+            // Handle other text in STR_MLINE
+            const fieldName = text.replace(/['"]/g, '');
+            return handleStrMline(row.original[fieldName] || '', parseInt(lineNum), parseInt(width));
+          }
+        }
+        return arg;
+      });
+      return handleStrCheck(...args);
+    });
+    
+    // Replace other placeholders
+    rowContent = rowContent.replace(/<<TRANSFORM\(id,"@L 999999"\)>>/g, formatIdLegacy(row.original.id));
+    rowContent = rowContent.replace(/<<acode>>/g, row.original.acode || '');
+    
+    // Convert any ESC/P commands in the row content
+    content += convertEscPCommands(rowContent);
+  });
+  
+  // Add reset commands with proper ESC/P conversion
+  if (template.reset) {
+    content += convertEscPCommands(template.reset);
+  }
+  
+  return content;
 };
 
 // Generate HTML for a specific range of Client IDs and starting position
@@ -98,90 +225,80 @@ export const generatePrintHTML = (
   }
 
   // Calculate layout based on filtered rows
-  const numRowsToPrint = filteredRows.length;
-  let layoutRows = [...filteredRows];
-  let emptySlots = 0;
+  const totalItems = filteredRows.length;
+  const leftColumnCount = Math.ceil(totalItems * 0.6);
+  const rightColumnCount = totalItems - leftColumnCount;
 
-  // If starting on the right, add a placeholder at the beginning
-  if (startColumn === "right" && numRowsToPrint > 0) {
-    layoutRows.unshift(null); // Add placeholder for the first slot
-    emptySlots = 1;
-  }
-
-  const addressPerColumn = Math.ceil(layoutRows.length / 2);
-  const column1 = layoutRows.slice(0, addressPerColumn);
-  const column2 = layoutRows.slice(addressPerColumn);
+  const column1 = filteredRows.slice(0, leftColumnCount);
+  const column2 = filteredRows.slice(leftColumnCount);
 
   // Check if user role should hide expiry and copies
   const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
 
-  const labelHtml = [column1, column2]
-    .map((column, columnIndex) => {
-      return column
-        .map((row, rowIndex) => {
-          // Skip rendering the placeholder if it exists
-          if (row === null) {
-            return "<!-- Placeholder -->";
-          }
+  // Use configuration values for dimensions
+  const containerWidth = columnWidth * 2 + horizontalSpacing;
 
-          // Calculate the actual data row index (needed if placeholder was added)
-          const dataRowIndex =
-            columnIndex * addressPerColumn + rowIndex - emptySlots;
-          const actualRowData = filteredRows[dataRowIndex];
-
-          if (!actualRowData) {
-            console.error(
-              "Mismatch finding actual row data for index",
-              dataRowIndex
-            );
-            return "<!-- Error -->";
-          }
-
-          // Access data directly from the wmmData object
-          const wmmData = actualRowData?.original?.wmmData; // Get the object
-          let subscription = wmmData?.records?.[0] || wmmData || {};
-          const copies = subscription.copies ?? "N/A";
-          let enddate = "N/A";
-          if (subscription.enddate) {
-            const date = new Date(subscription.enddate);
-            if (!isNaN(date.getTime())) {
-              enddate = date.toLocaleDateString();
-            }
-          }
-
-          return `
-        <div class="address-container column-${columnIndex + 1}" style="left: ${
-          columnIndex * (columnWidth + horizontalSpacing)
-        }px; top: ${
-            topPosition + rowIndex * (labelHeight + verticalSpacing)
-          }px; font-size: ${fontSize}px; width: ${columnWidth}px; word-wrap: break-word; white-space: normal; overflow-wrap: break-word;">
-          <p style="width: ${columnWidth}px;">${
-            actualRowData?.original?.id || ""
-          }${
-            !shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${actualRowData?.original?.acode || ""}` : 
-            (actualRowData?.original?.acode ? `/${actualRowData?.original?.acode}` : "")
-          }</p>
-          <p style="width: ${columnWidth}px;">${getFullName(actualRowData?.original || {})}</p>
-          <p style="width: ${columnWidth}px;">${actualRowData?.original?.address || ""}</p>
-          ${
-            selectedFields.includes("contactnos")
-              ? `<p style="width: ${columnWidth}px;">${getContactNumber(actualRowData?.original || {})}</p>`
-              : "" /* Render contact paragraph conditionally */
-          }
+  // --- NEW LABEL HTML GENERATION ---
+  let labelHtml = '';
+  const maxRows = Math.max(column1.length, column2.length);
+  for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
+    // Left column (column 1)
+    const row1 = column1[rowIndex];
+    if (row1) {
+      const wmmData = row1?.original?.wmmData;
+      let subscription = wmmData?.records?.[0] || wmmData || {};
+      const copies = subscription.copies ?? "N/A";
+      let enddate = "N/A";
+      if (subscription.enddate) {
+        const date = new Date(subscription.enddate);
+        if (!isNaN(date.getTime())) {
+          enddate = date.toLocaleDateString();
+        }
+      }
+      labelHtml += `
+        <div class="address-container column-1" style="position:absolute; left:0px; top:${topPosition + rowIndex * (labelHeight + verticalSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
+          <p style="font-size:${fontSize}pt;">${row1?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row1?.original?.acode || ""}` : (row1?.original?.acode ? `/${row1?.original?.acode}` : "")}</p>
+          <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row1?.original || {})}</p>
+          <p style="font-size:${fontSize}pt;">${row1?.original?.address || ""}</p>
+          ${selectedFields.includes("contactnos") ? `<p style="font-size:${fontSize}pt;">${getContactNumber(row1?.original || {})}</p>` : ""}
         </div>
       `;
-        })
-        .join("");
-    })
-    .join("");
+    }
+    // Right column (column 2)
+    const row2 = column2[rowIndex];
+    if (row2) {
+      const wmmData = row2?.original?.wmmData;
+      let subscription = wmmData?.records?.[0] || wmmData || {};
+      const copies = subscription.copies ?? "N/A";
+      let enddate = "N/A";
+      if (subscription.enddate) {
+        const date = new Date(subscription.enddate);
+        if (!isNaN(date.getTime())) {
+          enddate = date.toLocaleDateString();
+        }
+      }
+      labelHtml += `
+        <div class="address-container column-2" style="position:absolute; left:${containerWidth - columnWidth}px; top:${topPosition + rowIndex * (labelHeight + verticalSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
+          <p style="font-size:${fontSize}pt;">${row2?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row2?.original?.acode || ""}` : (row2?.original?.acode ? `/${row2?.original?.acode}` : "")}</p>
+          <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row2?.original || {})}</p>
+          <p style="font-size:${fontSize}pt;">${row2?.original?.address || ""}</p>
+          ${selectedFields.includes("contactnos") ? `<p style="font-size:${fontSize}pt;">${getContactNumber(row2?.original || {})}</p>` : ""}
+        </div>
+      `;
+    }
+  }
+  // --- END NEW LABEL HTML GENERATION ---
 
-  return `
+  const htmlContent = `
     <html>
     <head>
-       <title>Mailing Labels (${startId || "Start"} to ${
-    endId || "End"
-  })</title>
+       <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
         <style>
+          @page {
+            margin: 0;
+            padding: 0;
+            size: auto;
+          }
           body { 
             font-family: Arial, sans-serif;
             margin: 0;
@@ -189,46 +306,89 @@ export const generatePrintHTML = (
           }
           .mailing-label {
             position: relative;
-            width: ${columnWidth * 2 + horizontalSpacing}px;
-            height: ${topPosition + (labelHeight + verticalSpacing) * addressPerColumn}px;
+            width: ${containerWidth}px;
+            height: ${topPosition + maxRows * (labelHeight + verticalSpacing)}px;
+            background: white;
+            left: ${leftPosition}px;
           }
           .address-container {
-            position: absolute;
-            margin-bottom: ${verticalSpacing}px;
-            width: ${columnWidth}px;
+            box-sizing: border-box;
+            border: 1px dashed #bbb;
+            background: #fff;
+            padding: 6px 8px;
+            overflow: hidden;
+            word-wrap: break-word;
+            white-space: normal;
+            border-radius: 4px;
+            text-align: left;
           }
           .address-container p {
             margin: 0;
             padding: 0;
-            font-size: ${fontSize}px;
             color: black;
-            width: ${columnWidth}px;
+            width: 100%;
             word-wrap: break-word;
             white-space: normal;
             overflow-wrap: break-word;
+            text-align: left;
+          }
+          .column-1 {
+            padding-right: 32px !important;
+          }
+          .column-2 {
+            padding-left: 32px !important;
           }
           @media print {
             @page {
-              margin: 0;
-              padding: 0;
+              margin: 0 !important;
+              padding: 0 !important;
+              size: auto !important;
             }
             body { 
-              margin: ${topPosition}px 0 0 ${leftPosition}px !important;
+              margin: 0 !important;
               padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .mailing-label {
-              position: absolute;
-              left: ${leftPosition}px;
-              top: ${topPosition}px;
-              width: ${columnWidth * 2 + horizontalSpacing}px;
+              position: absolute !important;
+              left: ${leftPosition}px !important;
+              top: 0 !important;
+              width: ${containerWidth}px !important;
+              height: ${topPosition + maxRows * (labelHeight + verticalSpacing)}px !important;
+              transform: none !important;
+              -webkit-transform: none !important;
+            }
+            .address-container {
+              box-shadow: none !important;
+              border: none !important;
+              position: absolute !important;
+              width: ${columnWidth}px !important;
+              height: ${labelHeight}px !important;
+              transform: none !important;
+              -webkit-transform: none !important;
+              box-sizing: border-box !important;
+              overflow: hidden !important;
+              text-align: left !important;
+            }
+            .address-container p {
+              font-size: ${fontSize}pt !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              transform: none !important;
+              -webkit-transform: none !important;
+              text-align: left !important;
             }
             .column-1 {
-              left: ${leftPosition}px !important;
-              width: ${columnWidth}px !important;
+              left: 0px !important;
+              padding-right: 32px !important;
+              padding-left: 8px !important;
             }
             .column-2 {
-              left: ${leftPosition + columnWidth + horizontalSpacing}px !important;
-              width: ${columnWidth}px !important;
+              left: ${containerWidth - columnWidth}px !important;
+              padding-left: 32px !important;
+              padding-right: 8px !important;
             }
           }
         </style>
@@ -244,6 +404,8 @@ export const generatePrintHTML = (
       </body>
     </html>
   `;
+
+  return htmlContent;
 };
 
 // Generate HTML specifically formatted for legacy dot matrix printers
@@ -326,7 +488,13 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
     })
     .join("\n");
 
-  // Generate the HTML with styling appropriate for legacy format
+  // Generate .prn content
+  const prnContent = generatePrnContent(template, filteredRows);
+  
+  // Create a Blob with the .prn content
+  const prnBlob = new Blob([prnContent], { type: 'application/octet-stream' });
+  const prnUrl = URL.createObjectURL(prnBlob);
+
   return `
     <html>
     <head>
@@ -340,6 +508,7 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
             font-family: Courier, monospace; 
             font-size: ${layout.fontSize}px;
             line-height: 1.2;
+            padding: 20px;
           }
           .legacy-label {
             white-space: pre;
@@ -354,15 +523,28 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
           }
           .printer-info {
             margin: 20px 0;
-            padding: 10px;
+            padding: 20px;
             background-color: #f5f5f5;
             border: 1px solid #ddd;
             border-radius: 5px;
           }
-          .printer-status {
-            margin-top: 8px;
-            font-size: 12px;
-            color: #666;
+          .download-btn {
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+            font-size: 16px;
+            display: inline-block;
+          }
+          .download-btn:hover {
+            background-color: #45a049;
+          }
+          .info-text {
+            margin: 15px 0;
+            line-height: 1.5;
           }
           @media print {
             .printer-info {
@@ -378,12 +560,13 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
      <body>
        <div class="printer-info">
          <h3>Legacy Dot Matrix Printer Format</h3>
-         <p>These labels are formatted for: <strong>${template.printer || "Dot Matrix Printer"}</strong></p>
-         <p>Click the button below to send directly to printer:</p>
-         <button onclick="sendToPrinter()" class="download-btn">
-           Send to Printer
+         <p class="info-text">
+           This template is configured for: <strong>${template.printer || "Dot Matrix Printer"}</strong><br>
+           Click the button below to download the .prn file that can be used with your dot matrix printer.
+         </p>
+         <button onclick="downloadPrnFile()" class="download-btn">
+           Download .prn File
          </button>
-         <div class="printer-status" id="printerStatus"></div>
        </div>
        
        <h3>Preview (simplified display)</h3>
@@ -391,42 +574,15 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
          ${labelContent}
        </div>
        <script>
-          // Function to send to printer via WebUSB
-          async function sendToPrinter() {
-            const statusDiv = document.getElementById('printerStatus');
-            statusDiv.textContent = 'Sending to printer...';
-            
-            try {
-              // Get printer settings from localStorage
-              const printerSettings = JSON.parse(localStorage.getItem('dotMatrixPrinterSettings') || '{}');
-              
-              if (!printerSettings.vendorId || !printerSettings.productId) {
-                throw new Error('Printer settings not found. Please configure your printer first.');
-              }
-              
-              // Connect to the printer
-              const device = await window.printerWebSocketService.connectToUsbPrinter(
-                parseInt(printerSettings.vendorId, 16),
-                parseInt(printerSettings.productId, 16)
-              );
-              
-              // Generate raw printer data
-              const rawData = generateRawPrinterData(labelContent, template);
-              
-              // Send data to printer
-              await window.printerWebSocketService.sendToUsbPrinter(device, rawData);
-              
-              statusDiv.textContent = 'Print job sent successfully!';
-            } catch (error) {
-              statusDiv.textContent = 'Error: ' + error.message;
-            }
+          // Function to download .prn file
+          function downloadPrnFile() {
+            const link = document.createElement('a');
+            link.href = '${prnUrl}';
+            link.download = 'labels.prn';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
           }
-          
-          // Auto-print after a short delay to ensure content is loaded
-          setTimeout(() => {
-            window.print();
-            window.close();
-          }, 500);
        </script>
      </body>
     </html>
