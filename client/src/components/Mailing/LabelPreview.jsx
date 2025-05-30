@@ -1,5 +1,13 @@
 import React from "react";
 
+// Conversion functions
+const mmToPx = (mm) => Math.round(mm * 96 / 25.4); // Convert mm to pixels at 96dpi
+const inchesToMm = (inches) => inches * 25.4; // Convert inches to mm
+
+// Standard US Letter size in mm
+const LETTER_WIDTH_MM = inchesToMm(8.5);  // 215.9mm
+const LETTER_HEIGHT_MM = inchesToMm(11);   // 279.4mm
+
 // Helper functions
 const getFullName = (row) => {
   const title = row.title ? `${row.title} ` : "";
@@ -32,15 +40,15 @@ const LabelPreview = ({
   hasAvailableRows, 
   availableRows,
   useLegacyFormat,
-  fontSize,
-  columnWidth,
-  horizontalSpacing,
-  labelHeight,
+  fontSize, // Now in points (pt)
+  columnWidth, // In mm
+  horizontalSpacing, // In mm
+  labelHeight, // In mm
   selectedFields,
   startPosition,
-  verticalSpacing,
-  topPosition,
-  leftPosition,
+  verticalSpacing, // In mm
+  topPosition, // In mm
+  leftPosition, // In mm
   userRole
 }) => {
   // Show loading message in preview when appropriate
@@ -102,7 +110,7 @@ const LabelPreview = ({
           width: `${Math.max(selectedTemplate.layout.width * 8, 200)}px`,
           margin: '0 auto',
           padding: '10px',
-          fontSize: `${fontSize}px`
+          fontSize: `${fontSize}pt` // Now using points
         }}
       >
         {/* Show sample of legacy format */}
@@ -152,46 +160,55 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
     );
   }
 
-  // Modern template preview - Two-column layout that fills the container
-  // Calculate dimensions in pixels (assuming 96dpi for screen)
-  const labelWidthInPixels = 4.25 * 96; // 4.25 inches at 96dpi = 408px
-  const labelHeightInPixels = 3.5 * 96; // 3.5 inches at 96dpi = 336px
-  const gapInPixels = 1 * 96; // 1 inch gap = 96px
-  
-  // Use these dimensions as defaults if not provided in props
-  const effectiveColumnWidth = columnWidth || labelWidthInPixels;
-  const effectiveHeight = labelHeight || labelHeightInPixels;
-  const effectiveSpacing = horizontalSpacing || gapInPixels;
+  // Modern template preview - Calculate dimensions for letter size paper
+  // Convert all measurements from mm to pixels for display
+  const effectiveColumnWidth = mmToPx(columnWidth);
+  const effectiveHeight = mmToPx(labelHeight);
+  const effectiveSpacing = mmToPx(horizontalSpacing);
+  const effectiveTopPosition = mmToPx(topPosition);
+  const effectiveLeftPosition = mmToPx(leftPosition);
+  const effectiveVerticalSpacing = mmToPx(verticalSpacing);
+
+  // Calculate paper dimensions in pixels
+  const paperWidthPx = mmToPx(LETTER_WIDTH_MM);
+  const paperHeightPx = mmToPx(LETTER_HEIGHT_MM);
   
   return (
     <div 
-      className="mailing-label-preview flex flex-col h-full w-full border border-dashed border-gray-400 relative bg-white shadow-md overflow-auto"
+      className="mailing-label-preview flex flex-col border border-dashed border-gray-400 relative bg-white shadow-md overflow-auto"
       style={{
-        width: `${Math.max(effectiveColumnWidth * 2 + effectiveSpacing, 200)}px`,
+        width: `${paperWidthPx}px`,
+        height: `${paperHeightPx}px`,
         margin: '0 auto',
-        paddingTop: `${topPosition}px`,
-        paddingLeft: `${leftPosition}px`,
         position: 'relative'
       }}
     >
       <div className="p-2 bg-gray-100 text-gray-700 text-xs" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-        Real-time preview of how labels will print
+        Real-time preview of how labels will print on US Letter (8.5" × 11")
         <div className="text-gray-500">
-          Label size: 4.25" × 3.5" (approx {effectiveColumnWidth}px × {effectiveHeight}px)
+          Label size: {columnWidth.toFixed(1)}mm × {labelHeight.toFixed(1)}mm
+          <br />
+          Spacing: H: {horizontalSpacing.toFixed(1)}mm, V: {verticalSpacing.toFixed(1)}mm
         </div>
       </div>
 
-      <div className="flex-grow overflow-auto relative" style={{ marginTop: `${topPosition}px` }}>
+      <div 
+        className="flex-grow relative" 
+        style={{ 
+          paddingTop: `${effectiveTopPosition}px`,
+          paddingLeft: `${effectiveLeftPosition}px`
+        }}
+      >
         {/* Create rows of labels with 2 columns */}
         {Array.from({ length: Math.ceil(availableRows.length / 2) }).map((_, rowIdx) => (
-          <div key={`row-${rowIdx}`} className="flex relative" style={{ marginBottom: `${verticalSpacing}px` }}>
+          <div key={`row-${rowIdx}`} className="flex relative" style={{ marginBottom: `${effectiveVerticalSpacing}px` }}>
             {/* Left column */}
             {availableRows[rowIdx * 2] && (
               <LabelItem 
                 rowData={availableRows[rowIdx * 2].original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
-                fontSize={fontSize}
+                fontSize={fontSize} // Now in points
                 selectedFields={selectedFields}
                 align="left"
                 userRole={userRole}
@@ -207,7 +224,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 rowData={availableRows[rowIdx * 2 + 1].original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
-                fontSize={fontSize}
+                fontSize={fontSize} // Now in points
                 selectedFields={selectedFields}
                 align="right"
                 userRole={userRole}
@@ -227,7 +244,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
 };
 
 // Helper component for individual label items
-const LabelItem = ({ rowData, width, height, fontSize, selectedFields, userRole }) => {
+const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, userRole }) => {
   if (!rowData) return null;
   
   const wmmData = rowData.wmmData;
@@ -244,31 +261,46 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields, userRole 
   // Check if user role should hide expiry and copies
   const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
   
+  // Add padding based on alignment
+  const paddingStyle = align === 'left' ? 
+    { paddingRight: '24px' } : 
+    { paddingLeft: '24px' };
+
+  // Common style for all paragraphs
+  const commonParagraphStyle = {
+    margin: 0,
+    padding: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    lineHeight: "1.2", // Add consistent line height
+    fontSize: `${fontSize}pt` // Use points for font size
+  };
+  
   return (
     <div
-      className="address-container-preview border border-gray-300 bg-white flex-shrink-0"
+      className="address-container-preview border border-gray-300 bg-white flex-shrink-0 p-2"
       style={{
         width: `${width}px`,
         height: `${height}px`,
-        fontSize: `${fontSize}px`,
         overflow: "hidden",
         wordWrap: "break-word",
         whiteSpace: "normal",
+        ...paddingStyle
       }}
     >
-      <p className="m-0 p-0 text-xs overflow-hidden text-ellipsis">
+      <p style={commonParagraphStyle}>
         {rowData.id || ""}
         {!shouldHideExpiryAndCopies && ` - ${enddate} - ${copies}cps/${rowData.acode || ""}`}
         {shouldHideExpiryAndCopies && rowData.acode && `/${rowData.acode}`}
       </p>
-      <p className="m-0 p-0 overflow-hidden text-ellipsis font-bold">
+      <p style={commonParagraphStyle}>
         {getFullName(rowData)}
       </p>
-      <p className="m-0 p-0 overflow-hidden text-ellipsis">
+      <p style={commonParagraphStyle}>
         {rowData.address || ""}
       </p>
       {selectedFields.includes("contactnos") && (
-        <p className="m-0 p-0 overflow-hidden text-ellipsis">
+        <p style={commonParagraphStyle}>
           Cell# {getContactNumber(rowData)}
         </p>
       )}

@@ -17,7 +17,7 @@ import RenewalNoticeDataOverlay from "./Mailing/RenewalNotice";
 import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
 
 // Import utility functions
-import { generatePrintHTML, generateChecklistHTML } from "./Mailing/PrintGenerator";
+import { generatePrintHTML, generateChecklistHTML, generatePrnContent } from "./Mailing/PrintGenerator";
 
 // Helper functions
 const convertLegacyLabelToTemplate = (label) => {
@@ -63,6 +63,10 @@ const convertLegacyLabelToTemplate = (label) => {
   };
 };
 
+// Conversion functions
+const mmToPx = (mm) => Math.round(mm * 96 / 25.4);
+const pxToMm = (px) => Number((px * 25.4 / 96).toFixed(2));
+
 const Mailing = ({
   table,
   id,
@@ -99,14 +103,15 @@ const Mailing = ({
     return roles.length > 0 ? roles.join(" ") : "";
   }, [hasRole]);
 
-  // State variables
+  // State variables - using mm for dimensions and pt for font size
   const [modalOpen, setModalOpen] = useState(false);
-  const [leftPosition, setLeftPosition] = useState(10);
-  const [topPosition, setTopPosition] = useState(10);
-  const [columnWidth, setColumnWidth] = useState(300);
-  const [fontSize, setFontSize] = useState(12);
-  const [labelHeight, setLabelHeight] = useState(100);
-  const [horizontalSpacing, setHorizontalSpacing] = useState(20);
+  const [leftPosition, setLeftPosition] = useState(1.06); // 4px in mm
+  const [topPosition, setTopPosition] = useState(33.07); // 125px in mm
+  const [columnWidth, setColumnWidth] = useState(87.31); // 330px in mm
+  const [fontSize, setFontSize] = useState(12); // in points (pt)
+  const [labelHeight, setLabelHeight] = useState(34.40); // 130px in mm
+  const [horizontalSpacing, setHorizontalSpacing] = useState(15.87); // 60px in mm
+  const [verticalSpacing, setVerticalSpacing] = useState(58.21); // 220px in mm
   const [selectedFields, setSelectedFields] = useState(["contactnos"]);
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -336,28 +341,27 @@ const Mailing = ({
     );
     
     if (selected) {
-      // Check if this is a legacy template
       if (selected.isLegacy) {
         setUseLegacyFormat(true);
         
-        // Set the layout settings from the legacy template
-        setFontSize(selected.layout.fontSize);
-        setLeftPosition(selected.layout.leftPosition);
-        setTopPosition(selected.layout.topPosition);
-        setColumnWidth(selected.layout.columnWidth);
-        setLabelHeight(selected.layout.labelHeight);
-        setHorizontalSpacing(selected.layout.horizontalSpacing);
+        // Set the layout settings (convert dimensions to mm, keep font size in pt)
+        setFontSize(selected.layout.fontSize); // Font size stays in pt
+        setLeftPosition(pxToMm(selected.layout.leftPosition));
+        setTopPosition(pxToMm(selected.layout.topPosition));
+        setColumnWidth(pxToMm(selected.layout.columnWidth));
+        setLabelHeight(pxToMm(selected.layout.labelHeight));
+        setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing));
         setSelectedFields(selected.selectedFields);
       } else {
         setUseLegacyFormat(false);
         
         // Regular template settings
-        setFontSize(selected.layout.fontSize);
-        setLeftPosition(selected.layout.leftPosition);
-        setTopPosition(selected.layout.topPosition);
-        setColumnWidth(selected.layout.columnWidth);
-        setLabelHeight(selected.layout.labelHeight || 100);
-        setHorizontalSpacing(selected.layout.horizontalSpacing || 20);
+        setFontSize(selected.layout.fontSize); // Font size stays in pt
+        setLeftPosition(pxToMm(selected.layout.leftPosition));
+        setTopPosition(pxToMm(selected.layout.topPosition));
+        setColumnWidth(pxToMm(selected.layout.columnWidth));
+        setLabelHeight(pxToMm(selected.layout.labelHeight || 100));
+        setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing || 20));
         setSelectedFields(selected.selectedFields);
       }
       setSelectedTemplate(selected);
@@ -375,12 +379,12 @@ const Mailing = ({
       const newTemplate = {
         name: templateName.trim(),
         layout: {
-          fontSize,
-          leftPosition,
-          topPosition,
-          columnWidth,
-          labelHeight,
-          horizontalSpacing,
+          fontSize, // Font size stays in pt
+          leftPosition: mmToPx(leftPosition),
+          topPosition: mmToPx(topPosition),
+          columnWidth: mmToPx(columnWidth),
+          labelHeight: mmToPx(labelHeight),
+          horizontalSpacing: mmToPx(horizontalSpacing),
         },
         selectedFields,
       };
@@ -407,25 +411,63 @@ const Mailing = ({
 
   // Handle print with range
   const handlePrintWithRange = () => {
-    // If no template is selected but we need to print, create a default template
     let templateToUse = selectedTemplate;
     if (!templateToUse) {
-      // Create a default template based on current settings
       templateToUse = {
         name: "Default Template",
         layout: {
-          fontSize,
-          leftPosition,
-          topPosition,
-          columnWidth,
-          labelHeight,
-          horizontalSpacing,
+          fontSize, // Font size stays in pt
+          leftPosition: mmToPx(leftPosition),
+          topPosition: mmToPx(topPosition),
+          columnWidth: mmToPx(columnWidth),
+          labelHeight: mmToPx(labelHeight),
+          horizontalSpacing: mmToPx(horizontalSpacing),
         },
         selectedFields,
         isLegacy: useLegacyFormat
       };
     }
 
+    // For legacy templates, generate and download .prn file
+    if (templateToUse.isLegacy) {
+      // Filter rows based on start/end Client IDs
+      const filteredRows = availableRows.filter((row) => {
+        const clientId = row?.original?.id?.toString();
+        if (!clientId) return false;
+        
+        const trimmedStartId = startClientId?.trim();
+        const trimmedEndId = endClientId?.trim();
+        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+        const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+        return isAfterStart && isBeforeEnd;
+      });
+
+      if (filteredRows.length === 0) {
+        alert("No labels found for the specified Client ID range. Check IDs and selection.");
+        return;
+      }
+
+      // Generate .prn content
+      const prnContent = generatePrnContent(templateToUse, filteredRows);
+      
+      // Create a Blob with the .prn content
+      const prnBlob = new Blob([prnContent], { type: 'application/octet-stream' });
+      const prnUrl = URL.createObjectURL(prnBlob);
+      
+      // Create and trigger download
+      const link = document.createElement('a');
+      link.href = prnUrl;
+      link.download = `labels_${startClientId}_${endClientId}.prn`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the URL object
+      URL.revokeObjectURL(prnUrl);
+      return;
+    }
+
+    // For non-legacy templates, show print preview
     const htmlContent = generatePrintHTML(
       startClientId,
       endClientId,
@@ -433,13 +475,15 @@ const Mailing = ({
       availableRows,
       useLegacyFormat,
       templateToUse,
-      leftPosition,
-      topPosition,
-      columnWidth,
-      horizontalSpacing,
-      fontSize,
-      labelHeight,
-      selectedFields
+      mmToPx(leftPosition),
+      mmToPx(topPosition),
+      mmToPx(columnWidth),
+      mmToPx(horizontalSpacing),
+      mmToPx(verticalSpacing),
+      fontSize, // Font size stays in pt
+      mmToPx(labelHeight),
+      selectedFields,
+      userRole
     );
     
     const printWindow = window.open("", "_blank", "height=600,width=800");
@@ -847,6 +891,8 @@ const Mailing = ({
                 setLabelHeight={setLabelHeight}
                 horizontalSpacing={horizontalSpacing}
                 setHorizontalSpacing={setHorizontalSpacing}
+                verticalSpacing={verticalSpacing}
+                setVerticalSpacing={setVerticalSpacing}
                 selectedFields={selectedFields}
                 setSelectedFields={setSelectedFields}
                 templateName={templateName}
@@ -937,9 +983,13 @@ const Mailing = ({
                 fontSize={fontSize}
                 columnWidth={columnWidth}
                 horizontalSpacing={horizontalSpacing}
+                verticalSpacing={verticalSpacing}
                 labelHeight={labelHeight}
                 selectedFields={selectedFields}
                 startPosition={startPosition}
+                topPosition={topPosition}
+                leftPosition={leftPosition}
+                userRole={userRole}
               />
               <div className="text-sm text-gray-600 mt-2 text-center">
                 <p>Real-time preview of how labels will print</p>
@@ -961,7 +1011,7 @@ const Mailing = ({
             className="bg-green-600 hover:bg-green-700 text-white flex-grow"
             disabled={!hasAvailableRows || isLoading}
           >
-            {isLoading ? 'Loading...' : 'Print Preview'}
+            {isLoading ? 'Loading...' : selectedTemplate?.isLegacy ? 'Download .prn File' : 'Print Preview'}
           </Button>
           
           {selectedTemplate?.isLegacy && (
