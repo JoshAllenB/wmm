@@ -10,6 +10,7 @@ import FomModel from "../../models/fom.mjs";
 import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
+import dataService from "../apiLogic/services/DataService.mjs";
 
 dotenv.config();
 
@@ -97,16 +98,18 @@ router.get(
         ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
         : userRoles.map((role) => `${role}Model`);
 
-      const results = await fetchDataServices(
+      // Use the new DataService to fetch data
+      const results = await dataService.fetchData({
         modelNames,
         filter,
-        validPage,
-        validPageSize,
-        validPageSize, // Pass validPageSize as pageSize
+        page: validPage,
+        limit: validPageSize,
+        pageSize: validPageSize,
         group,
-        null,
+        clientIds: null,
         advancedFilterData
-      );
+      });
+      console.log("Results:", results.combinedData.length);
 
       let { combinedData, clientServices } = results;
 
@@ -121,60 +124,24 @@ router.get(
         };
       });
 
-      const {
-        totalPages,
-        totalCopies,
-        pageSpecificCopies,
-        totalCalQty,
-        totalCalAmt,
-        pageSpecificCalQty,
-        pageSpecificCalAmt,
-        totalHrgAmt,
-        totalFomAmt,
-        totalCalPaymtAmt,
-        pageSpecificHrgAmt,
-        pageSpecificFomAmt,
-        pageSpecificCalPaymtAmt,
-        totalClients,
-        pageSpecificClients,
-        absoluteTotalClients,
-        absoluteTotalCopies
-      } = results;
+      // Send response
+      res.json({
+        ...results,
+        combinedData,
+      });
 
-      if (socketId && io) {
-        io.to(socketId).emit("data-update", {
-          type: "init",
-          data: combinedData,
+      // Emit socket event if needed
+      if (io && socketId) {
+        io.to(socketId).emit("dataFetched", {
+          message: "Data fetched successfully",
+          timestamp: new Date(),
         });
       }
-
-      res.json({
-        totalPages,
-        combinedData,
-        totalCopies,
-        pageSpecificCopies,
-        totalCalQty,
-        totalCalAmt,
-        pageSpecificCalQty,
-        pageSpecificCalAmt,
-        totalHrgAmt,
-        totalFomAmt,
-        totalCalPaymtAmt,
-        pageSpecificHrgAmt,
-        pageSpecificFomAmt,
-        pageSpecificCalPaymtAmt,
-        totalClients,
-        pageSpecificClients,
-        clientServices,
-        absoluteTotalClients,
-        absoluteTotalCopies
-      });
-    } catch (err) {
-      console.error("Error in client GET route:", err);
+    } catch (error) {
+      console.error("Error in client data fetch:", error);
       res.status(500).json({
-        error: "Internal Server Error",
-        message: err.message,
-        stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+        error: "Internal server error",
+        message: error.message,
       });
     }
   }
