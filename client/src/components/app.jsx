@@ -19,7 +19,7 @@ import Modal from "./modal";
 import { Toaster } from "../components/UI/ShadCN/toaster";
 import { UserProvider } from "../utils/Hooks/userProvider.jsx";
 
-const App = React.memo(() => {
+const App = () => {
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,8 +154,6 @@ const App = React.memo(() => {
       </UserProvider>
     </>
   );
-});
-
-App.displayName = "App";
+};
 
 export default App;

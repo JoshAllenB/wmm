@@ -10,10 +10,10 @@ import {
 import ArrowDropDownSharp from "@mui/icons-material/ArrowDropDownSharp";
 import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
 import Tooltip from "@mui/material/Tooltip";
-import { memo, useMemo } from "react";
+import { useMemo } from "react";
 
-// Wrap the TableComponent with React.memo to prevent unnecessary re-renders
-export const TableComponent = memo(function TableComponent({
+// Remove memo wrapper and export directly
+export const TableComponent = function TableComponent({
   table,
   handleRowClick,
   totalCopies,
@@ -455,19 +455,29 @@ export const TableComponent = memo(function TableComponent({
               {headerGroup.headers.map((header) => (
                 <TableHead
                   key={header.id}
-                  onClick={header.column.getToggleSortingHandler()}
-                  className="bg-blue-600 text-white font-bold text-lg sticky top-0 h-14 whitespace-nowrap"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    header.column.toggleSorting();
+                  }}
+                  className="bg-blue-600 text-white font-bold text-lg sticky top-0 h-14 whitespace-nowrap cursor-pointer"
+                  style={{
+                    position: 'relative'
+                  }}
                 >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                  {header.column.getIsSorted() === "asc" && (
-                    <ArrowDropUpSharp />
-                  )}
-                  {header.column.getIsSorted() === "desc" && (
-                    <ArrowDropDownSharp />
-                  )}
+                  <div className="flex items-center justify-between">
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                    <span className="ml-2">
+                      {header.column.getIsSorted() === "asc" && (
+                        <ArrowDropUpSharp />
+                      )}
+                      {header.column.getIsSorted() === "desc" && (
+                        <ArrowDropDownSharp />
+                      )}
+                    </span>
+                  </div>
                 </TableHead>
               ))}
             </TableRow>
@@ -789,4 +799,4 @@ export const TableComponent = memo(function TableComponent({
       </Table>
     </div>
   );
-});
+};
