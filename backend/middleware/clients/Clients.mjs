@@ -21,7 +21,6 @@ router.get(
   "/",
   verifyToken,
   attachSocketId,
-  checkRole(["Admin", "HRG", "WMM", "FOM", "CAL"]),
   async (req, res) => {
     const io = req.io;
     const socketId = req.socketId;
