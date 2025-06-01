@@ -73,7 +73,6 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
 }
 
 async function calculateWmmStats(filteredClientIds) {
-  console.log('WMM - Filtered client IDs:', filteredClientIds); // Debug log
   
   // Calculate total copies from all clients
   const totalPipeline = [
@@ -124,9 +123,6 @@ async function calculateWmmStats(filteredClientIds) {
     WmmModel.aggregate(pagePipeline)
   ]);
 
-  console.log('WMM - Total result:', totalResult); // Debug log
-  console.log('WMM - Page result:', pageResult); // Debug log
-
   return {
     totalCopies: totalResult[0]?.totalCopies || 0,
     pageSpecificCopies: pageResult[0]?.totalCopies || 0
@@ -134,7 +130,6 @@ async function calculateWmmStats(filteredClientIds) {
 }
 
 async function calculateCalStats(filteredClientIds) {
-  console.log('CAL - Filtered client IDs:', filteredClientIds); // Debug log
   
   // Calculate totals from all clients
   const totalPipeline = [
@@ -201,9 +196,6 @@ async function calculateCalStats(filteredClientIds) {
     CalModel.aggregate(pagePipeline)
   ]);
 
-  console.log('CAL - Total result:', totalResult); // Debug log
-  console.log('CAL - Page result:', pageResult); // Debug log
-
   // Calculate payment amounts for total
   const totalPaymtAmt = totalResult[0]?.records.reduce((total, record) => {
     if (record.paymtamt && record.paymtref && (record.paymtdate || record.paymtform)) {
@@ -231,7 +223,6 @@ async function calculateCalStats(filteredClientIds) {
 }
 
 async function calculateHrgStats(filteredClientIds) {
-  console.log('HRG - Filtered client IDs:', filteredClientIds); // Debug log
   
   // Calculate totals from all clients
   const totalPipeline = [
@@ -275,9 +266,6 @@ async function calculateHrgStats(filteredClientIds) {
     HrgModel.aggregate(pagePipeline)
   ]);
 
-  console.log('HRG - Total result:', totalResult); // Debug log
-  console.log('HRG - Page result:', pageResult); // Debug log
-
   return {
     totalAmt: totalResult[0]?.totalAmt || 0,
     pageSpecificAmt: pageResult[0]?.totalAmt || 0
@@ -285,7 +273,6 @@ async function calculateHrgStats(filteredClientIds) {
 }
 
 async function calculateFomStats(filteredClientIds) {
-  console.log('FOM - Filtered client IDs:', filteredClientIds); // Debug log
   
   // Calculate totals from all clients
   const totalPipeline = [
@@ -328,9 +315,6 @@ async function calculateFomStats(filteredClientIds) {
     FomModel.aggregate(totalPipeline),
     FomModel.aggregate(pagePipeline)
   ]);
-
-  console.log('FOM - Total result:', totalResult); // Debug log
-  console.log('FOM - Page result:', pageResult); // Debug log
 
   return {
     totalAmt: totalResult[0]?.totalAmt || 0,

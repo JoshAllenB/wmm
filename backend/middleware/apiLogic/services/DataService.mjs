@@ -45,7 +45,6 @@ class DataService {
 
       // Calculate statistics using the entire database and current page info
       const stats = await calculateStatistics(filterQuery, validPage, validLimit);
-      console.log("Stats:", stats);
 
       // Prepare response
       const response = {
