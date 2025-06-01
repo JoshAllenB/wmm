@@ -1506,7 +1506,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       // Send the update request
       const response = await axios.put(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update`,
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${rowData.id}`,
         submissionData,
         {
           headers: {
