@@ -11,6 +11,7 @@ import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
+import { logClientCreation, logClientUpdate, logClientDeletion } from '../logs/clientLogs.mjs';
 
 dotenv.config();
 
@@ -75,6 +76,7 @@ router.get(
       group = "",
       ...advancedFilterData
     } = req.query;
+    console.log("Advanced filter data:", advancedFilterData);
     
     // Ensure page and pageSize are valid integers with fallbacks
     const parsedPage = parseInt(page, 10);
@@ -244,6 +246,9 @@ router.post("/add", verifyToken, async (req, res) => {
     // Insert base client data
     const newClient = await ClientModel.create(baseClientData);
 
+    // Log the client creation
+    await logClientCreation(req.userId, newClient.toObject());
+
     let roleSpecificClient = null;
     const roleModelMap = {
       WMM: WmmModel,
@@ -309,6 +314,13 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { clientData, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
 
+    // Get the old client data before update
+    const oldClientData = await ClientModel.findOne({ id }).lean();
+
+    if (!oldClientData) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
     // Update base client data
     const updatedClientData = {
       ...clientData,
@@ -331,6 +343,9 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       updatedClientData,
       { new: true }
     );
+
+    // Log the client update
+    await logClientUpdate(req.userId, oldClientData, updatedClient.toObject());
 
     if (!updatedClient) {
       return res.status(404).json({ error: "Client not found" });
@@ -496,12 +511,18 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Get client data before deletion
+    const clientToDelete = await ClientModel.findOne({ id }).lean();
+
+    if (!clientToDelete) {
+      return res.status(404).json({ error: "Client not found" });
+    }
+
     // Delete from ClientModel
     const deletedClient = await ClientModel.findOneAndDelete({ id });
 
-    if (!deletedClient) {
-      return res.status(404).json({ error: "Client not found" });
-    }
+    // Log the client deletion
+    await logClientDeletion(req.userId, clientToDelete);
 
     // Determine which role-specific model to delete from
     const roleModelMap = {
