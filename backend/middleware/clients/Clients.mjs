@@ -76,7 +76,6 @@ router.get(
       group = "",
       ...advancedFilterData
     } = req.query;
-    console.log("Advanced filter data:", advancedFilterData);
     
     // Ensure page and pageSize are valid integers with fallbacks
     const parsedPage = parseInt(page, 10);
@@ -111,7 +110,6 @@ router.get(
         clientIds: null,
         advancedFilterData
       });
-      console.log("Results:", results.combinedData.length);
 
       let { combinedData, clientServices } = results;
 
@@ -1447,7 +1445,6 @@ router.get("/:id", verifyToken, async (req, res) => {
 
     const userRoles = req.user.roles.map((role) => role.role.name);
     
-    console.log("User roles for client details:", userRoles); // Debug log
 
     // Gather data from each role-specific model
     const roleData = {};
