@@ -186,6 +186,58 @@ function addPersonalInfoFilters(baseFilter, advancedFilterData) {
 }
 
 async function addDateFilters(baseFilter, advancedFilterData) {
+  // Handle adddate_regex filter
+  if (advancedFilterData.adddate_regex) {
+    try {
+      const WmmModel = await getModelInstance('WmmModel');
+      const FomModel = await getModelInstance('FomModel');
+      const HrgModel = await getModelInstance('HrgModel');
+      const CalModel = await getModelInstance('CalModel');
+
+      // Create pipeline for regex date filtering
+      const createRegexPipeline = [
+        {
+          $match: {
+            adddate: { 
+              $regex: advancedFilterData.adddate_regex,
+              $options: "i"
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      // Execute aggregation for each model in parallel
+      const [wmmClients, fomClients, hrgClients, calClients] = await Promise.all([
+        WmmModel.aggregate(createRegexPipeline),
+        FomModel.aggregate(createRegexPipeline),
+        HrgModel.aggregate(createRegexPipeline),
+        CalModel.aggregate(createRegexPipeline)
+      ]);
+
+      // Combine all client IDs
+      const matchingClientIds = [...new Set([
+        ...wmmClients.map(c => Number(c._id)),
+        ...fomClients.map(c => Number(c._id)),
+        ...hrgClients.map(c => Number(c._id)),
+        ...calClients.map(c => Number(c._id))
+      ])].filter(id => !isNaN(id));
+
+      if (matchingClientIds.length > 0) {
+        baseFilter.push({ id: { $in: matchingClientIds } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches
+      }
+    } catch (error) {
+      console.error("Error in adddate regex filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
   // Handle WMM Date Encoded Filter (adddate)
   if (advancedFilterData.startDate || advancedFilterData.endDate) {
     try {
