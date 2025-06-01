@@ -82,6 +82,14 @@ class DataService {
       if (client.fomData) services.push('FOM');
       if (client.calData) services.push('CAL');
       
+      // Add group-based services
+      if (client.group) {
+        const group = client.group.toUpperCase();
+        if (group === 'DCS') services.push('DCS');
+        if (group === 'MCCJ-ASIA') services.push('MCCJ-ASIA');
+        if (group === 'MCCJ') services.push('MCCJ');
+      }
+      
       return {
         clientId: client.id,
         services

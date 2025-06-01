@@ -36,10 +36,24 @@ export async function aggregateClientData(clients, modelNames, advancedFilterDat
 
   // Create combinedData by merging client data with model data
   const combinedData = clients.map(client => {
-    return {
+    const clientData = {
       ...client,
       ...modelDataMap.get(client.id)
     };
+
+    // Add DCS and MCCJ services if they match the client's group
+    if (client.group) {
+      const group = client.group.toUpperCase();
+      if (group === 'DCS') {
+        clientData.dcsData = { isService: true, group: 'DCS' };
+      } else if (group === 'MCCJ-ASIA') {
+        clientData.mccjAsiaData = { isService: true, group: 'MCCJ-ASIA' };
+      } else if (group === 'MCCJ') {
+        clientData.mccjData = { isService: true, group: 'MCCJ' };
+      }
+    }
+
+    return clientData;
   });
 
   return {
@@ -150,6 +164,9 @@ function normalizeServiceType(modelName) {
   if (modelNameLower.includes('hrg')) return 'hrgData';
   if (modelNameLower.includes('fom')) return 'fomData';
   if (modelNameLower.includes('cal')) return 'calData';
+  if (modelNameLower.includes('dcs')) return 'dcsData';
+  if (modelNameLower.includes('mccj-asia')) return 'mccjAsiaData';
+  if (modelNameLower.includes('mccj')) return 'mccjData';
   
   return modelNameLower.replace('model', '') + 'Data';
 } 
