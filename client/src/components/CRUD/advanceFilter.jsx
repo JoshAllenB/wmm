@@ -1208,9 +1208,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
             onSubmit={handleSubmit}
             className="max-h-[90vh] overflow-y-auto p-4"
           >
-            <div className="mb-6 border-b pb-4">
-              <h1 className="text-black text-2xl font-bold">Advanced Filter</h1>
-              <p className="text-gray-500 text-sm">
+            <div className="p-2 mb-4 border-b bg-blue-500 text-white">
+              <h1 className="text-white text-4xl font-bold">Advanced Filter</h1>
+              <p className="text-white text-sm">
                 Use filters to narrow down results
               </p>
             </div>
@@ -1221,17 +1221,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                   Personal Information
                 </h2>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <InputField
                     label="First Name"
                     id="fname"
                     name="fname"
                     value={filterData.fname}
                     onChange={handleChange}
-                    className={`w-full ${
+                    className={`w-full text-base ${
                       filterData.fname ? "border-blue-500 bg-blue-50" : ""
                     }`}
                     labelClassName="text-lg font-medium text-black"
+                    uppercase={true}
                   />
                   <InputField
                     label="Last Name"
@@ -1239,22 +1240,24 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     name="lname"
                     value={filterData.lname}
                     onChange={handleChange}
-                    className={`w-full ${
+                    className={`w-full text-base ${
                       filterData.lname ? "border-blue-500 bg-blue-50" : ""
                     }`}
                     labelClassName="text-lg font-medium text-black"
+                    uppercase={true}
                   />
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-2">
                     <InputField
                       label="Middle Name"
                       id="mname"
                       name="mname"
                       value={filterData.mname}
                       onChange={handleChange}
-                      className={`w-full ${
+                      className={`w-full text-base ${
                         filterData.mname ? "border-blue-500 bg-blue-50" : ""
                       }`}
                       labelClassName="text-lg font-medium text-black"
+                      uppercase={true}
                     />
                     <InputField
                       label="Suffix"
@@ -1262,10 +1265,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="sname"
                       value={filterData.sname}
                       onChange={handleChange}
-                      className={`w-full ${
+                      className={`w-full text-base ${
                         filterData.sname ? "border-blue-500 bg-blue-50" : ""
                       }`}
                       labelClassName="text-lg font-medium text-black"
+                      uppercase={true}
                     />
                   </div>
                   <InputField
@@ -1275,7 +1279,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     type="date"
                     value={filterData.birthdate}
                     onChange={handleChange}
-                    className={`w-full ${
+                    className={`w-full text-base ${
                       filterData.birthdate ? "border-blue-500 bg-blue-50" : ""
                     }`}
                     labelClassName="text-lg font-medium text-black"
@@ -1288,7 +1292,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                   Contact Information
                 </h2>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <InputField
                     label="Email Address"
                     id="email"
@@ -1296,40 +1300,42 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     type="email"
                     value={filterData.email}
                     onChange={handleChange}
-                    className={`w-full ${
+                    className={`w-full text-base ${
                       filterData.email ? "border-blue-500 bg-blue-50" : ""
                     }`}
                     labelClassName="text-lg font-medium text-black"
                   />
-                  <InputField
-                    label="Cell Number"
-                    id="cellno"
-                    name="cellno"
-                    value={filterData.cellno}
-                    onChange={handleChange}
-                    className={`w-full ${
-                      filterData.cellno ? "border-blue-500 bg-blue-50" : ""
-                    }`}
-                    labelClassName="text-lg font-medium text-black"
-                  />
-                  <InputField
-                    label="Office Number"
-                    id="ofcno"
-                    name="ofcno"
-                    value={filterData.ofcno}
-                    onChange={handleChange}
-                    className={`w-full ${
-                      filterData.ofcno ? "border-blue-500 bg-blue-50" : ""
-                    }`}
-                    labelClassName="text-lg font-medium text-black"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <InputField
+                      label="Cell Number"
+                      id="cellno"
+                      name="cellno"
+                      value={filterData.cellno}
+                      onChange={handleChange}
+                      className={`w-full text-base ${
+                        filterData.cellno ? "border-blue-500 bg-blue-50" : ""
+                      }`}
+                      labelClassName="text-lg font-medium text-black"
+                    />
+                    <InputField
+                      label="Office Number"
+                      id="ofcno"
+                      name="ofcno"
+                      value={filterData.ofcno}
+                      onChange={handleChange}
+                      className={`w-full text-base ${
+                        filterData.ofcno ? "border-blue-500 bg-blue-50" : ""
+                      }`}
+                      labelClassName="text-lg font-medium text-black"
+                    />
+                  </div>
                   <InputField
                     label="Other Contact"
                     id="contactnos"
                     name="contactnos"
                     value={filterData.contactnos}
                     onChange={handleChange}
-                    className={`w-full ${
+                    className={`w-full text-base ${
                       filterData.contactnos ? "border-blue-500 bg-blue-50" : ""
                     }`}
                     labelClassName="text-lg font-medium text-black"
@@ -1342,15 +1348,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                   Address
                 </h2>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="block text-lg font-medium text-black">
                     Full Address
                   </label>
                   <textarea
                     id="address"
                     name="address"
-                    className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[120px] ${
-                      filterData.address ? "border-blue-500 bg-blue-50" : ""
+                    className={`w-full p-2 text-base border rounded-md focus:ring-2 focus:ring-blue-500 min-h-[120px] ${
+                      filterData.address ? "border-blue-500 bg-blue-50" : "border-gray-300"
                     }`}
                     value={filterData.address}
                     onChange={handleChange}
@@ -1360,16 +1366,16 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
               {/* Date Ranges Card */}
               <div className="p-4 border rounded-lg shadow-sm">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                <h2 className="text-black text-xl font-bold mb-4 border-b pb-2">
                   Date Ranges
                 </h2>
-                <div className="space-y-4">
-                  <div className="space-y-3">
+                <div className="space-y-3">
+                  <div className="space-y-2">
                     <h3 className="text-lg font-medium text-black">
                       Date Encoded/Added
                     </h3>
                     <div className="mb-2">
-                      <label className="block text-black text-lg font-medium mb-1">
+                      <label className="block text-black text-xl font-medium mb-1">
                         From:
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1379,7 +1385,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             name="startDateMonth"
                             value={filterData.startDateMonth}
                             onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 "
                           >
                             <option value="">Month</option>
                             {months.map((month) => (
@@ -1396,7 +1402,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           value={filterData.startDateDay}
                           onChange={handleChange}
                           placeholder="DD"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           maxLength="2"
                         />
                         <input
@@ -1406,14 +1412,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           value={filterData.startDateYear}
                           onChange={handleChange}
                           placeholder="YYYY"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          className="w-full p-2 text-xl  border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           maxLength="4"
                         />
                       </div>
                     </div>
 
                     <div className="mb-2">
-                      <label className="block text-black text-lg font-medium mb-1">
+                      <label className="block text-black text-xl font-medium mb-1">
                         To:
                       </label>
                       <div className="grid grid-cols-3 gap-2">
@@ -1423,7 +1429,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             name="endDateMonth"
                             value={filterData.endDateMonth}
                             onChange={handleChange}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           >
                             <option value="">Month</option>
                             {months.map((month) => (
@@ -1440,7 +1446,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           value={filterData.endDateDay}
                           onChange={handleChange}
                           placeholder="DD"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           maxLength="2"
                         />
                         <input
@@ -1450,7 +1456,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           value={filterData.endDateYear}
                           onChange={handleChange}
                           placeholder="YYYY"
-                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                          className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           maxLength="4"
                         />
                       </div>
@@ -1460,18 +1466,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   {/* Hide subscription date filters for HRG, FOM, CAL roles without WMM */}
                   {!hasOnlyNonWMMRoles() && (
                     <>
-                      <div className="space-y-2">
-                        <h3 className="text-lg font-medium text-black">
+                      <div className="">
+                        <h3 className="text-xl font-medium text-black">
                           Active Subscriptions
                         </h3>
-                        <p className="text-xs text-gray-500">
-                          Find clients with active subscriptions during this
-                          month
-                        </p>
                         <div className="mb-2">
-                          <label className="block text-black text-lg font-medium mb-1">
-                            Month:
-                          </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
                               <select
@@ -1479,7 +1478,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                                 name="wmmActiveMonth"
                                 value={filterData.wmmActiveMonth}
                                 onChange={handleChange}
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               >
                                 <option value="">Month</option>
                                 {months.map((month) => (
@@ -1496,7 +1495,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               value={filterData.wmmActiveDay}
                               onChange={handleChange}
                               placeholder="DD"
-                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               maxLength="2"
                             />
                             <input
@@ -1506,28 +1505,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               value={filterData.wmmActiveYear}
                               onChange={handleChange}
                               placeholder="YYYY"
-                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               maxLength="4"
                             />
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Day value is optional - entire month will be
-                            considered
-                          </p>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <h3 className="text-lg font-medium text-black">
+                        <h3 className="text-xl font-medium text-black">
                           Expiring Subscriptions
                         </h3>
-                        <p className="text-xs text-gray-500">
-                          Find clients whose subscriptions expire this month
-                        </p>
                         <div className="mb-2">
-                          <label className="block text-black text-lg font-medium mb-1">
-                            Month:
-                          </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
                               <select
@@ -1535,7 +1524,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                                 name="wmmExpiringMonth"
                                 value={filterData.wmmExpiringMonth}
                                 onChange={handleChange}
-                                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               >
                                 <option value="">Month</option>
                                 {months.map((month) => (
@@ -1552,7 +1541,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               value={filterData.wmmExpiringDay}
                               onChange={handleChange}
                               placeholder="DD"
-                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               maxLength="2"
                             />
                             <input
@@ -1562,39 +1551,26 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               value={filterData.wmmExpiringYear}
                               onChange={handleChange}
                               placeholder="YYYY"
-                              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               maxLength="4"
                             />
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Day value is optional - entire month will be
-                            considered
-                          </p>
                         </div>
                       </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Copies Range Card - Hide for HRG, FOM, CAL roles without WMM */}
-              {!hasOnlyNonWMMRoles() && (
-                <div className="p-4 border rounded-lg shadow-sm">
-                  <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                      <div className="">
+                  <h2 className="text-black text-xl font-bold">
                     Copies Range
                   </h2>
-                  <div className="space-y-3">
-                    <label className="block text-lg font-medium text-black">
+                  <div className="">
+                    <label className="block text-lg text-black">
                       Number of Copies
                     </label>
                     <select
                       name="copiesRange"
                       value={filterData.copiesRange}
                       onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
-                        filterData.copiesRange
-                          ? "border-blue-500 bg-blue-50"
-                          : ""
+                      className={`w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                        filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
                       }`}
                     >
                       <option value="">Any number of copies</option>
@@ -1605,7 +1581,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     </select>
 
                     {filterData.copiesRange === "custom" && (
-                      <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div className="grid grid-cols-2 gap-2 mt-2">
                         <InputField
                           label="Min copies"
                           id="minCopies"
@@ -1614,10 +1590,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           min="0"
                           value={filterData.minCopies}
                           onChange={handleChange}
-                          className={`w-full ${
-                            filterData.minCopies
-                              ? "border-blue-500 bg-blue-50"
-                              : ""
+                          className={`w-full text-base ${
+                            filterData.minCopies ? "border-blue-500 bg-blue-50" : ""
                           }`}
                           labelClassName="text-lg font-medium text-black"
                         />
@@ -1629,10 +1603,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           min="0"
                           value={filterData.maxCopies}
                           onChange={handleChange}
-                          className={`w-full ${
-                            filterData.maxCopies
-                              ? "border-blue-500 bg-blue-50"
-                              : ""
+                          className={`w-full text-base ${
+                            filterData.maxCopies ? "border-blue-500 bg-blue-50" : ""
                           }`}
                           labelClassName="text-lg font-medium text-black"
                         />
@@ -1640,23 +1612,26 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     )}
                   </div>
                 </div>
-              )}
+                    </>
+                  )}
+                </div>
+              </div>
 
               {/* Category Filters Card */}
               <div className="p-4 border rounded-lg shadow-sm">
                 <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                   Category Filters
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-2">
                   <div>
-                    <label className="block text-lg font-medium text-black mb-1">
+                    <label className="block text-xl font-medium text-black mb-1">
                       Group
                     </label>
                     <select
                       name="group"
                       value={filterData.group}
                       onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         filterData.group ? "border-blue-500 bg-blue-50" : ""
                       }`}
                     >
@@ -1687,33 +1662,25 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     />
                     <label
                       htmlFor="excludeSPackClients"
-                      className="ml-2 text-lg text-black"
-                    >
+                      className="ml-2 text-xl text-black"
+                      >
                       Exclude SPack Clients
                     </label>
-                    <span className="ml-2 text-xs text-gray-500">
-                      {!hasRole("WMM") && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        SPack filtering not available for your role
-                      </p>
-                    )} 
-                      {hasRole("WMM") && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          (Hide clients with "SPack" in group name)
-                        </p>
-                      )}
+                    <span className="ml-2 text-sm text-gray-500">
+                      {!hasRole("WMM") && "(Not available for your role)"}
+                      {hasRole("WMM") && "(Hide clients with 'SPack' in group name)"}
                     </span>
                   </div>
 
                   <div>
-                    <label className="block text-lg font-medium text-black mb-1">
+                    <label className="block text-xl font-medium text-black mb-1">
                       Type
                     </label>
                     <select
                       name="type"
                       value={filterData.type}
                       onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         filterData.type ? "border-blue-500 bg-blue-50" : ""
                       }`}
                     >
@@ -1728,14 +1695,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   </div>
 
                   <div>
-                    <label className="block text-lg font-medium text-black mb-1">
+                    <label className="block text-xl font-medium text-black mb-1">
                       Subclass
                     </label>
                     <select
                       name="subsclass"
                       value={filterData.subsclass}
                       onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         filterData.subsclass ? "border-blue-500 bg-blue-50" : ""
                       }`}
                     >
@@ -1749,19 +1716,19 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                     </select>
                   </div>
 
-                  {/* Area Filter (Modified to checkboxes grouped by Local/Foreign) */}
+                  {/* Area Filter */}
                   <div>
-                    <label className="block text-lg font-medium mb-2">
+                    <label className="block text-xl font-medium">
                       Areas
                     </label>
-                    <p className="text-xs text-gray-500 mb-2">
+                    <p className="text-base text-blue-500">
                       {filterData.areas.length} areas selected
                     </p>
 
-                    <div className="max-h-[200px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
+                    <div className="max-h-[350px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
                       {/* Local Areas */}
-                      <div className="mb-3">
-                        <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+                      <div className="mb-2">
+                        <h3 className="text-xl font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
                           <span>Local Areas</span>
                           <div className="flex items-center">
                             <input
@@ -1773,13 +1740,13 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             />
                             <label
                               htmlFor="select-all-local"
-                              className="ml-1 text-md text-gray-700"
+                              className="ml-1 text-lg text-black"
                             >
                               Select All
                             </label>
                           </div>
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                        <div className="grid grid-cols-2">
                           {local.map((area) => (
                             <div key={area._id} className="flex items-center">
                               <input
@@ -1791,7 +1758,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               />
                               <label
                                 htmlFor={`area-${area._id}`}
-                                className="ml-2 text-base font-medium truncate"
+                                className="ml-2 text-lg font-medium truncate"
                                 title={area._id}
                               >
                                 {area._id}
@@ -1803,7 +1770,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
                       {/* Foreign Areas */}
                       <div>
-                        <h3 className="text-base font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+                        <h3 className="text-xl font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
                           <span>Foreign Areas</span>
                           <div className="flex items-center">
                             <input
@@ -1815,13 +1782,13 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             />
                             <label
                               htmlFor="select-all-foreign"
-                              className="ml-1 text-md text-gray-700"
+                              className="ml-1 text-lg text-black"
                             >
                               Select All
                             </label>
                           </div>
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                        <div className="grid grid-cols-2">
                           {foreign.map((area) => (
                             <div key={area._id} className="flex items-center">
                               <input
@@ -1833,7 +1800,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                               />
                               <label
                                 htmlFor={`area-${area._id}`}
-                                className="ml-2 text-base font-medium truncate"
+                                className="ml-2 text-lg font-medium truncate"
                                 title={area._id}
                               >
                                 {area._id}
@@ -1843,58 +1810,31 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         </div>
                       </div>
                     </div>
-
-                    {/* Add custom scrollbar style */}
-                    <style
-                      dangerouslySetInnerHTML={{
-                        __html: `
-                        .custom-scrollbar {
-                          scrollbar-width: thin;
-                          scrollbar-color: #ccc #f1f1f1;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar {
-                          width: 6px;
-                          height: 6px;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar-track {
-                          background: #f1f1f1;
-                          border-radius: 3px;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar-thumb {
-                          background: #ccc;
-                          border-radius: 3px;
-                        }
-                        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                          background: #999;
-                        }
-                        `,
-                      }}
-                    />
                   </div>
                 </div>
               </div>
 
               {/* Services Card */}
               <div className="p-4 border rounded-lg shadow-sm">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                <h2 className="text-black text-xl font-bold mb-4 border-b pb-2">
                   Services
                 </h2>
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-500 mb-3">
+                  <p className="text-sm text-black mb-2">
                     Select services to filter clients
                   </p>
                   {hasRole("WMM") ||
                   hasRole("FOM") ||
                   hasRole("HRG") ||
                   hasRole("CAL") ? (
-                    <p className="text-xs text-blue-500 mb-3">
+                    <p className="text-xs text-blue-500 mb-2">
                       Services matching your role are automatically selected.
                       You can modify these selections.
                     </p>
                   ) : null}
 
                   {/* Add explanation of exact matching */}
-                  <div className="p-2 bg-blue-50 rounded border border-blue-200 mb-3">
+                  <div className="p-2 bg-blue-50 rounded border border-blue-200 mb-2">
                     <p className="text-xs text-blue-800">
                       <span className="font-bold">Note:</span> When you select a
                       service (HRG, FOM, CAL), you'll only see clients that have
@@ -1905,15 +1845,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
                   {/* Replace checkbox with dropdown for subscription status - hide for WMM role */}
                   {!hasRole("WMM") && (
-                    <div className="mb-3">
-                      <label className="block text-lg font-medium text-black mb-1">
+                    <div className="mb-2">
+                      <label className="block text-xl font-medium text-black mb-1">
                         Subscription Status
                       </label>
                       <select
                         name="subscriptionStatus"
                         value={filterData.subscriptionStatus}
                         onChange={handleChange}
-                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                           filterData.subscriptionStatus !== "all"
                             ? "border-blue-500 bg-blue-50"
                             : ""
@@ -1923,7 +1863,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         <option value="active">Active Only</option>
                         <option value="unsubscribed">Unsubscribed Only</option>
                       </select>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-sm text-black mt-1">
                         Filter clients by their subscription status
                       </p>
                     </div>
@@ -1940,12 +1880,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-wmm"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         WMM
                       </label>
                       {hasRole("WMM") && (
-                        <span className="ml-1 text-xs text-blue-500">
+                        <span className="ml-1 text-sm text-medium text-blue-500">
                           (Auto)
                         </span>
                       )}
@@ -1960,12 +1900,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-fom"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         FOM
                       </label>
                       {hasRole("FOM") && (
-                        <span className="ml-1 text-xs text-blue-500">
+                        <span className="ml-1 text-sm text-medium text-blue-500">
                           (Auto)
                         </span>
                       )}
@@ -1980,12 +1920,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-hrg"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         HRG
                       </label>
                       {hasRole("HRG") && (
-                        <span className="ml-1 text-xs text-blue-500">
+                        <span className="ml-1 text-sm text-medium text-blue-500">
                           (Auto)
                         </span>
                       )}
@@ -2000,26 +1940,23 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="service-cal"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         CAL
                       </label>
                       {hasRole("CAL") && (
-                        <span className="ml-1 text-xs text-blue-500">
+                        <span className="ml-1 text-sm text-medium text-blue-500">
                           (Auto)
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Client ID Filter Card */}
-              <div className="p-4 border rounded-lg shadow-sm">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                <div className="mt-4">
+                <h2 className="text-black text-xl font-bold">
                   Client ID Filter
                 </h2>
-                <div className="space-y-3">
+                <div>
                   <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 mb-2">
                     <div className="flex items-center">
                       <input
@@ -2035,7 +1972,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="include-clients"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         Include only these clients
                       </label>
@@ -2054,59 +1991,34 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       />
                       <label
                         htmlFor="exclude-clients"
-                        className="ml-2 text-lg text-black"
+                        className="ml-2 text-lg text-medium text-black"
                       >
                         Exclude these clients
                       </label>
                     </div>
                   </div>
-
-                  {filterData.clientIdFilterType === "include" ? (
-                    <div className="space-y-2">
-                      <label className="block text-lg font-medium text-black">
-                        Client IDs to Include
-                      </label>
-                      <p className="text-xs text-gray-500">
-                        Enter client IDs to include in results. Separate with
-                        commas or new lines.
-                      </p>
-                      <textarea
-                        id="clientIncludeIds"
-                        name="clientIncludeIds"
-                        value={filterData.clientIncludeIds}
-                        onChange={handleChange}
-                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
-                          filterData.clientIncludeIds
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                        placeholder="e.g. 1001, 1002, 1003"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <label className="block text-lg font-medium text-black">
-                        Client IDs to Exclude
-                      </label>
-                      <p className="text-xs text-gray-500">
-                        Enter client IDs to exclude from results. Separate with
-                        commas or new lines.
-                      </p>
-                      <textarea
-                        id="clientExcludeIds"
-                        name="clientExcludeIds"
-                        value={filterData.clientExcludeIds}
-                        onChange={handleChange}
-                        className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 min-h-[100px] ${
-                          filterData.clientExcludeIds
-                            ? "border-blue-500 bg-blue-50"
-                            : ""
-                        }`}
-                        placeholder="e.g. 2001, 2002, 2003"
-                      />
-                    </div>
-                  )}
+                  <div className="space-y-2">
+                    <label className="block text-xl font-medium text-black">
+                      Client IDs to {filterData.clientIdFilterType === "include" ? "Include" : "Exclude"}
+                    </label>
+                    <p className="text-sm text-black">
+                      Enter client IDs to {filterData.clientIdFilterType === "include" ? "include in" : "exclude from"} results. Separate with commas or new lines.
+                    </p>
+                    <textarea
+                      id={`clients${filterData.clientIdFilterType === "include" ? "Include" : "Exclude"}Ids`}
+                      name={`client${filterData.clientIdFilterType === "include" ? "Include" : "Exclude"}Ids`}
+                      value={filterData[`client${filterData.clientIdFilterType === "include" ? "Include" : "Exclude"}Ids`]}
+                      onChange={handleChange}
+                      className={`w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                        filterData[`client${filterData.clientIdFilterType === "include" ? "Include" : "Exclude"}Ids`]
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300"
+                      }`}
+                      placeholder={`e.g. ${filterData.clientIdFilterType === "include" ? "1001, 1002, 1003" : "2001, 2002, 2003"}`}
+                    />
+                  </div>
                 </div>
+              </div>
               </div>
 
               {/* User Filter Card - Hide for HRG, FOM, CAL roles without WMM */}
@@ -2115,7 +2027,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                     User Filter
                   </h2>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <label className="block text-lg font-medium text-black">
                       Filter by User
                     </label>
@@ -2128,7 +2040,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       name="userId"
                       value={filterData.userId}
                       onChange={handleChange}
-                      className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
                         filterData.userId ? "border-blue-500 bg-blue-50" : ""
                       }`}
                     >
@@ -2142,55 +2054,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       {/* Show all other users */}
                       {users
                         .filter((u) => {
-                          // Skip current user as they already have the "Me" option
                           if (!currentUser || u._id === currentUser._id)
                             return false;
-
-                          // If we want to show all users without role filtering, uncomment this line:
-                          // return true;
-
-                          // Check if the current user has any roles to filter by
-                          if (
-                            !currentUser.roles ||
-                            currentUser.roles.length === 0
-                          )
-                            return true;
-
-                          // Get the current user's roles
-                          const currentUserRoleNames = currentUser.roles
-                            .map((role) => {
-                              // Handle different role object structures
-                              if (role.role && role.role.name)
-                                return role.role.name;
-                              if (typeof role.role === "string")
-                                return role.role;
-                              if (role.name) return role.name;
-                              return null;
-                            })
-                            .filter(Boolean); // Remove null values
-
-                          // If we can't determine current user roles, show all users
-                          if (currentUserRoleNames.length === 0) return true;
-
-                          // Check if this user has any matching roles
-                          return (
-                            u.roles &&
-                            u.roles.some((userRole) => {
-                              // Get this user's role name
-                              let roleName = null;
-                              if (userRole.role && userRole.role.name)
-                                roleName = userRole.role.name;
-                              else if (typeof userRole.role === "string")
-                                roleName = userRole.role;
-                              else if (userRole.name) roleName = userRole.name;
-
-                              // Check if this role matches any of the current user's roles
-                              return (
-                                roleName &&
-                                currentUserRoleNames.includes(roleName)
-                              );
-                            })
-                          );
+                          return true;
                         })
                         .map((u) => (
                           <option key={u._id} value={u._id}>
@@ -2205,9 +2071,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
             {/* Active Filters Section */}
             {getActiveFilters().length > 0 && (
-              <div className="mt-8 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-6 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex flex-wrap justify-between items-center mb-2">
-                  <h2 className="text-blue-700 text-sm font-bold">
+                  <h2 className="text-blue-700 text-lg font-bold">
                     Active Filters ({getActiveFilters().length})
                   </h2>
                   <button
@@ -2222,9 +2088,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   {getActiveFilters().map((filter, index) => (
                     <div
                       key={index}
-                      className="bg-white border border-blue-300 rounded-full px-3 py-1 text-xs flex items-center mb-1"
+                      className="bg-white border border-blue-300 rounded-full px-3 py-1 text-base flex items-center mb-1"
                     >
-                      <span className="font-semibold mr-1">
+                      <span className="font-bold mr-1">
                         {filter.label}:
                       </span>
                       <span className="truncate max-w-[150px]">
@@ -2268,6 +2134,33 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           </form>
         </Modal>
       )}
+
+      {/* Add custom scrollbar style */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+          .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #ccc #f1f1f1;
+          }
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 3px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #999;
+          }
+          `,
+        }}
+      />
     </div>
   );
 };

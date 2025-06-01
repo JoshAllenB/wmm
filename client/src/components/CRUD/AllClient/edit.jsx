@@ -2195,7 +2195,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           : "bg-gray-200 text-gray-700"
                       }`}
                     >
-                      Edit Existing
+                      Edit Existing Subscription
                     </button>
                     <button
                       type="button"
@@ -2206,7 +2206,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           : "bg-gray-200 text-gray-700"
                       }`}
                     >
-                      Add New
+                      Add New Subscription
                     </button>
                   </div>
                   

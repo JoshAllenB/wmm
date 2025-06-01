@@ -2131,10 +2131,10 @@ const Add = ({ fetchClients }) => {
                       </button>
                     </div>
                   </div>
-                  <div className="flex flex-col-2 gap-5">
-                    <div className="flex flex-col-2 gap-4 mb-2 p-2">
+                  <div className="flex flex-col gap-5">
+                    <div className="flex flex-col gap-4 mb-2 p-2 w-full">
                       {selectedRole === "HRG" && (
-                        <div>
+                        <div className="w-full">
                           <h1 className="text-black mb-2 font-bold text-lg">
                             HRG Add
                           </h1>
@@ -2144,32 +2144,15 @@ const Add = ({ fetchClients }) => {
                             name="recvdate"
                             value={roleSpecificData.recvdate}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
-                          <InputField
-                            label="Renewal Date:"
-                            id="renewdate"
-                            name="renewdate"
-                            value={roleSpecificData.renewdate}
-                            onChange={handleRoleSpecificChange}
-                            className="text-base"
-                          />
-                          <div className="flex items-center mt-2 mb-2">
-                            <Button
-                              className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
-                              type="button"
-                              onClick={handleRenewDateToday}
-                            >
-                              Set Renewal to Today
-                            </Button>
-                          </div>
                           <InputField
                             label="Campaign Date:"
                             id="campaigndate"
                             name="campaigndate"
                             value={roleSpecificData.campaigndate}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <InputField
                             label="Payment Reference:"
@@ -2177,7 +2160,7 @@ const Add = ({ fetchClients }) => {
                             name="paymtref"
                             value={roleSpecificData.paymtref}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <InputField
                             label="Payment Amount:"
@@ -2185,7 +2168,7 @@ const Add = ({ fetchClients }) => {
                             name="paymtamt"
                             value={roleSpecificData.paymtamt}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <div className="mb-2">
                             <label
@@ -2208,7 +2191,7 @@ const Add = ({ fetchClients }) => {
                               className="text-base"
                             />
                           </div>
-                          <div className="mb-2">
+                          <div className="mb-2 w-full">
                             <label
                               htmlFor="remarks"
                               className="block text-black font-bold mb-1 text-base"
@@ -2227,7 +2210,7 @@ const Add = ({ fetchClients }) => {
                         </div>
                       )}
                       {selectedRole === "FOM" && (
-                        <div>
+                        <div className="w-full">
                           <h1 className="text-black mb-2 font-bold text-lg">
                             FOM Add
                           </h1>
@@ -2237,7 +2220,7 @@ const Add = ({ fetchClients }) => {
                             name="recvdate"
                             value={roleSpecificData.recvdate}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <InputField
                             label="Payment Reference:"
@@ -2245,7 +2228,7 @@ const Add = ({ fetchClients }) => {
                             name="paymtref"
                             value={roleSpecificData.paymtref}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <InputField
                             label="Payment Amount:"
@@ -2253,7 +2236,7 @@ const Add = ({ fetchClients }) => {
                             name="paymtamt"
                             value={roleSpecificData.paymtamt}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <InputField
                             label="Payment Form:"
@@ -2261,7 +2244,7 @@ const Add = ({ fetchClients }) => {
                             name="paymtform"
                             value={roleSpecificData.paymtform}
                             onChange={handleRoleSpecificChange}
-                            className="text-base"
+                            className="text-base w-full"
                           />
                           <div className="mb-2">
                             <label
@@ -2284,7 +2267,7 @@ const Add = ({ fetchClients }) => {
                               className="text-base"
                             />
                           </div>
-                          <div className="mb-2">
+                          <div className="mb-2 w-full">
                             <label
                               htmlFor="remarks"
                               className="block text-black font-bold mb-1 text-base"
@@ -2303,19 +2286,19 @@ const Add = ({ fetchClients }) => {
                         </div>
                       )}
                       {selectedRole === "CAL" && (
-                        <div>
+                        <div className="w-full">
                           <h1 className="text-black mb-2 font-bold text-lg">
                             CAL Add
                           </h1>
-                          <div className="flex gap-5">
-                            <div>
+                          <div className="grid grid-cols-2 gap-4 w-full">
+                            <div className="w-full">
                               <InputField
                                 label="Received Date:"
                                 id="recvdate"
                                 name="recvdate"
                                 value={roleSpecificData.recvdate}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Calendar Type:"
@@ -2323,7 +2306,7 @@ const Add = ({ fetchClients }) => {
                                 name="caltype"
                                 value={roleSpecificData.caltype}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Calendar Quantity:"
@@ -2331,7 +2314,7 @@ const Add = ({ fetchClients }) => {
                                 name="calqty"
                                 value={roleSpecificData.calqty}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Calendar Amount:"
@@ -2339,17 +2322,17 @@ const Add = ({ fetchClients }) => {
                                 name="calamt"
                                 value={roleSpecificData.calamt}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                             </div>
-                            <div>
+                            <div className="w-full">
                               <InputField
                                 label="Payment Reference:"
                                 id="paymtref"
                                 name="paymtref"
                                 value={roleSpecificData.paymtref}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Payment Amount:"
@@ -2357,7 +2340,7 @@ const Add = ({ fetchClients }) => {
                                 name="paymtamt"
                                 value={roleSpecificData.paymtamt}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Payment Form:"
@@ -2365,7 +2348,7 @@ const Add = ({ fetchClients }) => {
                                 name="paymtform"
                                 value={roleSpecificData.paymtform}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                               <InputField
                                 label="Payment Date:"
@@ -2373,11 +2356,11 @@ const Add = ({ fetchClients }) => {
                                 name="paymtdate"
                                 value={roleSpecificData.paymtdate}
                                 onChange={handleRoleSpecificChange}
-                                className="text-base"
+                                className="text-base w-full"
                               />
                             </div>
                           </div>
-                          <div className="mb-2 mt-2">
+                          <div className="mb-2 mt-2 w-full">
                             <label
                               htmlFor="remarks"
                               className="block text-black font-bold mb-1 text-base"
@@ -3008,10 +2991,10 @@ const Add = ({ fetchClients }) => {
                               </button>
                             </div>
                           </div>
-                          <div className="flex flex-col-2 gap-5">
-                            <div className="flex flex-col-2 gap-4 mb-2 p-2">
+                          <div className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-4 mb-2 p-2 w-full">
                               {selectedRole === "HRG" && (
-                                <div>
+                                <div className="w-full">
                                   <h1 className="text-black mb-2 font-bold text-lg">
                                     HRG Add
                                   </h1>
@@ -3021,7 +3004,7 @@ const Add = ({ fetchClients }) => {
                                     name="recvdate"
                                     value={roleSpecificData.recvdate}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Renewal Date:"
@@ -3029,7 +3012,7 @@ const Add = ({ fetchClients }) => {
                                     name="renewdate"
                                     value={roleSpecificData.renewdate}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <div className="flex items-center mt-2 mb-2">
                                     <Button
@@ -3046,7 +3029,7 @@ const Add = ({ fetchClients }) => {
                                     name="campaigndate"
                                     value={roleSpecificData.campaigndate}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Payment Reference:"
@@ -3054,7 +3037,7 @@ const Add = ({ fetchClients }) => {
                                     name="paymtref"
                                     value={roleSpecificData.paymtref}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Payment Amount:"
@@ -3062,7 +3045,7 @@ const Add = ({ fetchClients }) => {
                                     name="paymtamt"
                                     value={roleSpecificData.paymtamt}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <div className="mb-2">
                                     <label
@@ -3085,7 +3068,7 @@ const Add = ({ fetchClients }) => {
                                       className="text-base"
                                     />
                                   </div>
-                                  <div className="mb-2">
+                                  <div className="mb-2 w-full">
                                     <label
                                       htmlFor="remarks"
                                       className="block text-black font-bold mb-1 text-base"
@@ -3104,7 +3087,7 @@ const Add = ({ fetchClients }) => {
                                 </div>
                               )}
                               {selectedRole === "FOM" && (
-                                <div>
+                                <div className="w-full">
                                   <h1 className="text-black mb-2 font-bold text-lg">
                                     FOM Add
                                   </h1>
@@ -3114,7 +3097,7 @@ const Add = ({ fetchClients }) => {
                                     name="recvdate"
                                     value={roleSpecificData.recvdate}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Payment Reference:"
@@ -3122,7 +3105,7 @@ const Add = ({ fetchClients }) => {
                                     name="paymtref"
                                     value={roleSpecificData.paymtref}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Payment Amount:"
@@ -3130,7 +3113,7 @@ const Add = ({ fetchClients }) => {
                                     name="paymtamt"
                                     value={roleSpecificData.paymtamt}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <InputField
                                     label="Payment Form:"
@@ -3138,7 +3121,7 @@ const Add = ({ fetchClients }) => {
                                     name="paymtform"
                                     value={roleSpecificData.paymtform}
                                     onChange={handleRoleSpecificChange}
-                                    className="text-base"
+                                    className="text-base w-full"
                                   />
                                   <div className="mb-2">
                                     <label
@@ -3161,7 +3144,7 @@ const Add = ({ fetchClients }) => {
                                       className="text-base"
                                     />
                                   </div>
-                                  <div className="mb-2">
+                                  <div className="mb-2 w-full">
                                     <label
                                       htmlFor="remarks"
                                       className="block text-black font-bold mb-1 text-base"
@@ -3180,19 +3163,19 @@ const Add = ({ fetchClients }) => {
                                 </div>
                               )}
                               {selectedRole === "CAL" && (
-                                <div>
+                                <div className="w-full">
                                   <h1 className="text-black mb-2 font-bold text-lg">
                                     CAL Add
                                   </h1>
-                                  <div className="flex gap-5">
-                                    <div>
+                                  <div className="grid grid-cols-2 gap-4 w-full">
+                                    <div className="w-full">
                                       <InputField
                                         label="Received Date:"
                                         id="recvdate"
                                         name="recvdate"
                                         value={roleSpecificData.recvdate}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Calendar Type:"
@@ -3200,7 +3183,7 @@ const Add = ({ fetchClients }) => {
                                         name="caltype"
                                         value={roleSpecificData.caltype}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Calendar Quantity:"
@@ -3208,7 +3191,7 @@ const Add = ({ fetchClients }) => {
                                         name="calqty"
                                         value={roleSpecificData.calqty}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Calendar Amount:"
@@ -3216,17 +3199,17 @@ const Add = ({ fetchClients }) => {
                                         name="calamt"
                                         value={roleSpecificData.calamt}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                     </div>
-                                    <div>
+                                    <div className="w-full">
                                       <InputField
                                         label="Payment Reference:"
                                         id="paymtref"
                                         name="paymtref"
                                         value={roleSpecificData.paymtref}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Payment Amount:"
@@ -3234,7 +3217,7 @@ const Add = ({ fetchClients }) => {
                                         name="paymtamt"
                                         value={roleSpecificData.paymtamt}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Payment Form:"
@@ -3242,7 +3225,7 @@ const Add = ({ fetchClients }) => {
                                         name="paymtform"
                                         value={roleSpecificData.paymtform}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                       <InputField
                                         label="Payment Date:"
@@ -3250,11 +3233,11 @@ const Add = ({ fetchClients }) => {
                                         name="paymtdate"
                                         value={roleSpecificData.paymtdate}
                                         onChange={handleRoleSpecificChange}
-                                        className="text-base"
+                                        className="text-base w-full"
                                       />
                                     </div>
                                   </div>
-                                  <div className="mb-2 mt-2">
+                                  <div className="mb-2 mt-2 w-full">
                                     <label
                                       htmlFor="remarks"
                                       className="block text-black font-bold mb-1 text-base"
