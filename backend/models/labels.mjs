@@ -24,6 +24,7 @@ const LabelSchema = new mongoose.Schema(
     printer: String,
   },
   {
+    suppressReservedKeysWarning: true,
     versionKey: false,
     collection: 'labels'  // Explicitly set collection name
   }
