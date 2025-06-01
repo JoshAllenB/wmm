@@ -13,6 +13,7 @@ import {
 } from "../ShadCN/select";
 import userService from "../../../services/userService";
 import { toast } from "react-hot-toast";
+import LogsView from "../Logs/LogsView";
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
@@ -31,6 +32,7 @@ const AdminPanel = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState("users");
 
   const fetchUsersData = useCallback(async () => {
     setIsLoading(true);
@@ -120,84 +122,114 @@ const AdminPanel = () => {
     <div className="m-2">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-        <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-blue-500">
-          <p className="text-gray-500 text-sm">Total Users</p>
-          <p className="text-2xl font-bold">{stats.totalUsers}</p>
-        </div>
-        <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-green-500">
-          <p className="text-gray-500 text-sm">Active Users</p>
-          <p className="text-2xl font-bold">{stats.activeUsers}</p>
-        </div>
-        <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-yellow-500">
-          <p className="text-gray-500 text-sm">Inactive Users</p>
-          <p className="text-2xl font-bold">{stats.inactiveUsers}</p>
-        </div>
-        <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-red-500">
-          <p className="text-gray-500 text-sm">Logged-off Users</p>
-          <p className="text-2xl font-bold">{stats.loggedOffUsers}</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-4">
-        <Add fetchUsers={fetchUsersData} />
-
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Input
-            placeholder="Search users..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-[250px]"
-          />
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
-              <SelectItem value="Logged Off">Logged Off</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {error ? (
-        <div
-          className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4"
-          role="alert"
+      {/* Tab Navigation */}
+      <div className="flex space-x-2 mb-4 border-b">
+        <button
+          className={`px-4 py-2 ${
+            activeTab === "users"
+              ? "border-b-2 border-blue-500 text-blue-600"
+              : "text-gray-600 hover:text-blue-500"
+          }`}
+          onClick={() => setActiveTab("users")}
         >
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      ) : null}
+          Users Management
+        </button>
+        <button
+          className={`px-4 py-2 ${
+            activeTab === "logs"
+              ? "border-b-2 border-blue-500 text-blue-600"
+              : "text-gray-600 hover:text-blue-500"
+          }`}
+          onClick={() => setActiveTab("logs")}
+        >
+          Activity Logs
+        </button>
+      </div>
 
-      <DataTable
-        data={filteredUsers}
-        columns={userColumns}
-        rowSelection={rowSelection}
-        setRowSelection={setRowSelection}
-        usePagination={true}
-        initialPageSize={10}
-        useHoverCard={false}
-        enableEdit={true}
-        enableRowClick={true}
-        EditComponent={(props) => (
-          <Edit {...props} onDeleteSuccess={handleDeleteSuccess} />
-        )}
-        fetchFunction={() => Promise.resolve(filteredUsers)}
-        handleRowClick={handleRowClick}
-        isLoading={isLoading}
-      />
-      {showEditModal && (
-        <Edit
-          rowData={selectedRow}
-          onClose={handleEditClose}
-          onDeleteSuccess={handleDeleteSuccess}
-        />
+      {activeTab === "users" ? (
+        <>
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
+            <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-blue-500">
+              <p className="text-gray-500 text-sm">Total Users</p>
+              <p className="text-2xl font-bold">{stats.totalUsers}</p>
+            </div>
+            <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-green-500">
+              <p className="text-gray-500 text-sm">Active Users</p>
+              <p className="text-2xl font-bold">{stats.activeUsers}</p>
+            </div>
+            <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-yellow-500">
+              <p className="text-gray-500 text-sm">Inactive Users</p>
+              <p className="text-2xl font-bold">{stats.inactiveUsers}</p>
+            </div>
+            <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-red-500">
+              <p className="text-gray-500 text-sm">Logged-off Users</p>
+              <p className="text-2xl font-bold">{stats.loggedOffUsers}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-4">
+            <Add fetchUsers={fetchUsersData} />
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <Input
+                placeholder="Search users..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-[250px]"
+              />
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="Logged Off">Logged Off</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {error ? (
+            <div
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4"
+              role="alert"
+            >
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          ) : null}
+
+          <DataTable
+            data={filteredUsers}
+            columns={userColumns}
+            rowSelection={rowSelection}
+            setRowSelection={setRowSelection}
+            usePagination={true}
+            initialPageSize={10}
+            useHoverCard={false}
+            enableEdit={true}
+            enableRowClick={true}
+            EditComponent={(props) => (
+              <Edit {...props} onDeleteSuccess={handleDeleteSuccess} />
+            )}
+            fetchFunction={() => Promise.resolve(filteredUsers)}
+            handleRowClick={handleRowClick}
+            isLoading={isLoading}
+          />
+          {showEditModal && (
+            <Edit
+              rowData={selectedRow}
+              onClose={handleEditClose}
+              onDeleteSuccess={handleDeleteSuccess}
+            />
+          )}
+        </>
+      ) : (
+        <LogsView />
       )}
     </div>
   );
