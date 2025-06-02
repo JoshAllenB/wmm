@@ -1,7 +1,7 @@
 import express from 'express';
 import { verifyToken } from '../../userAuth/verifyToken.mjs';
 import { checkRole } from './checkRole.mjs';
-import { getClientLogs } from '../logs/clientLogs.mjs';
+import { getClientLogs } from '../clientLogs/clientLogs.mjs';
 import LogModel from '../../models/userControl/LogSchema.mjs';
 import UserModel from '../../models/userControl/users.mjs';
 

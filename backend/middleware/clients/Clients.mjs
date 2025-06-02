@@ -10,7 +10,7 @@ import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
-import { logClientCreation, logClientUpdate, logClientDeletion } from '../logs/clientLogs.mjs';
+import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
 import { checkDuplicates } from './duplicateCheck.mjs';
 
 dotenv.config();
