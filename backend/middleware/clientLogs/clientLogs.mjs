@@ -55,8 +55,6 @@ export const logClientUpdate = async (userId, oldData, newData) => {
             });
 
             const savedLog = await log.save();
-        } else {
-            console.log('No changes to log for client update');
         }
     } catch (error) {
         console.error('Error logging client update:', error);

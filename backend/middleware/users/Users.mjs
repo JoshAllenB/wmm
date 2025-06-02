@@ -45,7 +45,6 @@ router.get("/", verifyToken, async (req, res) => {
 router.post("/add", verifyToken, checkRole("Admin"), async (req, res) => {
   const io = req.io;
   try {
-    console.log("Received user data:", req.body);
     const { username, password, roles } = req.body;
 
     // Validate roles
@@ -58,7 +57,6 @@ router.post("/add", verifyToken, checkRole("Admin"), async (req, res) => {
       username,
       password,
       roles: roles.map((roleData) => {
-        console.log("Processing role:", roleData);
         if (!roleData.role) {
           throw new Error("Invalid role data: role ID is missing");
         }
@@ -78,8 +76,6 @@ router.post("/add", verifyToken, checkRole("Admin"), async (req, res) => {
       select: "name",
     });
 
-    console.log("New user created:", newUser);
-
     res.status(201).json(newUser);
     io.emit("user-update", { type: "add", data: newUser });
   } catch (error) {
@@ -94,9 +90,6 @@ router.put("/update/:id", verifyToken, checkRole("Admin"), async (req, res) => {
   try {
     const { id } = req.params;
     const { username, roles } = req.body;
-
-    console.log("Received update request for user:", id);
-    console.log("Request body:", JSON.stringify(req.body, null, 2));
 
     const user = await UserModel.findById(id);
     if (!user) {
