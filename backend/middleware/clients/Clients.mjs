@@ -170,7 +170,8 @@ router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
 router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
-    const { clientData, roleType, roleData } = req.body;
+    const { clientData, roleSubmissions } = req.body;
+    console.log("roleSubmissions: ", roleSubmissions);
 
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
@@ -202,7 +203,7 @@ router.post("/add", verifyToken, async (req, res) => {
     // Log the client creation
     await logClientCreation(req.userId, newClient.toObject());
 
-    let roleSpecificClient = null;
+    // Handle role-specific data
     const roleModelMap = {
       WMM: WmmModel,
       HRG: HrgModel,
@@ -210,45 +211,61 @@ router.post("/add", verifyToken, async (req, res) => {
       CAL: CalModel,
     };
 
-    if (roleType && roleModelMap[roleType]) {
-      const RoleModel = roleModelMap[roleType];
+    const roleResults = [];
 
-      // Generate new ID for the role-specific model
-      const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-      const newRoleSpecificId =
-        (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+    // Process each role submission
+    for (const submission of roleSubmissions) {
+      const { roleType, roleData } = submission;
 
-      const roleSpecificData = {
-        id: newRoleSpecificId,
-        clientid: newClientId,
-        ...roleData,
-        adduser: user.username,
-        adddate: new Date()
-          .toLocaleString("en-US", {
-            month: "numeric",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          })
-          .replace(",", ""),
-      };
+      if (roleType && roleModelMap[roleType]) {
+        const RoleModel = roleModelMap[roleType];
 
-      // Insert role-specific data
-      roleSpecificClient = await RoleModel.create(roleSpecificData);
+        // Generate new ID for the role-specific model
+        const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+
+        const roleSpecificData = {
+          id: newRoleSpecificId,
+          clientid: newClientId,
+          ...roleData,
+          adduser: user.username,
+          adddate: new Date()
+            .toLocaleString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
+            .replace(",", ""),
+        };
+
+        // Insert role-specific data
+        const roleSpecificClient = await RoleModel.create(roleSpecificData);
+        roleResults.push({
+          roleType,
+          success: true,
+          data: roleSpecificClient
+        });
+      }
     }
 
+    // Emit socket event with complete data
     io.emit("data-update", {
       type: "add",
       data: {
         ...newClient.toObject(),
-        services: [],
+        services: roleSubmissions.map(sub => sub.roleType),
       },
     });
 
-    res.json({ success: true, client: newClient });
+    res.json({ 
+      success: true, 
+      client: newClient,
+      roleResults
+    });
   } catch (err) {
     console.error("Error adding client:", err);
     res.status(500).json({ error: "Internal Server Error" });

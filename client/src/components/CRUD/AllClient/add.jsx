@@ -97,6 +97,10 @@ const Add = ({ fetchClients }) => {
     subEndMonth: "",
     subEndDay: "",
     subEndYear: "",
+    subscriptionFreq: "",
+    subscriptionStart: "",
+    subscriptionEnd: "",
+    subsclass: ""
   });
 
   const [addressData, setAddressData] = useState({
@@ -128,6 +132,38 @@ const Add = ({ fetchClients }) => {
   const [selectedDuplicate, setSelectedDuplicate] = useState(null);
   const [viewingDuplicate, setViewingDuplicate] = useState(false);
 
+  // Add these new state variables after other state declarations
+  const [hrgData, setHrgData] = useState({
+    recvdate: "",
+    renewdate: "",
+    campaigndate: "",
+    paymtref: "",
+    paymtamt: "",
+    unsubscribe: false,
+    remarks: ""
+  });
+
+  const [fomData, setFomData] = useState({
+    recvdate: "",
+    paymtamt: "",
+    paymtform: "",
+    paymtref: "",
+    unsubscribe: false,
+    remarks: ""
+  });
+
+  const [calData, setCalData] = useState({
+    recvdate: "",
+    caltype: "",
+    calqty: "",
+    calamt: "",
+    paymtref: "",
+    paymtamt: "",
+    paymtform: "",
+    paymtdate: "",
+    remarks: ""
+  });
+
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
     if (userRole && roleConfigs[userRole]) {
@@ -149,11 +185,11 @@ const Add = ({ fetchClients }) => {
         renewdate: "",
         subsyear: 0,
         copies: 1,
-        paymtamt: 0,
-        paymtmasses: 0,
+        paymtamt: "",
+        paymtmasses: "",
         calendar: false,
         subsclass: "",
-        donorid: 0,
+        donorid: "",
         paymtref: "",
       });
     } else if (hasRole("HRG")) {
@@ -162,14 +198,14 @@ const Add = ({ fetchClients }) => {
         renewdate: "",
         campaigndate: "",
         paymtref: "",
-        paymtamt: 0,
-        unsubscribe: 0,
+        paymtamt: "",
+        unsubscribe: false,
         remarks: "",
       });
     } else if (hasRole("FOM")) {
       setRoleSpecificData({
         recvdate: "",
-        paymtamt: 0,
+        paymtamt: "",
         paymtform: "",
         paymtref: "",
         unsubscribe: false,
@@ -179,10 +215,10 @@ const Add = ({ fetchClients }) => {
       setRoleSpecificData({
         recvdate: "",
         caltype: "",
-        calqty: 0,
-        calamt: 0,
+        calqty: "",
+        calamt: "",
         paymtref: "",
-        paymtamt: 0,
+        paymtamt: "",
         paymtform: "",
         paymtdate: "",
         remarks: "",
@@ -284,6 +320,10 @@ const Add = ({ fetchClients }) => {
       subEndMonth: "",
       subEndDay: "",
       subEndYear: "",
+      subscriptionFreq: "",
+      subscriptionStart: "",
+      subscriptionEnd: "",
+      subsclass: ""
     });
 
     // Reset address data
@@ -306,55 +346,37 @@ const Add = ({ fetchClients }) => {
     // Reset area data
     setAreaData({});
 
-    // Reset role specific data based on user role
-    if (hasRole("WMM")) {
-      setRoleSpecificData({
-        subsdate: "",
-        enddate: "",
-        renewdate: "",
-        subsyear: 0,
-        copies: 1,
-        paymtamt: 0,
-        paymtmasses: 0,
-        calendar: false,
-        subsclass: "",
-        donorid: 0,
-        paymtref: "",
-      });
-    } else if (hasRole("HRG")) {
-      setRoleSpecificData({
-        recvdate: "",
-        renewdate: "",
-        campaigndate: "",
-        paymtref: "",
-        paymtamt: 0,
-        unsubscribe: 0,
-        remarks: "",
-      });
-    } else if (hasRole("FOM")) {
-      setRoleSpecificData({
-        recvdate: "",
-        paymtamt: 0,
-        paymtform: "",
-        paymtref: "",
-        unsubscribe: false,
-        remarks: "",
-      });
-    } else if (hasRole("CAL")) {
-      setRoleSpecificData({
-        recvdate: "",
-        caltype: "",
-        calqty: 0,
-        calamt: 0,
-        paymtref: "",
-        paymtamt: 0,
-        paymtform: "",
-        paymtdate: "",
-        remarks: "",
-      });
-    } else {
-      setRoleSpecificData({});
-    }
+    // Reset role-specific data states
+    setHrgData({
+      recvdate: "",
+      renewdate: "",
+      campaigndate: "",
+      paymtref: "",
+      paymtamt: "",
+      unsubscribe: false,
+      remarks: ""
+    });
+
+    setFomData({
+      recvdate: "",
+      paymtamt: "",
+      paymtform: "",
+      paymtref: "",
+      unsubscribe: false,
+      remarks: ""
+    });
+
+    setCalData({
+      recvdate: "",
+      caltype: "",
+      calqty: "",
+      calamt: "",
+      paymtref: "",
+      paymtamt: "",
+      paymtform: "",
+      paymtdate: "",
+      remarks: ""
+    });
 
     // Reset potential duplicates
     setPotentialDuplicates([]);
@@ -365,6 +387,9 @@ const Add = ({ fetchClients }) => {
 
     // Reset renewal type
     setRenewalType("current");
+
+    // Reset role-specific data
+    setRoleSpecificData({});
   };
 
   // Close modal and reset form
@@ -869,15 +894,25 @@ const Add = ({ fetchClients }) => {
 
   const handleRoleSpecificChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setRoleSpecificData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : type === "textarea"
-          ? value
-          : value.toUpperCase(),
-    }));
+    const newValue = type === "checkbox" ? checked : value;
+
+    setRoleSpecificData(prev => {
+      const updated = {
+        ...prev,
+        [name]: type === "checkbox" ? checked : value.toUpperCase()
+      };
+
+      // Also update the role-specific state
+      if (selectedRole === "HRG") {
+        setHrgData(updated);
+      } else if (selectedRole === "FOM") {
+        setFomData(updated);
+      } else if (selectedRole === "CAL") {
+        setCalData(updated);
+      }
+
+      return updated;
+    });
   };
 
   const handleRenewDateToday = () => {
@@ -939,33 +974,6 @@ const Add = ({ fetchClients }) => {
       return formData.bdate || "";
     };
 
-    const addressComponents = [
-      addressData.street1,
-      addressData.street2,
-      formData.area,
-      addressData.barangay,
-      addressData.city?.replace(/^City of\s+/i, ""), // Remove "City of" prefix
-      addressData.province,
-    ];
-
-    const {
-      subscriptionFreq,
-      subscriptionStart,
-      subscriptionEnd,
-      subsclass,
-      bdateMonth,
-      bdateDay,
-      bdateYear,
-      ...baseClientData
-    } = formData;
-
-    const clientData = {
-      ...baseClientData,
-      bdate: formatBdate(), // Use the formatted birth date
-      address: combinedAddress,
-      ...areaData, // Include area data in clientData
-    };
-
     // Format the date to "DD MMM YYYY"
     const formatDate = (date) => {
       return new Date(date).toLocaleDateString("en-GB", {
@@ -975,105 +983,61 @@ const Add = ({ fetchClients }) => {
       });
     };
 
-    let submissionRole = "";
-    let roleData = {};
+    const clientData = {
+      ...formData,
+      bdate: formatBdate(),
+      address: combinedAddress,
+      ...areaData,
+    };
 
-    // First check if the user has WMM role - prioritize this
+    // Prepare role data submissions
+    const roleSubmissions = [];
+
+    // Check and prepare WMM data if user has WMM role
     if (hasRole("WMM")) {
-      submissionRole = "WMM";
-      roleData = {
-        ...roleSpecificData,
-        subscriptionFreq,
-        subscriptionStart,
-        subscriptionEnd,
-        subsclass,
-      };
-    }
-    // If not WMM, check for other roles
-    else if (hasRole("HRG") && hasRole("FOM") && hasRole("CAL")) {
-      // Use the selected role or determine based on filled fields
-      if (selectedRole === "FOM" || FOMFields(roleSpecificData)) {
-        submissionRole = "FOM";
-        roleData = {
-          recvdate: roleSpecificData.recvdate,
-          paymtamt: roleSpecificData.paymtamt,
-          paymtform: roleSpecificData.paymtform,
-          paymtref: roleSpecificData.paymtref,
-          unsubscribe: roleSpecificData.unsubscribe,
-          remarks: roleSpecificData.remarks,
-        };
-      } else if (selectedRole === "CAL" || CALFields(roleSpecificData)) {
-        submissionRole = "CAL";
-        roleData = {
-          recvdate: roleSpecificData.recvdate,
-          caltype: roleSpecificData.caltype,
-          calqty: roleSpecificData.calqty,
-          calamt: roleSpecificData.calamt,
-          paymtref: roleSpecificData.paymtref,
-          paymtamt: roleSpecificData.paymtamt,
-          paymtform: roleSpecificData.paymtform,
-          paymtdate: roleSpecificData.paymtdate,
-          remarks: roleSpecificData.remarks,
-        };
-      } else {
-        submissionRole = "HRG";
-        roleData = {
-          recvdate: roleSpecificData.recvdate,
-          renewdate: roleSpecificData.renewdate,
-          campaigndate: roleSpecificData.campaigndate,
-          paymtref: roleSpecificData.paymtref,
-          paymtamt: roleSpecificData.paymtamt,
-          unsubscribe: roleSpecificData.unsubscribe,
-          remarks: roleSpecificData.remarks,
-        };
-      }
-    } else if (hasRole("HRG")) {
-      submissionRole = "HRG";
-      roleData = {
-        recvdate: roleSpecificData.recvdate,
-        renewdate: roleSpecificData.renewdate,
-        campaigndate: roleSpecificData.campaigndate,
-        paymtref: roleSpecificData.paymtref,
-        paymtamt: roleSpecificData.paymtamt,
-        unsubscribe: roleSpecificData.unsubscribe,
-        remarks: roleSpecificData.remarks,
-      };
-    } else if (hasRole("FOM")) {
-      submissionRole = "FOM";
-      roleData = {
-        recvdate: roleSpecificData.recvdate,
-        paymtamt: roleSpecificData.paymtamt,
-        paymtform: roleSpecificData.paymtform,
-        paymtref: roleSpecificData.paymtref,
-        unsubscribe: roleSpecificData.unsubscribe,
-        remarks: roleSpecificData.remarks,
-      };
-    } else if (hasRole("CAL")) {
-      submissionRole = "CAL";
-      roleData = {
-        recvdate: roleSpecificData.recvdate,
-        caltype: roleSpecificData.caltype,
-        calqty: roleSpecificData.calqty,
-        calamt: roleSpecificData.calamt,
-        paymtref: roleSpecificData.paymtref,
-        paymtamt: roleSpecificData.paymtamt,
-        paymtform: roleSpecificData.paymtform,
-        paymtdate: roleSpecificData.paymtdate,
-        remarks: roleSpecificData.remarks,
-      };
+      roleSubmissions.push({
+        roleType: "WMM",
+        roleData: {
+          ...roleSpecificData,
+          subscriptionFreq: formData.subscriptionFreq,
+          subscriptionStart: formData.subscriptionStart,
+          subscriptionEnd: formData.subscriptionEnd,
+          subsclass: formData.subsclass,
+        }
+      });
     }
 
-    if (!submissionRole) {
-      console.error("No valid role determined for submission");
-      return;
+    // Check and prepare HRG data if it exists
+    if (Object.values(hrgData).some(value => value !== "" && value !== false)) {
+      roleSubmissions.push({
+        roleType: "HRG",
+        roleData: hrgData
+      });
+    }
+
+    // Check and prepare FOM data if it exists
+    if (Object.values(fomData).some(value => value !== "" && value !== false)) {
+      roleSubmissions.push({
+        roleType: "FOM",
+        roleData: fomData
+      });
+    }
+
+    // Check and prepare CAL data if it exists
+    if (Object.values(calData).some(value => value !== "" && value !== false)) {
+      roleSubmissions.push({
+        roleType: "CAL",
+        roleData: calData
+      });
     }
 
     const submissionData = {
       clientData,
-      roleType: submissionRole,
-      roleData,
+      roleSubmissions,
       adddate: formatDate(new Date()),
     };
+
+    console.log("submissionData: ", submissionData);
 
     try {
       const response = await axios.post(
@@ -1092,8 +1056,26 @@ const Add = ({ fetchClients }) => {
   };
 
   const handleRoleToggle = (role) => {
+    // Save current role data before switching
+    if (selectedRole === "HRG") {
+      setHrgData(roleSpecificData);
+    } else if (selectedRole === "FOM") {
+      setFomData(roleSpecificData);
+    } else if (selectedRole === "CAL") {
+      setCalData(roleSpecificData);
+    }
+
+    // Set the new role
     setSelectedRole(role);
-    setRoleSpecificData({});
+
+    // Load the saved data for the new role
+    if (role === "HRG") {
+      setRoleSpecificData(hrgData);
+    } else if (role === "FOM") {
+      setRoleSpecificData(fomData);
+    } else if (role === "CAL") {
+      setRoleSpecificData(calData);
+    }
   };
 
   // Function to handle viewing a duplicate client
@@ -3006,23 +2988,6 @@ const Add = ({ fetchClients }) => {
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
                                   />
-                                  <InputField
-                                    label="Renewal Date:"
-                                    id="renewdate"
-                                    name="renewdate"
-                                    value={roleSpecificData.renewdate}
-                                    onChange={handleRoleSpecificChange}
-                                    className="text-base w-full"
-                                  />
-                                  <div className="flex items-center mt-2 mb-2">
-                                    <Button
-                                      className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
-                                      type="button"
-                                      onClick={handleRenewDateToday}
-                                    >
-                                      Set Renewal to Today
-                                    </Button>
-                                  </div>
                                   <InputField
                                     label="Campaign Date:"
                                     id="campaigndate"
