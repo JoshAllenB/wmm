@@ -471,35 +471,53 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
+    // Fetch all associated data before deletion for logging purposes
+    const [wmmData, hrgData, fomData, calData] = await Promise.all([
+      WmmModel.find({ clientid: parseInt(id) }).lean(),
+      HrgModel.find({ clientid: parseInt(id) }).lean(),
+      FomModel.find({ clientid: parseInt(id) }).lean(),
+      CalModel.find({ clientid: parseInt(id) }).lean()
+    ]);
+
+    // Store complete client data for logging
+    const completeClientData = {
+      ...clientToDelete,
+      wmmData,
+      hrgData,
+      fomData,
+      calData
+    };
+
     // Delete from ClientModel
     const deletedClient = await ClientModel.findOneAndDelete({ id });
 
-    // Log the client deletion
-    await logClientDeletion(req.userId, clientToDelete);
+    // Log the client deletion with complete data
+    await logClientDeletion(req.userId, completeClientData);
 
-    // Determine which role-specific model to delete from
-    const roleModelMap = {
-      WMM: WmmModel,
-      HRG: HrgModel,
-      FOM: FomModel,
-      CAL: CalModel,
-    };
-
-    // Attempt to delete from each role-specific model
-    const deletePromises = Object.values(roleModelMap).map((RoleModel) =>
-      RoleModel.findOneAndDelete({ clientid: id })
-    );
+    // Delete all associated data from each model
+    const deletePromises = [
+      WmmModel.deleteMany({ clientid: parseInt(id) }),
+      HrgModel.deleteMany({ clientid: parseInt(id) }),
+      FomModel.deleteMany({ clientid: parseInt(id) }),
+      CalModel.deleteMany({ clientid: parseInt(id) })
+    ];
 
     // Wait for all delete operations to complete
-    await Promise.all(deletePromises);
+    const deleteResults = await Promise.all(deletePromises);
+
+    // Count total deleted associated records
+    const totalAssociatedDeleted = deleteResults.reduce((sum, result) => sum + result.deletedCount, 0);
 
     // Emit socket event for real-time updates
     io.emit("data-update", {
       type: "delete",
-      data: { id: parseInt(id) },
+      data: { id: parseInt(id) }
     });
 
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      message: `Client and ${totalAssociatedDeleted} associated records deleted successfully`
+    });
   } catch (err) {
     console.error("Error deleting client:", err);
     res.status(500).json({ error: "Internal Server Error" });
