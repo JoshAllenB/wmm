@@ -1,4 +1,5 @@
 import { Button } from "../../UI/ShadCN/button";
+import { useEffect } from "react";
 
 export const PaginationComponent = ({
   totalPages,
@@ -12,14 +13,26 @@ export const PaginationComponent = ({
   handleLastPage,
   handlePageJump,
 }) => {
+  // Ensure totalPages is at least 1
+  const effectiveTotalPages = Math.max(1, totalPages || 1);
+
+  // Reset to page 1 if current page is greater than total pages
+  useEffect(() => {
+    if (page > effectiveTotalPages) {
+      setPage(1);
+    }
+  }, [effectiveTotalPages, page, setPage]);
+
   const handlePageSizeChange = (e) => {
     const newSize = Number(e.target.value);
     setPageSize(newSize);
     setPage(1);
   };
 
-  // Ensure totalPages is at least 1
-  const effectiveTotalPages = Math.max(1, totalPages || 1);
+  const validateAndJumpToPage = (newPage) => {
+    const validatedPage = Math.min(Math.max(1, newPage), effectiveTotalPages);
+    handlePageJump(validatedPage);
+  };
 
   return (
     <div className="flex items-center justify-between">
@@ -51,14 +64,14 @@ export const PaginationComponent = ({
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleFirstPage}
-            disabled={page === 1}
+            disabled={page <= 1}
           >
             First
           </Button>
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handlePreviousPage}
-            disabled={page === 1}
+            disabled={page <= 1}
           >
             Previous
           </Button>
@@ -66,21 +79,21 @@ export const PaginationComponent = ({
             type="number"
             className="h-8 rounded-md border border-input text-center"
             value={page}
-            onChange={(e) => handlePageJump(Number(e.target.value))}
+            onChange={(e) => validateAndJumpToPage(Number(e.target.value))}
             min={1}
             max={effectiveTotalPages}
           />
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleNextPage}
-            disabled={page === effectiveTotalPages}
+            disabled={page >= effectiveTotalPages}
           >
             Next
           </Button>
           <Button
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleLastPage}
-            disabled={page === effectiveTotalPages}
+            disabled={page >= effectiveTotalPages}
           >
             Last
           </Button>
