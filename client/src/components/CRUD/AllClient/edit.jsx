@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
-import AddressForm from "../../../utils/addressLogic";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
@@ -127,6 +126,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     municipality: "",
     subMunicipality: "",
     barangay: "",
+    region: "", // Add region field
   });
 
   const [combinedAddress, setCombinedAddress] = useState("");
@@ -941,32 +941,57 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleAddressChange = (type, value) => {
-    setAddressData((prev) => ({
-      ...prev,
-      [type]: value,
-    }));
-  };
+    setAddressData((prev) => {
+      const newAddressData = {
+        ...prev,
+        [type]: value,
+      };
 
-  const updateCombinedAddress = (addressData) => {
-    const addressComponents = [
-      addressData.street1,
-      addressData.street2,
-      formData.area,
-      addressData.barangay,
-      addressData.city ? addressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
-      addressData.province,
-    ];
-    const address = addressComponents.filter(Boolean).join(", ");
-    setCombinedAddress(address);
-  };
+      // Update combined address
+      const addressComponents = [
+        newAddressData.street1,
+        newAddressData.street2,
+        formData.area,
+      ].filter(Boolean);
 
-  useEffect(() => {
-    updateCombinedAddress(addressData);
-  }, [addressData]);
+      const newCombinedAddress = addressComponents.join(", ");
+      setCombinedAddress(newCombinedAddress);
+      
+      return newAddressData;
+    });
+  };
 
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
+    handleAddressChange('city', cityname);
   };
+
+  useEffect(() => {
+    if (rowData && rowData.address) {
+      // Split the address into components
+      const addressParts = rowData.address.split(", ");
+      
+      // Initialize with empty values
+      const newAddressData = {
+        street1: "",
+        street2: "",
+        barangay: "",
+        city: "",
+        province: "",
+        region: "",
+      };
+
+      // Try to map the parts to address components
+      if (addressParts.length >= 1) newAddressData.street1 = addressParts[0];
+      if (addressParts.length >= 2) newAddressData.street2 = addressParts[1];
+      if (addressParts.length >= 4) newAddressData.barangay = addressParts[3];
+      if (addressParts.length >= 5) newAddressData.city = addressParts[4];
+      if (addressParts.length >= 6) newAddressData.province = addressParts[5];
+      
+      setAddressData(newAddressData);
+      setCombinedAddress(rowData.address);
+    }
+  }, [rowData]);
 
   const handleAreaChange = (name, value) => {
     // Update the area data with the new value
@@ -1338,17 +1363,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     e.preventDefault();
 
     try {
-      // First collect the basic client data
-      const addressComponents = [
-        addressData.street1,
-        addressData.street2,
-        formData.area,
-        addressData.barangay,
-        addressData.city,
-        addressData.province,
-      ];
-      const address = addressComponents.filter(Boolean).join(", ");
-
       // Format the birth date properly
       const formatBdate = () => {
         if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -1361,8 +1375,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       const clientData = {
         ...formData,
         bdate: formatBdate(),
-        address,
-        ...areaData,
+        address: combinedAddress, // Use the combined address from state
+        ...areaData,  // This includes acode, area, and zipcode
       };
 
       // Determine what role-specific data to submit
@@ -1503,6 +1517,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         roleType,
         roleData,
       };
+      console.log("Submission data:", submissionData);
 
       // Send the update request
       const response = await axios.put(
@@ -1651,13 +1666,22 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               </h2>
               <div className="space-y-3">
                 <InputField
-                  label="Address:"
-                  id="address"
-                  name="address"
-                  value={combinedAddress}
-                  onChange={(e) => setCombinedAddress(e.target.value)}
-                  type="textarea"
-                  className="w-full p-2 border rounded-md text-base"
+                  label="Address 1:"
+                  id="street1"
+                  name="street1"
+                  value={addressData.street1}
+                  onChange={(e) => handleAddressChange('street1', e.target.value)}
+                  uppercase={true}
+                  className="text-base"
+                />
+                <InputField
+                  label="Address 2:"
+                  id="street2"
+                  name="street2"
+                  value={addressData.street2}
+                  onChange={(e) => handleAddressChange('street2', e.target.value)}
+                  uppercase={true}
+                  className="text-base"
                 />
                 <AreaForm 
                   onAreaChange={handleAreaChange}
@@ -1667,6 +1691,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     zipcode: formData.zipcode || ""
                   }}
                 />
+                <div className="mt-4">
+                  <InputField
+                    label="Address Preview:"
+                    id="combinedAddress"
+                    name="combinedAddress"
+                    value={combinedAddress}
+                    type="textarea"
+                    onChange={(e) => setCombinedAddress(e.target.value.toUpperCase())}
+                    className="w-full h-[160px] p-2 border rounded-md text-base"
+                  />
+                </div>
               </div>
             </div>
 
