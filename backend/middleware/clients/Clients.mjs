@@ -10,6 +10,7 @@ import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
+import webSocketFilterService from "../apiLogic/services/WebSocketFilterService.mjs";
 import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
 import { checkDuplicates } from './duplicateCheck.mjs';
 
@@ -66,7 +67,10 @@ router.get(
         advancedFilterData
       });
 
-      let { combinedData, clientServices } = results;
+      let { combinedData, clientServices, totalPages } = results;
+
+      // Ensure page number doesn't exceed total pages
+      const actualPage = Math.min(validPage, totalPages || 1);
 
       // Merge clientServices into combinedData
       combinedData = combinedData.map((client) => {
@@ -79,10 +83,12 @@ router.get(
         };
       });
 
-      // Send response
+      // Send response with corrected page number
       res.json({
         ...results,
         combinedData,
+        page: actualPage,
+        totalPages: totalPages || 1
       });
 
       // Emit socket event if needed
@@ -90,6 +96,17 @@ router.get(
         io.to(socketId).emit("dataFetched", {
           message: "Data fetched successfully",
           timestamp: new Date(),
+        });
+      }
+
+      // Register this filter for the socket
+      if (socketId) {
+        webSocketFilterService.registerFilter(socketId, {
+          filter,
+          group,
+          page,
+          pageSize,
+          ...advancedFilterData
         });
       }
     } catch (error) {
@@ -171,7 +188,6 @@ router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const { clientData, roleSubmissions } = req.body;
-    console.log("roleSubmissions: ", roleSubmissions);
 
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
@@ -258,6 +274,11 @@ router.post("/add", verifyToken, async (req, res) => {
       data: {
         ...newClient.toObject(),
         services: roleSubmissions.map(sub => sub.roleType),
+        ...roleResults.reduce((acc, result) => {
+          const key = `${result.roleType.toLowerCase()}Data`;
+          acc[key] = result.data;
+          return acc;
+        }, {})
       },
     });
 
@@ -283,7 +304,6 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     const { id } = req.params;
     const { clientData, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
-
     // Get the old client data before update
     const oldClientData = await ClientModel.findOne({ id }).lean();
 
@@ -330,36 +350,58 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       CAL: CalModel
     };
 
-    if (roleType === "WMM" && req.body.subscriptionId) {
-      const subscriptionId = req.body.subscriptionId;
+    if (roleType === "WMM") {
       
-      // Check if subscriptionId is an ObjectId (string with 24 hex chars) or a numeric id
-      const isObjectId = /^[0-9a-fA-F]{24}$/.test(subscriptionId);
-      
-      let query;
-      if (isObjectId) {
-        // If it's an ObjectId string, only query by _id
-        query = { _id: subscriptionId };
-      } else {
-        // If it's a numeric id, convert to number and query by id
-        query = { id: Number(subscriptionId) };
-      }
-      
-      // Update the specific subscription record
-      const updatedSubscription = await WmmModel.findOneAndUpdate(
-        query,
-        {
+      if (roleData.isNewSubscription) {
+        // Generate new ID for the role-specific model
+        const highestIdRoleSpecific = await WmmModel.findOne().sort({ id: -1 });
+        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+        
+        const newRoleSpecificData = {
+          id: newRoleSpecificId,
+          clientid: id,
           ...roleData,
+          adduser: user.username,
+          adddate: roleData.adddate || new Date()
+            .toLocaleString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: true,
+            })
+            .replace(",", ""),
+        };
+        
+        // Create new role-specific record
+        updatedRoleSpecificClient = await WmmModel.create(newRoleSpecificData);
+      } else if (roleData.id) {
+        // Check if roleData.id is an ObjectId (string with 24 hex chars) or a numeric id
+        const isObjectId = /^[0-9a-fA-F]{24}$/.test(roleData.id);
+        
+        let query;
+        if (isObjectId) {
+          query = { _id: roleData.id };
+        } else {
+          query = { id: Number(roleData.id) };
+        }
+        
+        // Create a clean update object without the id field
+        const { id: removedId, _id, ...cleanRoleData } = roleData;
+        
+        const updatedRoleData = {
+          ...cleanRoleData,
           editdate: new Date(),
           edituser: user.username,
-        },
-        { new: true }
-      );
-      
-      if (updatedSubscription) {
-        updatedRoleSpecificClient = updatedSubscription;
-      } else {
-        console.error(`Could not find subscription with id ${subscriptionId}`);
+        };
+        
+        updatedRoleSpecificClient = await WmmModel.findOneAndUpdate(
+          query,
+          updatedRoleData,
+          { new: true }
+        );
       }
     } else if (roleType && roleModelMap[roleType]) {
       const RoleModel = roleModelMap[roleType];
@@ -463,11 +505,58 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       }
     }
 
-    // Emit socket event for real-time updates
-    io.emit("data-update", {
-      type: "update",
-      data: updatedClient,
-    });
+    // Gather all role-specific data after update
+    const [wmmData, hrgData, fomData, calData] = await Promise.all([
+      WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+      HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
+    ]);
+
+    // Re-run the filter to get updated filtered data for all clients
+    if (io) {
+      const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
+      
+      // Use the DataService to fetch filtered data
+      const results = await dataService.fetchData({
+        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+        filter,
+        page: parseInt(page),
+        limit: parseInt(pageSize),
+        pageSize: parseInt(pageSize),
+        group,
+        clientIds: null,
+        advancedFilterData
+      });
+
+      let { combinedData, clientServices } = results;
+
+      // Merge clientServices into combinedData
+      combinedData = combinedData.map((client) => {
+        const clientService = clientServices.find(
+          (service) => service.clientId === client.id
+        );
+        return {
+          ...client,
+          services: clientService ? clientService.services : [],
+        };
+      });
+
+      // Emit the updated filtered data
+      io.emit("data-update", {
+        type: "filter-update",
+        data: {
+          ...results,
+          combinedData,
+          updatedClientId: parseInt(id)
+        }
+      });
+    }
+
+    // Instead of directly emitting, use the WebSocketFilterService
+    if (io) {
+      await webSocketFilterService.emitFilteredData(io, "update", parseInt(id));
+    }
 
     res.json({ success: true, client: updatedClient });
   } catch (err) {
@@ -525,11 +614,50 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     // Count total deleted associated records
     const totalAssociatedDeleted = deleteResults.reduce((sum, result) => sum + result.deletedCount, 0);
 
-    // Emit socket event for real-time updates
-    io.emit("data-update", {
-      type: "delete",
-      data: { id: parseInt(id) }
-    });
+    // Re-run the filter to get updated filtered data for all clients
+    if (io) {
+      const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
+      
+      // Use the DataService to fetch filtered data
+      const results = await dataService.fetchData({
+        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+        filter,
+        page: parseInt(page),
+        limit: parseInt(pageSize),
+        pageSize: parseInt(pageSize),
+        group,
+        clientIds: null,
+        advancedFilterData
+      });
+
+      let { combinedData, clientServices } = results;
+
+      // Merge clientServices into combinedData
+      combinedData = combinedData.map((client) => {
+        const clientService = clientServices.find(
+          (service) => service.clientId === client.id
+        );
+        return {
+          ...client,
+          services: clientService ? clientService.services : [],
+        };
+      });
+
+      // Emit both the deletion and updated filtered data
+      io.emit("data-update", {
+        type: "filter-update",
+        data: {
+          ...results,
+          combinedData,
+          deletedClientId: parseInt(id)
+        }
+      });
+    }
+
+    // Instead of directly emitting, use the WebSocketFilterService
+    if (io) {
+      await webSocketFilterService.emitFilteredData(io, "delete", parseInt(id));
+    }
 
     res.json({ 
       success: true,
@@ -951,6 +1079,17 @@ router.post(
     }
   }
 );
+
+// Add socket disconnect handler
+router.post("/disconnect", (req, res) => {
+  const { socketId } = req.body;
+  if (socketId) {
+    webSocketFilterService.removeFilter(socketId);
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: "No socket ID provided" });
+  }
+});
 
 export default router;
 
