@@ -1384,30 +1384,35 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       let roleType = "";
 
       if (hasRole("WMM")) {
+        console.log("WMM role detected, preparing subscription data...");
         roleType = "WMM";
 
         if (subscriptionMode === "edit" && selectedSubscription) {
+          console.log("Editing existing subscription:", selectedSubscription);
           // If editing an existing subscription
           roleData = {
-            id: selectedSubscription.id || selectedSubscription._id,
+            id: selectedSubscription._id || selectedSubscription.id, // Prefer _id for MongoDB ObjectId
             subsdate: roleSpecificData.subsdate,
             enddate: roleSpecificData.enddate,
             renewdate: roleSpecificData.renewdate,
-            subsyear: roleSpecificData.subsyear || 0,
-            copies: roleSpecificData.copies || 1,
-            paymtamt: roleSpecificData.paymtamt || 0,
-            paymtmasses: roleSpecificData.paymtmasses || 0,
+            subsyear: parseFloat(roleSpecificData.subsyear) || 0,
+            copies: parseInt(roleSpecificData.copies) || 1,
+            paymtamt: parseFloat(roleSpecificData.paymtamt) || 0,
+            paymtmasses: parseInt(roleSpecificData.paymtmasses) || 0,
             calendar: roleSpecificData.calendar || false,
             subsclass: roleSpecificData.subsclass || "",
-            donorid: roleSpecificData.donorid || 0,
+            donorid: parseInt(roleSpecificData.donorid) || 0,
             paymtref: roleSpecificData.paymtref || "",
             remarks: roleSpecificData.remarks || "",
           };
+          console.log("Prepared roleData for edit:", roleData);
         } else if (subscriptionMode === "add") {
+          console.log("Adding new subscription...");
           // Validate new subscription data
           const validation = validateNewSubscription(newSubscriptionData);
           if (!validation.isValid) {
             setValidationErrors(validation.errors);
+            console.log("Validation errors:", validation.errors);
             return;
           }
 
@@ -1416,17 +1421,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             subsdate: newSubscriptionData.subsdate,
             enddate: newSubscriptionData.enddate,
             renewdate: newSubscriptionData.renewdate || "",
-            subsyear: newSubscriptionData.subsyear || 1,
-            copies: newSubscriptionData.copies || 1,
-            paymtamt: newSubscriptionData.paymtamt || 0,
-            paymtmasses: newSubscriptionData.paymtmasses || 0,
+            subsyear: parseFloat(newSubscriptionData.subsyear) || 1,
+            copies: parseInt(newSubscriptionData.copies) || 1,
+            paymtamt: parseFloat(newSubscriptionData.paymtamt) || 0,
+            paymtmasses: parseInt(newSubscriptionData.paymtmasses) || 0,
             calendar: newSubscriptionData.calendar || false,
             subsclass: newSubscriptionData.subsclass || "",
-            donorid: newSubscriptionData.donorid || 0,
+            donorid: parseInt(newSubscriptionData.donorid) || 0,
             paymtref: newSubscriptionData.paymtref || "",
             remarks: newSubscriptionData.remarks || "",
             isNewSubscription: true,
           };
+          console.log("Prepared roleData for new subscription:", roleData);
         }
       } else {
         // Handle other role types (HRG, FOM, CAL)
@@ -1517,7 +1523,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         roleType,
         roleData,
       };
-      console.log("Submission data:", submissionData);
+
+      console.log("Submitting data to backend:", submissionData);
 
       // Send the update request
       const response = await axios.put(
@@ -1529,6 +1536,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           },
         }
       );
+
+      console.log("Backend response:", response.data);
 
       if (response.data.success) {
         if (onEditSuccess) {
@@ -2043,25 +2052,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       </select>
                     </div>
                     
-                    <InputField
-                      label="Renewal Date:"
-                      id="renewdate"
-                      name="renewdate"
-                      value={
-                        subscriptionMode === "edit"
-                          ? roleSpecificData.renewdate || ""
-                          : newSubscriptionData.renewdate || ""
-                      }
-                      onChange={
-                        subscriptionMode === "edit"
-                          ? handleRoleSpecificChange
-                          : handleNewSubscriptionChange
-                      }
-                      className="text-base"
-                    />
-                  </div>
-                  
-                  <div>
                     <div className="flex items-center mb-4">
                       <label className="block text-sm font-medium text-gray-700 mr-2">
                         Copies:
@@ -2084,58 +2074,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         className="w-20 p-2 border rounded-md text-base"
                       />
                     </div>
-                    
-                    <InputField
-                      label="Payment Reference:"
-                      id="paymtref"
-                      name="paymtref"
-                      value={
-                        subscriptionMode === "edit"
-                          ? roleSpecificData.paymtref || ""
-                          : newSubscriptionData.paymtref || ""
-                      }
-                      onChange={
-                        subscriptionMode === "edit"
-                          ? handleRoleSpecificChange
-                          : handleNewSubscriptionChange
-                      }
-                      className="text-base"
-                    />
-                    
-                    <InputField
-                      label="Payment Amount:"
-                      id="paymtamt"
-                      name="paymtamt"
-                      value={
-                        subscriptionMode === "edit"
-                          ? roleSpecificData.paymtamt || ""
-                          : newSubscriptionData.paymtamt || ""
-                      }
-                      onChange={
-                        subscriptionMode === "edit"
-                          ? handleRoleSpecificChange
-                          : handleNewSubscriptionChange
-                      }
-                      className="text-base"
-                    />
-                    
-                    <InputField
-                      label="Payment Masses:"
-                      id="paymtmasses"
-                      name="paymtmasses"
-                      value={
-                        subscriptionMode === "edit"
-                          ? roleSpecificData.paymtmasses || ""
-                          : newSubscriptionData.paymtmasses || ""
-                      }
-                      onChange={
-                        subscriptionMode === "edit"
-                          ? handleRoleSpecificChange
-                          : handleNewSubscriptionChange
-                      }
-                      className="text-base"
-                    />
-                    
+
                     <div className="mb-4">
                       <label className="flex items-center">
                         <input
@@ -2158,6 +2097,72 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           Include Calendar
                         </span>
                       </label>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Details
+                        </label>
+                        <div className="space-y-3 border rounded-md p-3">
+                          <InputField
+                            label="Reference No:"
+                            id="paymtref"
+                            name="paymtref"
+                            value={
+                              subscriptionMode === "edit"
+                                ? roleSpecificData.paymtref || ""
+                                : newSubscriptionData.paymtref || ""
+                            }
+                            onChange={
+                              subscriptionMode === "edit"
+                                ? handleRoleSpecificChange
+                                : handleNewSubscriptionChange
+                            }
+                            className="text-base"
+                          />
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <InputField
+                              label="Amount:"
+                              id="paymtamt"
+                              name="paymtamt"
+                              type="number"
+                              value={
+                                subscriptionMode === "edit"
+                                  ? roleSpecificData.paymtamt || ""
+                                  : newSubscriptionData.paymtamt || ""
+                              }
+                              onChange={
+                                subscriptionMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : handleNewSubscriptionChange
+                              }
+                              className="text-base"
+                            />
+                            
+                            <InputField
+                              label="Masses:"
+                              id="paymtmasses"
+                              name="paymtmasses"
+                              type="number"
+                              value={
+                                subscriptionMode === "edit"
+                                  ? roleSpecificData.paymtmasses || ""
+                                  : newSubscriptionData.paymtmasses || ""
+                              }
+                              onChange={
+                                subscriptionMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : handleNewSubscriptionChange
+                              }
+                              className="text-base"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
