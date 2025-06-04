@@ -10,7 +10,6 @@ import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
-import webSocketFilterService from "../apiLogic/services/WebSocketFilterService.mjs";
 import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
 import { checkDuplicates } from './duplicateCheck.mjs';
 
@@ -96,17 +95,6 @@ router.get(
         io.to(socketId).emit("dataFetched", {
           message: "Data fetched successfully",
           timestamp: new Date(),
-        });
-      }
-
-      // Register this filter for the socket
-      if (socketId) {
-        webSocketFilterService.registerFilter(socketId, {
-          filter,
-          group,
-          page,
-          pageSize,
-          ...advancedFilterData
         });
       }
     } catch (error) {
@@ -553,11 +541,6 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       });
     }
 
-    // Instead of directly emitting, use the WebSocketFilterService
-    if (io) {
-      await webSocketFilterService.emitFilteredData(io, "update", parseInt(id));
-    }
-
     res.json({ success: true, client: updatedClient });
   } catch (err) {
     console.error("Error updating client:", err);
@@ -652,11 +635,6 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
           deletedClientId: parseInt(id)
         }
       });
-    }
-
-    // Instead of directly emitting, use the WebSocketFilterService
-    if (io) {
-      await webSocketFilterService.emitFilteredData(io, "delete", parseInt(id));
     }
 
     res.json({ 
@@ -1079,17 +1057,6 @@ router.post(
     }
   }
 );
-
-// Add socket disconnect handler
-router.post("/disconnect", (req, res) => {
-  const { socketId } = req.body;
-  if (socketId) {
-    webSocketFilterService.removeFilter(socketId);
-    res.json({ success: true });
-  } else {
-    res.status(400).json({ error: "No socket ID provided" });
-  }
-});
 
 export default router;
 
