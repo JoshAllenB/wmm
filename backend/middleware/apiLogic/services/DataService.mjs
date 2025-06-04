@@ -1,8 +1,7 @@
 import { buildFilterQuery } from './filterBuilder.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 import { calculateStatistics } from './statsCalculator.mjs';
-import { getCachedResponse, setCachedResponse } from './cacheManager.mjs';
-import { validatePaginationParams, generateCacheKey, parseDate } from './helpers.mjs';
+import { validatePaginationParams, parseDate } from './helpers.mjs';
 import ClientModel from "../../../models/clients.mjs";
 
 class DataService {
@@ -23,13 +22,6 @@ class DataService {
     } = params;
 
     try {
-      // Generate cache key and check cache
-      const cacheKey = generateCacheKey(filter, page, limit, group, advancedFilterData);
-      const cachedResponse = getCachedResponse(cacheKey);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
       // Validate pagination parameters
       const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
 
@@ -55,9 +47,6 @@ class DataService {
         combinedData,
         clientServices: this._buildClientServices(combinedData)
       };
-
-      // Cache the response
-      setCachedResponse(cacheKey, response);
 
       return response;
     } catch (error) {

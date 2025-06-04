@@ -2,9 +2,6 @@ import axios from "axios";
 
 export const clientData = []; // Initialize as empty array
 
-// Keep track of in-flight requests to prevent race conditions
-const pendingRequests = new Map();
-
 export const fetchClients = async (
   page = 1,
   pageSize = 20,
@@ -36,23 +33,6 @@ export const fetchClients = async (
       }
     }
 
-    // Create a request ID based on the parameters to detect duplicates
-    const requestId = JSON.stringify({
-      ...normalizedParams,
-      ...processedAdvancedData,
-    });
-
-    // Cancel previous request with same parameters if it exists
-    if (pendingRequests.has(requestId)) {
-      const controller = pendingRequests.get(requestId);
-      controller.abort();
-      pendingRequests.delete(requestId);
-    }
-
-    // Create abort controller for this request
-    const controller = new AbortController();
-    pendingRequests.set(requestId, controller);
-
     // Prepare URL and params
     const baseUrl = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients`;
 
@@ -80,12 +60,8 @@ export const fetchClients = async (
     const response = await axios.get(`${baseUrl}?${queryParams.toString()}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-      signal: controller.signal,
+      }
     });
-
-    // Remove request from pending list
-    pendingRequests.delete(requestId);
 
     // Extract all relevant values from the response
     const {
@@ -197,12 +173,6 @@ export const fetchClients = async (
       noData: false,
     };
   } catch (e) {
-    // Handle aborted requests (don't treat as errors)
-    if (e.name === "AbortError" || e.name === "CanceledError") {
-      console.log("Request was canceled due to a newer request");
-      return null;
-    }
-
     console.error("Error fetching client data:", e);
     throw e;
   }
