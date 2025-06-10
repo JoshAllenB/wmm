@@ -190,7 +190,7 @@ export const generatePrintHTML = (
   topPosition,
   columnWidth,
   horizontalSpacing,
-  verticalSpacing,
+  rowSpacing,
   fontSize,
   labelHeight,
   selectedFields,
@@ -256,7 +256,7 @@ export const generatePrintHTML = (
         }
       }
       labelHtml += `
-        <div class="address-container column-1" style="position:absolute; left:0px; top:${topPosition + rowIndex * (labelHeight + verticalSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
+        <div class="address-container column-1" style="position:absolute; left:0px; top:${topPosition + rowIndex * (labelHeight + rowSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
           <p style="font-size:${fontSize}pt;">${row1?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row1?.original?.acode || ""}` : (row1?.original?.acode ? `/${row1?.original?.acode}` : "")}</p>
           <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row1?.original || {})}</p>
           <p style="font-size:${fontSize}pt;">${row1?.original?.address || ""}</p>
@@ -278,7 +278,7 @@ export const generatePrintHTML = (
         }
       }
       labelHtml += `
-        <div class="address-container column-2" style="position:absolute; left:${containerWidth - columnWidth}px; top:${topPosition + rowIndex * (labelHeight + verticalSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
+        <div class="address-container column-2" style="position:absolute; left:${containerWidth - columnWidth}px; top:${topPosition + rowIndex * (labelHeight + rowSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
           <p style="font-size:${fontSize}pt;">${row2?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row2?.original?.acode || ""}` : (row2?.original?.acode ? `/${row2?.original?.acode}` : "")}</p>
           <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row2?.original || {})}</p>
           <p style="font-size:${fontSize}pt;">${row2?.original?.address || ""}</p>
@@ -307,7 +307,7 @@ export const generatePrintHTML = (
           .mailing-label {
             position: relative;
             width: ${containerWidth}px;
-            height: ${topPosition + maxRows * (labelHeight + verticalSpacing)}px;
+            height: ${topPosition + maxRows * (labelHeight + rowSpacing)}px;
             background: white;
             left: ${leftPosition}px;
           }
@@ -355,7 +355,7 @@ export const generatePrintHTML = (
               left: ${leftPosition}px !important;
               top: 0 !important;
               width: ${containerWidth}px !important;
-              height: ${topPosition + maxRows * (labelHeight + verticalSpacing)}px !important;
+              height: ${topPosition + maxRows * (labelHeight + rowSpacing)}px !important;
               transform: none !important;
               -webkit-transform: none !important;
             }

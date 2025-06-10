@@ -3,6 +3,7 @@ import React from "react";
 // Conversion functions
 const mmToPx = (mm) => Math.round(mm * 96 / 25.4); // Convert mm to pixels at 96dpi
 const inchesToMm = (inches) => inches * 25.4; // Convert inches to mm
+const inchesToPx = (inches) => Math.round(inches * 96); // Convert inches to pixels at 96dpi
 
 // Standard US Letter size in mm
 const LETTER_WIDTH_MM = inchesToMm(8.5);  // 215.9mm
@@ -46,7 +47,7 @@ const LabelPreview = ({
   labelHeight, // In mm
   selectedFields,
   startPosition,
-  verticalSpacing, // In mm
+  rowSpacing, // Now in mm
   topPosition, // In mm
   leftPosition, // In mm
   userRole
@@ -167,7 +168,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
   const effectiveSpacing = mmToPx(horizontalSpacing);
   const effectiveTopPosition = mmToPx(topPosition);
   const effectiveLeftPosition = mmToPx(leftPosition);
-  const effectiveVerticalSpacing = mmToPx(verticalSpacing);
+  const effectiveRowSpacing = mmToPx(rowSpacing);
 
   // Calculate paper dimensions in pixels
   const paperWidthPx = mmToPx(LETTER_WIDTH_MM);
@@ -188,7 +189,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
         <div className="text-gray-500">
           Label size: {columnWidth.toFixed(1)}mm × {labelHeight.toFixed(1)}mm
           <br />
-          Spacing: H: {horizontalSpacing.toFixed(1)}mm, V: {verticalSpacing.toFixed(1)}mm
+          Spacing: H: {horizontalSpacing.toFixed(1)}mm, V: {rowSpacing.toFixed(1)}mm
         </div>
       </div>
 
@@ -201,14 +202,22 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
       >
         {/* Create rows of labels with 2 columns */}
         {Array.from({ length: Math.ceil(availableRows.length / 2) }).map((_, rowIdx) => (
-          <div key={`row-${rowIdx}`} className="flex relative" style={{ marginBottom: `${effectiveVerticalSpacing}px` }}>
+          <div 
+            key={`row-${rowIdx}`} 
+            className="flex relative" 
+            style={{ 
+              marginBottom: rowIdx === 0 ? `${effectiveRowSpacing}px` : `${effectiveRowSpacing}px`,
+              // Add visual guide for spacing
+              borderBottom: '1px dashed rgba(0,0,0,0.1)'
+            }}
+          >
             {/* Left column */}
             {availableRows[rowIdx * 2] && (
               <LabelItem 
                 rowData={availableRows[rowIdx * 2].original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
-                fontSize={fontSize} // Now in points
+                fontSize={fontSize}
                 selectedFields={selectedFields}
                 align="left"
                 userRole={userRole}
@@ -224,7 +233,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 rowData={availableRows[rowIdx * 2 + 1].original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
-                fontSize={fontSize} // Now in points
+                fontSize={fontSize}
                 selectedFields={selectedFields}
                 align="right"
                 userRole={userRole}

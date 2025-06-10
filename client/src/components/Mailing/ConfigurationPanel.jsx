@@ -14,8 +14,8 @@ const ConfigurationPanel = ({
   setLabelHeight,
   horizontalSpacing,
   setHorizontalSpacing,
-  verticalSpacing,
-  setVerticalSpacing,
+  rowSpacing,
+  setRowSpacing,
   selectedFields,
   setSelectedFields,
   templateName,
@@ -32,7 +32,7 @@ const ConfigurationPanel = ({
     columnWidth,
     labelHeight,
     horizontalSpacing,
-    verticalSpacing,
+    rowSpacing,
   });
 
   // Update input values when props change
@@ -44,9 +44,9 @@ const ConfigurationPanel = ({
       columnWidth,
       labelHeight,
       horizontalSpacing,
-      verticalSpacing,
+      rowSpacing,
     });
-  }, [topPosition, leftPosition, fontSize, columnWidth, labelHeight, horizontalSpacing, verticalSpacing]);
+  }, [topPosition, leftPosition, fontSize, columnWidth, labelHeight, horizontalSpacing, rowSpacing]);
 
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
 
@@ -109,10 +109,10 @@ const ConfigurationPanel = ({
       
       {/* Label Position Settings */}
       <div className="mb-4">
-        <h4 className="text-sm font-medium mb-2">Label Position</h4>
+        <h4 className="text-sm font-medium mb-2">Initial Position</h4>
         <div className="grid grid-cols-2 gap-x-4 gap-y-2">
           <div className="flex flex-col">
-            <label className="text-sm mb-1">Top Margin (mm):</label>
+            <label className="text-sm mb-1">Initial Top Margin (mm):</label>
             <input
               type="text"
               value={inputValues.topPosition}
@@ -193,15 +193,18 @@ const ConfigurationPanel = ({
             onBlur={(e) => handleBlur('horizontalSpacing', e.target.value, setHorizontalSpacing)}
           />
         </div>
-        <div className="flex flex-col">
-          <label className="text-sm mb-1">Vertical Spacing (mm):</label>
+        <div className="flex flex-col col-span-2">
+          <label className="text-sm mb-1">Row Spacing (mm):</label>
           <input
             type="text"
-            value={inputValues.verticalSpacing}
+            value={inputValues.rowSpacing}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('verticalSpacing', e.target.value, setVerticalSpacing)}
-            onBlur={(e) => handleBlur('verticalSpacing', e.target.value, setVerticalSpacing)}
+            onChange={(e) => handleInputChange('rowSpacing', e.target.value, setRowSpacing)}
+            onBlur={(e) => handleBlur('rowSpacing', e.target.value, setRowSpacing)}
           />
+          <p className="text-xs text-gray-500 mt-1">
+            This is the vertical spacing between rows after the first row
+          </p>
         </div>
       </div>
       

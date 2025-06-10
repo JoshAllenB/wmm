@@ -111,7 +111,7 @@ const Mailing = ({
   const [fontSize, setFontSize] = useState(12); // in points (pt)
   const [labelHeight, setLabelHeight] = useState(34.40); // 130px in mm
   const [horizontalSpacing, setHorizontalSpacing] = useState(15.87); // 60px in mm
-  const [verticalSpacing, setVerticalSpacing] = useState(58.21); // 220px in mm
+  const [rowSpacing, setRowSpacing] = useState(63.5); // 63.5mm (about 2.5 inches)
   const [selectedFields, setSelectedFields] = useState(["contactnos"]);
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -351,6 +351,7 @@ const Mailing = ({
         setColumnWidth(pxToMm(selected.layout.columnWidth));
         setLabelHeight(pxToMm(selected.layout.labelHeight));
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing));
+        setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
       } else {
         setUseLegacyFormat(false);
@@ -362,6 +363,7 @@ const Mailing = ({
         setColumnWidth(pxToMm(selected.layout.columnWidth));
         setLabelHeight(pxToMm(selected.layout.labelHeight || 100));
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing || 20));
+        setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
       }
       setSelectedTemplate(selected);
@@ -385,6 +387,7 @@ const Mailing = ({
           columnWidth: mmToPx(columnWidth),
           labelHeight: mmToPx(labelHeight),
           horizontalSpacing: mmToPx(horizontalSpacing),
+          rowSpacing, // Store in mm
         },
         selectedFields,
       };
@@ -447,23 +450,6 @@ const Mailing = ({
         return;
       }
 
-      // Generate .prn content
-      const prnContent = generatePrnContent(templateToUse, filteredRows);
-      
-      // Create a Blob with the .prn content
-      const prnBlob = new Blob([prnContent], { type: 'application/octet-stream' });
-      const prnUrl = URL.createObjectURL(prnBlob);
-      
-      // Create and trigger download
-      const link = document.createElement('a');
-      link.href = prnUrl;
-      link.download = `labels_${startClientId}_${endClientId}.prn`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the URL object
-      URL.revokeObjectURL(prnUrl);
       return;
     }
 
@@ -479,7 +465,7 @@ const Mailing = ({
       mmToPx(topPosition),
       mmToPx(columnWidth),
       mmToPx(horizontalSpacing),
-      mmToPx(verticalSpacing),
+      mmToPx(rowSpacing),
       fontSize, // Font size stays in pt
       mmToPx(labelHeight),
       selectedFields,
@@ -891,8 +877,8 @@ const Mailing = ({
                 setLabelHeight={setLabelHeight}
                 horizontalSpacing={horizontalSpacing}
                 setHorizontalSpacing={setHorizontalSpacing}
-                verticalSpacing={verticalSpacing}
-                setVerticalSpacing={setVerticalSpacing}
+                rowSpacing={rowSpacing}
+                setRowSpacing={setRowSpacing}
                 selectedFields={selectedFields}
                 setSelectedFields={setSelectedFields}
                 templateName={templateName}
@@ -983,10 +969,10 @@ const Mailing = ({
                 fontSize={fontSize}
                 columnWidth={columnWidth}
                 horizontalSpacing={horizontalSpacing}
-                verticalSpacing={verticalSpacing}
                 labelHeight={labelHeight}
                 selectedFields={selectedFields}
                 startPosition={startPosition}
+                rowSpacing={rowSpacing}
                 topPosition={topPosition}
                 leftPosition={leftPosition}
                 userRole={userRole}
