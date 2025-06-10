@@ -16,7 +16,30 @@ const getFullName = (row) => {
 };
 
 const getContactNumber = (row) => {
-  return row.contactnos || row.cellno || row.ofcno || "";
+  // Function to clean phone numbers
+  const cleanPhoneNumber = (number) => {
+    if (!number) return "";
+    // Remove any text descriptions (e.g., "Cell:", "Phone:", etc.)
+    const withoutLabels = number.replace(/(?:cell|phone|tel|office|contact|#|number|:|\(|\))/gi, '');
+    // Keep only digits, spaces, dashes, plus signs, and periods
+    const cleaned = withoutLabels.replace(/[^0-9\s\-\+\.]/g, '').trim();
+    // Remove multiple spaces/dashes
+    return cleaned.replace(/[\s-]+/g, '-');
+  };
+
+  // Try cell number first
+  const cellNumber = cleanPhoneNumber(row.cellno);
+  if (cellNumber) return cellNumber;
+
+  // Try office number second
+  const officeNumber = cleanPhoneNumber(row.ofcno);
+  if (officeNumber) return officeNumber;
+
+  // Finally try contact numbers
+  const contactNumber = cleanPhoneNumber(row.contactnos);
+  if (contactNumber) return contactNumber;
+
+  return "";
 };
 
 const formatDateLegacy = (dateString) => {
@@ -190,6 +213,8 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
           Label size: {columnWidth.toFixed(1)}mm × {labelHeight.toFixed(1)}mm
           <br />
           Spacing: H: {horizontalSpacing.toFixed(1)}mm, V: {rowSpacing.toFixed(1)}mm
+          <br />
+          Page layout: 3 rows × 2 columns (6 labels per page)
         </div>
       </div>
 
@@ -197,24 +222,31 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
         className="flex-grow relative" 
         style={{ 
           paddingTop: `${effectiveTopPosition}px`,
-          paddingLeft: `${effectiveLeftPosition}px`
+          paddingLeft: `${effectiveLeftPosition}px`,
+          position: 'relative'
         }}
       >
-        {/* Create rows of labels with 2 columns */}
-        {Array.from({ length: Math.ceil(availableRows.length / 2) }).map((_, rowIdx) => (
+        {/* Create exactly 3 rows with 2 columns each */}
+        {Array.from({ length: 3 }).map((_, rowIdx) => {
+          // Get the data for this row's labels
+          const leftLabel = availableRows[rowIdx * 2];
+          const rightLabel = availableRows[rowIdx * 2 + 1];
+          
+          return (
           <div 
             key={`row-${rowIdx}`} 
             className="flex relative" 
             style={{ 
-              marginBottom: rowIdx === 0 ? `${effectiveRowSpacing}px` : `${effectiveRowSpacing}px`,
-              // Add visual guide for spacing
-              borderBottom: '1px dashed rgba(0,0,0,0.1)'
+                marginBottom: rowIdx < 2 ? `${effectiveRowSpacing}px` : '0', // Only add margin to first two rows
+                height: `${effectiveHeight}px`,
+                position: 'relative'
             }}
           >
             {/* Left column */}
-            {availableRows[rowIdx * 2] && (
+              <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
+                {leftLabel ? (
               <LabelItem 
-                rowData={availableRows[rowIdx * 2].original}
+                    rowData={leftLabel.original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
                 fontSize={fontSize}
@@ -222,15 +254,23 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 align="left"
                 userRole={userRole}
               />
-            )}
+                ) : (
+                  <div 
+                    className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                  >
+                    Empty Label
+                  </div>
+                )}
+              </div>
             
             {/* Gap */}
             <div style={{ width: `${effectiveSpacing}px` }}></div>
             
             {/* Right column */}
-            {availableRows[rowIdx * 2 + 1] && (
+              <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
+                {rightLabel ? (
               <LabelItem 
-                rowData={availableRows[rowIdx * 2 + 1].original}
+                    rowData={rightLabel.original}
                 width={effectiveColumnWidth}
                 height={effectiveHeight}
                 fontSize={fontSize}
@@ -238,15 +278,48 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                 align="right"
                 userRole={userRole}
               />
+                ) : (
+                  <div 
+                    className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                  >
+                    Empty Label
+                  </div>
             )}
           </div>
-        ))}
+            </div>
+          );
+        })}
+
+        {/* Add guide lines to show page boundaries and row spacing */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="w-full h-full border border-dashed border-blue-200 opacity-50" />
+          {/* Vertical center line */}
+          <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-blue-200 opacity-50" 
+               style={{ transform: 'translateX(-50%)' }} />
+          {/* Row spacing guides */}
+          {Array.from({ length: 2 }).map((_, idx) => (
+            <div key={`row-guide-${idx}`}
+                 className="absolute left-0 right-0 border-t border-dashed border-blue-200 opacity-50"
+                 style={{ 
+                   top: `${effectiveHeight * (idx + 1) + effectiveRowSpacing * (idx + 1)}px`,
+                   height: `${effectiveRowSpacing}px`,
+                   background: 'repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.03) 5px, transparent 5px, transparent 10px)'
+                 }} />
+          ))}
+        </div>
       </div>
       
       {/* Page info */}
-      <div className="p-2 bg-gray-50 text-gray-600 text-xs border-t border-gray-200 flex justify-between">
-        <span>Showing {Math.min(availableRows.length, 8)} of {availableRows.length} labels</span>
-        <span>2 columns × {Math.ceil(Math.min(availableRows.length, 8) / 2)} rows</span>
+      <div className="p-2 bg-gray-50 text-gray-600 text-xs border-t border-gray-200 flex justify-between items-center">
+        <span>
+          Page 1 preview: {Math.min(availableRows.length, 6)} of {availableRows.length} labels
+          {availableRows.length > 6 && ` (${Math.ceil(availableRows.length / 6)} pages total)`}
+        </span>
+        <span className="text-blue-600">
+          {availableRows.length > 6 ? 
+            `Next page starts with label #${7}` : 
+            'All labels fit on this page'}
+        </span>
       </div>
     </div>
   );
@@ -270,10 +343,10 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, us
   // Check if user role should hide expiry and copies
   const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
   
-  // Add padding based on alignment
+  // Only add right padding to left column
   const paddingStyle = align === 'left' ? 
     { paddingRight: '24px' } : 
-    { paddingLeft: '24px' };
+    { };
 
   // Common style for all paragraphs
   const commonParagraphStyle = {
@@ -281,19 +354,21 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, us
     padding: 0,
     overflow: "hidden",
     textOverflow: "ellipsis",
-    lineHeight: "1.2", // Add consistent line height
-    fontSize: `${fontSize}pt` // Use points for font size
+    lineHeight: "1.2",
+    fontSize: `${fontSize}pt`,
+    textAlign: "left" // Ensure consistent left alignment
   };
   
   return (
     <div
-      className="address-container-preview border border-gray-300 bg-white flex-shrink-0 p-2"
+      className="address-container-preview border border-gray-300 bg-white flex-shrink-0"
       style={{
         width: `${width}px`,
         height: `${height}px`,
         overflow: "hidden",
         wordWrap: "break-word",
         whiteSpace: "normal",
+        padding: "8px",
         ...paddingStyle
       }}
     >

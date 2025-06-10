@@ -105,13 +105,13 @@ const Mailing = ({
 
   // State variables - using mm for dimensions and pt for font size
   const [modalOpen, setModalOpen] = useState(false);
-  const [leftPosition, setLeftPosition] = useState(1.06); // 4px in mm
-  const [topPosition, setTopPosition] = useState(33.07); // 125px in mm
-  const [columnWidth, setColumnWidth] = useState(87.31); // 330px in mm
+  const [leftPosition, setLeftPosition] = useState(1); // 4px in mm
+  const [topPosition, setTopPosition] = useState(32); // 125px in mm
+  const [columnWidth, setColumnWidth] = useState(95); // 330px in mm
   const [fontSize, setFontSize] = useState(12); // in points (pt)
-  const [labelHeight, setLabelHeight] = useState(34.40); // 130px in mm
-  const [horizontalSpacing, setHorizontalSpacing] = useState(15.87); // 60px in mm
-  const [rowSpacing, setRowSpacing] = useState(63.5); // 63.5mm (about 2.5 inches)
+  const [labelHeight, setLabelHeight] = useState(35); // 130px in mm
+  const [horizontalSpacing, setHorizontalSpacing] = useState(13); // 60px in mm
+  const [rowSpacing, setRowSpacing] = useState(58); // 63.5mm (about 2.5 inches)
   const [selectedFields, setSelectedFields] = useState(["contactnos"]);
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -841,182 +841,194 @@ const Mailing = ({
       
       {/* Main Mailing Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal}>
-        <h2 className="flex justify-center text-xl font-bold text-black mb-4">
-          Mailing Label Options
-        </h2>
+        <div className="w-full max-w-[95vw]">
+          <h2 className="flex justify-center text-xl font-bold text-black mb-4">
+            Mailing Label Options
+          </h2>
 
-        <div className="flex w-full max-w-6xl mx-auto">
-          {/* Left Panel - Configuration Controls */}
-          <div className="pr-4 overflow-y-auto" style={{ maxHeight: "70vh" }}>
-            {/* Configuration Toggle and Checklist Button */}
-            <div className="flex justify-center gap-2 mb-4">
-              <Button onClick={toggleShowInputs} variant="outline">
-                {showInputs ? "Hide Configuration" : "Show Configuration"}
-              </Button>
-              <Button
-                onClick={handlePrintChecklist}
-                variant="outline"
-                disabled={!hasAvailableRows || isLoading}
-              >
-                Print Checklist
-              </Button>
-            </div>
-
-            {/* Configuration Panel */}
-            {showInputs && (
-              <ConfigurationPanel
-                fontSize={fontSize}
-                setFontSize={setFontSize}
-                columnWidth={columnWidth}
-                setColumnWidth={setColumnWidth}
-                leftPosition={leftPosition}
-                setLeftPosition={setLeftPosition}
-                topPosition={topPosition}
-                setTopPosition={setTopPosition}
-                labelHeight={labelHeight}
-                setLabelHeight={setLabelHeight}
-                horizontalSpacing={horizontalSpacing}
-                setHorizontalSpacing={setHorizontalSpacing}
-                rowSpacing={rowSpacing}
-                setRowSpacing={setRowSpacing}
-                selectedFields={selectedFields}
-                setSelectedFields={setSelectedFields}
-                templateName={templateName}
-                setTemplateName={setTemplateName}
-                showTemplateNameInput={showTemplateNameInput}
-                setShowTemplateNameInput={setShowTemplateNameInput}
-                saveTemplate={saveTemplate}
-              />
-            )}
-
-            {/* Configuration Panel with Thank You Letter options */}
-            {showInputs && (
-              <div className="mt-4 border rounded p-3 bg-blue-50">
-                <h4 className="font-medium mb-2">Form Integration</h4>
-                <div className="flex gap-2 flex-wrap">
-                  <Button 
-                    onClick={syncConfigToRenewalNotice}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    Sync Renewal Notice
+          <div className="flex w-full gap-6">
+            {/* Left Panel - Configuration Controls */}
+            <div className="w-[400px] flex-shrink-0">
+              <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
+                {/* Configuration Toggle and Checklist Button */}
+                <div className="flex justify-center gap-2 mb-4">
+                  <Button onClick={toggleShowInputs} variant="outline">
+                    {showInputs ? "Hide Configuration" : "Show Configuration"}
                   </Button>
-                  <Button 
-                    onClick={previewRenewalNotice}
+                  <Button
+                    onClick={handlePrintChecklist}
                     variant="outline"
-                    size="sm" 
-                    className="text-xs bg-white"
+                    disabled={!hasAvailableRows || isLoading}
                   >
-                    Preview Renewal Notice
-                  </Button>
-                  <Button 
-                    onClick={syncConfigToThankYouLetter}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    Sync Thank You Letter
-                  </Button>
-                  <Button 
-                    onClick={previewThankYouLetter}
-                    variant="outline"
-                    size="sm" 
-                    className="text-xs bg-white"
-                  >
-                    Preview Thank You Letter
+                    Print Checklist
                   </Button>
                 </div>
-                <p className="text-xs mt-2 text-blue-700">
-                  Use these options to configure form overlays from this interface
-                </p>
+
+                {/* Configuration Panel */}
+                {showInputs && (
+                  <div className="mb-6">
+                    <ConfigurationPanel
+                      fontSize={fontSize}
+                      setFontSize={setFontSize}
+                      columnWidth={columnWidth}
+                      setColumnWidth={setColumnWidth}
+                      leftPosition={leftPosition}
+                      setLeftPosition={setLeftPosition}
+                      topPosition={topPosition}
+                      setTopPosition={setTopPosition}
+                      labelHeight={labelHeight}
+                      setLabelHeight={setLabelHeight}
+                      horizontalSpacing={horizontalSpacing}
+                      setHorizontalSpacing={setHorizontalSpacing}
+                      rowSpacing={rowSpacing}
+                      setRowSpacing={setRowSpacing}
+                      selectedFields={selectedFields}
+                      setSelectedFields={setSelectedFields}
+                      templateName={templateName}
+                      setTemplateName={setTemplateName}
+                      showTemplateNameInput={showTemplateNameInput}
+                      setShowTemplateNameInput={setShowTemplateNameInput}
+                      saveTemplate={saveTemplate}
+                    />
+                  </div>
+                )}
+
+                {/* Configuration Panel with Thank You Letter options */}
+                {showInputs && (
+                  <div className="mb-6 border rounded p-3 bg-blue-50">
+                    <h4 className="font-medium mb-2">Form Integration</h4>
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        onClick={syncConfigToRenewalNotice}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        Sync Renewal Notice
+                      </Button>
+                      <Button 
+                        onClick={previewRenewalNotice}
+                        variant="outline"
+                        size="sm" 
+                        className="text-xs bg-white"
+                      >
+                        Preview Renewal Notice
+                      </Button>
+                      <Button 
+                        onClick={syncConfigToThankYouLetter}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                      >
+                        Sync Thank You Letter
+                      </Button>
+                      <Button 
+                        onClick={previewThankYouLetter}
+                        variant="outline"
+                        size="sm" 
+                        className="text-xs bg-white"
+                      >
+                        Preview Thank You Letter
+                      </Button>
+                    </div>
+                    <p className="text-xs mt-2 text-blue-700">
+                      Use these options to configure form overlays from this interface
+                    </p>
+                  </div>
+                )}
+
+                {/* Template Selector */}
+                <div className="mb-6">
+                  <TemplateSelector
+                    selectedTemplate={selectedTemplate}
+                    savedTemplates={savedTemplates}
+                    isLoading={isLoading}
+                    onTemplateSelect={handleTemplateSelect}
+                    userRole={userRole}
+                  />
+                </div>
+
+                {/* Range Selector */}
+                <div className="mb-6">
+                  <RangeSelector
+                    startClientId={startClientId}
+                    setStartClientId={setStartClientId}
+                    endClientId={endClientId}
+                    setEndClientId={setEndClientId}
+                    startPosition={startPosition}
+                    setStartPosition={setStartPosition}
+                    availableRows={availableRows}
+                  />
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Template Selector */}
-            <TemplateSelector
-              selectedTemplate={selectedTemplate}
-              savedTemplates={savedTemplates}
-              isLoading={isLoading}
-              onTemplateSelect={handleTemplateSelect}
-              userRole={userRole}
-            />
-
-            {/* Range Selector */}
-            <RangeSelector
-              startClientId={startClientId}
-              setStartClientId={setStartClientId}
-              endClientId={endClientId}
-              setEndClientId={setEndClientId}
-              startPosition={startPosition}
-              setStartPosition={setStartPosition}
-              availableRows={availableRows}
-            />
-          </div>
-
-          {/* Right Panel - Preview */}
-          <div className="pl-4 flex flex-col items-center">
-            <h3 className="text-center font-semibold mb-4">
-              Label Preview
-            </h3>
-            <div className="border rounded p-6 w-full bg-white flex flex-col items-center justify-center">
-              <LabelPreview
-                isLoading={isLoading}
-                selectedTemplate={selectedTemplate}
-                hasAvailableRows={hasAvailableRows}
-                availableRows={availableRows}
-                useLegacyFormat={useLegacyFormat}
-                fontSize={fontSize}
-                columnWidth={columnWidth}
-                horizontalSpacing={horizontalSpacing}
-                labelHeight={labelHeight}
-                selectedFields={selectedFields}
-                startPosition={startPosition}
-                rowSpacing={rowSpacing}
-                topPosition={topPosition}
-                leftPosition={leftPosition}
-                userRole={userRole}
-              />
-              <div className="text-sm text-gray-600 mt-2 text-center">
-                <p>Real-time preview of how labels will print</p>
-                <p className="text-xs">
-                  {useLegacyFormat && selectedTemplate?.isLegacy ? 
-                    `Legacy format: optimized for ${selectedTemplate.printer || "dot matrix printers"}` :
-                    `Layout dimensions: ${Math.max(columnWidth * 2, 200)}px × ${Math.max(labelHeight * 2, 100)}px`
-                  }
-                </p>
+            {/* Right Panel - Preview */}
+            <div className="flex-grow">
+              <div className="border rounded-lg p-6 bg-white shadow-sm h-full">
+                <h3 className="text-center font-semibold mb-4">
+                  Label Preview
+                </h3>
+                <div className="flex flex-col items-center justify-center h-[calc(90vh-200px)]">
+                  <LabelPreview
+                    isLoading={isLoading}
+                    selectedTemplate={selectedTemplate}
+                    hasAvailableRows={hasAvailableRows}
+                    availableRows={availableRows}
+                    useLegacyFormat={useLegacyFormat}
+                    fontSize={fontSize}
+                    columnWidth={columnWidth}
+                    horizontalSpacing={horizontalSpacing}
+                    labelHeight={labelHeight}
+                    selectedFields={selectedFields}
+                    startPosition={startPosition}
+                    rowSpacing={rowSpacing}
+                    topPosition={topPosition}
+                    leftPosition={leftPosition}
+                    userRole={userRole}
+                  />
+                  <div className="text-sm text-gray-600 mt-4 text-center">
+                    <p>Real-time preview of how labels will print</p>
+                    <p className="text-xs">
+                      {useLegacyFormat && selectedTemplate?.isLegacy ? 
+                        `Legacy format: optimized for ${selectedTemplate.printer || "dot matrix printers"}` :
+                        `Layout dimensions: ${Math.max(columnWidth * 2, 200)}px × ${Math.max(labelHeight * 2, 100)}px`
+                      }
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Action Buttons */}
-        <div className="flex justify-center space-x-4 mt-6 mx-auto" style={{ maxWidth: "600px" }}>
-          <Button
-            onClick={handlePrintWithRange}
-            className="bg-green-600 hover:bg-green-700 text-white flex-grow"
-            disabled={!hasAvailableRows || isLoading}
-          >
-            {isLoading ? 'Loading...' : selectedTemplate?.isLegacy ? 'Download .prn File' : 'Print Preview'}
-          </Button>
           
-          {selectedTemplate?.isLegacy && (
+          {/* Action Buttons */}
+          <div className="flex justify-center space-x-4 mt-6">
             <Button
-              onClick={handleDirectPrintToDotMatrix}
-              className="bg-blue-600 hover:bg-blue-700 text-white flex-grow"
+              onClick={handlePrintWithRange}
+              className="bg-green-600 hover:bg-green-700 text-white w-48"
               disabled={!hasAvailableRows || isLoading}
             >
-              {isLoading ? 'Printing...' : 'Print to Dot Matrix'}
+              {isLoading ? 'Loading...' : selectedTemplate?.isLegacy ? 'Download .prn File' : 'Print Preview'}
             </Button>
-          )}
-          
-          <Button
-            onClick={closeModal}
-            variant="secondary"
-            className="flex-grow-0 w-24"
-          >
-            Cancel
-          </Button>
+            
+            {selectedTemplate?.isLegacy && (
+              <Button
+                onClick={handleDirectPrintToDotMatrix}
+                className="bg-blue-600 hover:bg-blue-700 text-white w-48"
+                disabled={!hasAvailableRows || isLoading}
+              >
+                {isLoading ? 'Printing...' : 'Print to Dot Matrix'}
+              </Button>
+            )}
+            
+            <Button
+              onClick={closeModal}
+              variant="secondary"
+              className="w-24"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </Modal>
 

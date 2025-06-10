@@ -203,7 +203,7 @@ const ConfigurationPanel = ({
             onBlur={(e) => handleBlur('rowSpacing', e.target.value, setRowSpacing)}
           />
           <p className="text-xs text-gray-500 mt-1">
-            This is the vertical spacing between rows after the first row
+            This is the vertical gap between each row of labels (consistent spacing between all rows)
           </p>
         </div>
       </div>

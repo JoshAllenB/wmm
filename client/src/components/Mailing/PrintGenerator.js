@@ -178,7 +178,7 @@ export const generatePrnContent = (template, data) => {
   return content;
 };
 
-// Generate HTML for a specific range of Client IDs and starting position
+// Function to generate HTML for a specific range of Client IDs and starting position
 export const generatePrintHTML = (
   startId, 
   endId, 
@@ -224,70 +224,11 @@ export const generatePrintHTML = (
     );
   }
 
-  // Calculate layout based on filtered rows
-  const totalItems = filteredRows.length;
-  const leftColumnCount = Math.ceil(totalItems * 0.6);
-  const rightColumnCount = totalItems - leftColumnCount;
-
-  const column1 = filteredRows.slice(0, leftColumnCount);
-  const column2 = filteredRows.slice(leftColumnCount);
-
   // Check if user role should hide expiry and copies
   const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
 
   // Use configuration values for dimensions
   const containerWidth = columnWidth * 2 + horizontalSpacing;
-
-  // --- NEW LABEL HTML GENERATION ---
-  let labelHtml = '';
-  const maxRows = Math.max(column1.length, column2.length);
-  for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
-    // Left column (column 1)
-    const row1 = column1[rowIndex];
-    if (row1) {
-      const wmmData = row1?.original?.wmmData;
-      let subscription = wmmData?.records?.[0] || wmmData || {};
-      const copies = subscription.copies ?? "N/A";
-      let enddate = "N/A";
-      if (subscription.enddate) {
-        const date = new Date(subscription.enddate);
-        if (!isNaN(date.getTime())) {
-          enddate = date.toLocaleDateString();
-        }
-      }
-      labelHtml += `
-        <div class="address-container column-1" style="position:absolute; left:0px; top:${topPosition + rowIndex * (labelHeight + rowSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
-          <p style="font-size:${fontSize}pt;">${row1?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row1?.original?.acode || ""}` : (row1?.original?.acode ? `/${row1?.original?.acode}` : "")}</p>
-          <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row1?.original || {})}</p>
-          <p style="font-size:${fontSize}pt;">${row1?.original?.address || ""}</p>
-          ${selectedFields.includes("contactnos") ? `<p style="font-size:${fontSize}pt;">${getContactNumber(row1?.original || {})}</p>` : ""}
-        </div>
-      `;
-    }
-    // Right column (column 2)
-    const row2 = column2[rowIndex];
-    if (row2) {
-      const wmmData = row2?.original?.wmmData;
-      let subscription = wmmData?.records?.[0] || wmmData || {};
-      const copies = subscription.copies ?? "N/A";
-      let enddate = "N/A";
-      if (subscription.enddate) {
-        const date = new Date(subscription.enddate);
-        if (!isNaN(date.getTime())) {
-          enddate = date.toLocaleDateString();
-        }
-      }
-      labelHtml += `
-        <div class="address-container column-2" style="position:absolute; left:${containerWidth - columnWidth}px; top:${topPosition + rowIndex * (labelHeight + rowSpacing)}px; width:${columnWidth}px; height:${labelHeight}px; text-align:left;">
-          <p style="font-size:${fontSize}pt;">${row2?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row2?.original?.acode || ""}` : (row2?.original?.acode ? `/${row2?.original?.acode}` : "")}</p>
-          <p style="font-size:${fontSize}pt; font-weight:normal;">${getFullName(row2?.original || {})}</p>
-          <p style="font-size:${fontSize}pt;">${row2?.original?.address || ""}</p>
-          ${selectedFields.includes("contactnos") ? `<p style="font-size:${fontSize}pt;">${getContactNumber(row2?.original || {})}</p>` : ""}
-        </div>
-      `;
-    }
-  }
-  // --- END NEW LABEL HTML GENERATION ---
 
   const htmlContent = `
     <html>
@@ -295,32 +236,54 @@ export const generatePrintHTML = (
        <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
         <style>
           @page {
+            size: letter;
             margin: 0;
             padding: 0;
-            size: auto;
+          }
+          html {
+            width: 8.5in;
+            height: 11in;
           }
           body { 
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
+            min-height: 0;
+            height: auto;
+            width: 8.5in;
           }
-          .mailing-label {
+          .page {
+            width: 8.5in;
+            height: 11in;
             position: relative;
+            page-break-after: always;
+            overflow: hidden;
+          }
+          .page:last-child {
+            page-break-after: auto;
+          }
+          .label-container {
+            position: absolute;
             width: ${containerWidth}px;
-            height: ${topPosition + maxRows * (labelHeight + rowSpacing)}px;
-            background: white;
             left: ${leftPosition}px;
+            top: ${topPosition}px;
           }
           .address-container {
             box-sizing: border-box;
             border: 1px dashed #bbb;
             background: #fff;
-            padding: 6px 8px;
+            padding: 8px;
             overflow: hidden;
             word-wrap: break-word;
             white-space: normal;
             border-radius: 4px;
             text-align: left;
+            position: absolute;
+            width: ${columnWidth}px;
+            height: ${labelHeight}px;
+          }
+          .address-container.left-column {
+            padding-right: 24px;
           }
           .address-container p {
             margin: 0;
@@ -331,33 +294,42 @@ export const generatePrintHTML = (
             white-space: normal;
             overflow-wrap: break-word;
             text-align: left;
-          }
-          .column-1 {
-            padding-right: 32px !important;
-          }
-          .column-2 {
-            padding-left: 32px !important;
+            font-size: ${fontSize}pt;
           }
           @media print {
             @page {
+              size: letter !important;
               margin: 0 !important;
               padding: 0 !important;
-              size: auto !important;
+            }
+            html {
+              width: 8.5in !important;
+              height: 11in !important;
             }
             body { 
               margin: 0 !important;
               padding: 0 !important;
+              min-height: 0 !important;
+              height: auto !important;
+              width: 8.5in !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
-            .mailing-label {
+            .page {
+              width: 8.5in !important;
+              height: 11in !important;
+              position: relative !important;
+              page-break-after: always !important;
+              overflow: hidden !important;
+            }
+            .page:last-child {
+              page-break-after: auto !important;
+            }
+            .label-container {
               position: absolute !important;
-              left: ${leftPosition}px !important;
-              top: 0 !important;
               width: ${containerWidth}px !important;
-              height: ${topPosition + maxRows * (labelHeight + rowSpacing)}px !important;
-              transform: none !important;
-              -webkit-transform: none !important;
+              left: ${leftPosition}px !important;
+              top: ${topPosition}px !important;
             }
             .address-container {
               box-shadow: none !important;
@@ -365,8 +337,6 @@ export const generatePrintHTML = (
               position: absolute !important;
               width: ${columnWidth}px !important;
               height: ${labelHeight}px !important;
-              transform: none !important;
-              -webkit-transform: none !important;
               box-sizing: border-box !important;
               overflow: hidden !important;
               text-align: left !important;
@@ -376,27 +346,48 @@ export const generatePrintHTML = (
               margin: 0 !important;
               padding: 0 !important;
               width: 100% !important;
-              transform: none !important;
-              -webkit-transform: none !important;
               text-align: left !important;
-            }
-            .column-1 {
-              left: 0px !important;
-              padding-right: 32px !important;
-              padding-left: 8px !important;
-            }
-            .column-2 {
-              left: ${containerWidth - columnWidth}px !important;
-              padding-left: 32px !important;
-              padding-right: 8px !important;
             }
           }
         </style>
       </head>
       <body>
-        <div class="mailing-label">
-            ${labelHtml}
-        </div>
+        ${Array(Math.ceil(filteredRows.length / 6)).fill().map((_, pageIndex) => {
+          const pageRows = filteredRows.slice(pageIndex * 6, (pageIndex + 1) * 6);
+          return `
+            <div class="page">
+              <div class="label-container">
+                ${pageRows.map((row, index) => {
+                  // Calculate position based on index within the page
+                  const rowNum = Math.floor(index / 2); // 0, 0, 1, 1, 2, 2
+                  const isLeftColumn = index % 2 === 0;
+                  const leftOffset = isLeftColumn ? 0 : (containerWidth - columnWidth);
+                  const topOffset = rowNum * (labelHeight + rowSpacing);
+
+                  const wmmData = row?.original?.wmmData;
+                  let subscription = wmmData?.records?.[0] || wmmData || {};
+                  const copies = subscription.copies ?? "N/A";
+                  let enddate = "N/A";
+                  if (subscription.enddate) {
+                    const date = new Date(subscription.enddate);
+                    if (!isNaN(date.getTime())) {
+                      enddate = date.toLocaleDateString();
+                    }
+                  }
+
+                  return `
+                    <div class="address-container${isLeftColumn ? ' left-column' : ''}" style="left: ${leftOffset}px; top: ${topOffset}px;">
+                      <p>${row?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row?.original?.acode || ""}` : (row?.original?.acode ? `/${row?.original?.acode}` : "")}</p>
+                      <p style="font-weight:normal;">${getFullName(row?.original || {})}</p>
+                      <p>${row?.original?.address || ""}</p>
+                      ${selectedFields.includes("contactnos") ? `<p>${getContactNumber(row?.original || {})}</p>` : ""}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }).join('')}
         <script>
            window.print();
            window.close();
