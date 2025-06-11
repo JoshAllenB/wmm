@@ -61,7 +61,18 @@ export const TableComponent = function TableComponent({
       return (
         <div className="flex flex-wrap px-2 py-1">
           {clientCountDisplay}
-          <span className="text-base text-gray-800 font-medium">
+          <span className="text-base text-blue-700 font-medium ml-4">
+            WMM Clients:{" "}
+            <span className="font-bold">
+              {Number(stats?.serviceClientCounts?.wmm?.page || 0).toLocaleString()}
+            </span>{" "}
+            <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+            <span className="font-bold">
+              {Number(stats?.serviceClientCounts?.wmm?.total || 0).toLocaleString()}
+            </span>{" "}
+            <span className="text-gray-500 text-xs">(Total)</span>
+          </span>
+          <span className="text-base text-blue-700 font-medium ml-4">
             Copies:{" "}
             <span className="font-bold">
               {Number(wmmMetric?.page || 0).toLocaleString()}
@@ -70,7 +81,7 @@ export const TableComponent = function TableComponent({
             <span className="font-bold">
               {Number(wmmMetric?.total || 0).toLocaleString()}
             </span>{" "}
-            <span className="text-gray-500 text-xs">(Filter)</span>
+            <span className="text-gray-500 text-xs">(Total)</span>
           </span>
         </div>
       );
@@ -82,6 +93,7 @@ export const TableComponent = function TableComponent({
         const qtyMetric = calMetrics.find(m => m.label === 'Quantity');
         const amtMetric = calMetrics.find(m => m.label === 'Amount');
         const paymtMetric = calMetrics.find(m => m.label === 'Payments');
+        const balanceMetric = calMetrics.find(m => m.label === 'Balance');
         
         return (
           <div className="flex flex-wrap justify-between px-2 py-1">
@@ -98,6 +110,9 @@ export const TableComponent = function TableComponent({
                 <span className="text-gray-500 text-xs">(Filter)</span>
               </span>
               <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
+                Calendar Type: <span className="font-bold">{findMetric('CAL')?.currentCalType || 'N/A'}</span>
+              </span>
+              <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
                 Qty:{" "}
                 <span className="font-bold">
                   {Number(qtyMetric?.page || 0).toLocaleString()}
@@ -109,7 +124,7 @@ export const TableComponent = function TableComponent({
                 <span className="text-gray-500 text-xs">(Total)</span>
               </span>
               <span className="text-gray-800 font-medium">
-                Amt:{" "}
+                Expected:{" "}
                 <span className="font-bold">
                   {Number(amtMetric?.page || 0).toLocaleString()}
                 </span>{" "}
@@ -134,6 +149,21 @@ export const TableComponent = function TableComponent({
                 </Tooltip>{" "}
                 <span className="text-gray-500 text-xs">(Total)</span> {paymtMetric?.unit}
               </span>
+              <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
+                Balance:{" "}
+                <Tooltip title={balanceMetric?.tooltip} arrow>
+                  <span className="font-bold text-red-600">
+                    {Number(balanceMetric?.page || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+                <Tooltip title={balanceMetric?.tooltip} arrow>
+                  <span className="font-bold text-red-600">
+                    {Number(balanceMetric?.total || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Total)</span> {balanceMetric?.unit}
+              </span>
             </span>
           </div>
         );
@@ -151,16 +181,30 @@ export const TableComponent = function TableComponent({
               <span className="font-bold">
                 {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>{" "}
-              <span className="text-gray-500 text-xs">(Filter)</span>
+              <span className="text-gray-500 text-xs">(Total)</span>
               <span className="mx-4"></span>
-              HRG Payment:{" "}
+              HRG Only Clients:{" "}
               <span className="font-bold">
-                {Number(hrgMetric?.page || 0).toLocaleString()}
+                {Number(stats?.serviceClientCounts?.hrgOnly?.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(hrgMetric?.total || 0).toLocaleString()}
+                {Number(stats?.serviceClientCounts?.hrgOnly?.total || 0).toLocaleString()}
               </span>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
+              <span className="mx-4"></span>
+              HRG Payment:{" "}
+              <Tooltip title={hrgMetric?.tooltip} arrow>
+                <span className="font-bold">
+                  {Number(hrgMetric?.page || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <Tooltip title={hrgMetric?.tooltip} arrow>
+                <span className="font-bold">
+                  {Number(hrgMetric?.total || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
               <span className="text-gray-500 text-xs">(Total)</span> {hrgMetric?.unit}
             </span>
           </div>
@@ -179,16 +223,30 @@ export const TableComponent = function TableComponent({
               <span className="font-bold">
                 {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>{" "}
-              <span className="text-gray-500 text-xs">(Filter)</span>
+              <span className="text-gray-500 text-xs">(Total)</span>
               <span className="mx-4"></span>
-              FOM Payment:{" "}
+              FOM Only Clients:{" "}
               <span className="font-bold">
-                {Number(fomMetric?.page || 0).toLocaleString()}
+                {Number(stats?.serviceClientCounts?.fomOnly?.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(fomMetric?.total || 0).toLocaleString()}
+                {Number(stats?.serviceClientCounts?.fomOnly?.total || 0).toLocaleString()}
               </span>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
+              <span className="mx-4"></span>
+              FOM Payment:{" "}
+              <Tooltip title={fomMetric?.tooltip} arrow>
+                <span className="font-bold">
+                  {Number(fomMetric?.page || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <Tooltip title={fomMetric?.tooltip} arrow>
+                <span className="font-bold">
+                  {Number(fomMetric?.total || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
               <span className="text-gray-500 text-xs">(Total)</span> {fomMetric?.unit}
             </span>
           </div>
@@ -217,102 +275,55 @@ export const TableComponent = function TableComponent({
               </div>
 
               {/* Standard HRG FOM CAL display */}
-              <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
-                {/* Clients Count for HRG FOM CAL */}
+              <div className="flex flex-nowrap items-center gap-4 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+                {/* Clients Count */}
                 <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-gray-700 mr-1">Clients:</span>
-                  <span className="text-gray-700 font-medium">
-                    {Number(stats.clientCount.page || 0).toLocaleString()}
-                  </span>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-gray-700 font-medium">
-                    {Number(stats.clientCount.total || 0).toLocaleString()}
+                  <span className="font-medium text-gray-700">
+                    Clients: {Number(stats.clientCount.page || 0).toLocaleString()} / {Number(stats.clientCount.total || 0).toLocaleString()}
                   </span>
                 </div>
-
-                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
                 {/* HRG Section */}
-                <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-                  <Tooltip title={findMetric('HRG')?.tooltip} arrow>
-                    <span className="text-blue-700 font-medium">
-                      {Number(findMetric('HRG')?.page || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title={findMetric('HRG')?.tooltip} arrow>
-                    <span className="text-blue-700 font-medium">
-                      {Number(findMetric('HRG')?.total || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 ml-1">{findMetric('HRG')?.unit}</span>
+                <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+                  <span className="font-medium text-blue-700">
+                    HRG: {Number(stats?.serviceClientCounts?.hrgOnly?.page || 0).toLocaleString()} / {Number(stats?.serviceClientCounts?.hrgOnly?.total || 0).toLocaleString()} clients •{" "}
+                    <Tooltip title={findMetric('HRG')?.tooltip} arrow>
+                      <span>
+                        {Number(findMetric('HRG')?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('HRG')?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('HRG')?.unit}
+                      </span>
+                    </Tooltip>
+                  </span>
                 </div>
-
-                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
                 {/* FOM Section */}
-                <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-green-700 mr-1">FOM:</span>
-                  <Tooltip title={findMetric('FOM')?.tooltip} arrow>
-                    <span className="text-green-700 font-medium">
-                      {Number(findMetric('FOM')?.page || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title={findMetric('FOM')?.tooltip} arrow>
-                    <span className="text-green-700 font-medium">
-                      {Number(findMetric('FOM')?.total || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 ml-1">{findMetric('FOM')?.unit}</span>
+                <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+                  <span className="font-medium text-green-700">
+                    FOM: {Number(stats?.serviceClientCounts?.fomOnly?.page || 0).toLocaleString()} / {Number(stats?.serviceClientCounts?.fomOnly?.total || 0).toLocaleString()} clients •{" "}
+                    <Tooltip title={findMetric('FOM')?.tooltip} arrow>
+                      <span>
+                        {Number(findMetric('FOM')?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('FOM')?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('FOM')?.unit}
+                      </span>
+                    </Tooltip>
+                  </span>
                 </div>
 
-                <div className="w-px h-5 bg-gray-300 shrink-0"></div>
-
-                {/* CAL Section - Compact version */}
-                <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-amber-700 mr-1">CAL:</span>
-
-                  {/* Quantity */}
-                  <span className="text-gray-500 mr-1">Qty:</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()}
+                {/* CAL Section */}
+                <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+                  <span className="font-medium text-amber-700">
+                    CAL: {findMetric('CAL')?.currentCalType || 'WALL CALENDAR 2025'} • Qty: {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()} / {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()} •{" "}
+                    Sold: {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[1]?.unit} •{" "}
+                    <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
+                      <span>
+                        Paid: {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[2]?.unit}
+                      </span>
+                    </Tooltip>
+                    <span> • </span>
+                    <Tooltip title={findMetric('CAL')?.metrics?.[3]?.tooltip} arrow>
+                      <span>
+                        Balance: {Number(findMetric('CAL')?.metrics?.[3]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[3]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[3]?.unit}
+                      </span>
+                    </Tooltip>
                   </span>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()}
-                  </span>
-
-                  <span className="mx-2 text-gray-300">|</span>
-
-                  {/* Sold */}
-                  <span className="text-gray-500 mr-1">Sold:</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString()}
-                  </span>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <span className="text-amber-700 font-medium">
-                    {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString()}
-                  </span>
-                  <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[1]?.unit}</span>
-
-                  <span className="mx-2 text-gray-300">|</span>
-
-                  {/* Paid */}
-                  <span className="text-gray-500 mr-1">Paid:</span>
-                  <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
-                    <span className="text-amber-700 font-medium">
-                      {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
-                    <span className="text-amber-700 font-medium">
-                      {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString()}
-                    </span>
-                  </Tooltip>
-                  <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[2]?.unit}</span>
                 </div>
               </div>
             </div>
@@ -321,103 +332,80 @@ export const TableComponent = function TableComponent({
 
         // Original HRG FOM CAL display (no WMM role)
         return (
-          <div className="flex flex-nowrap items-center gap-2 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
-            {/* Clients Count for HRG FOM CAL */}
+          <div className="flex flex-nowrap items-center gap-4 p-2 bg-white border border-gray-200 text-sm overflow-x-auto">
+            {/* Clients Count */}
             <div className="flex items-center shrink-0">
-              <span className="font-semibold text-gray-700 mr-1">Clients:</span>
-              <span className="text-gray-700 font-medium">
-                {Number(stats.clientCount.page || 0).toLocaleString()}
-              </span>
-              <span className="text-gray-500 mx-1">/</span>
-              <span className="text-gray-700 font-medium">
-                {Number(stats.clientCount.total || 0).toLocaleString()}
+              <span className="font-medium text-gray-700">
+                Clients: {Number(stats.clientCount.page || 0).toLocaleString()} / {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>
             </div>
 
-            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
-            
             {/* HRG Section */}
-            <div className="flex items-center shrink-0">
-              <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-              <Tooltip title={findMetric('HRG')?.tooltip} arrow>
-                <span className="text-blue-700 font-medium">
-                  {Number(findMetric('HRG')?.page || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 mx-1">/</span>
-              <Tooltip title={findMetric('HRG')?.tooltip} arrow>
-                <span className="text-blue-700 font-medium">
-                  {Number(findMetric('HRG')?.total || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 ml-1">{findMetric('HRG')?.unit}</span>
+            <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+              <span className="font-medium text-blue-700">
+                HRG: {Number(stats?.serviceClientCounts?.hrgOnly?.page || 0).toLocaleString()} / {Number(stats?.serviceClientCounts?.hrgOnly?.total || 0).toLocaleString()} clients •{" "}
+                <Tooltip title={findMetric('HRG')?.tooltip} arrow>
+                  <span>
+                    {Number(findMetric('HRG')?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('HRG')?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('HRG')?.unit}
+                  </span>
+                </Tooltip>
+              </span>
             </div>
-
-            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
             {/* FOM Section */}
-            <div className="flex items-center shrink-0">
-              <span className="font-semibold text-green-700 mr-1">FOM:</span>
-              <Tooltip title={findMetric('FOM')?.tooltip} arrow>
-                <span className="text-green-700 font-medium">
-                  {Number(findMetric('FOM')?.page || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 mx-1">/</span>
-              <Tooltip title={findMetric('FOM')?.tooltip} arrow>
-                <span className="text-green-700 font-medium">
-                  {Number(findMetric('FOM')?.total || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 ml-1">{findMetric('FOM')?.unit}</span>
+            <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+              <span className="font-medium text-green-700">
+                FOM: {Number(stats?.serviceClientCounts?.fomOnly?.page || 0).toLocaleString()} / {Number(stats?.serviceClientCounts?.fomOnly?.total || 0).toLocaleString()} clients •{" "}
+                <Tooltip title={findMetric('FOM')?.tooltip} arrow>
+                  <span>
+                    {Number(findMetric('FOM')?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('FOM')?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('FOM')?.unit}
+                  </span>
+                </Tooltip>
+              </span>
             </div>
 
-            <div className="w-px h-5 bg-gray-300 shrink-0"></div>
-
-            {/* CAL Section - Compact version */}
-            <div className="flex items-center shrink-0">
-              <span className="font-semibold text-amber-700 mr-1">CAL:</span>
-
-              {/* Quantity */}
-              <span className="text-gray-500 mr-1">Qty:</span>
-              <span className="text-amber-700 font-medium">
-                {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()}
+            {/* CAL Section */}
+            <div className="flex items-center shrink-0 border-l border-gray-300 pl-4">
+              <span className="font-medium text-amber-700">
+                CAL: {findMetric('CAL')?.currentCalType || 'WALL CALENDAR 2025'} • Qty: {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()} / {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()} •{" "}
+                Sold: {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[1]?.unit} •{" "}
+                <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
+                  <span>
+                    Paid: {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[2]?.unit}
+                  </span>
+                </Tooltip>
               </span>
-              <span className="text-gray-500 mx-1">/</span>
-              <span className="text-amber-700 font-medium">
-                {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()}
-              </span>
-
-              <span className="mx-2 text-gray-300">|</span>
-
-              {/* Sold */}
-              <span className="text-gray-500 mr-1">Sold:</span>
-              <span className="text-amber-700 font-medium">
-                {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString()}
-              </span>
-              <span className="text-gray-500 mx-1">/</span>
-              <span className="text-amber-700 font-medium">
-                {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString()}
-              </span>
-              <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[1]?.unit}</span>
-
-              <span className="mx-2 text-gray-300">|</span>
-
-              {/* Paid */}
-              <span className="text-gray-500 mr-1">Paid:</span>
-              <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
-                <span className="text-amber-700 font-medium">
-                  {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 mx-1">/</span>
-              <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
-                <span className="text-amber-700 font-medium">
-                  {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString()}
-                </span>
-              </Tooltip>
-              <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[2]?.unit}</span>
             </div>
+          </div>
+        );
+      }
+      case "WMM": {
+        const wmmMetric = findMetric('WMM');
+        return (
+          <div className="flex flex-wrap px-2 py-1">
+            {clientCountDisplay}
+            <span className="text-base text-blue-700 font-medium ml-4">
+              WMM Clients:{" "}
+              <span className="font-bold">
+                {Number(stats?.serviceClientCounts?.wmm?.page || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <span className="font-bold">
+                {Number(stats?.serviceClientCounts?.wmm?.total || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
+            </span>
+            <span className="text-base text-blue-700 font-medium ml-4">
+              Copies:{" "}
+              <span className="font-bold">
+                {Number(wmmMetric?.page || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <span className="font-bold">
+                {Number(wmmMetric?.total || 0).toLocaleString()}
+              </span>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
+            </span>
           </div>
         );
       }

@@ -3,6 +3,7 @@ import HrgModel from '../../../models/hrg.mjs';
 import FomModel from '../../../models/fom.mjs';
 import CalModel from '../../../models/cal.mjs';
 import ClientModel from '../../../models/clients.mjs';
+import { aggregateClientData } from './dataAggregator.mjs';
 
 export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20) {
   try {
@@ -11,6 +12,20 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       clientCount: {
         total: 0,
         page: 0
+      },
+      serviceClientCounts: {
+        wmm: {
+          total: 0,
+          page: 0
+        },
+        hrgOnly: {
+          total: 0,
+          page: 0
+        },
+        fomOnly: {
+          total: 0,
+          page: 0
+        }
       },
       metrics: [
         {
@@ -40,9 +55,17 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
               total: 0,
               page: 0,
               unit: 'Php',
-              tooltip: 'Includes only payments with reference and either form or date'
+              tooltip: 'Includes only payments with reference, date and form'
+            },
+            {
+              label: 'Balance',
+              total: 0,
+              page: 0,
+              unit: 'Php',
+              tooltip: 'Expected amount minus received payments'
             }
-          ]
+          ],
+          currentCalType: ''
         },
         {
           service: 'HRG',
@@ -63,39 +86,129 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       ]
     };
 
-    // Get total client count
+    // Get total client count regardless of service
     stats.clientCount.total = await ClientModel.countDocuments(filterQuery);
 
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
 
+    // Get all clients for total counts - don't apply pagination here
+    const allClients = await ClientModel.find(filterQuery)
+      .lean()
+      .exec();
+
     // Get filtered client IDs for the current page only
-    const pageClients = await ClientModel.find(filterQuery || {})
-      .select('id')
-      .sort({ id: -1 })
+    const pageClients = await ClientModel.find(filterQuery)
+      .sort({ id: 1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean()
+      .exec();
     
     // Set page-specific client count
     stats.clientCount.page = pageClients.length;
-    
-    // Convert client IDs to numbers
+
+    // Aggregate data for all clients
+    const { combinedData: allCombinedData } = await aggregateClientData(
+      allClients,
+      ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
+    );
+
+    // Aggregate data for page clients
+    const { combinedData: pageCombinedData } = await aggregateClientData(
+      pageClients,
+      ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
+    );
+
+    // Debug logs for data verification
+    console.log('Page Combined Data Sample:', pageCombinedData.slice(0, 1).map(client => ({
+      id: client.id,
+      hasWMM: client.wmmData?.records?.length > 0,
+      hasHRG: client.hrgData?.records?.length > 0,
+      hasFOM: client.fomData?.records?.length > 0
+    })));
+
+    // Function to count services based on aggregated data
+    const countServices = (clients) => {
+      const counts = {
+        wmm: 0,
+        hrgOnly: 0,
+        fomOnly: 0
+      };
+
+      clients.forEach(client => {
+        const hasWMM = client.wmmData?.records?.length > 0;
+        const hasHRG = client.hrgData?.records?.length > 0;
+        const hasFOM = client.fomData?.records?.length > 0;
+
+        // Debug log for each client's service status
+        console.log('Client Service Status:', {
+          id: client.id,
+          hasWMM,
+          hasHRG,
+          hasFOM
+        });
+
+        // Check for WMM service
+        if (hasWMM) {
+          counts.wmm++;
+        }
+
+        // Check for HRG (can have WMM but not FOM)
+        if (hasHRG && !hasFOM) {
+          counts.hrgOnly++;
+        }
+
+        // Check for FOM (can have WMM but not HRG)
+        if (hasFOM && !hasHRG) {
+          counts.fomOnly++;
+        }
+      });
+
+      // Debug log the final counts
+      console.log('Service Counts:', counts);
+
+      return counts;
+    };
+
+    // Calculate total service counts
+    const totalCounts = countServices(allCombinedData);
+    stats.serviceClientCounts.wmm.total = totalCounts.wmm;
+    stats.serviceClientCounts.hrgOnly.total = totalCounts.hrgOnly;
+    stats.serviceClientCounts.fomOnly.total = totalCounts.fomOnly;
+
+    // Calculate page-specific service counts
+    const pageCounts = countServices(pageCombinedData);
+    stats.serviceClientCounts.wmm.page = pageCounts.wmm;
+    stats.serviceClientCounts.hrgOnly.page = pageCounts.hrgOnly;
+    stats.serviceClientCounts.fomOnly.page = pageCounts.fomOnly;
+
+    // Debug log final stats
+    console.log('Final Stats:', {
+      totalCounts,
+      pageCounts,
+      serviceClientCounts: stats.serviceClientCounts
+    });
+
+    // Convert client IDs to numbers for other calculations
     const pageClientIds = pageClients.map(client => Number(client.id));
-    
+
     // Calculate WMM statistics
     const wmmStats = await calculateWmmStats(pageClientIds);
     stats.metrics[0].total = wmmStats.totalCopies;
     stats.metrics[0].page = wmmStats.pageSpecificCopies;
 
-    // Calculate CAL statistics
+    // Calculate CAL statistics with current year focus
     const calStats = await calculateCalStats(pageClientIds);
+    stats.metrics[1].currentCalType = calStats.currentCalType;
     stats.metrics[1].metrics[0].total = calStats.totalQty;
     stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
     stats.metrics[1].metrics[1].total = calStats.totalAmt;
     stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
     stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
     stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
+    stats.metrics[1].metrics[3].total = calStats.totalBalance;
+    stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
 
     // Calculate HRG statistics
     const hrgStats = await calculateHrgStats(pageClientIds);
@@ -172,10 +285,38 @@ async function calculateWmmStats(filteredClientIds) {
 }
 
 async function calculateCalStats(filteredClientIds) {
+  // Get current year and next year
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
   
-  // Calculate totals from all clients
+  // Find the most recent calendar type that contains the next year
+  const nextYearCalType = await CalModel.findOne({
+    caltype: { $regex: String(nextYear) }
+  })
+  .sort({ caltype: -1 })
+  .select('caltype')
+  .lean();
+
+  // If no next year calendar exists, find the most recent one with current year
+  const currentCalType = nextYearCalType?.caltype || 
+    (await CalModel.findOne({
+      caltype: { $regex: String(currentYear) }
+    })
+    .sort({ caltype: 1 })
+    .select('caltype')
+    .lean())?.caltype || 
+    `WALL CALENDAR ${currentYear}`; // fallback only if no calendar types found
+  
+  // Calculate totals pipeline
   const totalPipeline = [
-    { $sort: { clientid: 1, recvdate: -1 } },
+    {
+      $match: {
+        caltype: currentCalType
+      }
+    },
+    {
+      $sort: { clientid: 1, recvdate: -1 }
+    },
     {
       $group: {
         _id: "$clientid",
@@ -195,28 +336,6 @@ async function calculateCalStats(filteredClientIds) {
             }
           }
         },
-        totalAmt: {
-          $sum: {
-            $multiply: [
-              { 
-                $convert: {
-                  input: "$recentRecord.calqty",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0
-                }
-              },
-              {
-                $convert: {
-                  input: "$recentRecord.calamt",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0
-                }
-              }
-            ]
-          }
-        },
         records: { $push: "$recentRecord" }
       }
     }
@@ -224,13 +343,37 @@ async function calculateCalStats(filteredClientIds) {
 
   // Calculate page-specific totals
   const pagePipeline = [
-    // Match only filtered clients if there are any
-    ...(filteredClientIds.length > 0 ? [{
+    {
       $match: {
-        clientid: { $in: filteredClientIds }
+        clientid: { $in: filteredClientIds },
+        caltype: currentCalType
       }
-    }] : []),
-    ...totalPipeline
+    },
+    {
+      $sort: { clientid: 1, recvdate: -1 }
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentRecord: { $first: "$$ROOT" }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalQty: {
+          $sum: {
+                $convert: {
+                  input: "$recentRecord.calqty",
+                  to: "double",
+                  onError: 0,
+                  onNull: 0
+                }
+          }
+        },
+        records: { $push: "$recentRecord" }
+      }
+    }
   ];
 
   const [totalResult, pageResult] = await Promise.all([
@@ -238,29 +381,49 @@ async function calculateCalStats(filteredClientIds) {
     CalModel.aggregate(pagePipeline)
   ]);
 
-  // Calculate payment amounts for total
-  const totalPaymtAmt = totalResult[0]?.records.reduce((total, record) => {
-    if (record.paymtamt && record.paymtref && (record.paymtdate || record.paymtform)) {
-      return total + parseNumeric(record.paymtamt);
-    }
-    return total;
-  }, 0) || 0;
+  // Calculate total amounts and payments
+  const calculateAmounts = (records) => {
+    let totalQty = 0;
+    let totalAmt = 0;
+    let totalPaymtAmt = 0;
 
-  // Calculate payment amounts for page-specific
-  const pagePaymtAmt = pageResult[0]?.records.reduce((total, record) => {
-    if (record.paymtamt && record.paymtref && (record.paymtdate || record.paymtform)) {
-      return total + parseNumeric(record.paymtamt);
-    }
-    return total;
-  }, 0) || 0;
+    records.forEach(record => {
+      const qty = parseFloat(record.calqty) || 0;
+      const amt = parseFloat(record.calamt?.replace(/[^\d.-]/g, '')) || 0;
+      const paymtAmt = parseFloat(record.paymtamt?.replace(/[^\d.-]/g, '')) || 0;
+
+      totalQty += qty;
+      totalAmt += qty * amt;
+
+      // Only count payments with reference, date, and form
+      if (record.paymtref && record.paymtdate && record.paymtform) {
+        totalPaymtAmt += paymtAmt;
+      }
+    });
+
+    const balance = totalAmt - totalPaymtAmt;
+
+    return {
+      qty: totalQty,
+      amt: totalAmt,
+      paymtAmt: totalPaymtAmt,
+      balance: balance
+    };
+  };
+
+  const totalAmounts = calculateAmounts(totalResult[0]?.records || []);
+  const pageAmounts = calculateAmounts(pageResult[0]?.records || []);
 
   return {
-    totalQty: totalResult[0]?.totalQty || 0,
-    totalAmt: totalResult[0]?.totalAmt || 0,
-    totalPaymtAmt,
-    pageSpecificQty: pageResult[0]?.totalQty || 0,
-    pageSpecificAmt: pageResult[0]?.totalAmt || 0,
-    pageSpecificPaymtAmt: pagePaymtAmt
+    currentCalType,
+    totalQty: totalAmounts.qty,
+    totalAmt: totalAmounts.amt,
+    totalPaymtAmt: totalAmounts.paymtAmt,
+    totalBalance: totalAmounts.balance,
+    pageSpecificQty: pageAmounts.qty,
+    pageSpecificAmt: pageAmounts.amt,
+    pageSpecificPaymtAmt: pageAmounts.paymtAmt,
+    pageSpecificBalance: pageAmounts.balance
   };
 }
 
