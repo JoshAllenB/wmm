@@ -131,6 +131,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 }
 
 async function addServiceFilters(baseFilter, advancedFilterData) {
+  // Handle payment reference filter
   if (advancedFilterData.paymentRef) {
     const WmmModel = await getModelInstance('WmmModel');
     const paymentRef = advancedFilterData.paymentRef.trim();
@@ -159,6 +160,76 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       }
     } else {
       baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle service filtering
+  if (advancedFilterData.services) {
+    try {
+      const WmmModel = await getModelInstance('WmmModel');
+      const FomModel = await getModelInstance('FomModel');
+      const HrgModel = await getModelInstance('HrgModel');
+      const CalModel = await getModelInstance('CalModel');
+
+      // Ensure services is an array - handle both string and array inputs
+      const services = Array.isArray(advancedFilterData.services) 
+        ? advancedFilterData.services 
+        : typeof advancedFilterData.services === 'string'
+          ? [advancedFilterData.services]
+          : [];
+
+      console.log('Services (filterBuilder):', services);
+      const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
+
+      // Get clients for each selected service
+      let targetClients = new Set();
+      let isFirstService = true;
+
+      for (const service of services) {
+        const Model = {
+          'WMM': WmmModel,
+          'FOM': FomModel,
+          'HRG': HrgModel,
+          'CAL': CalModel
+        }[service.toUpperCase()];  // Ensure case-insensitive matching
+
+        if (!Model) continue;
+
+        // Get clients for this service with subscription status
+        const query = {};
+        if (subscriptionStatus === 'active') {
+          query.unsubscribe = { $ne: 1 };
+        } else if (subscriptionStatus === 'unsubscribed') {
+          query.unsubscribe = 1;
+        }
+        
+        const serviceClients = await Model.distinct('clientid', query);
+        
+        if (serviceClients.length > 0) {
+          if (isFirstService) {
+            targetClients = new Set(serviceClients);
+            isFirstService = false;
+          } else {
+            // Intersect with existing clients if we want clients with all services
+            targetClients = new Set(
+              [...targetClients].filter(id => serviceClients.includes(id))
+            );
+          }
+        }
+      }
+
+      // Convert Set to Array and add to filter
+      const finalClients = [...targetClients].map(Number).filter(id => !isNaN(id));
+      
+      if (finalClients.length > 0) {
+        baseFilter.push({ id: { $in: finalClients } });
+      } else if (services.length > 0) {
+        baseFilter.push({ id: -1 }); // No matches if services were selected but no clients found
+      }
+
+    } catch (error) {
+      console.error('Error in service filtering:', error);
+      baseFilter.push({ id: -1 }); // No matches on error
     }
   }
 }
