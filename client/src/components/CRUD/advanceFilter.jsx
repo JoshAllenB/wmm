@@ -479,7 +479,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       exactServiceMatch: true, // Always use exact service matching
       serviceMatchExcludeWMM: true, // Always ignore WMM in exact service matching
       // Process services for exact matching (always exact now)
-      exactServices: processExactServices(filterData.services),
+      services: filterData.services, // Send the raw services array
+      exactServices: processExactServices(filterData.services), // Send processed services for exact matching
       excludeSPackClients: filterData.excludeSPackClients,
       userId: filterData.userId || "", // Include userId in formatted data
       subscriptionStatus: filterData.subscriptionStatus || "all", // Include subscription status

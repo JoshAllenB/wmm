@@ -120,13 +120,6 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
     );
 
-    // Debug logs for data verification
-    console.log('Page Combined Data Sample:', pageCombinedData.slice(0, 1).map(client => ({
-      id: client.id,
-      hasWMM: client.wmmData?.records?.length > 0,
-      hasHRG: client.hrgData?.records?.length > 0,
-      hasFOM: client.fomData?.records?.length > 0
-    })));
 
     // Function to count services based on aggregated data
     const countServices = (clients) => {
@@ -140,14 +133,6 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
         const hasWMM = client.wmmData?.records?.length > 0;
         const hasHRG = client.hrgData?.records?.length > 0;
         const hasFOM = client.fomData?.records?.length > 0;
-
-        // Debug log for each client's service status
-        console.log('Client Service Status:', {
-          id: client.id,
-          hasWMM,
-          hasHRG,
-          hasFOM
-        });
 
         // Check for WMM service
         if (hasWMM) {
@@ -165,8 +150,6 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
         }
       });
 
-      // Debug log the final counts
-      console.log('Service Counts:', counts);
 
       return counts;
     };
@@ -182,13 +165,6 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
     stats.serviceClientCounts.wmm.page = pageCounts.wmm;
     stats.serviceClientCounts.hrgOnly.page = pageCounts.hrgOnly;
     stats.serviceClientCounts.fomOnly.page = pageCounts.fomOnly;
-
-    // Debug log final stats
-    console.log('Final Stats:', {
-      totalCounts,
-      pageCounts,
-      serviceClientCounts: stats.serviceClientCounts
-    });
 
     // Convert client IDs to numbers for other calculations
     const pageClientIds = pageClients.map(client => Number(client.id));

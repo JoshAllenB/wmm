@@ -72,7 +72,6 @@ export const fetchClients = async (
       totalCount,
       noData,
     } = response.data;
-    console.log("stats", stats);
 
     // Use either combinedData or data, whichever is available
     const clientsData = combinedData || data;
