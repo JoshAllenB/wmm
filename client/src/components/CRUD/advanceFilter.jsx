@@ -418,10 +418,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         // If not valid, return original
         return service;
       });
+      console.log('Processed services:', serviceArray);
 
       // When using exact match, we're looking for clients with ONLY these services
       // WMM is ignored in this comparison (it can be present or not)
       const coreServices = serviceArray.filter((service) => service !== "WMM");
+      console.log('Core services:', coreServices);
 
       return coreServices;
     };
@@ -487,21 +489,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       exactAreaMatch: true, // Always use exact area matching
     };
 
-    // Debug log formatted date values
-    console.log("[AdvancedFilter] Date Encoded/Added Range:", {
-      startDate: formattedData.startDate,
-      endDate: formattedData.endDate,
-      rawStartDate: {
-        month: filterData.startDateMonth,
-        day: filterData.startDateDay,
-        year: filterData.startDateYear
-      },
-      rawEndDate: {
-        month: filterData.endDateMonth,
-        day: filterData.endDateDay,
-        year: filterData.endDateYear
-      }
-    });
 
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);

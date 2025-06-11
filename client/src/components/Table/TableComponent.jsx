@@ -41,7 +41,6 @@ export const TableComponent = function TableComponent({
   // Helper function to find metric by service and label
   const findMetric = (service, label = null) => {
     const serviceMetric = stats?.metrics?.find(m => m.service === service);
-    console.log("serviceMetric", serviceMetric);
     if (!serviceMetric) return null;
     
     if (label && serviceMetric.metrics) {
