@@ -86,18 +86,13 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       ]
     };
 
-    // Get total client count regardless of service
-    stats.clientCount.total = await ClientModel.countDocuments(filterQuery);
+    // Get total client count without any filters
+    stats.clientCount.total = await ClientModel.countDocuments({});
 
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
 
-    // Get all clients for total counts - don't apply pagination here
-    const allClients = await ClientModel.find(filterQuery)
-      .lean()
-      .exec();
-
-    // Get filtered client IDs for the current page only
+    // Get filtered clients for the current page only
     const pageClients = await ClientModel.find(filterQuery)
       .sort({ id: 1 })
       .skip(skip)
@@ -108,7 +103,12 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
     // Set page-specific client count
     stats.clientCount.page = pageClients.length;
 
-    // Aggregate data for all clients
+    // Get all clients that match the filter for total counts
+    const allClients = await ClientModel.find(filterQuery)
+      .lean()
+      .exec();
+
+    // Aggregate data for all filtered clients
     const { combinedData: allCombinedData } = await aggregateClientData(
       allClients,
       ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
@@ -120,36 +120,25 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
     );
 
-
     // Function to count services based on aggregated data
     const countServices = (clients) => {
       const counts = {
         wmm: 0,
-        hrgOnly: 0,
-        fomOnly: 0
+        hrg: 0,
+        fom: 0
       };
 
       clients.forEach(client => {
+        // Check if client has active records for each service
         const hasWMM = client.wmmData?.records?.length > 0;
         const hasHRG = client.hrgData?.records?.length > 0;
         const hasFOM = client.fomData?.records?.length > 0;
 
-        // Check for WMM service
-        if (hasWMM) {
-          counts.wmm++;
-        }
-
-        // Check for HRG (can have WMM but not FOM)
-        if (hasHRG && !hasFOM) {
-          counts.hrgOnly++;
-        }
-
-        // Check for FOM (can have WMM but not HRG)
-        if (hasFOM && !hasHRG) {
-          counts.fomOnly++;
-        }
+        // Simple counting - if they have the service, count them
+        if (hasWMM) counts.wmm++;
+        if (hasHRG) counts.hrg++;
+        if (hasFOM) counts.fom++;
       });
-
 
       return counts;
     };
@@ -157,14 +146,14 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
     // Calculate total service counts
     const totalCounts = countServices(allCombinedData);
     stats.serviceClientCounts.wmm.total = totalCounts.wmm;
-    stats.serviceClientCounts.hrgOnly.total = totalCounts.hrgOnly;
-    stats.serviceClientCounts.fomOnly.total = totalCounts.fomOnly;
+    stats.serviceClientCounts.hrgOnly.total = totalCounts.hrg;
+    stats.serviceClientCounts.fomOnly.total = totalCounts.fom;
 
     // Calculate page-specific service counts
     const pageCounts = countServices(pageCombinedData);
     stats.serviceClientCounts.wmm.page = pageCounts.wmm;
-    stats.serviceClientCounts.hrgOnly.page = pageCounts.hrgOnly;
-    stats.serviceClientCounts.fomOnly.page = pageCounts.fomOnly;
+    stats.serviceClientCounts.hrgOnly.page = pageCounts.hrg;
+    stats.serviceClientCounts.fomOnly.page = pageCounts.fom;
 
     // Convert client IDs to numbers for other calculations
     const pageClientIds = pageClients.map(client => Number(client.id));
@@ -204,59 +193,41 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
 }
 
 async function calculateWmmStats(filteredClientIds) {
-  
-  // Calculate total copies from all clients
-  const totalPipeline = [
-    // Sort by clientid and subsdate in descending order to get most recent first
-    { $sort: { clientid: 1, subsdate: -1 } },
-    // Group by clientid to get only the most recent record for each client
-    {
-      $group: {
-        _id: "$clientid",
-        recentCopies: { $first: "$copies" }
-      }
-    },
-    // Convert copies to numeric value
-    {
-      $addFields: {
-        numericCopies: {
-          $convert: {
-            input: "$recentCopies",
-            to: "double",
-            onError: 0,
-            onNull: 0
-          }
-        }
-      }
-    },
-    // Sum up all copies
-    {
-      $group: {
-        _id: null,
-        totalCopies: { $sum: "$numericCopies" }
-      }
-    }
-  ];
-
-  // Calculate page-specific copies
-  const pagePipeline = [
-    // Match only filtered clients if there are any
+  // Calculate total copies from filtered clients
+  const pipeline = [
     ...(filteredClientIds.length > 0 ? [{
       $match: {
         clientid: { $in: filteredClientIds }
       }
     }] : []),
-    ...totalPipeline
+    {
+      $group: {
+        _id: "$clientid",
+        copies: { $first: "$copies" }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalCopies: {
+          $sum: {
+            $convert: {
+              input: "$copies",
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          }
+        }
+      }
+    }
   ];
 
-  const [totalResult, pageResult] = await Promise.all([
-    WmmModel.aggregate(totalPipeline),
-    WmmModel.aggregate(pagePipeline)
-  ]);
+  const result = await WmmModel.aggregate(pipeline);
 
   return {
-    totalCopies: totalResult[0]?.totalCopies || 0,
-    pageSpecificCopies: pageResult[0]?.totalCopies || 0
+    totalCopies: result[0]?.totalCopies || 0,
+    pageSpecificCopies: result[0]?.totalCopies || 0  // Same as total since we're already filtering
   };
 }
 
@@ -281,137 +252,81 @@ async function calculateCalStats(filteredClientIds) {
     .sort({ caltype: 1 })
     .select('caltype')
     .lean())?.caltype || 
-    `WALL CALENDAR ${currentYear}`; // fallback only if no calendar types found
-  
+    `WALL CALENDAR ${currentYear}`; // fallback
+
   // Calculate totals pipeline
-  const totalPipeline = [
+  const pipeline = [
     {
       $match: {
-        caltype: currentCalType
+        caltype: currentCalType,
+        ...(filteredClientIds.length > 0 ? { clientid: { $in: filteredClientIds } } : {})
       }
-    },
-    {
-      $sort: { clientid: 1, recvdate: -1 }
     },
     {
       $group: {
         _id: "$clientid",
-        recentRecord: { $first: "$$ROOT" }
+        qty: { $first: "$calqty" },
+        amt: { 
+          $first: {
+            $multiply: [
+              { $convert: { input: "$calqty", to: "double", onError: 0, onNull: 0 } },
+              { $convert: { input: "$calamt", to: "double", onError: 0, onNull: 0 } }
+            ]
+          }
+        },
+        paymtAmt: {
+          $first: {
+            $cond: [
+              { $and: [
+                { $ne: ["$paymtref", null] },
+                { $ne: ["$paymtdate", null] },
+                { $ne: ["$paymtform", null] }
+              ]},
+              { $convert: { input: "$paymtamt", to: "double", onError: 0, onNull: 0 } },
+              0
+            ]
+          }
+        }
       }
     },
     {
       $group: {
         _id: null,
-        totalQty: {
-          $sum: {
-            $convert: {
-              input: "$recentRecord.calqty",
-              to: "double",
-              onError: 0,
-              onNull: 0
-            }
-          }
-        },
-        records: { $push: "$recentRecord" }
+        totalQty: { $sum: { $convert: { input: "$qty", to: "double", onError: 0, onNull: 0 } } },
+        totalAmt: { $sum: "$amt" },
+        totalPaymtAmt: { $sum: "$paymtAmt" }
       }
     }
   ];
 
-  // Calculate page-specific totals
-  const pagePipeline = [
-    {
-      $match: {
-        clientid: { $in: filteredClientIds },
-        caltype: currentCalType
-      }
-    },
-    {
-      $sort: { clientid: 1, recvdate: -1 }
-    },
-    {
-      $group: {
-        _id: "$clientid",
-        recentRecord: { $first: "$$ROOT" }
-      }
-    },
-    {
-      $group: {
-        _id: null,
-        totalQty: {
-          $sum: {
-                $convert: {
-                  input: "$recentRecord.calqty",
-                  to: "double",
-                  onError: 0,
-                  onNull: 0
-                }
-          }
-        },
-        records: { $push: "$recentRecord" }
-      }
-    }
-  ];
-
-  const [totalResult, pageResult] = await Promise.all([
-    CalModel.aggregate(totalPipeline),
-    CalModel.aggregate(pagePipeline)
-  ]);
-
-  // Calculate total amounts and payments
-  const calculateAmounts = (records) => {
-    let totalQty = 0;
-    let totalAmt = 0;
-    let totalPaymtAmt = 0;
-
-    records.forEach(record => {
-      const qty = parseFloat(record.calqty) || 0;
-      const amt = parseFloat(record.calamt?.replace(/[^\d.-]/g, '')) || 0;
-      const paymtAmt = parseFloat(record.paymtamt?.replace(/[^\d.-]/g, '')) || 0;
-
-      totalQty += qty;
-      totalAmt += qty * amt;
-
-      // Only count payments with reference, date, and form
-      if (record.paymtref && record.paymtdate && record.paymtform) {
-        totalPaymtAmt += paymtAmt;
-      }
-    });
-
-    const balance = totalAmt - totalPaymtAmt;
-
-    return {
-      qty: totalQty,
-      amt: totalAmt,
-      paymtAmt: totalPaymtAmt,
-      balance: balance
-    };
-  };
-
-  const totalAmounts = calculateAmounts(totalResult[0]?.records || []);
-  const pageAmounts = calculateAmounts(pageResult[0]?.records || []);
+  const result = await CalModel.aggregate(pipeline);
+  const stats = result[0] || { totalQty: 0, totalAmt: 0, totalPaymtAmt: 0 };
 
   return {
     currentCalType,
-    totalQty: totalAmounts.qty,
-    totalAmt: totalAmounts.amt,
-    totalPaymtAmt: totalAmounts.paymtAmt,
-    totalBalance: totalAmounts.balance,
-    pageSpecificQty: pageAmounts.qty,
-    pageSpecificAmt: pageAmounts.amt,
-    pageSpecificPaymtAmt: pageAmounts.paymtAmt,
-    pageSpecificBalance: pageAmounts.balance
+    totalQty: stats.totalQty,
+    totalAmt: stats.totalAmt,
+    totalPaymtAmt: stats.totalPaymtAmt,
+    totalBalance: stats.totalAmt - stats.totalPaymtAmt,
+    pageSpecificQty: stats.totalQty,
+    pageSpecificAmt: stats.totalAmt,
+    pageSpecificPaymtAmt: stats.totalPaymtAmt,
+    pageSpecificBalance: stats.totalAmt - stats.totalPaymtAmt
   };
 }
 
 async function calculateHrgStats(filteredClientIds) {
-  
-  // Calculate totals from all clients
-  const totalPipeline = [
-    { $sort: { clientid: 1, recvdate: -1 } },
+  // Calculate totals from filtered clients
+  const pipeline = [
+    ...(filteredClientIds.length > 0 ? [{
+      $match: {
+        clientid: { $in: filteredClientIds }
+      }
+    }] : []),
     {
       $group: {
         _id: "$clientid",
-        recentPaymtAmt: { $first: "$paymtamt" }
+        paymtAmt: { $first: "$paymtamt" }
       }
     },
     {
@@ -420,7 +335,7 @@ async function calculateHrgStats(filteredClientIds) {
         totalAmt: {
           $sum: {
             $convert: {
-              input: "$recentPaymtAmt",
+              input: "$paymtAmt",
               to: "double",
               onError: 0,
               onNull: 0
@@ -431,37 +346,26 @@ async function calculateHrgStats(filteredClientIds) {
     }
   ];
 
-  // Calculate page-specific totals
-  const pagePipeline = [
-    // Match only filtered clients if there are any
-    ...(filteredClientIds.length > 0 ? [{
-      $match: {
-        clientid: { $in: filteredClientIds }
-      }
-    }] : []),
-    ...totalPipeline
-  ];
-
-  const [totalResult, pageResult] = await Promise.all([
-    HrgModel.aggregate(totalPipeline),
-    HrgModel.aggregate(pagePipeline)
-  ]);
+  const result = await HrgModel.aggregate(pipeline);
 
   return {
-    totalAmt: totalResult[0]?.totalAmt || 0,
-    pageSpecificAmt: pageResult[0]?.totalAmt || 0
+    totalAmt: result[0]?.totalAmt || 0,
+    pageSpecificAmt: result[0]?.totalAmt || 0  // Same as total since we're already filtering
   };
 }
 
 async function calculateFomStats(filteredClientIds) {
-  
-  // Calculate totals from all clients
-  const totalPipeline = [
-    { $sort: { clientid: 1, recvdate: -1 } },
+  // Calculate totals from filtered clients
+  const pipeline = [
+    ...(filteredClientIds.length > 0 ? [{
+      $match: {
+        clientid: { $in: filteredClientIds }
+      }
+    }] : []),
     {
       $group: {
         _id: "$clientid",
-        recentPaymtAmt: { $first: "$paymtamt" }
+        paymtAmt: { $first: "$paymtamt" }
       }
     },
     {
@@ -470,7 +374,7 @@ async function calculateFomStats(filteredClientIds) {
         totalAmt: {
           $sum: {
             $convert: {
-              input: "$recentPaymtAmt",
+              input: "$paymtAmt",
               to: "double",
               onError: 0,
               onNull: 0
@@ -481,25 +385,11 @@ async function calculateFomStats(filteredClientIds) {
     }
   ];
 
-  // Calculate page-specific totals
-  const pagePipeline = [
-    // Match only filtered clients if there are any
-    ...(filteredClientIds.length > 0 ? [{
-      $match: {
-        clientid: { $in: filteredClientIds }
-      }
-    }] : []),
-    ...totalPipeline
-  ];
-
-  const [totalResult, pageResult] = await Promise.all([
-    FomModel.aggregate(totalPipeline),
-    FomModel.aggregate(pagePipeline)
-  ]);
+  const result = await FomModel.aggregate(pipeline);
 
   return {
-    totalAmt: totalResult[0]?.totalAmt || 0,
-    pageSpecificAmt: pageResult[0]?.totalAmt || 0
+    totalAmt: result[0]?.totalAmt || 0,
+    pageSpecificAmt: result[0]?.totalAmt || 0  // Same as total since we're already filtering
   };
 }
 
