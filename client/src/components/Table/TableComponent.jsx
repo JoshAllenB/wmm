@@ -16,26 +16,9 @@ import { useMemo } from "react";
 export const TableComponent = function TableComponent({
   table,
   handleRowClick,
-  totalCopies,
-  pageSpecificCopies,
-  totalCalQty,
-  totalCalAmt,
-  pageSpecificCalQty,
-  pageSpecificCalAmt,
   userRole,
   animationComplete,
-  totalHrgAmt,
-  totalFomAmt,
-  totalCalPaymtAmt,
-  pageSpecificHrgAmt,
-  pageSpecificFomAmt,
-  pageSpecificCalPaymtAmt,
-  totalClients,
-  pageSpecificClients,
-  filteredTotalCopies,
-  filteredTotalClients,
-  absoluteTotalClients,
-  absoluteTotalCopies,
+  stats, // New single prop for all statistics
 }) {
   // Check if role contains WMM (either as a single role or part of a composite role)
   const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
@@ -45,31 +28,47 @@ export const TableComponent = function TableComponent({
     <span className="text-base mr-4 text-gray-800">
       Clients:{" "}
       <span className="font-bold">
-        {Number(pageSpecificClients || 0).toLocaleString()}
+        {Number(stats?.clientCount?.page || 0).toLocaleString()}
       </span>{" "}
       <span className="text-gray-500 text-xs">(Page)</span> /{" "}
       <span className="font-bold">
-        {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+        {Number(stats?.clientCount?.total || 0).toLocaleString()}
       </span>{" "}
       <span className="text-gray-500 text-xs">(Filter)</span>
     </span>
   ) : null;
 
+  // Helper function to find metric by service and label
+  const findMetric = (service, label = null) => {
+    const serviceMetric = stats?.metrics?.find(m => m.service === service);
+    console.log("serviceMetric", serviceMetric);
+    if (!serviceMetric) return null;
+    
+    if (label && serviceMetric.metrics) {
+      return serviceMetric.metrics.find(m => m.label === label);
+    }
+    
+    return serviceMetric;
+  };
+
   // Memoize the label to prevent recalculation on every render
   const totalLabel = useMemo(() => {
+    if (!stats) return <div></div>;
+
     // Force WMM display if user only has WMM role
     if (userRole === "WMM") {
+      const wmmMetric = findMetric('WMM');
       return (
         <div className="flex flex-wrap px-2 py-1">
           {clientCountDisplay}
           <span className="text-base text-gray-800 font-medium">
             Copies:{" "}
             <span className="font-bold">
-              {Number(pageSpecificCopies || 0).toLocaleString()}
+              {Number(wmmMetric?.page || 0).toLocaleString()}
             </span>{" "}
             <span className="text-gray-500 text-xs">(Page)</span> /{" "}
             <span className="font-bold">
-              {Number(filteredTotalCopies || totalCopies || 0).toLocaleString()}
+              {Number(wmmMetric?.total || 0).toLocaleString()}
             </span>{" "}
             <span className="text-gray-500 text-xs">(Filter)</span>
           </span>
@@ -78,116 +77,127 @@ export const TableComponent = function TableComponent({
     }
 
     switch (userRole) {
-      case "CAL":
+      case "CAL": {
+        const calMetrics = findMetric('CAL')?.metrics || [];
+        const qtyMetric = calMetrics.find(m => m.label === 'Quantity');
+        const amtMetric = calMetrics.find(m => m.label === 'Amount');
+        const paymtMetric = calMetrics.find(m => m.label === 'Payments');
+        
         return (
           <div className="flex flex-wrap justify-between px-2 py-1">
             <span className="text-sm sm:text-base">
               <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
                 Clients:{" "}
                 <span className="font-bold">
-                  {Number(pageSpecificClients || 0).toLocaleString()}
+                  {Number(stats.clientCount.page || 0).toLocaleString()}
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Page)</span> /{" "}
                 <span className="font-bold">
-                  {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                  {Number(stats.clientCount.total || 0).toLocaleString()}
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Filter)</span>
               </span>
               <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
                 Qty:{" "}
                 <span className="font-bold">
-                  {Number(pageSpecificCalQty || 0).toLocaleString()}
+                  {Number(qtyMetric?.page || 0).toLocaleString()}
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Page)</span> /{" "}
                 <span className="font-bold">
-                  {Number(totalCalQty || 0).toLocaleString()}
+                  {Number(qtyMetric?.total || 0).toLocaleString()}
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Total)</span>
               </span>
               <span className="text-gray-800 font-medium">
                 Amt:{" "}
                 <span className="font-bold">
-                  {Number(pageSpecificCalAmt || 0).toLocaleString()}
+                  {Number(amtMetric?.page || 0).toLocaleString()}
                 </span>{" "}
                 <span className="text-gray-500 text-xs">(Page)</span> /{" "}
                 <span className="font-bold">
-                  {Number(totalCalAmt || 0).toLocaleString()}
+                  {Number(amtMetric?.total || 0).toLocaleString()}
                 </span>{" "}
-                <span className="text-gray-500 text-xs">(Total)</span> Php
+                <span className="text-gray-500 text-xs">(Total)</span> {amtMetric?.unit}
               </span>
               <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
                 Paid:{" "}
-                <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                <Tooltip title={paymtMetric?.tooltip} arrow>
                   <span className="font-bold">
-                    {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
+                    {Number(paymtMetric?.page || 0).toLocaleString()}
                   </span>
                 </Tooltip>{" "}
                 <span className="text-gray-500 text-xs">(Page)</span> /{" "}
-                <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                <Tooltip title={paymtMetric?.tooltip} arrow>
                   <span className="font-bold">
-                    {Number(totalCalPaymtAmt || 0).toLocaleString()}
+                    {Number(paymtMetric?.total || 0).toLocaleString()}
                   </span>
                 </Tooltip>{" "}
-                <span className="text-gray-500 text-xs">(Total)</span> Php
+                <span className="text-gray-500 text-xs">(Total)</span> {paymtMetric?.unit}
               </span>
             </span>
           </div>
         );
-      case "HRG":
+      }
+      case "HRG": {
+        const hrgMetric = findMetric('HRG');
         return (
           <div className="flex justify-between px-2 py-1">
             <span className="text-base text-blue-700 font-medium">
               Clients:{" "}
               <span className="font-bold">
-                {Number(pageSpecificClients || 0).toLocaleString()}
+                {Number(stats.clientCount.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Filter)</span>
               <span className="mx-4"></span>
               HRG Payment:{" "}
               <span className="font-bold">
-                {Number(pageSpecificHrgAmt || 0).toLocaleString()}
+                {Number(hrgMetric?.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(totalHrgAmt || 0).toLocaleString()}
+                {Number(hrgMetric?.total || 0).toLocaleString()}
               </span>{" "}
-              <span className="text-gray-500 text-xs">(Total)</span> Php
+              <span className="text-gray-500 text-xs">(Total)</span> {hrgMetric?.unit}
             </span>
           </div>
         );
-      case "FOM":
+      }
+      case "FOM": {
+        const fomMetric = findMetric('FOM');
         return (
           <div className="flex justify-between px-2 py-1">
             <span className="text-base text-green-700 font-medium">
               Clients:{" "}
               <span className="font-bold">
-                {Number(pageSpecificClients || 0).toLocaleString()}
+                {Number(stats.clientCount.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Filter)</span>
               <span className="mx-4"></span>
               FOM Payment:{" "}
               <span className="font-bold">
-                {Number(pageSpecificFomAmt || 0).toLocaleString()}
+                {Number(fomMetric?.page || 0).toLocaleString()}
               </span>{" "}
               <span className="text-gray-500 text-xs">(Page)</span> /{" "}
               <span className="font-bold">
-                {Number(totalFomAmt || 0).toLocaleString()}
+                {Number(fomMetric?.total || 0).toLocaleString()}
               </span>{" "}
-              <span className="text-gray-500 text-xs">(Total)</span> Php
+              <span className="text-gray-500 text-xs">(Total)</span> {fomMetric?.unit}
             </span>
           </div>
         );
-      case "HRG FOM CAL":
+      }
+      case "HRG FOM CAL": {
         // If the user has WMM role but is seeing HRG FOM CAL display, show the WMM section first
         if (hasWmmRole) {
+          const wmmMetric = findMetric('WMM');
           return (
             <div className="flex flex-col px-2 py-1">
               {/* WMM Section */}
@@ -196,13 +206,11 @@ export const TableComponent = function TableComponent({
                 <span className="text-base ml-4 text-gray-800 font-medium">
                   Copies:{" "}
                   <span className="font-bold">
-                    {Number(pageSpecificCopies || 0).toLocaleString()}
+                    {Number(wmmMetric?.page || 0).toLocaleString()}
                   </span>{" "}
                   <span className="text-gray-500 text-xs">(Page)</span> /{" "}
                   <span className="font-bold">
-                    {Number(
-                      filteredTotalCopies || totalCopies || 0
-                    ).toLocaleString()}
+                    {Number(wmmMetric?.total || 0).toLocaleString()}
                   </span>{" "}
                   <span className="text-gray-500 text-xs">(Filter)</span>
                 </span>
@@ -214,11 +222,11 @@ export const TableComponent = function TableComponent({
                 <div className="flex items-center shrink-0">
                   <span className="font-semibold text-gray-700 mr-1">Clients:</span>
                   <span className="text-gray-700 font-medium">
-                    {Number(pageSpecificClients || 0).toLocaleString()}
+                    {Number(stats.clientCount.page || 0).toLocaleString()}
                   </span>
                   <span className="text-gray-500 mx-1">/</span>
                   <span className="text-gray-700 font-medium">
-                    {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                    {Number(stats.clientCount.total || 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -227,57 +235,53 @@ export const TableComponent = function TableComponent({
                 {/* HRG Section */}
                 <div className="flex items-center shrink-0">
                   <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                  <Tooltip title={findMetric('HRG')?.tooltip} arrow>
                     <span className="text-blue-700 font-medium">
-                      {Number(pageSpecificHrgAmt || 0).toLocaleString()}
+                      {Number(findMetric('HRG')?.page || 0).toLocaleString()}
                     </span>
                   </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                  <Tooltip title={findMetric('HRG')?.tooltip} arrow>
                     <span className="text-blue-700 font-medium">
-                      {Number(totalHrgAmt || 0).toLocaleString()}
+                      {Number(findMetric('HRG')?.total || 0).toLocaleString()}
                     </span>
                   </Tooltip>
-                  <span className="text-gray-500 ml-1">Php</span>
+                  <span className="text-gray-500 ml-1">{findMetric('HRG')?.unit}</span>
                 </div>
 
                 <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
                 {/* FOM Section */}
                 <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-green-700 mr-1">
-                    FOM:
-                  </span>
-                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                  <span className="font-semibold text-green-700 mr-1">FOM:</span>
+                  <Tooltip title={findMetric('FOM')?.tooltip} arrow>
                     <span className="text-green-700 font-medium">
-                      {Number(pageSpecificFomAmt || 0).toLocaleString()}
+                      {Number(findMetric('FOM')?.page || 0).toLocaleString()}
                     </span>
                   </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title="Totals from most recent records based on receive date" arrow>
+                  <Tooltip title={findMetric('FOM')?.tooltip} arrow>
                     <span className="text-green-700 font-medium">
-                      {Number(totalFomAmt || 0).toLocaleString()}
+                      {Number(findMetric('FOM')?.total || 0).toLocaleString()}
                     </span>
                   </Tooltip>
-                  <span className="text-gray-500 ml-1">Php</span>
+                  <span className="text-gray-500 ml-1">{findMetric('FOM')?.unit}</span>
                 </div>
 
                 <div className="w-px h-5 bg-gray-300 shrink-0"></div>
 
                 {/* CAL Section - Compact version */}
                 <div className="flex items-center shrink-0">
-                  <span className="font-semibold text-amber-700 mr-1">
-                    CAL:
-                  </span>
+                  <span className="font-semibold text-amber-700 mr-1">CAL:</span>
 
                   {/* Quantity */}
                   <span className="text-gray-500 mr-1">Qty:</span>
                   <span className="text-amber-700 font-medium">
-                    {Number(pageSpecificCalQty || 0).toLocaleString()}
+                    {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()}
                   </span>
                   <span className="text-gray-500 mx-1">/</span>
                   <span className="text-amber-700 font-medium">
-                    {Number(totalCalQty || 0).toLocaleString()}
+                    {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()}
                   </span>
 
                   <span className="mx-2 text-gray-300">|</span>
@@ -285,30 +289,30 @@ export const TableComponent = function TableComponent({
                   {/* Sold */}
                   <span className="text-gray-500 mr-1">Sold:</span>
                   <span className="text-amber-700 font-medium">
-                    {Number(pageSpecificCalAmt || 0).toLocaleString()}
+                    {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString()}
                   </span>
                   <span className="text-gray-500 mx-1">/</span>
                   <span className="text-amber-700 font-medium">
-                    {Number(totalCalAmt || 0).toLocaleString()}
+                    {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString()}
                   </span>
-                  <span className="text-gray-500 ml-1">Php</span>
+                  <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[1]?.unit}</span>
 
                   <span className="mx-2 text-gray-300">|</span>
 
                   {/* Paid */}
                   <span className="text-gray-500 mr-1">Paid:</span>
-                  <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                  <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
                     <span className="text-amber-700 font-medium">
-                      {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
+                      {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString()}
                     </span>
                   </Tooltip>
                   <span className="text-gray-500 mx-1">/</span>
-                  <Tooltip title="Includes only payments with reference and either form or date" arrow>
+                  <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
                     <span className="text-amber-700 font-medium">
-                      {Number(totalCalPaymtAmt || 0).toLocaleString()}
+                      {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString()}
                     </span>
                   </Tooltip>
-                  <span className="text-gray-500 ml-1">Php</span>
+                  <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[2]?.unit}</span>
                 </div>
               </div>
             </div>
@@ -322,11 +326,11 @@ export const TableComponent = function TableComponent({
             <div className="flex items-center shrink-0">
               <span className="font-semibold text-gray-700 mr-1">Clients:</span>
               <span className="text-gray-700 font-medium">
-                {Number(pageSpecificClients || 0).toLocaleString()}
+                {Number(stats.clientCount.page || 0).toLocaleString()}
               </span>
               <span className="text-gray-500 mx-1">/</span>
               <span className="text-gray-700 font-medium">
-                {Number(filteredTotalClients || totalClients || 0).toLocaleString()}
+                {Number(stats.clientCount.total || 0).toLocaleString()}
               </span>
             </div>
 
@@ -335,18 +339,18 @@ export const TableComponent = function TableComponent({
             {/* HRG Section */}
             <div className="flex items-center shrink-0">
               <span className="font-semibold text-blue-700 mr-1">HRG:</span>
-              <Tooltip title="Totals from most recent records based on receive date" arrow>
+              <Tooltip title={findMetric('HRG')?.tooltip} arrow>
                 <span className="text-blue-700 font-medium">
-                  {Number(pageSpecificHrgAmt || 0).toLocaleString()}
+                  {Number(findMetric('HRG')?.page || 0).toLocaleString()}
                 </span>
               </Tooltip>
               <span className="text-gray-500 mx-1">/</span>
-              <Tooltip title="Totals from most recent records based on receive date" arrow>
+              <Tooltip title={findMetric('HRG')?.tooltip} arrow>
                 <span className="text-blue-700 font-medium">
-                  {Number(totalHrgAmt || 0).toLocaleString()}
+                  {Number(findMetric('HRG')?.total || 0).toLocaleString()}
                 </span>
               </Tooltip>
-              <span className="text-gray-500 ml-1">Php</span>
+              <span className="text-gray-500 ml-1">{findMetric('HRG')?.unit}</span>
             </div>
 
             <div className="w-px h-5 bg-gray-300 shrink-0"></div>
@@ -354,18 +358,18 @@ export const TableComponent = function TableComponent({
             {/* FOM Section */}
             <div className="flex items-center shrink-0">
               <span className="font-semibold text-green-700 mr-1">FOM:</span>
-              <Tooltip title="Totals from most recent records based on receive date" arrow>
+              <Tooltip title={findMetric('FOM')?.tooltip} arrow>
                 <span className="text-green-700 font-medium">
-                  {Number(pageSpecificFomAmt || 0).toLocaleString()}
+                  {Number(findMetric('FOM')?.page || 0).toLocaleString()}
                 </span>
               </Tooltip>
               <span className="text-gray-500 mx-1">/</span>
-              <Tooltip title="Totals from most recent records based on receive date" arrow>
+              <Tooltip title={findMetric('FOM')?.tooltip} arrow>
                 <span className="text-green-700 font-medium">
-                  {Number(totalFomAmt || 0).toLocaleString()}
+                  {Number(findMetric('FOM')?.total || 0).toLocaleString()}
                 </span>
               </Tooltip>
-              <span className="text-gray-500 ml-1">Php</span>
+              <span className="text-gray-500 ml-1">{findMetric('FOM')?.unit}</span>
             </div>
 
             <div className="w-px h-5 bg-gray-300 shrink-0"></div>
@@ -377,11 +381,11 @@ export const TableComponent = function TableComponent({
               {/* Quantity */}
               <span className="text-gray-500 mr-1">Qty:</span>
               <span className="text-amber-700 font-medium">
-                {Number(pageSpecificCalQty || 0).toLocaleString()}
+                {Number(findMetric('CAL')?.metrics?.[0]?.page || 0).toLocaleString()}
               </span>
               <span className="text-gray-500 mx-1">/</span>
               <span className="text-amber-700 font-medium">
-                {Number(totalCalQty || 0).toLocaleString()}
+                {Number(findMetric('CAL')?.metrics?.[0]?.total || 0).toLocaleString()}
               </span>
 
               <span className="mx-2 text-gray-300">|</span>
@@ -389,53 +393,43 @@ export const TableComponent = function TableComponent({
               {/* Sold */}
               <span className="text-gray-500 mr-1">Sold:</span>
               <span className="text-amber-700 font-medium">
-                {Number(pageSpecificCalAmt || 0).toLocaleString()}
+                {Number(findMetric('CAL')?.metrics?.[1]?.page || 0).toLocaleString()}
               </span>
               <span className="text-gray-500 mx-1">/</span>
               <span className="text-amber-700 font-medium">
-                {Number(totalCalAmt || 0).toLocaleString()}
+                {Number(findMetric('CAL')?.metrics?.[1]?.total || 0).toLocaleString()}
               </span>
-              <span className="text-gray-500 ml-1">Php</span>
+              <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[1]?.unit}</span>
 
               <span className="mx-2 text-gray-300">|</span>
 
               {/* Paid */}
               <span className="text-gray-500 mr-1">Paid:</span>
-              <span className="text-amber-700 font-medium">
-                {Number(pageSpecificCalPaymtAmt || 0).toLocaleString()}
-              </span>
+              <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
+                <span className="text-amber-700 font-medium">
+                  {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString()}
+                </span>
+              </Tooltip>
               <span className="text-gray-500 mx-1">/</span>
-              <span className="text-amber-700 font-medium">
-                {Number(totalCalPaymtAmt || 0).toLocaleString()}
-              </span>
-              <span className="text-gray-500 ml-1">Php</span>
+              <Tooltip title={findMetric('CAL')?.metrics?.[2]?.tooltip} arrow>
+                <span className="text-amber-700 font-medium">
+                  {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString()}
+                </span>
+              </Tooltip>
+              <span className="text-gray-500 ml-1">{findMetric('CAL')?.metrics?.[2]?.unit}</span>
             </div>
           </div>
         );
+      }
       default:
         // Return empty div if no role matches
         return <div></div>;
     }
   }, [
+    stats,
     userRole,
     hasWmmRole,
-    clientCountDisplay,
-    totalCopies,
-    pageSpecificCopies,
-    totalCalQty,
-    totalCalAmt,
-    pageSpecificCalQty,
-    pageSpecificCalAmt,
-    totalHrgAmt,
-    totalFomAmt,
-    totalCalPaymtAmt,
-    pageSpecificHrgAmt,
-    pageSpecificFomAmt,
-    pageSpecificCalPaymtAmt,
-    filteredTotalCopies,
-    filteredTotalClients,
-    totalClients,
-    pageSpecificClients,
+    clientCountDisplay
   ]);
 
   const handleCellClick = (event, row, cell) => {

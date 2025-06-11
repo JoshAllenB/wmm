@@ -68,27 +68,11 @@ export const fetchClients = async (
       totalPages,
       combinedData,
       data,
-      totalCopies,
-      pageSpecificCopies,
-      totalCalQty,
-      totalCalAmt,
-      pageSpecificCalQty,
-      pageSpecificCalAmt,
-      totalHrgAmt,
-      totalFomAmt,
-      totalCalPaymtAmt,
-      pageSpecificHrgAmt,
-      pageSpecificFomAmt,
-      pageSpecificCalPaymtAmt,
-      totalClients,
-      pageSpecificClients,
-      filteredTotalCopies,
-      filteredTotalClients,
-      absoluteTotalClients,
-      absoluteTotalCopies,
+      stats,
       totalCount,
       noData,
     } = response.data;
+    console.log("stats", stats);
 
     // Use either combinedData or data, whichever is available
     const clientsData = combinedData || data;
@@ -97,20 +81,10 @@ export const fetchClients = async (
       return {
         data: [],
         totalPages: 0,
-        totalCopies: 0,
-        pageSpecificCopies: 0,
-        totalCalQty: 0,
-        totalCalAmt: 0,
-        pageSpecificCalQty: 0,
-        pageSpecificCalAmt: 0,
-        totalHrgAmt: 0,
-        totalFomAmt: 0,
-        totalCalPaymtAmt: 0,
-        pageSpecificHrgAmt: 0,
-        pageSpecificFomAmt: 0,
-        pageSpecificCalPaymtAmt: 0,
-        totalClients: 0,
-        pageSpecificClients: 0,
+        stats: {
+          clientCount: { total: 0, page: 0 },
+          metrics: []
+        },
         noData: true,
       };
     }
@@ -122,20 +96,10 @@ export const fetchClients = async (
       return {
         data: [],
         totalPages: 0,
-        totalCopies: 0,
-        pageSpecificCopies: 0,
-        totalCalQty: 0,
-        totalCalAmt: 0,
-        pageSpecificCalQty: 0,
-        pageSpecificCalAmt: 0,
-        totalHrgAmt: 0,
-        totalFomAmt: 0,
-        totalCalPaymtAmt: 0,
-        pageSpecificHrgAmt: 0,
-        pageSpecificFomAmt: 0,
-        pageSpecificCalPaymtAmt: 0,
-        totalClients: 0,
-        pageSpecificClients: 0,
+        stats: {
+          clientCount: { total: 0, page: 0 },
+          metrics: []
+        },
         noData: true,
       };
     }
@@ -148,28 +112,7 @@ export const fetchClients = async (
     return {
       data: processedData,
       totalPages,
-      totalCopies,
-      pageSpecificCopies,
-      totalCalQty,
-      totalCalAmt,
-      pageSpecificCalQty,
-      pageSpecificCalAmt,
-      totalHrgAmt,
-      totalFomAmt,
-      totalCalPaymtAmt,
-      pageSpecificHrgAmt,
-      pageSpecificFomAmt,
-      pageSpecificCalPaymtAmt,
-      totalClients: totalClients || totalCount || processedData.length,
-      pageSpecificClients: pageSpecificClients || processedData.length,
-      filteredTotalCopies: filteredTotalCopies || totalCopies || 0,
-      filteredTotalClients:
-        filteredTotalClients ||
-        totalClients ||
-        totalCount ||
-        processedData.length,
-      absoluteTotalClients: absoluteTotalClients || 0,
-      absoluteTotalCopies: absoluteTotalCopies || 0,
+      stats,
       noData: false,
     };
   } catch (e) {

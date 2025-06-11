@@ -40,7 +40,7 @@ class DataService {
 
       // Prepare response
       const response = {
-        ...stats,
+        stats,
         totalPages: Math.ceil(totalCount / validLimit),
         currentPage: validPage,
         pageSize: validLimit,

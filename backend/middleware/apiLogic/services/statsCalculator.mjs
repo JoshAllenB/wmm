@@ -6,24 +6,65 @@ import ClientModel from '../../../models/clients.mjs';
 
 export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20) {
   try {
+    // Initialize stats array with structured data
     const stats = {
-      totalCopies: 0,
-      totalCalQty: 0,
-      totalCalAmt: 0,
-      hrgTotalAmt: 0,
-      fomTotalAmt: 0,
-      calTotalPaymtAmt: 0,
-      pageSpecificCopies: 0,
-      pageSpecificCalQty: 0,
-      pageSpecificCalAmt: 0,
-      pageSpecificHrgAmt: 0,
-      pageSpecificFomAmt: 0,
-      pageSpecificCalPaymtAmt: 0,
-      totalClients: 0
+      clientCount: {
+        total: 0,
+        page: 0
+      },
+      metrics: [
+        {
+          service: 'WMM',
+          label: 'Copies',
+          total: 0,
+          page: 0,
+          unit: ''
+        },
+        {
+          service: 'CAL',
+          metrics: [
+            {
+              label: 'Quantity',
+              total: 0,
+              page: 0,
+              unit: ''
+            },
+            {
+              label: 'Amount',
+              total: 0,
+              page: 0,
+              unit: 'Php'
+            },
+            {
+              label: 'Payments',
+              total: 0,
+              page: 0,
+              unit: 'Php',
+              tooltip: 'Includes only payments with reference and either form or date'
+            }
+          ]
+        },
+        {
+          service: 'HRG',
+          label: 'Payment',
+          total: 0,
+          page: 0,
+          unit: 'Php',
+          tooltip: 'Totals from most recent records based on receive date'
+        },
+        {
+          service: 'FOM',
+          label: 'Payment',
+          total: 0,
+          page: 0,
+          unit: 'Php',
+          tooltip: 'Totals from most recent records based on receive date'
+        }
+      ]
     };
 
-    // Get total client count - use filter if provided
-    stats.totalClients = await ClientModel.countDocuments(filterQuery);
+    // Get total client count
+    stats.clientCount.total = await ClientModel.countDocuments(filterQuery);
 
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
@@ -36,34 +77,35 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       .limit(limit)
       .lean();
     
+    // Set page-specific client count
+    stats.clientCount.page = pageClients.length;
+    
     // Convert client IDs to numbers
     const pageClientIds = pageClients.map(client => Number(client.id));
     
-    console.log('Page client IDs:', pageClientIds); // Debug log
-
     // Calculate WMM statistics
     const wmmStats = await calculateWmmStats(pageClientIds);
-    stats.totalCopies = wmmStats.totalCopies;
-    stats.pageSpecificCopies = wmmStats.pageSpecificCopies;
+    stats.metrics[0].total = wmmStats.totalCopies;
+    stats.metrics[0].page = wmmStats.pageSpecificCopies;
 
     // Calculate CAL statistics
     const calStats = await calculateCalStats(pageClientIds);
-    stats.totalCalQty = calStats.totalQty;
-    stats.totalCalAmt = calStats.totalAmt;
-    stats.calTotalPaymtAmt = calStats.totalPaymtAmt;
-    stats.pageSpecificCalQty = calStats.pageSpecificQty;
-    stats.pageSpecificCalAmt = calStats.pageSpecificAmt;
-    stats.pageSpecificCalPaymtAmt = calStats.pageSpecificPaymtAmt;
+    stats.metrics[1].metrics[0].total = calStats.totalQty;
+    stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
+    stats.metrics[1].metrics[1].total = calStats.totalAmt;
+    stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
+    stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
+    stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
 
     // Calculate HRG statistics
     const hrgStats = await calculateHrgStats(pageClientIds);
-    stats.hrgTotalAmt = hrgStats.totalAmt;
-    stats.pageSpecificHrgAmt = hrgStats.pageSpecificAmt;
+    stats.metrics[2].total = hrgStats.totalAmt;
+    stats.metrics[2].page = hrgStats.pageSpecificAmt;
 
     // Calculate FOM statistics
     const fomStats = await calculateFomStats(pageClientIds);
-    stats.fomTotalAmt = fomStats.totalAmt;
-    stats.pageSpecificFomAmt = fomStats.pageSpecificAmt;
+    stats.metrics[3].total = fomStats.totalAmt;
+    stats.metrics[3].page = fomStats.pageSpecificAmt;
 
     return stats;
   } catch (error) {

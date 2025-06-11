@@ -12,6 +12,7 @@ import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
 import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
 import { checkDuplicates } from './duplicateCheck.mjs';
+import { calculateStatistics } from '../apiLogic/services/statsCalculator.mjs';
 
 dotenv.config();
 
@@ -54,7 +55,7 @@ router.get(
         ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
         : userRoles.map((role) => `${role}Model`);
 
-      // Use the new DataService to fetch data
+      // Use DataService to fetch data with all calculations included
       const results = await dataService.fetchData({
         modelNames,
         filter,
@@ -66,13 +67,20 @@ router.get(
         advancedFilterData
       });
 
-      let { combinedData, clientServices, totalPages } = results;
+      // Extract needed data from results
+      const {
+        combinedData,
+        clientServices,
+        totalPages,
+        stats,
+        currentPage
+      } = results;
 
       // Ensure page number doesn't exceed total pages
-      const actualPage = Math.min(validPage, totalPages || 1);
+      const actualPage = Math.min(currentPage, totalPages || 1);
 
       // Merge clientServices into combinedData
-      combinedData = combinedData.map((client) => {
+      const processedData = combinedData.map((client) => {
         const clientService = clientServices.find(
           (service) => service.clientId === client.id
         );
@@ -82,12 +90,12 @@ router.get(
         };
       });
 
-      // Send response with corrected page number
+      // Send response with all calculated data
       res.json({
-        ...results,
-        combinedData,
+        combinedData: processedData,
         page: actualPage,
-        totalPages: totalPages || 1
+        totalPages: totalPages || 1,
+        stats
       });
 
       // Emit socket event if needed

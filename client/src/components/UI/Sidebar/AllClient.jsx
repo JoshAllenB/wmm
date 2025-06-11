@@ -23,20 +23,13 @@ const AllClient = () => {
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [totalCopies, setTotalCopies] = useState(0);
-  const [pageSpecificCopies, setPageSpecificCopies] = useState(0);
-  const [totalCalQty, setTotalCalQty] = useState(0);
-  const [totalCalAmt, setTotalCalAmt] = useState(0);
-  const [pageSpecificCalQty, setPageSpecificCalQty] = useState(0);
-  const [pageSpecificCalAmt, setPageSpecificCalAmt] = useState(0);
-  const [totalHrgAmt, setTotalHrgAmt] = useState(0);
-  const [totalFomAmt, setTotalFomAmt] = useState(0);
-  const [totalCalPaymtAmt, setTotalCalPaymtAmt] = useState(0);
-  const [pageSpecificHrgAmt, setPageSpecificHrgAmt] = useState(0);
-  const [pageSpecificFomAmt, setPageSpecificFomAmt] = useState(0);
-  const [pageSpecificCalPaymtAmt, setPageSpecificCalPaymtAmt] = useState(0);
-  const [totalClients, setTotalClients] = useState(0);
-  const [pageSpecificClients, setPageSpecificClients] = useState(0);
+  const [stats, setStats] = useState({
+    clientCount: {
+      total: 0,
+      page: 0
+    },
+    metrics: []
+  });
   const columns = useColumns();
   const { hasRole } = useUser();
   const [addedToday, setAddedToday] = useState(true);
@@ -361,29 +354,13 @@ const AllClient = () => {
 
         setClientData(response.data);
         setTotalPages(response.totalPages || 0);
-        setTotalCopies(response.totalCopies);
-        setPageSpecificCopies(response.pageSpecificCopies);
-        setTotalCalQty(response.totalCalQty);
-        setTotalCalAmt(response.totalCalAmt);
-        setPageSpecificCalQty(response.pageSpecificCalQty);
-        setPageSpecificCalAmt(response.pageSpecificCalAmt);
-        setTotalHrgAmt(response.totalHrgAmt || 0);
-        setTotalFomAmt(response.totalFomAmt || 0);
-        setTotalCalPaymtAmt(response.totalCalPaymtAmt || 0);
-        setPageSpecificHrgAmt(response.pageSpecificHrgAmt || 0);
-        setPageSpecificFomAmt(response.pageSpecificFomAmt || 0);
-        setPageSpecificCalPaymtAmt(response.pageSpecificCalPaymtAmt || 0);
-
-        // Try different property names for totalClients
-        const totalClientsValue =
-          response.totalClients || response.totalCount || response.total || 0;
-        setTotalClients(totalClientsValue);
-
-        // Use result.data.length as fallback for pageSpecificClients
-        const pageClientsValue =
-          response.pageSpecificClients ||
-          (response.data ? response.data.length : 0);
-        setPageSpecificClients(pageClientsValue);
+        setStats(response.stats || {
+          clientCount: {
+            total: response.totalClients || 0,
+            page: response.data?.length || 0
+          },
+          metrics: []
+        });
 
         // Always remove loading state when done
         setIsLoading(false);
@@ -1309,20 +1286,7 @@ const AllClient = () => {
         usePagination={true}
         useHoverCard={false}
         ViewComponent={View}
-        totalCopies={totalCopies}
-        pageSpecificCopies={pageSpecificCopies}
-        totalCalQty={totalCalQty}
-        totalCalAmt={totalCalAmt}
-        pageSpecificCalQty={pageSpecificCalQty}
-        pageSpecificCalAmt={pageSpecificCalAmt}
-        totalHrgAmt={totalHrgAmt}
-        totalFomAmt={totalFomAmt}
-        totalCalPaymtAmt={totalCalPaymtAmt}
-        pageSpecificHrgAmt={pageSpecificHrgAmt}
-        pageSpecificFomAmt={pageSpecificFomAmt}
-        pageSpecificCalPaymtAmt={pageSpecificCalPaymtAmt}
-        totalClients={totalClients}
-        pageSpecificClients={pageSpecificClients}
+        stats={stats}
         userRole={determineUserRole}
         searchTerm={debouncedFiltering}
         handleRowClick={handleRowClick}
