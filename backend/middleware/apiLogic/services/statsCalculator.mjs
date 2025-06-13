@@ -193,41 +193,122 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
 }
 
 async function calculateWmmStats(filteredClientIds) {
-  // Calculate total copies from filtered clients
   const pipeline = [
-    ...(filteredClientIds.length > 0 ? [{
-      $match: {
-        clientid: { $in: filteredClientIds }
+    {
+      $addFields: {
+        subsDateObj: {
+          $dateFromString: {
+            dateString: "$subsdate",
+            format: "%m/%d/%Y %H:%M:%S"
+          }
+        }
       }
-    }] : []),
+    },
+    {
+      $sort: { 
+        clientid: 1, 
+        subsDateObj: -1  // Sort by the converted date object
+      }
+    },
     {
       $group: {
         _id: "$clientid",
-        copies: { $first: "$copies" }
+        recentCopies: { $first: "$copies" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" },
+        allRecords: { 
+          $push: { 
+            copies: "$copies",
+            subsdate: "$subsdate",
+            enddate: "$enddate"
+          }
+        }
       }
     },
+    {
+      $project: {
+        _id: 1,
+        recentCopies: 1,
+        subsdate: 1,
+        enddate: 1,
+        allRecords: 1,
+        clientId: "$_id"
+      }
+    }
+  ];
+
+  // For total copies - add logging stage
+  const totalPipeline = [
+    ...pipeline,
     {
       $group: {
         _id: null,
         totalCopies: {
           $sum: {
             $convert: {
-              input: "$copies",
+              input: "$recentCopies",
               to: "double",
               onError: 0,
               onNull: 0
             }
+          }
+        },
+        details: { 
+          $push: { 
+            clientId: "$clientId", 
+            copies: "$recentCopies",
+            subsdate: "$subsdate",
+            enddate: "$enddate",
+            allRecords: "$allRecords"
           }
         }
       }
     }
   ];
 
-  const result = await WmmModel.aggregate(pipeline);
+  // Add clientId filter for page-specific calculation
+  const pagePipeline = [
+    {
+      $match: {
+        clientid: { $in: filteredClientIds }
+      }
+    },
+    ...pipeline,
+    {
+      $group: {
+        _id: null,
+        totalCopies: {
+          $sum: {
+            $convert: {
+              input: "$recentCopies",
+              to: "double",
+              onError: 0,
+              onNull: 0
+            }
+          }
+        },
+        details: { 
+          $push: { 
+            clientId: "$clientId", 
+            copies: "$recentCopies",
+            subsdate: "$subsdate",
+            enddate: "$enddate",
+            allRecords: "$allRecords"
+          }
+        }
+      }
+    }
+  ];
+
+  const [totalResult, pageResult] = await Promise.all([
+    WmmModel.aggregate(totalPipeline),
+    WmmModel.aggregate(pagePipeline)
+  ]);
+
 
   return {
-    totalCopies: result[0]?.totalCopies || 0,
-    pageSpecificCopies: result[0]?.totalCopies || 0  // Same as total since we're already filtering
+    totalCopies: totalResult[0]?.totalCopies || 0,
+    pageSpecificCopies: pageResult[0]?.totalCopies || 0
   };
 }
 
