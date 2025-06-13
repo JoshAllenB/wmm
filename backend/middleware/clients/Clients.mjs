@@ -511,6 +511,19 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     // Re-run the filter to get updated filtered data for all clients
     if (io) {
+      // Emit the updated client data immediately
+      io.emit("data-update", {
+        type: "update",
+        data: {
+          ...updatedClient.toObject(),
+          services: [roleType],
+          ...(updatedRoleSpecificClient && {
+            [`${roleType.toLowerCase()}Data`]: updatedRoleSpecificClient
+          })
+        }
+      });
+
+      // Then fetch and emit the filtered data
       const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
       
       // Use the DataService to fetch filtered data
@@ -538,11 +551,10 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         };
       });
 
-      // Emit the updated filtered data
+      // Emit the filtered data update
       io.emit("data-update", {
         type: "filter-update",
         data: {
-          ...results,
           combinedData,
           updatedClientId: parseInt(id)
         }

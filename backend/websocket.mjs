@@ -102,39 +102,57 @@ const initWebSocket = (io) => {
     console.log(`Total Sessions: ${sessions.size}`);
     console.log("========================\n");
 
+    // Add debug logging for all socket events
+    socket.onAny((eventName, ...args) => {
+      console.log(`\n=== Socket Event Received: ${eventName} ===`);
+      console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Username: ${username}`);
+      console.log(`Event Data:`, args);
+      console.log("========================\n");
+    });
+
     socket.on("data-update", (data) => {
       console.log("\n=== Data Update Event ===");
       console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Username: ${username}`);
       console.log("Data:", data);
 
-      // Broadcast to other clients
-      socket.broadcast.emit("data-update", data);
+      // Broadcast to all clients including sender
+      io.emit("data-update", data);
 
       // Log which clients will receive the broadcast
-      console.log("\nBroadcasting to clients:");
-      sessions.forEach((client, id) => {
-        if (id !== socket.id) {
-          console.log(`- Client ${id}`);
-        }
-      });
+      console.log("\nBroadcasting to all clients");
       console.log("======================\n");
     });
 
     socket.on("hrg-update", (data) => {
       console.log("\n=== HRG Update Event ===");
       console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Username: ${username}`);
       console.log("Data:", data);
-      socket.broadcast.emit("hrg-update", data);
+      io.emit("hrg-update", data);
     });
 
     socket.on("user-update", (data) => {
       console.log("\n=== User Update Event ===");
       console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Username: ${username}`);
       console.log("Data:", data);
-      socket.broadcast.emit("user-update", data);
+      io.emit("user-update", data);
     });
 
     socket.on("disconnect", (reason) => {
+      console.log(`\n=== Client Disconnected ===`);
+      console.log(`Socket ID: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log(`Username: ${username}`);
+      console.log(`Reason: ${reason}`);
+      console.log("========================\n");
+
       setTimeout(() => {
         // Get the user data from the session
         const sessionData = sessions.get(sessionId);

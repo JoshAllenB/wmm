@@ -23,7 +23,25 @@ export function useDataFetching(fetchFunction, page, pageSize) {
 
   useEffect(() => {
     const handleDataUpdate = (updateData) => {
-      handleDataUpdate(updateData);
+      setData(prevData => {
+        switch (updateData.type) {
+          case "add":
+            if (!prevData.some(item => item.id === updateData.data.id)) {
+              return [updateData.data, ...prevData];
+            }
+            return prevData;
+          case "update":
+            return prevData.map(item =>
+              item.id === updateData.data.id ? updateData.data : item
+            );
+          case "delete":
+            return prevData.filter(item => item.id !== updateData.data.id);
+          case "filter-update":
+            return updateData.data.combinedData || prevData;
+          default:
+            return prevData;
+        }
+      });
     };
 
     const socket = webSocketService;
