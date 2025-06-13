@@ -373,7 +373,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             parsedDate: {
               $dateFromString: {
                 dateString: `$${dateField}`,
-                format: "%m/%d/%Y %H:%M:%S",
+                format: "%m/%d/%Y",
                 timezone: "UTC",
                 onError: null,
                 onNull: null
@@ -449,16 +449,27 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               $dateFromString: {
                 dateString: "$subsdate",
                 format: "%m/%d/%Y %H:%M:%S",
-                timezone: "UTC"
+                timezone: "UTC",
+                onError: null,
+                onNull: null
               }
             },
             endDateObj: {
               $dateFromString: {
                 dateString: "$enddate",
                 format: "%m/%d/%Y %H:%M:%S",
-                timezone: "UTC"
+                timezone: "UTC",
+                onError: null,
+                onNull: null
               }
             }
+          }
+        },
+        // Filter out records with invalid dates
+        {
+          $match: {
+            subsDateObj: { $ne: null },
+            endDateObj: { $ne: null }
           }
         },
         // Match subscriptions that are active during the target period

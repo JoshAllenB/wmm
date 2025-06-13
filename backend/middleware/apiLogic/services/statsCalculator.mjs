@@ -199,7 +199,9 @@ async function calculateWmmStats(filteredClientIds) {
         subsDateObj: {
           $dateFromString: {
             dateString: "$subsdate",
-            format: "%m/%d/%Y %H:%M:%S"
+            format: "%m/%d/%Y %H:%M:%S",
+            onError: null,
+            onNull: null
           }
         }
       }
@@ -341,6 +343,18 @@ async function calculateCalStats(filteredClientIds) {
       $match: {
         caltype: currentCalType,
         ...(filteredClientIds.length > 0 ? { clientid: { $in: filteredClientIds } } : {})
+      }
+    },
+    {
+      $addFields: {
+        paymtDateObj: {
+          $dateFromString: {
+            dateString: "$paymtdate",
+            format: "%m/%d/%Y %H:%M:%S",
+            onError: null,
+            onNull: null
+          }
+        }
       }
     },
     {
