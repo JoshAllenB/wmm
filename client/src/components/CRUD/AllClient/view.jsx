@@ -33,26 +33,21 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       // Determine which services this client actually has
       const clientServices = rowData.services || [];
-      console.log("View component received data:", rowData);
       
       // Handle WMM data properly
       if (rowData.wmmData) {
         if (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) {
           // If wmmData is a direct array, use it as is
           setWmmData(rowData.wmmData);
-          console.log("View using WMM data array:", rowData.wmmData);
         } else if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records) && rowData.wmmData.records.length > 0) {
           // If wmmData has a records property with data, use that array
           setWmmData(rowData.wmmData.records);
-          console.log("View using WMM records array");
         } else if (typeof rowData.wmmData === 'object' && Object.keys(rowData.wmmData).length > 0) {
           // If it's a single object with data (non-empty), convert to array
           setWmmData([rowData.wmmData].filter(item => Object.keys(item).length > 0));
-          console.log("View converted WMM object to array");
         } else {
           // Empty or invalid data
           setWmmData([]);
-          console.log("View set empty WMM data");
         }
       } else {
         setWmmData([]);
@@ -303,11 +298,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const renderWmmData = () => {
     // Check if wmmData exists and has items
     if (!wmmData || wmmData.length === 0) {
-      console.log("renderWmmData: No WMM data to render");
       return null;
     }
 
-    console.log("renderWmmData: Rendering WMM data:", wmmData);
 
     // Sort wmmData by subsdate in descending order (latest to oldest)
     const sortedWmmData = [...wmmData].sort((a, b) => {

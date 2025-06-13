@@ -1384,11 +1384,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       let roleType = "";
 
       if (hasRole("WMM")) {
-        console.log("WMM role detected, preparing subscription data...");
         roleType = "WMM";
 
         if (subscriptionMode === "edit" && selectedSubscription) {
-          console.log("Editing existing subscription:", selectedSubscription);
           // If editing an existing subscription
           roleData = {
             id: selectedSubscription._id || selectedSubscription.id, // Prefer _id for MongoDB ObjectId
@@ -1405,14 +1403,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtref: roleSpecificData.paymtref || "",
             remarks: roleSpecificData.remarks || "",
           };
-          console.log("Prepared roleData for edit:", roleData);
         } else if (subscriptionMode === "add") {
-          console.log("Adding new subscription...");
           // Validate new subscription data
           const validation = validateNewSubscription(newSubscriptionData);
           if (!validation.isValid) {
             setValidationErrors(validation.errors);
-            console.log("Validation errors:", validation.errors);
             return;
           }
 
@@ -1432,7 +1427,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             remarks: newSubscriptionData.remarks || "",
             isNewSubscription: true,
           };
-          console.log("Prepared roleData for new subscription:", roleData);
         }
       } else {
         // Handle other role types (HRG, FOM, CAL)
@@ -1524,8 +1518,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         roleData,
       };
 
-      console.log("Submitting data to backend:", submissionData);
-
       // Send the update request
       const response = await axios.put(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${rowData.id}`,
@@ -1536,8 +1528,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           },
         }
       );
-
-      console.log("Backend response:", response.data);
 
       if (response.data.success) {
         if (onEditSuccess) {
