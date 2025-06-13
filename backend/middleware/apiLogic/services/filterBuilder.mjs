@@ -185,6 +185,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       let targetClients = new Set();
       let isFirstService = true;
 
+      // First, get all clients for each service
+      const serviceClientsMap = {};
       for (const service of services) {
         const Model = {
           'WMM': WmmModel,
@@ -204,15 +206,48 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         }
         
         const serviceClients = await Model.distinct('clientid', query);
-        
         if (serviceClients.length > 0) {
+          serviceClientsMap[service.toUpperCase()] = new Set(serviceClients);
+        }
+      }
+
+      // Special handling for FOM and HRG to ensure exclusivity
+      if (serviceClientsMap.FOM || serviceClientsMap.HRG) {
+        // If both FOM and HRG are selected, they should be mutually exclusive
+        if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
+          const fomOnlyClients = new Set(
+            [...serviceClientsMap.FOM].filter(id => !serviceClientsMap.HRG.has(id))
+          );
+          const hrgOnlyClients = new Set(
+            [...serviceClientsMap.HRG].filter(id => !serviceClientsMap.FOM.has(id))
+          );
+          targetClients = new Set([...fomOnlyClients, ...hrgOnlyClients]);
+        }
+        // If only FOM is selected, exclude any clients that have HRG
+        else if (serviceClientsMap.FOM) {
+          const hrgClients = await HrgModel.distinct('clientid', {});
+          targetClients = new Set(
+            [...serviceClientsMap.FOM].filter(id => !hrgClients.includes(id))
+          );
+        }
+        // If only HRG is selected, exclude any clients that have FOM
+        else if (serviceClientsMap.HRG) {
+          const fomClients = await FomModel.distinct('clientid', {});
+          targetClients = new Set(
+            [...serviceClientsMap.HRG].filter(id => !fomClients.includes(id))
+          );
+        }
+      }
+      // For other services or combinations, use the original intersection logic
+      else {
+        for (const [service, clients] of Object.entries(serviceClientsMap)) {
           if (isFirstService) {
-            targetClients = new Set(serviceClients);
+            targetClients = clients;
             isFirstService = false;
           } else {
             // Intersect with existing clients if we want clients with all services
             targetClients = new Set(
-              [...targetClients].filter(id => serviceClients.includes(id))
+              [...targetClients].filter(id => clients.has(id))
             );
           }
         }
