@@ -116,6 +116,126 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add area and type filters
   addAreaAndTypeFilters(baseFilter, advancedFilterData);
 
+  // Add copies filter
+  if (advancedFilterData.copiesRange) {
+    const WmmModel = await getModelInstance('WmmModel');
+    let copiesQuery = {};
+
+    switch (advancedFilterData.copiesRange) {
+      case '1':
+        copiesQuery = { copies: 1 };
+        break;
+      case '2':
+        copiesQuery = { copies: 2 };
+        break;
+      case 'gt1':
+        copiesQuery = { copies: { $gt: 1 } };
+        break;
+      case 'custom':
+        if (advancedFilterData.minCopies) {
+          copiesQuery.copies = { $gte: parseInt(advancedFilterData.minCopies) };
+        }
+        if (advancedFilterData.maxCopies) {
+          copiesQuery.copies = { ...copiesQuery.copies, $lte: parseInt(advancedFilterData.maxCopies) };
+        }
+        break;
+    }
+
+    if (Object.keys(copiesQuery).length > 0) {
+      const clientsWithCopies = await WmmModel.find(copiesQuery).distinct('clientid');
+      if (clientsWithCopies.length > 0) {
+        baseFilter.push({ id: { $in: clientsWithCopies } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    }
+  }
+
+  // Add name combination filter
+  if (advancedFilterData.nameCombination) {
+    const nameParts = advancedFilterData.nameCombination.split(/\s+/);
+    if (nameParts.length > 0) {
+      const nameQueries = [];
+      
+      // Add exact name combination match
+      nameQueries.push({
+        $and: [
+          { fname: { $regex: `^${nameParts[0]}$`, $options: 'i' } },
+          ...(nameParts.length > 1 ? [{ lname: { $regex: `^${nameParts[1]}$`, $options: 'i' } }] : []),
+          ...(nameParts.length > 2 ? [{ mname: { $regex: `^${nameParts[2]}$`, $options: 'i' } }] : []),
+          ...(nameParts.length > 3 ? [{ sname: { $regex: `^${nameParts[3]}$`, $options: 'i' } }] : [])
+        ]
+      });
+
+      // Add partial matches
+      nameQueries.push({
+        $or: nameParts.map(part => ({
+          $or: [
+            { fname: { $regex: part, $options: 'i' } },
+            { lname: { $regex: part, $options: 'i' } },
+            { mname: { $regex: part, $options: 'i' } },
+            { sname: { $regex: part, $options: 'i' } }
+          ]
+        }))
+      });
+
+      baseFilter.push({ $or: nameQueries });
+    }
+  }
+
+  // Add area code combination filter
+  if (advancedFilterData.areaCombination) {
+    const areaParts = advancedFilterData.areaCombination.split(/\s+/);
+    if (areaParts.length > 0) {
+      const areaQueries = [];
+      
+      // Add exact area code combination match
+      areaQueries.push({
+        $and: areaParts.map(part => ({
+          acode: { $regex: `^${part}$`, $options: 'i' }
+        }))
+      });
+
+      // Add partial matches
+      areaQueries.push({
+        $or: areaParts.map(part => ({
+          acode: { $regex: part, $options: 'i' }
+        }))
+      });
+
+      baseFilter.push({ $or: areaQueries });
+    }
+  }
+
+  // Add HRG/FOM specific active subscription filter
+  if (advancedFilterData.hrgFomActiveSubscription) {
+    const HrgModel = await getModelInstance('HrgModel');
+    const FomModel = await getModelInstance('FomModel');
+
+    // Get active HRG subscriptions
+    const activeHrgClients = await HrgModel.find({
+      unsubscribe: { $ne: 1 },
+      recvdate: { $exists: true, $ne: null }
+    }).distinct('clientid');
+
+    // Get active FOM subscriptions
+    const activeFomClients = await FomModel.find({
+      unsubscribe: { $ne: 1 },
+      recvdate: { $exists: true, $ne: null }
+    }).distinct('clientid');
+
+    // Combine unique client IDs
+    const activeClientIds = [...new Set([...activeHrgClients, ...activeFomClients])]
+      .map(id => parseInt(id))
+      .filter(id => !isNaN(id));
+
+    if (activeClientIds.length > 0) {
+      baseFilter.push({ id: { $in: activeClientIds } });
+    } else {
+      baseFilter.push({ id: -1 });
+    }
+  }
+
   // Clean up and finalize filter query
   if (baseFilter.length > 0) {
     filterQuery.$and.push(...baseFilter);
@@ -198,11 +318,133 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         if (!Model) continue;
 
         // Get clients for this service with subscription status
-        const query = {};
-        if (subscriptionStatus === 'active') {
-          query.unsubscribe = { $ne: 1 };
-        } else if (subscriptionStatus === 'unsubscribed') {
-          query.unsubscribe = 1;
+        let query = {};
+        
+        // Special handling for HRG and FOM subscription status
+        if ((service.toUpperCase() === 'HRG' || service.toUpperCase() === 'FOM') && subscriptionStatus !== 'all') {
+          if (subscriptionStatus === 'active') {
+            // For active subscriptions, only check the most recent record for each client
+            const activeClients = await Model.aggregate([
+              // First stage: Match only records with valid receive date and not unsubscribed
+              { $match: {} },
+              // Second stage: Convert recvdate string to Date for proper sorting
+              {
+                $addFields: {
+                  recvDateObj: {
+                    $dateFromString: {
+                      dateString: "$recvdate",
+                      format: "%m/%d/%Y %H:%M:%S",
+                      onError: null,
+                      onNull: null
+                    }
+                  }
+                }
+              },
+              // Only consider records with valid date
+              { $match: { recvDateObj: { $ne: null}}},
+              // Sort by client ID and receive date (newest first)
+              { $sort: { clientid: 1, recvDateObj: -1 }},
+               // Group by client ID to get most recent record
+              {
+                $group: {
+                  _id: "$clientid",
+                  lastUnsubscribe: { $first: "$unsubscribe" },
+                  lastRecvDate: { $first: "$recvdate" }
+                }
+              },
+              {
+                $match: {
+                  $and: [
+                    { 
+                      $or: [
+                        { lastUnsubscribe: { $exists: false } },
+                        { lastUnsubscribe: { $ne: 1 } }
+                      ]
+                    },
+                    { lastRecvDate: { $exists: true, $ne: null } }
+                  ]
+                }
+              },
+              // Final stage: Project only the client ID
+              {
+                $project: {
+                  _id: 1
+                }
+              }
+            ]);
+            
+            const clientIds = activeClients.map(c => c._id);
+            if (clientIds.length > 0) {
+              serviceClientsMap[service.toUpperCase()] = new Set(clientIds);
+            }
+            continue;
+          } else if (subscriptionStatus === 'unsubscribed') {
+            // For unsubscribed status, get clients whose latest record is unsubscribed
+            const unsubscribedClients = await Model.aggregate([
+              // First stage: Match only records with valid receive date
+              {$match: {}},
+              // Second stage: Convert recvdate string to Date for proper sorting
+              {
+                $addFields: {
+                  recvDateObj: {
+                    $dateFromString: {
+                      dateString: "$recvdate",
+                      format: "%m/%d/%Y %H:%M:%S",
+                      onError: null,
+                      onNull: null
+                    }
+                  }
+                }
+              },
+              // Third stage: Remove records with invalid converted dates
+              {
+                $match: {
+                  recvDateObj: { $ne: null }
+                }
+              },
+              // Fourth stage: Sort by client ID and converted receive date (descending)
+              {
+                $sort: { 
+                  clientid: 1, 
+                  recvDateObj: -1
+                }
+              },
+              // Fifth stage: Group by client ID and take first (most recent) record
+              {
+                $group: {
+                  _id: "$clientid",
+                  lastUnsubscribe: { $first: "$unsubscribe" },
+                  lastRecvDate: { $first: "$recvdate" }
+                }
+              },
+              // Sixth stage: Only keep clients whose most recent record is unsubscribed
+              {
+                $match: {
+                  lastUnsubscribe: 1,
+                  lastRecvDate: { $exists: true, $ne: null }
+                }
+              },
+              // Final stage: Project only the client ID
+              {
+                $project: {
+                  _id: 1
+                }
+              }
+            ]);
+            
+            const clientIds = unsubscribedClients.map(c => c._id);
+            if (clientIds.length > 0) {
+              serviceClientsMap[service.toUpperCase()] = new Set(clientIds);
+            }
+            continue;
+          }
+        } else {
+          // For other services or when no subscription status filter
+          if (subscriptionStatus === 'active') {
+            query.unsubscribe = { $ne: 1 };
+          } else if (subscriptionStatus === 'unsubscribed') {
+            query.unsubscribe = 1;
+          }
         }
         
         const serviceClients = await Model.distinct('clientid', query);
@@ -611,26 +853,37 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 }
 
 function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
-  if (advancedFilterData.acode) {
-    baseFilter.push({ acode: advancedFilterData.acode });
+  // Single area code filter
+  if (advancedFilterData.acode && advancedFilterData.acode.trim()) {
+    baseFilter.push({ 
+      acode: advancedFilterData.acode.trim()  // Exact match with client's acode field
+    });
   }
 
-  if (Array.isArray(advancedFilterData.areas) && advancedFilterData.areas.length > 0) {
-    if (advancedFilterData.exactAreaMatch) {
-      baseFilter.push({
-        acode: {
-          $in: advancedFilterData.areas,
-        },
-      });
-    } else {
-      const areaRegexPatterns = advancedFilterData.areas.map(
-        (area) => new RegExp(`^${area}$|^${area}\\s|^${area}$`, "i")
-      );
+  console.log('FilterBuilder - Area Filter Input:', {
+    areas: advancedFilterData.areas
+  });
 
+  // Handle areas parameter (can be string or array)
+  if (advancedFilterData.areas) {
+    // Convert to array if it's a string
+    const areas = Array.isArray(advancedFilterData.areas) 
+      ? advancedFilterData.areas 
+      : [advancedFilterData.areas];
+
+    // Clean the area codes and remove duplicates
+    const validAreas = [...new Set(
+      areas
+        .map(area => area.trim())
+        .filter(area => area.length > 0)
+    )];
+
+    if (validAreas.length > 0) {
+      // Match client's acode field against the selected areas
       baseFilter.push({
         acode: {
-          $in: areaRegexPatterns,
-        },
+          $in: validAreas
+        }
       });
     }
   }
