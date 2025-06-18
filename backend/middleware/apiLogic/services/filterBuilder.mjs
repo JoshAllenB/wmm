@@ -121,33 +121,73 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     const WmmModel = await getModelInstance('WmmModel');
     let copiesQuery = {};
 
+    // Create aggregation pipeline to get most recent record for each client
+    const pipeline = [
+      // First stage: Match only records with valid dates
+      {
+        $match: {
+          subsdate: { $exists: true, $ne: null }
+        }
+      },
+      // Second stage: Convert subsdate string to Date for proper sorting
+      {
+        $addFields: {
+          subsDateObj: {
+            $dateFromString: {
+              dateString: "$subsdate",
+              format: "%m/%d/%Y %H:%M:%S",
+              onError: null,
+              onNull: null
+            }
+          }
+        }
+      },
+      // Only consider records with valid date
+      { $match: { subsDateObj: { $ne: null } } },
+      // Sort by client ID and subscription date (newest first)
+      { $sort: { clientid: 1, subsDateObj: -1 } },
+      // Group by client ID to get most recent record
+      {
+        $group: {
+          _id: "$clientid",
+          latestCopies: { $first: "$copies" }
+        }
+      }
+    ];
+
+    // Add match stage based on copies range
     switch (advancedFilterData.copiesRange) {
       case '1':
-        copiesQuery = { copies: 1 };
+        pipeline.push({ $match: { latestCopies: 1 } });
         break;
       case '2':
-        copiesQuery = { copies: 2 };
+        pipeline.push({ $match: { latestCopies: 2 } });
         break;
       case 'gt1':
-        copiesQuery = { copies: { $gt: 1 } };
+        pipeline.push({ $match: { latestCopies: { $gt: 1 } } });
         break;
       case 'custom':
+        const matchStage = { $match: {} };
         if (advancedFilterData.minCopies) {
-          copiesQuery.copies = { $gte: parseInt(advancedFilterData.minCopies) };
+          matchStage.$match.latestCopies = { $gte: parseInt(advancedFilterData.minCopies) };
         }
         if (advancedFilterData.maxCopies) {
-          copiesQuery.copies = { ...copiesQuery.copies, $lte: parseInt(advancedFilterData.maxCopies) };
+          matchStage.$match.latestCopies = { ...matchStage.$match.latestCopies, $lte: parseInt(advancedFilterData.maxCopies) };
+        }
+        if (Object.keys(matchStage.$match).length > 0) {
+          pipeline.push(matchStage);
         }
         break;
     }
 
-    if (Object.keys(copiesQuery).length > 0) {
-      const clientsWithCopies = await WmmModel.find(copiesQuery).distinct('clientid');
-      if (clientsWithCopies.length > 0) {
-        baseFilter.push({ id: { $in: clientsWithCopies } });
-      } else {
-        baseFilter.push({ id: -1 });
-      }
+    // Execute aggregation
+    const clientsWithCopies = await WmmModel.aggregate(pipeline);
+    const clientIds = clientsWithCopies.map(c => c._id);
+
+    if (clientIds.length > 0) {
+      baseFilter.push({ id: { $in: clientIds } });
+    } else {
+      baseFilter.push({ id: -1 }); // No matches
     }
   }
 
