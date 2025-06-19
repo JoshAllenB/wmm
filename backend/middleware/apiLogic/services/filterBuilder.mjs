@@ -338,7 +338,6 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           ? [advancedFilterData.services]
           : [];
 
-      console.log('Services (filterBuilder):', services);
       const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
 
       // Get clients for each selected service
@@ -899,10 +898,6 @@ function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
       acode: advancedFilterData.acode.trim()  // Exact match with client's acode field
     });
   }
-
-  console.log('FilterBuilder - Area Filter Input:', {
-    areas: advancedFilterData.areas
-  });
 
   // Handle areas parameter (can be string or array)
   if (advancedFilterData.areas) {
