@@ -10,6 +10,7 @@ import {
 import ArrowDropDownSharp from "@mui/icons-material/ArrowDropDownSharp";
 import ArrowDropUpSharp from "@mui/icons-material/ArrowDropUpSharp";
 import Tooltip from "@mui/material/Tooltip";
+import LinearProgress from "@mui/material/LinearProgress";
 import { useMemo } from "react";
 
 // Remove memo wrapper and export directly
@@ -19,6 +20,7 @@ export const TableComponent = function TableComponent({
   userRole,
   animationComplete,
   stats, // New single prop for all statistics
+  statsLoading = false,
 }) {
   // Check if role contains WMM (either as a single role or part of a composite role)
   const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
@@ -52,7 +54,75 @@ export const TableComponent = function TableComponent({
 
   // Memoize the label to prevent recalculation on every render
   const totalLabel = useMemo(() => {
+    if (statsLoading) {
+      // Try to use Material UI LinearProgress, fallback to text
+      return (
+        <div className="w-full flex items-center justify-center py-2">
+          {LinearProgress ? (
+            <div className="w-1/2 min-w-[120px]">
+              <LinearProgress />
+            </div>
+          ) : (
+            <span>Loading...</span>
+          )}
+        </div>
+      );
+    }
     if (!stats) return <div></div>;
+
+    // Admin: show a compact grid of per-page and total for all services
+    if (userRole === "Admin") {
+      // Helper to get metric values safely
+      const getMetric = (service, idx = null) => {
+        const metric = stats?.metrics?.find(m => m.service === service);
+        if (!metric) return { page: 0, total: 0, unit: "" };
+        if (idx !== null && Array.isArray(metric.metrics)) {
+          return metric.metrics[idx] || { page: 0, total: 0, unit: "" };
+        }
+        return metric;
+      };
+      // Helper to get client count per service
+      const getServiceClientCount = (service) => {
+        return stats?.serviceClientCounts?.[service.toLowerCase()] || { page: 0, total: 0 };
+      };
+      return (
+        <div className="flex flex-col gap-1 px-2 py-1 text-xs md:text-sm">
+          {/* Overall client count */}
+          <div className="flex flex-row items-center justify-center gap-4 mb-1">
+            <span className="font-bold text-gray-700">All Clients</span>
+            <span>Page: {Number(stats?.clientCount?.page || 0).toLocaleString()}</span>
+            <span>Total: {Number(stats?.clientCount?.total || 0).toLocaleString()}</span>
+          </div>
+          {/* Per-service grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {/* HRG */}
+            <div className="flex flex-col items-center border p-1 rounded bg-blue-50">
+              <span className="font-bold text-blue-700">HRG</span>
+              <span>Clients: {Number(getServiceClientCount('hrgOnly').page || 0).toLocaleString()} / {Number(getServiceClientCount('hrgOnly').total || 0).toLocaleString()}</span>
+              <span>Stat: {Number(getMetric('HRG').page || 0).toLocaleString()} / {Number(getMetric('HRG').total || 0).toLocaleString()}</span>
+            </div>
+            {/* FOM */}
+            <div className="flex flex-col items-center border p-1 rounded bg-green-50">
+              <span className="font-bold text-green-700">FOM</span>
+              <span>Clients: {Number(getServiceClientCount('fomOnly').page || 0).toLocaleString()} / {Number(getServiceClientCount('fomOnly').total || 0).toLocaleString()}</span>
+              <span>Stat: {Number(getMetric('FOM').page || 0).toLocaleString()} / {Number(getMetric('FOM').total || 0).toLocaleString()}</span>
+            </div>
+            {/* CAL (show Quantity as main stat) */}
+            <div className="flex flex-col items-center border p-1 rounded bg-amber-50">
+              <span className="font-bold text-amber-700">CAL</span>
+              <span>Clients: {Number(getServiceClientCount('cal').page || 0).toLocaleString()} / {Number(getServiceClientCount('cal').total || 0).toLocaleString()}</span>
+              <span>Qty: {Number(getMetric('CAL', 0).page || 0).toLocaleString()} / {Number(getMetric('CAL', 0).total || 0).toLocaleString()}</span>
+            </div>
+            {/* WMM */}
+            <div className="flex flex-col items-center border p-1 rounded bg-gray-100">
+              <span className="font-bold text-gray-700">WMM</span>
+              <span>Clients: {Number(getServiceClientCount('wmm').page || 0).toLocaleString()} / {Number(getServiceClientCount('wmm').total || 0).toLocaleString()}</span>
+              <span>Copies: {Number(getMetric('WMM').page || 0).toLocaleString()} / {Number(getMetric('WMM').total || 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     // Force WMM display if user only has WMM role
     if (userRole === "WMM") {
@@ -93,6 +163,7 @@ export const TableComponent = function TableComponent({
         const amtMetric = calMetrics.find(m => m.label === 'Amount');
         const paymtMetric = calMetrics.find(m => m.label === 'Payments');
         const balanceMetric = calMetrics.find(m => m.label === 'Balance');
+        const nonNumericMetric = calMetrics.find(m => m.label === 'Non-numeric Payments');
         
         return (
           <div className="flex flex-wrap justify-between px-2 py-1">
@@ -163,6 +234,21 @@ export const TableComponent = function TableComponent({
                 </Tooltip>{" "}
                 <span className="text-gray-500 text-xs">(Total)</span> {balanceMetric?.unit}
               </span>
+              <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
+                Non-numeric:{" "}
+                <Tooltip title={nonNumericMetric?.tooltip} arrow>
+                  <span className="font-bold text-amber-600">
+                    {Number(nonNumericMetric?.page || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+                <Tooltip title={nonNumericMetric?.tooltip} arrow>
+                  <span className="font-bold text-amber-600">
+                    {Number(nonNumericMetric?.total || 0).toLocaleString()}
+                  </span>
+                </Tooltip>{" "}
+                <span className="text-gray-500 text-xs">(Total)</span>
+              </span>
             </span>
           </div>
         );
@@ -205,6 +291,20 @@ export const TableComponent = function TableComponent({
                 </span>
               </Tooltip>{" "}
               <span className="text-gray-500 text-xs">(Total)</span> {hrgMetric?.unit}
+              <span className="mx-4"></span>
+              Non-numeric:{" "}
+              <Tooltip title="Number of records with non-numeric payment amounts" arrow>
+                <span className="font-bold text-amber-600">
+                  {Number(stats?.dataQuality?.hrg?.nonNumericPayments?.page || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <Tooltip title="Number of records with non-numeric payment amounts" arrow>
+                <span className="font-bold text-amber-600">
+                  {Number(stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
             </span>
           </div>
         );
@@ -247,6 +347,20 @@ export const TableComponent = function TableComponent({
                 </span>
               </Tooltip>{" "}
               <span className="text-gray-500 text-xs">(Total)</span> {fomMetric?.unit}
+              <span className="mx-4"></span>
+              Non-numeric:{" "}
+              <Tooltip title="Number of records with non-numeric payment amounts" arrow>
+                <span className="font-bold text-amber-600">
+                  {Number(stats?.dataQuality?.fom?.nonNumericPayments?.page || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+              <Tooltip title="Number of records with non-numeric payment amounts" arrow>
+                <span className="font-bold text-amber-600">
+                  {Number(stats?.dataQuality?.fom?.nonNumericPayments?.total || 0).toLocaleString()}
+                </span>
+              </Tooltip>{" "}
+              <span className="text-gray-500 text-xs">(Total)</span>
             </span>
           </div>
         );
@@ -322,6 +436,12 @@ export const TableComponent = function TableComponent({
                         Balance: {Number(findMetric('CAL')?.metrics?.[3]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[3]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[3]?.unit}
                       </span>
                     </Tooltip>
+                    <span> • </span>
+                    <Tooltip title="Number of records with non-numeric payment amounts" arrow>
+                      <span>
+                        Non-numeric: {Number(findMetric('CAL')?.metrics?.[4]?.page || 0).toLocaleString()} / {Number(findMetric('CAL')?.metrics?.[4]?.total || 0).toLocaleString()}
+                      </span>
+                    </Tooltip>
                   </span>
                 </div>
               </div>
@@ -373,6 +493,12 @@ export const TableComponent = function TableComponent({
                     Paid: {Number(findMetric('CAL')?.metrics?.[2]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[2]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[2]?.unit}
                   </span>
                 </Tooltip>
+                <span> • </span>
+                <Tooltip title={findMetric('CAL')?.metrics?.[3]?.tooltip} arrow>
+                  <span>
+                    Balance: {Number(findMetric('CAL')?.metrics?.[3]?.page || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} / {Number(findMetric('CAL')?.metrics?.[3]?.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2})} {findMetric('CAL')?.metrics?.[3]?.unit}
+                  </span>
+                </Tooltip>
               </span>
             </div>
           </div>
@@ -416,7 +542,8 @@ export const TableComponent = function TableComponent({
     stats,
     userRole,
     hasWmmRole,
-    clientCountDisplay
+    clientCountDisplay,
+    statsLoading
   ]);
 
   const handleCellClick = (event, row, cell) => {
