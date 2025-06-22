@@ -3,7 +3,29 @@ export const parseDate = (dateString) => {
   if (!dateString) return null;
     
   try {
-    // Handle "MM/DD/YYYY" format (common in US format)
+    // Handle "YYYY-MM-DD" format (new standard format)
+    if (typeof dateString === 'string' && dateString.includes('-')) {
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
+        const day = parseInt(parts[2], 10);
+        
+        // Create date using UTC to avoid timezone issues
+        const date = new Date(Date.UTC(year, month, day));
+        
+        // Validation check
+        if (
+          date.getUTCFullYear() === year &&
+          date.getUTCMonth() === month &&
+          date.getUTCDate() === day
+        ) {
+          return date;
+        }
+      }
+    }
+
+    // Legacy support for "MM/DD/YYYY" format
     if (typeof dateString === 'string' && dateString.includes('/')) {
       const parts = dateString.split('/');
       if (parts.length === 3) {
@@ -30,7 +52,7 @@ export const parseDate = (dateString) => {
       }
     }
     
-    // Try as standard ISO date if not MM/DD/YYYY
+    // Try as standard ISO date if not in YYYY-MM-DD or MM/DD/YYYY format
     const date = new Date(dateString);
     
     // For ISO string dates, set the time to noon UTC

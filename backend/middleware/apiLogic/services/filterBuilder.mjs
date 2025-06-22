@@ -135,7 +135,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           subsDateObj: {
             $dateFromString: {
               dateString: "$subsdate",
-              format: "%m/%d/%Y %H:%M:%S",
+              format: "%Y-%m-%d",
               onError: null,
               onNull: null
             }
@@ -372,7 +372,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
                   recvDateObj: {
                     $dateFromString: {
                       dateString: "$recvdate",
-                      format: "%m/%d/%Y %H:%M:%S",
+                      format: "%Y-%m-%d",
                       onError: null,
                       onNull: null
                     }
@@ -428,7 +428,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
                   recvDateObj: {
                     $dateFromString: {
                       dateString: "$recvdate",
-                      format: "%m/%d/%Y %H:%M:%S",
+                      format: "%Y-%m-%d",
                       onError: null,
                       onNull: null
                     }
@@ -654,7 +654,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             parsedDate: {
               $dateFromString: {
                 dateString: `$${dateField}`,
-                format: "%m/%d/%Y",
+                format: "%Y-%m-%d",
                 timezone: "UTC",
                 onError: null,
                 onNull: null
@@ -729,7 +729,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             subsDateObj: {
               $dateFromString: {
                 dateString: "$subsdate",
-                format: "%m/%d/%Y %H:%M:%S",
+                format: "%Y-%m-%d",
                 timezone: "UTC",
                 onError: null,
                 onNull: null
@@ -738,7 +738,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             endDateObj: {
               $dateFromString: {
                 dateString: "$enddate",
-                format: "%m/%d/%Y %H:%M:%S",
+                format: "%Y-%m-%d",
                 timezone: "UTC",
                 onError: null,
                 onNull: null
@@ -816,8 +816,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             endDateObj: {
               $dateFromString: {
                 dateString: "$enddate",
-                format: "%m/%d/%Y %H:%M:%S",
-                timezone: "UTC"
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
               }
             }
           }
