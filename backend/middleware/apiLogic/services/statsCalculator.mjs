@@ -113,9 +113,12 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       }
     };
 
-    // Get total client count for filtered clients
-    const totalFilteredClients = await ClientModel.find(filterQuery).countDocuments();
-    stats.clientCount.total = totalFilteredClients;
+    // Get total client count for all clients in database
+    const [totalClients, totalFilteredClients] = await Promise.all([
+      ClientModel.countDocuments(),
+      ClientModel.find(filterQuery).countDocuments()
+    ]);
+    stats.clientCount.total = totalClients;
 
     // Calculate skip for pagination
     const skip = (page - 1) * limit;
