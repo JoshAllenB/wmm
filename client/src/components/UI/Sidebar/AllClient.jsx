@@ -13,7 +13,19 @@ import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
 import { ColumnToggle } from "../../Table/ColumnToggle";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Calendar } from "lucide-react";
+import { toast } from "../ShadCN/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../ShadCN/dialog";
+import { RadioGroup, RadioGroupItem } from "../ShadCN/radio-group";
+import { Label } from "../ShadCN/label";
+import CalendarUpdate from "../../Calendar";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -1209,6 +1221,17 @@ const AllClient = () => {
           selectedGroup={selectedGroup}
           filtering={filtering}
         />
+        {hasRole("Admin") && (
+          <CalendarUpdate
+            filtering={filtering}
+            selectedGroup={selectedGroup}
+            advancedFilterData={advancedFilterData}
+            onUpdateSuccess={fetchData}
+            page={page}
+            pageSize={pageSize}
+            debouncedFiltering={debouncedFiltering}
+          />
+        )}
       </div>
       <div className="flex gap-4 mb-4">
         <Input

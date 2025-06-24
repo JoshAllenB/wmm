@@ -13,6 +13,7 @@ import dataService from "../apiLogic/services/DataService.mjs";
 import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
 import { checkDuplicates } from './duplicateCheck.mjs';
 import { calculateStatistics } from '../apiLogic/services/statsCalculator.mjs';
+import { buildFilterQuery } from '../apiLogic/services/filterBuilder.mjs';
 
 dotenv.config();
 
@@ -1153,6 +1154,177 @@ router.post(
       });
     } catch (error) {
       console.error("Error in CSV import:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message
+      });
+    }
+  }
+);
+
+router.post(
+  "/preview-calendar-update",
+  verifyToken,
+  attachSocketId,
+  async (req, res) => {
+    try {
+      const { filter = "", group = "", advancedFilterData = {} } = req.body;
+
+      // Get the filter query
+      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      console.log("Preview filter query:", filterQuery);
+
+      // Get all matching clients
+      const clients = await ClientModel.find(filterQuery).lean();
+      console.log(`Preview found ${clients.length} matching clients`);
+
+      // Count clients with WMM records
+      let clientsWithWmm = 0;
+      for (const client of clients) {
+        const hasWmmRecord = await WmmModel.exists({ clientid: client.id });
+        if (hasWmmRecord) {
+          clientsWithWmm++;
+        }
+      }
+
+      res.json({
+        success: true,
+        totalClients: clients.length,
+        clientsWithWmm
+      });
+
+    } catch (error) {
+      console.error("Error getting calendar update preview:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message
+      });
+    }
+  }
+);
+
+router.post(
+  "/update-calendar",
+  verifyToken,
+  attachSocketId,
+  async (req, res) => {
+    const io = req.io;
+    try {
+      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo } = req.body;
+
+      console.log("Calendar Update Request:", {
+        filter,
+        group,
+        advancedFilterData,
+        setCalendarTo
+      });
+
+      if (setCalendarTo === undefined) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "setCalendarTo parameter is required"
+        });
+      }
+
+      // First get the filter query
+      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      console.log("Built filter query:", filterQuery);
+
+      // Get all matching clients
+      const clients = await ClientModel.find(filterQuery).lean();
+      console.log(`Found ${clients.length} matching clients`);
+
+      if (!clients || clients.length === 0) {
+        return res.json({
+          success: true,
+          message: "No matching clients found",
+          modifiedCount: 0
+        });
+      }
+
+      let modifiedCount = 0;
+      let processedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+      let updatedClientIds = []; // Track updated client IDs
+
+      // Update each client's most recent WMM record
+      for (const client of clients) {
+        try {
+          processedCount++;
+          // Find all WMM records for this client
+          const wmmRecords = await WmmModel.find({ clientid: client.id })
+            .sort({ subsdate: -1 })
+            .lean();
+
+          if (wmmRecords && wmmRecords.length > 0) {
+            // Get the most recent record
+            const mostRecentRecord = wmmRecords[0];
+            
+            // Update the calendar status for the most recent record
+            // Use updateOne with overwrite option to force update
+            const updateResult = await WmmModel.updateOne(
+              { _id: mostRecentRecord._id },
+              { 
+                $set: { 
+                  calendar: setCalendarTo,
+                  editdate: new Date(),
+                  edituser: req.user.username
+                }
+              },
+              { overwrite: false, upsert: false }  // Don't overwrite whole doc, but force update
+            );
+
+            // Count as modified since we're forcing the update
+            modifiedCount++;
+            updatedClientIds.push({
+              id: client.id,
+              name: `${client.lname}, ${client.fname}`,
+              wmmId: mostRecentRecord._id
+            });
+          } else {
+            skippedCount++;
+            console.log(`No WMM records found for client ID: ${client.id}`);
+          }
+        } catch (err) {
+          errorCount++;
+          console.error(`Error processing client ID ${client.id}:`, err);
+        }
+      }
+
+      console.log("Calendar Update Summary:", {
+        totalClientsFound: clients.length,
+        processedCount,
+        modifiedCount,
+        skippedCount,
+        errorCount,
+        updatedClientIds
+      });
+
+      // Emit socket event for data update
+      if (io) {
+        io.emit("data-update", {
+          type: "bulk-update",
+          message: "Calendar status updated for filtered clients"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Updated calendar status for ${modifiedCount} records`,
+        modifiedCount,
+        summary: {
+          totalClientsFound: clients.length,
+          processedCount,
+          modifiedCount,
+          skippedCount,
+          errorCount,
+          updatedClientIds
+        }
+      });
+
+    } catch (error) {
+      console.error("Error updating calendar status:", error);
       res.status(500).json({
         error: "Internal Server Error",
         message: error.message
