@@ -1203,7 +1203,12 @@ const AllClient = () => {
     <div className="mr-[10px] ml-[10px]">
       <div className="flex gap-2">
         <Add fetchClients={() => fetchClients(setClientData)} />
-        <Mailing table={tableInstance} />
+        <Mailing 
+          table={tableInstance} 
+          advancedFilterData={advancedFilterData}
+          selectedGroup={selectedGroup}
+          filtering={filtering}
+        />
       </div>
       <div className="flex gap-4 mb-4">
         <Input

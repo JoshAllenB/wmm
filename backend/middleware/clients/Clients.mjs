@@ -18,6 +18,67 @@ dotenv.config();
 
 const router = express.Router();
 
+// Shared function for data fetching logic
+const fetchClientData = async (req, options = {}) => {
+  const {
+    skipPagination = false,
+    page = 1,
+    pageSize = 20,
+    filter = "",
+    group = "",
+    ...advancedFilterData
+  } = options;
+
+  await req.user.populate({
+    path: "roles.role",
+    populate: { path: "defaultPermissions" },
+  });
+
+  const userRoles = req.user.roles.map((role) => role.role.name);
+  const modelNames = userRoles.includes("Admin")
+    ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
+    : userRoles.map((role) => `${role}Model`);
+
+  // Use appropriate data fetching method based on skipPagination
+  const results = skipPagination
+    ? await dataService.fetchAllData({
+        modelNames,
+        filter,
+        group,
+        clientIds: null,
+        advancedFilterData
+      })
+    : await dataService.fetchData({
+        modelNames,
+        filter,
+        page,
+        limit: pageSize,
+        pageSize,
+        group,
+        clientIds: null,
+        advancedFilterData
+      });
+
+  // Process and merge client services data
+  const { combinedData, clientServices, stats, totalPages, currentPage } = results;
+  const processedData = combinedData.map((client) => {
+    const clientService = clientServices.find(
+      (service) => service.clientId === client.id
+    );
+    return {
+      ...client,
+      services: clientService ? clientService.services : [],
+    };
+  });
+
+  return {
+    processedData,
+    stats,
+    totalPages,
+    currentPage
+  };
+};
+
 router.get(
   "/",
   verifyToken,
@@ -32,14 +93,58 @@ router.get(
       group = "",
       ...advancedFilterData
     } = req.query;
-    
-    // Ensure page and pageSize are valid integers with fallbacks
-    const parsedPage = parseInt(page, 10);
-    const parsedPageSize = parseInt(pageSize, 10);
-    
-    // Use fallback values if parsing results in NaN
-    const validPage = isNaN(parsedPage) ? 1 : parsedPage;
-    const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
+
+    try {
+      const parsedPage = parseInt(page, 10);
+      const parsedPageSize = parseInt(pageSize, 10);
+      const validPage = isNaN(parsedPage) ? 1 : parsedPage;
+      const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
+
+      const { processedData, stats, totalPages, currentPage } = await fetchClientData(req, {
+        page: validPage,
+        pageSize: validPageSize,
+        filter,
+        group,
+        ...advancedFilterData
+      });
+
+      const actualPage = Math.min(currentPage, totalPages || 1);
+
+      res.json({
+        combinedData: processedData,
+        page: actualPage,
+        totalPages: totalPages || 1,
+        stats
+      });
+
+      if (io && socketId) {
+        io.to(socketId).emit("dataFetched", {
+          message: "Data fetched successfully",
+          timestamp: new Date(),
+        });
+      }
+    } catch (error) {
+      console.error("Error in client data fetch:", error);
+      res.status(500).json({
+        error: "Internal server error",
+        message: error.message,
+      });
+    }
+  }
+);
+
+router.get(
+  "/fetchall",
+  verifyToken,
+  attachSocketId,
+  async (req, res) => {
+    const io = req.io;
+    const socketId = req.socketId;
+    const {
+      filter = "",
+      group = "",
+      ...advancedFilterData
+    } = req.query;
 
     try {
       await req.user.populate({
@@ -47,39 +152,21 @@ router.get(
         populate: { path: "defaultPermissions" },
       });
 
-      // Log the roles being received
       const userRoles = req.user.roles.map((role) => role.role.name);
-
-      // Determine model names based on all roles
       const modelNames = userRoles.includes("Admin")
         ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
         : userRoles.map((role) => `${role}Model`);
 
-      // Use DataService to fetch data with all calculations included
-      const results = await dataService.fetchData({
+      const results = await dataService.fetchAllData({
         modelNames,
         filter,
-        page: validPage,
-        limit: validPageSize,
-        pageSize: validPageSize,
         group,
         clientIds: null,
         advancedFilterData
       });
 
-      // Extract needed data from results
-      const {
-        combinedData,
-        clientServices,
-        totalPages,
-        stats,
-        currentPage
-      } = results;
-
-      // Ensure page number doesn't exceed total pages
-      const actualPage = Math.min(currentPage, totalPages || 1);
-
-      // Merge clientServices into combinedData
+      // Process and merge client services data
+      const { combinedData, clientServices, stats } = results;
       const processedData = combinedData.map((client) => {
         const clientService = clientServices.find(
           (service) => service.clientId === client.id
@@ -90,18 +177,14 @@ router.get(
         };
       });
 
-      // Send response with all calculated data
       res.json({
         combinedData: processedData,
-        page: actualPage,
-        totalPages: totalPages || 1,
         stats
       });
 
-      // Emit socket event if needed
       if (io && socketId) {
         io.to(socketId).emit("dataFetched", {
-          message: "Data fetched successfully",
+          message: "All data fetched successfully",
           timestamp: new Date(),
         });
       }

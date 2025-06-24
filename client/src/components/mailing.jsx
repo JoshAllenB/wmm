@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 import axios from "axios";
@@ -80,6 +80,9 @@ const Mailing = ({
   cellno,
   officeno,
   copies,
+  advancedFilterData = {},
+  selectedGroup = "",
+  filtering = ""
 }) => {
   const { hasRole } = useUser();
   
@@ -167,8 +170,17 @@ const Mailing = ({
   const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
   const thankYouLetterRef = useRef(null);
 
+  // Add new state for useFetchAll and allData
+  const [useFetchAll, setUseFetchAll] = useState(false);
+  const [isFetchingAll, setIsFetchingAll] = useState(false);
+  const [allData, setAllData] = useState(null);
+
   // Get rows from table
   const getAvailableRows = useCallback(() => {
+    if (useFetchAll && allData) {
+      return allData.map(item => ({ original: item }));
+    }
+
     if (!table || typeof table.getRowModel !== "function") return [];
     try {
       // First check if there are selected rows
@@ -184,10 +196,140 @@ const Mailing = ({
       console.error("Error getting available rows:", error);
       return [];
     }
-  }, [table]);
+  }, [table, useFetchAll, allData]);
 
-  const availableRows = getAvailableRows();
+  // Get available rows using useMemo to avoid initialization issues
+  const availableRows = useMemo(() => getAvailableRows(), [getAvailableRows]);
   const hasAvailableRows = availableRows.length > 0;
+
+  // Get row count based on selected dataSource
+  const getRowCount = useCallback(() => {
+    if (!table) return 0;
+    
+    if (dataSource === "all") {
+      return table.getFilteredRowModel().rows.length;
+    } else if (dataSource === "selected") {
+      return table.getSelectedRowModel().rows.length;
+    } else if (dataSource === "range") {
+      // Count rows within the specified range
+      return availableRows.filter((row) => {
+        const clientId = row?.original?.id?.toString();
+        if (!clientId) return false;
+        
+        const trimmedStartId = startClientId?.trim();
+        const trimmedEndId = endClientId?.trim();
+        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+        const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+        return isAfterStart && isBeforeEnd;
+      }).length;
+    }
+    return 0;
+  }, [table, dataSource, availableRows, startClientId, endClientId]);
+
+  // Initialize client ID range when available rows change
+  useEffect(() => {
+    if (hasAvailableRows) {
+      const firstId = availableRows[0]?.original?.id?.toString() || "";
+      const lastId = availableRows[availableRows.length - 1]?.original?.id?.toString() || "";
+
+      if (firstId && lastId) {
+        const firstNum = parseInt(firstId, 10);
+        const lastNum = parseInt(lastId, 10);
+        if (!isNaN(firstNum) && !isNaN(lastNum)) {
+          setStartClientId(Math.min(firstNum, lastNum).toString());
+          setEndClientId(Math.max(firstNum, lastNum).toString());
+        } else {
+          if (firstId <= lastId) {
+            setStartClientId(firstId);
+            setEndClientId(lastId);
+          } else {
+            setStartClientId(lastId);
+            setEndClientId(firstId);
+          }
+        }
+      } else {
+        setStartClientId(firstId || lastId);
+        setEndClientId(lastId || firstId);
+      }
+    } else {
+      setStartClientId("");
+      setEndClientId("");
+    }
+  }, [availableRows]);
+
+  // Fetch templates on component mount
+  useEffect(() => {
+    fetchAllTemplates();
+  }, []);
+
+  // Add effect to fetch all data when useFetchAll changes
+  useEffect(() => {
+    const fetchData = async () => {
+      if (useFetchAll && !allData) {
+        setIsFetchingAll(true);
+        try {
+          const data = await fetchAllData();
+          setAllData(data);
+        } catch (error) {
+          console.error("Error fetching all data:", error);
+          setUseFetchAll(false); // Revert to table data on error
+          alert("Failed to fetch all data. Reverting to table data.");
+        }
+        setIsFetchingAll(false);
+      }
+    };
+
+    fetchData();
+  }, [useFetchAll]);
+
+  // New function to fetch all data
+  const fetchAllData = async () => {
+    try {
+      // Build query parameters using the current filter state
+      const queryParams = new URLSearchParams();
+      
+      // Add global filter if exists
+      if (filtering) {
+        queryParams.append('filter', filtering);
+      }
+
+      // Add group filter if exists
+      if (selectedGroup) {
+        queryParams.append('group', selectedGroup);
+      }
+
+      // Add all advanced filter data
+      Object.entries(advancedFilterData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          if (Array.isArray(value)) {
+            // Handle arrays (like services)
+            if (value.length > 0) {
+              queryParams.append(key, value.join(','));
+            }
+          } else {
+            queryParams.append(key, value);
+          }
+        }
+      });
+
+      const response = await axios.get(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall?${queryParams.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          }
+        }
+      );
+      
+      if (response.data && response.data.combinedData) {
+        return response.data.combinedData;
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching all data:", error);
+      return [];
+    }
+  };
 
   // Fetch templates and legacy labels
   const fetchAllTemplates = async () => {
@@ -298,42 +440,6 @@ const Mailing = ({
     }
   };
 
-  // Initialize client ID range when available rows change
-  useEffect(() => {
-    if (hasAvailableRows) {
-      const firstId = availableRows[0]?.original?.id?.toString() || "";
-      const lastId = availableRows[availableRows.length - 1]?.original?.id?.toString() || "";
-
-      if (firstId && lastId) {
-        const firstNum = parseInt(firstId, 10);
-        const lastNum = parseInt(lastId, 10);
-        if (!isNaN(firstNum) && !isNaN(lastNum)) {
-          setStartClientId(Math.min(firstNum, lastNum).toString());
-          setEndClientId(Math.max(firstNum, lastNum).toString());
-        } else {
-          if (firstId <= lastId) {
-            setStartClientId(firstId);
-            setEndClientId(lastId);
-          } else {
-            setStartClientId(lastId);
-            setEndClientId(firstId);
-          }
-        }
-      } else {
-        setStartClientId(firstId || lastId);
-        setEndClientId(lastId || firstId);
-      }
-    } else {
-      setStartClientId("");
-      setEndClientId("");
-    }
-  }, [availableRows]);
-
-  // Fetch templates on component mount
-  useEffect(() => {
-    fetchAllTemplates();
-  }, []);
-
   // Handle template selection
   const handleTemplateSelect = (templateName) => {
     const selected = savedTemplates.find(
@@ -413,13 +519,13 @@ const Mailing = ({
   };
 
   // Handle print with range
-  const handlePrintWithRange = () => {
+  const handlePrintWithRange = async () => {
     let templateToUse = selectedTemplate;
     if (!templateToUse) {
       templateToUse = {
         name: "Default Template",
         layout: {
-          fontSize, // Font size stays in pt
+          fontSize,
           leftPosition: mmToPx(leftPosition),
           topPosition: mmToPx(topPosition),
           columnWidth: mmToPx(columnWidth),
@@ -431,10 +537,17 @@ const Mailing = ({
       };
     }
 
+    // Determine if we need all data
+    let rowsToUse = availableRows;
+    if (dataSource === "all") {
+      const allData = await fetchAllData();
+      rowsToUse = allData.map(item => ({ original: item }));
+    }
+
     // For legacy templates, generate and download .prn file
     if (templateToUse.isLegacy) {
       // Filter rows based on start/end Client IDs
-      const filteredRows = availableRows.filter((row) => {
+      const filteredRows = rowsToUse.filter((row) => {
         const clientId = row?.original?.id?.toString();
         if (!clientId) return false;
         
@@ -458,7 +571,7 @@ const Mailing = ({
       startClientId,
       endClientId,
       startPosition,
-      availableRows,
+      rowsToUse,
       useLegacyFormat,
       templateToUse,
       mmToPx(leftPosition),
@@ -466,7 +579,7 @@ const Mailing = ({
       mmToPx(columnWidth),
       mmToPx(horizontalSpacing),
       mmToPx(rowSpacing),
-      fontSize, // Font size stays in pt
+      fontSize,
       mmToPx(labelHeight),
       selectedFields,
       userRole
@@ -490,8 +603,15 @@ const Mailing = ({
     }
 
     try {
+      // Determine if we need all data
+      let rowsToUse = availableRows;
+      if (dataSource === "all") {
+        const allData = await fetchAllData();
+        rowsToUse = allData.map(item => ({ original: item }));
+      }
+
       // Filter rows based on start/end Client IDs
-      const filteredRows = availableRows.filter((row) => {
+      const filteredRows = rowsToUse.filter((row) => {
         const clientId = row?.original?.id?.toString();
         if (!clientId) return false;
         
@@ -701,28 +821,6 @@ const Mailing = ({
     }
   };
 
-  // Get row count based on selected dataSource
-  const getRowCount = useCallback(() => {
-    if (dataSource === "all") {
-      return table.getFilteredRowModel().rows.length;
-    } else if (dataSource === "selected") {
-      return table.getSelectedRowModel().rows.length;
-    } else if (dataSource === "range") {
-      // Count rows within the specified range
-      return availableRows.filter((row) => {
-        const clientId = row?.original?.id?.toString();
-        if (!clientId) return false;
-        
-        const trimmedStartId = startClientId?.trim();
-        const trimmedEndId = endClientId?.trim();
-        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-        const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
-        return isAfterStart && isBeforeEnd;
-      }).length;
-    }
-    return 0;
-  }, [table, dataSource, availableRows, startClientId, endClientId]);
-
   // Function to update renewal notice positions from shared config
   const updateRenewalNoticePositions = (positions) => {
     setRenewalNoticeConfig(prev => ({
@@ -793,14 +891,14 @@ const Mailing = ({
 
   return (
     <div className="flex flex-col justify-between">
-      {hasAvailableRows && (
+      {(hasAvailableRows || useFetchAll) && (
         <div className="flex gap-2">
           <Button
             onClick={toggleModal}
             className="text-sm bg-green-600 hover:bg-green-800 text-white"
-            disabled={isLoading}
+            disabled={isLoading || isFetchingAll}
           >
-            {isLoading ? 'Loading Templates...' : `Print Mailing Label (${availableRows.length})`}
+            {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${useFetchAll && allData ? allData.length : availableRows.length})`}
           </Button>
           
           {/* Renewal Notice Button */}
@@ -850,6 +948,29 @@ const Mailing = ({
             {/* Left Panel - Configuration Controls */}
             <div className="w-[400px] flex-shrink-0">
               <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
+                {/* Data Source Toggle */}
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                  <h4 className="font-medium mb-2">Data Source</h4>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Use All Available Data</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={useFetchAll}
+                        onChange={(e) => setUseFetchAll(e.target.checked)}
+                        disabled={isFetchingAll}
+                      />
+                      <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600`}></div>
+                    </label>
+                  </div>
+                  <p className="text-xs mt-2 text-blue-700">
+                    {isFetchingAll ? "Fetching all data..." : 
+                     useFetchAll ? `Using all available data (${allData?.length || 0} records)` : 
+                     "Using current table data"}
+                  </p>
+                </div>
+
                 {/* Configuration Toggle and Checklist Button */}
                 <div className="flex justify-center gap-2 mb-4">
                   <Button onClick={toggleShowInputs} variant="outline">

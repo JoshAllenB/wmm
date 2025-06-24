@@ -85,6 +85,44 @@ class DataService {
       };
     });
   }
+
+  async fetchAllData(params) {
+    const {
+      modelNames,
+      filter,
+      group,
+      clientIds = null,
+      advancedFilterData = {}
+    } = params;
+
+    try {
+      // Build filter query (same as before)
+      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+
+      // Get ALL clients without pagination
+      const clients = await ClientModel.find(filterQuery)
+        .sort({ id: 1 })
+        .lean();
+
+      // Get all data without pagination
+      const { combinedData } = await aggregateClientData(clients, modelNames, advancedFilterData);
+
+      // Calculate statistics for the entire dataset
+      const stats = await calculateStatistics(filterQuery, 1, clients.length);
+
+      // Prepare response
+      const response = {
+        stats,
+        combinedData,
+        clientServices: this._buildClientServices(combinedData)
+      };
+
+      return response;
+    } catch (error) {
+      console.error('Error in DataService.fetchAllData:', error);
+      throw error;
+    }
+  }
 }
 
 // Create and export a singleton instance
