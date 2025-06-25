@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
+import { ScrollArea } from "./UI/ShadCN/scroll-area";
 import axios from "axios";
 import { useUser } from "../utils/Hooks/userProvider";
 
@@ -15,6 +16,7 @@ import CsvImport from "./Mailing/CsvImport";
 import MailingActions from "./Mailing/MailingActions";
 import RenewalNoticeDataOverlay from "./Mailing/RenewalNotice";
 import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
+import DocumentGenerator from "./Mailing/DocumentGenerator";
 
 // Import utility functions
 import { generatePrintHTML, generateChecklistHTML, generatePrnContent } from "./Mailing/PrintGenerator";
@@ -171,13 +173,66 @@ const Mailing = ({
   const thankYouLetterRef = useRef(null);
 
   // Add new state for useFetchAll and allData
-  const [useFetchAll, setUseFetchAll] = useState(false);
   const [isFetchingAll, setIsFetchingAll] = useState(false);
   const [allData, setAllData] = useState(null);
+  const [useAllData, setUseAllData] = useState(false);
 
-  // Get rows from table
+  // State variables for document generator and CSV export
+  const [documentGeneratorOpen, setDocumentGeneratorOpen] = useState(false);
+  const [csvExportOpen, setCsvExportOpen] = useState(false);
+
+  // Add state for skipped data handling
+  const [skippedData, setSkippedData] = useState([]);
+  const [showSkippedData, setShowSkippedData] = useState(false);
+
+  // Function to handle skipped data updates
+  const handleSkippedDataUpdate = (skippedRecords) => {
+    setSkippedData(skippedRecords);
+    // If there are skipped records, automatically show them
+    if (skippedRecords && skippedRecords.length > 0) {
+      setShowSkippedData(true);
+    }
+  };
+
+  // Function to handle opening document generator
+  const handleOpenDocumentGenerator = async () => {
+    // Reset skipped data when opening document generator
+    setSkippedData([]);
+    setShowSkippedData(false);
+    
+    if (!allData) {
+      setIsFetchingAll(true);
+      try {
+        const data = await fetchAllData();
+        setAllData(data);
+      } catch (error) {
+        console.error("Error fetching all data:", error);
+        alert("Failed to fetch all data. Using table data instead.");
+      }
+      setIsFetchingAll(false);
+    }
+    setDocumentGeneratorOpen(true);
+  };
+
+  // Function to handle opening CSV export
+  const handleOpenCsvExport = async () => {
+    if (!allData) {
+      setIsFetchingAll(true);
+      try {
+        const data = await fetchAllData();
+        setAllData(data);
+      } catch (error) {
+        console.error("Error fetching all data:", error);
+        alert("Failed to fetch all data. Using table data instead.");
+      }
+      setIsFetchingAll(false);
+    }
+    setCsvExportOpen(true);
+  };
+
+  // Get rows based on current selection
   const getAvailableRows = useCallback(() => {
-    if (useFetchAll && allData) {
+    if (useAllData && allData) {
       return allData.map(item => ({ original: item }));
     }
 
@@ -196,7 +251,7 @@ const Mailing = ({
       console.error("Error getting available rows:", error);
       return [];
     }
-  }, [table, useFetchAll, allData]);
+  }, [table, useAllData, allData]);
 
   // Get available rows using useMemo to avoid initialization issues
   const availableRows = useMemo(() => getAvailableRows(), [getAvailableRows]);
@@ -265,14 +320,14 @@ const Mailing = ({
   // Add effect to fetch all data when useFetchAll changes
   useEffect(() => {
     const fetchData = async () => {
-      if (useFetchAll && !allData) {
+      if (useAllData && !allData) {
         setIsFetchingAll(true);
         try {
           const data = await fetchAllData();
           setAllData(data);
         } catch (error) {
           console.error("Error fetching all data:", error);
-          setUseFetchAll(false); // Revert to table data on error
+          setUseAllData(false); // Revert to table data on error
           alert("Failed to fetch all data. Reverting to table data.");
         }
         setIsFetchingAll(false);
@@ -280,7 +335,7 @@ const Mailing = ({
     };
 
     fetchData();
-  }, [useFetchAll]);
+  }, [useAllData]);
 
   // New function to fetch all data
   const fetchAllData = async () => {
@@ -553,8 +608,19 @@ const Mailing = ({
         
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
-        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-        const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+        
+        // Convert to numbers for comparison
+        const numericClientId = parseInt(clientId, 10);
+        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+        
+        // Check if any conversion resulted in NaN
+        if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+          return false;
+        }
+        
+        const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+        const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
         return isAfterStart && isBeforeEnd;
       });
 
@@ -617,8 +683,19 @@ const Mailing = ({
         
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
-        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-        const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+        
+        // Convert to numbers for comparison
+        const numericClientId = parseInt(clientId, 10);
+        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+        
+        // Check if any conversion resulted in NaN
+        if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+          return false;
+        }
+        
+        const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+        const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
         return isAfterStart && isBeforeEnd;
       });
 
@@ -891,49 +968,33 @@ const Mailing = ({
 
   return (
     <div className="flex flex-col justify-between">
-      {(hasAvailableRows || useFetchAll) && (
+      {(hasAvailableRows || allData) && (
         <div className="flex gap-2">
           <Button
             onClick={toggleModal}
             className="text-sm bg-green-600 hover:bg-green-800 text-white"
             disabled={isLoading || isFetchingAll}
           >
-            {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${useFetchAll && allData ? allData.length : availableRows.length})`}
+            {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${availableRows.length})`}
           </Button>
           
-          {/* Renewal Notice Button */}
+          {/* Document Generator Button */}
           <Button
-            onClick={() => setRenewalNoticeModalOpen(true)}
+            onClick={handleOpenDocumentGenerator}
             className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
-            disabled={isLoading}
+            disabled={isLoading || isFetchingAll}
           >
-            <span className="mr-1">🖨️</span> Renewal Notice
+            <span className="mr-1">🖨️</span> Print Documents
           </Button>
           
-          {/* Thank You Letter Button */}
+          {/* CSV Export Button */}
           <Button
-            onClick={() => setThankYouLetterModalOpen(true)}
+            onClick={handleOpenCsvExport}
             className="text-sm bg-purple-600 hover:bg-purple-700 text-white"
-            disabled={isLoading}
+            disabled={isLoading || isFetchingAll}
           >
-            <span className="mr-1">🖨️</span> Thank You Letter
+            <span className="mr-1">📊</span> Export CSV
           </Button>
-          
-          {/* Add CSV Export Component */}
-          <CsvExport
-            selectedRows={availableRows}
-            dataSource={dataSource}
-            startClientId={startClientId}
-            endClientId={endClientId}
-            setDataSource={setDataSource}
-            setStartClientId={setStartClientId}
-            setEndClientId={setEndClientId}
-            getRowCount={getRowCount}
-            table={table}
-          />
-          
-          {/* Add CSV Import Component */}
-          <CsvImport onImportComplete={handleImportComplete} />
         </div>
       )}
       
@@ -948,27 +1009,34 @@ const Mailing = ({
             {/* Left Panel - Configuration Controls */}
             <div className="w-[400px] flex-shrink-0">
               <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
-                {/* Data Source Toggle */}
-                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium mb-2">Data Source</h4>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Use All Available Data</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={useFetchAll}
-                        onChange={(e) => setUseFetchAll(e.target.checked)}
+                {/* Standardized Data Source Toggle */}
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex flex-col">
+                    <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        onClick={() => setUseAllData(false)}
+                        size="sm"
+                        variant={useAllData ? "outline" : "default"}
+                        className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
                         disabled={isFetchingAll}
-                      />
-                      <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600`}></div>
-                    </label>
+                      >
+                        Selected ({availableRows.length})
+                      </Button>
+                      <Button
+                        onClick={() => setUseAllData(true)}
+                        size="sm"
+                        variant={useAllData ? "default" : "outline"}
+                        className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+                        disabled={isFetchingAll}
+                      >
+                        All Records ({allData?.length || 0})
+                      </Button>
+                    </div>
+                    {isFetchingAll && (
+                      <p className="text-xs mt-2 text-blue-700">Fetching all data...</p>
+                    )}
                   </div>
-                  <p className="text-xs mt-2 text-blue-700">
-                    {isFetchingAll ? "Fetching all data..." : 
-                     useFetchAll ? `Using all available data (${allData?.length || 0} records)` : 
-                     "Using current table data"}
-                  </p>
                 </div>
 
                 {/* Configuration Toggle and Checklist Button */}
@@ -1151,6 +1219,109 @@ const Mailing = ({
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Document Generator Modal */}
+      <Modal 
+        isOpen={documentGeneratorOpen} 
+        onClose={() => {
+          setDocumentGeneratorOpen(false);
+          setUseAllData(false);
+          setSkippedData([]);
+          setShowSkippedData(false);
+        }}
+      >
+        <DocumentGenerator
+          startClientId={startClientId}
+          endClientId={endClientId}
+          availableRows={availableRows}
+          allData={allData}
+          useAllData={useAllData}
+          setUseAllData={setUseAllData}
+          onSkippedDataUpdate={handleSkippedDataUpdate}
+          onClose={() => {
+            setDocumentGeneratorOpen(false);
+            setUseAllData(false);
+            setSkippedData([]);
+            setShowSkippedData(false);
+          }}
+        />
+      </Modal>
+
+      {/* Display skipped data information */}
+      {skippedData.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div className="bg-yellow-50 rounded-lg shadow-lg border border-yellow-200 p-4 max-w-md">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-medium text-yellow-800">
+                Records Not Being Printed ({skippedData.length})
+              </h4>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSkippedData(!showSkippedData)}
+                className="text-yellow-800 hover:text-yellow-900"
+              >
+                {showSkippedData ? 'Hide Details' : 'Show Details'}
+              </Button>
+            </div>
+            
+            {showSkippedData && (
+              <ScrollArea className="h-[200px] w-full rounded border border-yellow-200 bg-white">
+                <div className="p-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b border-yellow-200">
+                        <th className="pb-2">ID</th>
+                        <th className="pb-2">Name/Company</th>
+                        <th className="pb-2">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {skippedData.map((record, index) => (
+                        <tr key={index} className="border-b border-yellow-100 last:border-0">
+                          <td className="py-2">{record.id}</td>
+                          <td className="py-2">
+                            {record.name || record.company || 'N/A'}
+                          </td>
+                          <td className="py-2 text-yellow-700">{record.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ScrollArea>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* CSV Export Modal */}
+      <Modal 
+        isOpen={csvExportOpen} 
+        onClose={() => {
+          setCsvExportOpen(false);
+          setUseAllData(false);
+        }}
+      >
+        <CsvExport
+          selectedRows={availableRows}
+          dataSource={dataSource}
+          startClientId={startClientId}
+          endClientId={endClientId}
+          setDataSource={setDataSource}
+          setStartClientId={setStartClientId}
+          setEndClientId={setEndClientId}
+          getRowCount={getRowCount}
+          table={table}
+          allData={allData}
+          useAllData={useAllData}
+          setUseAllData={setUseAllData}
+          onClose={() => {
+            setCsvExportOpen(false);
+            setUseAllData(false);
+          }}
+        />
       </Modal>
 
       {/* Printer Settings Modal */}
