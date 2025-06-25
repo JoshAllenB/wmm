@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from "react";
 import { Button } from "../UI/ShadCN/button";
 
 const ThankYouLetterDataOverlay = forwardRef(({ 
@@ -7,14 +7,15 @@ const ThankYouLetterDataOverlay = forwardRef(({
   availableRows, 
   parentPrintAlignmentTest = null,
   parentPrintDataOverlay = null,
-  // Add shared configuration props
   useSharedConfig = false,
-  sharedConfig = null
+  sharedConfig = null,
+  onSkippedDataUpdate = null
 }, ref) => {
   const [isLoading, setIsLoading] = useState(false);
   const [filteredSubscribers, setFilteredSubscribers] = useState([]);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [showConfig, setShowConfig] = useState(false);
+  const [skippedRecords, setSkippedRecords] = useState([]);
   
   // Configuration state for positions (defaulted to current values)
   const [positions, setPositions] = useState(() => {
@@ -102,32 +103,160 @@ const ThankYouLetterDataOverlay = forwardRef(({
   // State for storing preview HTML
   const [previewHTML, setPreviewHTML] = useState(null);
 
-  // Hide preview modal
-  const hidePreview = () => {
-    setPreviewHTML(null);
-  };
-
-  // Filter subscribers when ID range or available rows change
-  useEffect(() => {
-    if (!availableRows) return;
+  // Memoize the processSubscriberData function
+  const processSubscriberData = useCallback((row) => {
+    if (!row) {
+      return { skipped: true, reason: "Invalid row data" };
+    }
     
-    // Filter subscribers within the selected ID range
-    const filtered = availableRows.filter((row) => {
+    const original = row.original;
+    if (!original) {
+      return { skipped: true, reason: "Missing subscriber data" };
+    }
+    
+    // Check for required fields for thank you letter
+    const missingFields = [];
+    if (!original.id) missingFields.push("ID");
+    if (!original.fname && !original.lname && !original.company) {
+      missingFields.push("Name or Company");
+    }
+    if (!original.address1 && !original.address) missingFields.push("Address"); // Check both address1 and address
+    
+    // Check for valid dates
+    const wmmData = original.wmmData;
+    const subscription = wmmData?.records?.[0] || wmmData || {};
+    if (!subscription.enddate) {
+      missingFields.push("Expiry Date");
+    } else {
+      const expiryDate = new Date(subscription.enddate);
+      if (isNaN(expiryDate.getTime())) {
+        return {
+          skipped: true,
+          id: original.id || "N/A",
+          name: `${original.title || ''} ${original.fname || ''} ${original.lname || ''}`.trim() || original.company || "N/A",
+          reason: "Invalid expiry date"
+        };
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      return {
+        skipped: true,
+        id: original.id || "N/A",
+        name: `${original.title || ''} ${original.fname || ''} ${original.lname || ''}`.trim() || original.company || "N/A",
+        reason: `Missing required fields: ${missingFields.join(", ")}`
+      };
+    }
+
+    // If we get here, the record is valid
+    return {
+      skipped: false,
+      id: original.id,
+      title: original.title || "",
+      firstName: original.fname || "",
+      middleName: original.mname || "",
+      lastName: original.lname || "",
+      company: original.company || "",
+      address1: original.address1 || original.address || "",
+      address2: original.address2 || "",
+      address3: original.address3 || "",
+      address4: original.address4 || "",
+      hasPersonalName: !!(original.fname || original.lname || original.title),
+      hasCompany: !!original.company,
+      expiryDate: formatDate(subscription.enddate) // Format the date as a string
+    };
+  }, []);
+
+  // Memoize the filtering function
+  const filterSubscribers = useCallback((rows) => {
+    if (!rows) return { filtered: [], skipped: [] };
+    
+    const filtered = [];
+    const skipped = [];
+    
+    rows.forEach((row) => {
       const clientId = row?.original?.id?.toString();
-      if (!clientId) return false;
+      if (!clientId) {
+        skipped.push({
+          id: "N/A",
+          reason: "Missing client ID"
+        });
+        return;
+      }
       
       const trimmedStartId = startId?.trim();
       const trimmedEndId = endId?.trim();
-      const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-      const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
-      return isAfterStart && isBeforeEnd;
+      
+      // Convert to numbers for comparison
+      const numericClientId = parseInt(clientId, 10);
+      const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+      const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+      
+      // Check if any conversion resulted in NaN
+      if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+        skipped.push({
+          id: clientId,
+          name: `${row.original.title || ''} ${row.original.fname || ''} ${row.original.lname || ''}`.trim(),
+          company: row.original.company,
+          reason: "Invalid ID format"
+        });
+        return;
+      }
+      
+      const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+      const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
+      
+      if (!isAfterStart || !isBeforeEnd) {
+        skipped.push({
+          id: clientId,
+          name: `${row.original.title || ''} ${row.original.fname || ''} ${row.original.lname || ''}`.trim(),
+          company: row.original.company,
+          reason: "Outside selected ID range"
+        });
+        return;
+      }
+
+      const processedData = processSubscriberData(row);
+      if (processedData.skipped) {
+        skipped.push(processedData);
+      } else {
+        filtered.push(row);
+      }
     });
     
-    setFilteredSubscribers(filtered);
-    setSubscriberCount(filtered.length);
-  }, [startId, endId, availableRows]);
+    return { filtered, skipped };
+  }, [startId, endId, processSubscriberData]);
 
-  // Format date as human-readable Month Year
+  // Update filtered subscribers and skipped records when dependencies change
+  useEffect(() => {
+    // Skip the effect if there are no available rows
+    if (!availableRows?.length) {
+      setFilteredSubscribers([]);
+      setSubscriberCount(0);
+      setSkippedRecords([]);
+      if (onSkippedDataUpdate) {
+        onSkippedDataUpdate([]);
+      }
+      return;
+    }
+
+    // Debounce the filtering operation
+    const timeoutId = setTimeout(() => {
+      const { filtered, skipped } = filterSubscribers(availableRows);
+      setFilteredSubscribers(filtered);
+      setSubscriberCount(filtered.length);
+      setSkippedRecords(skipped);
+      
+      if (onSkippedDataUpdate) {
+        onSkippedDataUpdate(skipped);
+      }
+    }, 100); // Small delay to prevent rapid updates
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => clearTimeout(timeoutId);
+  }, [availableRows, startId, endId, filterSubscribers]); // Remove onSkippedDataUpdate from dependencies
+
+  // Format date as human-readable MM/DD/YYYY
   const formatDate = (dateInput) => {
     if (!dateInput) return "N/A";
     
@@ -169,63 +298,6 @@ const ThankYouLetterDataOverlay = forwardRef(({
     ];
     
     return `${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  // Process each row into the expected format for thank you letters
-  const processSubscriberData = (row) => {
-    if (!row) return null;
-    
-    const original = row.original;
-    if (!original) return null;
-    
-    // Get subscription data from wmmData
-    const wmmData = original.wmmData;
-    const subscription = wmmData?.records?.[0] || wmmData || {};
-    
-    // Get current date for the letter
-    const currentDate = new Date();
-    const formattedCurrentDate = formatDate(currentDate);
-    const formattedMonthYear = formatMonthYear(currentDate);
-    
-    // Handle address field which could be a single string or split into address1, address2, etc.
-    let address1 = original.address1 || "";
-    let address2 = original.address2 || "";
-    let address3 = original.address3 || "";
-    let address4 = original.address4 || "";
-    
-    // If there's a single address field but no individual address fields
-    if (original.address && !address1) {
-      // Try to split the address into multiple lines if it contains newlines or commas
-      const addressParts = original.address.split(/[\n,]+/).map(part => part.trim()).filter(Boolean);
-      
-      if (addressParts.length >= 1) address1 = addressParts[0];
-      if (addressParts.length >= 2) address2 = addressParts[1];
-      if (addressParts.length >= 3) address3 = addressParts[2];
-      if (addressParts.length >= 4) address4 = addressParts[3];
-    }
-    
-    // Check if we have personal name fields
-    const hasPersonalName = !!(original.fname || original.lname || original.title);
-    
-    // Format subscriber data for the thank you letter
-    return {
-      id: original.id || "",
-      copies: subscription.copies || "1",
-      accountCode: original.acode || "",
-      title: original.title || "Mr.",
-      firstName: original.fname || "",
-      middleName: original.mname || "",
-      lastName: original.lname || "",
-      company: original.company || "",
-      address1,
-      address2,
-      address3,
-      address4,
-      currentDate: formattedCurrentDate,
-      monthYear: formattedMonthYear,
-      hasPersonalName, // Flag to indicate if we have a personal name
-      hasCompany: !!original.company // Flag to indicate if we have a company name
-    };
   };
 
   // Handle position change for address group fields
@@ -307,6 +379,16 @@ const ThankYouLetterDataOverlay = forwardRef(({
         }
       });
     }
+  };
+
+  // Add a function for getting current month year
+  const getCurrentMonthYear = () => {
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const now = new Date();
+    return `${months[now.getMonth()]} ${now.getFullYear()}`;
   };
 
   // Generate preview without printing
@@ -392,7 +474,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
         <div class="preview-container">
           <!-- Month Year at top center -->
           <div class="date-field">
-            ${sampleSubscriber.monthYear}
+            ${getCurrentMonthYear()}
           </div>
           
           <!-- Address Group: ID Header, Name & Address -->
@@ -590,7 +672,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
         <div class="data-overlay">
           <!-- Month Year centered at top -->
           <div class="date-field">
-            ${subscriber.monthYear}
+            ${getCurrentMonthYear()}
           </div>
           
           <!-- Address Group: ID Header, Name & Address -->
@@ -1157,7 +1239,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
                               }}
                             >
                               <div className="absolute text-xs text-blue-500 font-mono -top-4 left-1/2 transform -translate-x-1/2">Month Year</div>
-                              {subscriber.monthYear}
+                              {getCurrentMonthYear()}
                             </div>
                             
                             {/* Address Group */}
@@ -1319,7 +1401,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
           <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-medium">Thank You Letter Preview</h3>
-              <Button onClick={hidePreview} variant="ghost" size="sm">Close</Button>
+              <Button onClick={() => setPreviewHTML(null)} variant="ghost" size="sm">Close</Button>
             </div>
             <div className="flex-grow overflow-auto p-4">
               <iframe

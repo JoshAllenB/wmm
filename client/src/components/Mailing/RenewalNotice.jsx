@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useCallback } from "react";
 import { Button } from "../UI/ShadCN/button";
 
 const RenewalNoticeDataOverlay = forwardRef(({ 
@@ -9,12 +9,14 @@ const RenewalNoticeDataOverlay = forwardRef(({
   parentPrintDataOverlay = null,
   // Add shared configuration props
   useSharedConfig = false,
-  sharedConfig = null
+  sharedConfig = null,
+  onSkippedDataUpdate = null // Add callback for skipped data
 }, ref) => {
   const [isLoading, setIsLoading] = useState(false);
   const [filteredSubscribers, setFilteredSubscribers] = useState([]);
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [showConfig, setShowConfig] = useState(false);
+  const [skippedRecords, setSkippedRecords] = useState([]);
   
   // Configuration state for positions (defaulted to current values)
   const [positions, setPositions] = useState(() => {
@@ -83,32 +85,160 @@ const RenewalNoticeDataOverlay = forwardRef(({
   // State for storing preview HTML
   const [previewHTML, setPreviewHTML] = useState(null);
 
-  // Hide preview modal
-  const hidePreview = () => {
-    setPreviewHTML(null);
-  };
-
-  // Filter subscribers when ID range or available rows change
-  useEffect(() => {
-    if (!availableRows) return;
+  // Memoize the processSubscriberData function
+  const processSubscriberData = useCallback((row) => {
+    if (!row) {
+      return { skipped: true, reason: "Invalid row data" };
+    }
     
-    // Filter subscribers within the selected ID range
-    const filtered = availableRows.filter((row) => {
+    const original = row.original;
+    if (!original) {
+      return { skipped: true, reason: "Missing subscriber data" };
+    }
+    
+    // Check for required fields for renewal notice
+    const missingFields = [];
+    if (!original.id) missingFields.push("ID");
+    if (!original.fname && !original.lname && !original.company) {
+      missingFields.push("Name or Company");
+    }
+    if (!original.address1 && !original.address) missingFields.push("Address"); // Check both address1 and address
+    
+    // Check for valid dates
+    const wmmData = original.wmmData;
+    const subscription = wmmData?.records?.[0] || wmmData || {};
+    if (!subscription.enddate) {
+      missingFields.push("Expiry Date");
+    } else {
+      const expiryDate = new Date(subscription.enddate);
+      if (isNaN(expiryDate.getTime())) {
+        return {
+          skipped: true,
+          id: original.id || "N/A",
+          name: `${original.title || ''} ${original.fname || ''} ${original.lname || ''}`.trim() || original.company || "N/A",
+          reason: "Invalid expiry date"
+        };
+      }
+    }
+    
+    if (missingFields.length > 0) {
+      return {
+        skipped: true,
+        id: original.id || "N/A",
+        name: `${original.title || ''} ${original.fname || ''} ${original.lname || ''}`.trim() || original.company || "N/A",
+        reason: `Missing required fields: ${missingFields.join(", ")}`
+      };
+    }
+
+    // If we get here, the record is valid
+    return {
+      skipped: false,
+      id: original.id,
+      title: original.title || "",
+      firstName: original.fname || "",
+      middleName: original.mname || "",
+      lastName: original.lname || "",
+      company: original.company || "",
+      address1: original.address1 || original.address || "",
+      address2: original.address2 || "",
+      address3: original.address3 || "",
+      address4: original.address4 || "",
+      hasPersonalName: !!(original.fname || original.lname || original.title),
+      hasCompany: !!original.company,
+      expiryDate: formatDate(subscription.enddate) // Format the date as a string
+    };
+  }, []);
+
+  // Memoize the filtering function
+  const filterSubscribers = useCallback((rows) => {
+    if (!rows) return { filtered: [], skipped: [] };
+    
+    const filtered = [];
+    const skipped = [];
+    
+    rows.forEach((row) => {
       const clientId = row?.original?.id?.toString();
-      if (!clientId) return false;
+      if (!clientId) {
+        skipped.push({
+          id: "N/A",
+          reason: "Missing client ID"
+        });
+        return;
+      }
       
       const trimmedStartId = startId?.trim();
       const trimmedEndId = endId?.trim();
-      const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-      const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
-      return isAfterStart && isBeforeEnd;
+      
+      // Convert to numbers for comparison
+      const numericClientId = parseInt(clientId, 10);
+      const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+      const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+      
+      // Check if any conversion resulted in NaN
+      if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+        skipped.push({
+          id: clientId,
+          name: `${row.original.title || ''} ${row.original.fname || ''} ${row.original.lname || ''}`.trim(),
+          company: row.original.company,
+          reason: "Invalid ID format"
+        });
+        return;
+      }
+      
+      const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+      const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
+      
+      if (!isAfterStart || !isBeforeEnd) {
+        skipped.push({
+          id: clientId,
+          name: `${row.original.title || ''} ${row.original.fname || ''} ${row.original.lname || ''}`.trim(),
+          company: row.original.company,
+          reason: "Outside selected ID range"
+        });
+        return;
+      }
+
+      const processedData = processSubscriberData(row);
+      if (processedData.skipped) {
+        skipped.push(processedData);
+      } else {
+        filtered.push(row);
+      }
     });
     
-    setFilteredSubscribers(filtered);
-    setSubscriberCount(filtered.length);
-  }, [startId, endId, availableRows]);
+    return { filtered, skipped };
+  }, [startId, endId, processSubscriberData]);
 
-  // Format date as human-readable Month Year
+  // Update filtered subscribers and skipped records when dependencies change
+  useEffect(() => {
+    // Skip the effect if there are no available rows
+    if (!availableRows?.length) {
+      setFilteredSubscribers([]);
+      setSubscriberCount(0);
+      setSkippedRecords([]);
+      if (onSkippedDataUpdate) {
+        onSkippedDataUpdate([]);
+      }
+      return;
+    }
+
+    // Debounce the filtering operation
+    const timeoutId = setTimeout(() => {
+      const { filtered, skipped } = filterSubscribers(availableRows);
+      setFilteredSubscribers(filtered);
+      setSubscriberCount(filtered.length);
+      setSkippedRecords(skipped);
+      
+      if (onSkippedDataUpdate) {
+        onSkippedDataUpdate(skipped);
+      }
+    }, 100); // Small delay to prevent rapid updates
+
+    // Cleanup timeout on unmount or when dependencies change
+    return () => clearTimeout(timeoutId);
+  }, [availableRows, startId, endId, filterSubscribers]); // Remove onSkippedDataUpdate from dependencies
+
+  // Format date as human-readable MM/DD/YYYY
   const formatDate = (dateInput) => {
     if (!dateInput) return "N/A";
     
@@ -122,12 +252,20 @@ const RenewalNoticeDataOverlay = forwardRef(({
     
     if (isNaN(date.getTime())) return "N/A";
     
-    // Format as MM/DD/YYYY for renewal notices
+    // Format as MM/DD/YYYY for letters
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     const year = date.getFullYear();
     
     return `${month}/${day}/${year}`;
+  };
+
+  // Helper function to get last issue from expiry date
+  const getLastIssue = (expiryDate) => {
+    if (!expiryDate) return "N/A";
+    const date = new Date(expiryDate);
+    if (isNaN(date.getTime())) return "N/A";
+    return formatMonthYear(date);
   };
 
   // Format date as Month Year (for last issue display)
@@ -150,98 +288,6 @@ const RenewalNoticeDataOverlay = forwardRef(({
     ];
     
     return `${months[date.getMonth()]} ${date.getFullYear()}`;
-  };
-
-  // Process each row into the expected format for renewal notices
-  const processSubscriberData = (row) => {
-    if (!row) return null;
-    
-    const original = row.original;
-    if (!original) return null;
-    
-    // Get subscription data from wmmData
-    const wmmData = original.wmmData;
-    const subscription = wmmData?.records?.[0] || wmmData || {};
-    
-    // Get expiry date - no need to calculate last issue as one month before
-    let expiryDate = new Date(subscription.enddate);
-    
-    if (isNaN(expiryDate.getTime())) {
-      // If expiry date is invalid, use a fallback
-      console.warn('Invalid expiry date for subscriber:', original.id);
-      // Attempt to parse from other possible date formats
-      try {
-        if (subscription.enddate && typeof subscription.enddate === 'string') {
-          const dateParts = subscription.enddate.split(/[-\/]/);
-          if (dateParts.length >= 3) {
-            // Try different date formats
-            const possibleFormats = [
-              new Date(dateParts[0], dateParts[1] - 1, dateParts[2]), // yyyy-mm-dd
-              new Date(dateParts[2], dateParts[1] - 1, dateParts[0]), // dd-mm-yyyy
-              new Date(dateParts[2], dateParts[0] - 1, dateParts[1])  // mm-dd-yyyy
-            ];
-            
-            // Use the first valid date
-            const validDate = possibleFormats.find(d => !isNaN(d.getTime()));
-            if (validDate) {
-              expiryDate = validDate;
-            } else {
-              // Still invalid, use current date
-              expiryDate = new Date();
-            }
-          } else {
-            // Not enough parts, use current date
-            expiryDate = new Date();
-          }
-        } else {
-          // No enddate, use current date
-          expiryDate = new Date();
-        }
-      } catch (e) {
-        console.error('Error parsing date:', e);
-        expiryDate = new Date();
-      }
-    }
-    
-    // Handle address field which could be a single string or split into address1, address2, etc.
-    let address1 = original.address1 || "";
-    let address2 = original.address2 || "";
-    let address3 = original.address3 || "";
-    let address4 = original.address4 || "";
-    
-    // If there's a single address field but no individual address fields
-    if (original.address && !address1) {
-      // Try to split the address into multiple lines if it contains newlines or commas
-      const addressParts = original.address.split(/[\n,]+/).map(part => part.trim()).filter(Boolean);
-      
-      if (addressParts.length >= 1) address1 = addressParts[0];
-      if (addressParts.length >= 2) address2 = addressParts[1];
-      if (addressParts.length >= 3) address3 = addressParts[2];
-      if (addressParts.length >= 4) address4 = addressParts[3];
-    }
-    
-    // Check if we have personal name fields
-    const hasPersonalName = !!(original.fname || original.lname || original.title);
-    
-    // Format subscriber data for the renewal notice
-    return {
-      id: original.id || "",
-      expiryDate: formatDate(expiryDate),
-      lastIssue: formatMonthYear(expiryDate),  // Use the Month Year format for last issue
-      copies: subscription.copies || "1",
-      accountCode: original.acode || "",
-      title: original.title || "",
-      firstName: original.fname || "",
-      middleName: original.mname || "",
-      lastName: original.lname || "",
-      company: original.company || "",
-      address1,
-      address2,
-      address3,
-      address4,
-      hasPersonalName, // Flag to indicate if we have a personal name
-      hasCompany: !!original.company // Flag to indicate if we have a company name
-    };
   };
 
   // Handle position change for grouped fields
@@ -538,14 +584,14 @@ const RenewalNoticeDataOverlay = forwardRef(({
     `;
 
     // Generate positioned data for each subscriber
-    filteredSubscribers.forEach((row) => {
-      const subscriber = processSubscriberData(row);
-      if (!subscriber) return;
-      
-      // Calculate scale factors to convert inches to pixels in our preview
-      // For a standard 8.5x11 inch page in our container
-      const scaleX = 650 / 8.5; // pixels per inch horizontally
-      const scaleY = 750 / 11;  // pixels per inch vertically
+  filteredSubscribers.forEach((row) => {
+    const subscriber = processSubscriberData(row);
+    if (!subscriber) return;
+    
+    // Calculate scale factors to convert inches to pixels in our preview
+    // For a standard 8.5x11 inch page in our container
+    const scaleX = 650 / 8.5; // pixels per inch horizontally
+    const scaleY = 750 / 11;  // pixels per inch vertically
       
       // Determine if we need to adjust positions based on missing fields
       let namePosition = positions.group2.top + positions.group2.lineSpacing;
@@ -581,7 +627,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
           </div>
           
           <div class="data-field group1-field" style="top: ${positions.group1.top + positions.group1.lineSpacing * 2}in; left: ${positions.group1.left}in;">
-            <strong>${subscriber.lastIssue}</strong>
+            <strong>${getLastIssue(subscriber.expiryDate)}</strong>
           </div>
           
           <!-- Group 2: ID Header, Name & Address (Left side) -->
@@ -1084,7 +1130,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                 top: `${positions.group1.lineSpacing * 2 * scaleY}px`,
                                 left: "0px"
                               }}>
-                                <strong>{subscriber.lastIssue}</strong>
+                                <strong>{getLastIssue(subscriber.expiryDate)}</strong>
                               </div>
                             </div>
                             
@@ -1234,7 +1280,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
           <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-medium">Renewal Notice Preview</h3>
-              <Button onClick={hidePreview} variant="ghost" size="sm">Close</Button>
+              <Button onClick={() => setPreviewHTML(null)} variant="ghost" size="sm">Close</Button>
             </div>
             <div className="flex-grow overflow-auto p-4">
               <iframe
