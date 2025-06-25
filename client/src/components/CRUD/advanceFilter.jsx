@@ -120,14 +120,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     endDateMonth: "",
     endDateDay: "",
     endDateYear: "",
-    // Active subscription date components
-    wmmActiveMonth: "",
-    wmmActiveDay: "",
-    wmmActiveYear: "",
-    // Expiring subscription date components
-    wmmExpiringMonth: "",
-    wmmExpiringDay: "",
-    wmmExpiringYear: "",
+    // Active subscription date components - From Date
+    wmmActiveFromMonth: "",
+    wmmActiveFromDay: "",
+    wmmActiveFromYear: "",
+    // Active subscription date components - To Date
+    wmmActiveToMonth: "",
+    wmmActiveToDay: "",
+    wmmActiveToYear: "",
+    // Expiring subscription date components - From Date
+    wmmExpiringFromMonth: "",
+    wmmExpiringFromDay: "",
+    wmmExpiringFromYear: "",
+    // Expiring subscription date components - To Date
+    wmmExpiringToMonth: "",
+    wmmExpiringToDay: "",
+    wmmExpiringToYear: "",
     copiesRange: "",
     minCopies: "",
     maxCopies: "",
@@ -242,14 +250,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       endDateMonth: "",
       endDateDay: "",
       endDateYear: "",
-      // Active subscription date components
-      wmmActiveMonth: "",
-      wmmActiveDay: "",
-      wmmActiveYear: "",
-      // Expiring subscription date components
-      wmmExpiringMonth: "",
-      wmmExpiringDay: "",
-      wmmExpiringYear: "",
+      // Active subscription date components - From Date
+      wmmActiveFromMonth: "",
+      wmmActiveFromDay: "",
+      wmmActiveFromYear: "",
+      // Active subscription date components - To Date
+      wmmActiveToMonth: "",
+      wmmActiveToDay: "",
+      wmmActiveToYear: "",
+      // Expiring subscription date components - From Date
+      wmmExpiringFromMonth: "",
+      wmmExpiringFromDay: "",
+      wmmExpiringFromYear: "",
+      // Expiring subscription date components - To Date
+      wmmExpiringToMonth: "",
+      wmmExpiringToDay: "",
+      wmmExpiringToYear: "",
       copiesRange: "",
       minCopies: "",
       maxCopies: "",
@@ -279,12 +295,18 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       "endDateMonth",
       "endDateDay",
       "endDateYear",
-      "wmmActiveMonth",
-      "wmmActiveDay",
-      "wmmActiveYear",
-      "wmmExpiringMonth",
-      "wmmExpiringDay",
-      "wmmExpiringYear",
+      "wmmActiveFromMonth",
+      "wmmActiveFromDay",
+      "wmmActiveFromYear",
+      "wmmActiveToMonth",
+      "wmmActiveToDay",
+      "wmmActiveToYear",
+      "wmmExpiringFromMonth",
+      "wmmExpiringFromDay",
+      "wmmExpiringFromYear",
+      "wmmExpiringToMonth",
+      "wmmExpiringToDay",
+      "wmmExpiringToYear",
     ];
 
     if (dateComponentFields.includes(name)) {
@@ -363,37 +385,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Format month-based filters from separate components
-    const formatMonthRangeFromComponents = (month, day, year) => {
-      if (!month || !day || !year) return { start: "", end: "" };
-
-      // Create date from components
-      const date = getDateFromComponents(month, day, year);
-
-      if (!date || isNaN(date.getTime())) {
-        return { start: "", end: "" };
-      }
-
-      // Get first day of the month
-      const start = new Date(date.getFullYear(), date.getMonth(), 1);
-      // Get last day of the month
-      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-      // Format dates as YYYY-MM-DD for backend
-      return {
-        start: formatDateComponentsToISO(
-          start.getMonth() + 1,
-          start.getDate(),
-          start.getFullYear()
-        ),
-        end: formatDateComponentsToISO(
-          end.getMonth() + 1,
-          end.getDate(),
-          end.getFullYear()
-        ),
-      };
-    };
-
     // Process services for exact matching (always use exact matching now)
     const processExactServices = (services) => {
       if (!services || !services.length) return services || [];
@@ -429,16 +420,28 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     };
 
     // Get the date ranges from components
-    const activeMonthRange = formatMonthRangeFromComponents(
-      filterData.wmmActiveMonth,
-      filterData.wmmActiveDay,
-      filterData.wmmActiveYear
+    const activeFromDate = formatDateComponentsToISO(
+      filterData.wmmActiveFromMonth,
+      filterData.wmmActiveFromDay,
+      filterData.wmmActiveFromYear
     );
 
-    const expiringMonthRange = formatMonthRangeFromComponents(
-      filterData.wmmExpiringMonth,
-      filterData.wmmExpiringDay,
-      filterData.wmmExpiringYear
+    const activeToDate = formatDateComponentsToISO(
+      filterData.wmmActiveToMonth,
+      filterData.wmmActiveToDay,
+      filterData.wmmActiveToYear
+    );
+
+    const expiringFromDate = formatDateComponentsToISO(
+      filterData.wmmExpiringFromMonth,
+      filterData.wmmExpiringFromDay,
+      filterData.wmmExpiringFromYear
+    );
+
+    const expiringToDate = formatDateComponentsToISO(
+      filterData.wmmExpiringToMonth,
+      filterData.wmmExpiringToDay,
+      filterData.wmmExpiringToYear
     );
 
     // Process client IDs for inclusion/exclusion
@@ -471,11 +474,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         filterData.endDateDay,
         filterData.endDateYear
       ),
-      // Subscription dates
-      wmmStartSubsDate: activeMonthRange.start,
-      wmmEndSubsDate: activeMonthRange.end,
-      wmmStartEndDate: expiringMonthRange.start,
-      wmmEndEndDate: expiringMonthRange.end,
+      // Subscription dates - Active From/To
+      wmmActiveFromDate: activeFromDate,
+      wmmActiveToDate: activeToDate,
+      // Subscription dates - Expiring From/To
+      wmmExpiringFromDate: expiringFromDate,
+      wmmExpiringToDate: expiringToDate,
       includeClientIds: processClientIds(filterData.clientIncludeIds),
       excludeClientIds: processClientIds(filterData.clientExcludeIds),
       exactServiceMatch: true, // Always use exact service matching
@@ -488,7 +492,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       subscriptionStatus: filterData.subscriptionStatus || "all", // Include subscription status
       exactAreaMatch: true, // Always use exact area matching
     };
-
 
     // Apply the filter with the formatted data
     onApplyFilter(formattedData);
@@ -732,39 +735,79 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     // Handle active month as a special case
     if (
-      filterData.wmmActiveMonth ||
-      filterData.wmmActiveDay ||
-      filterData.wmmActiveYear
+      filterData.wmmActiveFromMonth ||
+      filterData.wmmActiveFromDay ||
+      filterData.wmmActiveFromYear ||
+      filterData.wmmActiveToMonth ||
+      filterData.wmmActiveToDay ||
+      filterData.wmmActiveToYear
     ) {
-      // Check if we have all required components
-      if (filterData.wmmActiveMonth) {
-        const monthName = getMonthName(filterData.wmmActiveMonth);
-        const year =
-          filterData.wmmActiveYear || new Date().getFullYear().toString();
-        const day = filterData.wmmActiveDay || "";
+      // Check if we have From date components
+      if (filterData.wmmActiveFromMonth) {
+        const fromMonthName = getMonthName(filterData.wmmActiveFromMonth);
+        const fromYear =
+          filterData.wmmActiveFromYear || new Date().getFullYear().toString();
+        const fromDay = filterData.wmmActiveFromDay || "";
 
-        let displayValue = `${monthName} ${year}`;
-        if (day) {
-          displayValue = `${monthName} ${day}, ${year}`;
+        let fromDisplayValue = `${fromMonthName} ${fromYear}`;
+        if (fromDay) {
+          fromDisplayValue = `${fromMonthName} ${fromDay}, ${fromYear}`;
+        }
+
+        // Check if we have To date components
+        if (filterData.wmmActiveToMonth) {
+          const toMonthName = getMonthName(filterData.wmmActiveToMonth);
+          const toYear =
+            filterData.wmmActiveToYear || new Date().getFullYear().toString();
+          const toDay = filterData.wmmActiveToDay || "";
+
+          let toDisplayValue = `${toMonthName} ${toYear}`;
+          if (toDay) {
+            toDisplayValue = `${toMonthName} ${toDay}, ${toYear}`;
         }
 
         active.push({
-          label: "Active Month",
-          value: displayValue,
-          key: "wmmActiveMonth",
+            label: "Active Subscriptions",
+            value: `${fromDisplayValue} to ${toDisplayValue}`,
+            key: "wmmActiveFromMonth",
         });
       } else {
-        const activeDisplay = formatDateDisplay(
-          filterData.wmmActiveMonth,
-          filterData.wmmActiveDay,
-          filterData.wmmActiveYear
+          active.push({
+            label: "Active Subscriptions From",
+            value: fromDisplayValue,
+            key: "wmmActiveFromMonth",
+          });
+        }
+      } else {
+        const activeFromDisplay = formatDateDisplay(
+          filterData.wmmActiveFromMonth,
+          filterData.wmmActiveFromDay,
+          filterData.wmmActiveFromYear
         );
 
-        if (activeDisplay) {
+        const activeToDisplay = formatDateDisplay(
+          filterData.wmmActiveToMonth,
+          filterData.wmmActiveToDay,
+          filterData.wmmActiveToYear
+        );
+
+        if (activeFromDisplay && activeToDisplay) {
           active.push({
-            label: "Active Month",
-            value: activeDisplay,
-            key: "wmmActiveMonth",
+            label: "Active Subscriptions",
+            value: `${activeFromDisplay} to ${activeToDisplay}`,
+            key: "wmmActiveFromMonth",
+          });
+        } else if (activeFromDisplay) {
+          active.push({
+            label: "Active Subscriptions From",
+            value: activeFromDisplay,
+            key: "wmmActiveFromMonth",
+          });
+        } else if (activeToDisplay) {
+          active.push({
+            label: "Active Subscriptions To",
+            value: activeToDisplay,
+            key: "wmmActiveToMonth",
           });
         }
       }
@@ -772,39 +815,79 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     // Handle expiring month as a special case
     if (
-      filterData.wmmExpiringMonth ||
-      filterData.wmmExpiringDay ||
-      filterData.wmmExpiringYear
+      filterData.wmmExpiringFromMonth ||
+      filterData.wmmExpiringFromDay ||
+      filterData.wmmExpiringFromYear ||
+      filterData.wmmExpiringToMonth ||
+      filterData.wmmExpiringToDay ||
+      filterData.wmmExpiringToYear
     ) {
-      // Check if we have all required components
-      if (filterData.wmmExpiringMonth) {
-        const monthName = getMonthName(filterData.wmmExpiringMonth);
-        const year =
-          filterData.wmmExpiringYear || new Date().getFullYear().toString();
-        const day = filterData.wmmExpiringDay || "";
+      // Check if we have From date components
+      if (filterData.wmmExpiringFromMonth) {
+        const fromMonthName = getMonthName(filterData.wmmExpiringFromMonth);
+        const fromYear =
+          filterData.wmmExpiringFromYear || new Date().getFullYear().toString();
+        const fromDay = filterData.wmmExpiringFromDay || "";
 
-        let displayValue = `${monthName} ${year}`;
-        if (day) {
-          displayValue = `${monthName} ${day}, ${year}`;
+        let fromDisplayValue = `${fromMonthName} ${fromYear}`;
+        if (fromDay) {
+          fromDisplayValue = `${fromMonthName} ${fromDay}, ${fromYear}`;
+        }
+
+        // Check if we have To date components
+        if (filterData.wmmExpiringToMonth) {
+          const toMonthName = getMonthName(filterData.wmmExpiringToMonth);
+          const toYear =
+            filterData.wmmExpiringToYear || new Date().getFullYear().toString();
+          const toDay = filterData.wmmExpiringToDay || "";
+
+          let toDisplayValue = `${toMonthName} ${toYear}`;
+          if (toDay) {
+            toDisplayValue = `${toMonthName} ${toDay}, ${toYear}`;
         }
 
         active.push({
-          label: "Expiring Month",
-          value: displayValue,
-          key: "wmmExpiringMonth",
+            label: "Expiring Subscriptions",
+            value: `${fromDisplayValue} to ${toDisplayValue}`,
+            key: "wmmExpiringFromMonth",
         });
       } else {
-        const expiringDisplay = formatDateDisplay(
-          filterData.wmmExpiringMonth,
-          filterData.wmmExpiringDay,
-          filterData.wmmExpiringYear
+          active.push({
+            label: "Expiring Subscriptions From",
+            value: fromDisplayValue,
+            key: "wmmExpiringFromMonth",
+          });
+        }
+      } else {
+        const expiringFromDisplay = formatDateDisplay(
+          filterData.wmmExpiringFromMonth,
+          filterData.wmmExpiringFromDay,
+          filterData.wmmExpiringFromYear
         );
 
-        if (expiringDisplay) {
+        const expiringToDisplay = formatDateDisplay(
+          filterData.wmmExpiringToMonth,
+          filterData.wmmExpiringToDay,
+          filterData.wmmExpiringToYear
+        );
+
+        if (expiringFromDisplay && expiringToDisplay) {
           active.push({
-            label: "Expiring Month",
-            value: expiringDisplay,
-            key: "wmmExpiringMonth",
+            label: "Expiring Subscriptions",
+            value: `${expiringFromDisplay} to ${expiringToDisplay}`,
+            key: "wmmExpiringFromMonth",
+          });
+        } else if (expiringFromDisplay) {
+          active.push({
+            label: "Expiring Subscriptions From",
+            value: expiringFromDisplay,
+            key: "wmmExpiringFromMonth",
+          });
+        } else if (expiringToDisplay) {
+          active.push({
+            label: "Expiring Subscriptions To",
+            value: expiringToDisplay,
+            key: "wmmExpiringToMonth",
           });
         }
       }
@@ -1025,15 +1108,21 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           updates.endDateDay = "";
           updates.endDateYear = "";
           break;
-        case "wmmActiveMonth":
-          updates.wmmActiveMonth = "";
-          updates.wmmActiveDay = "";
-          updates.wmmActiveYear = "";
+        case "wmmActiveFromMonth":
+          updates.wmmActiveFromMonth = "";
+          updates.wmmActiveFromDay = "";
+          updates.wmmActiveFromYear = "";
+          updates.wmmActiveToMonth = "";
+          updates.wmmActiveToDay = "";
+          updates.wmmActiveToYear = "";
           break;
-        case "wmmExpiringMonth":
-          updates.wmmExpiringMonth = "";
-          updates.wmmExpiringDay = "";
-          updates.wmmExpiringYear = "";
+        case "wmmExpiringFromMonth":
+          updates.wmmExpiringFromMonth = "";
+          updates.wmmExpiringFromDay = "";
+          updates.wmmExpiringFromYear = "";
+          updates.wmmExpiringToMonth = "";
+          updates.wmmExpiringToDay = "";
+          updates.wmmExpiringToYear = "";
           break;
         case "copiesRange":
           updates.copiesRange = "";
@@ -1459,12 +1548,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                           Active Subscriptions
                         </h3>
                         <div className="mb-2">
+                          <label className="block text-black text-xl font-medium mb-1">
+                            From:
+                          </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
                               <select
-                                id="wmmActiveMonth"
-                                name="wmmActiveMonth"
-                                value={filterData.wmmActiveMonth}
+                                id="wmmActiveFromMonth"
+                                name="wmmActiveFromMonth"
+                                value={filterData.wmmActiveFromMonth}
                                 onChange={handleChange}
                                 className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               >
@@ -1478,9 +1570,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             </div>
                             <input
                               type="text"
-                              id="wmmActiveDay"
-                              name="wmmActiveDay"
-                              value={filterData.wmmActiveDay}
+                              id="wmmActiveFromDay"
+                              name="wmmActiveFromDay"
+                              value={filterData.wmmActiveFromDay}
                               onChange={handleChange}
                               placeholder="DD"
                               className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1488,9 +1580,52 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             />
                             <input
                               type="text"
-                              id="wmmActiveYear"
-                              name="wmmActiveYear"
-                              value={filterData.wmmActiveYear}
+                              id="wmmActiveFromYear"
+                              name="wmmActiveFromYear"
+                              value={filterData.wmmActiveFromYear}
+                              onChange={handleChange}
+                              placeholder="YYYY"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="4"
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-2">
+                          <label className="block text-black text-xl font-medium mb-1">
+                            To:
+                          </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
+                              <select
+                                id="wmmActiveToMonth"
+                                name="wmmActiveToMonth"
+                                value={filterData.wmmActiveToMonth}
+                                onChange={handleChange}
+                                className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              >
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <input
+                              type="text"
+                              id="wmmActiveToDay"
+                              name="wmmActiveToDay"
+                              value={filterData.wmmActiveToDay}
+                              onChange={handleChange}
+                              placeholder="DD"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="2"
+                            />
+                            <input
+                              type="text"
+                              id="wmmActiveToYear"
+                              name="wmmActiveToYear"
+                              value={filterData.wmmActiveToYear}
                               onChange={handleChange}
                               placeholder="YYYY"
                               className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1500,17 +1635,20 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="">
                         <h3 className="text-xl font-medium text-black">
                           Expiring Subscriptions
                         </h3>
                         <div className="mb-2">
+                          <label className="block text-black text-xl font-medium mb-1">
+                            From:
+                          </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
                               <select
-                                id="wmmExpiringMonth"
-                                name="wmmExpiringMonth"
-                                value={filterData.wmmExpiringMonth}
+                                id="wmmExpiringFromMonth"
+                                name="wmmExpiringFromMonth"
+                                value={filterData.wmmExpiringFromMonth}
                                 onChange={handleChange}
                                 className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                               >
@@ -1524,9 +1662,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             </div>
                             <input
                               type="text"
-                              id="wmmExpiringDay"
-                              name="wmmExpiringDay"
-                              value={filterData.wmmExpiringDay}
+                              id="wmmExpiringFromDay"
+                              name="wmmExpiringFromDay"
+                              value={filterData.wmmExpiringFromDay}
                               onChange={handleChange}
                               placeholder="DD"
                               className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1534,9 +1672,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             />
                             <input
                               type="text"
-                              id="wmmExpiringYear"
-                              name="wmmExpiringYear"
-                              value={filterData.wmmExpiringYear}
+                              id="wmmExpiringFromYear"
+                              name="wmmExpiringFromYear"
+                              value={filterData.wmmExpiringFromYear}
                               onChange={handleChange}
                               placeholder="YYYY"
                               className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1544,60 +1682,48 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                             />
                           </div>
                         </div>
-                      </div>
-                      <div className="">
-                  <h2 className="text-black text-xl font-bold">
-                    Copies Range
-                  </h2>
-                  <div className="">
-                    <label className="block text-lg text-black">
-                      Number of Copies
+                        <div className="mb-2">
+                          <label className="block text-black text-xl font-medium mb-1">
+                            To:
                     </label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="relative">
                     <select
-                      name="copiesRange"
-                      value={filterData.copiesRange}
+                                id="wmmExpiringToMonth"
+                                name="wmmExpiringToMonth"
+                                value={filterData.wmmExpiringToMonth}
                       onChange={handleChange}
-                      className={`w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                        filterData.copiesRange ? "border-blue-500 bg-blue-50" : ""
-                      }`}
+                                className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                     >
-                      <option value="">Any number of copies</option>
-                      <option value="1">1</option>
-                      <option value="2">2</option>
-                      <option value="gt1">More than 1</option>
-                      <option value="custom">Custom range</option>
+                                <option value="">Month</option>
+                                {months.map((month) => (
+                                  <option key={month.value} value={month.value}>
+                                    {month.name}
+                                  </option>
+                                ))}
                     </select>
-
-                    {filterData.copiesRange === "custom" && (
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <InputField
-                          label="Min copies"
-                          id="minCopies"
-                          name="minCopies"
-                          type="number"
-                          min="0"
-                          value={filterData.minCopies}
+                            </div>
+                            <input
+                              type="text"
+                              id="wmmExpiringToDay"
+                              name="wmmExpiringToDay"
+                              value={filterData.wmmExpiringToDay}
                           onChange={handleChange}
-                          className={`w-full text-base ${
-                            filterData.minCopies ? "border-blue-500 bg-blue-50" : ""
-                          }`}
-                          labelClassName="text-lg font-medium text-black"
+                              placeholder="DD"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="2"
                         />
-                        <InputField
-                          label="Max copies"
-                          id="maxCopies"
-                          name="maxCopies"
-                          type="number"
-                          min="0"
-                          value={filterData.maxCopies}
+                            <input
+                              type="text"
+                              id="wmmExpiringToYear"
+                              name="wmmExpiringToYear"
+                              value={filterData.wmmExpiringToYear}
                           onChange={handleChange}
-                          className={`w-full text-base ${
-                            filterData.maxCopies ? "border-blue-500 bg-blue-50" : ""
-                          }`}
-                          labelClassName="text-lg font-medium text-black"
+                              placeholder="YYYY"
+                              className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              maxLength="4"
                         />
                       </div>
-                    )}
                   </div>
                 </div>
                     </>
@@ -1808,6 +1934,63 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                   Services
                 </h2>
                 <div className="space-y-2">
+
+                  {/* Add Copies Filter Section */}
+                  <div className="mb-4">
+                    <h3 className="text-lg font-medium text-black mb-2">
+                      Copies Filter
+                    </h3>
+                    <div className="space-y-2">
+                      <select
+                        name="copiesRange"
+                        value={filterData.copiesRange}
+                        onChange={handleChange}
+                        className="w-full p-2 text-xl border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      >
+                        <option value="">All Copies</option>
+                        <option value="1">1 Copy</option>
+                        <option value="2">2 Copies</option>
+                        <option value="gt1">More than 1 Copy</option>
+                        <option value="custom">Custom Range</option>
+                      </select>
+
+                      {/* Custom Range Fields */}
+                      {filterData.copiesRange === "custom" && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <div>
+                            <label htmlFor="minCopies" className="block text-sm text-black">
+                              Min Copies
+                            </label>
+                            <input
+                              type="number"
+                              id="minCopies"
+                              name="minCopies"
+                              value={filterData.minCopies}
+                              onChange={handleChange}
+                              min="0"
+                              className="w-24 p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </div>
+                          <div className="self-end">to</div>
+                          <div>
+                            <label htmlFor="maxCopies" className="block text-sm text-black">
+                              Max Copies
+                            </label>
+                            <input
+                              type="number"
+                              id="maxCopies"
+                              name="maxCopies"
+                              value={filterData.maxCopies}
+                              onChange={handleChange}
+                              min="0"
+                              className="w-24 p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <p className="text-sm text-black mb-2">
                     Select services to filter clients
                   </p>

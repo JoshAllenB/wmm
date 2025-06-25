@@ -665,8 +665,8 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         {
           $match: {
             parsedDate: {
-              ...(startDate && { $gte: startDate }),
-              ...(endDate && { $lte: endDate })
+              ...(startDate && { $gte: startDate }),    // adddate >= startDate at midnight
+              ...(endDate && { $lte: endDate })         // adddate <= endDate at 23:59:59
             }
           }
         },
@@ -704,26 +704,34 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     }
   }
 
+  // Helper to get first and last day of a month from a date string
+  function getMonthRange(dateString) {
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return { start: null, end: null };
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0, 23, 59, 59, 999); // last day of month
+    return { start, end };
+  }
+
   // Handle WMM Active Subscription Filter
-  if (advancedFilterData.wmmStartSubsDate && advancedFilterData.wmmEndSubsDate) {
+  if (advancedFilterData.wmmActiveFromDate || advancedFilterData.wmmActiveToDate) {
     try {
       const WmmModel = await getModelInstance('WmmModel');
-      const startDate = parseDate(advancedFilterData.wmmStartSubsDate);
-      const endDate = parseDate(advancedFilterData.wmmEndSubsDate);
-
-      if (endDate) {
-        endDate.setHours(23, 59, 59, 999);
+      let fromDate = null, toDate = null;
+      if (advancedFilterData.wmmActiveFromDate) {
+        fromDate = getMonthRange(advancedFilterData.wmmActiveFromDate).start;
       }
-
+      if (advancedFilterData.wmmActiveToDate) {
+        toDate = getMonthRange(advancedFilterData.wmmActiveToDate).end;
+      }
       const pipeline = [
-        // Match records with valid dates
         {
           $match: {
-            subsdate: { $exists: true, $ne: null },
-            enddate: { $exists: true, $ne: null }
+            subsdate: { $exists: true, $ne: null }
           }
         },
-        // Convert string dates to Date objects
         {
           $addFields: {
             subsDateObj: {
@@ -734,53 +742,55 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                 onError: null,
                 onNull: null
               }
-            },
-            endDateObj: {
-              $dateFromString: {
-                dateString: "$enddate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
             }
           }
         },
-        // Filter out records with invalid dates
         {
           $match: {
-            subsDateObj: { $ne: null },
-            endDateObj: { $ne: null }
-          }
-        },
-        // Match subscriptions that are active during the target period
-        {
-          $match: {
-            $expr: {
-              $and: [
-                { $lte: ["$subsDateObj", endDate] },
-                { $gte: ["$endDateObj", startDate] }
-              ]
-            }
-          }
-        },
-        // Group by client to get unique clients
-        {
-          $group: {
-            _id: "$clientid",
-            subscriptions: {
-              $push: {
-                subsdate: "$subsDateObj",
-                enddate: "$endDateObj"
-              }
-            }
+            subsDateObj: { $ne: null }
           }
         }
       ];
 
+      // Match the old SQL logic exactly:
+      // From date: subsdate >= date at midnight
+      // To date: subsdate <= date at end of day
+      const dateConditions = [];
+      if (fromDate && toDate) {
+        dateConditions.push({
+          $expr: {
+            $and: [
+              { $gte: ["$subsDateObj", fromDate] },           // subsdate >= fromDate at midnight
+              { $lte: ["$subsDateObj", toDate] }              // subsdate <= toDate at 23:59:59
+            ]
+          }
+        });
+      } else if (fromDate) {
+        dateConditions.push({
+          $expr: {
+            $gte: ["$subsDateObj", fromDate]                  // subsdate >= fromDate at midnight
+          }
+        });
+      } else if (toDate) {
+        dateConditions.push({
+          $expr: {
+            $lte: ["$subsDateObj", toDate]                    // subsdate <= toDate at 23:59:59
+          }
+        });
+      }
+
+      if (dateConditions.length > 0) {
+        pipeline.push({ $match: { $or: dateConditions } });
+      }
+
+      pipeline.push({
+        $group: {
+          _id: "$clientid"
+        }
+      });
+
       const activeClients = await WmmModel.aggregate(pipeline);
       const validClientIds = activeClients.map(c => Number(c._id)).filter(id => !isNaN(id));
-
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {
@@ -793,24 +803,22 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   }
 
   // Handle WMM Expiring Subscription Filter
-  if (advancedFilterData.wmmStartEndDate && advancedFilterData.wmmEndEndDate) {
+  if (advancedFilterData.wmmExpiringFromDate || advancedFilterData.wmmExpiringToDate) {
     try {
       const WmmModel = await getModelInstance('WmmModel');
-      const startDate = parseDate(advancedFilterData.wmmStartEndDate);
-      const endDate = parseDate(advancedFilterData.wmmEndEndDate);
-
-      if (endDate) {
-        endDate.setHours(23, 59, 59, 999);
+      let fromDate = null, toDate = null;
+      if (advancedFilterData.wmmExpiringFromDate) {
+        fromDate = getMonthRange(advancedFilterData.wmmExpiringFromDate).start;
       }
-
+      if (advancedFilterData.wmmExpiringToDate) {
+        toDate = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
+      }
       const pipeline = [
-        // Initial match for valid dates
         {
           $match: {
             enddate: { $exists: true, $ne: null }
           }
         },
-        // Convert string dates to Date objects
         {
           $addFields: {
             endDateObj: {
@@ -824,63 +832,53 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             }
           }
         },
-        // Match subscriptions expiring in the target period
         {
           $match: {
-            $expr: {
-              $and: [
-                { $gte: ["$endDateObj", startDate] },
-                { $lte: ["$endDateObj", endDate] }
-              ]
-            }
-          }
-        },
-        // Sort by client and subscription date
-        {
-          $sort: {
-            clientid: 1,
-            subsdate: -1
-          }
-        },
-        // Group by client
-        {
-          $group: {
-            _id: "$clientid",
-            expiryDate: { $first: "$endDateObj" },
-            allDates: {
-              $push: {
-                subsdate: "$subsdate",
-                enddate: "$enddate"
-              }
-            }
-          }
-        },
-        // Filter out clients with newer subscriptions
-        {
-          $match: {
-            $expr: {
-              $not: {
-                $anyElementTrue: {
-                  $map: {
-                    input: "$allDates",
-                    as: "date",
-                    in: {
-                      $and: [
-                        { $gt: ["$$date.subsdate", "$expiryDate"] },
-                        { $gt: ["$$date.enddate", endDate] }
-                      ]
-                    }
-                  }
-                }
-              }
-            }
+            endDateObj: { $ne: null }
           }
         }
       ];
 
+      // For expiring subscriptions, we want:
+      // 1. If both fromDate and toDate: subscription must end within this period
+      // 2. If only fromDate: subscription must end during or after this month
+      // 3. If only toDate: subscription must end during or before this month
+      const dateConditions = [];
+      if (fromDate && toDate) {
+        dateConditions.push({
+          $expr: {
+            $and: [
+              { $gte: ["$endDateObj", fromDate] },    // ends during or after start month
+              { $lte: ["$endDateObj", toDate] }       // ends during or before end month
+            ]
+          }
+        });
+      } else if (fromDate) {
+        dateConditions.push({
+          $expr: {
+            $gte: ["$endDateObj", fromDate]           // ends during or after this month
+          }
+        });
+      } else if (toDate) {
+        dateConditions.push({
+          $expr: {
+            $lte: ["$endDateObj", toDate]             // ends during or before this month
+          }
+        });
+      }
+
+      if (dateConditions.length > 0) {
+        pipeline.push({ $match: { $or: dateConditions } });
+      }
+
+      pipeline.push({
+        $group: {
+          _id: "$clientid"
+        }
+      });
+
       const expiringClients = await WmmModel.aggregate(pipeline);
       const validClientIds = expiringClients.map(c => Number(c._id)).filter(id => !isNaN(id));
-
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {

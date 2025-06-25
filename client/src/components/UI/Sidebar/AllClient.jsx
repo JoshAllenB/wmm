@@ -816,204 +816,31 @@ const AllClient = () => {
         `Until: ${formatDateWithMonthName(advancedFilterData.endDate)}`
       );
 
-    // Direct fix for simple month values in active/expiring subscriptions
-    // This checks if the value is just a month number like "01"
-    if (advancedFilterData.wmmActiveMonth) {
-      const monthStr = advancedFilterData.wmmActiveMonth;
-      // Check if it's just a simple number 1-12
-      const monthNum = parseInt(monthStr);
-      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        const monthName = getMonthName(monthNum);
-        const currentYear = new Date().getFullYear();
-        filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
-      } else {
-        // Continue with existing handling
-        try {
-          const [year, month] = advancedFilterData.wmmActiveMonth.split("-");
-          if (month && year) {
-            const monthName = getMonthName(month);
-            filters.push(`Active Subscriptions: ${monthName} ${year}`);
-          } else {
-            // Handle case where month might be in a different format
-            const parts = advancedFilterData.wmmActiveMonth.split(/[\/\-\s]/);
-            if (parts.length >= 2) {
-              // Try to guess which part is month and which is year
-              let monthPart = parts[0];
-              let yearPart = parts[parts.length - 1];
-
-              // Check if any part could be a month (1-12)
-              for (let part of parts) {
-                const num = parseInt(part);
-                if (!isNaN(num) && num >= 1 && num <= 12) {
-                  monthPart = part;
-                  break;
-                }
-              }
-
-              const monthName = getMonthName(monthPart);
-              filters.push(`Active Subscriptions: ${monthName} ${yearPart}`);
-            } else {
-              // Just display as is if we can't parse
-              filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
-            }
-          }
-        } catch (error) {
-          console.error("Error parsing active month:", error);
-          const monthName = getMonthName(monthStr);
-          const currentYear = new Date().getFullYear();
-          filters.push(`Active Subscriptions: ${monthName} ${currentYear}`);
-        }
-      }
-    } else if (
-      advancedFilterData.wmmStartSubsDate &&
-      advancedFilterData.wmmEndSubsDate
-    ) {
-      // Fallback to using the start/end dates if wmmActiveMonth isn't available
-      try {
-        const date = new Date(advancedFilterData.wmmStartSubsDate);
-        if (!isNaN(date.getTime())) {
-          const monthIndex = date.getMonth();
-          const monthName = [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-          ][monthIndex];
-          const year = date.getFullYear();
-          filters.push(`Active Subscriptions: ${monthName} ${year}`);
-        } else {
-          // Try to parse month from the date string manually
-          const parts = advancedFilterData.wmmStartSubsDate.split(/[\/\-\s]/);
-          if (parts.length >= 2) {
-            const monthPart = parts[0] || parts[1];
-            const yearPart = parts[parts.length - 1];
-            const monthName = getMonthName(monthPart);
-
-            filters.push(`Active Subscriptions: ${monthName} ${yearPart}`);
-          } else {
-            filters.push(
-              `Active Subscriptions: ${formatSafeDate(
-                advancedFilterData.wmmStartSubsDate
-              )} to ${formatSafeDate(advancedFilterData.wmmEndSubsDate)}`
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing subscription dates:", error);
-        filters.push(
-          `Active Subscriptions: ${formatSafeDate(
-            advancedFilterData.wmmStartSubsDate
-          )} to ${formatSafeDate(advancedFilterData.wmmEndSubsDate)}`
-        );
+    // Handle Active Subscriptions From/To dates
+    if (advancedFilterData.wmmActiveFromDate || advancedFilterData.wmmActiveToDate) {
+      const fromDate = advancedFilterData.wmmActiveFromDate;
+      const toDate = advancedFilterData.wmmActiveToDate;
+      
+      if (fromDate && toDate) {
+        filters.push(`Active Subscriptions: ${formatDateWithMonthName(fromDate)} to ${formatDateWithMonthName(toDate)}`);
+      } else if (fromDate) {
+        filters.push(`Active Subscriptions From: ${formatDateWithMonthName(fromDate)}`);
+      } else if (toDate) {
+        filters.push(`Active Subscriptions To: ${formatDateWithMonthName(toDate)}`);
       }
     }
 
-    // Direct fix for simple month values in expiring subscriptions
-    if (advancedFilterData.wmmExpiringMonth) {
-      const monthStr = advancedFilterData.wmmExpiringMonth;
-      // Check if it's just a simple number 1-12
-      const monthNum = parseInt(monthStr);
-      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
-        const monthName = getMonthName(monthNum);
-        const currentYear = new Date().getFullYear();
-        filters.push(`Expiring Subscriptions: ${monthName} ${currentYear}`);
-      } else {
-        // Continue with existing handling
-        try {
-          const [year, month] = advancedFilterData.wmmExpiringMonth.split("-");
-          if (month && year) {
-            const monthName = getMonthName(month);
-            filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
-          } else {
-            // Handle case where month might be in a different format
-            const parts = advancedFilterData.wmmExpiringMonth.split(/[\/\-\s]/);
-            if (parts.length >= 2) {
-              // Try to guess which part is month and which is year
-              let monthPart = parts[0];
-              let yearPart = parts[parts.length - 1];
-
-              // Check if any part could be a month (1-12)
-              for (let part of parts) {
-                const num = parseInt(part);
-                if (!isNaN(num) && num >= 1 && num <= 12) {
-                  monthPart = part;
-                  break;
-                }
-              }
-
-              const monthName = getMonthName(monthPart);
-              filters.push(`Expiring Subscriptions: ${monthName} ${yearPart}`);
-            } else {
-              // Just display as is if we can't parse
-              filters.push(
-                `Expiring Subscriptions: ${monthName} ${currentYear}`
-              );
-            }
-          }
-        } catch (error) {
-          console.error("Error parsing expiring month:", error);
-          const monthName = getMonthName(monthStr);
-          const currentYear = new Date().getFullYear();
-          filters.push(`Expiring Subscriptions: ${monthName} ${currentYear}`);
-        }
-      }
-    } else if (
-      advancedFilterData.wmmStartEndDate &&
-      advancedFilterData.wmmEndEndDate
-    ) {
-      // Fallback
-      try {
-        const date = new Date(advancedFilterData.wmmStartEndDate);
-        if (!isNaN(date.getTime())) {
-          const monthIndex = date.getMonth();
-          const monthName = [
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December",
-          ][monthIndex];
-          const year = date.getFullYear();
-          filters.push(`Expiring Subscriptions: ${monthName} ${year}`);
-        } else {
-          // Try to parse month from the date string manually
-          const parts = advancedFilterData.wmmStartEndDate.split(/[\/\-\s]/);
-          if (parts.length >= 2) {
-            const monthPart = parts[0] || parts[1];
-            const yearPart = parts[parts.length - 1];
-            const monthName = getMonthName(monthPart);
-
-            filters.push(`Expiring Subscriptions: ${monthName} ${yearPart}`);
-          } else {
-            filters.push(
-              `Expiring Subscriptions: ${formatSafeDate(
-                advancedFilterData.wmmStartEndDate
-              )} to ${formatSafeDate(advancedFilterData.wmmEndEndDate)}`
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Error parsing end dates:", error);
-        filters.push(
-          `Expiring Subscriptions: ${formatSafeDate(
-            advancedFilterData.wmmStartEndDate
-          )} to ${formatSafeDate(advancedFilterData.wmmEndEndDate)}`
-        );
+    // Handle Expiring Subscriptions From/To dates
+    if (advancedFilterData.wmmExpiringFromDate || advancedFilterData.wmmExpiringToDate) {
+      const fromDate = advancedFilterData.wmmExpiringFromDate;
+      const toDate = advancedFilterData.wmmExpiringToDate;
+      
+      if (fromDate && toDate) {
+        filters.push(`Expiring Subscriptions: ${formatDateWithMonthName(fromDate)} to ${formatDateWithMonthName(toDate)}`);
+      } else if (fromDate) {
+        filters.push(`Expiring Subscriptions From: ${formatDateWithMonthName(fromDate)}`);
+      } else if (toDate) {
+        filters.push(`Expiring Subscriptions To: ${formatDateWithMonthName(toDate)}`);
       }
     }
 
