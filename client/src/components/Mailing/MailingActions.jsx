@@ -264,8 +264,19 @@ const getFilteredRows = (availableRows, startClientId, endClientId) => {
     
     const trimmedStartId = startClientId?.trim();
     const trimmedEndId = endClientId?.trim();
-    const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-    const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+    
+    // Convert to numbers for comparison
+    const numericClientId = parseInt(clientId, 10);
+    const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+    const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+    
+    // Check if any conversion resulted in NaN
+    if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+      return false;
+    }
+    
+    const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+    const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
     return isAfterStart && isBeforeEnd;
   });
 };
