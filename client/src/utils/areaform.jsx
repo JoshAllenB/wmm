@@ -1,6 +1,42 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { fetchAreas } from "../components/Table/Data/utilData";
 import InputField from "../components/CRUD/input";
+
+// Trie implementation
+const buildTrie = (locations) => {
+  const trie = {};
+  locations.forEach(location => {
+    let node = trie;
+    const name = location.name?.toLowerCase() || '';
+    for (const char of name) {
+      if (!node[char]) node[char] = {};
+      node = node[char];
+    }
+    if (!node.results) node.results = [];
+    node.results.push(location);
+  });
+  return trie;
+};
+
+const searchTrie = (trie, query) => {
+  let node = trie;
+  for (const char of query.toLowerCase()) {
+    if (!node[char]) return [];
+    node = node[char];
+  }
+  return collectResults(node);
+};
+
+const collectResults = (node) => {
+  let results = [];
+  if (node.results) results = [...node.results];
+  for (const key in node) {
+    if (key !== 'results') {
+      results.push(...collectResults(node[key]));
+    }
+  }
+  return results.slice(0, 20); // Limit results
+};
 
 const AreaForm = ({ onAreaChange, initialAreaData }) => {
   // Separate state for each input to avoid interdependencies
@@ -9,8 +45,22 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   const [zipcode, setZipcode] = useState(
     initialAreaData?.zipcode ? String(initialAreaData.zipcode) : ""
   );
+  const [city, setCity] = useState(initialAreaData?.city || "");
   const [availableZipcodes, setAvailableZipcodes] = useState([]);
   const [showZipcodeOptions, setShowZipcodeOptions] = useState(false);
+  const [citySearchResults, setCitySearchResults] = useState([]);
+  const [showCityResults, setShowCityResults] = useState(false);
+
+  // Create a memoized trie structure for city search
+  const cityTrie = useMemo(() => {
+    const allLocations = areas.flatMap(area => 
+      area.locations.map(location => ({
+        ...location,
+        _id: area._id
+      }))
+    );
+    return buildTrie(allLocations);
+  }, [areas]);
 
   // Load areas data on component mount
   useEffect(() => {
@@ -48,6 +98,53 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
 
     loadAreas();
   }, [initialAreaData, onAreaChange]);
+
+  // Handle city input change using trie search
+  const handleCityInputChange = async (e) => {
+    const value = e.target.value;
+    setCity(value);
+    onAreaChange("city", value);
+
+    if (value.length >= 2) {
+      const results = searchTrie(cityTrie, value);
+      const formattedResults = results.map(location => ({
+        name: location.name,
+        _id: location._id,
+        zipcode: location.zipcode
+      }));
+      setCitySearchResults(formattedResults);
+      setShowCityResults(true);
+    } else {
+      setCitySearchResults([]);
+      setShowCityResults(false);
+    }
+  };
+
+  // Handle city selection
+  const handleCitySelect = (cityName, areaCode, cityZipcode) => {
+    setCity(cityName);
+    setAcode(areaCode);
+    onAreaChange("city", cityName);
+    onAreaChange("acode", areaCode);
+    
+    if (cityZipcode) {
+      const zipcodeStr = String(cityZipcode);
+      setZipcode(zipcodeStr);
+      onAreaChange("zipcode", zipcodeStr);
+    }
+    
+    setShowCityResults(false);
+
+    // Update available zipcodes for the selected area
+    const selectedArea = areas.find((area) => area._id === areaCode);
+    if (selectedArea?.locations) {
+      const zipcodes = selectedArea.locations
+        .filter((loc) => loc.zipcode)
+        .map((loc) => String(loc.zipcode));
+      const uniqueZipcodes = [...new Set(zipcodes)];
+      setAvailableZipcodes(uniqueZipcodes);
+    }
+  };
 
   // Handle area code change
   const handleAreaCodeChange = (e) => {
@@ -99,8 +196,47 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
     setShowZipcodeOptions(false);
   };
 
+  // Click outside handler to close city results
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.city-search-container')) {
+        setShowCityResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="flex flex-col gap-3 text-lg">
+      <div className="city-search-container relative">
+        <InputField
+          label="City"
+          type="text"
+          name="city"
+          value={city}
+          onChange={handleCityInputChange}
+          className="text-base"
+          autoComplete="off"
+          uppercase={true}
+        />
+        {showCityResults && citySearchResults.length > 0 && (
+          <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+            {citySearchResults.map((result, index) => (
+              <div
+                key={index}
+                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                onClick={() => handleCitySelect(result.name, result._id, result.zipcode)}
+              >
+                {result.name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div>
         <select
           name="acode"
