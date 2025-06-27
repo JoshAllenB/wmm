@@ -60,10 +60,10 @@ const RenewalNoticeDataOverlay = forwardRef(({
     return {
       // Group 1: ID, Expiry, Last Issue (Right side fields)
       group1: {
-        top: 6.05, // ~55% of page height (11 inches * 0.55 = ~6.05 inches)
-        left: 0.21, // ~2.5% of page width (8.5 inches * 0.025 = 0.21 inches)
-        width: 3.0,
-        lineSpacing: 0.825, // Spacing between 55%, 62.5%, and 70% positions (approx 7.5% difference = 0.825")
+        top: 1.4, // ~55% of page height (11 inches * 0.55 = ~6.05 inches)
+        left: 4.2, // ~2.5% of page width (8.5 inches * 0.025 = 0.21 inches)
+        width: 2,
+        lineSpacing: 0.3, // Spacing between 55%, 62.5%, and 70% positions (approx 7.5% difference = 0.825")
         fontSize: 12,
         fontWeight: "bold",
         fontFamily: "Arial"
@@ -71,9 +71,9 @@ const RenewalNoticeDataOverlay = forwardRef(({
       
       // Group 2: ID, Copies, Name, Address, Contact (Left side fields)
       group2: {
-        top: 3.3, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
-        left: 0.0, // 0% of page width
-        width: 4.0, // Wide enough for address fields
+        top: 1.8, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
+        left: 0.1, // 0% of page width
+        width: 3, // Wide enough for address fields
         lineSpacing: 0.175, // Reduced from 0.275 to make fields appear closer together
         fontSize: 12,
         fontWeight: "normal",
@@ -1199,9 +1199,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.group2.top) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address1}
+                                  {subscriber.address1.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address1.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1210,9 +1216,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address2}
+                                  {subscriber.address2.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address2.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1221,9 +1233,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing * 2) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address3}
+                                  {subscriber.address3.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address3.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1232,9 +1250,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing * 3) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address4}
+                                  {subscriber.address4.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address4.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                             </div>

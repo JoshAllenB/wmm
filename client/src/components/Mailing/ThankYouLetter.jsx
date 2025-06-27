@@ -485,13 +485,17 @@ const ThankYouLetterDataOverlay = forwardRef(({
             </div>
             
             <!-- Name and address block -->
-            <div class="data-field" style="top: ${0.2 + positions.addressGroup.lineSpacing}in; left: 0.2in; width: ${positions.addressGroup.width}in; line-height: 1.2;">
+            <div class="data-field" style="top: ${0.2 + positions.addressGroup.lineSpacing}in; left: 0.2in; width: ${positions.addressGroup.width}in; line-height: 1.2; white-space: pre-wrap;">
               ${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}<br>
               ${sampleSubscriber.company ? `${sampleSubscriber.company}<br>` : ""}
-              ${sampleSubscriber.address1 ? `${sampleSubscriber.address1}<br>` : ""}
-              ${sampleSubscriber.address2 ? `${sampleSubscriber.address2}<br>` : ""}
-              ${sampleSubscriber.address3 ? `${sampleSubscriber.address3}<br>` : ""}
-              ${sampleSubscriber.address4 ? `${sampleSubscriber.address4}` : ""}
+              ${sampleSubscriber.address1 ? sampleSubscriber.address1.split('\n').map((line, i, arr) => 
+                `${line}${i < arr.length - 1 ? '<br>' : ''}`).join('') + '<br>' : ""}
+              ${sampleSubscriber.address2 ? sampleSubscriber.address2.split('\n').map((line, i, arr) => 
+                `${line}${i < arr.length - 1 ? '<br>' : ''}`).join('') + '<br>' : ""}
+              ${sampleSubscriber.address3 ? sampleSubscriber.address3.split('\n').map((line, i, arr) => 
+                `${line}${i < arr.length - 1 ? '<br>' : ''}`).join('') + '<br>' : ""}
+              ${sampleSubscriber.address4 ? sampleSubscriber.address4.split('\n').map((line, i, arr) => 
+                `${line}${i < arr.length - 1 ? '<br>' : ''}`).join('') : ""}
             </div>
           </div>
           
@@ -1307,9 +1311,15 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.addressGroup.top) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address1}
+                                  {subscriber.address1.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address1.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1318,9 +1328,15 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address2}
+                                  {subscriber.address2.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address2.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1329,9 +1345,15 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * 2) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address3}
+                                  {subscriber.address3.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address3.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                               
@@ -1340,9 +1362,15 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                   position: "absolute",
                                   top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * 3) * scaleY}px`,
                                   left: "0px",
-                                  width: "100%"
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address4}
+                                  {subscriber.address4.split('\n').map((line, i) => (
+                                    <React.Fragment key={i}>
+                                      {line}
+                                      {i < subscriber.address4.split('\n').length - 1 && <br />}
+                                    </React.Fragment>
+                                  ))}
                                 </div>
                               )}
                             </div>
