@@ -237,82 +237,94 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
           </div>
         )}
       </div>
-      <div>
-        <select
-          name="acode"
-          value={acode}
-          onChange={handleAreaCodeChange}
-          className="
-          w-full 
-          p-2 
-          pl-3 
-          pr-8 
-          border-2 
-          rounded-md 
-          text-xl 
-          bg-white 
-          appearance-none 
-          cursor-pointer 
-          border-gray-300 
-          focus:border-blue-500 
-          focus:ring-2 
-          focus:ring-blue-200 
-          focus:outline-none 
-          relative 
-          z-10
-        "
-        >
-          <option value="">Select Area Code</option>
-          {areas.map((area) => (
-            <option key={area._id} value={area._id}>
-              {area._id}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="relative">
-        <InputField
-          label="Zip Code"
-          type="text"
-          name="zipcode"
-          value={zipcode}
-          onChange={handleZipcodeChange}
-          onClick={() =>
-            availableZipcodes.length > 1 && setShowZipcodeOptions(true)
-          }
-        />
-
-        {/* Zipcode suggestions dropdown */}
-        {showZipcodeOptions && availableZipcodes.length > 1 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-            <div className="p-2 text-sm text-gray-500 border-b">
-              Available Zipcodes:
-            </div>
-            {availableZipcodes.map((zip) => (
-              <div
-                key={zip}
-                className="p-2 hover:bg-blue-50 cursor-pointer"
-                onClick={() => handleZipcodeSelect(zip)}
-              >
-                {zip}
-              </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-black text-xl mb-1">Area Code</label>
+          <select
+            name="acode"
+            value={acode}
+            onChange={handleAreaCodeChange}
+            className="
+              w-full 
+              p-2 
+              text-lg 
+              border-2 
+              rounded-md 
+              border-gray-300 
+              focus:border-blue-500 
+              focus:outline-none 
+              focus:ring-4 
+              focus:ring-blue-200 
+              transition-all 
+              duration-300
+            "
+          >
+            <option value="">Select Area Code</option>
+            {areas.map((area) => (
+              <option key={area._id} value={area._id}>
+                {area._id}
+              </option>
             ))}
-          </div>
-        )}
+          </select>
+        </div>
+        <div className="relative">
+          <label className="block text-black text-xl mb-1">Zip Code</label>
+          <input
+            type="text"
+            name="zipcode"
+            value={zipcode}
+            onChange={handleZipcodeChange}
+            onClick={() =>
+              availableZipcodes.length > 1 && setShowZipcodeOptions(true)
+            }
+            className="
+              w-full 
+              p-2 
+              text-lg 
+              border-2 
+              rounded-md 
+              border-gray-300 
+              focus:border-blue-500 
+              focus:outline-none 
+              focus:ring-4 
+              focus:ring-blue-200 
+              transition-all 
+              duration-300
+            "
+          />
 
-        {/* Help text when multiple zipcodes are available */}
-        {availableZipcodes.length > 1 && !showZipcodeOptions && (
-          <div className="text-xs text-blue-600 mt-1">
-            <button
-              type="button"
-              className="underline focus:outline-none text-base"
-              onClick={() => setShowZipcodeOptions(true)}
-            >
-              {availableZipcodes.length} zipcode options available - click to
-              view
-            </button>
-          </div>
-        )}
+          {/* Zipcode suggestions dropdown */}
+          {showZipcodeOptions && availableZipcodes.length > 1 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+              <div className="p-2 text-sm text-gray-500 border-b">
+                Available Zipcodes:
+              </div>
+              {availableZipcodes.map((zip) => (
+                <div
+                  key={zip}
+                  className="p-2 hover:bg-blue-50 cursor-pointer"
+                  onClick={() => handleZipcodeSelect(zip)}
+                >
+                  {zip}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Help text when multiple zipcodes are available */}
+          {availableZipcodes.length > 1 && !showZipcodeOptions && (
+            <div className="text-xs text-blue-600 mt-1">
+              <button
+                type="button"
+                className="underline focus:outline-none text-base"
+                onClick={() => setShowZipcodeOptions(true)}
+              >
+                {availableZipcodes.length} zipcode options available - click to
+                view
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

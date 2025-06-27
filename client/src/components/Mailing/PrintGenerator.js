@@ -296,6 +296,9 @@ export const generatePrintHTML = (
             text-align: left;
             font-size: ${fontSize}pt;
           }
+          .address-container p.address {
+            white-space: pre-wrap !important;
+          }
           @media print {
             @page {
               size: letter !important;
@@ -379,7 +382,7 @@ export const generatePrintHTML = (
                     <div class="address-container${isLeftColumn ? ' left-column' : ''}" style="left: ${leftOffset}px; top: ${topOffset}px;">
                       <p>${row?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row?.original?.acode || ""}` : (row?.original?.acode ? `/${row?.original?.acode}` : "")}</p>
                       <p style="font-weight:normal;">${getFullName(row?.original || {})}</p>
-                      <p>${row?.original?.address || ""}</p>
+                      <p class="address" style="white-space: pre-wrap;">${(row?.original?.address || "").replace(/\n/g, '<br />')}</p>
                       ${selectedFields.includes("contactnos") ? `<p>${getContactNumber(row?.original || {})}</p>` : ""}
                     </div>
                   `;
@@ -465,8 +468,11 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
           const fullName = getFullName(actualRowData?.original || {});
           labelText += `${fullName}\n`;
           
-          // Add address line
-          labelText += `${address}\n`;
+          // Add address line - split address into multiple lines if needed
+          const addressLines = (address || "").split('\n');
+          addressLines.forEach(line => {
+            labelText += `${line}\n`;
+          });
           
           // Add contact number if needed
           if (selectedFields.includes("contactnos")) {

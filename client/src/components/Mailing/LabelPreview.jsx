@@ -380,8 +380,16 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, us
       <p style={commonParagraphStyle}>
         {getFullName(rowData)}
       </p>
-      <p style={commonParagraphStyle}>
-        {rowData.address || ""}
+      <p style={{
+        ...commonParagraphStyle,
+        whiteSpace: "pre-wrap"
+      }}>
+        {(rowData.address || "").split('\n').map((line, i) => (
+          <React.Fragment key={i}>
+            {line}
+            {i < (rowData.address || "").split('\n').length - 1 && <br />}
+          </React.Fragment>
+        ))}
       </p>
       {selectedFields.includes("contactnos") && (
         <p style={commonParagraphStyle}>

@@ -104,11 +104,8 @@ const Add = ({ fetchClients }) => {
   const [addressData, setAddressData] = useState({
     street1: "",
     street2: "",
-    province: "",
-    city: "",
-    municipality: "",
-    subMunicipality: "",
-    barangay: "",
+    barangayMunicipality: "",
+    city: "", // Add city to addressData
   });
 
   const [combinedAddress, setCombinedAddress] = useState("");
@@ -328,11 +325,8 @@ const Add = ({ fetchClients }) => {
     setAddressData({
       street1: "",
       street2: "",
-      province: "",
-      city: "",
-      municipality: "",
-      subMunicipality: "",
-      barangay: "",
+      barangayMunicipality: "",
+      city: "", // Add city to addressData
     });
 
     // Reset combined address
@@ -762,36 +756,50 @@ const Add = ({ fetchClients }) => {
     });
   };
 
+  const formatAddressLines = (addressData, area, areaData) => {
+    const lines = [];
+
+    // Line 1: House/Building Number & Street Name, subdivision
+    const streetParts = [addressData.street1, addressData.street2].filter(Boolean);
+    if (streetParts.length > 0) {
+      lines.push(streetParts.join(", "));
+    }
+
+    // Line 2: Barangay
+    if (addressData.barangayMunicipality) {
+      lines.push(addressData.barangayMunicipality);
+    }
+
+    // Line 3: Postal code and area (city)
+    const postalParts = [areaData.zipcode, area].filter(Boolean);
+    if (postalParts.length > 0) {
+      lines.push(postalParts.join(" "));
+    }
+
+    return lines.filter(Boolean).join("\n");
+  };
+
   const handleAddressChange = (type, value) => {
-    // If changing any address field, immediately clear duplicates and show loading state
     if (potentialDuplicates.length > 0) {
       immediatelyClearDuplicates();
     }
     setIsCheckingDuplicates(true);
 
-    // Update the address data
     setAddressData((prev) => {
       const newAddressData = {
         ...prev,
         [type]: value,
       };
+      
+      const formattedAddress = formatAddressLines(newAddressData, formData.area, areaData);
+      setCombinedAddress(formattedAddress);
+      
+      // Also update the formData.address field
+      setFormData(prev => ({
+        ...prev,
+        address: formattedAddress
+      }));
 
-      // Immediately update the combined address for more responsive UI
-      const addressComponents = [
-        newAddressData.street1,
-        newAddressData.street2,
-        formData.area,
-        newAddressData.barangay,
-        newAddressData.city
-          ? newAddressData.city.replace(/^City of\s+/i, "")
-          : "", // Remove "City of" if it exists
-        newAddressData.province,
-      ];
-
-      const newCombinedAddress = addressComponents.filter(Boolean).join(", ");
-      setCombinedAddress(newCombinedAddress);
-
-      // After a brief delay to allow state updates, check for duplicates
       setTimeout(() => {
         const checkData = {
           fname: formData.fname,
@@ -801,7 +809,7 @@ const Add = ({ fetchClients }) => {
           email: formData.email,
           cellno: formData.cellno,
           contactnos: formData.contactnos,
-          address: newCombinedAddress,
+          address: formattedAddress,
           acode: areaData.acode || "",
         };
         checkForDuplicates(checkData, "address");
@@ -811,42 +819,55 @@ const Add = ({ fetchClients }) => {
     });
   };
 
-  const updateCombinedAddress = (addressData) => {
-    const addressComponents = [
-      addressData.street1,
-      addressData.street2,
-      formData.area,
-      addressData.barangay,
-      addressData.city ? addressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
-      addressData.province,
-    ];
-    const address = addressComponents.filter(Boolean).join(", ");
-    setCombinedAddress(address);
+  const handleAreaFormChange = (field, value) => {
+    handleAreaChange(field, value);
+    
+    if (field === "city") {
+      // Update formData.area with the city name
+      setFormData(prev => ({
+        ...prev,
+        area: value
+      }));
+      
+      setAddressData(prev => {
+        const newAddressData = {
+          ...prev,
+          city: value
+        };
+        
+        const formattedAddress = formatAddressLines(newAddressData, value, areaData);
+        setCombinedAddress(formattedAddress);
+        setFormData(prev => ({
+          ...prev,
+          area: value,
+          address: formattedAddress
+        }));
+        
+        return newAddressData;
+      });
+    }
   };
 
-  // Update useEffect for combining address and checking duplicates
+  // Update useEffect for combining address
   useEffect(() => {
-    // Only update combined address if it wasn't already updated by handleAddressChange
-    const addressComponents = [
-      addressData.street1,
-      addressData.street2,
-      formData.area,
-      addressData.barangay,
-      addressData.city ? addressData.city.replace(/^City of\s+/i, "") : "", // Remove "City of" if it exists
-      addressData.province,
-    ];
-    const newAddress = addressComponents.filter(Boolean).join(", ");
-
-    if (combinedAddress !== newAddress) {
-      setCombinedAddress(newAddress);
+    const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
+    if (combinedAddress !== formattedAddress) {
+      setCombinedAddress(formattedAddress);
+      // Also update the formData.address field
+      setFormData(prev => ({
+        ...prev,
+        address: formattedAddress
+      }));
     }
-
-    // We don't need to trigger duplicate checking here anymore
-    // since it's now handled directly in handleAddressChange
-  }, [addressData, formData.area]);
+  }, [addressData, formData.area, areaData]);
 
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
+    // Update formData.area with the city name
+    setFormData(prev => ({
+      ...prev,
+      area: cityname
+    }));
     handleAddressChange("city", cityname);
   };
 
@@ -984,7 +1005,6 @@ const Add = ({ fetchClients }) => {
     const clientData = {
       ...formData,
       bdate: formatBdate(),
-      address: combinedAddress,
       ...areaData,
     };
 
@@ -2005,7 +2025,7 @@ const Add = ({ fetchClients }) => {
                     <div>
                       <div className="space-y-3">
                         <InputField
-                          label="Address (house/building number street name):"
+                          label="House/Building Number & Street Name:"
                           id="street1"
                           name="street1"
                           value={addressData.street1}
@@ -2017,7 +2037,7 @@ const Add = ({ fetchClients }) => {
                           autoComplete="off"
                         />
                         <InputField
-                          label="Address (subdivision/compound name):"
+                          label="Subdivision/Compound Name:"
                           id="street2"
                           name="street2"
                           value={addressData.street2}
@@ -2028,7 +2048,19 @@ const Add = ({ fetchClients }) => {
                           className="text-base"
                           autoComplete="off"
                         />
-                        <AreaForm onAreaChange={handleAreaChange} />
+                        <InputField
+                          label="Barangay:"
+                          id="barangayMunicipality"
+                          name="barangayMunicipality"
+                          value={addressData.barangayMunicipality}
+                          onChange={(e) =>
+                            handleAddressChange("barangayMunicipality", e.target.value)
+                          }
+                          uppercase={true}
+                          className="text-base"
+                          autoComplete="off"
+                        />
+                        <AreaForm onAreaChange={handleAreaFormChange} />
                         <div className="mt-4">
                           <InputField
                             label="Address Preview:"
@@ -2036,10 +2068,14 @@ const Add = ({ fetchClients }) => {
                             name="combinedAddress"
                             value={combinedAddress}
                             type="textarea"
-                            onChange={(e) =>
-                              setCombinedAddress(e.target.value.toUpperCase())
-                            }
-                            className="w-full h-[160px] p-2 border rounded-md text-base"
+                            onChange={(e) => {
+                              const value = e.target.value.toUpperCase();
+                              clearTimeout(window.addressPreviewTimeout);
+                              window.addressPreviewTimeout = setTimeout(() => {
+                                setCombinedAddress(value);
+                              }, 100);
+                            }}
+                            className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
                           />
                         </div>
                       </div>

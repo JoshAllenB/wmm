@@ -10,7 +10,6 @@ import Edit from "./edit"; // Import the existing Edit component
 const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole, hasPermission } = useUser();
   const [formData, setFormData] = useState({});
-  const [addressData, setAddressData] = useState({});
   const [wmmData, setWmmData] = useState([]);
   const [hrgData, setHrgData] = useState({});
   const [fomData, setFomData] = useState({});
@@ -22,14 +21,6 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (rowData) {
       setFormData(rowData);
       setShowModal(true);
-
-      const addressParts = rowData.address ? rowData.address.split(", ") : [];
-      setAddressData({
-        region: addressParts[4] || "",
-        province: addressParts[3] || "",
-        city: addressParts[2] || "",
-        barangay: addressParts[1] || "",
-      });
 
       // Determine which services this client actually has
       const clientServices = rowData.services || [];
@@ -192,17 +183,6 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       setCalData({ records: [] });
     }
     
-    // Update address data if address was changed
-    if (updatedData.address) {
-      const addressParts = updatedData.address.split(", ");
-      setAddressData({
-        region: addressParts[4] || "",
-        province: addressParts[3] || "",
-        city: addressParts[2] || "",
-        barangay: addressParts[1] || "",
-      });
-    }
-    
     setIsEditing(false);
     
     // Pass the updated data to any parent component that needs it
@@ -211,12 +191,25 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
-  const renderField = (label, value) => (
-    <div className="mb-2">
-      <span className="text-black text-lg font-bold">{label}:</span>{" "}
-      <span className="text-black text-lg">{value}</span>
-    </div>
-  );
+  const renderField = (label, value) => {
+    // Special handling for address field to preserve line breaks
+    if (label === "Address") {
+      return (
+        <div className="mb-2">
+          <span className="text-black text-lg font-bold">{label}:</span>{" "}
+          <span className="text-black text-lg whitespace-pre-line">{value}</span>
+        </div>
+      );
+    }
+    
+    // Default rendering for other fields
+    return (
+      <div className="mb-2">
+        <span className="text-black text-lg font-bold">{label}:</span>{" "}
+        <span className="text-black text-lg">{value}</span>
+      </div>
+    );
+  };
 
   const renderSection = (title, fields) => (
     <div className="flex flex-col mb-2 p-2">
