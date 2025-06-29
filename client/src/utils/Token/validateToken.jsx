@@ -18,15 +18,20 @@ const decodeToken = (token) => {
   }
 };
 
+const isTokenExpired = (token) => {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return true;
+  return decoded.exp * 1000 < Date.now();
+};
+
 const refreshAndValidate = async () => {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
     removeTokens();
     console.error("No refresh token found");
-    // Redirect to login if refresh token is missing
-    redirectToLogin();
     return false;
   }
+
   try {
     const { data } = await axios.post(
       `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/refreshToken`,
@@ -44,8 +49,6 @@ const refreshAndValidate = async () => {
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
     removeTokens();
-    // Redirect to login on refresh failure
-    redirectToLogin();
     return false;
   }
 };
@@ -53,9 +56,12 @@ const refreshAndValidate = async () => {
 const validateToken = async () => {
   const token = getAccessToken();
   if (!token) {
-    // No token found, should redirect to login
-    redirectToLogin();
     return false;
+  }
+
+  // First check if token is expired without making an API call
+  if (isTokenExpired(token)) {
+    return await refreshAndValidate();
   }
 
   try {
@@ -70,21 +76,21 @@ const validateToken = async () => {
       // Handle invalid token case
       const refreshResult = await refreshAndValidate();
       if (!refreshResult) {
-        // If refresh fails, clear tokens and redirect
         removeTokens();
-        redirectToLogin();
       }
       return refreshResult;
     }
   } catch (error) {
     console.error("Token validation error:", error);
-    // If error status is 401, clear tokens immediately
+    // If error status is 401, try refresh
     if (error.response && error.response.status === 401) {
-      removeTokens();
-      redirectToLogin();
-      return false;
+      const refreshResult = await refreshAndValidate();
+      if (!refreshResult) {
+        removeTokens();
+      }
+      return refreshResult;
     }
-    return refreshAndValidate();
+    return false;
   }
 };
 

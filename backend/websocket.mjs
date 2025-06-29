@@ -64,9 +64,20 @@ const initWebSocket = (io) => {
     if (sessions.has(sessionId)) {
       // Reconnection logic
       const existingSession = sessions.get(sessionId);
+      
+      // Update the socket ID for this session
       existingSession.socketId = socket.id;
+      
+      // Update the global socket ID map
       global.socketIdMap.set(userId, socket.id);
-      // Store socketId for session
+      
+      // If there was a previous socket, disconnect it
+      const oldSocketId = existingSession.socketId;
+      if (oldSocketId && oldSocketId !== socket.id && io.sockets.sockets.has(oldSocketId)) {
+        io.sockets.sockets.get(oldSocketId).disconnect(true);
+      }
+      
+      // Store updated session data
       sessions.set(sessionId, existingSession);
       console.log(
         `Reconnected session: ${sessionId} for user: ${existingSession.username}`
@@ -88,8 +99,8 @@ const initWebSocket = (io) => {
       );
     }
 
-    // Store socketId for session
-    sessions.get(sessionId).socketId = socket.id;
+    // Join a room specific to this user
+    socket.join(`user:${userId}`);
 
     logConnectedUsers();
 
@@ -153,25 +164,33 @@ const initWebSocket = (io) => {
       console.log(`Reason: ${reason}`);
       console.log("========================\n");
 
+      // Don't immediately remove the session on disconnect
+      // Instead, wait a short period to allow for reconnection
       setTimeout(() => {
-        // Get the user data from the session
         const sessionData = sessions.get(sessionId);
         
         // Only clean up if:
-        // 1. The socket ID is no longer active AND
-        // 2. The user hasn't reconnected with a different socket ID
-        if (!io.sockets.sockets.has(socket.id) && 
-            (!sessionData || sessionData.socketId === socket.id)) {
+        // 1. The session exists AND
+        // 2. The socket ID matches (no new connection has taken over) AND
+        // 3. The socket is not connected
+        if (sessionData && 
+            sessionData.socketId === socket.id && 
+            !io.sockets.sockets.has(socket.id)) {
+          
+          // Remove from maps
           global.socketIdMap.delete(userId);
           sessions.delete(sessionId);
-          console.log(`Cleaned up disconnected user: ${userId}`);
+          
+          // Leave the user-specific room
+          socket.leave(`user:${userId}`);
+          
+          console.log(`Cleaned up disconnected session for user: ${userId}`);
         } else {
-          console.log(`User ${userId} still active with different socket ID, not cleaning up.`);
+          console.log(`Session ${sessionId} still active or reconnected, not cleaning up`);
         }
-      }, 5000);
-
-      // Log connected users after a disconnection
-      logConnectedUsers();
+        
+        logConnectedUsers();
+      }, 5000); // 5 second grace period for reconnection
     });
   });
 };

@@ -17,6 +17,24 @@ class WebSocketService {
       sessionId: null,
       socketId: null,
     };
+
+    // Restore session data from localStorage if available
+    this.restoreSession();
+  }
+
+  restoreSession() {
+    const sessionId = localStorage.getItem("sessionId");
+    const userId = localStorage.getItem("userId");
+    const username = localStorage.getItem("username");
+
+    if (sessionId && userId && username) {
+      this.sessionData = {
+        ...this.sessionData,
+        sessionId,
+        userId,
+        username,
+      };
+    }
   }
 
   connect(options = {}) {
@@ -31,7 +49,7 @@ class WebSocketService {
     // Skip if we don't have valid query data
     if (!options.query || !options.query.userId || !options.query.username) {
       // Check if we have stored session data already
-      if (this.connectionEstablished && this.sessionData.userId && this.sessionData.username) {
+      if (this.sessionData.userId && this.sessionData.username && this.sessionData.sessionId) {
         // Use stored session data instead
         options.query = { ...this.sessionData };
       } else {
@@ -45,10 +63,11 @@ class WebSocketService {
     // Validate required user data before connecting
     const sessionId = 
       options.query?.sessionId || 
+      this.sessionData.sessionId ||
       localStorage.getItem("sessionId");
     
-    const userId = options.query?.userId;
-    const username = options.query?.username;
+    const userId = options.query?.userId || this.sessionData.userId;
+    const username = options.query?.username || this.sessionData.username;
 
     // Prevent connection with null/undefined values
     if (
@@ -64,20 +83,22 @@ class WebSocketService {
       return;
     }
 
-    // Store session ID for future use
-    if (sessionId && !localStorage.getItem("sessionId")) {
-      localStorage.setItem("sessionId", sessionId);
-    }
+    // Store session data
+    this.sessionData = {
+      ...this.sessionData,
+      sessionId,
+      userId,
+      username,
+    };
+
+    // Persist session data to localStorage
+    localStorage.setItem("sessionId", sessionId);
+    localStorage.setItem("userId", userId);
+    localStorage.setItem("username", username);
 
     if (this.socket) {
       // If socket exists and is connected, just update the session data
       if (this.socket.connected) {
-        this.sessionData = {
-          ...this.sessionData,
-          sessionId,
-          userId,
-          username,
-        };
         this.isConnecting = false;
         return;
       }
@@ -87,19 +108,14 @@ class WebSocketService {
       this.socket = null;
     }
 
-    this.sessionData = {
-      ...this.sessionData,
-      sessionId,
-      userId,
-      username,
-    };
-
     this.socket = io(this.url, {
       query: this.sessionData,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       reconnectionAttempts: this.maxReconnectAttempts,
+      autoConnect: true,
+      forceNew: false,
     });
 
     this.socket.on("connect", () => {
@@ -114,11 +130,15 @@ class WebSocketService {
         const nextOptions = this.connectionQueue.shift();
         this.connect(nextOptions);
       }
+
+      // Resubscribe to all events
+      this.resubscribeEvents();
     });
 
     this.socket.on("disconnect", (reason) => {
       console.log("Disconnected from WebSocket:", reason);
       if (reason === "io server disconnect") {
+        // Server initiated disconnect, attempt to reconnect
         this.reconnect();
       }
       this.isConnecting = false;
@@ -134,6 +154,17 @@ class WebSocketService {
     });
   }
 
+  resubscribeEvents() {
+    // Resubscribe to all events after reconnection
+    this.eventHandlers.forEach((handlers, event) => {
+      handlers.forEach(handler => {
+        if (this.socket) {
+          this.socket.on(event, handler);
+        }
+      });
+    });
+  }
+
   reconnect() {
     console.log("Attempting to reconnect...");
     // Only try to reconnect if we have valid session data
@@ -143,6 +174,11 @@ class WebSocketService {
   }
 
   subscribe(event, handler) {
+    if (!this.eventHandlers.has(event)) {
+      this.eventHandlers.set(event, new Set());
+    }
+    this.eventHandlers.get(event).add(handler);
+
     if (!this.socket || !this.socket.connected) {
       console.warn("Socket not initialized or not connected, connecting...");
       // Only try to reconnect if we have stored session data
@@ -151,14 +187,7 @@ class WebSocketService {
       } else {
         console.warn("Cannot subscribe: No valid user data available for connection");
       }
-    }
-
-    if (!this.eventHandlers.has(event)) {
-      this.eventHandlers.set(event, new Set());
-    }
-    this.eventHandlers.get(event).add(handler);
-
-    if (this.socket) {
+    } else if (this.socket) {
       this.socket.on(event, handler);
     }
   }
