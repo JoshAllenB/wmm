@@ -59,6 +59,14 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   const [showCityResults, setShowCityResults] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
+  // New state variables for autocomplete
+  const [areaSearchResults, setAreaSearchResults] = useState([]);
+  const [showAreaResults, setShowAreaResults] = useState(false);
+  const [zipcodeSearchResults, setZipcodeSearchResults] = useState([]);
+  const [showZipcodeResults, setShowZipcodeResults] = useState(false);
+  const [highlightedAreaIndex, setHighlightedAreaIndex] = useState(0);
+  const [highlightedZipcodeIndex, setHighlightedZipcodeIndex] = useState(0);
+
   // Create a memoized trie structure for city search
   const cityTrie = useMemo(() => {
     const allLocations = areas.flatMap(area => 
@@ -68,6 +76,26 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
       }))
     );
     return buildTrie(allLocations);
+  }, [areas]);
+
+  const areaTrie = useMemo(() => {
+    return buildTrie(areas.map(area => ({
+      name: area._id,
+      _id: area._id
+    })));
+  }, [areas]);
+
+  const zipcodeTrie = useMemo(() => {
+    const allZipcodes = areas.flatMap(area =>
+      area.locations
+        .filter(loc => loc.zipcode)
+        .map(loc => ({
+          name: String(loc.zipcode),
+          _id: area._id,
+          city: loc.name
+        }))
+    );
+    return buildTrie(allZipcodes);
   }, [areas]);
 
   // Load areas data on component mount
@@ -192,58 +220,142 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
     }
   };
 
-  // Handle area code change
-  const handleAreaCodeChange = (value) => {
-    // If placeholder is selected, treat it as empty
-    const selectedValue = value === "placeholder" ? "" : value;
-    setAcode(selectedValue);
-    onAreaChange("acode", selectedValue);
+  // Handle area code input change
+  const handleAreaInputChange = (e) => {
+    const value = e.target.value.toUpperCase();
+    setAcode(value);
+    onAreaChange("acode", value);
+
+    if (value.length >= 1) {
+      const results = searchTrie(areaTrie, value);
+      setAreaSearchResults(results);
+      setShowAreaResults(true);
+    } else {
+      setAreaSearchResults([]);
+      setShowAreaResults(false);
+    }
 
     // Clear zipcode when area changes
     setZipcode("");
     onAreaChange("zipcode", "");
+  };
 
-    // Update available zipcodes based on the selected area
-    if (selectedValue) {
-      const selectedArea = areas.find((area) => area._id === selectedValue);
-      if (selectedArea?.locations) {
-        // Get all unique zipcodes for this area
-        const zipcodes = selectedArea.locations
-          .filter((loc) => loc.zipcode)
-          .map((loc) => String(loc.zipcode));
+  // Handle area code selection
+  const handleAreaSelect = (areaCode) => {
+    setAcode(areaCode);
+    onAreaChange("acode", areaCode);
+    setShowAreaResults(false);
 
-        const uniqueZipcodes = [...new Set(zipcodes)];
-        setAvailableZipcodes(uniqueZipcodes);
-
-        // If only one zipcode, set it automatically
-        if (uniqueZipcodes.length === 1) {
-          setZipcode(uniqueZipcodes[0]);
-          onAreaChange("zipcode", uniqueZipcodes[0]);
-        }
-      }
-    } else {
-      // Reset if no area code selected
-      setAvailableZipcodes([]);
+    // Update available zipcodes for the selected area
+    const selectedArea = areas.find((area) => area._id === areaCode);
+    if (selectedArea?.locations) {
+      const zipcodes = selectedArea.locations
+        .filter((loc) => loc.zipcode)
+        .map((loc) => String(loc.zipcode));
+      const uniqueZipcodes = [...new Set(zipcodes)];
+      setAvailableZipcodes(uniqueZipcodes);
     }
   };
 
-  // Handle zipcode change - completely independent from area code
-  const handleZipcodeChange = (e) => {
-    const newZipcode = e.target.value;
-    setZipcode(newZipcode);
-    onAreaChange("zipcode", newZipcode);
+  // Handle zipcode input change
+  const handleZipcodeInputChange = (e) => {
+    const value = e.target.value;
+    setZipcode(value);
+    onAreaChange("zipcode", value);
+
+    if (value.length >= 1) {
+      const results = searchTrie(zipcodeTrie, value);
+      setZipcodeSearchResults(results);
+      setShowZipcodeResults(true);
+    } else {
+      setZipcodeSearchResults([]);
+      setShowZipcodeResults(false);
+    }
   };
 
-  // Handle selecting a zipcode from the dropdown
-  const handleZipcodeSelect = (value) => {
-    const selectedValue = value === "placeholder" ? "" : value;
-    setZipcode(selectedValue);
-    onAreaChange("zipcode", selectedValue);
+  // Handle zipcode selection
+  const handleZipcodeSelect = (zipcodeData) => {
+    setZipcode(zipcodeData.name);
+    onAreaChange("zipcode", zipcodeData.name);
+    
+    // Update area code and city if they're from a different area
+    if (zipcodeData._id !== acode) {
+      setAcode(zipcodeData._id);
+      onAreaChange("acode", zipcodeData._id);
+      if (zipcodeData.city) {
+        setCity(zipcodeData.city);
+        onAreaChange("city", zipcodeData.city);
+      }
+    }
+    
+    setShowZipcodeResults(false);
   };
 
-  // Click outside handler to close city results
+  // Key handlers for area code and zipcode search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (showAreaResults && areaSearchResults.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setHighlightedAreaIndex((prevIndex) =>
+            prevIndex < areaSearchResults.length - 1 ? prevIndex + 1 : 0
+          );
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setHighlightedAreaIndex((prevIndex) =>
+            prevIndex > 0 ? prevIndex - 1 : areaSearchResults.length - 1
+          );
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const selected = areaSearchResults[highlightedAreaIndex];
+          if (selected) {
+            handleAreaSelect(selected.name);
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setShowAreaResults(false);
+        }
+      }
+
+      if (showZipcodeResults && zipcodeSearchResults.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setHighlightedZipcodeIndex((prevIndex) =>
+            prevIndex < zipcodeSearchResults.length - 1 ? prevIndex + 1 : 0
+          );
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setHighlightedZipcodeIndex((prevIndex) =>
+            prevIndex > 0 ? prevIndex - 1 : zipcodeSearchResults.length - 1
+          );
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          const selected = zipcodeSearchResults[highlightedZipcodeIndex];
+          if (selected) {
+            handleZipcodeSelect(selected);
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setShowZipcodeResults(false);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showAreaResults, areaSearchResults, highlightedAreaIndex, showZipcodeResults, zipcodeSearchResults, highlightedZipcodeIndex]);
+
+  // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (!event.target.closest('.area-search-container')) {
+        setShowAreaResults(false);
+      }
+      if (!event.target.closest('.zipcode-search-container')) {
+        setShowZipcodeResults(false);
+      }
       if (!event.target.closest('.city-search-container')) {
         setShowCityResults(false);
       }
@@ -301,51 +413,89 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
         )}
       </div>
       <div className="grid grid-cols-2 gap-4">
-        <div>
+        <div className="area-search-container relative">
           <label className="block text-black text-xl mb-1">Area Code</label>
-          <Select 
-            defaultValue={acode || "placeholder"} 
-            onValueChange={handleAreaCodeChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select Area Code" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="placeholder">Select Area Code</SelectItem>
-              {areas.map((area) => (
-                <SelectItem key={area._id} value={area._id}>
-                  {area._id}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="relative">
-          <label className="block text-black text-xl mb-1">Zip Code</label>
-          {availableZipcodes.length > 1 ? (
-            <Select 
-              defaultValue={zipcode || "placeholder"} 
-              onValueChange={handleZipcodeSelect}
+          <InputField
+            type="text"
+            name="acode"
+            value={acode}
+            onChange={handleAreaInputChange}
+            className="text-base"
+            autoComplete="off"
+            uppercase={true}
+            aria-expanded={showAreaResults}
+            aria-haspopup="listbox"
+            aria-controls="area-search-results"
+            aria-activedescendant={
+              showAreaResults && areaSearchResults.length > 0
+                ? `area-option-${highlightedAreaIndex}`
+                : undefined
+            }
+          />
+          {showAreaResults && areaSearchResults.length > 0 && (
+            <div 
+              id="area-search-results"
+              role="listbox"
+              aria-label="Area code search results"
+              className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select Zip Code" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableZipcodes.map((zip) => (
-                  <SelectItem key={zip} value={zip}>
-                    {zip}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <input
-              type="text"
-              name="zipcode"
-              value={zipcode}
-              onChange={handleZipcodeChange}
-              className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
-            />
+              {areaSearchResults.map((result, index) => (
+                <div
+                  id={`area-option-${index}`}
+                  key={index}
+                  role="option"
+                  aria-selected={index === highlightedAreaIndex}
+                  className={`px-4 py-2 cursor-pointer text-sm ${
+                    index === highlightedAreaIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleAreaSelect(result.name)}
+                >
+                  {result.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="zipcode-search-container relative">
+          <label className="block text-black text-xl mb-1">Zip Code</label>
+          <InputField
+            type="text"
+            name="zipcode"
+            value={zipcode}
+            onChange={handleZipcodeInputChange}
+            className="text-base"
+            autoComplete="off"
+            aria-expanded={showZipcodeResults}
+            aria-haspopup="listbox"
+            aria-controls="zipcode-search-results"
+            aria-activedescendant={
+              showZipcodeResults && zipcodeSearchResults.length > 0
+                ? `zipcode-option-${highlightedZipcodeIndex}`
+                : undefined
+            }
+          />
+          {showZipcodeResults && zipcodeSearchResults.length > 0 && (
+            <div 
+              id="zipcode-search-results"
+              role="listbox"
+              aria-label="Zipcode search results"
+              className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
+            >
+              {zipcodeSearchResults.map((result, index) => (
+                <div
+                  id={`zipcode-option-${index}`}
+                  key={index}
+                  role="option"
+                  aria-selected={index === highlightedZipcodeIndex}
+                  className={`px-4 py-2 cursor-pointer text-sm ${
+                    index === highlightedZipcodeIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  }`}
+                  onClick={() => handleZipcodeSelect(result)}
+                >
+                  {result.name} - {result.city}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
