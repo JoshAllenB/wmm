@@ -38,7 +38,6 @@ const DataExport = () => {
   useEffect(() => {
     // Subscribe to export status updates
     const handleStatusUpdate = (status) => {
-      console.log("Export status update:", status); // Debug log
       setExportStatus(status);
       setIsGenerating(status.inProgress);
       setError(status.error);
@@ -73,9 +72,6 @@ const DataExport = () => {
       setIsGenerating(true);
       setError(null);
       setDownloadReady(false);
-      
-      console.log("Starting report generation...", { month, year, userId: userData.id }); // Debug log
-      
       await dataExportService.generateMonthlyReport(
         month,
         year,
@@ -83,7 +79,6 @@ const DataExport = () => {
         userData.username
       );
     } catch (err) {
-      console.error("Report generation error:", err); // Debug log
       setError(err.message || "Failed to generate report");
       setIsGenerating(false);
     }
@@ -96,11 +91,9 @@ const DataExport = () => {
     }
 
     try {
-      console.log("Downloading report:", exportStatus.filename); // Debug log
       await dataExportService.downloadReport(exportStatus.filename);
       setDownloadReady(false); // Reset download state after successful download
     } catch (err) {
-      console.error("Download error:", err); // Debug log
       setError(err.message || "Failed to download report");
     }
   };
