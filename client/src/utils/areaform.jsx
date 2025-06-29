@@ -1,6 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchAreas } from "../components/Table/Data/utilData";
 import InputField from "../components/CRUD/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/UI/ShadCN/select";
 
 // Trie implementation
 const buildTrie = (locations) => {
@@ -50,6 +57,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   const [showZipcodeOptions, setShowZipcodeOptions] = useState(false);
   const [citySearchResults, setCitySearchResults] = useState([]);
   const [showCityResults, setShowCityResults] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   // Create a memoized trie structure for city search
   const cityTrie = useMemo(() => {
@@ -99,6 +107,44 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
     loadAreas();
   }, [initialAreaData, onAreaChange]);
 
+  // Reset highlighted index when search results change
+  useEffect(() => {
+    setHighlightedIndex(0);
+  }, [citySearchResults]);
+
+  // Key handler for city search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!showCityResults || citySearchResults.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightedIndex((prevIndex) =>
+          prevIndex < citySearchResults.length - 1 ? prevIndex + 1 : 0
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightedIndex((prevIndex) =>
+          prevIndex > 0 ? prevIndex - 1 : citySearchResults.length - 1
+        );
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const selected = citySearchResults[highlightedIndex];
+        if (selected) {
+          handleCitySelect(selected.name, selected._id, selected.zipcode);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        setShowCityResults(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [citySearchResults, showCityResults, highlightedIndex]);
+
   // Handle city input change using trie search
   const handleCityInputChange = async (e) => {
     const value = e.target.value;
@@ -147,17 +193,19 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   };
 
   // Handle area code change
-  const handleAreaCodeChange = (e) => {
-    const selectedAcode = e.target.value;
-    setAcode(selectedAcode);
-    onAreaChange("acode", selectedAcode);
+  const handleAreaCodeChange = (value) => {
+    // If placeholder is selected, treat it as empty
+    const selectedValue = value === "placeholder" ? "" : value;
+    setAcode(selectedValue);
+    onAreaChange("acode", selectedValue);
 
-    // Clear zipcode options dropdown state
-    setShowZipcodeOptions(false);
+    // Clear zipcode when area changes
+    setZipcode("");
+    onAreaChange("zipcode", "");
 
     // Update available zipcodes based on the selected area
-    if (selectedAcode) {
-      const selectedArea = areas.find((area) => area._id === selectedAcode);
+    if (selectedValue) {
+      const selectedArea = areas.find((area) => area._id === selectedValue);
       if (selectedArea?.locations) {
         // Get all unique zipcodes for this area
         const zipcodes = selectedArea.locations
@@ -171,9 +219,6 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
         if (uniqueZipcodes.length === 1) {
           setZipcode(uniqueZipcodes[0]);
           onAreaChange("zipcode", uniqueZipcodes[0]);
-        } else if (uniqueZipcodes.length > 1) {
-          // Show available zipcodes but don't auto-select
-          setShowZipcodeOptions(true);
         }
       }
     } else {
@@ -190,10 +235,10 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   };
 
   // Handle selecting a zipcode from the dropdown
-  const handleZipcodeSelect = (selectedZipcode) => {
-    setZipcode(selectedZipcode);
-    onAreaChange("zipcode", selectedZipcode);
-    setShowZipcodeOptions(false);
+  const handleZipcodeSelect = (value) => {
+    const selectedValue = value === "placeholder" ? "" : value;
+    setZipcode(selectedValue);
+    onAreaChange("zipcode", selectedValue);
   };
 
   // Click outside handler to close city results
@@ -222,13 +267,31 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
           className="text-base"
           autoComplete="off"
           uppercase={true}
+          aria-expanded={showCityResults}
+          aria-haspopup="listbox"
+          aria-controls="city-search-results"
+          aria-activedescendant={
+            showCityResults && citySearchResults.length > 0
+              ? `city-option-${highlightedIndex}`
+              : undefined
+          }
         />
         {showCityResults && citySearchResults.length > 0 && (
-          <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          <div 
+            id="city-search-results"
+            role="listbox"
+            aria-label="City search results"
+            className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
+          >
             {citySearchResults.map((result, index) => (
               <div
+                id={`city-option-${index}`}
                 key={index}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                role="option"
+                aria-selected={index === highlightedIndex}
+                className={`px-4 py-2 cursor-pointer text-sm ${
+                  index === highlightedIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                }`}
                 onClick={() => handleCitySelect(result.name, result._id, result.zipcode)}
               >
                 {result.name}
@@ -240,89 +303,49 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-black text-xl mb-1">Area Code</label>
-          <select
-            name="acode"
-            value={acode}
-            onChange={handleAreaCodeChange}
-            className="
-              w-full 
-              p-2 
-              text-lg 
-              border-2 
-              rounded-md 
-              border-gray-300 
-              focus:border-blue-500 
-              focus:outline-none 
-              focus:ring-4 
-              focus:ring-blue-200 
-              transition-all 
-              duration-300
-            "
+          <Select 
+            defaultValue={acode || "placeholder"} 
+            onValueChange={handleAreaCodeChange}
           >
-            <option value="">Select Area Code</option>
-            {areas.map((area) => (
-              <option key={area._id} value={area._id}>
-                {area._id}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select Area Code" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="placeholder">Select Area Code</SelectItem>
+              {areas.map((area) => (
+                <SelectItem key={area._id} value={area._id}>
+                  {area._id}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="relative">
           <label className="block text-black text-xl mb-1">Zip Code</label>
-          <input
-            type="text"
-            name="zipcode"
-            value={zipcode}
-            onChange={handleZipcodeChange}
-            onClick={() =>
-              availableZipcodes.length > 1 && setShowZipcodeOptions(true)
-            }
-            className="
-              w-full 
-              p-2 
-              text-lg 
-              border-2 
-              rounded-md 
-              border-gray-300 
-              focus:border-blue-500 
-              focus:outline-none 
-              focus:ring-4 
-              focus:ring-blue-200 
-              transition-all 
-              duration-300
-            "
-          />
-
-          {/* Zipcode suggestions dropdown */}
-          {showZipcodeOptions && availableZipcodes.length > 1 && (
-            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-              <div className="p-2 text-sm text-gray-500 border-b">
-                Available Zipcodes:
-              </div>
-              {availableZipcodes.map((zip) => (
-                <div
-                  key={zip}
-                  className="p-2 hover:bg-blue-50 cursor-pointer"
-                  onClick={() => handleZipcodeSelect(zip)}
-                >
-                  {zip}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Help text when multiple zipcodes are available */}
-          {availableZipcodes.length > 1 && !showZipcodeOptions && (
-            <div className="text-xs text-blue-600 mt-1">
-              <button
-                type="button"
-                className="underline focus:outline-none text-base"
-                onClick={() => setShowZipcodeOptions(true)}
-              >
-                {availableZipcodes.length} zipcode options available - click to
-                view
-              </button>
-            </div>
+          {availableZipcodes.length > 1 ? (
+            <Select 
+              defaultValue={zipcode || "placeholder"} 
+              onValueChange={handleZipcodeSelect}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select Zip Code" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableZipcodes.map((zip) => (
+                  <SelectItem key={zip} value={zip}>
+                    {zip}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <input
+              type="text"
+              name="zipcode"
+              value={zipcode}
+              onChange={handleZipcodeChange}
+              className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
+            />
           )}
         </div>
       </div>
