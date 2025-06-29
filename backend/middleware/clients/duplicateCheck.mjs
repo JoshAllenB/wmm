@@ -73,41 +73,23 @@ export async function checkDuplicates({
 
   // Last name-based matching (highest priority)
   if (lname && lname.length > 1) {
-    query.$or.push({ lname: { $regex: new RegExp(lname, "i") } });
-    query.$or.push({ company: { $regex: new RegExp(lname, "i") } });
+    // Use exact match first, then partial match
+    query.$or.push({ lname: lname });
+    query.$or.push({ lname: { $regex: new RegExp(`^${lname}`, "i") } });
     
     scoringPipeline.push({
       $addFields: {
         lnameMatch: {
           $cond: [
-            {
-              $and: [
-                { $ne: ["$lname", null] },
-                { $ne: ["$lname", undefined] },
-                { $eq: [{ $type: "$lname" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$lname",
-                    regex: new RegExp(`^${lname}$`, "i"),
-                  },
-                },
-              ],
-            },
+            { $eq: ["$lname", lname] },
             20,
             {
               $cond: [
                 {
-                  $and: [
-                    { $ne: ["$lname", null] },
-                    { $ne: ["$lname", undefined] },
-                    { $eq: [{ $type: "$lname" }, "string"] },
-                    {
-                      $regexMatch: {
-                        input: "$lname",
-                        regex: new RegExp(lname, "i"),
-                      },
-                    },
-                  ],
+                  $regexMatch: {
+                    input: "$lname",
+                    regex: new RegExp(`^${lname}`, "i"),
+                  },
                 },
                 15,
                 0,
@@ -118,275 +100,65 @@ export async function checkDuplicates({
       },
     });
     
-    scoringPipeline.push({
-      $addFields: {
-        lnameInCompanyMatch: {
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$company", null] },
-                { $ne: ["$company", undefined] },
-                { $eq: [{ $type: "$company" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$company",
-                    regex: new RegExp(lname, "i"),
-                  },
-                },
-              ],
-            },
-            7,
-            0,
-          ],
-        },
-      },
-    });
-    
     hasSearchableData = true;
   }
 
   // Address matching with standardization
   const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
-  const addressTokens = getAddressTokens(address);
   
   if (clientStandardizedAddress && clientStandardizedAddress.length > 2) {
     try {
-      query.$or.push({
-        address: { $regex: new RegExp(clientStandardizedAddress, "i") }
-      });
-      
-      addressTokens.forEach((token) => {
-        if (token && token.length > 3) {
-          query.$or.push({
-            address: { $regex: new RegExp(token, "i") }
-          });
-        }
-      });
-
+      // Instead of using regex for full address, use address components
       if (addressComponents) {
         if (addressComponents.street1 && addressComponents.street1.length > 3) {
           query.$or.push({ address: { $regex: new RegExp(addressComponents.street1, "i") } });
         }
         
-        if (addressComponents.barangay && addressComponents.barangay.length > 2) {
-          query.$or.push({ address: { $regex: new RegExp(addressComponents.barangay, "i") } });
-          query.$or.push({ barangay: { $regex: new RegExp(addressComponents.barangay, "i") } });
-        }
-        
         if (addressComponents.city && addressComponents.city.length > 2) {
-          query.$or.push({ address: { $regex: new RegExp(addressComponents.city.replace(/^City of\s+/i, ""), "i") } });
-          query.$or.push({ city: { $regex: new RegExp(addressComponents.city.replace(/^City of\s+/i, ""), "i") } });
+          const cityNoPrefix = addressComponents.city.replace(/^City of\s+/i, "");
+          query.$or.push({ city: cityNoPrefix });
         }
         
         if (addressComponents.province && addressComponents.province.length > 2) {
-          query.$or.push({ address: { $regex: new RegExp(addressComponents.province, "i") } });
-          query.$or.push({ province: { $regex: new RegExp(addressComponents.province, "i") } });
+          query.$or.push({ province: addressComponents.province });
         }
       }
 
       scoringPipeline.push({
         $addFields: {
-          addressExactMatch: {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$address", null] },
-                  { $ne: ["$address", ""] },
-                  { $eq: [{ $type: "$address" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$address",
-                      regex: new RegExp(clientStandardizedAddress, "i"),
-                    },
-                  },
-                ],
+          addressMatch: {
+            $sum: [
+              { 
+                $cond: [
+                  { $eq: ["$address", clientStandardizedAddress] },
+                  15,
+                  0
+                ]
               },
-              15,
-              0,
-            ],
-          },
-        },
+              {
+                $cond: [
+                  { $and: [
+                    { $ne: ["$city", null] },
+                    { $eq: ["$city", addressComponents?.city?.replace(/^City of\s+/i, "")] }
+                  ]},
+                  8,
+                  0
+                ]
+              },
+              {
+                $cond: [
+                  { $and: [
+                    { $ne: ["$province", null] },
+                    { $eq: ["$province", addressComponents?.province] }
+                  ]},
+                  7,
+                  0
+                ]
+              }
+            ]
+          }
+        }
       });
-      
-      if (addressTokens.length > 0) {
-        const tokenScoring = addressTokens.map((token, index) => ({
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$address", null] },
-                { $ne: ["$address", ""] },
-                { $eq: [{ $type: "$address" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$address",
-                    regex: new RegExp(token, "i"),
-                  },
-                },
-              ],
-            },
-            Math.max(10 - index, 5),
-            0,
-          ],
-        }));
-        
-        scoringPipeline.push({
-          $addFields: {
-            addressTokenMatch: { $sum: tokenScoring },
-          },
-        });
-      }
-      
-      if (addressComponents) {
-        const componentScoring = [];
-        
-        if (addressComponents.street1 && addressComponents.street1.length > 3) {
-          componentScoring.push({
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$address", null] },
-                  { $ne: ["$address", ""] },
-                  { $eq: [{ $type: "$address" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$address",
-                      regex: new RegExp(addressComponents.street1, "i"),
-                    },
-                  },
-                ],
-              },
-              12,
-              0,
-            ],
-          });
-        }
-        
-        if (addressComponents.barangay && addressComponents.barangay.length > 2) {
-          componentScoring.push({
-            $cond: [
-              {
-                $or: [
-                  {
-                    $and: [
-                      { $ne: ["$address", null] },
-                      { $ne: ["$address", ""] },
-                      { $eq: [{ $type: "$address" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$address",
-                          regex: new RegExp(addressComponents.barangay, "i"),
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    $and: [
-                      { $ne: ["$barangay", null] },
-                      { $ne: ["$barangay", ""] },
-                      { $eq: [{ $type: "$barangay" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$barangay",
-                          regex: new RegExp(addressComponents.barangay, "i"),
-                        },
-                      },
-                    ],
-                  },
-                ],
-              },
-              8,
-              0,
-            ],
-          });
-        }
-        
-        if (addressComponents.city && addressComponents.city.length > 2) {
-          const cityNoPrefix = addressComponents.city.replace(/^City of\s+/i, "");
-          componentScoring.push({
-            $cond: [
-              {
-                $or: [
-                  {
-                    $and: [
-                      { $ne: ["$address", null] },
-                      { $ne: ["$address", ""] },
-                      { $eq: [{ $type: "$address" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$address",
-                          regex: new RegExp(cityNoPrefix, "i"),
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    $and: [
-                      { $ne: ["$city", null] },
-                      { $ne: ["$city", ""] },
-                      { $eq: [{ $type: "$city" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$city",
-                          regex: new RegExp(cityNoPrefix, "i"),
-                        },
-                      },
-                    ],
-                  },
-                ],
-              },
-              7,
-              0,
-            ],
-          });
-        }
-        
-        if (addressComponents.province && addressComponents.province.length > 2) {
-          componentScoring.push({
-            $cond: [
-              {
-                $or: [
-                  {
-                    $and: [
-                      { $ne: ["$address", null] },
-                      { $ne: ["$address", ""] },
-                      { $eq: [{ $type: "$address" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$address",
-                          regex: new RegExp(addressComponents.province, "i"),
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    $and: [
-                      { $ne: ["$province", null] },
-                      { $ne: ["$province", ""] },
-                      { $eq: [{ $type: "$province" }, "string"] },
-                      {
-                        $regexMatch: {
-                          input: "$province",
-                          regex: new RegExp(addressComponents.province, "i"),
-                        },
-                      },
-                    ],
-                  },
-                ],
-              },
-              6,
-              0,
-            ],
-          });
-        }
-        
-        if (componentScoring.length > 0) {
-          scoringPipeline.push({
-            $addFields: {
-              addressComponentMatch: { $sum: componentScoring },
-            },
-          });
-        }
-      }
       
       hasSearchableData = true;
     } catch (error) {
@@ -394,191 +166,93 @@ export async function checkDuplicates({
     }
   }
 
-  // First name matching
-  if (fname && fname.length > 1) {
-    query.$or.push({ fname: { $regex: new RegExp(fname, "i") } });
-    query.$or.push({ company: { $regex: new RegExp(fname, "i") } });
-
-    scoringPipeline.push({
-      $addFields: {
-        fnameMatch: {
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$fname", null] },
-                { $ne: ["$fname", null] },
-                { $eq: [{ $type: "$fname" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$fname",
-                    regex: new RegExp(fname, "i"),
-                  },
-                },
-              ],
-            },
-            12,
-            0,
-          ],
-        },
-      },
-    });
-    
-    scoringPipeline.push({
-      $addFields: {
-        fnameInCompanyMatch: {
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$company", null] },
-                { $ne: ["$company", undefined] },
-                { $eq: [{ $type: "$company" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$company",
-                    regex: new RegExp(fname, "i"),
-                  },
-                },
-              ],
-            },
-            5,
-            0,
-          ],
-        },
-      },
-    });
-    
-    hasSearchableData = true;
-  }
-
-  // Company name matching
-  if (company && company.length > 2) {
-    query.$or.push({ company: { $regex: new RegExp(company, "i") } });
-    scoringPipeline.push({
-      $addFields: {
-        companyMatch: {
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$company", null] },
-                { $ne: ["$company", undefined] },
-                { $eq: [{ $type: "$company" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$company",
-                    regex: new RegExp(company, "i"),
-                  },
-                },
-              ],
-            },
-            8,
-            0,
-          ],
-        },
-      },
-    });
-    hasSearchableData = true;
-  }
-
-  // Contact-based matching
+  // Email exact matching (high priority)
   if (email && email.includes("@")) {
-    query.$or.push({ email: { $regex: new RegExp(email, "i") } });
+    query.$or.push({ email: email.toLowerCase() });
     scoringPipeline.push({
       $addFields: {
         emailMatch: {
           $cond: [
-            {
-              $and: [
-                { $ne: ["$email", null] },
-                { $ne: ["$email", undefined] },
-                { $eq: [{ $type: "$email" }, "string"] },
-                {
-                  $regexMatch: {
-                    input: "$email",
-                    regex: new RegExp(email, "i"),
-                  },
-                },
-              ],
-            },
-            8,
-            0,
-          ],
-        },
-      },
+            { $eq: ["$email", email.toLowerCase()] },
+            15,
+            0
+          ]
+        }
+      }
     });
     hasSearchableData = true;
   }
 
+  // Phone number exact matching
   if (cellno && cellno.length > 3) {
-    query.$or.push({ cellno: { $regex: cellno } });
+    query.$or.push({ cellno: cellno });
     scoringPipeline.push({
       $addFields: {
         cellnoMatch: {
           $cond: [
-            {
-              $and: [
-                { $ne: ["$cellno", null] },
-                { $ne: ["$cellno", undefined] },
-                { $eq: [{ $type: "$cellno" }, "string"] },
-                { $regexMatch: { input: "$cellno", regex: cellno } },
-              ],
-            },
-            8,
-            0,
-          ],
-        },
-      },
-    });
-    hasSearchableData = true;
-  }
-
-  if (contactnos && contactnos.length > 3) {
-    query.$or.push({ contactnos: { $regex: contactnos } });
-    scoringPipeline.push({
-      $addFields: {
-        contactnosMatch: {
-          $cond: [
-            {
-              $and: [
-                { $ne: ["$contactnos", null] },
-                { $ne: ["$contactnos", undefined] },
-                { $eq: [{ $type: "$contactnos" }, "string"] },
-                { $regexMatch: { input: "$contactnos", regex: contactnos } },
-              ],
-            },
-            7,
-            0,
-          ],
-        },
-      },
-    });
-    hasSearchableData = true;
-  }
-
-  if (bdate) {
-    query.$or.push({ bdate: bdate });
-    scoringPipeline.push({
-      $addFields: {
-        bdateMatch: {
-          $cond: [
-            { $eq: ["$bdate", bdate] },
-            7,
-            0,
-          ],
-        },
-      },
-    });
-    hasSearchableData = true;
-  }
-
-  if (acode) {
-    query.$or.push({ acode: acode });
-    scoringPipeline.push({
-      $addFields: {
-        acodeMatch: {
-          $cond: [
-            { $eq: ["$acode", acode] },
+            { $eq: ["$cellno", cellno] },
             12,
-            0,
+            0
+          ]
+        }
+      }
+    });
+    hasSearchableData = true;
+  }
+
+  // First name matching (lower priority)
+  if (fname && fname.length > 1) {
+    query.$or.push({ fname: fname });
+    query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
+    
+    scoringPipeline.push({
+      $addFields: {
+        fnameMatch: {
+          $cond: [
+            { $eq: ["$fname", fname] },
+            10,
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: "$fname",
+                    regex: new RegExp(`^${fname}`, "i"),
+                  },
+                },
+                8,
+                0,
+              ],
+            },
+          ],
+        },
+      },
+    });
+    hasSearchableData = true;
+  }
+
+  // Company exact matching
+  if (company && company.length > 2) {
+    query.$or.push({ company: company });
+    query.$or.push({ company: { $regex: new RegExp(`^${company}`, "i") } });
+    
+    scoringPipeline.push({
+      $addFields: {
+        companyMatch: {
+          $cond: [
+            { $eq: ["$company", company] },
+            10,
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: "$company",
+                    regex: new RegExp(`^${company}`, "i"),
+                  },
+                },
+                8,
+                0,
+              ],
+            },
           ],
         },
       },
@@ -616,103 +290,28 @@ export async function checkDuplicates({
       },
     },
     ...scoringPipeline,
+    {
+      $addFields: {
+        totalScore: {
+          $sum: [
+            { $ifNull: ["$fnameMatch", 0] },
+            { $ifNull: ["$lnameMatch", 0] },
+            { $ifNull: ["$addressMatch", 0] },
+            { $ifNull: ["$emailMatch", 0] },
+            { $ifNull: ["$cellnoMatch", 0] },
+            { $ifNull: ["$companyMatch", 0] },
+          ],
+        },
+      },
+    },
+    { $sort: { totalScore: -1 } },
+    { $limit: 15 }
   ];
-
-  pipeline.push({
-    $addFields: {
-      exactMatchCombo: {
-        $sum: [
-          {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$lname", null] },
-                  { $ne: ["$lname", undefined] },
-                  { $eq: [{ $type: "$lname" }, "string"] },
-                  { $ne: ["$fname", null] },
-                  { $ne: ["$fname", undefined] },
-                  { $eq: [{ $type: "$fname" }, "string"] },
-                  {
-                    $regexMatch: {
-                      input: "$lname",
-                      regex: new RegExp(`^${lname}$`, "i"),
-                    },
-                  },
-                  {
-                    $regexMatch: {
-                      input: "$fname",
-                      regex: new RegExp(`^${fname}$`, "i"),
-                    },
-                  },
-                ],
-              },
-              15,
-              0,
-            ],
-          },
-          {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$email", null] },
-                  { $ne: ["$email", undefined] },
-                  { $eq: [{ $type: "$email" }, "string"] },
-                  { $eq: ["$email", email] },
-                ],
-              },
-              10,
-              0,
-            ],
-          },
-          {
-            $cond: [
-              {
-                $and: [
-                  { $ne: ["$cellno", null] },
-                  { $ne: ["$cellno", undefined] },
-                  { $eq: [{ $type: "$cellno" }, "string"] },
-                  { $eq: ["$cellno", cellno] },
-                ],
-              },
-              8,
-              0,
-            ],
-          },
-        ],
-      },
-    },
-  });
-
-  pipeline.push({
-    $addFields: {
-      totalScore: {
-        $sum: [
-          { $ifNull: ["$fnameMatch", 0] },
-          { $ifNull: ["$lnameMatch", 0] },
-          { $ifNull: ["$fnameInCompanyMatch", 0] },
-          { $ifNull: ["$lnameInCompanyMatch", 0] },
-          { $ifNull: ["$companyMatch", 0] },
-          { $ifNull: ["$addressExactMatch", 0] },
-          { $ifNull: ["$addressTokenMatch", 0] },
-          { $ifNull: ["$addressComponentMatch", 0] },
-          { $ifNull: ["$emailMatch", 0] },
-          { $ifNull: ["$cellnoMatch", 0] },
-          { $ifNull: ["$contactnosMatch", 0] },
-          { $ifNull: ["$bdateMatch", 0] },
-          { $ifNull: ["$acodeMatch", 0] },
-          { $ifNull: ["$exactMatchCombo", 0] },
-        ],
-      },
-    },
-  });
-
-  pipeline.push({ $sort: { totalScore: -1 } });
-  pipeline.push({ $limit: 15 });
 
   let clients = [];
   try {
     const options = {
-      maxTimeMS: 5000,
+      maxTimeMS: 10000, // Increased timeout to 10 seconds
       allowDiskUse: true,
     };
 
@@ -735,53 +334,29 @@ export async function checkDuplicates({
         .filter((id) => !isNaN(id));
 
       if (clientIds.length > 0) {
-        const servicePromises = [
+        // Run service queries in parallel with increased timeouts
+        const [wmmClients, hrgClients, fomClients, calClients] = await Promise.all([
           WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
-            .maxTimeMS(2000)
+            .maxTimeMS(5000)
+            .lean()
             .exec()
-            .catch((err) => {
-              console.error("Error fetching WMM services:", err);
-              return [];
-            }),
+            .catch(() => []),
           HrgModel.distinct("clientid", { clientid: { $in: clientIds } })
-            .maxTimeMS(2000)
+            .maxTimeMS(5000)
+            .lean()
             .exec()
-            .catch((err) => {
-              console.error("Error fetching HRG services:", err);
-              return [];
-            }),
+            .catch(() => []),
           FomModel.distinct("clientid", { clientid: { $in: clientIds } })
-            .maxTimeMS(2000)
+            .maxTimeMS(5000)
+            .lean()
             .exec()
-            .catch((err) => {
-              console.error("Error fetching FOM services:", err);
-              return [];
-            }),
+            .catch(() => []),
           CalModel.distinct("clientid", { clientid: { $in: clientIds } })
-            .maxTimeMS(2000)
+            .maxTimeMS(5000)
+            .lean()
             .exec()
-            .catch((err) => {
-              console.error("Error fetching CAL services:", err);
-              return [];
-            }),
-        ];
-
-        const serviceResults = await Promise.allSettled(servicePromises);
-        const [
-          wmmClientsResult,
-          hrgClientsResult,
-          fomClientsResult,
-          calClientsResult,
-        ] = serviceResults;
-
-        const wmmClients =
-          wmmClientsResult.status === "fulfilled" ? wmmClientsResult.value : [];
-        const hrgClients =
-          hrgClientsResult.status === "fulfilled" ? hrgClientsResult.value : [];
-        const fomClients =
-          fomClientsResult.status === "fulfilled" ? fomClientsResult.value : [];
-        const calClients =
-          calClientsResult.status === "fulfilled" ? calClientsResult.value : [];
+            .catch(() => []),
+        ]);
 
         clientsWithServices = clients.map((client) => {
           const clientId = parseInt(client.id);

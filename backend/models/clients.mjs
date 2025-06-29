@@ -10,21 +10,21 @@ const clientConnection = mongoose.createConnection(process.env.MONGODB_URI, {
 const ClientSchema = new mongoose.Schema(
   {
     id: Number,
-    lname: String,
-    fname: String,
+    lname: { type: String, index: true },
+    fname: { type: String, index: true },
     mname: String,
     sname: String,
     title: String,
     bdate: String,
-    company: String,
-    address: String,
+    company: { type: String, index: true },
+    address: { type: String, index: true },
     zipcode: Number,
     area: String,
-    acode: String,
-    contactnos: String,
-    cellno: String,
+    acode: { type: String, index: true },
+    contactnos: { type: String, index: true },
+    cellno: { type: String, index: true },
     ofcno: String,
-    email: String,
+    email: { type: String, index: true },
     type: String,
     group: String,
     remarks: String,
@@ -35,6 +35,10 @@ const ClientSchema = new mongoose.Schema(
     versionKey: false,
   }
 );
+
+// Create compound indexes for common search combinations
+ClientSchema.index({ lname: 1, fname: 1 });
+ClientSchema.index({ company: 1, address: 1 });
 
 const ClientModel = clientConnection.model("clients", ClientSchema);
 
