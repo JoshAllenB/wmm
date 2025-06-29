@@ -99,21 +99,21 @@ const initWebSocket = (io) => {
       );
     }
 
-    // Join a room specific to this user
+    // Join user-specific rooms for targeted events
     socket.join(`user:${userId}`);
+    socket.join(`export:${userId}`);
 
-    logConnectedUsers();
-
-    // Log connected clients
+    // Log connection details
     console.log("\n=== Client Connected ===");
     console.log(`Socket ID: ${socket.id}`);
     console.log(`User ID: ${userId}`);
     console.log(`Username: ${username}`);
     console.log(`Session ID: ${sessionId}`);
+    console.log(`Rooms:`, Array.from(socket.rooms));
     console.log(`Total Sessions: ${sessions.size}`);
     console.log("========================\n");
 
-    // Add debug logging for all socket events
+    // Debug logging for all socket events
     socket.onAny((eventName, ...args) => {
       console.log(`\n=== Socket Event Received: ${eventName} ===`);
       console.log(`From Client: ${socket.id}`);
@@ -123,26 +123,55 @@ const initWebSocket = (io) => {
       console.log("========================\n");
     });
 
+    // Handle export-specific events
+    socket.on("export-start", (data) => {
+      console.log("\n=== Export Start Event ===");
+      console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log("Data:", data);
+      io.to(`export:${userId}`).emit(`export-started-${userId}`, {
+        status: "started",
+        message: "Starting export process...",
+        progress: 0
+      });
+    });
+
+    socket.on("export-progress", (data) => {
+      console.log("\n=== Export Progress Event ===");
+      console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log("Data:", data);
+      io.to(`export:${userId}`).emit(`export-progress-${userId}`, data);
+    });
+
+    socket.on("export-complete", (data) => {
+      console.log("\n=== Export Complete Event ===");
+      console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log("Data:", data);
+      io.to(`export:${userId}`).emit(`export-complete-${userId}`, data);
+    });
+
+    socket.on("export-error", (data) => {
+      console.log("\n=== Export Error Event ===");
+      console.log(`From Client: ${socket.id}`);
+      console.log(`User ID: ${userId}`);
+      console.log("Data:", data);
+      io.to(`export:${userId}`).emit(`export-error-${userId}`, data);
+    });
+
+    // Handle other existing events
     socket.on("data-update", (data) => {
       console.log("\n=== Data Update Event ===");
       console.log(`From Client: ${socket.id}`);
       console.log(`User ID: ${userId}`);
-      console.log(`Username: ${username}`);
       console.log("Data:", data);
-
-      // Broadcast to all clients including sender
       io.emit("data-update", data);
-
-      // Log which clients will receive the broadcast
-      console.log("\nBroadcasting to all clients");
-      console.log("======================\n");
     });
 
     socket.on("hrg-update", (data) => {
       console.log("\n=== HRG Update Event ===");
       console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log(`Username: ${username}`);
       console.log("Data:", data);
       io.emit("hrg-update", data);
     });
@@ -150,8 +179,6 @@ const initWebSocket = (io) => {
     socket.on("user-update", (data) => {
       console.log("\n=== User Update Event ===");
       console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log(`Username: ${username}`);
       console.log("Data:", data);
       io.emit("user-update", data);
     });
@@ -181,8 +208,9 @@ const initWebSocket = (io) => {
           global.socketIdMap.delete(userId);
           sessions.delete(sessionId);
           
-          // Leave the user-specific room
+          // Leave all rooms
           socket.leave(`user:${userId}`);
+          socket.leave(`export:${userId}`);
           
           console.log(`Cleaned up disconnected session for user: ${userId}`);
         } else {

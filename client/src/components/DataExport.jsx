@@ -11,6 +11,7 @@ const DataExport = () => {
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+  const [downloadReady, setDownloadReady] = useState(false);
 
   // Month names for the dropdown
   const monthNames = [
@@ -37,9 +38,14 @@ const DataExport = () => {
   useEffect(() => {
     // Subscribe to export status updates
     const handleStatusUpdate = (status) => {
+      console.log("Export status update:", status); // Debug log
       setExportStatus(status);
       setIsGenerating(status.inProgress);
       setError(status.error);
+      
+      if (status.filename && !status.inProgress && !status.error) {
+        setDownloadReady(true);
+      }
     };
 
     if (userData?.id) {
@@ -66,6 +72,10 @@ const DataExport = () => {
     try {
       setIsGenerating(true);
       setError(null);
+      setDownloadReady(false);
+      
+      console.log("Starting report generation...", { month, year, userId: userData.id }); // Debug log
+      
       await dataExportService.generateMonthlyReport(
         month,
         year,
@@ -73,6 +83,7 @@ const DataExport = () => {
         userData.username
       );
     } catch (err) {
+      console.error("Report generation error:", err); // Debug log
       setError(err.message || "Failed to generate report");
       setIsGenerating(false);
     }
@@ -85,8 +96,11 @@ const DataExport = () => {
     }
 
     try {
+      console.log("Downloading report:", exportStatus.filename); // Debug log
       await dataExportService.downloadReport(exportStatus.filename);
+      setDownloadReady(false); // Reset download state after successful download
     } catch (err) {
+      console.error("Download error:", err); // Debug log
       setError(err.message || "Failed to download report");
     }
   };
@@ -178,7 +192,7 @@ const DataExport = () => {
       )}
 
       {/* Download button */}
-      {exportStatus.filename && !exportStatus.inProgress && !error && (
+      {downloadReady && !isGenerating && !error && (
         <div className="mt-6">
           <button
             onClick={handleDownloadReport}
