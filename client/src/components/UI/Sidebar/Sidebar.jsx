@@ -85,6 +85,21 @@ export default function MenuSidebar() {
             >
               <Typography variant="h6">All Clients</Typography>
             </MenuItem>
+            {hasRole("Admin" || hasRole("Accounting")) && (
+              <MenuItem
+                icon={<CalendarMonthSharpIcon style={{ color: "#333333" }} />}
+                component={<Link to="/accounting" />}
+                onClick={() => handleSelect("Accounting")}
+                selected={selected === "Accounting"}
+                style={{
+                  backgroundColor:
+                    selected === "Accounting" ? "#e3f2fd" : "transparent",
+                  color: selected === "Accounting" ? "#1976d2" : "#333333",
+                }}
+              >
+                <Typography variant="h6">Accounting</Typography>
+              </MenuItem>
+            )}
             {hasRole("Admin") && (
               <div>
                 <MenuItem

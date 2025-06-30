@@ -5,7 +5,6 @@ import { PaginationComponent } from "./Features/Pagination";
 import { useTableLogic } from "./TableLogic";
 import { TableComponent } from "./TableComponent";
 import { useSocket } from "../../utils/Websocket/useSocket";
-import { fetchClients } from "../Table/Data/clientdata";
 import {
   handlePreviousPage,
   handleNextPage,
@@ -81,6 +80,7 @@ export default function DataTable({
   );
 
   useEffect(() => {
+    let timer;
     const loadData = async () => {
       if (isLoading) return;
 
@@ -115,15 +115,18 @@ export default function DataTable({
         setError(error.message);
       } finally {
         setIsTransitioning(true);
-        const timer = setTimeout(() => {
+        timer = setTimeout(() => {
           setIsTransitioning(false);
           setAnimationComplete(true);
         }, 300);
-        return () => clearTimeout(timer);
       }
     };
 
     loadData();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [
     page,
     pageSize,
@@ -141,7 +144,7 @@ export default function DataTable({
   }, [initialTotalPages]);
 
   useEffect(() => {
-    setLocalData(data);
+    setLocalData(Array.isArray(data) ? data : []);
   }, [data]);
 
   useEffect(() => {

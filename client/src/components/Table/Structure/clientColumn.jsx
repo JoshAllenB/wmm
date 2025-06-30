@@ -95,7 +95,8 @@ export const useColumns = () => {
           .join(" ");
 
         // If no name parts are available, use company name as fallback
-        const displayName = nameParts.trim() || (row.company ? row.company : "No Name");
+        const displayName =
+          nameParts.trim() || (row.company ? row.company : "No Name");
 
         const typePart = row.type ? `<br>Type: ${row.type}` : "";
 
@@ -176,7 +177,14 @@ export const useColumns = () => {
                   return dateB - dateA;
                 })
                 .map((subscription) => {
-                  let { subsdate, enddate, copies, subsclass, paymtref, paymtamt } = subscription;
+                  let {
+                    subsdate,
+                    enddate,
+                    copies,
+                    subsclass,
+                    paymtref,
+                    paymtamt,
+                  } = subscription;
 
                   if (subsdate) {
                     subsdate = `${new Date(subsdate).toLocaleDateString(
@@ -195,8 +203,8 @@ export const useColumns = () => {
                   }
 
                   // Format payment amount if exists
-                  const formattedPayment = paymtamt 
-                    ? `₱${parseFloat(paymtamt).toFixed(2)}` 
+                  const formattedPayment = paymtamt
+                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
                     : null;
 
                   // Determine subscription status
@@ -255,17 +263,23 @@ export const useColumns = () => {
             size: 250,
           },
           // Added Info column - only show for WMM role but not for HRG FOM CAL combined role
-          ...(userRole !== "HRG FOM CAL" && userRole !== "Admin" ? [{
-            id: "Added Info",
-            Header: "Added Info",
-            accessorFn: (row) =>
-              `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
-            size: 150,
-          }] : []),
+          ...(userRole !== "HRG FOM CAL" && userRole !== "Admin"
+            ? [
+                {
+                  id: "Added Info",
+                  Header: "Added Info",
+                  accessorFn: (row) =>
+                    `By: ${row.adduser || "N/A"}, Date: ${
+                      row.adddate || "N/A"
+                    }`,
+                  size: 150,
+                },
+              ]
+            : []),
         ]
       : []),
     // Always include HRG data column if the user has HRG role or Admin role
-    ...((hasRole("HRG"))
+    ...(hasRole("HRG")
       ? [
           {
             id: "HRG Data",
@@ -273,9 +287,9 @@ export const useColumns = () => {
             accessorFn: (row) => {
               // More flexible check for HRG data
               if (
-                !row.hrgData || 
-                ((!row.hrgData.records || row.hrgData.records.length === 0) && 
-                 Object.keys(row.hrgData).length <= 1) // Only has clientid or is empty
+                !row.hrgData ||
+                ((!row.hrgData.records || row.hrgData.records.length === 0) &&
+                  Object.keys(row.hrgData).length <= 1) // Only has clientid or is empty
               ) {
                 return [];
               }
@@ -303,20 +317,21 @@ export const useColumns = () => {
                   const recvdate = hrgItem.recvdate
                     ? new Date(hrgItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
-                  
+
                   const paymtamt = hrgItem.paymtamt
                     ? `₱${parseFloat(hrgItem.paymtamt).toFixed(2)}`
                     : "N/A";
 
-                  const paymtref = hrgItem.paymtref
-                    ? (hrgItem.paymtref)
-                    : "N/A";                  
+                  const paymtref = hrgItem.paymtref ? hrgItem.paymtref : "N/A";
 
                   // Check if there's a subscription status override from the backend filter
                   let status;
                   if (row.subscriptionStatusOverride) {
                     // Apply the status based on the filter that was applied
-                    status = row.subscriptionStatusOverride === 'active' ? 'Active' : 'Unsubscribed';
+                    status =
+                      row.subscriptionStatusOverride === "active"
+                        ? "Active"
+                        : "Unsubscribed";
                   } else {
                     // Use the original status
                     status = hrgItem.unsubscribe ? "Unsubscribed" : "Active";
@@ -339,7 +354,8 @@ export const useColumns = () => {
 
               // Get the latest record's status
               const latestStatus = records[0].status;
-              const statusColor = latestStatus === "Active" ? "text-green-600" : "text-red-600";
+              const statusColor =
+                latestStatus === "Active" ? "text-green-600" : "text-red-600";
               const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
 
               return (
@@ -349,13 +365,17 @@ export const useColumns = () => {
                     <span className={statusColor}>{latestStatus}</span>
                   </div>
                   {records.map((record, index) => (
-                    <div
-                      key={index}
-                    >
+                    <div key={index}>
                       <div className="flex flex-wrap items-center">
                         <span className="font-xs mr-1">{record.recvdate}</span>
                         <span className="font-xs mr-1">{record.paymtamt}</span>
-                        <span className={record.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                        <span
+                          className={
+                            record.status === "Active"
+                              ? "text-green-600 font-medium"
+                              : "text-red-600 font-medium"
+                          }
+                        >
                           {record.status}
                         </span>
                       </div>
@@ -369,7 +389,7 @@ export const useColumns = () => {
         ]
       : []),
     // Always include FOM data column if the user has FOM role or Admin role
-    ...((hasRole("FOM") || hasRole("Admin"))
+    ...(hasRole("FOM") || hasRole("Admin")
       ? [
           {
             id: "FOM Data",
@@ -384,27 +404,38 @@ export const useColumns = () => {
 
                 // Handle different data structures
                 let fomRecords = [];
-                
+
                 // Case 1: fomData has records array
-                if (row.fomData.records && Array.isArray(row.fomData.records) && row.fomData.records.length > 0) {
+                if (
+                  row.fomData.records &&
+                  Array.isArray(row.fomData.records) &&
+                  row.fomData.records.length > 0
+                ) {
                   fomRecords = row.fomData.records;
-                } 
+                }
                 // Case 2: fomData is an array
                 else if (Array.isArray(row.fomData) && row.fomData.length > 0) {
                   fomRecords = row.fomData;
                 }
                 // Case 3: fomData is a plain object with data
-                else if (typeof row.fomData === 'object' && Object.keys(row.fomData).length > 1) {
+                else if (
+                  typeof row.fomData === "object" &&
+                  Object.keys(row.fomData).length > 1
+                ) {
                   // Check if it has any FOM-specific properties
-                  const hasFomProps = ['recvdate', 'paymtamt', 'paymtref', 'unsubscribe', 'remarks'].some(
-                    prop => row.fomData.hasOwnProperty(prop)
-                  );
-                  
+                  const hasFomProps = [
+                    "recvdate",
+                    "paymtamt",
+                    "paymtref",
+                    "unsubscribe",
+                    "remarks",
+                  ].some((prop) => row.fomData.hasOwnProperty(prop));
+
                   if (hasFomProps) {
                     fomRecords = [row.fomData];
                   }
                 }
-                
+
                 // If no valid records found
                 if (fomRecords.length === 0) {
                   return [];
@@ -424,7 +455,7 @@ export const useColumns = () => {
                     const paymtamt = fomItem.paymtamt
                       ? `₱${parseFloat(fomItem.paymtamt).toFixed(2)}`
                       : "N/A";
-                      
+
                     const paymtref = fomItem.paymtref || "N/A";
                     const remarks = fomItem.remarks || "";
 
@@ -432,7 +463,10 @@ export const useColumns = () => {
                     let status;
                     if (row.subscriptionStatusOverride) {
                       // Apply the status based on the filter that was applied
-                      status = row.subscriptionStatusOverride === 'active' ? 'Active' : 'Unsubscribed';
+                      status =
+                        row.subscriptionStatusOverride === "active"
+                          ? "Active"
+                          : "Unsubscribed";
                     } else {
                       // Use the original status
                       status = fomItem.unsubscribe ? "Unsubscribed" : "Active";
@@ -447,7 +481,10 @@ export const useColumns = () => {
                     };
                   });
               } catch (error) {
-                console.error(`Error processing FOM data for client ID ${row.id}:`, error);
+                console.error(
+                  `Error processing FOM data for client ID ${row.id}:`,
+                  error
+                );
                 return [];
               }
             },
@@ -459,7 +496,8 @@ export const useColumns = () => {
 
               // Get the latest record's status
               const latestStatus = records[0].status;
-              const statusColor = latestStatus === "Active" ? "text-green-600" : "text-red-600";
+              const statusColor =
+                latestStatus === "Active" ? "text-green-600" : "text-red-600";
               const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
 
               return (
@@ -474,13 +512,25 @@ export const useColumns = () => {
                       className="mb-2 pb-2 border-b border-gray-200 last:border-b-0"
                     >
                       <div className="flex flex-wrap items-center">
-                        <span className="font-medium mr-1">{record.recvdate}</span>
-                        <span className={record.status === "Active" ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                        <span className="font-medium mr-1">
+                          {record.recvdate}
+                        </span>
+                        <span
+                          className={
+                            record.status === "Active"
+                              ? "text-green-600 font-medium"
+                              : "text-red-600 font-medium"
+                          }
+                        >
                           {record.status}
                         </span>
-                        <span className="font-medium ml-1">{record.paymtamt}</span>
+                        <span className="font-medium ml-1">
+                          {record.paymtamt}
+                        </span>
                         {record.paymtref !== "N/A" && (
-                          <span className="font-medium ml-1">(Ref: {record.paymtref})</span>
+                          <span className="font-medium ml-1">
+                            (Ref: {record.paymtref})
+                          </span>
                         )}
                       </div>
                       {record.remarks && (
@@ -497,8 +547,8 @@ export const useColumns = () => {
           },
         ]
       : []),
-    // Always include CAL data column if the user has CAL role or Admin role  
-    ...((hasRole("CAL") || hasRole("Admin"))
+    // Always include CAL data column if the user has CAL role or Admin role
+    ...(hasRole("CAL") || hasRole("Admin")
       ? [
           {
             id: "CAL Data",
@@ -506,9 +556,9 @@ export const useColumns = () => {
             accessorFn: (row) => {
               // More flexible check for CAL data
               if (
-                !row.calData || 
-                ((!row.calData.records || row.calData.records.length === 0) && 
-                 Object.keys(row.calData).length <= 1) // Only has clientid or is empty
+                !row.calData ||
+                ((!row.calData.records || row.calData.records.length === 0) &&
+                  Object.keys(row.calData).length <= 1) // Only has clientid or is empty
               ) {
                 return [];
               }
@@ -537,12 +587,10 @@ export const useColumns = () => {
                     ? `₱${parseFloat(calItem.calamt).toFixed(2)}`
                     : "N/A";
 
-                  const paymtref = calItem.paymtref
-                    ? (calItem.paymtref)
-                    : "N/A";
+                  const paymtref = calItem.paymtref ? calItem.paymtref : "N/A";
 
                   const paymtform = calItem.paymtform
-                    ? (calItem.paymtform)
+                    ? calItem.paymtform
                     : "N/A";
 
                   return {
@@ -569,15 +617,23 @@ export const useColumns = () => {
                       className="mb-2 pb-2 border-b border-gray-200 last:border-b-0"
                     >
                       <div className="flex flex-wrap items-center">
-                        <span className="font-medium mr-1">{record.recvdate}</span>
+                        <span className="font-medium mr-1">
+                          {record.recvdate}
+                        </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium mr-1">{record.caltype}</span>
+                        <span className="font-medium mr-1">
+                          {record.caltype}
+                        </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium mr-1">Qty: {record.calqty}</span>
+                        <span className="font-medium mr-1">
+                          Qty: {record.calqty}
+                        </span>
                         <span className="mx-1">•</span>
                         <span className="font-medium">{record.calamt}</span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium">Ref: #{record.paymtref} - {record.paymtform}</span>
+                        <span className="font-medium">
+                          Ref: #{record.paymtref} - {record.paymtform}
+                        </span>
                       </div>
                     </div>
                   ))}

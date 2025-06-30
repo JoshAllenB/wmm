@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { CssBaseline } from "@mui/material";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Topbar from "./UI/Topbar";
@@ -7,7 +7,7 @@ import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
 import SubClass from "./UI/Sidebar/SubClass";
-import Hrg from "./UI/Sidebar/Hrg";
+import Accounting from "./UI/Sidebar/Accounting";
 import Area from "./UI/Sidebar/Area";
 import GroupManagement from "./CRUD/Group";
 import DataExport from "../components/DataExport";
@@ -74,6 +74,12 @@ const App = () => {
           }
         />
         <Route
+          path="/accounting"
+          element={
+            isLoggedIn ? <Accounting /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
           path="/subclass"
           element={isLoggedIn ? <SubClass /> : <Navigate to="/login" replace />}
         />
@@ -83,7 +89,9 @@ const App = () => {
         />
         <Route
           path="/group"
-          element={isLoggedIn ? <GroupManagement /> : <Navigate to="/login" replace />}
+          element={
+            isLoggedIn ? <GroupManagement /> : <Navigate to="/login" replace />
+          }
         />
         <Route
           path="/data-export"
