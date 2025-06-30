@@ -16,6 +16,7 @@ import roleRoutes from "./middleware/users/roleManagement.mjs";
 import utilRoutes from "./middleware/fetchUtils.mjs";
 import dataExportRoutes from "./middleware/dataExport/dataExport.mjs";
 import clientLogsRoutes from "./middleware/users/clientLogs.mjs";
+import accountingRoutes from "./middleware/accounting/api.mjs";
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use("/wmm", attachIO, wmmRoutes);
 app.use("/roles", attachIO, roleRoutes);
 app.use("/data-export", attachIO, dataExportRoutes);
 app.use("/client-logs", attachIO, clientLogsRoutes);
+app.use("/accounting", attachIO, accountingRoutes);
 
 app.use(express.static(path.join(__dirname, "../client/dist")));
 
