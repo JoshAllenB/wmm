@@ -16,21 +16,18 @@ const getPaymentFields = (modelName) => {
 const extractPaymentRefNumber = (input) => {
   if (!input) return null;
   
-  console.log('🔍 Processing payment reference input:', input);
+  console.log('🔍 Input:', input);
   
   // Case 1: Simple number (e.g., "55857")
   if (/^\d+$/.test(input)) {
-    console.log('✅ Found simple number:', input);
+    console.log('✅ Simple number:', input);
     return input;
   }
   
   // Case 2: Starts with letters then numbers (e.g., "OR# 45424", "MS 001615")
   const prefixMatch = input.match(/(?:^|\W)([A-Za-z]+\s*#?\s*)(\d+)/i);
   if (prefixMatch) {
-    console.log('✅ Found prefixed number:', {
-      prefix: prefixMatch[1],
-      number: prefixMatch[2]
-    });
+    console.log('✅ Prefixed number:', prefixMatch[2]);
     return prefixMatch[2];
   }
   
@@ -46,15 +43,11 @@ const extractPaymentRefNumber = (input) => {
       return b.length - a.length;
     });
     
-    console.log('✅ Found multiple numbers, sorted by priority:', {
-      allNumbers: numbers,
-      sortedNumbers: sortedNumbers,
-      selected: sortedNumbers[0]
-    });
+    console.log('✅ Multiple numbers -> selected:', sortedNumbers[0]);
     return sortedNumbers[0];
   }
   
-  console.log('❌ No valid payment reference found in:', input);
+  console.log('❌ No valid reference found');
   return null;
 };
 
@@ -68,14 +61,13 @@ const parseTaggedSearch = (searchValue = "") => {
 
   if (!searchValue.trim()) return filters;
 
-  console.log('🔎 Processing search value:', searchValue);
+  console.log('🔎 Search:', searchValue);
   let remainingValue = searchValue;
 
   // First check for explicitly tagged payment reference
   const taggedRefMatch = remainingValue.match(/\bref:\s*([^\s]+)/i);
   if (taggedRefMatch) {
-    console.log('📌 Found tagged reference:', taggedRefMatch[1]);
-    // Enhanced extraction that handles all formats
+    console.log('📌 Tagged ref:', taggedRefMatch[1]);
     filters.paymentRef = extractPaymentRefNumber(taggedRefMatch[1]);
     remainingValue = remainingValue.replace(taggedRefMatch[0], "").trim();
   }
@@ -89,12 +81,10 @@ const parseTaggedSearch = (searchValue = "") => {
 
   // If no tagged payment reference was found, look for potential payment ref in remaining text
   if (!filters.paymentRef) {
-    console.log('🔍 Looking for untagged payment reference in:', remainingValue);
     const potentialRef = extractPaymentRefNumber(remainingValue);
     if (potentialRef) {
       filters.paymentRef = potentialRef;
-      console.log('✨ Found untagged payment reference:', potentialRef);
-      // Remove the matched reference from remaining text
+      console.log('✨ Untagged ref:', potentialRef);
       remainingValue = remainingValue.replace(new RegExp(potentialRef.replace(/(\d)/g, '\\W*$1'), 'i'), '').trim();
     }
   }
@@ -108,10 +98,7 @@ const parseTaggedSearch = (searchValue = "") => {
   // Any remaining single word goes to general search
   filters.search = remainingValue;
 
-  console.log('🎯 Final payment reference result:', {
-    originalInput: searchValue,
-    extractedRef: filters.paymentRef || 'none'
-  });
+  console.log('🎯 Result:', { ref: filters.paymentRef || 'none' });
 
   return filters;
 };
@@ -157,22 +144,84 @@ const buildClientSearchFilter = (parsedSearch) => {
 
 // Helper function to create payment reference patterns
 const createPaymentRefPatterns = (ref) => {
-  // Original number with zeros
-  const withZeros = ref;
-  // Number without leading zeros
-  const withoutZeros = ref.replace(/^0+/, '');
-  // Add leading zeros if not present (up to 6 digits)
+  // Remove all non-digit characters first
+  const cleanRef = ref.replace(/\D/g, '');
+  
+  const withZeros = cleanRef;
+  const withoutZeros = cleanRef.replace(/^0+/, '');
   const withAddedZeros = withoutZeros.padStart(6, '0');
+  const shortForm = withoutZeros.slice(-5); // Last 5 digits
 
-  console.log('🔢 Generated payment reference patterns:', {
-    withZeros,
-    withoutZeros,
-    withAddedZeros
+  const patterns = [
+    withZeros, 
+    withoutZeros, 
+    withAddedZeros,
+    shortForm
+  ].filter((val, index, arr) => val && arr.indexOf(val) === index);
+
+  console.log('🔢 Ref patterns:', patterns);
+  return patterns;
+};
+
+// Helper function to build payment reference query condition
+const buildPaymentRefQuery = (refPatterns) => {
+  // Convert to numbers where possible (remove duplicates)
+  const numericValues = [...new Set(refPatterns
+    .map(p => {
+      const num = parseInt(p, 10);
+      return isNaN(num) ? null : num;
+    })
+    .filter(n => n !== null))];
+
+  // String patterns (original values)
+  const stringPatterns = [...new Set(refPatterns)];
+
+  console.log('🔢 Strict payment reference matching:', {
+    searchingFor: refPatterns,
+    asNumbers: numericValues,
+    asStrings: stringPatterns
   });
 
-  // Create patterns that will match any of these variations
-  return [withZeros, withoutZeros, withAddedZeros]
-    .filter((val, index, arr) => arr.indexOf(val) === index); // Remove duplicates
+  const conditions = [];
+
+  // 1. Numeric equality (for number fields)
+  if (numericValues.length > 0) {
+    conditions.push({
+      $or: [
+        { paymtref: { $in: numericValues } }, // Direct number match
+        { 
+          // Handle cases where paymtref is stored as string but should match number
+          $expr: {
+            $in: [
+              { $toInt: { $ifNull: ["$paymtref", 0] } }, 
+              numericValues
+            ]
+          }
+        }
+      ]
+    });
+  }
+
+  // 2. String equality (no partial matching)
+  if (stringPatterns.length > 0) {
+    conditions.push({
+      $or: [
+        { paymtref: { $in: stringPatterns } }, // Direct string match
+        { 
+          // Handle cases where paymtref is stored as number but should match string
+          $expr: {
+            $in: [
+              { $toString: { $ifNull: ["$paymtref", ""] } }, 
+              stringPatterns
+            ]
+          }
+        }
+      ]
+    });
+  }
+
+  // For models that might have both types in the same field
+  return conditions.length > 1 ? { $or: conditions } : conditions[0] || {};
 };
 
 // GET /payments - Get all payments for all clients
@@ -204,9 +253,9 @@ export const getAllPayments = async (req, res) => {
     const [totalClients, clients] = await Promise.all([
       ClientModel.countDocuments(clientFilter),
       ClientModel.find(clientFilter)
-        .select("id lname fname mname company")
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit))
+      .select("id lname fname mname company")
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit))
         .lean()
     ]);
 
@@ -223,47 +272,69 @@ export const getAllPayments = async (req, res) => {
     // Get client IDs for payment queries
     const clientIds = clients.map(c => c.id);
     
+        console.log('🔍 Starting search with:', {
+      ref: parsedSearch.paymentRef || 'none',
+      name: parsedSearch.fullName || 'none',
+      dateRange: Object.keys(dateFilter).length ? dateFilter : 'none'
+    });
+
     // Process all models in parallel
-    const modelQueries = Object.entries(models).map(async ([modelName, modelLoader]) => {
+    const modelQueries = Object.entries(models)
+      .filter(([modelName]) => {
+        // Skip models that don't have payment fields configured
+        const paymentFields = getPaymentFields(modelName);
+        const hasPaymentFields = Object.keys(paymentFields).length > 0;
+        
+        if (!hasPaymentFields) {
+          console.log(`⏭️ Skip ${modelName} - no payment fields`);
+        }
+        return hasPaymentFields;
+      })
+      .map(async ([modelName, modelLoader]) => {
+      console.log(`📋 Searching in ${modelName}...`);
       const model = await modelLoader();
       const paymentFields = getPaymentFields(modelName);
-      
-      if (Object.keys(paymentFields).length === 0) return [];
 
-      // Build the base match query
-      const matchQuery = {};
-      
-      // Add payment reference filter if provided
-      if (parsedSearch.paymentRef) {
-        const refPatterns = createPaymentRefPatterns(parsedSearch.paymentRef);
-        
-        matchQuery.paymtref = { 
-          $regex: refPatterns.map(p => `\\b(?:${p})\\b`).join('|'), 
-          $options: "i" 
+        const clientIdField = modelName === "ComplimentaryModel" ? "clientId" : "clientid";
+
+        // Build the match query
+        const matchQuery = {
+          [clientIdField]: { $in: clientIds }
         };
-        
-        console.log('🔍 Searching with payment reference patterns:', {
-          patterns: refPatterns,
-          regex: refPatterns.map(p => `\\b(?:${p})\\b`).join('|')
-        });
-      }
 
-      // Add date filter if provided
-      if (Object.keys(dateFilter).length > 0) {
-        matchQuery.recvdate = dateFilter;
-      }
+        if (parsedSearch.paymentRef) {
+          // Generate all possible patterns for the payment reference
+          const refPatterns = createPaymentRefPatterns(parsedSearch.paymentRef);
+          
+          // Use $and to require both client ID and reference match
+          matchQuery.$and = [
+            { [clientIdField]: { $in: clientIds } },
+            buildPaymentRefQuery(refPatterns)
+          ];
+        }
 
-      return model.default.aggregate([
-        { $match: matchQuery },
-        {
-          $project: {
-            ...paymentFields,
-            model: { $literal: modelName.replace("Model", "") },
+        if (Object.keys(dateFilter).length > 0) {
+          matchQuery.recvdate = dateFilter;
+        }
+
+        return model.default.aggregate([
+          { $match: matchQuery },
+          {
+            $addFields: {
+              paymtrefType: { $type: "$paymtref" }
+            }
           },
-        },
-        { $sort: { [sort]: order === "desc" ? -1 : 1 } },
-      ]);
-    });
+          {
+            $project: {
+              ...paymentFields,
+              [clientIdField]: 1,
+              model: { $literal: modelName.replace("Model", "") },
+              paymtrefType: 1
+            },
+          },
+          { $sort: { [sort]: order === "desc" ? -1 : 1 } },
+        ]);
+      });
 
     const allModelPayments = await Promise.all(modelQueries);
     const allPayments = allModelPayments.flat();
@@ -287,16 +358,44 @@ export const getAllPayments = async (req, res) => {
       };
     });
 
-    // Log the first 3 results
-    console.log('🎯 Search Results (first 3):', {
-      totalFound: flatPayments.length,
-      sampleResults: flatPayments.slice(0, 3).map(payment => ({
-        client: payment.clientName,
-        amount: payment.paymtamt,
-        reference: payment.paymtref,
-        date: payment.recvdate,
-        model: payment.model
-      }))
+    // Group results by model
+    const resultsByModel = flatPayments.reduce((acc, payment) => {
+      if (!acc[payment.model]) {
+        acc[payment.model] = {
+          count: 0,
+          types: new Set(),
+          sample: null
+        };
+      }
+      acc[payment.model].count++;
+      acc[payment.model].types.add(payment.paymtrefType);
+      if (!acc[payment.model].sample) {
+        acc[payment.model].sample = {
+          client: payment.clientName,
+          ref: payment.paymtref,
+          type: payment.paymtrefType,
+          amount: payment.paymtamt
+        };
+      }
+      return acc;
+    }, {});
+
+    // Log summary by model
+    console.log('📊 Search Results by Model:', 
+      Object.entries(resultsByModel)
+        .map(([model, data]) => ({
+          model,
+          matches: data.count,
+          refTypes: [...data.types],
+          example: data.sample
+        }))
+    );
+
+    // Log overall summary
+    console.log('🎯 Total Results:', {
+      clients: totalClients,
+      payments: flatPayments.length,
+      models: Object.keys(resultsByModel).length
     });
 
     res.json({
