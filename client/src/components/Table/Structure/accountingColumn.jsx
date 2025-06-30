@@ -55,52 +55,85 @@ export const useAccountingColumns = () => {
     },
     {
       id: "Client",
-      Header: "Client",
+      header: "Client",
       accessorKey: "clientName",
-      cell: ({ getValue, row }) => (
-        <div>
-          <div>{getValue()}</div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.company}
-          </div>
+      cell: ({ getValue, row }) => {
+        const clientName = getValue();
+        const company = row.original.company;
+        
+        // If clientName is "undefined, undefined", only show company
+        if (clientName === "undefined, undefined") {
+          return <div className="py-2">{company || "N/A"}</div>;
+        }
+        
+        // If both are available and valid, show both
+        if (clientName && company && clientName !== company) {
+          return (
+            <div className="py-2">
+              <div className="font-medium">{clientName}</div>
+              <div className="text-xs text-muted-foreground">{company}</div>
+            </div>
+          );
+        }
+        
+        // Otherwise show either clientName or company
+        return <div className="py-2">{clientName || company || "N/A"}</div>;
+      },
+      size: 200,
+    },
+    {
+      id: "Amount",
+      header: "Amount",
+      accessorKey: "paymtamt",
+      cell: ({ getValue }) => (
+        <div className="text-left font-medium py-2">
+          {formatAmount(getValue())}
+        </div>
+      ),
+      size: 100,
+    },
+    {
+      id: "Masses",
+      header: "Masses",
+      accessorKey: "paymtmasses",
+      cell: ({ getValue }) => (
+        <div className="text-left font-medium py-2">
+          {getValue()}
+        </div>
+      ),
+      size: 80,
+    },
+    {
+      id: "Date",
+      header: "Date",
+      accessorKey: "adddate",
+      cell: ({ getValue }) => (
+        <div className="py-2">
+          {formatDate(getValue())}
+        </div>
+      ),
+      size: 120,
+    },
+    {
+      id: "Reference",
+      header: "Reference",
+      accessorKey: "paymtref",
+      cell: ({ getValue }) => (
+        <div className="py-2">
+          {getValue() || <span className="text-muted-foreground italic">N/A</span>}
         </div>
       ),
       size: 200,
     },
     {
-      id: "Amount",
-      Header: "Amount",
-      accessorKey: "paymtamt",
-      cell: ({ getValue }) => formatAmount(getValue()),
-      size: 100,
-    },
-    {
-      id: "Masses",
-      Header: "Masses",
-      accessorKey: "paymtmasses",
-      cell: ({ getValue }) => getValue(),
-      size: 80,
-    },
-    {
-      id: "Date",
-      Header: "Date",
-      accessorKey: "adddate",
-      cell: ({ getValue }) => formatDate(getValue()),
-      size: 120,
-    },
-    {
-      id: "Reference",
-      Header: "Reference",
-      accessorKey: "paymtref",
-      cell: ({ getValue }) =>
-        getValue() || <span className="text-gray-400">N/A</span>,
-      size: 200,
-    },
-    {
       id: "Model",
-      Header: "Model",
+      header: "Model",
       accessorKey: "model",
-      cell: ({ getValue }) => getValue(),
+      cell: ({ getValue }) => (
+        <div className="text-left font-medium py-2">
+          {getValue()}
+        </div>
+      ),
       size: 80,
     },
   ];
