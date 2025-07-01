@@ -69,9 +69,9 @@ const ThankYouLetterDataOverlay = forwardRef(({
     return {
       // Address group (copied from renewal notice group2)
       addressGroup: {
-        top: 3.3, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
-        left: 0.5, // Position address group further right to match renewal notice
-        width: 4.0, // Wide enough for address fields
+        top: 2, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
+        left: 1, // Position address group further right to match renewal notice
+        width: 3.25, // Wide enough for address fields
         lineSpacing: 0.175, // Reduced spacing to make fields appear closer together
         fontSize: 12,
         fontWeight: "normal",
@@ -79,16 +79,16 @@ const ThankYouLetterDataOverlay = forwardRef(({
       },
       // Month Year date display
       monthYear: {
-        top: 2.0, // Position at top of page
+        top: 1.3, // Position at top of page
         fontSize: 12,
         fontFamily: "Arial"
       },
       // Greeting field
       greeting: {
-        top: 6.0, // Position below address
-        left: 0.5, // Match address left position
-        width: 4.0, // Width for greeting
-        fontSize: 14,
+        top: 4, // Position below address
+        left: 1, // Match address left position
+        width: 4, // Width for greeting
+        fontSize: 13,
         fontWeight: "normal",
         fontFamily: "Arial"
       },
