@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import axios from "axios";
 import DataTable from "../../Table/DataTable";
 import { useAccountingColumns } from "../../Table/Structure/accountingColumn";
@@ -16,8 +16,13 @@ const Accounting = () => {
 
   const columns = useAccountingColumns();
 
+  // Always use the latest debouncedFiltering value for backend search
   const fetchAccountingData = useCallback(
-    async (currentPage = 1, currentPageSize = 20, filter = "") => {
+    async (
+      currentPage = 1,
+      currentPageSize = 20,
+      filter = debouncedFiltering
+    ) => {
       setIsLoading(true);
       try {
         const params = new URLSearchParams({
@@ -25,16 +30,17 @@ const Accounting = () => {
           limit: currentPageSize,
           ...(filter ? { search: filter } : {}),
         });
-        const baseUrl = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/accounting/payments`;
-        
+        const baseUrl = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/accounting/payments`;
+
         const response = await axios.get(`${baseUrl}?${params.toString()}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          }
+          },
         });
 
         const json = response.data;
-        console.log(json);
         setTotalPages(Math.ceil((json.totalClients || 0) / currentPageSize));
         return {
           data: json.data || [],
@@ -47,13 +53,16 @@ const Accounting = () => {
         setIsLoading(false);
       }
     },
-    []
+    [debouncedFiltering]
   );
+
+  useEffect(() => {
+    fetchAccountingData(page, pageSize, debouncedFiltering);
+  }, [page, pageSize, debouncedFiltering, fetchAccountingData]);
 
   const handleSearchChange = (e) => {
     setFiltering(e.target.value);
     setPage(1); // Reset to first page when searching
-    console.log(filtering);
   };
 
   const handlePageChange = (newPage) => {
@@ -63,6 +72,10 @@ const Accounting = () => {
   const handlePageSizeChange = (newPageSize) => {
     setPageSize(newPageSize);
     setPage(1); // Reset to first page when changing page size
+  };
+
+  const handleRefresh = () => {
+    fetchAccountingData(page, pageSize, filtering);
   };
 
   return (
@@ -75,7 +88,7 @@ const Accounting = () => {
           className="max-w-sm"
         />
         <Button
-          onClick={() => fetchAccountingData(page, pageSize, filtering)}
+          onClick={handleRefresh}
           className="bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
           disabled={isLoading}
         >
@@ -92,6 +105,7 @@ const Accounting = () => {
         searchTerm={debouncedFiltering}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
+        // Ensure DataTable does not do any client-side filtering
       />
     </div>
   );
