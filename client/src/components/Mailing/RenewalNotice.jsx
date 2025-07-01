@@ -104,13 +104,18 @@ const RenewalNoticeDataOverlay = forwardRef(({
     }
     if (!original.address1 && !original.address) missingFields.push("Address"); // Check both address1 and address
     
-    // Check for valid dates
+    // Get subscription data exactly like PrintGenerator.js
     const wmmData = original.wmmData;
     const subscription = wmmData?.records?.[0] || wmmData || {};
-    if (!subscription.enddate) {
+    const copies = subscription.copies ?? "N/A";
+    const enddate = subscription.enddate || "";
+    const acode = original.acode || "";
+
+    // Check for valid dates
+    if (!enddate) {
       missingFields.push("Expiry Date");
     } else {
-      const expiryDate = new Date(subscription.enddate);
+      const expiryDate = new Date(enddate);
       if (isNaN(expiryDate.getTime())) {
         return {
           skipped: true,
@@ -145,7 +150,10 @@ const RenewalNoticeDataOverlay = forwardRef(({
       address4: original.address4 || "",
       hasPersonalName: !!(original.fname || original.lname || original.title),
       hasCompany: !!original.company,
-      expiryDate: formatDate(subscription.enddate) // Format the date as a string
+      expiryDate: formatDate(enddate), // Use enddate directly
+      copies,
+      acode,
+      lastIssue: getLastIssue(enddate) // Use enddate directly
     };
   }, []);
 
@@ -444,7 +452,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
           <div class="group" style="top: ${positions.group2.top - 0.2}in; left: ${positions.group2.left - 0.2}in; width: ${positions.group2.width + 0.4}in; height: ${positions.group2.lineSpacing * 6 + 0.4}in;">
             <!-- ID header section with ID and status -->
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.group2.width}in; line-height: 1.2;">
-              ${sampleSubscriber.id}/Exp:${sampleSubscriber.expiryDate}/${sampleSubscriber.copies}cps/${sampleSubscriber.accountCode}
+              ${sampleSubscriber.id + '/Exp:' + sampleSubscriber.expiryDate + '/' + sampleSubscriber.copies + 'cps' + (sampleSubscriber.acode ? '/' + sampleSubscriber.acode : '')}
             </div>
             
             <!-- Name and address block -->
@@ -632,7 +640,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
           
           <!-- Group 2: ID Header, Name & Address (Left side) -->
           <div class="data-field group2-field" style="top: ${positions.group2.top}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
-            ${subscriber.id}/Exp:${subscriber.expiryDate}/${subscriber.copies}cps/${subscriber.accountCode}
+            ${subscriber.id + '/Exp:' + subscriber.expiryDate + '/' + subscriber.copies + 'cps' + (subscriber.acode ? '/' + subscriber.acode : '')}
           </div>
       `;
       
@@ -1154,7 +1162,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                 left: "0px",
                                 width: "100%"
                               }}>
-                                {subscriber.id}/Exp:{subscriber.expiryDate}/{subscriber.copies}cps/{subscriber.accountCode}
+                                {subscriber.id + '/Exp:' + subscriber.expiryDate + '/' + subscriber.copies + 'cps' + (subscriber.acode ? '/' + subscriber.acode : '')}
                               </div>
                               
                               {/* Add personal name if it exists */}

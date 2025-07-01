@@ -122,13 +122,18 @@ const ThankYouLetterDataOverlay = forwardRef(({
     }
     if (!original.address1 && !original.address) missingFields.push("Address"); // Check both address1 and address
     
-    // Check for valid dates
+    // Get subscription data exactly like PrintGenerator.js and RenewalNotice
     const wmmData = original.wmmData;
     const subscription = wmmData?.records?.[0] || wmmData || {};
-    if (!subscription.enddate) {
+    const copies = subscription.copies ?? "N/A";
+    const enddate = subscription.enddate || "";
+    const acode = original.acode || "";
+
+    // Check for valid dates
+    if (!enddate) {
       missingFields.push("Expiry Date");
     } else {
-      const expiryDate = new Date(subscription.enddate);
+      const expiryDate = new Date(enddate);
       if (isNaN(expiryDate.getTime())) {
         return {
           skipped: true,
@@ -163,7 +168,10 @@ const ThankYouLetterDataOverlay = forwardRef(({
       address4: original.address4 || "",
       hasPersonalName: !!(original.fname || original.lname || original.title),
       hasCompany: !!original.company,
-      expiryDate: formatDate(subscription.enddate) // Format the date as a string
+      expiryDate: formatDate(enddate), // Use enddate directly
+      copies,
+      acode,
+      accountCode: `${original.id} / ${copies}-cp(s) / Expiry - ${formatDate(enddate)}${acode ? ` / ${acode}` : ""}`
     };
   }, []);
 
@@ -481,7 +489,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
           <div class="group" style="top: ${positions.addressGroup.top - 0.2}in; left: ${positions.addressGroup.left - 0.2}in; width: ${positions.addressGroup.width + 0.4}in; height: ${positions.addressGroup.lineSpacing * 6 + 0.4}in;">
             <!-- ID header section with ID and status -->
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.addressGroup.width}in; line-height: 1.2;">
-              ${sampleSubscriber.id}/${sampleSubscriber.copies}cps/${sampleSubscriber.accountCode}
+              ${sampleSubscriber.accountCode}
             </div>
             
             <!-- Name and address block -->
@@ -543,8 +551,6 @@ const ThankYouLetterDataOverlay = forwardRef(({
             margin: 0;
           }
           body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
             margin: 0;
             padding: 0;
           }
@@ -565,19 +571,22 @@ const ThankYouLetterDataOverlay = forwardRef(({
           }
           .date-field {
             position: absolute;
-            top: ${positions.addressGroup.top - 0.5}in;
+            top: ${positions.monthYear.top}in;
+            left: 0;
             width: 8.5in;
             text-align: center;
-            font-family: ${positions.addressGroup.fontFamily}, sans-serif;
-            font-size: ${positions.addressGroup.fontSize}pt;
+            font-family: ${positions.monthYear.fontFamily}, sans-serif;
+            font-size: ${positions.monthYear.fontSize}pt;
             z-index: 1000;
           }
           .greeting-field {
             position: absolute;
-            top: ${positions.addressGroup.top + positions.addressGroup.lineSpacing * 12}in;
-            left: ${positions.addressGroup.left}in;
-            font-family: ${positions.addressGroup.fontFamily}, sans-serif;
-            font-size: ${positions.addressGroup.fontSize + 2}pt;
+            top: ${positions.greeting.top}in;
+            left: ${positions.greeting.left}in;
+            width: ${positions.greeting.width}in;
+            font-family: ${positions.greeting.fontFamily}, sans-serif;
+            font-size: ${positions.greeting.fontSize}pt;
+            font-weight: ${positions.greeting.fontWeight};
             z-index: 1000;
           }
           /* Print styles */
@@ -675,13 +684,13 @@ const ThankYouLetterDataOverlay = forwardRef(({
       overlayHTML += `
         <div class="data-overlay">
           <!-- Month Year centered at top -->
-          <div class="date-field">
+          <div class="date-field" style="left: 0; width: 8.5in;">
             ${getCurrentMonthYear()}
           </div>
           
           <!-- Address Group: ID Header, Name & Address -->
           <div class="data-field address-field" style="top: ${positions.addressGroup.top}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.id}/${subscriber.copies}cps/${subscriber.accountCode}
+            ${subscriber.accountCode}
           </div>
       `;
       
@@ -743,9 +752,9 @@ const ThankYouLetterDataOverlay = forwardRef(({
         `;
       }
       
-      // Add the "Dear Title Lastname" greeting much lower and larger
+      // Add the "Dear Title Lastname" greeting with explicit positioning
       overlayHTML += `
-        <div class="greeting-field">
+        <div class="greeting-field" style="left: ${positions.greeting.left}in; width: ${positions.greeting.width}in;">
           Dear ${greetingName},
         </div>
       `;
@@ -1233,13 +1242,12 @@ const ThankYouLetterDataOverlay = forwardRef(({
                             <div 
                               className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
                               style={{
-                                top: `${(positions.addressGroup.top - positions.spacing.monthYearToAddress) * scaleY}px`,
+                                top: `${positions.monthYear.top * scaleY}px`,
                                 left: '0',
                                 width: '100%',
                                 textAlign: 'center',
-                                fontFamily: positions.addressGroup.fontFamily,
-                                fontSize: `${positions.addressGroup.fontSize}px`,
-                                fontWeight: positions.addressGroup.fontWeight
+                                fontFamily: positions.monthYear.fontFamily,
+                                fontSize: `${positions.monthYear.fontSize}px`
                               }}
                             >
                               <div className="absolute text-xs text-blue-500 font-mono -top-4 left-1/2 transform -translate-x-1/2">Month Year</div>
@@ -1266,7 +1274,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                 left: "0px",
                                 width: "100%"
                               }}>
-                                {subscriber.id}/{subscriber.copies}cps/{subscriber.accountCode}
+                                {subscriber.accountCode}
                               </div>
                               
                               {/* Add personal name if it exists */}
@@ -1379,10 +1387,12 @@ const ThankYouLetterDataOverlay = forwardRef(({
                             <div 
                               className="absolute bg-purple-50 border border-purple-200 p-1 text-sm font-mono"
                               style={{
-                                top: `${(positions.addressGroup.top + positions.addressGroup.lineSpacing * 12 + positions.spacing.addressToGreeting) * scaleY}px`,
-                                left: `${positions.addressGroup.left * scaleX}px`,
-                                fontFamily: positions.addressGroup.fontFamily,
-                                fontSize: `${parseInt(positions.addressGroup.fontSize) + 2}px`,
+                                top: `${(positions.greeting.top) * scaleY}px`,
+                                left: `${positions.greeting.left * scaleX}px`,
+                                width: `${positions.greeting.width * scaleX}px`,
+                                fontFamily: positions.greeting.fontFamily,
+                                fontSize: `${positions.greeting.fontSize}px`,
+                                fontWeight: positions.greeting.fontWeight
                               }}
                             >
                               <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">Greeting</div>
