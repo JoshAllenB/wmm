@@ -2042,12 +2042,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       </select>
                     </div>
                     
-                    <div className="flex items-center mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mr-2">
+                    <div className="flex flex-row items-center justify-center gap-2">
+                      <label className="block text-sm font-medium leading-6 text-gray-600">
                         Copies:
                       </label>
                       <input
-                        type="number"
                         id="copies"
                         name="copies"
                         value={
@@ -2060,33 +2059,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             ? handleRoleSpecificChange
                             : handleNewSubscriptionChange
                         }
+                        type="number"
                         min="1"
-                        className="w-20 p-2 border rounded-md text-base"
+                        className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
                       />
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id="calendar"
-                          name="calendar"
-                          checked={
-                            subscriptionMode === "edit"
-                              ? roleSpecificData.calendar || false
-                              : newSubscriptionData.calendar || false
-                          }
-                          onChange={
-                            subscriptionMode === "edit"
-                              ? handleRoleSpecificChange
-                              : handleNewSubscriptionChange
-                          }
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Include Calendar
-                        </span>
-                      </label>
                     </div>
                   </div>
                   

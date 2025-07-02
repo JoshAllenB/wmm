@@ -1021,6 +1021,7 @@ const Add = ({ fetchClients }) => {
           subscriptionStart: formData.subscriptionStart,
           subscriptionEnd: formData.subscriptionEnd,
           subsclass: formData.subsclass,
+          calendar: roleSpecificData.calendar || false
         }
       });
     }
@@ -2553,6 +2554,19 @@ const Add = ({ fetchClients }) => {
                               type="number"
                               min="1"
                               className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label htmlFor="calendar" className="text-sm font-medium text-gray-600">
+                              Calendar Received:
+                            </label>
+                            <input
+                              type="checkbox"
+                              id="calendar"
+                              name="calendar"
+                              checked={roleSpecificData.calendar || false}
+                              onChange={handleRoleSpecificChange}
+                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                           </div>
                         </div>
