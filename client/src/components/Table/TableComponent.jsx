@@ -698,25 +698,40 @@ export const TableComponent = function TableComponent({
 
                               return (
                                 <li key={index} className="mb-1">
-                                  <span className={statusClass}>
-                                    {statusIndicator}
-                                    <strong>{sub.subsclass}</strong>:{" "}
-                                    {sub.subsdate} - {sub.enddate}, Cps:{" "}
-                                    {sub.copies}
-                                  </span>
-                                  {(sub.paymtref || sub.paymtamt) && (
-                                    <div className="text-xs ml-4 text-gray-600">
-                                      {sub.paymtref && (
-                                        <span>Ref: {sub.paymtref}</span>
-                                      )}
-                                      {sub.paymtref && sub.paymtamt && (
-                                        <span> • </span>
-                                      )}
-                                      {sub.paymtamt && (
-                                        <span>Amt: {sub.paymtamt}</span>
-                                      )}
-                                    </div>
-                                  )}
+                                  <div className="flex flex-col">
+                                    <span className={statusClass}>
+                                      {statusIndicator}
+                                      <strong>{sub.subsclass}</strong>:{" "}
+                                      {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                                      {sub.copies}
+                                    </span>
+                                    {(sub.paymtref || sub.paymtamt) && (
+                                      <div className="text-xs ml-4 text-gray-600">
+                                        {sub.paymtref && (
+                                          <span>Ref: {sub.paymtref}</span>
+                                        )}
+                                        {sub.paymtref && sub.paymtamt && (
+                                          <span> • </span>
+                                        )}
+                                        {sub.paymtamt && (
+                                          <span>Amt: {sub.paymtamt}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {index === 0 && (
+                                      <div className="text-xs ml-4 mt-1">
+                                        {sub.calendar ? (
+                                          <span className="text-white bg-orange-400 px-2 py-0.5 rounded-full font-medium">
+                                            Calendar ✓
+                                          </span>
+                                        ) : (
+                                          <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                            No Calendar
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </li>
                               );
                             })

@@ -325,70 +325,87 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
           return (
             <div key={index} className="border-b border-gray-300 pb-2 mb-2">
-              <div className="flex space-x-1">
-                <span className={statusClass}>
-                  {statusIndicator}
-                  <span className="font-bold">
-                    {subscription.subsclass || 'N/A'}
-                  </span>: {formatDate(subscription.subsdate || new Date())} -{" "}
-                  {formatDate(subscription.enddate || new Date())} Cps:{" "}
-                  {subscription.copies || '1'}
-                </span>
-              </div>
+              <div className="flex flex-col">
+                <div className="flex space-x-1">
+                  <span className={statusClass}>
+                    {statusIndicator}
+                    <span className="font-bold">
+                      {subscription.subsclass || 'N/A'}
+                    </span>: {formatDate(subscription.subsdate || new Date())} -{" "}
+                    {formatDate(subscription.enddate || new Date())} Cps:{" "}
+                    {subscription.copies || '1'}
+                  </span>
+                </div>
 
-              {/* Payment details */}
-              {subscription.paymtref && (
-                <div className="mt-1 pl-4 text-sm">
-                  <div className="grid grid-cols-2 gap-x-4">
-                    <div>
-                      <span className="text-black font-semibold">
-                        Payment Ref:
-                      </span>{" "}
-                      <span className="text-black">
-                        {subscription.paymtref}
+                {/* Calendar Status */}
+                {index === 0 && (
+                  <div className="text-xs ml-4 mt-1">
+                    {subscription.calendar ? (
+                      <span className="text-white bg-orange-400 px-2 py-0.5 rounded-full font-medium">
+                        Calendar ✓
                       </span>
-                    </div>
-                    <div>
-                      <span className="text-black font-semibold">
-                        Amount:
-                      </span>{" "}
-                      <span className="text-black">
-                        {subscription.paymtamt || '0'}
+                    ) : (
+                      <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                        No Calendar
                       </span>
-                    </div>
-                    {subscription.paymtmasses && (
-                      <div>
-                        <span className="text-black font-semibold">
-                          Masses:
-                        </span>{" "}
-                        <span className="text-black">
-                          {subscription.paymtmasses}
-                        </span>
-                      </div>
-                    )}
-                    {subscription.donorid && (
-                      <div>
-                        <span className="text-black font-semibold">
-                          Donor ID:
-                        </span>{" "}
-                        <span className="text-black">
-                          {subscription.donorid}
-                        </span>
-                      </div>
-                    )}
-                    {subscription.adddate && (
-                      <div>
-                        <span className="text-black font-semibold">
-                          Added:
-                        </span>{" "}
-                        <span className="text-black">
-                          {formatDate(subscription.adddate)}
-                        </span>
-                      </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
+
+                {/* Payment details */}
+                {subscription.paymtref && (
+                  <div className="mt-1 pl-4 text-sm">
+                    <div className="grid grid-cols-2 gap-x-4">
+                      <div>
+                        <span className="text-black font-semibold">
+                          Payment Ref:
+                        </span>{" "}
+                        <span className="text-black">
+                          {subscription.paymtref}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-black font-semibold">
+                          Amount:
+                        </span>{" "}
+                        <span className="text-black">
+                          {subscription.paymtamt || '0'}
+                        </span>
+                      </div>
+                      {subscription.paymtmasses && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Masses:
+                          </span>{" "}
+                          <span className="text-black">
+                            {subscription.paymtmasses}
+                          </span>
+                        </div>
+                      )}
+                      {subscription.donorid && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Donor ID:
+                          </span>{" "}
+                          <span className="text-black">
+                            {subscription.donorid}
+                          </span>
+                        </div>
+                      )}
+                      {subscription.adddate && (
+                        <div>
+                          <span className="text-black font-semibold">
+                            Added:
+                          </span>{" "}
+                          <span className="text-black">
+                            {formatDate(subscription.adddate)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

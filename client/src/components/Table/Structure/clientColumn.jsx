@@ -184,6 +184,7 @@ export const useColumns = () => {
                     subsclass,
                     paymtref,
                     paymtamt,
+                    calendar
                   } = subscription;
 
                   if (subsdate) {
@@ -218,6 +219,7 @@ export const useColumns = () => {
                     paymtref: paymtref || null,
                     paymtamt: formattedPayment,
                     status,
+                    calendar: calendar || false
                   };
                 });
             },
@@ -228,7 +230,7 @@ export const useColumns = () => {
               }
 
               return (
-                <ul className="max-h-[150px] max-w-[300px] overflow-y-auto scrollbar-hide">
+                <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
                   {subscriptions.map((sub, index) => {
                     const statusClass = getStatusColorClass(sub.status);
                     const statusIndicator =
@@ -241,19 +243,41 @@ export const useColumns = () => {
                         : "";
 
                     return (
-                      <li key={index} className="text-lg mb-1">
-                        <span className={`${statusClass} text-black`}>
-                          {statusIndicator}
-                          <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
-                          {sub.enddate}, Cps: {sub.copies}
-                        </span>
-                        {(sub.paymtref || sub.paymtamt) && (
-                          <div className="text-sm ml-4 text-black">
-                            {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
-                            {sub.paymtref && sub.paymtamt && <span> • </span>}
-                            {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
-                          </div>
-                        )}
+                      <li key={index} className="mb-1">
+                        <div className="flex flex-col">
+                          <span className={statusClass}>
+                            {statusIndicator}
+                            <strong>{sub.subsclass}</strong>:{" "}
+                            {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                            {sub.copies}
+                          </span>
+                          {(sub.paymtref || sub.paymtamt) && (
+                            <div className="text-xs ml-4 text-gray-600">
+                              {sub.paymtref && (
+                                <span>Ref: {sub.paymtref}</span>
+                              )}
+                              {sub.paymtref && sub.paymtamt && (
+                                <span> • </span>
+                              )}
+                              {sub.paymtamt && (
+                                <span>Amt: {sub.paymtamt}</span>
+                              )}
+                            </div>
+                          )}
+                          {index === 0 && (
+                            <div className="text-xs ml-4 mt-1">
+                              {sub.calendar ? (
+                                <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full font-medium">
+                                  Calendar ✓
+                                </span>
+                              ) : (
+                                <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                  No Calendar
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
