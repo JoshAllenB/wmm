@@ -12,24 +12,28 @@ const Accounting = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const debouncedFiltering = useDebounce(filtering, 300); // Add debouncing with 300ms delay
+  const [isTyping, setIsTyping] = useState(false);
+  const debouncedFiltering = useDebounce(filtering, 500); // Increased from 300ms to 500ms
 
   const columns = useAccountingColumns();
 
   // Always use the latest debouncedFiltering value for backend search
   const fetchAccountingData = useCallback(
-    async (
-      currentPage = 1,
-      currentPageSize = 20,
-      filter = debouncedFiltering
-    ) => {
+    async (currentPage = 1, currentPageSize = 20, filter = debouncedFiltering) => {
+      if (isTyping) return { data: [], totalPages: 0 }; // Skip fetch if user is still typing
+      
       setIsLoading(true);
       try {
-        const params = new URLSearchParams({
-          page: currentPage,
-          limit: currentPageSize,
-          ...(filter ? { search: filter } : {}),
-        });
+        // Only include pagination parameters if there's no search filter
+        const params = new URLSearchParams(
+          filter
+            ? { search: filter } // When searching, skip pagination to get all results
+            : {
+                page: currentPage,
+                limit: currentPageSize,
+              }
+        );
+
         const baseUrl = `http://${
           import.meta.env.VITE_IP_ADDRESS
         }:3001/accounting/payments`;
@@ -41,10 +45,22 @@ const Accounting = () => {
         });
 
         const json = response.data;
-        setTotalPages(Math.ceil((json.totalClients || 0) / currentPageSize));
+        
+        // If we're searching, show all results without pagination
+        if (filter) {
+          setTotalPages(1); // Only one page when searching
+          return {
+            data: json.data || [],
+            totalPages: 1,
+          };
+        }
+        
+        // Normal pagination when not searching
+        const newTotalPages = Math.ceil((json.totalClients || 0) / currentPageSize);
+        setTotalPages(newTotalPages);
         return {
           data: json.data || [],
-          totalPages: Math.ceil((json.totalClients || 0) / currentPageSize),
+          totalPages: newTotalPages,
         };
       } catch (err) {
         console.error("Error fetching accounting data:", err);
@@ -53,7 +69,7 @@ const Accounting = () => {
         setIsLoading(false);
       }
     },
-    [debouncedFiltering]
+    [debouncedFiltering, isTyping]
   );
 
   useEffect(() => {
@@ -61,8 +77,12 @@ const Accounting = () => {
   }, [page, pageSize, debouncedFiltering, fetchAccountingData]);
 
   const handleSearchChange = (e) => {
+    setIsTyping(true);
     setFiltering(e.target.value);
     setPage(1); // Reset to first page when searching
+    
+    // Set a timeout slightly shorter than the debounce to indicate typing has stopped
+    setTimeout(() => setIsTyping(false), 400);
   };
 
   const handlePageChange = (newPage) => {
@@ -90,7 +110,7 @@ const Accounting = () => {
         <Button
           onClick={handleRefresh}
           className="bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
-          disabled={isLoading}
+          disabled={isLoading || isTyping}
         >
           {isLoading ? "Loading..." : "Refresh"}
         </Button>
@@ -101,11 +121,10 @@ const Accounting = () => {
         initialPageSize={pageSize}
         initialPage={page}
         totalPages={totalPages}
-        usePagination={true}
+        usePagination={!filtering} // Disable pagination when searching
         searchTerm={debouncedFiltering}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
-        // Ensure DataTable does not do any client-side filtering
       />
     </div>
   );

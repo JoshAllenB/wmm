@@ -16,8 +16,26 @@ const getPaymentFields = (modelName) => {
 // Helper function to extract payment reference numbers from various formats
 const extractPaymentRefNumber = (input) => {
   if (!input) return null;
-  console.log("🔍 Raw input:", input);
-  return input.toString().trim(); // Ensure we always work with strings
+  
+  // Common payment reference patterns
+  const patterns = [
+    /^(?:OR#?\s*)?(\d{5,6})$/i,           // OR number: OR#12345 or 12345
+    /^(?:MS\s*)?(\d{6})$/i,               // MS number: MS123456 or 123456
+    /^(?:GCASH\s*)?(\d{6,})$/i,           // GCASH number
+    /^[A-Z]{2}\s*\d{6}$/i,                // Two letters followed by 6 digits (MS 123456)
+    /^\d{4,}[A-Z]?$/                      // 4+ digits optionally followed by a letter
+  ];
+
+  const inputStr = input.toString().trim();
+  
+  // Check if input matches any of our payment reference patterns
+  for (const pattern of patterns) {
+    if (pattern.test(inputStr)) {
+      return inputStr;
+    }
+  }
+  
+  return null;
 };
 
 // Parse tagged search similar to AllClient component
@@ -30,13 +48,11 @@ const parseTaggedSearch = (searchValue = "") => {
 
   if (!searchValue.trim()) return filters;
 
-  console.log("🔎 Search:", searchValue);
   let remainingValue = searchValue;
 
   // First check for explicitly tagged payment reference
   const taggedRefMatch = remainingValue.match(/\bref:\s*([^\s]+)/i);
   if (taggedRefMatch) {
-    console.log("📌 Tagged ref:", taggedRefMatch[1]);
     filters.paymentRef = extractPaymentRefNumber(taggedRefMatch[1]);
     remainingValue = remainingValue.replace(taggedRefMatch[0], "").trim();
   }
@@ -53,21 +69,18 @@ const parseTaggedSearch = (searchValue = "") => {
     const potentialRef = extractPaymentRefNumber(remainingValue);
     if (potentialRef) {
       filters.paymentRef = potentialRef;
-      console.log("✨ Untagged ref:", potentialRef);
       remainingValue = remainingValue.replace(potentialRef, "").trim();
     }
   }
 
-  // Handle remaining text as name if it contains spaces and we don't have a name yet
-  if (!filters.fullName && remainingValue.includes(" ")) {
+  // If we haven't found a payment reference or name yet, treat the input as a name search
+  if (!filters.paymentRef && !filters.fullName) {
     filters.fullName = remainingValue;
     remainingValue = "";
   }
 
-  // Any remaining single word goes to general search
+  // Any remaining text goes to general search
   filters.search = remainingValue;
-
-  console.log("🎯 Result:", { ref: filters.paymentRef || "none" });
 
   return filters;
 };
@@ -116,22 +129,12 @@ const createPaymentRefPatterns = (ref) => {
   // Keep the original reference as the only pattern
   const patterns = [ref];
 
-  console.log("🔢 Ref patterns:", patterns);
   return patterns;
 };
 
 // Helper function to build payment reference query condition
 const buildPaymentRefQuery = (refPatterns) => {
   const cleanRef = refPatterns[0].toString().trim();
-
-  console.log("🔢 Payment reference search details:", {
-    cleanSearchTerm: cleanRef,
-    matchingStrategies: [
-      "Exact string match",
-      "Number converted to string match",
-      "Partial match (contains)",
-    ],
-  });
 
   return {
     $or: [
@@ -181,17 +184,113 @@ export const getAllPayments = async (req, res) => {
 
     // Parse search and build client filter
     const parsedSearch = parseTaggedSearch(search);
-    const clientFilter = buildClientSearchFilter(parsedSearch);
+    
+    let clients = [];
+    let totalClients = 0;
 
-    // Get paginated clients
-    const [totalClients, clients] = await Promise.all([
-      ClientModel.countDocuments(clientFilter),
-      ClientModel.find(clientFilter)
+    // If searching for a payment reference, search directly in payment models first
+    if (parsedSearch.paymentRef) {
+      const refPatterns = createPaymentRefPatterns(parsedSearch.paymentRef);
+      const paymentRefQuery = buildPaymentRefQuery(refPatterns);
+      
+      // Process all models in parallel but only for payment reference search
+      const modelQueries = Object.entries(models)
+        .filter(([modelName]) => {
+          const paymentFields = getPaymentFields(modelName);
+          return Object.keys(paymentFields).length > 0;
+        })
+        .map(async ([modelName, modelLoader]) => {
+          const model = await modelLoader();
+          const paymentFields = getPaymentFields(modelName);
+          const clientIdField = modelName === "ComplimentaryModel" ? "clientId" : "clientid";
+
+          // First find matching payment references
+          const matchingPayments = await model.default.aggregate([
+            { $match: paymentRefQuery },
+            {
+              $project: {
+                ...paymentFields,
+                [clientIdField]: 1,
+                model: { $literal: modelName.replace("Model", "") },
+              },
+            },
+            { $sort: { [sort]: order === "desc" ? -1 : 1 } },
+            { $limit: 1000 }, // Reasonable limit for performance
+          ]);
+
+          return matchingPayments;
+        });
+
+      const allModelPayments = await Promise.all(modelQueries);
+      const allPayments = allModelPayments.flat();
+
+      // Get unique client IDs from the payments
+      const uniqueClientIds = [...new Set(allPayments.map(p => p.clientid || p.clientId))];
+
+      if (uniqueClientIds.length > 0) {
+        // Fetch only the clients that have matching payments
+        clients = await ClientModel.find({ id: { $in: uniqueClientIds } })
+          .select("id lname fname mname company")
+          .lean();
+        totalClients = clients.length;
+      }
+
+      // Create client map for faster lookup
+      const clientMap = clients.reduce((acc, client) => {
+        acc[client.id] = {
+          clientName: `${client.lname}, ${client.fname}${
+            client.mname ? " " + client.mname : ""
+          }`,
+          company: client.company,
+        };
+        return acc;
+      }, {});
+
+      // Map payments with client info
+      const flatPayments = allPayments.map((payment) => {
+        const clientId = payment.clientid || payment.clientId;
+        const clientInfo = clientMap[clientId] || {
+          clientName: "Unknown Client",
+          company: "",
+        };
+        return {
+          ...payment,
+          clientId,
+          ...clientInfo,
+        };
+      });
+
+      return res.json({
+        page: 1,
+        limit: flatPayments.length,
+        totalClients,
+        totalPayments: flatPayments.length,
+        data: flatPayments,
+      });
+    }
+
+    // Handle name search or general search
+    if (parsedSearch.fullName || parsedSearch.search) {
+      const clientFilter = buildClientSearchFilter(parsedSearch);
+      
+      // Get all matching clients without pagination for search
+      clients = await ClientModel.find(clientFilter)
         .select("id lname fname mname company")
-        .skip((page - 1) * limit)
-        .limit(parseInt(limit))
-        .lean(),
-    ]);
+        .limit(1000) // Reasonable limit for performance
+        .lean();
+      
+      totalClients = clients.length;
+    } else {
+      // Normal paginated flow for non-search cases
+      [totalClients, clients] = await Promise.all([
+        ClientModel.countDocuments({}),
+        ClientModel.find({})
+          .select("id lname fname mname company")
+          .skip((page - 1) * limit)
+          .limit(parseInt(limit))
+          .lean(),
+      ]);
+    }
 
     if (!clients.length) {
       return res.json({
@@ -206,66 +305,20 @@ export const getAllPayments = async (req, res) => {
     // Get client IDs for payment queries
     const clientIds = clients.map((c) => c.id);
 
-    console.log("🔍 Starting search with:", {
-      ref: parsedSearch.paymentRef || "none",
-      name: parsedSearch.fullName || "none",
-      dateRange: Object.keys(dateFilter).length ? dateFilter : "none",
-    });
-
     // Process all models in parallel
     const modelQueries = Object.entries(models)
       .filter(([modelName]) => {
-        // Skip models that don't have payment fields configured
         const paymentFields = getPaymentFields(modelName);
-        const hasPaymentFields = Object.keys(paymentFields).length > 0;
-
-        if (!hasPaymentFields) {
-          console.log(`⏭️ Skip ${modelName} - no payment fields`);
-        }
-        return hasPaymentFields;
+        return Object.keys(paymentFields).length > 0;
       })
       .map(async ([modelName, modelLoader]) => {
-        console.log(`📋 Searching in ${modelName}...`);
         const model = await modelLoader();
         const paymentFields = getPaymentFields(modelName);
+        const clientIdField = modelName === "ComplimentaryModel" ? "clientId" : "clientid";
 
-        const clientIdField =
-          modelName === "ComplimentaryModel" ? "clientId" : "clientid";
-
-        // Build the match query
         const matchQuery = {
           [clientIdField]: { $in: clientIds },
         };
-
-        if (parsedSearch.paymentRef) {
-          // Generate all possible patterns for the payment reference
-          const refPatterns = createPaymentRefPatterns(parsedSearch.paymentRef);
-
-          // Use $and to require both client ID and reference match
-          matchQuery.$and = [
-            { [clientIdField]: { $in: clientIds } },
-            buildPaymentRefQuery(refPatterns),
-          ];
-
-          // Add debug logging for the complete query
-          console.log(
-            `🔍 ${modelName} query:`,
-            JSON.stringify(matchQuery, null, 2)
-          );
-
-          // Add a sample query to find what's actually in the database
-          const sampleDoc = await model.default
-            .findOne({
-              [clientIdField]: { $in: clientIds },
-            })
-            .select("paymtref")
-            .lean();
-
-          console.log(`🔍 ${modelName} sample document:`, {
-            paymtref: sampleDoc?.paymtref,
-            paymtrefType: typeof sampleDoc?.paymtref,
-          });
-        }
 
         if (Object.keys(dateFilter).length > 0) {
           matchQuery.recvdate = dateFilter;
@@ -274,16 +327,10 @@ export const getAllPayments = async (req, res) => {
         return model.default.aggregate([
           { $match: matchQuery },
           {
-            $addFields: {
-              paymtrefType: { $type: "$paymtref" },
-            },
-          },
-          {
             $project: {
               ...paymentFields,
               [clientIdField]: 1,
               model: { $literal: modelName.replace("Model", "") },
-              paymtrefType: 1,
             },
           },
           { $sort: { [sort]: order === "desc" ? -1 : 1 } },
@@ -307,40 +354,15 @@ export const getAllPayments = async (req, res) => {
     // Map payments with client info
     const flatPayments = allPayments.map((payment) => {
       const clientId = payment.clientid || payment.clientId;
+      const clientInfo = clientMap[clientId] || {
+        clientName: "Unknown Client",
+        company: "",
+      };
       return {
         ...payment,
         clientId,
-        ...clientMap[clientId],
+        ...clientInfo,
       };
-    });
-
-    // Group results by model
-    const resultsByModel = flatPayments.reduce((acc, payment) => {
-      if (!acc[payment.model]) {
-        acc[payment.model] = {
-          count: 0,
-          types: new Set(),
-          sample: null,
-        };
-      }
-      acc[payment.model].count++;
-      acc[payment.model].types.add(payment.paymtrefType);
-      if (!acc[payment.model].sample) {
-        acc[payment.model].sample = {
-          client: payment.clientName,
-          ref: payment.paymtref,
-          type: payment.paymtrefType,
-          amount: payment.paymtamt,
-        };
-      }
-      return acc;
-    }, {});
-
-    // Log overall summary
-    console.log("🎯 Total Results:", {
-      clients: totalClients,
-      payments: flatPayments.length,
-      models: Object.keys(resultsByModel).length,
     });
 
     res.json({
@@ -351,7 +373,6 @@ export const getAllPayments = async (req, res) => {
       data: flatPayments,
     });
   } catch (error) {
-    console.error("Error in /payments endpoint:", error);
     res.status(500).json({
       error: "Internal server error",
       details: error.message,
