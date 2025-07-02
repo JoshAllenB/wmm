@@ -116,13 +116,22 @@ export const useAccountingColumns = () => {
     },
     {
       id: "Reference",
-      header: "Reference",
+      header: "Reference & Form",
       accessorKey: "paymtref",
-      cell: ({ getValue }) => (
-        <div className="py-2">
-          {getValue() || <span className="text-muted-foreground italic">N/A</span>}
-        </div>
-      ),
+      cell: ({ getValue, row }) => {
+        const ref = getValue();
+        const form = row.original.paymtform;
+        const model = row.original.model;
+        
+        return (
+          <div className="py-2">
+            <div className="text-md">
+              {ref || <span className="text-muted-foreground italic">N/A</span>}
+              {form && ` - ${form}`}
+            </div>
+          </div>
+        );
+      },
       size: 200,
     },
     {
