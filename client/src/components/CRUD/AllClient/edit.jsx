@@ -7,6 +7,7 @@ import Modal from "../../modal";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
+import { webSocketService } from "../../../services/WebSocketService";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -1530,16 +1531,38 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       );
 
       if (response.data.success) {
+        // Prepare updated data
+        const updatedData = {
+          ...rowData,
+          ...clientData,
+          // Always include all subscription data from the response
+          wmmData: response.data.wmmData || [],
+          hrgData: response.data.hrgData || [],
+          fomData: response.data.fomData || [],
+          calData: response.data.calData || [],
+          // Update services array
+          services: Array.from(new Set([
+            ...(rowData.services || []),
+            roleType
+          ]))
+        };
+
+        // Emit data update event via WebSocket
+        webSocketService.emit("data-update", {
+          type: "update",
+          data: {
+            id: rowData.id,
+            ...updatedData,
+            // Ensure subscription data is properly structured
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || []
+          }
+        });
+
         if (onEditSuccess) {
-          // Send back the updated data to the parent component
-          onEditSuccess({
-            ...rowData,
-            ...clientData,
-            ...(hasRole("WMM") && { wmmData: response.data.wmmData }),
-            ...(hasRole("HRG") && { hrgData: response.data.hrgData }),
-            ...(hasRole("FOM") && { fomData: response.data.fomData }),
-            ...(hasRole("CAL") && { calData: response.data.calData }),
-          });
+          onEditSuccess(updatedData);
         }
         closeModal();
       }

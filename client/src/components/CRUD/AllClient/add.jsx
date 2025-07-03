@@ -7,9 +7,10 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
-import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
+import { fetchSubclasses, fetchTypes, fetchAreas } from "../../Table/Data/utilData";
 import { debounce } from "lodash";
 import View from "./view";
+import { webSocketService } from "../../../services/WebSocketService";
 
 // Utility function to normalize address for more consistent duplicate checking
 const normalizeAddress = (address) => {
@@ -158,6 +159,9 @@ const Add = ({ fetchClients }) => {
     paymtdate: "",
     remarks: ""
   });
+
+  const [areas, setAreas] = useState(null);
+  const [isLoadingAreas, setIsLoadingAreas] = useState(false);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -336,7 +340,14 @@ const Add = ({ fetchClients }) => {
     setSelectedCity("");
 
     // Reset area data
-    setAreaData({});
+    setAreaData({
+      acode: "",
+      zipcode: "",
+      area: "",
+      city: "",
+      province: "",
+      region: ""
+    });
 
     // Reset role-specific data states
     setHrgData({
@@ -779,11 +790,17 @@ const Add = ({ fetchClients }) => {
     return lines.filter(Boolean).join("\n");
   };
 
+  // Modify handleAddressChange to properly handle duplicate checking
   const handleAddressChange = (type, value) => {
     if (potentialDuplicates.length > 0) {
       immediatelyClearDuplicates();
     }
     setIsCheckingDuplicates(true);
+
+    // Load areas data if not already loaded
+    if (!areas && !isLoadingAreas) {
+      loadAreas();
+    }
 
     setAddressData((prev) => {
       const newAddressData = {
@@ -791,17 +808,19 @@ const Add = ({ fetchClients }) => {
         [type]: value,
       };
       
+      // Format address and update state
       const formattedAddress = formatAddressLines(newAddressData, formData.area, areaData);
       setCombinedAddress(formattedAddress);
       
-      // Also update the formData.address field
+      // Update formData with new address
       setFormData(prev => ({
         ...prev,
         address: formattedAddress
       }));
 
-      setTimeout(() => {
-        const checkData = {
+      // Check for duplicates with a delay to allow state updates
+      const checkDuplicatesAfterDelay = () => {
+        const currentFormData = {
           fname: formData.fname,
           lname: formData.lname,
           bdate: formData.bdate,
@@ -812,23 +831,45 @@ const Add = ({ fetchClients }) => {
           address: formattedAddress,
           acode: areaData.acode || "",
         };
-        checkForDuplicates(checkData, "address");
-      }, 100);
 
+        if (
+          (currentFormData.fname && currentFormData.fname.length > 1) ||
+          (currentFormData.lname && currentFormData.lname.length > 1) ||
+          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
+          (currentFormData.company && currentFormData.company.length > 2) ||
+          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
+          (currentFormData.email && currentFormData.email.includes("@")) ||
+          (formattedAddress && formattedAddress.length > 3) ||
+          (currentFormData.acode && currentFormData.acode.length > 3)
+        ) {
+          checkForDuplicates(currentFormData, "address");
+        } else {
+          setIsCheckingDuplicates(false);
+        }
+      };
+
+      setTimeout(checkDuplicatesAfterDelay, 100);
       return newAddressData;
     });
   };
 
+  // Modify handleAreaFormChange to properly handle duplicate checking
   const handleAreaFormChange = (field, value) => {
+    // Load areas data if not already loaded
+    if (!areas && !isLoadingAreas) {
+      loadAreas();
+    }
+
     handleAreaChange(field, value);
     
     if (field === "city") {
-      // Update formData.area with the city name
+      // Update form data with new city
       setFormData(prev => ({
         ...prev,
         area: value
       }));
       
+      // Update address data and check for duplicates
       setAddressData(prev => {
         const newAddressData = {
           ...prev,
@@ -837,40 +878,50 @@ const Add = ({ fetchClients }) => {
         
         const formattedAddress = formatAddressLines(newAddressData, value, areaData);
         setCombinedAddress(formattedAddress);
+
+        // Update form data with new address
         setFormData(prev => ({
           ...prev,
           area: value,
           address: formattedAddress
         }));
+
+        // Check for duplicates with updated address
+        const currentFormData = {
+          fname: formData.fname,
+          lname: formData.lname,
+          bdate: formData.bdate,
+          company: formData.company,
+          email: formData.email,
+          cellno: formData.cellno,
+          contactnos: formData.contactnos,
+          address: formattedAddress,
+          acode: areaData.acode || "",
+        };
+
+        if (
+          (currentFormData.fname && currentFormData.fname.length > 1) ||
+          (currentFormData.lname && currentFormData.lname.length > 1) ||
+          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
+          (currentFormData.company && currentFormData.company.length > 2) ||
+          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
+          (currentFormData.email && currentFormData.email.includes("@")) ||
+          (formattedAddress && formattedAddress.length > 3) ||
+          (currentFormData.acode && currentFormData.acode.length > 3)
+        ) {
+          setTimeout(() => {
+            checkForDuplicates(currentFormData, "city");
+          }, 100);
+        } else {
+          setIsCheckingDuplicates(false);
+        }
         
         return newAddressData;
       });
     }
   };
 
-  // Update useEffect for combining address
-  useEffect(() => {
-    const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
-    if (combinedAddress !== formattedAddress) {
-      setCombinedAddress(formattedAddress);
-      // Also update the formData.address field
-      setFormData(prev => ({
-        ...prev,
-        address: formattedAddress
-      }));
-    }
-  }, [addressData, formData.area, areaData]);
-
-  const handleCitySelect = (cityname) => {
-    setSelectedCity(cityname);
-    // Update formData.area with the city name
-    setFormData(prev => ({
-      ...prev,
-      area: cityname
-    }));
-    handleAddressChange("city", cityname);
-  };
-
+  // Modify handleAreaChange to properly handle duplicate checking
   const handleAreaChange = (field, value) => {
     // If changing acode field, immediately clear duplicates and show loading state
     if (field === "acode" && potentialDuplicates.length > 0) {
@@ -888,23 +939,36 @@ const Add = ({ fetchClients }) => {
         [field]: value,
       };
 
-      // If acode changes, we should check for duplicates
+      // If acode changes, check for duplicates
       if (field === "acode" && value) {
-        // Small delay to allow state updates
-        setTimeout(() => {
-          const checkData = {
-            fname: formData.fname,
-            lname: formData.lname,
-            bdate: formData.bdate,
-            company: formData.company,
-            email: formData.email,
-            cellno: formData.cellno,
-            contactnos: formData.contactnos,
-            address: combinedAddress,
-            acode: value,
-          };
-          checkForDuplicates(checkData, "acode");
-        }, 100);
+        const currentFormData = {
+          fname: formData.fname,
+          lname: formData.lname,
+          bdate: formData.bdate,
+          company: formData.company,
+          email: formData.email,
+          cellno: formData.cellno,
+          contactnos: formData.contactnos,
+          address: combinedAddress,
+          acode: value,
+        };
+
+        if (
+          (currentFormData.fname && currentFormData.fname.length > 1) ||
+          (currentFormData.lname && currentFormData.lname.length > 1) ||
+          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
+          (currentFormData.company && currentFormData.company.length > 2) ||
+          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
+          (currentFormData.email && currentFormData.email.includes("@")) ||
+          (combinedAddress && combinedAddress.length > 3) ||
+          (value && value.length > 3)
+        ) {
+          setTimeout(() => {
+            checkForDuplicates(currentFormData, "acode");
+          }, 100);
+        } else {
+          setIsCheckingDuplicates(false);
+        }
       }
 
       return newAreaData;
@@ -1064,6 +1128,21 @@ const Add = ({ fetchClients }) => {
         submissionData
       );
       if (response.data.success) {
+        // Emit data update event via WebSocket
+        webSocketService.emit("data-update", {
+          type: "add",
+          data: {
+            id: response.data.clientId,
+            ...submissionData.clientData,
+            // Include subscription data from response
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || [],
+            services: roleSubmissions.map(role => role.roleType)
+          }
+        });
+        
         fetchClients();
         closeModal();
       }
@@ -1754,6 +1833,21 @@ const Add = ({ fetchClients }) => {
     );
   };
 
+  // Add a function to load areas data
+  const loadAreas = useCallback(async () => {
+    if (isLoadingAreas || areas) return; // Don't fetch if already loading or we have data
+    
+    setIsLoadingAreas(true);
+    try {
+      const areasData = await fetchAreas();
+      setAreas(areasData);
+    } catch (error) {
+      console.error("Error loading areas:", error);
+    } finally {
+      setIsLoadingAreas(false);
+    }
+  }, [areas, isLoadingAreas]);
+
   return (
     <div className="relative">
       <Button
@@ -2061,7 +2155,10 @@ const Add = ({ fetchClients }) => {
                           className="text-base"
                           autoComplete="off"
                         />
-                        <AreaForm onAreaChange={handleAreaFormChange} />
+                        <AreaForm 
+                          onAreaChange={handleAreaFormChange} 
+                          areas={areas} 
+                        />
                         <div className="mt-4">
                           <InputField
                             label="Address Preview:"

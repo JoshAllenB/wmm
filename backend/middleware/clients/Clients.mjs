@@ -158,28 +158,36 @@ router.get(
         ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
         : userRoles.map((role) => `${role}Model`);
 
-      const results = await dataService.fetchAllData({
-        modelNames,
+      // Use the shared fetchClientData function with skipPagination=true
+      const results = await fetchClientData(req, {
+        skipPagination: true,
         filter,
         group,
-        clientIds: null,
-        advancedFilterData
+        ...advancedFilterData
       });
 
-      // Process and merge client services data
-      const { combinedData, clientServices, stats } = results;
-      const processedData = combinedData.map((client) => {
-        const clientService = clientServices.find(
-          (service) => service.clientId === client.id
-        );
+      // Extract the processed data
+      const { processedData, stats } = results;
+
+      // Add additional data needed for mailing features
+      const enhancedData = await Promise.all(processedData.map(async (client) => {
+        // Get the latest subscription data for each client
+        const [wmmSubscription] = await WmmModel.find({ clientid: client.id })
+          .sort({ subsdate: -1 })
+          .limit(1)
+          .lean();
+
         return {
           ...client,
-          services: clientService ? clientService.services : [],
+          wmmData: wmmSubscription ? {
+            ...wmmSubscription,
+            records: [wmmSubscription]
+          } : null
         };
-      });
+      }));
 
       res.json({
-        combinedData: processedData,
+        combinedData: enhancedData,
         stats
       });
 
@@ -349,22 +357,32 @@ router.post("/add", verifyToken, async (req, res) => {
     }
 
     // Emit socket event with complete data
+    const [wmmData, hrgData, fomData, calData] = await Promise.all([
+      WmmModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean(),
+      HrgModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
+      FomModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
+      CalModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean()
+    ]);
+
     io.emit("data-update", {
       type: "add",
       data: {
         ...newClient.toObject(),
         services: roleSubmissions.map(sub => sub.roleType),
-        ...roleResults.reduce((acc, result) => {
-          const key = `${result.roleType.toLowerCase()}Data`;
-          acc[key] = result.data;
-          return acc;
-        }, {})
-      },
+        wmmData: wmmData || [],
+        hrgData: hrgData || [],
+        fomData: fomData || [],
+        calData: calData || []
+      }
     });
 
     res.json({ 
       success: true, 
       client: newClient,
+      wmmData: wmmData || [],
+      hrgData: hrgData || [],
+      fomData: fomData || [],
+      calData: calData || [],
       roleResults
     });
   } catch (err) {
@@ -595,15 +613,24 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     // Re-run the filter to get updated filtered data for all clients
     if (io) {
-      // Emit the updated client data immediately
+      // Get all subscription data for this client
+      const [wmmData, hrgData, fomData, calData] = await Promise.all([
+        WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+        HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+        FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+        CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
+      ]);
+
+      // Emit the updated client data with all subscription data
       io.emit("data-update", {
         type: "update",
         data: {
           ...updatedClient.toObject(),
           services: [roleType],
-          ...(updatedRoleSpecificClient && {
-            [`${roleType.toLowerCase()}Data`]: updatedRoleSpecificClient
-          })
+          wmmData: wmmData || [],
+          hrgData: hrgData || [],
+          fomData: fomData || [],
+          calData: calData || []
         }
       });
 
@@ -645,7 +672,17 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       });
     }
 
-    res.json({ success: true, client: updatedClient });
+    // Include all subscription data in the response
+    const responseData = {
+      success: true,
+      client: updatedClient,
+      wmmData: await WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+      hrgData: await HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      fomData: await FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      calData: await CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
+    };
+
+    res.json(responseData);
   } catch (err) {
     console.error("Error updating client:", err);
     res.status(500).json({ error: "Internal Server Error" });
