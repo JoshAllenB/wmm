@@ -45,9 +45,8 @@ const collectResults = (node) => {
   return results.slice(0, 20); // Limit results
 };
 
-const AreaForm = ({ onAreaChange, initialAreaData }) => {
+const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   // Separate state for each input to avoid interdependencies
-  const [areas, setAreas] = useState([]);
   const [acode, setAcode] = useState(initialAreaData?.acode || "");
   const [zipcode, setZipcode] = useState(
     initialAreaData?.zipcode ? String(initialAreaData.zipcode) : ""
@@ -69,6 +68,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
 
   // Create a memoized trie structure for city search
   const cityTrie = useMemo(() => {
+    if (!areas) return {};
     const allLocations = areas.flatMap(area => 
       area.locations.map(location => ({
         ...location,
@@ -79,6 +79,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   }, [areas]);
 
   const areaTrie = useMemo(() => {
+    if (!areas) return {};
     return buildTrie(areas.map(area => ({
       name: area._id,
       _id: area._id
@@ -86,6 +87,7 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
   }, [areas]);
 
   const zipcodeTrie = useMemo(() => {
+    if (!areas) return {};
     const allZipcodes = areas.flatMap(area =>
       area.locations
         .filter(loc => loc.zipcode)
@@ -98,42 +100,28 @@ const AreaForm = ({ onAreaChange, initialAreaData }) => {
     return buildTrie(allZipcodes);
   }, [areas]);
 
-  // Load areas data on component mount
+  // Update initial area code effect to use areas prop
   useEffect(() => {
-    const loadAreas = async () => {
-      try {
-        const areasData = await fetchAreas();
-        setAreas(areasData);
+    if (!areas || !initialAreaData?.acode) return;
+    
+    const matchingArea = areas.find(
+      (area) => area._id === initialAreaData.acode
+    );
 
-        // If we have an initial area code, find the matching area
-        if (initialAreaData?.acode) {
-          const matchingArea = areasData.find(
-            (area) => area._id === initialAreaData.acode
-          );
+    if (matchingArea) {
+      const zipcodes = matchingArea.locations
+        .filter((loc) => loc.zipcode)
+        .map((loc) => String(loc.zipcode));
 
-          if (matchingArea) {
-            // Get all unique zipcodes for this area
-            const zipcodes = matchingArea.locations
-              .filter((loc) => loc.zipcode)
-              .map((loc) => String(loc.zipcode));
+      const uniqueZipcodes = [...new Set(zipcodes)];
+      setAvailableZipcodes(uniqueZipcodes);
 
-            const uniqueZipcodes = [...new Set(zipcodes)];
-            setAvailableZipcodes(uniqueZipcodes);
-
-            // If we have only one zipcode and no initial zipcode, set it
-            if (uniqueZipcodes.length === 1 && !initialAreaData.zipcode) {
-              setZipcode(uniqueZipcodes[0]);
-              onAreaChange("zipcode", uniqueZipcodes[0]);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error loading areas:", error);
+      if (uniqueZipcodes.length === 1 && !initialAreaData.zipcode) {
+        setZipcode(uniqueZipcodes[0]);
+        onAreaChange("zipcode", uniqueZipcodes[0]);
       }
-    };
-
-    loadAreas();
-  }, [initialAreaData, onAreaChange]);
+    }
+  }, [areas, initialAreaData, onAreaChange]);
 
   // Reset highlighted index when search results change
   useEffect(() => {
