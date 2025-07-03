@@ -260,7 +260,7 @@ export async function checkDuplicates({
     hasSearchableData = true;
   }
 
-  if (!hasSearchableData) {
+  if (!hasSearchableData || query.$or.length === 0) {
     return { matches: [] };
   }
 
