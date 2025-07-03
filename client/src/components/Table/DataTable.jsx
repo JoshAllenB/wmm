@@ -51,6 +51,9 @@ export default function DataTable({
   const [animationComplete, setAnimationComplete] = useState(false);
   const [tableHeight, setTableHeight] = useState("700px");
   const containerRef = useRef(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const lastSyncRef = useRef(Date.now());
+  const currentDataRef = useRef(null);
 
   // Responsive height adjustment based on viewport
   useEffect(() => {
@@ -79,63 +82,200 @@ export default function DataTable({
     setColumnVisibility
   );
 
-  useEffect(() => {
-    let timer;
-    const loadData = async () => {
-      if (isLoading) return;
+  // Add helper function for safe date formatting
+  const formatTimestamp = (timestamp) => {
+    try {
+      if (!timestamp) return 'N/A';
+      const date = new Date(timestamp);
+      return isNaN(date.getTime()) ? 'Invalid Date' : date.toISOString();
+    } catch (error) {
+      console.warn('[Table] Error formatting timestamp:', error);
+      return 'Invalid Date';
+    }
+  };
 
+  const loadData = async (isSync = false) => {
+    if (isLoading) return;
+
+    if (!isSync) {
       setIsTransitioning(false);
       setAnimationComplete(false);
-      try {
-        const result = await fetchFunction(
-          page,
-          pageSize,
-          searchTerm,
-          selectedGroup,
-          advancedFilterData
-        );
+    }
 
-        if (result === null) {
-          return;
-        }
+    try {
+      console.log("[Table] Fetching data with params:", {
+        page,
+        pageSize,
+        searchTerm,
+        selectedGroup,
+        isSync
+      });
 
-        if (Array.isArray(result)) {
-          setLocalData(result);
-          setTotalPages(1);
-        } else if (result && (result.data || result.combinedData)) {
-          const dataArray = result.data || result.combinedData || [];
-          setLocalData([...dataArray]);
-          setTotalPages(result.totalPages || 1);
-        } else {
-          console.error("Invalid data format received:", result);
-          setError("Invalid data format received from server");
+      const result = await fetchFunction(
+        page,
+        pageSize,
+        searchTerm,
+        selectedGroup,
+        advancedFilterData
+      );
+
+      if (result === null) {
+        return;
+      }
+
+      // Store the result in ref for comparison
+      currentDataRef.current = result;
+
+      if (Array.isArray(result)) {
+        setLocalData(result);
+        setTotalPages(1);
+      } else if (result && (result.data || result.combinedData)) {
+        const dataArray = result.data || result.combinedData || [];
+        if (dataArray.length > 0) {
+          console.log("[Table] Received data:", {
+            count: dataArray.length,
+            firstItem: dataArray[0]?.id || 'no-id',
+            lastItem: dataArray[dataArray.length - 1]?.id || 'no-id'
+          });
         }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        setError(error.message);
-      } finally {
+        setLocalData([...dataArray]);
+        setTotalPages(result.totalPages || 1);
+      } else {
+        console.error("[Table] Invalid data format received:", result);
+        setError("Invalid data format received from server");
+      }
+    } catch (error) {
+      console.error("[Table] Error loading data:", error);
+      setError(error.message);
+    } finally {
+      if (!isSync) {
         setIsTransitioning(true);
-        timer = setTimeout(() => {
+        setTimeout(() => {
           setIsTransitioning(false);
           setAnimationComplete(true);
         }, 300);
       }
-    };
+    }
+  };
 
+  // Initial data load
+  useEffect(() => {
     loadData();
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
   }, [
     page,
     pageSize,
-    fetchFunction,
     searchTerm,
     selectedGroup,
     advancedFilterData,
     isLoading,
   ]);
+
+  // Handle socket updates with improved sync logic
+  useEffect(() => {
+    if (!socketData) return;
+
+    console.log("[Table] Received socket data:", {
+      type: socketData.type,
+      timestamp: formatTimestamp(socketData.timestamp),
+      currentData: !!currentDataRef.current
+    });
+
+    // Handle sync events
+    if (socketData.type === "sync-complete") {
+      console.log("[Table] Sync completed, refreshing data");
+      setIsSyncing(false);
+      lastSyncRef.current = Date.now();
+      loadData(true);
+      return;
+    }
+
+    if (socketData.type === "sync-start") {
+      console.log("[Table] Sync started");
+      setIsSyncing(true);
+      return;
+    }
+
+    // Skip updates during sync
+    if (isSyncing) {
+      console.log("[Table] Skipping update during sync");
+      return;
+    }
+
+    // For normal updates, apply them to the local data
+    setLocalData((prevData) => {
+      // Skip updates that are older than our last sync
+      if (socketData.timestamp && socketData.timestamp < lastSyncRef.current) {
+        console.log("[Table] Skipping outdated update, timestamp:", formatTimestamp(socketData.timestamp));
+        return prevData;
+      }
+
+      // Don't update if we don't have any data yet
+      if (!currentDataRef.current) {
+        console.log("[Table] No current data, requesting sync");
+        socket.emit("request-data-sync", {
+          timestamp: Date.now()
+        });
+        return prevData;
+      }
+
+      // Log the received data for debugging
+      console.log("[Table] Processing update:", {
+        type: socketData.type,
+        id: socketData.data?.id,
+        hasSubscriptionData: {
+          wmm: Array.isArray(socketData.data?.wmmData),
+          hrg: Array.isArray(socketData.data?.hrgData),
+          fom: Array.isArray(socketData.data?.fomData),
+          cal: Array.isArray(socketData.data?.calData)
+        }
+      });
+
+      const updatedData = (() => {
+        switch (socketData.type) {
+          case "add":
+            console.log("[Table] Adding new item");
+            if (!prevData.some((item) => item.id === socketData.data.id)) {
+              return [{
+                ...socketData.data,
+                wmmData: socketData.data.wmmData || [],
+                hrgData: socketData.data.hrgData || [],
+                fomData: socketData.data.fomData || [],
+                calData: socketData.data.calData || [],
+                services: socketData.data.services || []
+              }, ...prevData];
+            }
+            return prevData;
+          case "update":
+            console.log("[Table] Updating item");
+            return prevData.map((item) =>
+              item.id === socketData.data.id 
+                ? {
+                    ...item,
+                    ...socketData.data,
+                    // Always use the new subscription data if provided
+                    wmmData: socketData.data.wmmData || item.wmmData || [],
+                    hrgData: socketData.data.hrgData || item.hrgData || [],
+                    fomData: socketData.data.fomData || item.fomData || [],
+                    calData: socketData.data.calData || item.calData || [],
+                    // Merge services arrays without duplicates
+                    services: Array.from(new Set([
+                      ...(item.services || []),
+                      ...(socketData.data.services || [])
+                    ]))
+                  }
+                : item
+            );
+          case "delete":
+            console.log("[Table] Deleting item");
+            return prevData.filter((item) => item.id !== socketData.data.id);
+          default:
+            return prevData;
+        }
+      })();
+
+      return updatedData;
+    });
+  }, [socketData, socket]);
 
   useEffect(() => {
     if (initialTotalPages !== undefined) {
@@ -146,33 +286,6 @@ export default function DataTable({
   useEffect(() => {
     setLocalData(Array.isArray(data) ? data : []);
   }, [data]);
-
-  useEffect(() => {
-    if (!socketData) return;
-
-    setLocalData((prevData) => {
-      const updatedData = (() => {
-        switch (socketData.type) {
-          case "add":
-            if (!prevData.some((item) => item.id === socketData.data.id)) {
-              return [socketData.data, ...prevData];
-            }
-            return prevData;
-          case "update":
-            return prevData.map((item) =>
-              item.id === socketData.data.id ? socketData.data : item
-            );
-          case "delete":
-            return prevData.filter((item) => item.id !== socketData.data.id);
-          case "init":
-            return socketData.data;
-          default:
-            return prevData;
-        }
-      })();
-      return updatedData;
-    });
-  }, [socketData]);
 
   useEffect(() => {
     if (setTableInstance && table) {

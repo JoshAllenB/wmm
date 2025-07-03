@@ -32,7 +32,22 @@ export function useDataFetching(fetchFunction, page, pageSize) {
             return prevData;
           case "update":
             return prevData.map(item =>
-              item.id === updateData.data.id ? updateData.data : item
+              item.id === updateData.data.id 
+                ? {
+                    ...item,
+                    ...updateData.data,
+                    // Preserve subscription data if not included in update
+                    wmmData: updateData.data.wmmData || item.wmmData || [],
+                    hrgData: updateData.data.hrgData || item.hrgData || [],
+                    fomData: updateData.data.fomData || item.fomData || [],
+                    calData: updateData.data.calData || item.calData || [],
+                    // Merge services arrays without duplicates
+                    services: Array.from(new Set([
+                      ...(item.services || []),
+                      ...(updateData.data.services || [])
+                    ]))
+                  }
+                : item
             );
           case "delete":
             return prevData.filter(item => item.id !== updateData.data.id);
