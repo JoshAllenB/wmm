@@ -2,6 +2,7 @@ import WmmModel from './models/wmm.mjs';
 import HrgModel from './models/hrg.mjs';
 import FomModel from './models/fom.mjs';
 import CalModel from './models/cal.mjs';
+import dataService from './middleware/apiLogic/services/DataService.mjs';
 
 const initWebSocket = (io) => {
   global.io = io;
@@ -9,11 +10,9 @@ const initWebSocket = (io) => {
   const sessions = new Map(); // Map to track sessionId to user data
   global.socketIdMap = new Map(); // Map to track userId to socketId
 
+  // Minimal logging function for data updates
   const logDataUpdate = (type, data, userId, socketId) => {
-    console.log(`\n[${type}] Update from User ${userId}`, {
-      timestamp: new Date().toISOString(),
-      socketId: socketId.substring(0, 8), // Only show first 8 chars
-      dataType: Array.isArray(data) ? 'array' : typeof data,
+    console.log(`[${type}] Update from User ${userId}`, {
       operation: data?.operation || 'unknown',
       affectedIds: data?.ids || data?.id || 'none'
     });
@@ -22,10 +21,8 @@ const initWebSocket = (io) => {
   // Handle data sync request
   const handleDataSync = async (socket, userId) => {
     try {
-      // Notify client that sync is starting
       socket.emit("data-sync-start");
 
-      // Get the session info
       const sessionEntry = Array.from(sessions.entries())
         .find(([_, data]) => data.userId === userId);
       
@@ -33,19 +30,16 @@ const initWebSocket = (io) => {
         throw new Error("Session not found");
       }
 
-      const [sessionId, sessionData] = sessionEntry;
+      const [sessionId] = sessionEntry;
 
-      // Only emit to the requesting socket
       socket.emit("data-sync-complete", {
         type: "sync-complete",
         timestamp: Date.now(),
         sessionId,
         userId
       });
-      
-      console.log("[Socket] Data sync completed for user:", userId);
     } catch (error) {
-      console.error("[Socket] Data sync failed:", error);
+      console.error("[Socket] Data sync failed:", error.message);
       socket.emit("data-sync-error", { 
         error: "Failed to sync data",
         details: error.message 
@@ -54,8 +48,8 @@ const initWebSocket = (io) => {
   };
 
   // Configure socket.io settings
-  io.engine.pingTimeout = 30000; // How long to wait for pong response
-  io.engine.pingInterval = 25000; // How often to ping clients
+  io.engine.pingTimeout = 30000;
+  io.engine.pingInterval = 25000;
 
   io.on("connection", (socket) => {
     const { userId, username, sessionId } = socket.handshake.query;
@@ -64,8 +58,7 @@ const initWebSocket = (io) => {
     if (!sessionId || !userId || !username || userId === "null" || username === "null" || sessionId === "null") {
       console.error("[Socket] Invalid session data, disconnecting:", {
         userId,
-        username: username || 'none',
-        sessionId: sessionId || 'none'
+        username: username || 'none'
       });
       socket.disconnect();
       return;
@@ -80,11 +73,6 @@ const initWebSocket = (io) => {
       const oldSocketId = existingSession.socketId;
       if (oldSocketId && oldSocketId !== socket.id && io.sockets.sockets.has(oldSocketId)) {
         io.sockets.sockets.get(oldSocketId).disconnect(true);
-        console.log("[Socket] Disconnected old session:", {
-          userId,
-          oldSocketId: oldSocketId.substring(0, 8),
-          newSocketId: socket.id.substring(0, 8)
-        });
       }
       
       sessions.set(sessionId, existingSession);
@@ -101,8 +89,7 @@ const initWebSocket = (io) => {
 
     console.log("[Socket] Connected:", {
       user: username,
-      userId: userId,
-      socketId: socket.id.substring(0, 8),
+      userId,
       totalSessions: sessions.size
     });
 
@@ -118,7 +105,6 @@ const initWebSocket = (io) => {
 
     // Handle data sync requests
     socket.on("request-data-sync", async (data) => {
-      console.log("[Socket] Data sync requested by user:", userId);
       await handleDataSync(socket, userId);
     });
 
@@ -126,32 +112,23 @@ const initWebSocket = (io) => {
     socket.join(`user:${userId}`);
     socket.join(`export:${userId}`);
 
-    // Log connection details
-    console.log("\n=== Client Connected ===");
-    console.log(`Socket ID: ${socket.id}`);
-    console.log(`User ID: ${userId}`);
-    console.log(`Username: ${username}`);
-    console.log(`Session ID: ${sessionId}`);
-    console.log(`Rooms:`, Array.from(socket.rooms));
-    console.log(`Total Sessions: ${sessions.size}`);
-    console.log("========================\n");
+    // Debug logging for important socket events only
+    const importantEvents = [
+      "disconnect",
+      "error",
+      "data-update",
+      "hrg-update",
+      "user-update"
+    ];
 
-    // Debug logging for all socket events
     socket.onAny((eventName, ...args) => {
-      console.log(`\n=== Socket Event Received: ${eventName} ===`);
-      console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log(`Username: ${username}`);
-      console.log(`Event Data:`, args);
-      console.log("========================\n");
+      if (importantEvents.includes(eventName)) {
+        console.log(`[Socket] ${eventName} from ${userId}`);
+      }
     });
 
     // Handle export-specific events
     socket.on("export-start", (data) => {
-      console.log("\n=== Export Start Event ===");
-      console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log("Data:", data);
       io.to(`export:${userId}`).emit(`export-started-${userId}`, {
         status: "started",
         message: "Starting export process...",
@@ -160,71 +137,82 @@ const initWebSocket = (io) => {
     });
 
     socket.on("export-progress", (data) => {
-      console.log("\n=== Export Progress Event ===");
-      console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log("Data:", data);
       io.to(`export:${userId}`).emit(`export-progress-${userId}`, data);
     });
 
     socket.on("export-complete", (data) => {
-      console.log("\n=== Export Complete Event ===");
-      console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log("Data:", data);
       io.to(`export:${userId}`).emit(`export-complete-${userId}`, data);
     });
 
     socket.on("export-error", (data) => {
-      console.log("\n=== Export Error Event ===");
-      console.log(`From Client: ${socket.id}`);
-      console.log(`User ID: ${userId}`);
-      console.log("Data:", data);
       io.to(`export:${userId}`).emit(`export-error-${userId}`, data);
     });
 
     socket.on("data-update", async (data) => {
       const currentSession = sessions.get(sessionId);
       if (!currentSession || currentSession.socketId !== socket.id) {
-        console.log("[Socket] Rejected invalid data update from:", socket.id.substring(0, 8));
+        console.log("[Socket] Rejected invalid data update from:", userId);
         return;
       }
 
       logDataUpdate('Data', data, userId, socket.id);
       
-      // Re-run the filter to get updated filtered data for all clients
       if (io) {
         try {
-          const clientId = data.id || data.clientid;
+          const updateData = Array.isArray(data) ? data[0] : data;
+          const clientData = updateData.data || updateData;
+          const clientId = clientData.id || clientData.clientid;
+
           if (!clientId) {
-            console.error("[Socket] No client ID in data update:", data);
+            console.error("[Socket] No client ID in data update");
             return;
           }
 
-          // Get all subscription data for this client
-          const [wmmData, hrgData, fomData, calData] = await Promise.all([
-            WmmModel.find({ clientid: parseInt(clientId) }).sort({ subsdate: -1 }).lean(),
-            HrgModel.find({ clientid: parseInt(clientId) }).sort({ recvdate: -1 }).lean(),
-            FomModel.find({ clientid: parseInt(clientId) }).sort({ recvdate: -1 }).lean(),
-            CalModel.find({ clientid: parseInt(clientId) }).sort({ recvdate: -1 }).lean()
-          ]);
+          await new Promise(resolve => setTimeout(resolve, 100));
 
-          // Emit the updated client data with all subscription data
-          io.emit("data-update", {
-            type: data.type || "update",
-            data: {
-              ...data,
-              wmmData: wmmData || [],
-              hrgData: hrgData || [],
-              fomData: fomData || [],
-              calData: calData || [],
-              services: data.services || []
-            }
+          const result = await dataService.fetchAllData({
+            modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+            filter: "",
+            group: "",
+            clientIds: [clientId],
+            advancedFilterData: {}
           });
 
-          console.log("[Socket] Emitted data update with subscription data for client:", clientId);
+          const updatedClientData = result.combinedData.find(client => client.id === clientId);
+          
+          if (!updatedClientData) {
+            console.error("[Socket] Client data not found:", clientId);
+            return;
+          }
+
+          const updateEvent = [{
+            type: updateData.type,
+            data: {
+              ...clientData,
+              ...updatedClientData,
+              wmmData: Array.isArray(updatedClientData.wmmData)
+                ? updatedClientData.wmmData
+                : (updatedClientData.wmmData?.records || []),
+              hrgData: Array.isArray(updatedClientData.hrgData)
+                ? updatedClientData.hrgData
+                : (updatedClientData.hrgData?.records || []),
+              fomData: Array.isArray(updatedClientData.fomData)
+                ? updatedClientData.fomData
+                : (updatedClientData.fomData?.records || []),
+              calData: Array.isArray(updatedClientData.calData)
+                ? updatedClientData.calData
+                : (updatedClientData.calData?.records || []),
+              services: Array.from(new Set([
+                ...(clientData.services || []),
+                ...(updatedClientData.services || [])
+              ]))
+            },
+            timestamp: Date.now()
+          }];
+
+          io.emit("data-update", updateEvent);
         } catch (error) {
-          console.error("[Socket] Error processing data update:", error);
+          console.error("[Socket] Error processing data update:", error.message);
         }
       }
     });
@@ -232,7 +220,7 @@ const initWebSocket = (io) => {
     socket.on("hrg-update", (data) => {
       const currentSession = sessions.get(sessionId);
       if (!currentSession || currentSession.socketId !== socket.id) {
-        console.log("[Socket] Rejected invalid HRG update from:", socket.id.substring(0, 8));
+        console.log("[Socket] Rejected invalid HRG update from:", userId);
         return;
       }
 
@@ -247,7 +235,7 @@ const initWebSocket = (io) => {
     socket.on("user-update", (data) => {
       const currentSession = sessions.get(sessionId);
       if (!currentSession || currentSession.socketId !== socket.id) {
-        console.log("[Socket] Rejected invalid user update from:", socket.id.substring(0, 8));
+        console.log("[Socket] Rejected invalid user update from:", userId);
         return;
       }
 
@@ -262,42 +250,24 @@ const initWebSocket = (io) => {
     socket.on("disconnect", (reason) => {
       console.log("[Socket] Disconnected:", {
         user: username,
-        userId: userId,
-        socketId: socket.id.substring(0, 8),
-        reason,
-        remainingSessions: sessions.size - 1
+        userId,
+        reason
       });
 
-      // Don't immediately remove the session on disconnect
-      // Instead, wait a short period to allow for reconnection
       setTimeout(() => {
         const sessionData = sessions.get(sessionId);
         
-        // Only clean up if:
-        // 1. The session exists AND
-        // 2. The socket ID matches (no new connection has taken over) AND
-        // 3. The socket is not connected
         if (sessionData && 
             sessionData.socketId === socket.id && 
             !io.sockets.sockets.has(socket.id)) {
           
-          // Remove from maps
           global.socketIdMap.delete(userId);
           sessions.delete(sessionId);
           
-          // Leave all rooms
           socket.leave(`user:${userId}`);
           socket.leave(`export:${userId}`);
-          
-          console.log(`[Socket] Cleaned up disconnected session for user: ${userId}`);
-          
-          // Log current connected users
-          console.log("\n=== Connected Users ===");
-          console.log(`Total Connected Users: ${sessions.size}`);
-        } else {
-          console.log(`[Socket] Session ${sessionId} still active or reconnected, not cleaning up`);
         }
-      }, 5000); // 5 second grace period for reconnection
+      }, 5000);
     });
   });
 
@@ -305,18 +275,12 @@ const initWebSocket = (io) => {
   setInterval(() => {
     const now = Date.now();
     sessions.forEach((session, sessionId) => {
-      // If last ping was more than 60 seconds ago
       if (now - session.lastPing > 60000) {
-        console.log("[Socket] Cleaning up stale session:", {
-          userId: session.userId,
-          username: session.username,
-          lastPing: new Date(session.lastPing).toISOString()
-        });
         sessions.delete(sessionId);
         global.socketIdMap.delete(session.userId);
       }
     });
-  }, 30000); // Run cleanup every 30 seconds
+  }, 30000);
 };
 
 export default initWebSocket;
