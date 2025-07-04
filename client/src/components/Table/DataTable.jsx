@@ -103,14 +103,6 @@ export default function DataTable({
     }
 
     try {
-      console.log("[Table] Fetching data with params:", {
-        page,
-        pageSize,
-        searchTerm,
-        selectedGroup,
-        isSync
-      });
-
       const result = await fetchFunction(
         page,
         pageSize,
@@ -132,11 +124,6 @@ export default function DataTable({
       } else if (result && (result.data || result.combinedData)) {
         const dataArray = result.data || result.combinedData || [];
         if (dataArray.length > 0) {
-          console.log("[Table] Received data:", {
-            count: dataArray.length,
-            firstItem: dataArray[0]?.id || 'no-id',
-            lastItem: dataArray[dataArray.length - 1]?.id || 'no-id'
-          });
         }
         setLocalData([...dataArray]);
         setTotalPages(result.totalPages || 1);
@@ -174,15 +161,8 @@ export default function DataTable({
   useEffect(() => {
     if (!socketData) return;
 
-    console.log("[Table] Received socket data:", {
-      type: socketData.type,
-      timestamp: formatTimestamp(socketData.timestamp),
-      currentData: !!currentDataRef.current
-    });
-
     // Handle sync events
     if (socketData.type === "sync-complete") {
-      console.log("[Table] Sync completed, refreshing data");
       setIsSyncing(false);
       lastSyncRef.current = Date.now();
       loadData(true);
@@ -190,14 +170,12 @@ export default function DataTable({
     }
 
     if (socketData.type === "sync-start") {
-      console.log("[Table] Sync started");
       setIsSyncing(true);
       return;
     }
 
     // Skip updates during sync
     if (isSyncing) {
-      console.log("[Table] Skipping update during sync");
       return;
     }
 
@@ -205,35 +183,20 @@ export default function DataTable({
     setLocalData((prevData) => {
       // Skip updates that are older than our last sync
       if (socketData.timestamp && socketData.timestamp < lastSyncRef.current) {
-        console.log("[Table] Skipping outdated update, timestamp:", formatTimestamp(socketData.timestamp));
         return prevData;
       }
 
       // Don't update if we don't have any data yet
       if (!currentDataRef.current) {
-        console.log("[Table] No current data, requesting sync");
         socket.emit("request-data-sync", {
           timestamp: Date.now()
         });
         return prevData;
       }
 
-      // Log the received data for debugging
-      console.log("[Table] Processing update:", {
-        type: socketData.type,
-        id: socketData.data?.id,
-        hasSubscriptionData: {
-          wmm: Array.isArray(socketData.data?.wmmData),
-          hrg: Array.isArray(socketData.data?.hrgData),
-          fom: Array.isArray(socketData.data?.fomData),
-          cal: Array.isArray(socketData.data?.calData)
-        }
-      });
-
       const updatedData = (() => {
         switch (socketData.type) {
           case "add":
-            console.log("[Table] Adding new item");
             if (!prevData.some((item) => item.id === socketData.data.id)) {
               return [{
                 ...socketData.data,
@@ -246,27 +209,28 @@ export default function DataTable({
             }
             return prevData;
           case "update":
-            console.log("[Table] Updating item");
-            return prevData.map((item) =>
-              item.id === socketData.data.id 
-                ? {
+            return prevData.map((item) => {
+              if (item.id === socketData.data.id) {
+                // Deep merge subscription arrays
+                const updatedItem = {
                     ...item,
                     ...socketData.data,
-                    // Always use the new subscription data if provided
-                    wmmData: socketData.data.wmmData || item.wmmData || [],
-                    hrgData: socketData.data.hrgData || item.hrgData || [],
-                    fomData: socketData.data.fomData || item.fomData || [],
-                    calData: socketData.data.calData || item.calData || [],
+                  // Only override subscription data if the new data has items
+                  wmmData: socketData.data.wmmData?.length > 0 ? socketData.data.wmmData : (item.wmmData || []),
+                  hrgData: socketData.data.hrgData?.length > 0 ? socketData.data.hrgData : (item.hrgData || []),
+                  fomData: socketData.data.fomData?.length > 0 ? socketData.data.fomData : (item.fomData || []),
+                  calData: socketData.data.calData?.length > 0 ? socketData.data.calData : (item.calData || []),
                     // Merge services arrays without duplicates
                     services: Array.from(new Set([
                       ...(item.services || []),
                       ...(socketData.data.services || [])
                     ]))
-                  }
-                : item
-            );
+                };
+                return updatedItem;
+              }
+              return item;
+            });
           case "delete":
-            console.log("[Table] Deleting item");
             return prevData.filter((item) => item.id !== socketData.data.id);
           default:
             return prevData;
