@@ -96,8 +96,16 @@ class DataService {
     } = params;
 
     try {
-      // Build filter query (same as before)
-      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      // Build filter query
+      let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+
+      // Add clientIds filter if provided
+      if (clientIds && Array.isArray(clientIds) && clientIds.length > 0) {
+        filterQuery = {
+          ...filterQuery,
+          id: { $in: clientIds.map(id => parseInt(id)) }
+        };
+      }
 
       // Get ALL clients without pagination
       const clients = await ClientModel.find(filterQuery)
