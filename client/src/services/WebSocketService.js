@@ -44,9 +44,6 @@ class WebSocketService {
   }
 
   connect(options = {}) {
-    console.log("[WebSocket] Connecting with options:", options);
-
-    // Clear any existing reconnect timer
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -128,7 +125,6 @@ class WebSocketService {
     }, 25000);
 
     this.socket.on("connect", () => {
-      console.log("[WebSocket] Connected successfully");
       this.reconnectAttempts = 0;
       this.sessionData.socketId = this.socket.id;
       this.isConnecting = false;
@@ -146,7 +142,6 @@ class WebSocketService {
     });
 
     this.socket.on("disconnect", (reason) => {
-      console.log("[WebSocket] Disconnected:", reason);
       this.connectionEstablished = false;
       
       // Clear ping interval on disconnect
@@ -158,7 +153,6 @@ class WebSocketService {
       if (reason === "io server disconnect" || reason === "client namespace disconnect") {
         // Set a timer to reconnect
         this.reconnectTimer = setTimeout(() => {
-          console.log("[WebSocket] Attempting reconnection...");
           this.reconnect();
         }, 2000);
       }
@@ -166,7 +160,6 @@ class WebSocketService {
     });
 
     this.socket.on("connect_error", (error) => {
-      console.error("[WebSocket] Connection error:", error);
       this.reconnectAttempts++;
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error("[WebSocket] Max reconnection attempts reached");
@@ -175,19 +168,14 @@ class WebSocketService {
     });
 
     this.socket.on("pong", () => {
-      if (this.debug) {
-        console.log("[WebSocket] Received pong from server");
-      }
     });
 
     // Add data sync event handlers
     this.socket.on("data-sync-start", () => {
-      console.log("[WebSocket] Data sync started");
       this.pendingDataSync = true;
     });
 
     this.socket.on("data-sync-complete", () => {
-      console.log("[WebSocket] Data sync completed");
       this.pendingDataSync = false;
       // Notify all data-update subscribers to refresh their data
       const handlers = this.eventHandlers.get("data-update") || new Set();
@@ -198,20 +186,6 @@ class WebSocketService {
 
     // Add data update handler
     this.socket.on("data-update", (data) => {
-      if (this.debug) {
-        console.log("[WebSocket] Received data update:", {
-          type: data.type,
-          timestamp: new Date().toISOString(),
-          hasData: data?.data != null,
-          subscriptionData: {
-            wmmData: Array.isArray(data?.data?.wmmData),
-            hrgData: Array.isArray(data?.data?.hrgData),
-            fomData: Array.isArray(data?.data?.fomData),
-            calData: Array.isArray(data?.data?.calData)
-          }
-        });
-      }
-
       // Ensure subscription data arrays are always present
       if (data.type === "update" || data.type === "add") {
         data.data = {
@@ -233,7 +207,6 @@ class WebSocketService {
   requestDataSync() {
     if (!this.socket?.connected || this.pendingDataSync) return;
     
-    console.log("[WebSocket] Requesting data sync");
     this.socket.emit("request-data-sync", {
       userId: this.sessionData.userId,
       timestamp: Date.now()
@@ -252,7 +225,6 @@ class WebSocketService {
   }
 
   reconnect() {
-    console.log("Attempting to reconnect...");
     // Only try to reconnect if we have valid session data
     if (this.sessionData.userId && this.sessionData.username && this.sessionData.sessionId) {
       this.connect({ query: this.sessionData });
@@ -266,15 +238,6 @@ class WebSocketService {
     
     // Wrap the handler with debug logging
     const wrappedHandler = (data) => {
-      if (this.debug) {
-        console.log(`[WebSocket] Received ${event}:`, {
-          timestamp: new Date().toISOString(),
-          sourceUser: data?.sourceUserId,
-          currentUser: this.sessionData.userId,
-          dataType: Array.isArray(data) ? 'array' : typeof data,
-          hasData: data != null
-        });
-      }
       handler(data);
     };
     
@@ -308,13 +271,6 @@ class WebSocketService {
       if (this.sessionData.userId && this.sessionData.username) {
         this.connect({ query: this.sessionData });
         this.socket.once('connect', () => {
-          if (this.debug) {
-            console.log(`[WebSocket] Emitting delayed ${event}:`, {
-              timestamp: new Date().toISOString(),
-              userId: this.sessionData.userId,
-              dataType: Array.isArray(data) ? 'array' : typeof data
-            });
-          }
           this.socket.emit(event, data);
         });
         return;
@@ -324,13 +280,6 @@ class WebSocketService {
       }
     }
     
-    if (this.debug) {
-      console.log(`[WebSocket] Emitting ${event}:`, {
-        timestamp: new Date().toISOString(),
-        userId: this.sessionData.userId,
-        dataType: Array.isArray(data) ? 'array' : typeof data
-      });
-    }
     this.socket.emit(event, data);
   }
 
