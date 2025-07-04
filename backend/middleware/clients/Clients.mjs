@@ -392,7 +392,6 @@ router.post("/add", verifyToken, async (req, res) => {
 });
 
 router.put("/update/:id", verifyToken, async (req, res) => {
-  const io = req.io;
   try {
     const user = await UserModel.findById(req.userId).select("username");
 
@@ -402,6 +401,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     const { id } = req.params;
     const { clientData, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
+    
     // Get the old client data before update
     const oldClientData = await ClientModel.findOne({ id }).lean();
 
@@ -476,6 +476,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         // Create new role-specific record
         updatedRoleSpecificClient = await WmmModel.create(newRoleSpecificData);
       } else if (roleData.id) {
+        
         // Check if roleData.id is an ObjectId (string with 24 hex chars) or a numeric id
         const isObjectId = /^[0-9a-fA-F]{24}$/.test(roleData.id);
         
@@ -610,9 +611,10 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
       CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
     ]);
-
-    // Re-run the filter to get updated filtered data for all clients
-    if (io) {
+    
+    // WebSocket updates
+    if (req.io) {
+      
       // Get all subscription data for this client
       const [wmmData, hrgData, fomData, calData] = await Promise.all([
         WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
@@ -622,7 +624,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       ]);
 
       // Emit the updated client data with all subscription data
-      io.emit("data-update", {
+      req.io.emit("data-update", [{
         type: "update",
         data: {
           ...updatedClient.toObject(),
@@ -632,7 +634,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           fomData: fomData || [],
           calData: calData || []
         }
-      });
+      }]);
 
       // Then fetch and emit the filtered data
       const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
@@ -663,7 +665,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       });
 
       // Emit the filtered data update
-      io.emit("data-update", {
+      req.io.emit("data-update", {
         type: "filter-update",
         data: {
           combinedData,
@@ -684,8 +686,10 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     res.json(responseData);
   } catch (err) {
+    console.error("\n=== Update Process Failed ===");
     console.error("Error updating client:", err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Stack trace:", err.stack);
+    res.status(500).json({ error: "Internal Server Error", details: err.message });
   }
 });
 
@@ -1209,11 +1213,9 @@ router.post(
 
       // Get the filter query
       const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
-      console.log("Preview filter query:", filterQuery);
 
       // Get all matching clients
       const clients = await ClientModel.find(filterQuery).lean();
-      console.log(`Preview found ${clients.length} matching clients`);
 
       // Count clients with WMM records
       let clientsWithWmm = 0;
@@ -1249,13 +1251,6 @@ router.post(
     try {
       const { filter = "", group = "", advancedFilterData = {}, setCalendarTo } = req.body;
 
-      console.log("Calendar Update Request:", {
-        filter,
-        group,
-        advancedFilterData,
-        setCalendarTo
-      });
-
       if (setCalendarTo === undefined) {
         return res.status(400).json({
           error: "Bad Request",
@@ -1265,11 +1260,9 @@ router.post(
 
       // First get the filter query
       const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
-      console.log("Built filter query:", filterQuery);
 
       // Get all matching clients
       const clients = await ClientModel.find(filterQuery).lean();
-      console.log(`Found ${clients.length} matching clients`);
 
       if (!clients || clients.length === 0) {
         return res.json({
@@ -1321,22 +1314,12 @@ router.post(
             });
           } else {
             skippedCount++;
-            console.log(`No WMM records found for client ID: ${client.id}`);
           }
         } catch (err) {
           errorCount++;
           console.error(`Error processing client ID ${client.id}:`, err);
         }
       }
-
-      console.log("Calendar Update Summary:", {
-        totalClientsFound: clients.length,
-        processedCount,
-        modifiedCount,
-        skippedCount,
-        errorCount,
-        updatedClientIds
-      });
 
       // Emit socket event for data update
       if (io) {
