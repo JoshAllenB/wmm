@@ -81,7 +81,29 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
             subsclass: { $first: "$subsclass" },
             subsdate: { $first: "$subsdate" },
             enddate: { $first: "$enddate" },
-            records: { $push: "$$ROOT" }
+            records: { 
+              $push: {
+                $mergeObjects: [
+                  "$$ROOT",
+                  {
+                    _id: { $toString: "$_id" },
+                    clientid: { $toString: "$clientid" }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            clientid: "$_id",
+            recentCopies: 1,
+            totalCopies: 1,
+            subsclass: 1,
+            subsdate: 1,
+            enddate: 1,
+            records: 1
           }
         }
       ];
