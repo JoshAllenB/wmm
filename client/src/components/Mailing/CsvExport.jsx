@@ -158,13 +158,10 @@ const CsvExport = ({
 
   // Generate CSV content from the selected data
   const generateCSV = () => {
-    console.log('Starting CSV generation with total rows:', selectedRows.length);
-    
     // Filter rows based on start/end Client IDs
     const filteredRows = selectedRows.filter((row) => {
       const clientId = row?.original?.id?.toString();
       if (!clientId) {
-        console.log('Skipping row - Missing client ID:', row?.original);
         return false;
       }
       
@@ -186,30 +183,12 @@ const CsvExport = ({
           const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
           const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
 
-          if (!isAfterStart || !isBeforeEnd) {
-            console.log('Skipping row - Outside numeric ID range:', {
-              clientId: numericClientId,
-              startId: numericStartId,
-              endId: numericEndId,
-              isAfterStart,
-              isBeforeEnd
-            });
-          }
           return isAfterStart && isBeforeEnd;
         } else {
           // Fallback to string comparison if any ID is not a valid number
           const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
           const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
 
-          if (!isAfterStart || !isBeforeEnd) {
-            console.log('Skipping row - Outside string ID range:', {
-              clientId,
-              startId: trimmedStartId,
-              endId: trimmedEndId,
-              isAfterStart,
-              isBeforeEnd
-            });
-          }
           return isAfterStart && isBeforeEnd;
         }
       }
@@ -218,18 +197,13 @@ const CsvExport = ({
       return true;
     });
 
-    console.log('After ID range filtering, remaining rows:', filteredRows.length);
-
     if (filteredRows.length === 0) {
-      console.log('No data found after filtering');
       alert("No data found for the specified criteria.");
       return null;
     }
 
     // Get fields that have data
     const { fieldsWithData, addressLinesUsed } = getFieldsWithData();
-    console.log('Fields with data:', fieldsWithData);
-    console.log('Address lines used:', addressLinesUsed);
 
     // Define CSV headers based on selected fields and data presence
     const headers = [];
@@ -261,8 +235,6 @@ const CsvExport = ({
     if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate)
       headers.push("Expiry Date");
 
-    console.log('Generated headers:', headers);
-
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
     let processedRows = 0;
@@ -270,12 +242,6 @@ const CsvExport = ({
 
     filteredRows.forEach((row, index) => {
       const subscriber = row.original;
-      console.log(`Processing row ${index + 1}:`, {
-        id: subscriber.id,
-        acode: subscriber.acode,
-        name: `${subscriber.fname} ${subscriber.lname}`,
-        hasWmmData: !!subscriber.wmmData
-      });
 
       const wmmData = subscriber?.wmmData;
       const subscription = wmmData?.records?.[0] || {};
@@ -335,13 +301,6 @@ const CsvExport = ({
         console.error(`Error processing row ${index + 1}:`, error, subscriber);
         skippedRows++;
       }
-    });
-
-    console.log('CSV Generation Summary:', {
-      totalRows: filteredRows.length,
-      processedRows,
-      skippedRows,
-      headerCount: headers.length
     });
 
     return csvContent;
