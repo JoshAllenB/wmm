@@ -4,7 +4,7 @@ import Modal from "../modal";
 import RenewalNoticeDataOverlay from "./RenewalNotice";
 import ThankYouLetterDataOverlay from "./ThankYouLetter";
 import { ScrollArea } from "../UI/ShadCN/scroll-area";
-import { toast } from "../UI/ShadCN/toast";
+import { toast } from "react-hot-toast";
 
 const DocumentGenerator = ({
   startClientId,
