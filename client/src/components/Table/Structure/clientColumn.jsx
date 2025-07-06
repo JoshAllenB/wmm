@@ -109,15 +109,12 @@ export const useColumns = () => {
       Header: "Address",
       accessorFn: (row) => {
         const address = row.address || "";
-        const street = row.street || "";
-        const city = row.city || "";
-        const barangay = row.barangay || "";
         const acode = row.acode
           ? `<br><strong>Area Code: ${row.acode}</strong>`
           : "";
 
         // Create array of address parts and filter out empty ones
-        const addressParts = [address, street, city, barangay]
+        const addressParts = [address]
           .filter(Boolean)
           .join(", ");
 
