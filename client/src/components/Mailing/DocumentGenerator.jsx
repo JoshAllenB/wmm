@@ -4,6 +4,7 @@ import Modal from "../modal";
 import RenewalNoticeDataOverlay from "./RenewalNotice";
 import ThankYouLetterDataOverlay from "./ThankYouLetter";
 import { ScrollArea } from "../UI/ShadCN/scroll-area";
+import { toast } from "../UI/ShadCN/toast";
 
 const DocumentGenerator = ({
   startClientId,
@@ -13,13 +14,15 @@ const DocumentGenerator = ({
   useAllData,
   setUseAllData,
   onSkippedDataUpdate,
-  onClose
+  onClose,
+  onRefreshAllData
 }) => {
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [renewalNoticeConfig, setRenewalNoticeConfig] = useState(null);
   const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
   const [skippedData, setSkippedData] = useState([]);
   const [showSkippedData, setShowSkippedData] = useState(false);
+  const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
 
   // Function to handle document selection
   const handleDocumentSelect = (docType) => {
@@ -160,50 +163,60 @@ const DocumentGenerator = ({
     return { filtered, skipped };
   }, [startClientId, endClientId]);
 
+  // Update data source toggle UI
+  const DataSourceToggle = () => (
+    <div className="flex flex-col gap-2 mb-4">
+      <h3 className="text-sm font-medium">Data Source</h3>
+      <div className="flex gap-2">
+        <Button
+          onClick={() => setUseAllData(false)}
+          variant={useAllData ? "outline" : "default"}
+          className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
+        >
+          Selected ({availableRows.length})
+        </Button>
+        <Button
+          onClick={async () => {
+            setUseAllData(true);
+            setIsLoadingAllRecords(true);
+            try {
+              // Trigger parent component to fetch new data
+              await onRefreshAllData?.();
+            } catch (error) {
+              console.error("Error fetching all data:", error);
+              toast({
+                title: "Error",
+                description: "Failed to fetch all records. Using table data instead.",
+                variant: "destructive"
+              });
+            } finally {
+              setIsLoadingAllRecords(false);
+            }
+          }}
+          variant={useAllData ? "default" : "outline"}
+          className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+        >
+          {isLoadingAllRecords ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Loading...</span>
+            </div>
+          ) : (
+            `All Records (${allData?.length || 0})`
+          )}
+        </Button>
+      </div>
+      {isLoadingAllRecords && (
+        <p className="text-xs text-blue-700">Fetching all records...</p>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full max-w-[1500px]">
       <h2 className="text-2xl font-bold mb-3 text-center">Document Generator</h2>
       
-      {/* Standardized Data Source Toggle */}
-      {allData && (
-        <div className="mb-6 mx-auto max-w-md p-4 bg-blue-50 rounded-lg">
-          <div className="flex flex-col">
-            <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => {
-                  setUseAllData(false);
-                  setSkippedData([]); // Reset skipped data when changing data source
-                  setShowSkippedData(false);
-                  if (onSkippedDataUpdate) {
-                    onSkippedDataUpdate([]); // Reset parent's skipped data
-                  }
-                }}
-                size="sm"
-                variant={useAllData ? "outline" : "default"}
-                className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
-              >
-                Selected ({availableRows.length})
-              </Button>
-              <Button
-                onClick={() => {
-                  setUseAllData(true);
-                  setSkippedData([]); // Reset skipped data when changing data source
-                  setShowSkippedData(false);
-                  if (onSkippedDataUpdate) {
-                    onSkippedDataUpdate([]); // Reset parent's skipped data
-                  }
-                }}
-                size="sm"
-                variant={useAllData ? "default" : "outline"}
-                className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
-              >
-                All Records ({allData.length})
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DataSourceToggle />
 
       {/* Display skipped data information */}
       <SkippedDataDisplay />

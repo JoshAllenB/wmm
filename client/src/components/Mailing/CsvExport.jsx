@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "../UI/ShadCN/button";
+import { toast } from "react-hot-toast";
 
 const CsvExport = ({ 
   selectedRows,
@@ -14,7 +15,8 @@ const CsvExport = ({
   allData,
   useAllData,
   setUseAllData,
-  onClose
+  onClose,
+  onRefreshAllData
 }) => {
   // State for custom filename
   const [csvFilename, setCsvFilename] = useState("");
@@ -39,6 +41,9 @@ const CsvExport = ({
     "fomData",      // FOM Data
     "calData"       // CAL Data
   ]);
+
+  // Add loading state
+  const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
 
   // Get data source label
   const getDataSourceLabel = () => {
@@ -153,27 +158,78 @@ const CsvExport = ({
 
   // Generate CSV content from the selected data
   const generateCSV = () => {
+    console.log('Starting CSV generation with total rows:', selectedRows.length);
+    
     // Filter rows based on start/end Client IDs
     const filteredRows = selectedRows.filter((row) => {
       const clientId = row?.original?.id?.toString();
       if (!clientId) {
+        console.log('Skipping row - Missing client ID:', row?.original);
         return false;
       }
-      const trimmedStartId = startClientId?.trim();
-      const trimmedEndId = endClientId?.trim();
+      
+      // Only apply range filtering if dataSource is "range"
+      if (dataSource === "range") {
+        const trimmedStartId = startClientId?.trim();
+        const trimmedEndId = endClientId?.trim();
 
-      const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-      const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
-      return isAfterStart && isBeforeEnd;
+        // Convert to numbers for comparison if they look like numbers
+        const numericClientId = parseInt(clientId, 10);
+        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+
+        // If all IDs are valid numbers, use numeric comparison
+        if (!isNaN(numericClientId) && 
+            (numericStartId === null || !isNaN(numericStartId)) && 
+            (numericEndId === null || !isNaN(numericEndId))) {
+          
+          const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+          const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
+
+          if (!isAfterStart || !isBeforeEnd) {
+            console.log('Skipping row - Outside numeric ID range:', {
+              clientId: numericClientId,
+              startId: numericStartId,
+              endId: numericEndId,
+              isAfterStart,
+              isBeforeEnd
+            });
+          }
+          return isAfterStart && isBeforeEnd;
+        } else {
+          // Fallback to string comparison if any ID is not a valid number
+          const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+          const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
+
+          if (!isAfterStart || !isBeforeEnd) {
+            console.log('Skipping row - Outside string ID range:', {
+              clientId,
+              startId: trimmedStartId,
+              endId: trimmedEndId,
+              isAfterStart,
+              isBeforeEnd
+            });
+          }
+          return isAfterStart && isBeforeEnd;
+        }
+      }
+      
+      // If not using range filtering, include all rows
+      return true;
     });
 
+    console.log('After ID range filtering, remaining rows:', filteredRows.length);
+
     if (filteredRows.length === 0) {
+      console.log('No data found after filtering');
       alert("No data found for the specified criteria.");
       return null;
     }
 
     // Get fields that have data
     const { fieldsWithData, addressLinesUsed } = getFieldsWithData();
+    console.log('Fields with data:', fieldsWithData);
+    console.log('Address lines used:', addressLinesUsed);
 
     // Define CSV headers based on selected fields and data presence
     const headers = [];
@@ -205,136 +261,87 @@ const CsvExport = ({
     if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate)
       headers.push("Expiry Date");
 
-    // Add optional fields to headers only if they have data
-    if (csvIncludeFields.includes("mname") && fieldsWithData.mname)
-      headers.push("Middle Name");
-    if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate)
-      headers.push("Subscription Date");
-    if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
-      headers.push("Subscription Class");
-    if (csvIncludeFields.includes("email") && fieldsWithData.email)
-      headers.push("Email");
-
-    // Add service-specific headers if included and data exists
-    if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
-      headers.push("HRG Campaign Date");
-      headers.push("HRG Payment Date");
-      headers.push("HRG Payment Amount");
-      headers.push("HRG Payment Form");
-      headers.push("HRG Payment Reference");
-    }
-    
-    if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
-      headers.push("FOM Payment Date");
-      headers.push("FOM Payment Amount");
-      headers.push("FOM Payment Form");
-      headers.push("FOM Payment Reference");
-      headers.push("FOM Unsubscribe Status");
-    }
-    
-    if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
-      headers.push("CAL Type");
-      headers.push("CAL Quantity");
-      headers.push("CAL Unit Amount");
-      headers.push("CAL Payment Date");
-      headers.push("CAL Payment Amount");
-      headers.push("CAL Payment Form");
-      headers.push("CAL Payment Reference");
-    }
+    console.log('Generated headers:', headers);
 
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
+    let processedRows = 0;
+    let skippedRows = 0;
 
-    filteredRows.forEach((row) => {
+    filteredRows.forEach((row, index) => {
       const subscriber = row.original;
+      console.log(`Processing row ${index + 1}:`, {
+        id: subscriber.id,
+        acode: subscriber.acode,
+        name: `${subscriber.fname} ${subscriber.lname}`,
+        hasWmmData: !!subscriber.wmmData
+      });
+
       const wmmData = subscriber?.wmmData;
       const subscription = wmmData?.records?.[0] || {};
       const rowData = [];
 
-      // Add data only for fields that have content
-      if (csvIncludeFields.includes("id") && fieldsWithData.id)
-        rowData.push(`"${subscriber.id || ""}"`);
-      if (csvIncludeFields.includes("name")) {
-        if (fieldsWithData.title) rowData.push(`"${typeof subscriber.title === 'string' ? subscriber.title : ""}"`);
-        if (fieldsWithData.lname) rowData.push(`"${typeof subscriber.lname === 'string' ? subscriber.lname : ""}"`);
-        if (fieldsWithData.fname) rowData.push(`"${typeof subscriber.fname === 'string' ? subscriber.fname : ""}"`);
-      }
-      if (csvIncludeFields.includes("company") && fieldsWithData.company)
-        rowData.push(`"${typeof subscriber.company === 'string' ? subscriber.company : ""}"`);
-      if (csvIncludeFields.includes("address") && fieldsWithData.address) {
-        const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split("\n") : [];
-        addressLinesUsed.forEach(index => {
-          rowData.push(`"${(addressLines[index] || "").trim()}"`);
-        });
-      }
-      if (csvIncludeFields.includes("contactnos")) {
-        if (fieldsWithData.cellno) rowData.push(`"${typeof subscriber.cellno === 'string' ? subscriber.cellno : ""}"`);
-        if (fieldsWithData.officeno) rowData.push(`"${typeof subscriber.officeno === 'string' ? subscriber.officeno : ""}"`);
-      }
-      if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
-        rowData.push(`"${subscription.copies || ""}"`);
-      if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
-        rowData.push(`"${subscriber.acode !== undefined ? subscriber.acode : ""}"`);
-
-      // Format and add dates if they exist
-      if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate) {
-        let enddate = "";
-        if (subscription.enddate) {
-          const date = new Date(subscription.enddate);
-          if (!isNaN(date.getTime())) {
-            enddate = date.toLocaleDateString();
-          }
+      try {
+        // Add data only for fields that have content
+        if (csvIncludeFields.includes("id") && fieldsWithData.id)
+          rowData.push(`"${subscriber.id || ""}"`);
+        if (csvIncludeFields.includes("name")) {
+          if (fieldsWithData.title) rowData.push(`"${typeof subscriber.title === 'string' ? subscriber.title : ""}"`);
+          if (fieldsWithData.lname) rowData.push(`"${typeof subscriber.lname === 'string' ? subscriber.lname : ""}"`);
+          if (fieldsWithData.fname) rowData.push(`"${typeof subscriber.fname === 'string' ? subscriber.fname : ""}"`);
         }
-        rowData.push(`"${enddate}"`);
-      }
-
-      if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate) {
-        let subsdate = "";
-        if (subscription.subsdate) {
-          const date = new Date(subscription.subsdate);
-          if (!isNaN(date.getTime())) {
-            subsdate = date.toLocaleDateString();
-          }
+        if (csvIncludeFields.includes("company") && fieldsWithData.company)
+          rowData.push(`"${typeof subscriber.company === 'string' ? subscriber.company : ""}"`);
+        if (csvIncludeFields.includes("address") && fieldsWithData.address) {
+          const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split("\n") : [];
+          addressLinesUsed.forEach(index => {
+            rowData.push(`"${(addressLines[index] || "").trim()}"`);
+          });
         }
-        rowData.push(`"${subsdate}"`);
-      }
+        if (csvIncludeFields.includes("contactnos")) {
+          if (fieldsWithData.cellno) rowData.push(`"${typeof subscriber.cellno === 'string' ? subscriber.cellno : ""}"`);
+          if (fieldsWithData.officeno) rowData.push(`"${typeof subscriber.officeno === 'string' ? subscriber.officeno : ""}"`);
+        }
+        if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
+          rowData.push(`"${subscription.copies || ""}"`);
+        if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
+          rowData.push(`"${subscriber.acode !== undefined ? subscriber.acode : ""}"`);
 
-      if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
-        rowData.push(`"${typeof subscription.subsclass === 'string' ? subscription.subsclass : ""}"`);
-      if (csvIncludeFields.includes("email") && fieldsWithData.email)
-        rowData.push(`"${typeof subscriber.email === 'string' ? subscriber.email : ""}"`);
+        // Format and add dates if they exist
+        if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate) {
+          let enddate = "";
+          if (subscription.enddate) {
+            const date = new Date(subscription.enddate);
+            if (!isNaN(date.getTime())) {
+              enddate = date.toLocaleDateString();
+            }
+          }
+          rowData.push(`"${enddate}"`);
+        }
 
-      // Add service-specific data
-      if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
-        const hrgRecord = subscriber.hrgData?.records?.[0] || {};
-        rowData.push(`"${hrgRecord.campaigndate ? new Date(hrgRecord.campaigndate).toLocaleDateString() : ""}"`);
-        rowData.push(`"${hrgRecord.recvdate ? new Date(hrgRecord.recvdate).toLocaleDateString() : ""}"`);
-        rowData.push(`"${hrgRecord.paymtamt || ""}"`);
-        rowData.push(`"${hrgRecord.paymtform || ""}"`);
-        rowData.push(`"${hrgRecord.paymtref || ""}"`);
+        if (rowData.length === headers.length) {
+          csvContent += rowData.join(",") + "\n";
+          processedRows++;
+        } else {
+          console.warn(`Row ${index + 1} has mismatched columns:`, {
+            expected: headers.length,
+            got: rowData.length,
+            rowData,
+            subscriber
+          });
+          skippedRows++;
+        }
+      } catch (error) {
+        console.error(`Error processing row ${index + 1}:`, error, subscriber);
+        skippedRows++;
       }
-      
-      if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
-        const fomRecord = subscriber.fomData?.records?.[0] || {};
-        rowData.push(`"${fomRecord.recvdate ? new Date(fomRecord.recvdate).toLocaleDateString() : ""}"`);
-        rowData.push(`"${fomRecord.paymtamt || ""}"`);
-        rowData.push(`"${fomRecord.paymtform || ""}"`);
-        rowData.push(`"${fomRecord.paymtref || ""}"`);
-        rowData.push(`"${fomRecord.unsubscribe ? "Yes" : "No"}"`);
-      }
-      
-      if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
-        const calRecord = subscriber.calData?.records?.[0] || {};
-        rowData.push(`"${calRecord.caltype || ""}"`);
-        rowData.push(`"${calRecord.calqty || ""}"`);
-        rowData.push(`"${calRecord.calamt || ""}"`);
-        rowData.push(`"${calRecord.paymtdate ? new Date(calRecord.paymtdate).toLocaleDateString() : ""}"`);
-        rowData.push(`"${calRecord.paymtamt || ""}"`);
-        rowData.push(`"${calRecord.paymtform || ""}"`);
-        rowData.push(`"${calRecord.paymtref || ""}"`);
-      }
+    });
 
-      csvContent += rowData.join(",") + "\n";
+    console.log('CSV Generation Summary:', {
+      totalRows: filteredRows.length,
+      processedRows,
+      skippedRows,
+      headerCount: headers.length
     });
 
     return csvContent;
@@ -402,6 +409,55 @@ const CsvExport = ({
 
   const hasData = selectedRows.length > 0;
 
+  // Update data source toggle UI
+  const DataSourceToggle = () => (
+    <div className="flex flex-col gap-2 mb-4">
+      <h3 className="text-sm font-medium">Data Source</h3>
+      <div className="flex gap-2">
+        <Button
+          onClick={() => setUseAllData(false)}
+          variant={useAllData ? "outline" : "default"}
+          className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
+        >
+          Selected ({selectedRows.length})
+        </Button>
+        <Button
+          onClick={async () => {
+            setUseAllData(true);
+            setIsLoadingAllRecords(true);
+            try {
+              // Trigger parent component to fetch new data
+              await onRefreshAllData?.();
+            } catch (error) {
+              console.error("Error fetching all data:", error);
+              toast({
+                title: "Error",
+                description: "Failed to fetch all records. Using table data instead.",
+                variant: "destructive"
+              });
+            } finally {
+              setIsLoadingAllRecords(false);
+            }
+          }}
+          variant={useAllData ? "default" : "outline"}
+          className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+        >
+          {isLoadingAllRecords ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Loading...</span>
+            </div>
+          ) : (
+            `All Records (${allData?.length || 0})`
+          )}
+        </Button>
+      </div>
+      {isLoadingAllRecords && (
+        <p className="text-xs text-blue-700">Fetching all records...</p>
+      )}
+    </div>
+  );
+
   return (
     <div className="w-full max-w-[1500px]">
       <h2 className="flex justify-center text-xl font-bold text-black mb-2">
@@ -414,32 +470,7 @@ const CsvExport = ({
       </p>
 
       <div className="flex flex-col items-center">
-        {/* Standardized Data Source Toggle */}
-        {allData && (
-          <div className="w-full max-w-lg p-4 mb-4 bg-blue-50 rounded-lg">
-            <div className="flex flex-col">
-              <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => setUseAllData(false)}
-                  size="sm"
-                  variant={useAllData ? "outline" : "default"}
-                  className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
-                >
-                  Selected ({selectedRows.length})
-                </Button>
-                <Button
-                  onClick={() => setUseAllData(true)}
-                  size="sm"
-                  variant={useAllData ? "default" : "outline"}
-                  className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
-                >
-                  All Records ({allData.length})
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <DataSourceToggle />
 
         {/* Filename Input */}
         <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">

@@ -4,6 +4,7 @@ import { Button } from "./UI/ShadCN/button";
 import { ScrollArea } from "./UI/ShadCN/scroll-area";
 import axios from "axios";
 import { useUser } from "../utils/Hooks/userProvider";
+import { toast } from "react-hot-toast";
 
 // Import components
 import TemplateSelector from "./Mailing/TemplateSelector";
@@ -185,6 +186,10 @@ const Mailing = ({
   const [skippedData, setSkippedData] = useState([]);
   const [showSkippedData, setShowSkippedData] = useState(false);
 
+  // Add new state for loading indicators
+  const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
+  const [recordCounts, setRecordCounts] = useState(null);
+
   // Function to handle skipped data updates
   const handleSkippedDataUpdate = (skippedRecords) => {
     setSkippedData(skippedRecords);
@@ -196,38 +201,50 @@ const Mailing = ({
 
   // Function to handle opening document generator
   const handleOpenDocumentGenerator = async () => {
-    // Reset skipped data when opening document generator
-    setSkippedData([]);
-    setShowSkippedData(false);
-    
+    setDocumentGeneratorOpen(true);
     if (!allData) {
-      setIsFetchingAll(true);
+      setIsLoadingAllRecords(true);
       try {
         const data = await fetchAllData();
         setAllData(data);
+        setRecordCounts({
+          total: data.length,
+          filtered: data.length
+        });
       } catch (error) {
         console.error("Error fetching all data:", error);
-        alert("Failed to fetch all data. Using table data instead.");
+        toast({
+          title: "Error",
+          description: "Failed to fetch all records. Using table data instead.",
+          variant: "destructive"
+        });
       }
-      setIsFetchingAll(false);
+      setIsLoadingAllRecords(false);
     }
-    setDocumentGeneratorOpen(true);
   };
 
   // Function to handle opening CSV export
   const handleOpenCsvExport = async () => {
+    setCsvExportOpen(true);
     if (!allData) {
-      setIsFetchingAll(true);
+      setIsLoadingAllRecords(true);
       try {
         const data = await fetchAllData();
         setAllData(data);
+        setRecordCounts({
+          total: data.length,
+          filtered: data.length
+        });
       } catch (error) {
         console.error("Error fetching all data:", error);
-        alert("Failed to fetch all data. Using table data instead.");
+        toast({
+          title: "Error",
+          description: "Failed to fetch all records. Using table data instead.",
+          variant: "destructive"
+        });
       }
-      setIsFetchingAll(false);
+      setIsLoadingAllRecords(false);
     }
-    setCsvExportOpen(true);
   };
 
   // Get rows based on current selection
@@ -337,38 +354,42 @@ const Mailing = ({
     fetchData();
   }, [useAllData]);
 
+  // Add effect to refetch when filter changes
+  useEffect(() => {
+    if (useAllData) {
+      setIsLoadingAllRecords(true);
+      fetchAllData()
+        .then(data => {
+          setAllData(data);
+          setRecordCounts({
+            total: data.length,
+            filtered: data.length
+          });
+        })
+        .catch(error => {
+          console.error("Error fetching all data:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch all records. Using table data instead.",
+            variant: "destructive"
+          });
+        })
+        .finally(() => {
+          setIsLoadingAllRecords(false);
+        });
+    }
+  }, [filtering, selectedGroup, advancedFilterData, useAllData]);
+
   // New function to fetch all data
   const fetchAllData = async () => {
     try {
-      // Build query parameters using the current filter state
-      const queryParams = new URLSearchParams();
-      
-      // Add global filter if exists
-      if (filtering) {
-        queryParams.append('filter', filtering);
-      }
-
-      // Add group filter if exists
-      if (selectedGroup) {
-        queryParams.append('group', selectedGroup);
-      }
-
-      // Add all advanced filter data
-      Object.entries(advancedFilterData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          if (Array.isArray(value)) {
-            // Handle arrays (like services)
-            if (value.length > 0) {
-              queryParams.append(key, value.join(','));
-            }
-          } else {
-            queryParams.append(key, value);
-          }
-        }
-      });
-
-      const response = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall?${queryParams.toString()}`,
+      const response = await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall`,
+        {
+          filter: filtering,
+          group: selectedGroup,
+          advancedFilterData
+        },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -886,7 +907,28 @@ const Mailing = ({
   };
 
   // Toggle modal visibilities
-  const toggleModal = () => setModalOpen(!modalOpen);
+  const toggleModal = async () => {
+    setModalOpen(!modalOpen);
+    if (!modalOpen && !allData) {
+      setIsLoadingAllRecords(true);
+      try {
+        const data = await fetchAllData();
+        setAllData(data);
+        setRecordCounts({
+          total: data.length,
+          filtered: data.length
+        });
+      } catch (error) {
+        console.error("Error fetching all data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch all records. Using table data instead.",
+          variant: "destructive"
+        });
+      }
+      setIsLoadingAllRecords(false);
+    }
+  };
   const closeModal = () => setModalOpen(false);
   const toggleShowInputs = () => setShowInputs(!showInputs);
 
@@ -964,6 +1006,27 @@ const Mailing = ({
     }
   };
 
+  // Add refresh function
+  const refreshAllData = async () => {
+    try {
+      const data = await fetchAllData();
+      setAllData(data);
+      setRecordCounts({
+        total: data.length,
+        filtered: data.length
+      });
+      return data;
+    } catch (error) {
+      console.error("Error fetching all data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch all records. Using table data instead.",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   if (!table) return null;
 
   return (
@@ -1019,22 +1082,52 @@ const Mailing = ({
                         size="sm"
                         variant={useAllData ? "outline" : "default"}
                         className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
-                        disabled={isFetchingAll}
                       >
                         Selected ({availableRows.length})
                       </Button>
                       <Button
-                        onClick={() => setUseAllData(true)}
+                        onClick={async () => {
+                          setUseAllData(true);
+                          setIsLoadingAllRecords(true);
+                          try {
+                            const data = await fetchAllData();
+                            setAllData(data);
+                            setRecordCounts({
+                              total: data.length,
+                              filtered: data.length
+                            });
+                          } catch (error) {
+                            console.error("Error fetching all data:", error);
+                            toast({
+                              title: "Error",
+                              description: "Failed to fetch all records. Using table data instead.",
+                              variant: "destructive"
+                            });
+                          } finally {
+                            setIsLoadingAllRecords(false);
+                          }
+                        }}
                         size="sm"
                         variant={useAllData ? "default" : "outline"}
                         className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
-                        disabled={isFetchingAll}
                       >
-                        All Records ({allData?.length || 0})
+                        {isLoadingAllRecords ? (
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Loading...</span>
+                          </div>
+                        ) : (
+                          `All Records (${recordCounts?.total || allData?.length || 0})`
+                        )}
                       </Button>
                     </div>
-                    {isFetchingAll && (
-                      <p className="text-xs mt-2 text-blue-700">Fetching all data...</p>
+                    {isLoadingAllRecords && (
+                      <p className="text-xs mt-2 text-blue-700">Fetching all records...</p>
+                    )}
+                    {recordCounts && !isLoadingAllRecords && (
+                      <p className="text-xs mt-2 text-blue-700">
+                        {recordCounts.total} total records available
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1239,6 +1332,7 @@ const Mailing = ({
           useAllData={useAllData}
           setUseAllData={setUseAllData}
           onSkippedDataUpdate={handleSkippedDataUpdate}
+          onRefreshAllData={refreshAllData}
           onClose={() => {
             setDocumentGeneratorOpen(false);
             setUseAllData(false);
@@ -1317,6 +1411,7 @@ const Mailing = ({
           allData={allData}
           useAllData={useAllData}
           setUseAllData={setUseAllData}
+          onRefreshAllData={refreshAllData}
           onClose={() => {
             setCsvExportOpen(false);
             setUseAllData(false);

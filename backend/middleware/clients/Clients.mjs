@@ -134,7 +134,7 @@ router.get(
   }
 );
 
-router.get(
+router.post(
   "/fetchall",
   verifyToken,
   attachSocketId,
@@ -144,8 +144,8 @@ router.get(
     const {
       filter = "",
       group = "",
-      ...advancedFilterData
-    } = req.query;
+      advancedFilterData = {}
+    } = req.body;
 
     try {
       await req.user.populate({
