@@ -6,8 +6,9 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
-import { fetchSubclasses, fetchTypes } from "../../Table/Data/utilData";
+import { fetchSubclasses, fetchTypes, fetchAreas } from "../../Table/Data/utilData";
 import { webSocketService } from "../../../services/WebSocketService";
+import { io } from "socket.io-client";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -90,50 +91,52 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     { value: "12", name: "December" },
   ];
 
+  // Update initial state to ensure all values are defined
   const [formData, setFormData] = useState({
-    lname: "",
-    fname: "",
-    mname: "",
-    sname: "",
-    title: "",
-    bdate: "",
-    bdateMonth: "",
-    bdateDay: "",
-    bdateYear: "",
-    company: "",
-    address: "",
-    zipcode: "",
-    area: "",
-    acode: "",
-    contactnos: "",
-    cellno: "",
-    ofcno: "",
-    email: "",
-    type: "",
-    group: "",
-    remarks: "",
-    copies: "1",
-    subsclass: "",
-    subscriptionFreq: "",
-    subscriptionStart: "",
-    subscriptionEnd: "",
+    lname: rowData?.lname || "",
+    fname: rowData?.fname || "",
+    mname: rowData?.mname || "",
+    sname: rowData?.sname || "",
+    title: rowData?.title || "",
+    bdate: rowData?.bdate || "",
+    bdateMonth: rowData?.bdate ? rowData.bdate.split('/')[0] : "",
+    bdateDay: rowData?.bdate ? rowData.bdate.split('/')[1] : "",
+    bdateYear: rowData?.bdate ? rowData.bdate.split('/')[2] : "",
+    company: rowData?.company || "",
+    address: rowData?.address || "",
+    housestreet: rowData?.housestreet || "",
+    subdivision: rowData?.subdivision || "",
+    barangay: rowData?.barangay || "",
+    zipcode: rowData?.zipcode || "",
+    area: rowData?.area || "",
+    acode: rowData?.acode || "",
+    contactnos: rowData?.contactnos || "",
+    cellno: rowData?.cellno || "",
+    ofcno: rowData?.ofcno || "",
+    email: rowData?.email || "",
+    type: rowData?.type || "",
+    group: rowData?.group || "",
+    remarks: rowData?.remarks || "",
   });
 
   const [addressData, setAddressData] = useState({
-    street1: "",
-    street2: "",
-    province: "",
-    city: "",
-    municipality: "",
-    subMunicipality: "",
-    barangay: "",
-    region: "", // Add region field
+    housestreet: rowData?.housestreet || "",
+    subdivision: rowData?.subdivision || "",
+    barangay: rowData?.barangay || "",
+    city: rowData?.area || "",
+    zipcode: rowData?.zipcode || "",
   });
 
-  const [combinedAddress, setCombinedAddress] = useState("");
+  const [combinedAddress, setCombinedAddress] = useState(rowData.address || '');
+  const [isEditingCombinedAddress, setIsEditingCombinedAddress] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [roleSpecificData, setRoleSpecificData] = useState({});
-  const [areaData, setAreaData] = useState({});
+  const [areaData, setAreaData] = useState({
+    acode: rowData?.acode || "",
+    zipcode: rowData?.zipcode || "",
+    area: rowData?.area || "",
+    city: rowData?.area || "",
+  });
   const [showModal, setShowModal] = useState(false);
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
@@ -145,33 +148,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Track if we're editing an existing subscription or adding a new one
   const [subscriptionMode, setSubscriptionMode] = useState("edit");
-  const [selectedSubscription, setSelectedSubscription] = useState(null);
-  const [availableSubscriptions, setAvailableSubscriptions] = useState([]);
-  const [newSubscriptionData, setNewSubscriptionData] = useState(() => {
-    // Get current date for defaults
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    const year = String(today.getFullYear());
-
-    return {
-      subsdate: `${month}/${day}/${year}`,
-      subsDateMonth: month,
-      subsDateDay: day,
-      subsDateYear: year,
+  const [selectedSubscription, setSelectedSubscription] = useState({
+    subsdate: "",
       enddate: "",
-      endDateMonth: "",
-      endDateDay: "",
-      endDateYear: "",
+    renewdate: "",
+    subsyear: "",
+    copies: "1",
+    paymtamt: "",
+    paymtmasses: "",
+    calendar: false,
       subsclass: "",
-      copies: 1,
-      subsyear: 1,
-      remarks: "",
-      paymtamt: 0,
+    donorid: "",
       paymtref: "",
-      paymtmasses: 0,
+  });
+  const [availableSubscriptions, setAvailableSubscriptions] = useState([]);
+  const [newSubscription, setNewSubscription] = useState({
+    subsdate: "",
+    enddate: "",
+    renewdate: "",
+    subsyear: "",
+    copies: "1",
+    paymtamt: "",
+    paymtmasses: "",
       calendar: false,
-    };
+    subsclass: "",
+    donorid: "",
+    paymtref: "",
   });
 
   // Add validation function for new subscription data
@@ -218,6 +220,38 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     remarks: "",
   });
 
+  const [areas, setAreas] = useState(null);
+  const [isLoadingAreas, setIsLoadingAreas] = useState(true);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // Fetch areas data
+    const loadAreas = async () => {
+      try {
+        setIsLoadingAreas(true);
+        const areasData = await fetchAreas();
+        setAreas(areasData);
+      } catch (error) {
+        console.error("Error loading areas:", error);
+      } finally {
+        setIsLoadingAreas(false);
+      }
+    };
+
+    loadAreas();
+  }, []);
+
+  useEffect(() => {
+    if (!areas && !isLoadingAreas) {
+      setIsLoadingAreas(true);
+      fetchAreas().then((areasData) => {
+        setAreas(areasData);
+        setIsLoadingAreas(false);
+      }).catch(() => setIsLoadingAreas(false));
+    }
+  }, [areas, isLoadingAreas]);
+
   useEffect(() => {
     if (rowData) {
       // Parse birth date into components if it exists
@@ -228,324 +262,83 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       if (rowData.bdate) {
         const dateParts = rowData.bdate.split("/");
         if (dateParts.length === 3) {
-          bdateMonth = dateParts[0];
-          bdateDay = dateParts[1];
+          bdateMonth = dateParts[0].padStart(2, '0');
+          bdateDay = dateParts[1].padStart(2, '0');
           bdateYear = dateParts[2];
         }
       }
 
+      // Initialize all form fields with default values
       setFormData({
-        ...rowData,
-        // Initialize birth date components
-        bdateMonth,
-        bdateDay,
-        bdateYear,
-        // Initialize subscription-related fields
+        lname: rowData.lname || "",
+        fname: rowData.fname || "",
+        mname: rowData.mname || "",
+        sname: rowData.sname || "",
+        title: rowData.title || "",
+        bdate: rowData.bdate || "",
+        bdateMonth: bdateMonth || "",
+        bdateDay: bdateDay || "",
+        bdateYear: bdateYear || "",
+        company: rowData.company || "",
+        address: rowData.address || "",
+        housestreet: rowData.housestreet || "",
+        subdivision: rowData.subdivision || "",
+        barangay: rowData.barangay || "",
+        zipcode: rowData.zipcode || "",
+        area: rowData.area || "",
+        acode: rowData.acode || "",
+        contactnos: rowData.contactnos || "",
+        cellno: rowData.cellno || "",
+        ofcno: rowData.ofcno || "",
+        email: rowData.email || "",
+        type: rowData.type || "",
+        group: rowData.group || "",
+        remarks: rowData.remarks || "",
         subscriptionFreq: rowData.subscriptionFreq || "",
-        subscriptionStart: rowData.subsdate
-          ? formatDateToMMDDYY(parseDate(rowData.subsdate))
-          : "",
-        subscriptionEnd: rowData.enddate
-          ? formatDateToMMDDYY(parseDate(rowData.enddate))
-          : "",
-      });
-      setShowModal(true);
-
-      const addressParts = rowData.address ? rowData.address.split(", ") : [];
-      setAddressData({
-        street1: addressParts[0] || "",
-        street2: addressParts[1] || "",
-        barangay: addressParts[2] || "",
-        city: addressParts[3] || "",
-        province: addressParts[4] || "",
+        subscriptionStart: rowData.subscriptionStart || "",
+        subscriptionEnd: rowData.subscriptionEnd || "",
+        subStartMonth: "",
+        subStartDay: "",
+        subStartYear: "",
+        subEndMonth: "",
+        subEndDay: "",
+        subEndYear: "",
+        subsclass: rowData.subsclass || "",
       });
 
-      const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
-
-      if (userRole && roleConfigs[userRole]) {
-        const initialRoleData = Object.keys(
-          roleConfigs[userRole].groupFields
-        ).reduce((acc, field) => {
-          acc[field] = rowData[field] || ""; // Prefill with existing data
-          return acc;
-        }, {});
-        setRoleSpecificData(initialRoleData);
-      }
-
-      if (hasRole("WMM")) {
-        // Get subscription records from wmmData
-        const subscriptionRecords = rowData.wmmData?.records || [];
-
-        if (subscriptionRecords.length > 0) {
-          // Clean dates in subscription records
-          const cleanedSubscriptions = subscriptionRecords.map((record) => ({
-            ...record,
-            subsdate: record.subsdate
-              ? formatDateToMMDDYY(parseDate(record.subsdate))
-              : "",
-            enddate: record.enddate
-              ? formatDateToMMDDYY(parseDate(record.enddate))
-              : "",
-            renewdate: record.renewdate
-              ? formatDateToMMDDYY(parseDate(record.renewdate))
-              : "",
-          }));
-
-          // Get all subscription records and sort them by date (newest first)
-          const subscriptions = [...cleanedSubscriptions].sort((a, b) => {
-            const dateA = parseDate(a.subsdate) || new Date(0);
-            const dateB = parseDate(b.subsdate) || new Date(0);
-            return dateB - dateA;
-          });
-
-          setAvailableSubscriptions(subscriptions);
-
-          // Set the most recent subscription as the selected one
-          const latestSubscription = subscriptions[0];
-          setSelectedSubscription(latestSubscription);
-
-          const wmmData = {
-            id: latestSubscription.id,
-            subsdate: latestSubscription.subsdate || "",
-            enddate: latestSubscription.enddate || "",
-            renewdate: latestSubscription.renewdate || "",
-            subsyear: latestSubscription.subsyear || 0,
-            copies: latestSubscription.copies || 1,
-            paymtamt: latestSubscription.paymtamt || 0,
-            paymtmasses: latestSubscription.paymtmasses || 0,
-            calendar: latestSubscription.calendar || false,
-            subsclass: latestSubscription.subsclass || "",
-            donorid: latestSubscription.donorid || 0,
-            paymtref: latestSubscription.paymtref || "",
-            remarks: latestSubscription.remarks || "",
-          };
-          setRoleSpecificData(wmmData);
-        } else {
-          // No subscription records, initialize with empty data
-          const wmmData = {
-            subsdate: rowData.subsdate
-              ? formatDateToMMDDYY(parseDate(rowData.subsdate))
-              : "",
-            enddate: rowData.enddate
-              ? formatDateToMMDDYY(parseDate(rowData.enddate))
-              : "",
-            renewdate: rowData.renewdate
-              ? formatDateToMMDDYY(parseDate(rowData.renewdate))
-              : "",
-            subsyear: rowData.subsyear || 0,
-            copies: rowData.copies || 1,
-            paymtamt: rowData.paymtamt || 0,
-            paymtmasses: rowData.paymtmasses || 0,
-            calendar: rowData.calendar || false,
-            subsclass: rowData.subsclass || "",
-            donorid: rowData.donorid || 0,
+      // Initialize role-specific data
+      setRoleSpecificData(prev => ({
+        ...prev,
+        recvdate: rowData.recvdate || "",
+        renewdate: rowData.renewdate || "",
+        campaigndate: rowData.campaigndate || "",
             paymtref: rowData.paymtref || "",
+        paymtamt: rowData.paymtamt || "",
+        unsubscribe: rowData.unsubscribe || false,
             remarks: rowData.remarks || "",
-          };
-          setRoleSpecificData(wmmData);
-        }
-      } else if (hasRole("HRG")) {
-        // Process HRG data
-        if (
-          rowData.hrgData &&
-          rowData.hrgData.records &&
-          rowData.hrgData.records.length > 0
-        ) {
-          // Clean dates in records
-          const cleanedRecords = rowData.hrgData.records.map((record) => ({
-            ...record,
-            recvdate: record.recvdate
-              ? formatDateToMMDDYY(parseDate(record.recvdate))
-              : "",
-            renewdate: record.renewdate
-              ? formatDateToMMDDYY(parseDate(record.renewdate))
-              : "",
-            campaigndate: record.campaigndate
-              ? formatDateToMMDDYY(parseDate(record.campaigndate))
-              : "",
-          }));
-
-          // Sort by date (newest first)
-          const sortedRecords = [...cleanedRecords].sort((a, b) => {
-            const dateA = parseDate(a.recvdate) || new Date(0);
-            const dateB = parseDate(b.recvdate) || new Date(0);
-            return dateB - dateA;
-          });
-
-          setHrgRecords(sortedRecords);
-
-          // Set the most recent record as selected
-          const latestRecord = sortedRecords[0];
-          setSelectedHrgRecord(latestRecord);
-
-          // Populate the form with the latest record
-          const hrgData = {
-            id: latestRecord.id || latestRecord._id,
-            recvdate: latestRecord.recvdate || "",
-            renewdate: latestRecord.renewdate || "",
-            campaigndate: latestRecord.campaigndate || "",
-            paymtref: latestRecord.paymtref || "",
-            paymtamt: latestRecord.paymtamt || 0,
-            unsubscribe: latestRecord.unsubscribe || false,
-            remarks: latestRecord.remarks || "",
-          };
-
-          if (selectedRole === "HRG") {
-            setRoleSpecificData(hrgData);
-          }
-        } else {
-          // No records, initialize with empty data
-          const hrgData = {
-            recvdate: formatDateToMMDDYY(new Date()),
-            renewdate: "",
-            campaigndate: "",
-            paymtref: "",
-            paymtamt: 0,
-            unsubscribe: false,
-            remarks: "",
-          };
-
-          if (selectedRole === "HRG") {
-            setRoleSpecificData(hrgData);
-          }
-        }
-      }
-
-      if (hasRole("FOM")) {
-        // Process FOM data
-        if (
-          rowData.fomData &&
-          rowData.fomData.records &&
-          rowData.fomData.records.length > 0
-        ) {
-          // Clean dates in records
-          const cleanedRecords = rowData.fomData.records.map((record) => ({
-            ...record,
-            recvdate: record.recvdate
-              ? formatDateToMMDDYY(parseDate(record.recvdate))
-              : "",
-          }));
-
-          // Sort by date (newest first)
-          const sortedRecords = [...cleanedRecords].sort((a, b) => {
-            const dateA = parseDate(a.recvdate) || new Date(0);
-            const dateB = parseDate(b.recvdate) || new Date(0);
-            return dateB - dateA;
-          });
-
-          setFomRecords(sortedRecords);
-
-          // Set the most recent record as selected
-          const latestRecord = sortedRecords[0];
-          setSelectedFomRecord(latestRecord);
-
-          // Populate the form with the latest record
-          const fomData = {
-            id: latestRecord.id || latestRecord._id,
-            recvdate: latestRecord.recvdate || "",
-            paymtamt: latestRecord.paymtamt || 0,
-            paymtform: latestRecord.paymtform || "",
-            paymtref: latestRecord.paymtref || "",
-            unsubscribe: latestRecord.unsubscribe || false,
-            remarks: latestRecord.remarks || "",
-          };
-
-          if (selectedRole === "FOM") {
-            setRoleSpecificData(fomData);
-          }
-        } else {
-          // No records, initialize with empty data
-          const fomData = {
-            recvdate: formatDateToMMDDYY(new Date()),
-            paymtamt: 0,
-            paymtform: "",
-            paymtref: "",
-            unsubscribe: false,
-            remarks: "",
-          };
-
-          if (selectedRole === "FOM") {
-            setRoleSpecificData(fomData);
-          }
-        }
-      }
-
-      if (hasRole("CAL")) {
-        // Process CAL data
-        if (
-          rowData.calData &&
-          rowData.calData.records &&
-          rowData.calData.records.length > 0
-        ) {
-          // Clean dates in records
-          const cleanedRecords = rowData.calData.records.map((record) => ({
-            ...record,
-            recvdate: record.recvdate
-              ? formatDateToMMDDYY(parseDate(record.recvdate))
-              : "",
-            paymtdate: record.paymtdate
-              ? formatDateToMMDDYY(parseDate(record.paymtdate))
-              : "",
-          }));
-
-          // Sort by date (newest first)
-          const sortedRecords = [...cleanedRecords].sort((a, b) => {
-            const dateA = parseDate(a.recvdate) || new Date(0);
-            const dateB = parseDate(b.recvdate) || new Date(0);
-            return dateB - dateA;
-          });
-
-          setCalRecords(sortedRecords);
-
-          // Set the most recent record as selected
-          const latestRecord = sortedRecords[0];
-          setSelectedCalRecord(latestRecord);
-
-          // Populate the form with the latest record
-          const calData = {
-            id: latestRecord.id || latestRecord._id,
-            recvdate: latestRecord.recvdate || "",
-            caltype: latestRecord.caltype || "",
-            calqty: latestRecord.calqty || 0,
-            calamt: latestRecord.calamt || 0,
-            paymtref: latestRecord.paymtref || "",
-            paymtamt: latestRecord.paymtamt || 0,
-            paymtform: latestRecord.paymtform || "",
-            paymtdate: latestRecord.paymtdate || "",
-            remarks: latestRecord.remarks || "",
-          };
-
-          if (selectedRole === "CAL") {
-            setRoleSpecificData(calData);
-          }
-        } else {
-          // No records, initialize with empty data
-          const calData = {
-            recvdate: formatDateToMMDDYY(new Date()),
-            caltype: "",
-            calqty: 0,
-            calamt: 0,
-            paymtref: "",
-            paymtamt: 0,
-            paymtform: "",
-            paymtdate: "",
-            remarks: "",
-          };
-
-          if (selectedRole === "CAL") {
-            setRoleSpecificData(calData);
-          }
-        }
-      }
+      }));
     }
-  }, [rowData, hasRole]);
+  }, [rowData]);
 
-  // New effect to initialize subscriptionFreq based on existing subscription data
+  // Initialize WMM subscription data
   useEffect(() => {
-    if (selectedSubscription && subscriptionMode === "edit") {
-      // Parse start and end dates
-      const subsdate = parseDate(selectedSubscription.subsdate);
-      const enddate = parseDate(selectedSubscription.enddate);
+    if (rowData && rowData.wmmData && rowData.wmmData.records && rowData.wmmData.records.length > 0) {
+      // Get the most recent subscription
+      const subscriptions = rowData.wmmData.records;
+      const latestSubscription = subscriptions[subscriptions.length - 1];
+      
+      // Set available subscriptions
+      setAvailableSubscriptions(subscriptions);
+      
+      // Select the latest subscription
+      setSelectedSubscription(latestSubscription);
+      
+      // Initialize subscription mode to edit
+      setSubscriptionMode("edit");
+      
+      // Parse dates
+      const subsdate = parseDate(latestSubscription.subsdate);
+      const enddate = parseDate(latestSubscription.enddate);
       
       if (subsdate && enddate) {
         // Calculate the difference in months
@@ -562,9 +355,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           frequency = "5";  // 6 months
         }
         
-        if (frequency) {
           setSubscriptionFreq(frequency);
-        }
         
         // Extract month, day, year for start date
         const subStartMonth = String(subsdate.getMonth() + 1).padStart(2, "0");
@@ -580,7 +371,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         const formattedStartDate = `${subStartMonth}/${subStartDay}/${subStartYear}`;
         const formattedEndDate = `${subEndMonth}/${subEndDay}/${subEndYear}`;
 
-        // Update formData with the date components
+        // Update formData with subscription details
         setFormData(prev => ({
           ...prev,
           subscriptionFreq: frequency,
@@ -591,10 +382,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           subStartYear,
           subEndMonth,
           subEndDay,
-          subEndYear
+          subEndYear,
+          subsclass: latestSubscription.subsclass || ""
         }));
         
-        // Also update roleSpecificData with formatted dates
+        // Update roleSpecificData with subscription details
         setRoleSpecificData(prev => ({
           ...prev,
           subsdate: formattedStartDate,
@@ -604,11 +396,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           subsDateYear: subStartYear,
           endDateMonth: subEndMonth,
           endDateDay: subEndDay,
-          endDateYear: subEndYear
+          endDateYear: subEndYear,
+          subsyear: latestSubscription.subsyear || 0,
+          copies: latestSubscription.copies || 1,
+          paymtamt: latestSubscription.paymtamt || "",
+          paymtmasses: latestSubscription.paymtmasses || "",
+          calendar: latestSubscription.calendar || false,
+          subsclass: latestSubscription.subsclass || "",
+          donorid: latestSubscription.donorid || "",
+          paymtref: latestSubscription.paymtref || "",
+          remarks: latestSubscription.remarks || ""
         }));
       }
     }
-  }, [selectedSubscription, subscriptionMode]);
+  }, [rowData]);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -745,15 +546,17 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Update handleChange to ensure values are never undefined
   const handleChange = async (e) => {
     const { name, value } = e.target;
+    const safeValue = value ?? ""; // Ensure value is never undefined
 
     // Handle bdate parts
     if (name === "bdateMonth" || name === "bdateDay" || name === "bdateYear") {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: safeValue,
         };
 
         // Combine the date parts into bdate if all are present
@@ -765,81 +568,35 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
         return newData;
       });
-
       return;
     }
 
     // Handle subscription start date parts
-    if (
-      name === "subStartMonth" ||
-      name === "subStartDay" ||
-      name === "subStartYear"
-    ) {
+    if (name === "subStartMonth" || name === "subStartDay" || name === "subStartYear") {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: safeValue,
         };
 
         // Combine the date parts into subscriptionStart if all are present
-        if (
-          newData.subStartMonth &&
-          newData.subStartDay &&
-          newData.subStartYear
-        ) {
+        if (newData.subStartMonth && newData.subStartDay && newData.subStartYear) {
           newData.subscriptionStart = `${newData.subStartMonth}/${newData.subStartDay}/${newData.subStartYear}`;
-
-          // If frequency is selected, recalculate end date based on the new start date
-          if (newData.subscriptionFreq) {
-            const startDate = new Date(
-              parseInt(newData.subStartYear),
-              parseInt(newData.subStartMonth) - 1,
-              parseInt(newData.subStartDay)
-            );
-
-            const monthsToAdd = parseInt(newData.subscriptionFreq);
-            const endDate = calculateEndMonth(startDate, monthsToAdd);
-
-            if (endDate) {
-              // Format end date parts
-              newData.subEndMonth = String(endDate.getMonth() + 1).padStart(
-                2,
-                "0"
-              );
-              newData.subEndDay = String(endDate.getDate()).padStart(2, "0");
-              newData.subEndYear = String(endDate.getFullYear());
-              newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
-
-              // Also update roleSpecificData
-              setTimeout(() => {
-                setRoleSpecificData((prev) => ({
-                  ...prev,
-                  subsdate: newData.subscriptionStart,
-                  enddate: newData.subscriptionEnd,
-                }));
-              }, 0);
-            }
-          }
         } else {
           newData.subscriptionStart = "";
         }
 
         return newData;
       });
-
       return;
     }
 
     // Handle subscription end date parts
-    if (
-      name === "subEndMonth" ||
-      name === "subEndDay" ||
-      name === "subEndYear"
-    ) {
+    if (name === "subEndMonth" || name === "subEndDay" || name === "subEndYear") {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: safeValue,
         };
 
         // Combine the date parts into subscriptionEnd if all are present
@@ -851,172 +608,190 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
         return newData;
       });
-
       return;
     }
 
-    if (name === "subscriptionFreq") {
-      const monthsToAdd = parseInt(value);
-
-      // Get current date for defaults
-      let subscriptionStart;
-      
-      // If we have a valid subsdate in roleSpecificData, use that as the start date
-      if (roleSpecificData.subsdate) {
-        subscriptionStart = parseDate(roleSpecificData.subsdate);
-      } else {
-        // Otherwise use today's date
-        subscriptionStart = new Date();
-      }
-
-      // Safety check
-      if (!subscriptionStart || isNaN(subscriptionStart.getTime())) {
-        subscriptionStart = new Date();
-      }
-
-      // Calculate end date by adding months
-      const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
-
-      if (!subscriptionEnd) {
-        // If end date calculation failed, just update the frequency
-        setFormData({
-          ...formData,
-          subscriptionFreq: value,
-        });
-        return;
-      }
-
-      // Format date parts for start date
-      const startMonth = String(subscriptionStart.getMonth() + 1).padStart(2, "0");
-      const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
-      const startYear = String(subscriptionStart.getFullYear());
-
-      // Format date parts for end date
-      const endMonth = String(subscriptionEnd.getMonth() + 1).padStart(2, "0");
-      const endDay = String(subscriptionEnd.getDate()).padStart(2, "0");
-      const endYear = String(subscriptionEnd.getFullYear());
-
-      // Format dates for display
-      const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
-      const formattedEndDate = `${endMonth}/${endDay}/${endYear}`;
-
-      // Update `formData` with dates and components
-      setFormData({
-        ...formData,
-        subscriptionFreq: value,
-        subscriptionStart: formattedStartDate,
-        subscriptionEnd: formattedEndDate,
-        subStartMonth: startMonth,
-        subStartDay: startDay,
-        subStartYear: startYear,
-        subEndMonth: endMonth,
-        subEndDay: endDay,
-        subEndYear: endYear,
-      });
-
-      // Also update roleSpecificData with formatted dates
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        subsdate: formattedStartDate,
-        enddate: formattedEndDate,
-        copies: prev.copies || 1,
-      }));
-      return;
-    }
-
-    if (name === "renewalType") {
-      setRenewalType(value);
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: "",
-        subscriptionStart: "",
-        subscriptionEnd: "",
-      }));
-      return;
-    }
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+    // For all other fields
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: safeValue,
+    }));
   };
 
+  // Update handleRoleSpecificChange to ensure values are never undefined
+  const handleRoleSpecificChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const safeValue = type === "checkbox" ? checked : (value ?? "");
+
+    setRoleSpecificData(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : (safeValue.toUpperCase() || "")
+    }));
+  };
+
+  // Update handleSelectedSubscriptionChange to ensure values are never undefined
+  const handleSelectedSubscriptionChange = (e) => {
+    const { name, value } = e.target;
+    const safeValue = value ?? "";
+
+    setSelectedSubscription(prev => ({
+        ...prev,
+      [name]: safeValue
+    }));
+  };
+
+  // Update handleNewSubscriptionChange to ensure values are never undefined
+  const handleNewSubscriptionChange = (e) => {
+    const { name, value } = e.target;
+    const safeValue = value ?? "";
+
+    setNewSubscription(prev => ({
+        ...prev,
+      [name]: safeValue
+    }));
+  };
+
+  const formatAddressLines = (addressData, area, areaData) => {
+    const lines = [];
+
+    // Line 1: House/Building Number and Street name
+    if (addressData.housestreet) lines.push(addressData.housestreet.trim());
+    
+    // Line 2: Subdivision/Compound Name
+    if (addressData.subdivision) lines.push(addressData.subdivision.trim());
+    
+    // Line 3: Barangay
+    if (addressData.barangay) lines.push(addressData.barangay.trim());
+    
+    // Line 4: Zipcode and City (no comma for last line)
+    const lastLine = [areaData.zipcode, area].filter(Boolean).join(" ").trim();
+    if (lastLine) lines.push(lastLine);
+    
+    return lines.join("\n");
+  };
+
+  // Update handleAddressChange to ensure values are never undefined
   const handleAddressChange = (type, value) => {
+    let cleanedValue = value || ""; // Ensure value is never undefined
+    if (['housestreet', 'subdivision', 'barangay'].includes(type)) {
+      cleanedValue = cleanedValue.replace(/,\s*$/, '');
+    }
+
     setAddressData((prev) => {
       const newAddressData = {
         ...prev,
-        [type]: value,
+        [type]: cleanedValue,
       };
-
-      // Update combined address
-      const addressComponents = [
-        newAddressData.street1,
-        newAddressData.street2,
-        formData.area,
-      ].filter(Boolean);
-
-      const newCombinedAddress = addressComponents.join(", ");
-      setCombinedAddress(newCombinedAddress);
       
+      const formattedAddress = formatAddressLines(newAddressData, formData.area || "", areaData);
+      setCombinedAddress(formattedAddress);
+      
+      setFormData(prev => ({
+        ...prev,
+        address: formattedAddress || "",
+        housestreet: newAddressData.housestreet || "",
+        subdivision: newAddressData.subdivision || "",
+        barangay: newAddressData.barangay || ""
+      }));
+
       return newAddressData;
     });
+  };
+
+  // Update handleAreaChange to ensure values are never undefined
+  const handleAreaChange = (field, value) => {
+    const safeValue = value || ""; // Ensure value is never undefined
+
+    setAreaData((prevData) => {
+      const newAreaData = {
+        ...prevData,
+        [field]: safeValue,
+      };
+
+      if (field === 'zipcode') {
+        setAddressData(prev => ({
+          ...prev,
+          zipcode: safeValue
+        }));
+        
+        setFormData(prev => ({
+          ...prev,
+          zipcode: safeValue ? parseInt(safeValue) : 0 // Use 0 instead of empty string
+        }));
+      }
+
+      return newAreaData;
+    });
+  };
+
+  // Update handleCombinedAddressChange to ensure values are never undefined
+  const handleCombinedAddressChange = (e) => {
+    const value = e.target.value || ""; // Ensure value is never undefined
+    setIsEditingCombinedAddress(true);
+    setCombinedAddress(value);
+
+    const lines = value.split('\n').map(line => line.trim().replace(/,\s*$/, '')).filter(line => line);
+    
+    setAddressData(prev => {
+      const lastLine = lines[lines.length - 1] || '';
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+
+      return {
+        housestreet: lines[0] || '',
+        subdivision: lines[1] || '',
+        barangay: lines[2] || '',
+        city: prev.city || '', // Ensure city is never undefined
+        zipcode: zipcode || ''
+      };
+    });
+
+    setFormData(prev => {
+      const lastLine = lines[lines.length - 1] || '';
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+      const city = lastLine.replace(zipcode, '').trim();
+
+      return {
+        ...prev,
+        address: value,
+        housestreet: lines[0] || '',
+        subdivision: lines[1] || '',
+        barangay: lines[2] || '',
+        zipcode: zipcode ? parseInt(zipcode) : 0, // Use 0 instead of empty string
+        area: city || ''
+      };
+    });
+
+    if (lines.length > 0) {
+      const lastLine = lines[lines.length - 1];
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+      const city = lastLine.replace(zipcode, '').trim();
+
+      setAreaData(prev => ({
+        ...prev,
+        zipcode: zipcode || '',
+        city: city || ''
+      }));
+    }
+  };
+
+  // Add focus and blur handlers
+  const handleCombinedAddressFocus = () => {
+    setIsEditingCombinedAddress(true);
+  };
+
+  const handleCombinedAddressBlur = () => {
+    setIsEditingCombinedAddress(false);
+    // Format the address properly when blurring
+    const formattedAddress = formatAddressLines(addressData, formData.area || "", areaData);
+    setCombinedAddress(formattedAddress);
   };
 
   const handleCitySelect = (cityname) => {
     setSelectedCity(cityname);
     handleAddressChange('city', cityname);
-  };
-
-  useEffect(() => {
-    if (rowData && rowData.address) {
-      // Split the address into components
-      const addressParts = rowData.address.split(", ");
-      
-      // Initialize with empty values
-      const newAddressData = {
-        street1: "",
-        street2: "",
-        barangay: "",
-        city: "",
-        province: "",
-        region: "",
-      };
-
-      // Try to map the parts to address components
-      if (addressParts.length >= 1) newAddressData.street1 = addressParts[0];
-      if (addressParts.length >= 2) newAddressData.street2 = addressParts[1];
-      if (addressParts.length >= 4) newAddressData.barangay = addressParts[3];
-      if (addressParts.length >= 5) newAddressData.city = addressParts[4];
-      if (addressParts.length >= 6) newAddressData.province = addressParts[5];
-      
-      setAddressData(newAddressData);
-      setCombinedAddress(rowData.address);
-    }
-  }, [rowData]);
-
-  const handleAreaChange = (name, value) => {
-    // Update the area data with the new value
-    setAreaData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // If zipcode is updated, also update it in the formData to keep states in sync
-    if (name === "zipcode") {
-      setFormData((prev) => ({
-        ...prev,
-        zipcode: value ? String(value) : "",
-      }));
-    }
-  };
-
-  const handleRoleSpecificChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setRoleSpecificData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox" ? checked : type === "textarea" ? value : value,
-    }));
   };
 
   const handleRenewDateToday = () => {
@@ -1087,14 +862,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
-  const handleNewSubscriptionChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewSubscriptionData((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
   const handleSubscriptionModeChange = (mode) => {
     setSubscriptionMode(mode);
 
@@ -1116,7 +883,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     } else if (mode === "add") {
       // Switch to add mode and initialize with new subscription data
-      setRoleSpecificData(newSubscriptionData);
+      setRoleSpecificData(newSubscription);
     }
   };
 
@@ -1227,35 +994,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
-  // Update the existing handler to use _id instead of id
-  const handleSelectedSubscriptionChange = (e) => {
-    // Make sure we have a proper event object
-    if (!e || !e.target) {
-      console.error("Invalid event in handleSelectedSubscriptionChange:", e);
-      return;
-    }
-
-    const subscriptionId = e.target.value;
-
-    if (!subscriptionId) {
-      console.error("Invalid subscription ID:", e.target.value);
-      return;
-    }
-
-    // Find subscription by either id or _id
-    const subscription = availableSubscriptions.find(
-      (sub) =>
-        String(sub.id) === String(subscriptionId) ||
-        String(sub._id) === String(subscriptionId)
-    );
-
-    if (subscription) {
-      selectSubscription(subscription);
-    } else {
-      console.error("Subscription not found with ID:", subscriptionId);
-    }
-  };
-
   const handleSubscriptionFreqChange = (e) => {
     const freq = e.target.value;
     setSubscriptionFreq(freq);
@@ -1311,13 +1049,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }));
     } else {
       // Handle new subscription
-      let startDate = parseDate(newSubscriptionData.subsdate);
+      let startDate = parseDate(newSubscription.subsdate);
       
       if (!startDate || isNaN(startDate.getTime())) {
         // If no valid start date, use today
         startDate = new Date();
         
-        // Also update the start date in newSubscriptionData
+        // Also update the start date in newSubscription
         const today = new Date();
         const startMonth = String(today.getMonth() + 1).padStart(2, "0");
         const startDay = String(today.getDate()).padStart(2, "0");
@@ -1325,7 +1063,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
         
         setTimeout(() => {
-          setNewSubscriptionData((prev) => ({
+          setNewSubscription((prev) => ({
             ...prev,
             subsdate: formattedStartDate,
             subsDateMonth: startMonth,
@@ -1349,7 +1087,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       const endDateYear = String(newEndDate.getFullYear());
 
       // Update state with both formatted date and components
-      setNewSubscriptionData((prev) => ({
+      setNewSubscription((prev) => ({
         ...prev,
         enddate: formattedDate,
         endDateMonth,
@@ -1362,6 +1100,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
 
     try {
       // Format the birth date properly
@@ -1406,7 +1145,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           };
         } else if (subscriptionMode === "add") {
           // Validate new subscription data
-          const validation = validateNewSubscription(newSubscriptionData);
+          const validation = validateNewSubscription(newSubscription);
           if (!validation.isValid) {
             setValidationErrors(validation.errors);
             return;
@@ -1414,18 +1153,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
           // If adding a new subscription
           roleData = {
-            subsdate: newSubscriptionData.subsdate,
-            enddate: newSubscriptionData.enddate,
-            renewdate: newSubscriptionData.renewdate || "",
-            subsyear: parseFloat(newSubscriptionData.subsyear) || 1,
-            copies: parseInt(newSubscriptionData.copies) || 1,
-            paymtamt: parseFloat(newSubscriptionData.paymtamt) || 0,
-            paymtmasses: parseInt(newSubscriptionData.paymtmasses) || 0,
-            calendar: newSubscriptionData.calendar || false,
-            subsclass: newSubscriptionData.subsclass || "",
-            donorid: parseInt(newSubscriptionData.donorid) || 0,
-            paymtref: newSubscriptionData.paymtref || "",
-            remarks: newSubscriptionData.remarks || "",
+            subsdate: newSubscription.subsdate,
+            enddate: newSubscription.enddate,
+            renewdate: newSubscription.renewdate || "",
+            subsyear: parseFloat(newSubscription.subsyear) || 1,
+            copies: parseInt(newSubscription.copies) || 1,
+            paymtamt: parseFloat(newSubscription.paymtamt) || 0,
+            paymtmasses: parseInt(newSubscription.paymtmasses) || 0,
+            calendar: newSubscription.calendar || false,
+            subsclass: newSubscription.subsclass || "",
+            donorid: parseInt(newSubscription.donorid) || 0,
+            paymtref: newSubscription.paymtref || "",
+            remarks: newSubscription.remarks || "",
             isNewSubscription: true,
           };
         }
@@ -1548,18 +1287,25 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         };
 
         // Emit data update event via WebSocket
-        webSocketService.emit("data-update", {
-          type: "update",
-          data: {
-            id: rowData.id,
-            ...updatedData,
-            // Ensure subscription data is properly structured
-            wmmData: response.data.wmmData || [],
-            hrgData: response.data.hrgData || [],
-            fomData: response.data.fomData || [],
-            calData: response.data.calData || []
-          }
-        });
+                  try {
+            await webSocketService.emit("data-update", {
+              type: "update",
+              operation: "edit",
+              ids: [rowData.id],
+              data: {
+                id: rowData.id,
+                ...updatedData,
+                // Ensure subscription data is properly structured
+                wmmData: response.data.wmmData || [],
+                hrgData: response.data.hrgData || [],
+                fomData: response.data.fomData || [],
+                calData: response.data.calData || []
+              }
+            });
+        } catch (wsError) {
+          console.warn("WebSocket update failed, but data was saved:", wsError);
+          // Continue with success flow since the data was saved
+        }
 
         if (onEditSuccess) {
           onEditSuccess(updatedData);
@@ -1569,6 +1315,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     } catch (error) {
       console.error("Error updating client:", error);
       // Handle error state here
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1688,31 +1436,52 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               </h2>
               <div className="space-y-3">
                 <InputField
-                  label="Address 1:"
-                  id="street1"
-                  name="street1"
-                  value={addressData.street1}
-                  onChange={(e) => handleAddressChange('street1', e.target.value)}
+                  label="House/Building Number & Street Name:"
+                  id="housestreet"
+                  name="housestreet"
+                  value={addressData.housestreet}
+                  onChange={(e) =>
+                    handleAddressChange("housestreet", e.target.value)
+                  }
                   uppercase={true}
                   className="text-base"
+                  autoComplete="off"
                 />
                 <InputField
-                  label="Address 2:"
-                  id="street2"
-                  name="street2"
-                  value={addressData.street2}
-                  onChange={(e) => handleAddressChange('street2', e.target.value)}
+                  label="Subdivision/Compound Name:"
+                  id="subdivision"
+                  name="subdivision"
+                  value={addressData.subdivision}
+                  onChange={(e) =>
+                    handleAddressChange("subdivision", e.target.value)
+                  }
                   uppercase={true}
                   className="text-base"
+                  autoComplete="off"
                 />
-                <AreaForm 
-                  onAreaChange={handleAreaChange}
-                  defaultValues={{
-                    acode: formData.acode || "",
-                    area: formData.area || "",
-                    zipcode: formData.zipcode || ""
-                  }}
+                <InputField
+                  label="Barangay:"
+                  id="barangay"
+                  name="barangay"
+                  value={addressData.barangay}
+                  onChange={(e) =>
+                    handleAddressChange("barangay", e.target.value)
+                  }
+                  uppercase={true}
+                  className="text-base"
+                  autoComplete="off"
                 />
+                {areas && (
+                  <AreaForm
+                    onAreaChange={handleAreaChange}
+                    initialAreaData={{
+                      acode: formData.acode || areaData.acode || "",
+                      zipcode: formData.zipcode || areaData.zipcode || "",
+                      city: formData.area || areaData.city || addressData.city || ""
+                    }}
+                    areas={areas}
+                  />
+                )}
                 <div className="mt-4">
                   <InputField
                     label="Address Preview:"
@@ -1720,8 +1489,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     name="combinedAddress"
                     value={combinedAddress}
                     type="textarea"
-                    onChange={(e) => setCombinedAddress(e.target.value.toUpperCase())}
-                    className="w-full h-[160px] p-2 border rounded-md text-base"
+                    onChange={handleCombinedAddressChange}
+                    onFocus={handleCombinedAddressFocus}
+                    onBlur={handleCombinedAddressBlur}
+                    className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
                   />
                 </div>
               </div>
@@ -1913,12 +1684,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             value={
                               subscriptionMode === "edit"
                                 ? formData.subStartMonth || ""
-                                : newSubscriptionData.subsDateMonth || ""
+                                : newSubscription.subsDateMonth || ""
                             }
                             onChange={
                               subscriptionMode === "edit"
                                 ? handleChange
-                                : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateMonth: e.target.value})
+                                : (e) => setNewSubscription({...newSubscription, subsDateMonth: e.target.value})
                             }
                             className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           >
@@ -1937,12 +1708,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={
                             subscriptionMode === "edit"
                               ? formData.subStartDay || ""
-                              : newSubscriptionData.subsDateDay || ""
+                              : newSubscription.subsDateDay || ""
                           }
                           onChange={
                             subscriptionMode === "edit"
                               ? handleChange
-                              : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateDay: e.target.value})
+                              : (e) => setNewSubscription({...newSubscription, subsDateDay: e.target.value})
                           }
                           placeholder="DD"
                           className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1955,12 +1726,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={
                             subscriptionMode === "edit"
                               ? formData.subStartYear || ""
-                              : newSubscriptionData.subsDateYear || ""
+                              : newSubscription.subsDateYear || ""
                           }
                           onChange={
                             subscriptionMode === "edit"
                               ? handleChange
-                              : (e) => setNewSubscriptionData({...newSubscriptionData, subsDateYear: e.target.value})
+                              : (e) => setNewSubscription({...newSubscription, subsDateYear: e.target.value})
                           }
                           placeholder="YYYY"
                           className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -1981,12 +1752,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             value={
                               subscriptionMode === "edit"
                                 ? formData.subEndMonth || ""
-                                : newSubscriptionData.endDateMonth || ""
+                                : newSubscription.endDateMonth || ""
                             }
                             onChange={
                               subscriptionMode === "edit"
                                 ? handleChange
-                                : (e) => setNewSubscriptionData({...newSubscriptionData, endDateMonth: e.target.value})
+                                : (e) => setNewSubscription({...newSubscription, endDateMonth: e.target.value})
                             }
                             className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                           >
@@ -2005,12 +1776,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={
                             subscriptionMode === "edit"
                               ? formData.subEndDay || ""
-                              : newSubscriptionData.endDateDay || ""
+                              : newSubscription.endDateDay || ""
                           }
                           onChange={
                             subscriptionMode === "edit"
                               ? handleChange
-                              : (e) => setNewSubscriptionData({...newSubscriptionData, endDateDay: e.target.value})
+                              : (e) => setNewSubscription({...newSubscription, endDateDay: e.target.value})
                           }
                           placeholder="DD"
                           className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -2023,12 +1794,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           value={
                             subscriptionMode === "edit"
                               ? formData.subEndYear || ""
-                              : newSubscriptionData.endDateYear || ""
+                              : newSubscription.endDateYear || ""
                           }
                           onChange={
                             subscriptionMode === "edit"
                               ? handleChange
-                              : (e) => setNewSubscriptionData({...newSubscriptionData, endDateYear: e.target.value})
+                              : (e) => setNewSubscription({...newSubscription, endDateYear: e.target.value})
                           }
                           placeholder="YYYY"
                           className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -2047,7 +1818,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         value={
                           subscriptionMode === "edit"
                             ? roleSpecificData.subsclass || ""
-                            : newSubscriptionData.subsclass || ""
+                            : newSubscription.subsclass || ""
                         }
                         onChange={
                           subscriptionMode === "edit"
@@ -2075,7 +1846,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         value={
                           subscriptionMode === "edit"
                             ? roleSpecificData.copies || 1
-                            : newSubscriptionData.copies || 1
+                            : newSubscription.copies || 1
                         }
                         onChange={
                           subscriptionMode === "edit"
@@ -2103,7 +1874,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             value={
                               subscriptionMode === "edit"
                                 ? roleSpecificData.paymtref || ""
-                                : newSubscriptionData.paymtref || ""
+                                : newSubscription.paymtref || ""
                             }
                             onChange={
                               subscriptionMode === "edit"
@@ -2122,7 +1893,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               value={
                                 subscriptionMode === "edit"
                                   ? roleSpecificData.paymtamt || ""
-                                  : newSubscriptionData.paymtamt || ""
+                                  : newSubscription.paymtamt || ""
                               }
                               onChange={
                                 subscriptionMode === "edit"
@@ -2140,7 +1911,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               value={
                                 subscriptionMode === "edit"
                                   ? roleSpecificData.paymtmasses || ""
-                                  : newSubscriptionData.paymtmasses || ""
+                                  : newSubscription.paymtmasses || ""
                               }
                               onChange={
                                 subscriptionMode === "edit"
@@ -2790,14 +2561,44 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+              className={`px-4 py-2 text-white rounded-md text-base flex items-center gap-2 ${
+                isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+              disabled={isSubmitting}
             >
-              Save Changes
+              {isSubmitting ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </div>
         </form>
@@ -2811,14 +2612,44 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-md"
+                className={`px-4 py-2 text-white rounded-md text-base flex items-center gap-2 ${
+                  isSubmitting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+                disabled={isSubmitting}
               >
-                Save Changes
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
             </div>
           </form>

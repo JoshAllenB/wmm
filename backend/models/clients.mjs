@@ -9,7 +9,7 @@ const clientConnection = mongoose.createConnection(process.env.MONGODB_URI, {
 
 const ClientSchema = new mongoose.Schema(
   {
-    id: Number,
+    id: { type: Number, index: true },
     lname: { type: String, index: true },
     fname: { type: String, index: true },
     mname: String,
@@ -18,6 +18,9 @@ const ClientSchema = new mongoose.Schema(
     bdate: String,
     company: { type: String, index: true },
     address: { type: String, index: true },
+    housestreet: { type: String, index: true },
+    subdivision: { type: String, index: true },
+    barangay: { type: String, index: true },
     zipcode: Number,
     area: String,
     acode: { type: String, index: true },

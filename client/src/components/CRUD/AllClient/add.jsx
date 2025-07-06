@@ -103,10 +103,11 @@ const Add = ({ fetchClients }) => {
   });
 
   const [addressData, setAddressData] = useState({
-    street1: "",
-    street2: "",
-    barangayMunicipality: "",
+    housestreet: "",
+    subdivision: "",
+    barangay: "",
     city: "", // Add city to addressData
+    zipcode: "", // Add zipcode to addressData
   });
 
   const [combinedAddress, setCombinedAddress] = useState("");
@@ -162,6 +163,7 @@ const Add = ({ fetchClients }) => {
 
   const [areas, setAreas] = useState(null);
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
+  const [isEditingCombinedAddress, setIsEditingCombinedAddress] = useState(false);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -284,6 +286,13 @@ const Add = ({ fetchClients }) => {
     loadTypes();
   }, []);
 
+  useEffect(() => {
+    if (!isEditingCombinedAddress) {
+      const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
+      setCombinedAddress(formattedAddress);
+    }
+  }, [addressData.housestreet, addressData.subdivision, addressData.barangay, areaData.zipcode, formData.area, isEditingCombinedAddress]);
+
   const openModal = () => setShowModal(true);
 
   // Reset form function to clean up all form data
@@ -327,10 +336,11 @@ const Add = ({ fetchClients }) => {
 
     // Reset address data
     setAddressData({
-      street1: "",
-      street2: "",
-      barangayMunicipality: "",
-      city: "", // Add city to addressData
+      housestreet: "",
+      subdivision: "",
+      barangay: "",
+      city: "",
+      zipcode: "", // Add zipcode reset
     });
 
     // Reset combined address
@@ -452,8 +462,8 @@ const Add = ({ fetchClients }) => {
           standardizedAddress: normalizeAddress(checkData.address),
           // Break down address components for better matching
           addressComponents: {
-            street1: addressData.street1 || "",
-            street2: addressData.street2 || "",
+            housestreet: addressData.housestreet || "",
+            subdivision: addressData.subdivision || "",
             barangay: addressData.barangay || "",
             city: addressData.city || "",
             province: addressData.province || "",
@@ -770,24 +780,20 @@ const Add = ({ fetchClients }) => {
   const formatAddressLines = (addressData, area, areaData) => {
     const lines = [];
 
-    // Line 1: House/Building Number & Street Name, subdivision
-    const streetParts = [addressData.street1, addressData.street2].filter(Boolean);
-    if (streetParts.length > 0) {
-      lines.push(streetParts.join(", "));
-    }
-
-    // Line 2: Barangay
-    if (addressData.barangayMunicipality) {
-      lines.push(addressData.barangayMunicipality);
-    }
-
-    // Line 3: Postal code and area (city)
-    const postalParts = [areaData.zipcode, area].filter(Boolean);
-    if (postalParts.length > 0) {
-      lines.push(postalParts.join(" "));
-    }
-
-    return lines.filter(Boolean).join("\n");
+    // Line 1: House/Building Number and Street name
+    if (addressData.housestreet) lines.push(addressData.housestreet.trim());
+    
+    // Line 2: Subdivision/Compound Name
+    if (addressData.subdivision) lines.push(addressData.subdivision.trim());
+    
+    // Line 3: Barangay
+    if (addressData.barangay) lines.push(addressData.barangay.trim());
+    
+    // Line 4: Zipcode and City (no comma for last line)
+    const lastLine = [areaData.zipcode, area].filter(Boolean).join(" ").trim();
+    if (lastLine) lines.push(lastLine);
+    
+    return lines.join("\n");
   };
 
   // Modify handleAddressChange to properly handle duplicate checking
@@ -797,25 +803,30 @@ const Add = ({ fetchClients }) => {
     }
     setIsCheckingDuplicates(true);
 
-    // Load areas data if not already loaded
-    if (!areas && !isLoadingAreas) {
-      loadAreas();
+    // Remove any existing comma if this is a street or barangay field
+    // But preserve spaces and only trim the comma at the end
+    let cleanedValue = value;
+    if (['housestreet', 'subdivision', 'barangay'].includes(type)) {
+      cleanedValue = value.replace(/,\s*$/, '');
     }
 
     setAddressData((prev) => {
       const newAddressData = {
         ...prev,
-        [type]: value,
+        [type]: cleanedValue,
       };
       
-      // Format address and update state
+      // Format address with commas
       const formattedAddress = formatAddressLines(newAddressData, formData.area, areaData);
       setCombinedAddress(formattedAddress);
       
       // Update formData with new address
       setFormData(prev => ({
         ...prev,
-        address: formattedAddress
+        address: formattedAddress,
+        housestreet: newAddressData.housestreet,
+        subdivision: newAddressData.subdivision,
+        barangay: newAddressData.barangay
       }));
 
       // Check for duplicates with a delay to allow state updates
@@ -855,7 +866,6 @@ const Add = ({ fetchClients }) => {
 
   // Modify handleAreaFormChange to properly handle duplicate checking
   const handleAreaFormChange = (field, value) => {
-    // Load areas data if not already loaded
     if (!areas && !isLoadingAreas) {
       loadAreas();
     }
@@ -971,6 +981,19 @@ const Add = ({ fetchClients }) => {
         }
       }
 
+      // If zipcode changes, update addressData
+      if (field === 'zipcode') {
+        setAddressData(prev => ({
+          ...prev,
+          zipcode: value
+        }));
+        
+        setFormData(prev => ({
+          ...prev,
+          zipcode: value ? parseInt(value) : '' // Convert to number for schema
+        }));
+      }
+
       return newAreaData;
     });
   };
@@ -1048,8 +1071,52 @@ const Add = ({ fetchClients }) => {
     setShowConfirmation(true);
   };
 
+  // Add this helper function before handleConfirmedSubmit
+  const removeEmptyFields = (obj) => {
+    const cleanObj = {};
+    Object.entries(obj).forEach(([key, value]) => {
+      // Remove undefined, null, empty string, or string with only whitespace
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' && value.trim() === '')
+      ) {
+        return;
+      }
+      // Always include booleans
+      if (typeof value === 'boolean') {
+        cleanObj[key] = value;
+        return;
+      }
+      // For numbers, include if not 0, or if key is 'copies' (allow 0 for copies)
+      if (typeof value === 'number') {
+        if (value !== 0 || key === 'copies') {
+          cleanObj[key] = value;
+        }
+        return;
+      }
+      // For arrays, include if not empty
+      if (Array.isArray(value)) {
+        if (value.length > 0) {
+          cleanObj[key] = value;
+        }
+        return;
+      }
+      // For objects, include if not empty
+      if (typeof value === 'object') {
+        if (Object.keys(value).length > 0) {
+          cleanObj[key] = value;
+        }
+        return;
+      }
+      // For all other types (non-empty strings, etc.)
+      cleanObj[key] = value;
+    });
+    return cleanObj;
+  };
+
   const handleConfirmedSubmit = async () => {
-    // Ensure birth date is properly formatted before submission
+    // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
         return `${formData.bdateMonth}/${formData.bdateDay}/${formData.bdateYear}`;
@@ -1066,52 +1133,66 @@ const Add = ({ fetchClients }) => {
       });
     };
 
-    const clientData = {
+    // Prepare base client data with non-empty fields
+    const baseClientData = {
       ...formData,
       bdate: formatBdate(),
+      address: combinedAddress, // Use the formatted address with line breaks
       ...areaData,
     };
 
-    // Prepare role data submissions
+    // Clean the client data by removing empty fields
+    const clientData = removeEmptyFields(baseClientData);
+
+    // Prepare role submissions
     const roleSubmissions = [];
 
-    // Check and prepare WMM data if user has WMM role
+    // Only submit WMM data if user has WMM role
     if (hasRole("WMM")) {
-      roleSubmissions.push({
-        roleType: "WMM",
-        roleData: {
-          ...roleSpecificData,
-          subscriptionFreq: formData.subscriptionFreq,
-          subscriptionStart: formData.subscriptionStart,
-          subscriptionEnd: formData.subscriptionEnd,
-          subsclass: formData.subsclass,
-          calendar: roleSpecificData.calendar || false
-        }
+      const wmmData = removeEmptyFields({
+        ...roleSpecificData,
+        subscriptionFreq: formData.subscriptionFreq,
+        subscriptionStart: formData.subscriptionStart,
+        subscriptionEnd: formData.subscriptionEnd,
+        subsclass: formData.subsclass,
+        calendar: roleSpecificData.calendar || false
       });
+      if (Object.keys(wmmData).length > 0) {
+        roleSubmissions.push({
+          roleType: "WMM",
+          roleData: wmmData
+        });
+      }
     }
-
-    // Check and prepare HRG data if it exists
-    if (Object.values(hrgData).some(value => value !== "" && value !== false)) {
-      roleSubmissions.push({
-        roleType: "HRG",
-        roleData: hrgData
-      });
+    // Only submit HRG data if user has HRG role
+    if (hasRole("HRG")) {
+      const cleanHrgData = removeEmptyFields(hrgData);
+      if (Object.keys(cleanHrgData).length > 0) {
+        roleSubmissions.push({
+          roleType: "HRG",
+          roleData: cleanHrgData
+        });
+      }
     }
-
-    // Check and prepare FOM data if it exists
-    if (Object.values(fomData).some(value => value !== "" && value !== false)) {
-      roleSubmissions.push({
-        roleType: "FOM",
-        roleData: fomData
-      });
+    // Only submit FOM data if user has FOM role
+    if (hasRole("FOM")) {
+      const cleanFomData = removeEmptyFields(fomData);
+      if (Object.keys(cleanFomData).length > 0) {
+        roleSubmissions.push({
+          roleType: "FOM",
+          roleData: cleanFomData
+        });
+      }
     }
-
-    // Check and prepare CAL data if it exists
-    if (Object.values(calData).some(value => value !== "" && value !== false)) {
-      roleSubmissions.push({
-        roleType: "CAL",
-        roleData: calData
-      });
+    // Only submit CAL data if user has CAL role
+    if (hasRole("CAL")) {
+      const cleanCalData = removeEmptyFields(calData);
+      if (Object.keys(cleanCalData).length > 0) {
+        roleSubmissions.push({
+          roleType: "CAL",
+          roleData: cleanCalData
+        });
+      }
     }
 
     const submissionData = {
@@ -1119,8 +1200,6 @@ const Add = ({ fetchClients }) => {
       roleSubmissions,
       adddate: formatDate(new Date()),
     };
-
-    console.log("submissionData: ", submissionData);
 
     try {
       const response = await axios.post(
@@ -1848,6 +1927,106 @@ const Add = ({ fetchClients }) => {
     }
   }, [areas, isLoadingAreas]);
 
+  const memoizedOnAreaChange = useCallback((field, value) => {
+    setAreaData(prev => ({ ...prev, [field]: value }));
+    if (field === "city") {
+      setFormData(prev => ({ ...prev, area: value }));
+      setAddressData(prev => ({ ...prev, city: value }));
+    }
+    if (field === "zipcode") {
+      setFormData(prev => ({ ...prev, zipcode: value }));
+    }
+    if (field === "acode") {
+      setFormData(prev => ({ ...prev, acode: value }));
+    }
+  }, [setAreaData, setFormData, setAddressData]);
+
+  // After all state declarations, before return:
+  const initialAreaData = {
+    acode: formData.acode || areaData.acode || "",
+    zipcode: formData.zipcode || areaData.zipcode || "",
+    city: formData.area || areaData.city || addressData.city || ""
+  };
+
+  useEffect(() => {
+    if (!areas && !isLoadingAreas) {
+      setIsLoadingAreas(true);
+      fetchAreas().then((areasData) => {
+        setAreas(areasData);
+        setIsLoadingAreas(false);
+      }).catch(() => setIsLoadingAreas(false));
+    }
+  }, [areas, isLoadingAreas]);
+
+  // Add handleCombinedAddressChange
+  const handleCombinedAddressChange = (e) => {
+    setIsEditingCombinedAddress(true);
+    const value = e.target.value;
+    setCombinedAddress(value);
+
+    // Parse the combined address back into individual fields
+    const lines = value.split('\n').map(line => line.trim().replace(/,\s*$/, '')).filter(line => line);
+    
+    // Update individual address fields
+    setAddressData(prev => {
+      const lastLine = lines[lines.length - 1] || '';
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+
+      return {
+        housestreet: lines[0] || '',
+        subdivision: lines[1] || '',
+        barangay: lines[2] || '',
+        city: prev.city, // Preserve city from area data
+        zipcode: zipcode // Add zipcode
+      };
+    });
+
+    // Update formData with both combined and individual fields
+    setFormData(prev => {
+      const lastLine = lines[lines.length - 1] || '';
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+      const city = lastLine.replace(zipcode, '').trim();
+
+      return {
+        ...prev,
+        address: value,
+        housestreet: lines[0] || '',
+        subdivision: lines[1] || '',
+        barangay: lines[2] || '',
+        zipcode: zipcode ? parseInt(zipcode) : '', // Convert to number for schema
+        area: city
+      };
+    });
+
+    // Extract zipcode and city from the last line if it exists
+    if (lines.length > 0) {
+      const lastLine = lines[lines.length - 1];
+      const zipMatch = lastLine.match(/^\d+/);
+      const zipcode = zipMatch ? zipMatch[0] : '';
+      const city = lastLine.replace(zipcode, '').trim();
+
+      setAreaData(prev => ({
+        ...prev,
+        zipcode,
+        city
+      }));
+    }
+  };
+
+  // Add focus and blur handlers
+  const handleCombinedAddressFocus = () => {
+    setIsEditingCombinedAddress(true);
+  };
+
+  const handleCombinedAddressBlur = () => {
+    setIsEditingCombinedAddress(false);
+    // Format the address properly when blurring
+    const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
+    setCombinedAddress(formattedAddress);
+  };
+
   return (
     <div className="relative">
       <Button
@@ -2121,11 +2300,11 @@ const Add = ({ fetchClients }) => {
                       <div className="space-y-3">
                         <InputField
                           label="House/Building Number & Street Name:"
-                          id="street1"
-                          name="street1"
-                          value={addressData.street1}
+                          id="housestreet"
+                          name="housestreet"
+                          value={addressData.housestreet}
                           onChange={(e) =>
-                            handleAddressChange("street1", e.target.value)
+                            handleAddressChange("housestreet", e.target.value)
                           }
                           uppercase={true}
                           className="text-base"
@@ -2133,11 +2312,11 @@ const Add = ({ fetchClients }) => {
                         />
                         <InputField
                           label="Subdivision/Compound Name:"
-                          id="street2"
-                          name="street2"
-                          value={addressData.street2}
+                          id="subdivision"
+                          name="subdivision"
+                          value={addressData.subdivision}
                           onChange={(e) =>
-                            handleAddressChange("street2", e.target.value)
+                            handleAddressChange("subdivision", e.target.value)
                           }
                           uppercase={true}
                           className="text-base"
@@ -2145,20 +2324,23 @@ const Add = ({ fetchClients }) => {
                         />
                         <InputField
                           label="Barangay:"
-                          id="barangayMunicipality"
-                          name="barangayMunicipality"
-                          value={addressData.barangayMunicipality}
+                          id="barangay"
+                          name="barangay"
+                          value={addressData.barangay}
                           onChange={(e) =>
-                            handleAddressChange("barangayMunicipality", e.target.value)
+                            handleAddressChange("barangay", e.target.value)
                           }
                           uppercase={true}
                           className="text-base"
                           autoComplete="off"
                         />
-                        <AreaForm 
-                          onAreaChange={handleAreaFormChange} 
-                          areas={areas} 
-                        />
+                        {areas && (
+                          <AreaForm
+                            onAreaChange={memoizedOnAreaChange}
+                            initialAreaData={initialAreaData}
+                            areas={areas}
+                          />
+                        )}
                         <div className="mt-4">
                           <InputField
                             label="Address Preview:"
@@ -2166,13 +2348,9 @@ const Add = ({ fetchClients }) => {
                             name="combinedAddress"
                             value={combinedAddress}
                             type="textarea"
-                            onChange={(e) => {
-                              const value = e.target.value.toUpperCase();
-                              clearTimeout(window.addressPreviewTimeout);
-                              window.addressPreviewTimeout = setTimeout(() => {
-                                setCombinedAddress(value);
-                              }, 100);
-                            }}
+                            onChange={handleCombinedAddressChange}
+                            onFocus={handleCombinedAddressFocus}
+                            onBlur={handleCombinedAddressBlur}
                             className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
                           />
                         </div>
