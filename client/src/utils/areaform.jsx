@@ -355,6 +355,21 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (initialAreaData) {
+      if (initialAreaData.acode !== undefined && initialAreaData.acode !== acode) {
+        setAcode(initialAreaData.acode);
+      }
+      if (initialAreaData.zipcode !== undefined && String(initialAreaData.zipcode) !== zipcode) {
+        setZipcode(String(initialAreaData.zipcode));
+      }
+      if (initialAreaData.city !== undefined && initialAreaData.city !== city) {
+        setCity(initialAreaData.city);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAreaData]);
+
   return (
     <div className="flex flex-col gap-3 text-lg">
       <div className="city-search-container relative">
