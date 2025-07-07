@@ -234,6 +234,8 @@ const CsvExport = ({
       headers.push("Area Code");
     if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate)
       headers.push("Expiry Date");
+    if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate)
+      headers.push("Subscription Date");
 
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
@@ -283,6 +285,17 @@ const CsvExport = ({
             }
           }
           rowData.push(`"${enddate}"`);
+        }
+
+        if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate) {
+          let subsdate = "";
+          if (subscription.subsdate) {
+            const date = new Date(subscription.subsdate);
+            if (!isNaN(date.getTime())) {
+              subsdate = date.toLocaleDateString();
+            }
+          }
+          rowData.push(`"${subsdate}"`);
         }
 
         if (rowData.length === headers.length) {
