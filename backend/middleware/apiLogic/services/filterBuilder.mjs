@@ -548,6 +548,47 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       baseFilter.push({ id: -1 }); // No matches on error
     }
   }
+
+  // Handle WMM Calendar Status Filter
+  if (advancedFilterData.calendarReceived || advancedFilterData.calendarNotReceived) {
+    try {
+      const WmmModel = await getModelInstance('WmmModel');
+      let calendarQuery = {};
+
+      // Build query based on selected options
+      if (advancedFilterData.calendarReceived && !advancedFilterData.calendarNotReceived) {
+        calendarQuery = { calendar: true };
+      } else if (advancedFilterData.calendarNotReceived && !advancedFilterData.calendarReceived) {
+        calendarQuery = { 
+          $or: [
+            { calendar: false },
+            { calendar: { $exists: false } },
+            { calendar: null }
+          ]
+        };
+      } else if (advancedFilterData.calendarReceived && advancedFilterData.calendarNotReceived) {
+        // If both are selected, no need to filter by calendar status
+        return;
+      }
+
+      // Only proceed if we have a valid query
+      if (Object.keys(calendarQuery).length > 0) {
+        const clientsWithCalendarStatus = await WmmModel.find(calendarQuery).distinct('clientid');
+        const validClientIds = clientsWithCalendarStatus
+          .map(id => parseInt(id))
+          .filter(id => !isNaN(id));
+
+        if (validClientIds.length > 0) {
+          baseFilter.push({ id: { $in: validClientIds } });
+        } else {
+          baseFilter.push({ id: -1 });
+        }
+      }
+    } catch (error) {
+      console.error('Error in calendar status filtering:', error);
+      baseFilter.push({ id: -1 });
+    }
+  }
 }
 
 function addPersonalInfoFilters(baseFilter, advancedFilterData) {
@@ -886,6 +927,306 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
     } catch (error) {
       console.error("Error in WMM expiring subscription filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle CAL Order Received Date Filter
+  if (advancedFilterData.calReceivedFromDate || advancedFilterData.calReceivedToDate) {
+    try {
+      const CalModel = await getModelInstance('CalModel');
+      const startDate = advancedFilterData.calReceivedFromDate ? parseDate(advancedFilterData.calReceivedFromDate) : null;
+      const endDate = advancedFilterData.calReceivedToDate ? parseDate(advancedFilterData.calReceivedToDate) : null;
+
+      // Set end date to end of day for inclusive comparison
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const pipeline = [
+        {
+          $match: {
+            recvdate: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $addFields: {
+            recvDateObj: {
+              $dateFromString: {
+                dateString: "$recvdate",
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            recvDateObj: {
+              ...(startDate && { $gte: startDate }),
+              ...(endDate && { $lte: endDate })
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      const receivedClients = await CalModel.aggregate(pipeline);
+      const validClientIds = receivedClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in CAL order received date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle CAL Payment Date Filter
+  if (advancedFilterData.calPaymentFromDate || advancedFilterData.calPaymentToDate) {
+    try {
+      const CalModel = await getModelInstance('CalModel');
+      const startDate = advancedFilterData.calPaymentFromDate ? parseDate(advancedFilterData.calPaymentFromDate) : null;
+      const endDate = advancedFilterData.calPaymentToDate ? parseDate(advancedFilterData.calPaymentToDate) : null;
+
+      // Set end date to end of day for inclusive comparison
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const pipeline = [
+        {
+          $match: {
+            paymtdate: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $addFields: {
+            paymtDateObj: {
+              $dateFromString: {
+                dateString: "$paymtdate",
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            paymtDateObj: {
+              ...(startDate && { $gte: startDate }),
+              ...(endDate && { $lte: endDate })
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      const paidClients = await CalModel.aggregate(pipeline);
+      const validClientIds = paidClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in CAL payment date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle HRG Payment Transaction Date Filter
+  if (advancedFilterData.hrgPaymentFromDate || advancedFilterData.hrgPaymentToDate) {
+    try {
+      const HrgModel = await getModelInstance('HrgModel');
+      const startDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : null;
+      const endDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : null;
+
+      // Set end date to end of day for inclusive comparison
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const pipeline = [
+        {
+          $match: {
+            recvdate: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $addFields: {
+            recvDateObj: {
+              $dateFromString: {
+                dateString: "$recvdate",
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            recvDateObj: {
+              ...(startDate && { $gte: startDate }),
+              ...(endDate && { $lte: endDate })
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      const paidClients = await HrgModel.aggregate(pipeline);
+      const validClientIds = paidClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in HRG payment date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle HRG Campaign Date Filter
+  if (advancedFilterData.hrgCampaignFromDate || advancedFilterData.hrgCampaignToDate) {
+    try {
+      const HrgModel = await getModelInstance('HrgModel');
+      const startDate = advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
+      const endDate = advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+
+      // Set end date to end of day for inclusive comparison
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const pipeline = [
+        {
+          $match: {
+            campaigndate: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $addFields: {
+            campaignDateObj: {
+              $dateFromString: {
+                dateString: "$campaigndate",
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            campaignDateObj: {
+              ...(startDate && { $gte: startDate }),
+              ...(endDate && { $lte: endDate })
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      const campaignClients = await HrgModel.aggregate(pipeline);
+      const validClientIds = campaignClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in HRG campaign date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle FOM Payment Transaction Date Filter
+  if (advancedFilterData.fomPaymentFromDate || advancedFilterData.fomPaymentToDate) {
+    try {
+      const FomModel = await getModelInstance('FomModel');
+      const startDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
+      const endDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+
+      // Set end date to end of day for inclusive comparison
+      if (endDate) {
+        endDate.setHours(23, 59, 59, 999);
+      }
+
+      const pipeline = [
+        {
+          $match: {
+            recvdate: { $exists: true, $ne: null }
+          }
+        },
+        {
+          $addFields: {
+            recvDateObj: {
+              $dateFromString: {
+                dateString: "$recvdate",
+                format: "%Y-%m-%d",
+                timezone: "UTC",
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            recvDateObj: {
+              ...(startDate && { $gte: startDate }),
+              ...(endDate && { $lte: endDate })
+            }
+          }
+        },
+        {
+          $group: {
+            _id: "$clientid"
+          }
+        }
+      ];
+
+      const paidClients = await FomModel.aggregate(pipeline);
+      const validClientIds = paidClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in FOM payment date filtering:", error);
       baseFilter.push({ id: -1 });
     }
   }

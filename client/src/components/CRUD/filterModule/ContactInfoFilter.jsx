@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import InputField from "../input";
 
-const ContactInfoFilter = ({ filterData, handleChange }) => {
+const ContactInfoFilter = ({ filterData, handleChange, hasRole }) => {
   // Memoize the input fields to prevent unnecessary re-renders
   const inputFields = useMemo(() => (
     <div className="space-y-2">
@@ -66,6 +66,35 @@ const ContactInfoFilter = ({ filterData, handleChange }) => {
           onChange={handleChange}
         />
       </div>
+
+      {/* Calendar Filter Section - Only show for WMM role */}
+      {hasRole && hasRole("WMM") && (
+        <div className="mt-4 p-4">
+          <h3 className="text-lg font-medium text-gray-900 mb-3">Calendar Status:</h3>
+          <div className="flex gap-4 text-base font-medium">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="calendarReceived"
+                checked={filterData.calendarReceived || false}
+                onChange={handleChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Calendar Received</span>
+            </label>
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                name="calendarNotReceived"
+                checked={filterData.calendarNotReceived || false}
+                onChange={handleChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Calendar Not Received</span>
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   ), [
     filterData.email,
@@ -73,7 +102,10 @@ const ContactInfoFilter = ({ filterData, handleChange }) => {
     filterData.ofcno,
     filterData.contactnos,
     filterData.address,
-    handleChange
+    filterData.calendarReceived,
+    filterData.calendarNotReceived,
+    handleChange,
+    hasRole
   ]);
 
   return (

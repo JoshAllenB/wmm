@@ -158,6 +158,46 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     excludeSPackClients: false,
     userId: "",
     subscriptionStatus: "all",
+    dateRangeName: "",
+    // CAL Order Received Date components
+    calReceivedFromMonth: "",
+    calReceivedFromDay: "",
+    calReceivedFromYear: "",
+    calReceivedToMonth: "",
+    calReceivedToDay: "",
+    calReceivedToYear: "",
+    // CAL Payment Date components
+    calPaymentFromMonth: "",
+    calPaymentFromDay: "",
+    calPaymentFromYear: "",
+    calPaymentToMonth: "",
+    calPaymentToDay: "",
+    calPaymentToYear: "",
+    // HRG Payment Transaction Date components
+    hrgPaymentFromMonth: "",
+    hrgPaymentFromDay: "",
+    hrgPaymentFromYear: "",
+    hrgPaymentToMonth: "",
+    hrgPaymentToDay: "",
+    hrgPaymentToYear: "",
+    // HRG Campaign Date components
+    hrgCampaignFromMonth: "",
+    hrgCampaignFromDay: "",
+    hrgCampaignFromYear: "",
+    hrgCampaignToMonth: "",
+    hrgCampaignToDay: "",
+    hrgCampaignToYear: "",
+    // Selected role for date filters
+    selectedDateFilterRole: "",
+    // FOM Payment Transaction Date components
+    fomPaymentFromMonth: "",
+    fomPaymentFromDay: "",
+    fomPaymentFromYear: "",
+    fomPaymentToMonth: "",
+    fomPaymentToDay: "",
+    fomPaymentToYear: "",
+    calendarReceived: false,
+    calendarNotReceived: false,
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -239,6 +279,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     const currentDay = today.getDate().toString();
     const currentYear = today.getFullYear().toString();
 
+    // Set initial role if user has only one of HRG, CAL, or FOM
+    let initialRole = "";
+    const roles = ["HRG", "CAL", "FOM"];
+    const userRoles = roles.filter(role => hasRole(role));
+    if (userRoles.length === 1) {
+      initialRole = userRoles[0];
+    }
+
     setFilterData({
       lname: "",
       fname: "",
@@ -288,11 +336,60 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       excludeSPackClients: false,
       userId: "",
       subscriptionStatus: "all",
+      dateRangeName: "",
+      // CAL Order Received Date components
+      calReceivedFromMonth: "",
+      calReceivedFromDay: "",
+      calReceivedFromYear: "",
+      calReceivedToMonth: "",
+      calReceivedToDay: "",
+      calReceivedToYear: "",
+      // CAL Payment Date components
+      calPaymentFromMonth: "",
+      calPaymentFromDay: "",
+      calPaymentFromYear: "",
+      calPaymentToMonth: "",
+      calPaymentToDay: "",
+      calPaymentToYear: "",
+      // HRG Payment Transaction Date components
+      hrgPaymentFromMonth: "",
+      hrgPaymentFromDay: "",
+      hrgPaymentFromYear: "",
+      hrgPaymentToMonth: "",
+      hrgPaymentToDay: "",
+      hrgPaymentToYear: "",
+      // HRG Campaign Date components
+      hrgCampaignFromMonth: "",
+      hrgCampaignFromDay: "",
+      hrgCampaignFromYear: "",
+      hrgCampaignToMonth: "",
+      hrgCampaignToDay: "",
+      hrgCampaignToYear: "",
+      // Selected role for date filters - set to user's only role if they have just one
+      selectedDateFilterRole: initialRole,
+      // FOM Payment Transaction Date components
+      fomPaymentFromMonth: "",
+      fomPaymentFromDay: "",
+      fomPaymentFromYear: "",
+      fomPaymentToMonth: "",
+      fomPaymentToDay: "",
+      fomPaymentToYear: "",
+      calendarReceived: false,
+      calendarNotReceived: false,
     });
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+
+    // Handle checkbox inputs
+    if (type === 'checkbox') {
+      setFilterData(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+      return;
+    }
 
     // Handle date components separately
     const dateComponentFields = [
@@ -507,7 +604,67 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       // Service matching options
       exactServiceMatch: true,
       serviceMatchExcludeWMM: true,
-      exactAreaMatch: true
+      exactAreaMatch: true,
+
+      // New date fields
+      dateRangeName: filterData.dateRangeName,
+      calReceivedFromDate: formatDateComponentsToISO(
+        filterData.calReceivedFromMonth,
+        filterData.calReceivedFromDay,
+        filterData.calReceivedFromYear
+      ),
+      calReceivedToDate: formatDateComponentsToISO(
+        filterData.calReceivedToMonth,
+        filterData.calReceivedToDay,
+        filterData.calReceivedToYear
+      ),
+      calPaymentFromDate: formatDateComponentsToISO(
+        filterData.calPaymentFromMonth,
+        filterData.calPaymentFromDay,
+        filterData.calPaymentFromYear
+      ),
+      calPaymentToDate: formatDateComponentsToISO(
+        filterData.calPaymentToMonth,
+        filterData.calPaymentToDay,
+        filterData.calPaymentToYear
+      ),
+      // HRG Payment Transaction Date
+      hrgPaymentFromDate: formatDateComponentsToISO(
+        filterData.hrgPaymentFromMonth,
+        filterData.hrgPaymentFromDay,
+        filterData.hrgPaymentFromYear
+      ),
+      hrgPaymentToDate: formatDateComponentsToISO(
+        filterData.hrgPaymentToMonth,
+        filterData.hrgPaymentToDay,
+        filterData.hrgPaymentToYear
+      ),
+      // HRG Campaign Date
+      hrgCampaignFromDate: formatDateComponentsToISO(
+        filterData.hrgCampaignFromMonth,
+        filterData.hrgCampaignFromDay,
+        filterData.hrgCampaignFromYear
+      ),
+      hrgCampaignToDate: formatDateComponentsToISO(
+        filterData.hrgCampaignToMonth,
+        filterData.hrgCampaignToDay,
+        filterData.hrgCampaignToYear
+      ),
+      // FOM Payment Transaction Date
+      fomPaymentFromDate: formatDateComponentsToISO(
+        filterData.fomPaymentFromMonth,
+        filterData.fomPaymentFromDay,
+        filterData.fomPaymentFromYear
+      ),
+      fomPaymentToDate: formatDateComponentsToISO(
+        filterData.fomPaymentToMonth,
+        filterData.fomPaymentToDay,
+        filterData.fomPaymentToYear
+      ),
+
+      // Calendar status
+      ...(filterData.calendarReceived && { calendarReceived: true }),
+      ...(filterData.calendarNotReceived && { calendarNotReceived: true }),
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
@@ -1324,6 +1481,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
               <ContactInfoFilter
                 filterData={filterData}
                 handleChange={handleChange}
+                hasRole={hasRole}
               />
 
               <DateRangeFilter
@@ -1331,6 +1489,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 handleChange={handleChange}
                 months={months}
                 hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
+                hasRole={hasRole}
               />
 
               <CategoryFilter
