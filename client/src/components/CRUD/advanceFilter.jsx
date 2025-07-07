@@ -392,85 +392,57 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Process services for exact matching (always use exact matching now)
     const processExactServices = (services) => {
-      if (!services || !services.length) return services || [];
-
-      // Make sure we're working with an array
-      let serviceArray = services;
-      if (!Array.isArray(serviceArray)) {
-        serviceArray =
-          typeof serviceArray === "string"
-            ? serviceArray.split(",").map((s) => s.trim())
-            : [];
-      }
-
-      // Ensure service names are properly cased
-      serviceArray = serviceArray.map((service) => {
-        // Normalize service names to uppercase
-        const normalizedService = String(service).toUpperCase();
-        // Make sure it's one of our valid service types
-        if (["WMM", "HRG", "FOM", "CAL"].includes(normalizedService)) {
-          return normalizedService;
-        }
-        // If not valid, return original
-        return service;
-      });
-      console.log('Processed services:', serviceArray);
-
-      // When using exact match, we're looking for clients with ONLY these services
-      // WMM is ignored in this comparison (it can be present or not)
-      const coreServices = serviceArray.filter((service) => service !== "WMM");
-      console.log('Core services:', coreServices);
-
-      return coreServices;
+      if (!services || !services.length) return [];
+      return services.filter(service => service !== "WMM");
     };
 
-    // Get the date ranges from components
-    const activeFromDate = formatDateComponentsToISO(
-      filterData.wmmActiveFromMonth,
-      filterData.wmmActiveFromDay,
-      filterData.wmmActiveFromYear
-    );
-
-    const activeToDate = formatDateComponentsToISO(
-      filterData.wmmActiveToMonth,
-      filterData.wmmActiveToDay,
-      filterData.wmmActiveToYear
-    );
-
-    const expiringFromDate = formatDateComponentsToISO(
-      filterData.wmmExpiringFromMonth,
-      filterData.wmmExpiringFromDay,
-      filterData.wmmExpiringFromYear
-    );
-
-    const expiringToDate = formatDateComponentsToISO(
-      filterData.wmmExpiringToMonth,
-      filterData.wmmExpiringToDay,
-      filterData.wmmExpiringToYear
-    );
-
-    // Process client IDs for inclusion/exclusion
     const processClientIds = (idsString) => {
-      if (!idsString.trim()) return [];
-
-      // Split by commas, newlines, or spaces and filter out empty entries
-      return idsString
-        .split(/[\s,]+/)
-        .map((id) => id.trim())
-        .filter((id) => id !== "" && !isNaN(parseInt(id)))
-        .map((id) => parseInt(id));
+      if (!idsString || !idsString.trim()) return [];
+      return idsString.split(",").map(id => id.trim()).filter(Boolean);
     };
 
-    // Trim text fields and format data
-    const formattedData = {
-      ...filterData,
-      fname: filterData.fname.trim(),
-      lname: filterData.lname.trim(),
-      mname: filterData.mname.trim(),
-      sname: filterData.sname.trim(),
-      // Format start/end dates for general date range
+    // Helper function to only include non-empty values
+    const cleanObject = (obj) => {
+      const result = {};
+      for (const key in obj) {
+        // Skip empty strings, empty arrays, and false booleans
+        if (
+          (typeof obj[key] === 'string' && obj[key] !== '') ||
+          (Array.isArray(obj[key]) && obj[key].length > 0) ||
+          (typeof obj[key] === 'boolean' && obj[key]) ||
+          (typeof obj[key] === 'number') ||
+          (obj[key] !== null && obj[key] !== undefined && typeof obj[key] !== 'string' && !Array.isArray(obj[key]))
+        ) {
+          result[key] = obj[key];
+        }
+      }
+      return result;
+    };
+
+    // Process the filter data
+    const processedFilterData = cleanObject({
+      // Personal info
+      ...(filterData.lname && { lname: filterData.lname }),
+      ...(filterData.fname && { fname: filterData.fname }),
+      ...(filterData.mname && { mname: filterData.mname }),
+      ...(filterData.sname && { sname: filterData.sname }),
+      ...(filterData.birthdate && { birthdate: filterData.birthdate }),
+
+      // Contact info
+      ...(filterData.email && { email: filterData.email }),
+      ...(filterData.cellno && { cellno: filterData.cellno }),
+      ...(filterData.ofcno && { ofcno: filterData.ofcno }),
+      ...(filterData.contactnos && { contactnos: filterData.contactnos }),
+      ...(filterData.address && { address: filterData.address }),
+
+      // Category filters
+      ...(filterData.group && { group: filterData.group }),
+      ...(filterData.type && { type: filterData.type }),
+      ...(filterData.subsclass && { subsclass: filterData.subsclass }),
+      ...(filterData.acode && { acode: filterData.acode }),
+
+      // Dates
       startDate: formatDateComponentsToISO(
         filterData.startDateMonth,
         filterData.startDateDay,
@@ -481,30 +453,74 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
         filterData.endDateDay,
         filterData.endDateYear
       ),
-      // Subscription dates - Active From/To
-      wmmActiveFromDate: activeFromDate,
-      wmmActiveToDate: activeToDate,
-      // Subscription dates - Expiring From/To
-      wmmExpiringFromDate: expiringFromDate,
-      wmmExpiringToDate: expiringToDate,
-      includeClientIds: processClientIds(filterData.clientIncludeIds),
-      excludeClientIds: processClientIds(filterData.clientExcludeIds),
-      exactServiceMatch: true, // Always use exact service matching
-      serviceMatchExcludeWMM: true, // Always ignore WMM in exact service matching
-      // Process services for exact matching (always exact now)
-      services: filterData.services, // Send the raw services array
-      exactServices: processExactServices(filterData.services), // Send processed services for exact matching
-      excludeSPackClients: filterData.excludeSPackClients,
-      userId: filterData.userId || "", // Include userId in formatted data
-      subscriptionStatus: filterData.subscriptionStatus || "all", // Include subscription status
-      exactAreaMatch: true, // Always use exact area matching
-    };
+      wmmActiveFromDate: formatDateComponentsToISO(
+        filterData.wmmActiveFromMonth,
+        filterData.wmmActiveFromDay,
+        filterData.wmmActiveFromYear
+      ),
+      wmmActiveToDate: formatDateComponentsToISO(
+        filterData.wmmActiveToMonth,
+        filterData.wmmActiveToDay,
+        filterData.wmmActiveToYear
+      ),
+      wmmExpiringFromDate: formatDateComponentsToISO(
+        filterData.wmmExpiringFromMonth,
+        filterData.wmmExpiringFromDay,
+        filterData.wmmExpiringFromYear
+      ),
+      wmmExpiringToDate: formatDateComponentsToISO(
+        filterData.wmmExpiringToMonth,
+        filterData.wmmExpiringToDay,
+        filterData.wmmExpiringToYear
+      ),
 
-    // Apply the filter with the formatted data
-    onApplyFilter(formattedData);
+      // Copies
+      ...(filterData.copiesRange && { 
+        copiesRange: filterData.copiesRange,
+        ...(filterData.copiesRange === 'custom' && {
+          minCopies: filterData.minCopies || undefined,
+          maxCopies: filterData.maxCopies || undefined
+        })
+      }),
 
-    // Just close the modal - data will be reset when reopened
-    setShowModal(false);
+      // Areas and services
+      ...(filterData.areas?.length > 0 && { areas: filterData.areas }),
+      ...(filterData.services?.length > 0 && { services: filterData.services }),
+
+      // Client IDs
+      ...(filterData.clientIdFilterType === 'include' && filterData.clientIncludeIds && {
+        clientIdFilterType: 'include',
+        includeClientIds: processClientIds(filterData.clientIncludeIds)
+      }),
+      ...(filterData.clientIdFilterType === 'exclude' && filterData.clientExcludeIds && {
+        clientIdFilterType: 'exclude',
+        excludeClientIds: processClientIds(filterData.clientExcludeIds)
+      }),
+
+      // Other flags
+      ...(filterData.excludeSPackClients && { excludeSPackClients: true }),
+      ...(filterData.userId && { userId: filterData.userId }),
+      ...(filterData.subscriptionStatus !== 'all' && { 
+        subscriptionStatus: filterData.subscriptionStatus 
+      }),
+
+      // Service matching options
+      exactServiceMatch: true,
+      serviceMatchExcludeWMM: true,
+      exactAreaMatch: true
+    });
+
+    // Clean the object to remove any undefined or empty values that might have slipped through
+    const finalFilterData = cleanObject(processedFilterData);
+
+    // Log the filter data being submitted
+    console.log("\n=== Advanced Filter Submission ===");
+    console.log("Timestamp:", new Date().toISOString());
+    console.log("Filter Data:", JSON.stringify(finalFilterData, null, 2));
+    
+    // Apply the filter
+    onApplyFilter(finalFilterData);
+    closeModal();
   };
 
   const clearAllFilters = () => {
@@ -1350,7 +1366,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                 hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
                 user={user}
               />
-                      </div>
+            </div>
 
             {/* Keep existing Active Filters Section */}
             {getActiveFilters().length > 0 && (
