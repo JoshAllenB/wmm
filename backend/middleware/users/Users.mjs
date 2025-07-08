@@ -89,7 +89,7 @@ router.put("/update/:id", verifyToken, checkRole("Admin"), async (req, res) => {
   const io = req.io;
   try {
     const { id } = req.params;
-    const { username, roles } = req.body;
+    const { username, roles, newpassword } = req.body;
 
     const user = await UserModel.findById(id);
     if (!user) {
@@ -97,18 +97,21 @@ router.put("/update/:id", verifyToken, checkRole("Admin"), async (req, res) => {
     }
 
     user.username = username;
+    if (newpassword) {
+      user.password = newpassword; // This will be hashed by the pre-save middleware
+    }
     user.roles = roles
       .map((roleData) => {
         if (!roleData || !roleData.role) {
           console.warn("Invalid role data received:", roleData);
-          return null; // or handle this case as appropriate for your application
+          return null;
         }
         return {
-          role: roleData.role, // This should be the role ID
+          role: roleData.role,
           customPermissions: roleData.customPermissions || [],
         };
       })
-      .filter(Boolean); // Remove any null entries
+      .filter(Boolean);
 
     await user.save();
 
@@ -122,7 +125,7 @@ router.put("/update/:id", verifyToken, checkRole("Admin"), async (req, res) => {
 
 // Delete user
 router.delete(
-  "/delete/id",
+  "/delete/:id",
   verifyToken,
   checkRole("Admin"),
   async (req, res) => {
