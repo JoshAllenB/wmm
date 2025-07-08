@@ -123,8 +123,6 @@ export default function DataTable({
         setTotalPages(1);
       } else if (result && (result.data || result.combinedData)) {
         const dataArray = result.data || result.combinedData || [];
-        if (dataArray.length > 0) {
-        }
         setLocalData([...dataArray]);
         setTotalPages(result.totalPages || 1);
       } else {

@@ -37,18 +37,20 @@ const AdminPanel = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("users");
-  const [dataInitialized, setDataInitialized] = useState(false);
+  const [dataInitialized, setDataInitialized] = useState({
+    users: false,
+    roles: false
+  });
   const [selectedRole, setSelectedRole] = useState(null);
   const [showEditRoleModal, setShowEditRoleModal] = useState(false);
 
   // Fetch roles data
   const fetchRolesData = useCallback(async () => {
-    if (!dataInitialized) {
+    if (!dataInitialized.roles) {
       setIsLoading(true);
       setError(null);
       try {
         const response = await userService.getRoles();
-        console.log("Raw roles response:", response);
         
         // Ensure we have an array of roles
         let rolesArray = [];
@@ -62,8 +64,8 @@ const AdminPanel = () => {
           rolesArray = [response];
         }
         
-        console.log("Processed roles array:", rolesArray);
         setRoles(rolesArray);
+        setDataInitialized(prev => ({ ...prev, roles: true }));
         return rolesArray;
       } catch (err) {
         console.error("Error fetching roles:", err);
@@ -73,15 +75,14 @@ const AdminPanel = () => {
         return [];
       } finally {
         setIsLoading(false);
-        setDataInitialized(true);
       }
     }
-    return roles; // Return current roles if already initialized
-  }, [dataInitialized, roles]);
+    return roles;
+  }, [dataInitialized.roles, roles]);
 
   // Fetch users data
   const fetchUsersData = useCallback(async () => {
-    if (!dataInitialized) {
+    if (!dataInitialized.users) {
       setIsLoading(true);
       setError(null);
       try {
@@ -102,6 +103,7 @@ const AdminPanel = () => {
           loggedOffUsers,
         });
 
+        setDataInitialized(prev => ({ ...prev, users: true }));
         return fetchedUsers;
       } catch (err) {
         console.error("Error fetching users:", err);
@@ -110,19 +112,18 @@ const AdminPanel = () => {
         return [];
       } finally {
         setIsLoading(false);
-        setDataInitialized(true);
       }
     }
-  }, [dataInitialized]);
+    return users;
+  }, [dataInitialized.users, users]);
 
   useEffect(() => {
-    setDataInitialized(false); // Reset initialization flag when tab changes
-    if (activeTab === "users") {
+    if (activeTab === "users" && !dataInitialized.users) {
       fetchUsersData();
-    } else if (activeTab === "roles") {
+    } else if (activeTab === "roles" && !dataInitialized.roles) {
       fetchRolesData();
     }
-  }, [activeTab]);
+  }, [activeTab, fetchRolesData, fetchUsersData, dataInitialized]);
 
   useEffect(() => {
     let result = users;
@@ -144,7 +145,7 @@ const AdminPanel = () => {
 
   const handleDeleteSuccess = useCallback((deletedUserId) => {
     setUsers((prevUsers) => prevUsers.filter((user) => user._id !== deletedUserId));
-    setDataInitialized(false); // Reset initialization to trigger a refresh
+    setDataInitialized(prev => ({ ...prev, users: false }));
     toast.success("User deleted successfully");
   }, []);
 
@@ -170,7 +171,7 @@ const AdminPanel = () => {
 
   const handleRoleDeleteSuccess = useCallback((deletedRoleId) => {
     setRoles((prevRoles) => prevRoles.filter((role) => role._id !== deletedRoleId));
-    setDataInitialized(false); // Trigger a refresh
+    setDataInitialized(prev => ({ ...prev, roles: false }));
   }, []);
 
   return (
@@ -297,7 +298,7 @@ const AdminPanel = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Roles</h2>
-            <AddRole onRoleAdded={() => setDataInitialized(false)} />
+            <AddRole onRoleAdded={() => setDataInitialized(prev => ({ ...prev, roles: false }))} />
           </div>
           
           {error ? (

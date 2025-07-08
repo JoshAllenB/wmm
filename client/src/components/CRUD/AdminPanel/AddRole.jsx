@@ -35,8 +35,10 @@ const AddRole = ({ onRoleAdded }) => {
         toast.error("Failed to load permissions");
       }
     };
-    fetchPermissions();
-  }, []);
+    if (showModal) {
+      fetchPermissions();
+    }
+  }, [showModal]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,7 +53,7 @@ const AddRole = ({ onRoleAdded }) => {
       closeModal();
     } catch (err) {
       console.error("Error creating role:", err);
-      toast.error("Failed to create role. Please try again.");
+      toast.error(err.message || "Failed to create role. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

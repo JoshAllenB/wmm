@@ -174,17 +174,38 @@ const userService = {
   // Role-related API calls
   getRoles: async () => {
     try {
+      console.log("Fetching roles from API...");
       const response = await apiClient.get("/roles/roles");
-      // The backend now returns { roles: [...] }
-      if (response.data && Array.isArray(response.data.roles)) {
-        return response.data.roles;
-      } else if (response.data && Array.isArray(response.data)) {
-        return response.data;
+      console.log("Raw API response:", response);
+      
+      // The backend returns { roles: [...] }
+      let rolesData;
+      if (response.data?.roles && Array.isArray(response.data.roles)) {
+        rolesData = response.data.roles;
+      } else if (Array.isArray(response.data)) {
+        rolesData = response.data;
+      } else {
+        console.warn("Unexpected roles response format:", response.data);
+        rolesData = [];
       }
-      return [];
+      
+      console.log("Processed roles data:", rolesData);
+      return rolesData;
     } catch (error) {
       console.error("Error fetching roles:", error);
       throw error;
+    }
+  },
+
+  createRole: async (roleData) => {
+    try {
+      console.log("Creating role with data:", roleData);
+      const response = await apiClient.post("/roles/roles/add", roleData);
+      console.log("Create role response:", response);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating role:", error);
+      throw error.response?.data || error;
     }
   },
 
