@@ -9,7 +9,7 @@ import {
 import { Typography } from "@mui/material";
 import { Link } from "react-router-dom";
 import AdminPanelSettingsSharpIcon from "@mui/icons-material/AdminPanelSettingsSharp";
-import CalendarMonthSharpIcon from "@mui/icons-material/CalendarMonthSharp";
+import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import SpaceDashboardSharpIcon from "@mui/icons-material/SpaceDashboardSharp";
 import MenuSharpIcon from "@mui/icons-material/MenuSharp";
 import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
@@ -85,9 +85,9 @@ export default function MenuSidebar() {
             >
               <Typography variant="h6">All Clients</Typography>
             </MenuItem>
-            {hasRole("Admin" || hasRole("Accounting")) && (
+            {hasRole("Accounting") && (
               <MenuItem
-                icon={<CalendarMonthSharpIcon style={{ color: "#333333" }} />}
+                icon={<AccountBalanceIcon style={{ color: "#333333" }} />}
                 component={<Link to="/accounting" />}
                 onClick={() => handleSelect("Accounting")}
                 selected={selected === "Accounting"}
@@ -117,6 +117,9 @@ export default function MenuSidebar() {
                 >
                   <Typography variant="h6">Manage Team</Typography>
                 </MenuItem>
+              </div>
+            )}
+            {hasRole("WMM") && (
                 <SubMenu
                   label="Settings"
                   className="font-bold text-lg"
@@ -171,7 +174,6 @@ export default function MenuSidebar() {
                     <Typography variant="h6">Data Export</Typography>
                   </MenuItem>
                 </SubMenu>
-              </div>
             )}
           </div>
         </Menu>
