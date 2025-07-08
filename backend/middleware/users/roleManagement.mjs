@@ -7,122 +7,103 @@ const router = express.Router();
 
 // Get all roles
 router.get("/roles", verifyToken, async (req, res) => {
+  const io = req.io;
   try {
-    const roles = await Role.find().populate("defaultPermissions");
-    res.json(roles);
+    const roles = await Role.find()
+      .populate("defaultPermissions")
+      .lean();
+
+    res.status(200).json({
+      roles: roles,
+    });
+    io.emit("role-update", { type: "init", data: roles });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Internal Server Error" });
+    console.error("Error fetching roles:", err);
+    res.status(500).json({ error: "Failed to fetch roles" });
   }
 });
 
 // Get all permissions
 router.get("/permissions", verifyToken, async (req, res) => {
   try {
-    const permissions = await Permission.find();
-    res.json(permissions);
+    const permissions = await Permission.find().lean();
+    res.status(200).json(permissions);
   } catch (err) {
+    console.error("Error fetching permissions:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 // Create a new role
 router.post("/roles/add", verifyToken, checkRole("Admin"), async (req, res) => {
+  const io = req.io;
   try {
-    const { name, permissions, description } = req.body;
-    const permissionIds = await Permission.find({
-      name: { $in: permissions },
-    }).distinct("_id");
-    const newRole = new Role({ name, permissions: permissionIds, description });
+    const { name, defaultPermissions, description } = req.body;
+    
+    // Create new role with the provided data
+    const newRole = new Role({
+      name,
+      defaultPermissions,
+      description
+    });
+
     await newRole.save();
-    res
-      .status(201)
-      .json({ message: "Role created successfully", role: newRole });
+    
+    // Populate the permissions before sending response
+    await newRole.populate('defaultPermissions');
+    
+    res.status(201).json({
+      message: "Role created successfully",
+      role: newRole
+    });
+    io.emit("role-update", { type: "add", data: newRole });
   } catch (error) {
+    console.error("Error creating role:", error);
     res.status(400).json({ error: error.message });
   }
 });
 
-// Create a new permission
-router.post(
-  "/permissions/add",
-  verifyToken,
-  checkRole("Admin"),
-  async (req, res) => {
-    try {
-      const { name, description } = req.body;
-      const newPermission = new Permission({ name, description });
-      await newPermission.save();
-      res.status(201).json({
-        message: "Permission created successfully",
-        permission: newPermission,
-      });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
+// Update role
+router.put("/roles/:id", verifyToken, checkRole("Admin"), async (req, res) => {
+  const io = req.io;
+  try {
+    const { id } = req.params;
+    const { name, defaultPermissions, description } = req.body;
+
+    const role = await Role.findById(id);
+    if (!role) {
+      return res.status(404).json({ error: "Role not found" });
     }
+
+    role.name = name;
+    role.description = description;
+    role.defaultPermissions = defaultPermissions;
+
+    await role.save();
+    await role.populate('defaultPermissions');
+
+    res.json({ message: "Role updated successfully", role });
+    io.emit("role-update", { type: "update", data: role });
+  } catch (error) {
+    console.error("Error updating role:", error);
+    res.status(500).json({ error: error.message || "Failed to update role" });
   }
-);
+});
 
-// Update role permissions
-router.put(
-  "/roles/:roleId/permissions",
-  verifyToken,
-  checkRole("Admin"),
-  async (req, res) => {
-    try {
-      const { roleId } = req.params;
-      const { permissions } = req.body;
-
-      const role = await Role.findById(roleId);
-      if (!role) {
-        return res.status(404).json({ error: "Role not found" });
-      }
-
-      const permissionIds = await Permission.find({
-        name: { $in: permissions },
-      }).distinct("_id");
-      role.permissions = permissionIds;
-
-      await role.save();
-      res.json({ message: "Role permissions updated", role });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
+// Delete role
+router.delete("/roles/:id", verifyToken, checkRole("Admin"), async (req, res) => {
+  const io = req.io;
+  try {
+    const role = await Role.findByIdAndDelete(req.params.id);
+    if (!role) {
+      return res.status(404).json({ error: "Role not found" });
     }
+    res.json({ message: "Role deleted successfully" });
+    io.emit("role-update", { type: "delete", data: { _id: req.params.id } });
+  } catch (error) {
+    console.error("Error deleting role:", error);
+    res.status(400).json({ error: error.message });
   }
-);
-
-router.delete(
-  "/roles/:roleId",
-  verifyToken,
-  checkRole("Admin"),
-  async (req, res) => {
-    try {
-      const { roleId } = req.params;
-      await Role.findByIdAndDelete(roleId);
-      res.json({ message: "Role deleted successfully" });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  }
-);
-
-router.delete(
-  "/permissions/:permissionId",
-  verifyToken,
-  checkRole("Admin"),
-  async (req, res) => {
-    try {
-      const { permissionId } = req.params;
-      await Permission.findByIdAndDelete(permissionId);
-      await Role.updateMany(
-        { permissions: permissionId },
-        { $pull: { permissions: permissionId } }
-      );
-      res.json({ message: "Permission deleted successfully" });
-    } catch (error) {
-      res.status(400).json({ error: error.message });
-    }
-  }
-);
+});
 
 export default router;
