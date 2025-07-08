@@ -465,8 +465,8 @@ const Add = ({ fetchClients }) => {
             housestreet: addressData.housestreet || "",
             subdivision: addressData.subdivision || "",
             barangay: addressData.barangay || "",
-            city: addressData.city || "",
-            province: addressData.province || "",
+            city: areaData.city || addressData.city || "",
+            province: areaData.province || "",
           },
           // Priority flags to indicate to the server the desired search priority
           priorities: {
@@ -781,18 +781,39 @@ const Add = ({ fetchClients }) => {
     const lines = [];
 
     // Line 1: House/Building Number and Street name
-    if (addressData.housestreet) lines.push(addressData.housestreet.trim());
-    
-    // Line 2: Subdivision/Compound Name
-    if (addressData.subdivision) lines.push(addressData.subdivision.trim());
-    
+    if (addressData.housestreet) {
+      lines.push(addressData.housestreet.trim() + ',');
+    }
+
+    // Line 2: Subdivision
+    if (addressData.subdivision) {
+      lines.push(addressData.subdivision.trim() + ',');
+    }
+
     // Line 3: Barangay
-    if (addressData.barangay) lines.push(addressData.barangay.trim());
-    
-    // Line 4: Zipcode and City (no comma for last line)
-    const lastLine = [areaData.zipcode, area].filter(Boolean).join(" ").trim();
-    if (lastLine) lines.push(lastLine);
-    
+    if (addressData.barangay) {
+      lines.push(addressData.barangay.trim() + ',');
+    }
+
+    // Line 4: Zipcode and City/Municipality
+    const line4Parts = [];
+    if (areaData.zipcode) {
+      line4Parts.push(areaData.zipcode.trim());
+    }
+    if (area) {
+      // Remove 'CITY OF' or 'MUNICIPALITY OF' if present
+      const cleanedArea = area.replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, '').trim();
+      line4Parts.push(cleanedArea);
+    }
+    if (line4Parts.length > 0) {
+      lines.push(line4Parts.join(" ") + (areaData.province ? ',' : ''));
+    }
+
+    // Line 5: Province (if exists)
+    if (areaData.province) {
+      lines.push(areaData.province.trim());
+    }
+
     return lines.join("\n");
   };
 
@@ -1544,25 +1565,68 @@ const Add = ({ fetchClients }) => {
 
                         {/* Match strength indicator */}
                         {client.totalScore !== undefined && (
-                          <div className="mt-0.5">
+                          <div className="mt-1.5 flex items-center gap-2">
                             <div
-                              className={`text-xs font-medium px-1.5 py-0.5 rounded-sm inline-block ${
+                              className={`text-xs font-medium px-2 py-1 rounded-md inline-flex items-center gap-1.5 ${
                                 client.totalScore > 40
-                                  ? "bg-red-100 text-red-800 border border-red-200"
+                                  ? "bg-red-100 text-red-900 border border-red-200"
                                   : client.totalScore > 30
-                                  ? "bg-amber-100 text-amber-800 border border-amber-200"
+                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
                                   : client.totalScore > 20
-                                  ? "bg-orange-50 text-orange-600 border border-orange-100"
-                                  : "bg-blue-50 text-blue-600 border border-blue-100"
+                                  ? "bg-yellow-100 text-yellow-900 border border-yellow-200"
+                                  : "bg-blue-100 text-blue-900 border border-blue-200"
                               }`}
+                              title={
+                                client.totalScore > 40
+                                  ? "Multiple strong matches in key fields suggest this is very likely the same client."
+                                  : client.totalScore > 30
+                                  ? "Several matching fields indicate this could be the same client."
+                                  : client.totalScore > 20
+                                  ? "Some matching information suggests a possible duplicate."
+                                  : "A few fields have similar information."
+                              }
                             >
-                              {client.totalScore > 40
-                                ? "Very strong match"
-                                : client.totalScore > 30
-                                ? "Strong match"
-                                : client.totalScore > 20
-                                ? "Likely match"
-                                : "Possible match"}
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-3.5 w-3.5"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                {client.totalScore > 40 ? (
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clipRule="evenodd"
+                                  />
+                                ) : client.totalScore > 30 ? (
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                ) : client.totalScore > 20 ? (
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                ) : (
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 110-12 6 6 0 010 12zm0-9a1 1 0 011 1v4a1 1 0 11-2 0V8a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                                    clipRule="evenodd"
+                                  />
+                                )}
+                              </svg>
+                              <span>
+                                {client.totalScore > 40
+                                  ? "Very strong match"
+                                  : client.totalScore > 30
+                                  ? "Strong match"
+                                  : client.totalScore > 20
+                                  ? "Likely match"
+                                  : "Possible match"}
+                              </span>
                             </div>
                           </div>
                         )}
@@ -1573,9 +1637,7 @@ const Add = ({ fetchClients }) => {
                       {/* Match indicators */}
                       {(client.fnameMatch > 0 ||
                         client.lnameMatch > 0 ||
-                        client.addressExactMatch > 0 ||
-                        client.addressTokenMatch > 0 ||
-                        client.addressComponentMatch > 0 ||
+                        client.addressMatch > 0 ||
                         client.cellnoMatch > 0 ||
                         client.contactnosMatch > 0 ||
                         client.emailMatch > 0 ||
@@ -1588,9 +1650,7 @@ const Add = ({ fetchClients }) => {
                               Last name
                             </span>
                           )}
-                          {(client.addressExactMatch > 0 ||
-                            client.addressTokenMatch > 0 ||
-                            client.addressComponentMatch > 0) && (
+                          {client.addressMatch > 0 && (
                             <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100 flex items-center">
                               Address
                             </span>

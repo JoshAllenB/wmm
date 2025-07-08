@@ -10,24 +10,28 @@ const standardizeAddress = (address) => {
   
   return address
     .toUpperCase()
-    // Standardize common street abbreviations
+    // Standardize Philippine-specific terms
+    .replace(/\bPRK\b|\bPUROK\b/gi, "PUROK")
+    .replace(/\bBRGY\b|\bBGY\b|\bBARANGAY\b/gi, "BARANGAY")
+    .replace(/\bSUBD\b|\bSUBDIV\b|\bSUBDIVISION\b/gi, "SUBDIVISION")
+    .replace(/\bVLG\b|\bVILL\b|\bVILLAGE\b/gi, "VILLAGE")
+    .replace(/\bPHASE\b|\bPHASE\b/gi, "PHASE")
+    .replace(/\bBLK\b|\bBLOCK\b/gi, "BLOCK")
+    .replace(/\bLOT\b/gi, "LOT")
+    // Standardize common Philippine street terms
     .replace(/\bST\b|\bSTREET\b/gi, "STREET")
     .replace(/\bAVE\b|\bAVENUE\b/gi, "AVENUE")
     .replace(/\bRD\b|\bROAD\b/gi, "ROAD")
-    .replace(/\bBLVD\b|\bBOULEVARD\b/gi, "BOULEVARD")
-    .replace(/\bLN\b|\bLANE\b/gi, "LANE")
-    .replace(/\bDR\b|\bDRIVE\b/gi, "DRIVE")
-    .replace(/\bCT\b|\bCOURT\b/gi, "COURT")
-    .replace(/\bPL\b|\bPLACE\b/gi, "PLACE")
-    .replace(/\bSQ\b|\bSQUARE\b/gi, "SQUARE")
-    .replace(/\bCIR\b|\bCIRCLE\b/gi, "CIRCLE")
-    .replace(/\bPKWY\b|\bPARKWAY\b/gi, "PARKWAY")
-    .replace(/\bHWY\b|\bHIGHWAY\b/gi, "HIGHWAY")
-    // Remove apartment/unit numbers
-    .replace(/\bAPT\b.*\d+|\bUNIT\b.*\d+|\bNO\b\.?\s*\d+|\bSUITE\b.*\d+/gi, "")
-    .replace(/\b(APARTMENT|SUITE|UNIT|ROOM)\b\s*(\w|\d)+/gi, "")
-    // Remove common punctuation and standardize spacing
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
+    // Standardize city/municipality
+    .replace(/\bCITY OF\b/gi, "")
+    .replace(/\bMUN\b|\bMUNICIPALITY OF\b/gi, "")
+    // Handle common Philippine address prefixes
+    .replace(/\bNO\.\s*/gi, "")  // Remove "NO." prefix from house numbers
+    .replace(/\bUNIT\s*\d+/gi, "") // Remove unit numbers
+    .replace(/\bBLDG\b|\bBUILDING\b/gi, "BUILDING")
+    // Remove common punctuation except for slashes in lot/block numbers
+    .replace(/[.,#!$%\^&\*;:{}=\-_`~()]/g, " ")
+    // Standardize spaces
     .replace(/\s{2,}/g, " ")
     .trim();
 };
@@ -42,10 +46,34 @@ const getAddressTokens = (address) => {
   return standardized
     .split(/\s+/)
     .filter(token => 
-      token.length > 3 && // Only tokens with more than 3 characters
+      token.length > 2 && // Keep minimum 2 chars for Ph abbreviations
       !/^\d+$/.test(token) && // Exclude tokens that are just numbers
-      !['STREET', 'AVENUE', 'ROAD', 'BOULEVARD', 'LANE', 'DRIVE', 'THE', 'AND'].includes(token) // Exclude common words
+      !['STREET', 'AVENUE', 'ROAD', 'THE', 'AND', 
+        'SUBDIVISION', 'VILLAGE', 'BARANGAY', 'PUROK', 'PHASE', 'BLOCK', 'LOT',
+        'BUILDING'].includes(token) // Exclude common Philippine address terms
     );
+};
+
+// Helper function to standardize address components
+const standardizeAddressComponents = (components) => {
+  if (!components) return {};
+  
+  // Helper to clean city/municipality names
+  const cleanCityName = (city) => {
+    if (!city) return '';
+    return city
+      .toUpperCase()
+      .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, '')
+      .trim();
+  };
+  
+  return {
+    housestreet: standardizeAddress(components.housestreet || ''),
+    subdivision: standardizeAddress(components.subdivision || ''),
+    barangay: standardizeAddress(components.barangay || ''),
+    city: cleanCityName(components.city || ''),
+    province: standardizeAddress(components.province || '')
+  };
 };
 
 export async function checkDuplicates({
@@ -103,55 +131,110 @@ export async function checkDuplicates({
     hasSearchableData = true;
   }
 
-  // Address matching with standardization
+  // Address matching with standardization and components
   const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
+  const standardizedComponents = standardizeAddressComponents(addressComponents);
   
-  if (clientStandardizedAddress && clientStandardizedAddress.length > 2) {
+  if (clientStandardizedAddress || Object.values(standardizedComponents).some(v => v)) {
     try {
-      // Instead of using regex for full address, use address components
-      if (addressComponents) {
-        if (addressComponents.street1 && addressComponents.street1.length > 3) {
-          query.$or.push({ address: { $regex: new RegExp(addressComponents.street1, "i") } });
-        }
-        
-        if (addressComponents.city && addressComponents.city.length > 2) {
-          const cityNoPrefix = addressComponents.city.replace(/^City of\s+/i, "");
-          query.$or.push({ city: cityNoPrefix });
-        }
-        
-        if (addressComponents.province && addressComponents.province.length > 2) {
-          query.$or.push({ province: addressComponents.province });
-        }
+      // Match on full standardized address if available
+      if (clientStandardizedAddress) {
+        query.$or.push({ 
+          address: { 
+            $regex: new RegExp(clientStandardizedAddress.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), "i") 
+          } 
+        });
       }
 
+      // Match on individual components
+      if (standardizedComponents.housestreet) {
+        query.$or.push({ 
+          $or: [
+            { address: { $regex: new RegExp(standardizedComponents.housestreet, "i") } },
+            { housestreet: { $regex: new RegExp(standardizedComponents.housestreet, "i") } }
+          ]
+        });
+      }
+      
+      if (standardizedComponents.subdivision) {
+        query.$or.push({ 
+          $or: [
+            { address: { $regex: new RegExp(standardizedComponents.subdivision, "i") } },
+            { subdivision: { $regex: new RegExp(standardizedComponents.subdivision, "i") } }
+          ]
+        });
+      }
+      
+      if (standardizedComponents.barangay) {
+        query.$or.push({ 
+          $or: [
+            { address: { $regex: new RegExp(standardizedComponents.barangay, "i") } },
+            { barangay: { $regex: new RegExp(standardizedComponents.barangay, "i") } }
+          ]
+        });
+      }
+
+      if (standardizedComponents.city) {
+        query.$or.push({ city: standardizedComponents.city });
+      }
+
+      if (standardizedComponents.province) {
+        query.$or.push({ province: standardizedComponents.province });
+      }
+
+      // Add scoring for address matches
       scoringPipeline.push({
         $addFields: {
           addressMatch: {
             $sum: [
+              // Full address match
               { 
                 $cond: [
                   { $eq: ["$address", clientStandardizedAddress] },
                   15,
-                  0
+                  { 
+                    $cond: [
+                      { 
+                        $regexMatch: {
+                          input: "$address",
+                          regex: new RegExp(clientStandardizedAddress, "i")
+                        }
+                      },
+                      10,
+                      0
+                    ]
+                  }
                 ]
               },
+              // Component matches
               {
                 $cond: [
-                  { $and: [
-                    { $ne: ["$city", null] },
-                    { $eq: ["$city", addressComponents?.city?.replace(/^City of\s+/i, "")] }
-                  ]},
+                  { 
+                    $or: [
+                      { $eq: ["$housestreet", standardizedComponents.housestreet] },
+                      { 
+                        $regexMatch: {
+                          input: { $ifNull: ["$address", ""] },
+                          regex: new RegExp(standardizedComponents.housestreet, "i")
+                        }
+                      }
+                    ]
+                  },
                   8,
                   0
                 ]
               },
               {
                 $cond: [
-                  { $and: [
-                    { $ne: ["$province", null] },
-                    { $eq: ["$province", addressComponents?.province] }
-                  ]},
+                  { $eq: ["$city", standardizedComponents.city] },
                   7,
+                  0
+                ]
+              },
+              {
+                $cond: [
+                  { $eq: ["$province", standardizedComponents.province] },
+                  5,
                   0
                 ]
               }
@@ -276,9 +359,11 @@ export async function checkDuplicates({
         bdate: 1,
         company: 1,
         address: 1,
+        housestreet: 1,
+        subdivision: 1,
+        barangay: 1,
         street: 1,
         city: 1,
-        barangay: 1,
         zipcode: 1,
         area: 1,
         acode: 1,
