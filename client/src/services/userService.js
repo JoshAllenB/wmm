@@ -175,29 +175,15 @@ const userService = {
   getRoles: async () => {
     try {
       const response = await apiClient.get("/roles/roles");
-      return response.data;
+      // The backend now returns { roles: [...] }
+      if (response.data && Array.isArray(response.data.roles)) {
+        return response.data.roles;
+      } else if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+      return [];
     } catch (error) {
       console.error("Error fetching roles:", error);
-      throw error;
-    }
-  },
-
-  getRoleById: async (roleId) => {
-    try {
-      const response = await apiClient.get(`/roles/roles/${roleId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching role ${roleId}:`, error);
-      throw error;
-    }
-  },
-
-  createRole: async (roleData) => {
-    try {
-      const response = await apiClient.post("/roles/roles/add", roleData);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating role:", error);
       throw error;
     }
   },
@@ -207,8 +193,8 @@ const userService = {
       const response = await apiClient.put(`/roles/roles/${roleId}`, roleData);
       return response.data;
     } catch (error) {
-      console.error(`Error updating role ${roleId}:`, error);
-      throw error;
+      console.error("Error updating role:", error);
+      throw error.response?.data || error;
     }
   },
 
@@ -217,8 +203,8 @@ const userService = {
       const response = await apiClient.delete(`/roles/roles/${roleId}`);
       return response.data;
     } catch (error) {
-      console.error(`Error deleting role ${roleId}:`, error);
-      throw error;
+      console.error("Error deleting role:", error);
+      throw error.response?.data || error;
     }
   },
 
@@ -228,8 +214,7 @@ const userService = {
       const response = await apiClient.get("/roles/permissions");
       return response.data;
     } catch (error) {
-      console.error("Error fetching permissions:", error);
-      throw error;
+      throw error.response?.data || error.message;
     }
   },
 
