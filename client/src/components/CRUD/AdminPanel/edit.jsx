@@ -2,19 +2,19 @@ import { useEffect, useState } from "react";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import InputField from "../input";
-import Delete from "./delete";
 import userService from "../../../services/userService";
 import { toast } from "react-hot-toast";
 
 const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
   const [showModal, setShowModal] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     username: "",
     password: "",
     roles: [],
-    name: "", // for role/permission
+    name: "",
     permissions: [],
-    oldpassword: "",
     newpassword: "",
   });
   const [roles, setRoles] = useState([]);
@@ -74,7 +74,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
           })),
         };
         if (showPasswordFields) {
-          dataToSend.oldpassword = formData.oldpassword;
           dataToSend.newpassword = formData.newpassword;
         }
       } else if (type === "role") {
@@ -135,16 +134,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
   };
 
   const handleDelete = async () => {
+    setIsDeleting(true);
     try {
       await userService.deleteUser(rowData._id);
       toast.success(
         `${type.charAt(0).toUpperCase() + type.slice(1)} deleted successfully`
       );
       onDeleteSuccess(rowData._id);
+      setShowDeleteConfirmation(false);
       onClose();
     } catch (err) {
       console.error(`Error deleting ${type}:`, err);
       toast.error(`Failed to delete ${type}. Please try again.`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -152,114 +155,100 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
     <>
       {showModal && (
         <Modal isOpen={showModal} onClose={onClose}>
-          <div className="bg-white rounded-lg w-[400px]">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl text-gray-800 font-bold">
+          <div className="bg-white rounded-xl w-[500px] max-h-[85vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100">
+              <h2 className="text-2xl text-gray-900 font-semibold">
                 Edit {type.charAt(0).toUpperCase() + type.slice(1)}
               </h2>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {type === "user" ? (
                 <>
-                  <InputField
-                    label="Username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-
-                  <div className="flex items-center mb-2">
-                    <input
-                      type="checkbox"
-                      id="changePassword"
-                      checked={showPasswordFields}
-                      onChange={() =>
-                        setShowPasswordFields(!showPasswordFields)
-                      }
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  <div className="space-y-4">
+                    <InputField
+                      label="Username"
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      required
                     />
-                    <label
-                      htmlFor="changePassword"
-                      className="ml-2 block text-sm text-gray-700"
-                    >
-                      Change Password
-                    </label>
+
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="changePassword"
+                        checked={showPasswordFields}
+                        onChange={() => setShowPasswordFields(!showPasswordFields)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors duration-200"
+                      />
+                      <label
+                        htmlFor="changePassword"
+                        className="ml-3 text-sm font-medium text-gray-700"
+                      >
+                        Change User's Password
+                      </label>
+                    </div>
+
+                    {showPasswordFields && (
+                      <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                        <InputField
+                          label="New Password"
+                          name="newpassword"
+                          type="password"
+                          value={formData.newpassword}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          required
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {showPasswordFields && (
-                    <>
-                      <InputField
-                        label="Current Password"
-                        name="oldpassword"
-                        type="password"
-                        value={formData.oldpassword}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                      <InputField
-                        label="New Password"
-                        name="newpassword"
-                        type="password"
-                        value={formData.newpassword}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </>
-                  )}
-
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      Roles and Permissions:
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-100 pb-2">
+                      Roles and Permissions
                     </h3>
-                    {roles.map((role) => (
-                      <div key={role._id} className="bg-gray-50 p-3 rounded-md">
-                        <label className="flex items-center space-x-2 text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={selectedRoles.some(
-                              (r) => r._id === role._id
-                            )}
-                            onChange={() => handleRoleChange(role._id)}
-                            className="form-checkbox h-5 w-5 text-blue-600"
-                          />
-                          <span>{role.name}</span>
-                        </label>
-                        {selectedRoles.some((r) => r._id === role._id) && (
-                          <div className="ml-6 mt-2 space-y-1">
-                            <h4 className="text-sm font-semibold text-gray-600">
-                              Custom Permissions:
-                            </h4>
-                            {permissions.map((permission) => (
-                              <label
-                                key={permission._id}
-                                className="flex items-center space-x-2 text-gray-600"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={rolePermissions[role._id]?.includes(
-                                    permission._id
-                                  )}
-                                  onChange={() =>
-                                    handleRolePermissionChange(
-                                      role._id,
-                                      permission._id
-                                    )
-                                  }
-                                  className="form-checkbox h-4 w-4 text-blue-500"
-                                />
-                                <span className="text-sm">
-                                  {permission.name}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    <div className="space-y-3">
+                      {roles.map((role) => (
+                        <div key={role._id} className="bg-gray-50 p-4 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors duration-200">
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedRoles.some((r) => r._id === role._id)}
+                              onChange={() => handleRoleChange(role._id)}
+                              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transition-colors duration-200"
+                            />
+                            <span className="font-medium text-gray-800">{role.name}</span>
+                          </label>
+                          
+                          {selectedRoles.some((r) => r._id === role._id) && (
+                            <div className="mt-3 ml-8 space-y-2">
+                              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                Custom Permissions
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2">
+                                {permissions.map((permission) => (
+                                  <label
+                                    key={permission._id}
+                                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={rolePermissions[role._id]?.includes(permission._id)}
+                                      onChange={() => handleRolePermissionChange(role._id, permission._id)}
+                                      className="h-4 w-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition-colors duration-200"
+                                    />
+                                    <span className="text-sm">{permission.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </>
               ) : type === "role" ? (
@@ -269,66 +258,129 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, type = "user" }) => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     required
                   />
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      Default Permissions:
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-100 pb-2">
+                      Default Permissions
                     </h3>
-                    {permissions.map((permission) => (
-                      <label
-                        key={permission._id}
-                        className="flex items-center space-x-2 text-gray-600"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formData.permissions.includes(
-                            permission._id
-                          )}
-                          onChange={() =>
-                            handlePermissionChange(permission._id)
-                          }
-                          className="form-checkbox h-4 w-4 text-blue-500"
-                        />
-                        <span className="text-sm">{permission.name}</span>
-                      </label>
-                    ))}
+                    <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-lg">
+                      {permissions.map((permission) => (
+                        <label
+                          key={permission._id}
+                          className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors duration-200"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.includes(permission._id)}
+                            onChange={() => handlePermissionChange(permission._id)}
+                            className="h-4 w-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500 transition-colors duration-200"
+                          />
+                          <span className="text-sm font-medium">{permission.name}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </>
               ) : (
-                <>
-                  <InputField
-                    label="Permission Name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </>
+                <InputField
+                  label="Permission Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  required
+                />
               )}
 
-              <div className="flex justify-between items-center mt-6">
-                <Delete onDelete={handleDelete} />
-                <div className="flex space-x-2">
+              <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100 flex justify-between items-center">
+                <Button 
+                  type="button"
+                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200" 
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  disabled={isDeleting}
+                >
+                  Delete
+                </Button>
+                <div className="flex space-x-3">
                   <Button
                     type="button"
                     onClick={onClose}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded transition duration-200"
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors duration-200"
+                    disabled={isSubmitting}
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition duration-200"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Saving..." : "Save Changes"}
+                    {isSubmitting ? (
+                      <span className="flex items-center space-x-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Saving...</span>
+                      </span>
+                    ) : (
+                      "Save Changes"
+                    )}
                   </Button>
                 </div>
               </div>
             </form>
+          </div>
+        </Modal>
+      )}
+
+      {showDeleteConfirmation && (
+        <Modal
+          isOpen={showDeleteConfirmation}
+          onClose={() => !isDeleting && setShowDeleteConfirmation(false)}
+        >
+          <div className="bg-white rounded-lg p-6 max-w-sm">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            
+            <h2 className="text-xl font-bold text-gray-900 text-center mb-2">
+              Delete {type.charAt(0).toUpperCase() + type.slice(1)}
+            </h2>
+            <p className="text-gray-500 text-center mb-6">
+              Are you sure you want to delete this {type}? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center space-x-3">
+              <Button
+                onClick={() => setShowDeleteConfirmation(false)}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors duration-200"
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDelete}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <span className="flex items-center space-x-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Deleting...</span>
+                  </span>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}
