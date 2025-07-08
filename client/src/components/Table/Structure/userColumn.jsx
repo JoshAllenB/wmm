@@ -1,27 +1,6 @@
 /** @type import('@tanstack/react-table').ColumnDef<any>[] */
 export const userColumns = [
   {
-    id: "select",
-    header: ({ table }) => (
-      <input
-        type="checkbox"
-        checked={table.getIsAllPageRowsSelected()}
-        onChange={table.getToggleAllPageRowsSelectedHandler()}
-        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-      />
-    ),
-    cell: ({ row }) => (
-      <input
-        type="checkbox"
-        checked={row.getIsSelected()}
-        onChange={row.getToggleSelectedHandler()}
-        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
     id: "status",
     header: "Status",
     accessorFn: (row) => row.status,
