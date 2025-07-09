@@ -52,14 +52,19 @@ export const generateLabelContent = (data, selectedFields, userRole) => {
     (data.acode ? `/${data.acode}` : "");
   
   const name = getFullName(data);
-  const address = (data.address || "").replace(/\n/g, '<br />');
+  // Clean up address by removing empty lines and extra whitespace while preserving valid line breaks
+  const address = data.address ? data.address
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .join('<br />') : "";
   const contact = selectedFields.includes("contactnos") ? getContactNumber(data) : "";
 
   return `
     <div style="font-size: inherit; line-height: 1.2;">
       <p style="margin: 0 0 4px 0;">${idLine}${expiryAndCopies}</p>
       ${name ? `<p style="margin: 0 0 4px 0; font-weight: normal;">${name}</p>` : ''}
-      ${address ? `<p style="margin: 0 0 4px 0; white-space: pre-wrap;">${address}</p>` : ''}
+      ${address ? `<p style="margin: 0 0 4px 0;">${address}</p>` : ''}
       ${contact ? `<p style="margin: 0;">${contact}</p>` : ''}
     </div>
   `;
