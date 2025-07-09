@@ -98,9 +98,11 @@ export const useColumns = () => {
         const displayName =
           nameParts.trim() || (row.company ? row.company : "No Name");
 
+        // Add type and group on separate lines
         const typePart = row.type ? `<br>Type: ${row.type}` : "";
+        const groupPart = row.group ? `<br>Group: ${row.group}` : "";
 
-        return `${displayName}${typePart}`;
+        return `${displayName}${typePart}${groupPart}`;
       },
       size: 150,
     },

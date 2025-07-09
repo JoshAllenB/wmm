@@ -639,12 +639,11 @@ export const TableComponent = function TableComponent({
                     >
                       {cell.column.id === "Client Name" ? (
                         <div style={{ textAlign: "left" }}>
-                          <div>{cell.getValue().split("<br>")[0]}</div>
-                          {cell.getValue().split("<br>")[1] && (
-                            <div className="font-bold">
-                              {cell.getValue().split("<br>")[1]}
+                          {cell.getValue().split("<br>").map((part, index) => (
+                            <div key={index} className={index > 0 ? "font-bold" : ""}>
+                              {part}
                             </div>
-                          )}
+                          ))}
                         </div>
                       ) : cell.column.id === "Address" ? (
                         <div style={{ textAlign: "left" }}>
