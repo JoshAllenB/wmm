@@ -298,8 +298,9 @@ const Mailing = ({
     return 0;
   }, [table, dataSource, availableRows, startClientId, endClientId]);
 
-  // Initialize client ID range when available rows change
-  useEffect(() => {
+  // Remove the automatic useEffect for ID range
+  // Add function to set range from selection
+  const setRangeFromSelection = () => {
     if (hasAvailableRows) {
       const firstId = availableRows[0]?.original?.id?.toString() || "";
       const lastId = availableRows[availableRows.length - 1]?.original?.id?.toString() || "";
@@ -323,11 +324,16 @@ const Mailing = ({
         setStartClientId(firstId || lastId);
         setEndClientId(lastId || firstId);
       }
-    } else {
+    }
+  };
+
+  // Initialize empty range when modal opens
+  useEffect(() => {
+    if (modalOpen) {
       setStartClientId("");
       setEndClientId("");
     }
-  }, [availableRows]);
+  }, [modalOpen]);
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -596,6 +602,14 @@ const Mailing = ({
 
   // Handle print with range
   const handlePrintWithRange = async () => {
+    console.log('Print Preview Clicked - Initial data:', {
+      rowsCount: availableRows.length,
+      dataSource,
+      hasStartId: !!startClientId,
+      hasEndId: !!endClientId,
+      useAllData
+    });
+
     let templateToUse = selectedTemplate;
     if (!templateToUse) {
       templateToUse = {
@@ -613,22 +627,41 @@ const Mailing = ({
       };
     }
 
-    // Determine if we need all data
+    // Determine which data to use
     let rowsToUse = availableRows;
-    if (dataSource === "all") {
-      const allData = await fetchAllData();
-      rowsToUse = allData.map(item => ({ original: item }));
+    if (useAllData) {
+      try {
+        const allData = await fetchAllData();
+        rowsToUse = allData.map(item => ({ original: item }));
+      } catch (error) {
+        console.error("Error fetching all data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch all records. Using available rows instead.",
+          variant: "destructive"
+        });
+      }
     }
+
+    console.log('Print Preview - Before filtering:', {
+      rowsToUseCount: rowsToUse.length,
+      startId: startClientId || 'none',
+      endId: endClientId || 'none',
+      useAllData
+    });
 
     // For legacy templates, generate and download .prn file
     if (templateToUse.isLegacy) {
-      // Filter rows based on start/end Client IDs
+      // Filter rows based on start/end Client IDs only if they are specified
       const filteredRows = rowsToUse.filter((row) => {
         const clientId = row?.original?.id?.toString();
         if (!clientId) return false;
         
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
+        
+        // If no range is specified, include all rows
+        if (!trimmedStartId && !trimmedEndId) return true;
         
         // Convert to numbers for comparison
         const numericClientId = parseInt(clientId, 10);
@@ -645,8 +678,13 @@ const Mailing = ({
         return isAfterStart && isBeforeEnd;
       });
 
+      console.log('Legacy Template - After filtering:', {
+        filteredRowsCount: filteredRows.length,
+        useAllData
+      });
+
       if (filteredRows.length === 0) {
-        alert("No labels found for the specified Client ID range. Check IDs and selection.");
+        alert("No labels found. Please check your selection and ID range if specified.");
         return;
       }
 
@@ -674,9 +712,25 @@ const Mailing = ({
     
     const printWindow = window.open("", "_blank", "height=600,width=800");
     if (printWindow) {
-      printWindow.document.open();
+      console.log('Opening print window with data count:', rowsToUse.length);
+      printWindow.document.write('<!DOCTYPE html>');
       printWindow.document.write(htmlContent);
       printWindow.document.close();
+      // Wait for resources to load before printing
+      printWindow.onload = () => {
+        try {
+          console.log('Print window loaded, initiating print...');
+          printWindow.print();
+          // Only close after printing is done or cancelled
+          printWindow.onafterprint = () => {
+            console.log('Printing completed or cancelled');
+            printWindow.close();
+          };
+        } catch (error) {
+          console.error('Print error:', error);
+          // Keep window open if print fails
+        }
+      };
     } else {
       alert("Could not open print window. Please check your pop-up blocker settings.");
     }
@@ -697,13 +751,16 @@ const Mailing = ({
         rowsToUse = allData.map(item => ({ original: item }));
       }
 
-      // Filter rows based on start/end Client IDs
+      // Filter rows based on start/end Client IDs only if they are specified
       const filteredRows = rowsToUse.filter((row) => {
         const clientId = row?.original?.id?.toString();
         if (!clientId) return false;
         
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
+        
+        // If no range is specified, include all rows
+        if (!trimmedStartId && !trimmedEndId) return true;
         
         // Convert to numbers for comparison
         const numericClientId = parseInt(clientId, 10);
@@ -721,7 +778,7 @@ const Mailing = ({
       });
 
       if (filteredRows.length === 0) {
-        alert("No labels found for the specified Client ID range. Check IDs and selection.");
+        alert("No labels found. Please check your selection and ID range if specified.");
         return;
       }
 
@@ -918,6 +975,11 @@ const Mailing = ({
           total: data.length,
           filtered: data.length
         });
+        console.log('Modal Opened - Data counts:', {
+          availableRows: availableRows.length,
+          allData: data.length,
+          useAllData: useAllData
+        });
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
@@ -927,6 +989,12 @@ const Mailing = ({
         });
       }
       setIsLoadingAllRecords(false);
+    } else {
+      console.log('Modal Opened - Data counts:', {
+        availableRows: availableRows.length,
+        allData: allData?.length || 0,
+        useAllData: useAllData
+      });
     }
   };
   const closeModal = () => setModalOpen(false);
@@ -1240,6 +1308,7 @@ const Mailing = ({
                     startPosition={startPosition}
                     setStartPosition={setStartPosition}
                     availableRows={availableRows}
+                    onSetFromSelection={setRangeFromSelection}
                   />
                 </div>
               </div>

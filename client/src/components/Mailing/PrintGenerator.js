@@ -1,11 +1,249 @@
-// Helper functions for formatting data
-const getFullName = (row) => {
-  const title = row.title ? `${row.title} ` : "";
-  return [title, row.fname, row.mname, row.lname].filter(Boolean).join(" ");
+// Helper functions
+export const getFullName = (data) => {
+  const title = data.title || '';
+  const fname = data.fname || '';
+  const mname = data.mname || '';
+  const lname = data.lname || '';
+  const sname = data.sname || '';
+  const company = data.company || '';
+
+  if (company) {
+    return company;
+  }
+
+  return [title, fname, mname, lname, sname]
+    .filter(part => part && part.trim())
+    .join(' ');
 };
 
-const getContactNumber = (row) => {
-  return row.contactnos || row.cellno || row.ofcno || "";
+export const getContactNumber = (data) => {
+  const contactnos = data.contactnos || '';
+  const cellno = data.cellno || '';
+  const officeno = data.officeno || '';
+
+  if (contactnos) return contactnos;
+  if (cellno || officeno) {
+    return [cellno, officeno].filter(num => num).join(' / ');
+  }
+  return '';
+};
+
+export const generateLabelContent = (data, selectedFields, userRole) => {
+  if (!data) return '';
+
+  const wmmData = data.wmmData;
+  const subscription = wmmData?.records?.[0] || wmmData || {};
+  const copies = subscription.copies ?? "N/A";
+  let enddate = "N/A";
+  
+  if (subscription.enddate) {
+    const date = new Date(subscription.enddate);
+    if (!isNaN(date.getTime())) {
+      enddate = date.toLocaleDateString();
+    }
+  }
+
+  // Check if user role should hide expiry and copies
+  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
+
+  const idLine = data.id || "";
+  const expiryAndCopies = !shouldHideExpiryAndCopies ? 
+    ` - ${enddate} - ${copies}cps/${data.acode || ""}` : 
+    (data.acode ? `/${data.acode}` : "");
+  
+  const name = getFullName(data);
+  const address = (data.address || "").replace(/\n/g, '<br />');
+  const contact = selectedFields.includes("contactnos") ? getContactNumber(data) : "";
+
+  return `
+    <div style="font-size: inherit; line-height: 1.2;">
+      <p style="margin: 0 0 4px 0;">${idLine}${expiryAndCopies}</p>
+      ${name ? `<p style="margin: 0 0 4px 0; font-weight: normal;">${name}</p>` : ''}
+      ${address ? `<p style="margin: 0 0 4px 0; white-space: pre-wrap;">${address}</p>` : ''}
+      ${contact ? `<p style="margin: 0;">${contact}</p>` : ''}
+    </div>
+  `;
+};
+
+export const generatePrintHTML = (
+  startClientId,
+  endClientId,
+  startPosition,
+  rows,
+  useLegacyFormat,
+  template,
+  leftPosition,
+  topPosition,
+  columnWidth,
+  horizontalSpacing,
+  rowSpacing,
+  fontSize,
+  labelHeight,
+  selectedFields,
+  userRole
+) => {
+  // Filter rows based on start/end Client IDs only if they are specified
+  const filteredRows = rows.filter((row) => {
+    const clientId = row?.original?.id?.toString();
+    if (!clientId) return false;
+    
+    const trimmedStartId = startClientId?.trim();
+    const trimmedEndId = endClientId?.trim();
+    
+    // If no range is specified, include all rows
+    if (!trimmedStartId && !trimmedEndId) return true;
+    
+    // Convert to numbers for comparison
+    const numericClientId = parseInt(clientId, 10);
+    const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+    const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+    
+    // Check if any conversion resulted in NaN
+    if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+      return false;
+    }
+    
+    const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+    const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
+    return isAfterStart && isBeforeEnd;
+  });
+
+  if (filteredRows.length === 0) {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print Preview</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .error { color: red; text-align: center; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="error">
+            <h3>No labels found.</h3>
+            <p>Please check your selection${startClientId || endClientId ? ' and ID range' : ''}.</p>
+          </div>
+        </body>
+      </html>
+    `;
+  }
+
+  // Calculate dimensions
+  const pageWidth = 215.9; // US Letter width in mm
+  const pageHeight = 279.4; // US Letter height in mm
+  
+  // Convert mm to px for display
+  const pxPerMm = 3.78; // Approximate pixels per mm for 96 DPI
+  const pagePxWidth = Math.round(pageWidth * pxPerMm);
+  const pagePxHeight = Math.round(pageHeight * pxPerMm);
+
+  // Calculate rows and columns
+  const labelsPerRow = 2;
+  const rowsPerPage = 3;
+  const totalLabelsPerPage = labelsPerRow * rowsPerPage;
+
+  // Start HTML content
+  let html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Print Preview</title>
+        <style>
+          @page {
+            size: letter;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: white;
+          }
+          .page {
+            width: ${pagePxWidth}px;
+            height: ${pagePxHeight}px;
+            position: relative;
+            page-break-after: always;
+            margin: 0 auto;
+            background: white;
+          }
+          .label {
+            position: absolute;
+            font-size: ${fontSize}pt;
+            width: ${columnWidth}px;
+            height: ${labelHeight}px;
+            overflow: hidden;
+            padding: 2mm;
+            box-sizing: border-box;
+            background: white;
+          }
+          .preview-info {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #666;
+            background: white;
+          }
+          @media print {
+            .preview-info {
+              display: none;
+            }
+            body, .page, .label {
+              background: white !important;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="preview-info">
+          <p>Real-time preview of how labels will print on US Letter (8.5" × 11")</p>
+          <p>Label size: ${columnWidth/pxPerMm}mm × ${labelHeight/pxPerMm}mm</p>
+          <p>Spacing: H: ${horizontalSpacing/pxPerMm}mm, V: ${rowSpacing/pxPerMm}mm</p>
+          <p>Page layout: ${rowsPerPage} rows × ${labelsPerRow} columns (${totalLabelsPerPage} labels per page)</p>
+        </div>
+  `;
+
+  // Calculate number of pages needed
+  const totalPages = Math.ceil(filteredRows.length / totalLabelsPerPage);
+  
+  // Generate pages
+  let currentRow = 0;
+  for (let page = 0; page < totalPages; page++) {
+    html += '<div class="page">';
+    
+    for (let row = 0; row < rowsPerPage && currentRow < filteredRows.length; row++) {
+      const yPos = topPosition + (row * rowSpacing);
+      
+      for (let col = 0; col < labelsPerRow && currentRow < filteredRows.length; col++) {
+        // Skip first position if starting from right
+        if (page === 0 && row === 0 && col === 0 && startPosition === "right") {
+          continue;
+        }
+        
+        if (currentRow < filteredRows.length) {
+          const xPos = leftPosition + (col * (columnWidth + horizontalSpacing));
+          const data = filteredRows[currentRow].original;
+          
+          html += `
+            <div class="label" style="left: ${xPos}px; top: ${yPos}px;">
+              ${generateLabelContent(data, selectedFields, userRole)}
+            </div>
+          `;
+          
+          currentRow++;
+        }
+      }
+    }
+    
+    html += '</div>';
+  }
+  
+  html += '</body></html>';
+  return html;
 };
 
 // Function to format date for legacy templates (mm/dd/yy format)
@@ -115,293 +353,6 @@ const generateRawPrinterData = (data, template) => {
   return new Uint8Array(commands);
 };
 
-// Function to generate .prn file content for legacy templates
-export const generatePrnContent = (template, data) => {
-  let content = '';
-  
-  // Add initialization commands with proper ESC/P conversion
-  if (template.init) {
-    content += convertEscPCommands(template.init);
-  }
-  
-  // Process each row of data
-  data.forEach(row => {
-    let rowContent = template.format;
-    
-    // Replace STR_Check function calls
-    rowContent = rowContent.replace(/<<STR_Check\(([^)]+)\)>>/g, (match, params) => {
-      const args = params.split(',').map(arg => {
-        // Handle nested function calls within STR_Check
-        if (arg.includes('STR_MLINE')) {
-          const mlineMatch = arg.match(/STR_MLINE\(([^,]+),(\d+),(\d+)\)/);
-          if (mlineMatch) {
-            const [_, text, lineNum, width] = mlineMatch;
-            // Handle STR_Name within STR_MLINE
-            if (text.includes('STR_Name')) {
-              const nameMatch = text.match(/STR_Name\(([^)]+)\)/);
-              if (nameMatch) {
-                const nameParams = nameMatch[1].split(',').map(p => p.trim());
-                const nameData = {
-                  title: row.original[nameParams[0]] || '',
-                  lname: row.original[nameParams[1]] || '',
-                  fname: row.original[nameParams[2]] || '',
-                  mname: row.original[nameParams[3]] || '',
-                  sname: row.original[nameParams[4]] || ''
-                };
-                const nameFormat = nameParams[5]?.replace(/"/g, '');
-                return handleStrMline(handleStrName(nameData, nameFormat), parseInt(lineNum), parseInt(width));
-              }
-            }
-            // Handle other text in STR_MLINE
-            const fieldName = text.replace(/['"]/g, '');
-            return handleStrMline(row.original[fieldName] || '', parseInt(lineNum), parseInt(width));
-          }
-        }
-        return arg;
-      });
-      return handleStrCheck(...args);
-    });
-    
-    // Replace other placeholders
-    rowContent = rowContent.replace(/<<TRANSFORM\(id,"@L 999999"\)>>/g, formatIdLegacy(row.original.id));
-    rowContent = rowContent.replace(/<<acode>>/g, row.original.acode || '');
-    
-    // Convert any ESC/P commands in the row content
-    content += convertEscPCommands(rowContent);
-  });
-  
-  // Add reset commands with proper ESC/P conversion
-  if (template.reset) {
-    content += convertEscPCommands(template.reset);
-  }
-  
-  return content;
-};
-
-// Function to generate HTML for a specific range of Client IDs and starting position
-export const generatePrintHTML = (
-  startId, 
-  endId, 
-  startColumn, 
-  availableRows,
-  useLegacyFormat,
-  selectedTemplate,
-  leftPosition,
-  topPosition,
-  columnWidth,
-  horizontalSpacing,
-  rowSpacing,
-  fontSize,
-  labelHeight,
-  selectedFields,
-  userRole
-) => {
-  // Filter rows based on start/end Client IDs
-  const filteredRows = availableRows.filter((row) => {
-    const clientId = row?.original?.id?.toString();
-    if (!clientId) {
-      return false;
-    }
-    const trimmedStartId = startId?.trim();
-    const trimmedEndId = endId?.trim();
-
-    const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
-    const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
-    return isAfterStart && isBeforeEnd;
-  });
-
-  if (filteredRows.length === 0) {
-    return "<html><body>No labels found for the specified Client ID range. Check IDs and selection.</body></html>";
-  }
-
-  // If using legacy format, generate a different HTML structure
-  if (useLegacyFormat && selectedTemplate && selectedTemplate.isLegacy) {
-    return generateLegacyPrintHTML(
-      filteredRows, 
-      startColumn, 
-      selectedTemplate,
-      selectedFields
-    );
-  }
-
-  // Check if user role should hide expiry and copies
-  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
-
-  // Use configuration values for dimensions
-  const containerWidth = columnWidth * 2 + horizontalSpacing;
-
-  const htmlContent = `
-    <html>
-    <head>
-       <title>Mailing Labels (${startId || "Start"} to ${endId || "End"})</title>
-        <style>
-          @page {
-            size: letter;
-            margin: 0;
-            padding: 0;
-          }
-          html {
-            width: 8.5in;
-            height: 11in;
-          }
-          body { 
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 0;
-            height: auto;
-            width: 8.5in;
-          }
-          .page {
-            width: 8.5in;
-            height: 11in;
-            position: relative;
-            page-break-after: always;
-            overflow: hidden;
-          }
-          .page:last-child {
-            page-break-after: auto;
-          }
-          .label-container {
-            position: absolute;
-            width: ${containerWidth}px;
-            left: ${leftPosition}px;
-            top: ${topPosition}px;
-          }
-          .address-container {
-            box-sizing: border-box;
-            border: 1px dashed #bbb;
-            background: #fff;
-            padding: 8px;
-            overflow: hidden;
-            word-wrap: break-word;
-            white-space: normal;
-            border-radius: 4px;
-            text-align: left;
-            position: absolute;
-            width: ${columnWidth}px;
-            height: ${labelHeight}px;
-          }
-          .address-container.left-column {
-            padding-right: 24px;
-          }
-          .address-container p {
-            margin: 0;
-            padding: 0;
-            color: black;
-            width: 100%;
-            word-wrap: break-word;
-            white-space: normal;
-            overflow-wrap: break-word;
-            text-align: left;
-            font-size: ${fontSize}pt;
-          }
-          .address-container p.address {
-            white-space: pre-wrap !important;
-          }
-          @media print {
-            @page {
-              size: letter !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            html {
-              width: 8.5in !important;
-              height: 11in !important;
-            }
-            body { 
-              margin: 0 !important;
-              padding: 0 !important;
-              min-height: 0 !important;
-              height: auto !important;
-              width: 8.5in !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .page {
-              width: 8.5in !important;
-              height: 11in !important;
-              position: relative !important;
-              page-break-after: always !important;
-              overflow: hidden !important;
-            }
-            .page:last-child {
-              page-break-after: auto !important;
-            }
-            .label-container {
-              position: absolute !important;
-              width: ${containerWidth}px !important;
-              left: ${leftPosition}px !important;
-              top: ${topPosition}px !important;
-            }
-            .address-container {
-              box-shadow: none !important;
-              border: none !important;
-              position: absolute !important;
-              width: ${columnWidth}px !important;
-              height: ${labelHeight}px !important;
-              box-sizing: border-box !important;
-              overflow: hidden !important;
-              text-align: left !important;
-            }
-            .address-container p {
-              font-size: ${fontSize}pt !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              width: 100% !important;
-              text-align: left !important;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        ${Array(Math.ceil(filteredRows.length / 6)).fill().map((_, pageIndex) => {
-          const pageRows = filteredRows.slice(pageIndex * 6, (pageIndex + 1) * 6);
-          return `
-            <div class="page">
-              <div class="label-container">
-                ${pageRows.map((row, index) => {
-                  // Calculate position based on index within the page
-                  const rowNum = Math.floor(index / 2); // 0, 0, 1, 1, 2, 2
-                  const isLeftColumn = index % 2 === 0;
-                  const leftOffset = isLeftColumn ? 0 : (containerWidth - columnWidth);
-                  const topOffset = rowNum * (labelHeight + rowSpacing);
-
-                  const wmmData = row?.original?.wmmData;
-                  let subscription = wmmData?.records?.[0] || wmmData || {};
-                  const copies = subscription.copies ?? "N/A";
-                  let enddate = "N/A";
-                  if (subscription.enddate) {
-                    const date = new Date(subscription.enddate);
-                    if (!isNaN(date.getTime())) {
-                      enddate = date.toLocaleDateString();
-                    }
-                  }
-
-                  return `
-                    <div class="address-container${isLeftColumn ? ' left-column' : ''}" style="left: ${leftOffset}px; top: ${topOffset}px;">
-                      <p>${row?.original?.id || ""}${!shouldHideExpiryAndCopies ? ` - ${enddate} - ${copies}cps/${row?.original?.acode || ""}` : (row?.original?.acode ? `/${row?.original?.acode}` : "")}</p>
-                      <p style="font-weight:normal;">${getFullName(row?.original || {})}</p>
-                      <p class="address" style="white-space: pre-wrap;">${(row?.original?.address || "").replace(/\n/g, '<br />')}</p>
-                      ${selectedFields.includes("contactnos") ? `<p>${getContactNumber(row?.original || {})}</p>` : ""}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          `;
-        }).join('')}
-        <script>
-           window.print();
-           window.close();
-        </script>
-      </body>
-    </html>
-  `;
-
-  return htmlContent;
-};
-
 // Generate HTML specifically formatted for legacy dot matrix printers
 export const generateLegacyPrintHTML = (filteredRows, startColumn, template, selectedFields) => {
   // Get the column configuration from the template
@@ -486,7 +437,7 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
     .join("\n");
 
   // Generate .prn content
-  const prnContent = generatePrnContent(template, filteredRows);
+  const prnContent = generateRawPrinterData(filteredRows, template); // Use generateRawPrinterData
   
   // Create a Blob with the .prn content
   const prnBlob = new Blob([prnContent], { type: 'application/octet-stream' });
@@ -584,6 +535,69 @@ export const generateLegacyPrintHTML = (filteredRows, startColumn, template, sel
      </body>
     </html>
   `;
+};
+
+// Function to generate .prn file content for legacy templates
+export const generatePrnContent = (template, data) => {
+  let content = '';
+  
+  // Add initialization commands with proper ESC/P conversion
+  if (template.init) {
+    content += convertEscPCommands(template.init);
+  }
+  
+  // Process each row of data
+  data.forEach(row => {
+    let rowContent = template.format;
+    
+    // Replace STR_Check function calls
+    rowContent = rowContent.replace(/<<STR_Check\(([^)]+)\)>>/g, (match, params) => {
+      const args = params.split(',').map(arg => {
+        // Handle nested function calls within STR_Check
+        if (arg.includes('STR_MLINE')) {
+          const mlineMatch = arg.match(/STR_MLINE\(([^,]+),(\d+),(\d+)\)/);
+          if (mlineMatch) {
+            const [_, text, lineNum, width] = mlineMatch;
+            // Handle STR_Name within STR_MLINE
+            if (text.includes('STR_Name')) {
+              const nameMatch = text.match(/STR_Name\(([^)]+)\)/);
+              if (nameMatch) {
+                const nameParams = nameMatch[1].split(',').map(p => p.trim());
+                const nameData = {
+                  title: row.original[nameParams[0]] || '',
+                  lname: row.original[nameParams[1]] || '',
+                  fname: row.original[nameParams[2]] || '',
+                  mname: row.original[nameParams[3]] || '',
+                  sname: row.original[nameParams[4]] || ''
+                };
+                const nameFormat = nameParams[5]?.replace(/"/g, '');
+                return handleStrMline(handleStrName(nameData, nameFormat), parseInt(lineNum), parseInt(width));
+              }
+            }
+            // Handle other text in STR_MLINE
+            const fieldName = text.replace(/['"]/g, '');
+            return handleStrMline(row.original[fieldName] || '', parseInt(lineNum), parseInt(width));
+          }
+        }
+        return arg;
+      });
+      return handleStrCheck(...args);
+    });
+    
+    // Replace other placeholders
+    rowContent = rowContent.replace(/<<TRANSFORM\(id,"@L 999999"\)>>/g, formatIdLegacy(row.original.id));
+    rowContent = rowContent.replace(/<<acode>>/g, row.original.acode || '');
+    
+    // Convert any ESC/P commands in the row content
+    content += convertEscPCommands(rowContent);
+  });
+  
+  // Add reset commands with proper ESC/P conversion
+  if (template.reset) {
+    content += convertEscPCommands(template.reset);
+  }
+  
+  return content;
 };
 
 // Generate HTML for a checklist

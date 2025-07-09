@@ -1,76 +1,85 @@
 import React from "react";
+import { Input } from "../UI/ShadCN/input";
+import { Button } from "../UI/ShadCN/button";
+import { Label } from "../UI/ShadCN/label";
 
-const RangeSelector = ({ 
-  startClientId, 
-  setStartClientId, 
-  endClientId, 
-  setEndClientId, 
-  startPosition, 
+const RangeSelector = ({
+  startClientId,
+  setStartClientId,
+  endClientId,
+  setEndClientId,
+  startPosition,
   setStartPosition,
-  availableRows
+  availableRows,
+  onSetFromSelection
 }) => {
   return (
-    <div className="bg-gray-100 rounded-lg p-4">
-      <h3 className="font-medium text-sm mb-3">Print Range & Position</h3>
-      <p className="text-xs text-gray-600 mb-3">
-        Use Client IDs to specify a range (e.g., after a paper jam).
-        Select starting label position.
-      </p>
+    <div className="space-y-4">
+      <h4 className="font-medium mb-2">Range Selection</h4>
       
-      <div className="space-y-3">
-        {/* Client ID inputs */}
-        <div className="grid grid-cols-[auto,1fr] gap-2 items-center">
-          <label className="text-sm whitespace-nowrap">
-            Start Client ID:
-          </label>
-          <input
+      <div className="flex items-center gap-2 mb-4">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => {
+            setStartClientId("");
+            setEndClientId("");
+          }}
+          className="flex-1"
+        >
+          Clear Range
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onSetFromSelection}
+          className="flex-1"
+          disabled={!availableRows || availableRows.length === 0}
+        >
+          Set from Selection
+        </Button>
+      </div>
+
+      <div className="grid gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="startId">Start Client ID</Label>
+          <Input
+            id="startId"
             type="text"
             value={startClientId}
             onChange={(e) => setStartClientId(e.target.value)}
-            className="w-full px-2 py-1 text-sm border rounded"
-          />
-        </div>
-        
-        <div className="grid grid-cols-[auto,1fr] gap-2 items-center">
-          <label className="text-sm whitespace-nowrap">
-            End Client ID:
-          </label>
-          <input
-            type="text"
-            value={endClientId}
-            onChange={(e) => setEndClientId(e.target.value)}
-            className="w-full px-2 py-1 text-sm border rounded"
+            placeholder="Start ID"
           />
         </div>
 
-        {/* Start Position Radio Buttons */}
-        <div className="mt-3">
-          <label className="text-sm font-medium block mb-2">
-            Start Printing At:
-          </label>
-          <div className="flex gap-4">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="radio"
-                name="startPosition"
-                value="left"
-                checked={startPosition === "left"}
-                onChange={(e) => setStartPosition(e.target.value)}
-                className="text-blue-600"
-              />
-              <span className="text-sm">Label 1 (Left)</span>
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input
-                type="radio"
-                name="startPosition"
-                value="right"
-                checked={startPosition === "right"}
-                onChange={(e) => setStartPosition(e.target.value)}
-                className="text-blue-600"
-              />
-              <span className="text-sm">Label 2 (Right)</span>
-            </label>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="endId">End Client ID</Label>
+          <Input
+            id="endId"
+            type="text"
+            value={endClientId}
+            onChange={(e) => setEndClientId(e.target.value)}
+            placeholder="End ID"
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="startPosition">Start Position</Label>
+          <div className="flex gap-2">
+            <Button
+              variant={startPosition === "left" ? "default" : "outline"}
+              onClick={() => setStartPosition("left")}
+              className="flex-1"
+            >
+              Left
+            </Button>
+            <Button
+              variant={startPosition === "right" ? "default" : "outline"}
+              onClick={() => setStartPosition("right")}
+              className="flex-1"
+            >
+              Right
+            </Button>
           </div>
         </div>
       </div>
