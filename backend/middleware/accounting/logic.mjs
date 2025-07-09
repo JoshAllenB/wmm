@@ -1,5 +1,16 @@
 import { models, modelConfigs } from "../../models/modelConfig.mjs";
 import ClientModel from "../../models/clients.mjs";
+import NodeCache from "node-cache";
+
+// Initialize cache with 5 minute TTL and check period of 600 seconds
+const queryCache = new NodeCache({ 
+  stdTTL: 300,
+  checkperiod: 600,
+  useClones: false // Disable cloning for better performance
+});
+
+// Cache for loaded models to avoid reloading on every request
+const modelCache = new Map();
 
 // Helper function to extract payment fields
 const getPaymentFields = (modelName) => {
@@ -11,6 +22,13 @@ const getPaymentFields = (modelName) => {
         ["recvdate", "paymtdate", "adddate"].includes(field)
     )
   );
+};
+
+// Helper function to generate cache key
+const generateCacheKey = (params) => {
+  const { page, limit, sort, order, startDate, endDate, search } = params;
+  const key = `payments_${page || 1}_${limit || 20}_${sort || 'recvdate'}_${order || 'desc'}_${startDate || ''}_${endDate || ''}_${search || ''}`;
+  return key.toLowerCase(); // Normalize cache key
 };
 
 // Helper function to extract payment reference numbers from various formats
@@ -30,25 +48,34 @@ const extractPaymentRefNumber = (input) => {
   
   // Check if input matches any of our payment reference patterns
   for (const pattern of patterns) {
-    if (pattern.test(inputStr)) {
-      return inputStr;
+    const match = inputStr.match(pattern);
+    if (match) {
+      return match[1] || match[0]; // Return the captured group if exists, otherwise full match
     }
   }
   
   return null;
 };
 
-// Parse tagged search similar to AllClient component
+// Optimized search parsing with memoization
+const searchCache = new Map();
 const parseTaggedSearch = (searchValue = "") => {
+  const normalizedSearch = searchValue.trim().toLowerCase();
+  if (!normalizedSearch) {
+    return { search: "", paymentRef: "", fullName: "" };
+  }
+
+  // Check cache first
+  const cached = searchCache.get(normalizedSearch);
+  if (cached) return cached;
+
   const filters = {
     search: "",
     paymentRef: "",
     fullName: "",
   };
 
-  if (!searchValue.trim()) return filters;
-
-  let remainingValue = searchValue;
+  let remainingValue = normalizedSearch;
 
   // First check for explicitly tagged payment reference
   const taggedRefMatch = remainingValue.match(/\bref:\s*([^\s]+)/i);
@@ -82,32 +109,62 @@ const parseTaggedSearch = (searchValue = "") => {
   // Any remaining text goes to general search
   filters.search = remainingValue;
 
+  // Cache the result
+  searchCache.set(normalizedSearch, filters);
+  
+  // Limit cache size to prevent memory leaks
+  if (searchCache.size > 1000) {
+    const firstKey = searchCache.keys().next().value;
+    searchCache.delete(firstKey);
+  }
+
   return filters;
 };
 
-// Add the buildClientSearchFilter function
+// Helper function to load and cache models
+const loadModel = async (modelName, modelLoader) => {
+  // Check if model is already cached
+  if (modelCache.has(modelName)) {
+    return modelCache.get(modelName);
+  }
+
+  try {
+    const model = await modelLoader();
+    const loadedModel = model.default;
+    modelCache.set(modelName, loadedModel);
+    return loadedModel;
+  } catch (err) {
+    console.error(`Error loading model ${modelName}:`, err);
+    return null;
+  }
+};
+
+// Optimized client search filter builder
 const buildClientSearchFilter = (parsedSearch) => {
   const searchFilters = [];
   const { fullName, search } = parsedSearch;
 
+  if (!fullName && !search) return {};
+
   // Helper function to build name search conditions
   const buildNameConditions = (value) => {
-    const parts = value.split(/\s+/);
+    const parts = value.split(/\s+/).filter(Boolean);
     const nameFields = ["lname", "fname", "mname", "company"];
 
     if (parts.length > 1) {
       return {
         $and: parts.map((part) => ({
           $or: nameFields.map((field) => ({
-            [field]: { $regex: part, $options: "i" },
-          })),
-        })),
+            [field]: new RegExp(part, "i")
+          }))
+        }))
       };
     }
 
-    const regex = new RegExp(value, "i");
     return {
-      $or: nameFields.map((field) => ({ [field]: regex })),
+      $or: nameFields.map((field) => ({
+        [field]: new RegExp(value, "i")
+      }))
     };
   };
 
@@ -124,49 +181,22 @@ const buildClientSearchFilter = (parsedSearch) => {
   return searchFilters.length > 0 ? { $or: searchFilters } : {};
 };
 
-// Helper function to create payment reference patterns
-const createPaymentRefPatterns = (ref) => {
-  // Keep the original reference as the only pattern
-  const patterns = [ref];
+// Optimized payment reference query builder
+const buildPaymentRefQuery = (ref) => {
+  if (!ref) return null;
 
-  return patterns;
-};
-
-// Helper function to build payment reference query condition
-const buildPaymentRefQuery = (refPatterns) => {
-  const cleanRef = refPatterns[0].toString().trim();
-
+  const cleanRef = ref.toString().trim();
   return {
-    $or: [
-      { paymtref: { $eq: cleanRef } },
-      {
-        $expr: {
-          $eq: [{ $toString: { $ifNull: ["$paymtref", ""] } }, cleanRef],
-        },
-      },
-      {
-        $expr: {
-          $gt: [
-            {
-              $indexOfCP: [
-                { $toString: { $ifNull: ["$paymtref", ""] } },
-                cleanRef,
-              ],
-            },
-            -1,
-          ],
-        },
-      },
-    ],
+    paymtref: new RegExp(cleanRef, "i")
   };
 };
 
-// GET /payments - Get all payments for all clients
+// GET /payments - Get all payments for all clients with caching
 export const getAllPayments = async (req, res) => {
   try {
+    const startTime = Date.now();
     res.setHeader("Content-Type", "application/json");
 
-    // Destructure and validate query parameters
     const {
       page = 1,
       limit = 100,
@@ -176,6 +206,15 @@ export const getAllPayments = async (req, res) => {
       endDate,
       search = "",
     } = req.query;
+
+    // Generate cache key
+    const cacheKey = generateCacheKey(req.query);
+    
+    // Check cache first
+    const cachedResult = queryCache.get(cacheKey);
+    if (cachedResult) {
+      return res.json(cachedResult);
+    }
 
     // Build date filter
     const dateFilter = {};
@@ -187,196 +226,164 @@ export const getAllPayments = async (req, res) => {
     
     let clients = [];
     let totalClients = 0;
+    let flatPayments = [];
 
-    // If searching for a payment reference, search directly in payment models first
-    if (parsedSearch.paymentRef) {
-      const refPatterns = createPaymentRefPatterns(parsedSearch.paymentRef);
-      const paymentRefQuery = buildPaymentRefQuery(refPatterns);
-      
-      // Process all models in parallel but only for payment reference search
-      const modelQueries = Object.entries(models)
-        .filter(([modelName]) => {
-          const paymentFields = getPaymentFields(modelName);
-          return Object.keys(paymentFields).length > 0;
-        })
-        .map(async ([modelName, modelLoader]) => {
-          const model = await modelLoader();
-          const paymentFields = getPaymentFields(modelName);
-          const clientIdField = modelName === "ComplimentaryModel" ? "clientId" : "clientid";
-
-          // First find matching payment references
-          const matchingPayments = await model.default.aggregate([
-            { $match: paymentRefQuery },
-            {
-              $project: {
-                ...paymentFields,
-                [clientIdField]: 1,
-                model: { $literal: modelName.replace("Model", "") },
-              },
-            },
-            { $sort: { [sort]: order === "desc" ? -1 : 1 } },
-            { $limit: 1000 }, // Reasonable limit for performance
-          ]);
-
-          return matchingPayments;
-        });
-
-      const allModelPayments = await Promise.all(modelQueries);
-      const allPayments = allModelPayments.flat();
-
-      // Get unique client IDs from the payments
-      const uniqueClientIds = [...new Set(allPayments.map(p => p.clientid || p.clientId))];
-
-      if (uniqueClientIds.length > 0) {
-        // Fetch only the clients that have matching payments
-        clients = await ClientModel.find({ id: { $in: uniqueClientIds } })
-          .select("id lname fname mname company")
-          .lean();
-        totalClients = clients.length;
-      }
-
-      // Create client map for faster lookup
-      const clientMap = clients.reduce((acc, client) => {
-        acc[client.id] = {
-          clientName: `${client.lname}, ${client.fname}${
-            client.mname ? " " + client.mname : ""
-          }`,
-          company: client.company,
-        };
-        return acc;
-      }, {});
-
-      // Map payments with client info
-      const flatPayments = allPayments.map((payment) => {
-        const clientId = payment.clientid || payment.clientId;
-        const clientInfo = clientMap[clientId] || {
-          clientName: "Unknown Client",
-          company: "",
-        };
-        return {
-          ...payment,
-          clientId,
-          ...clientInfo,
-        };
-      });
-
-      return res.json({
-        page: 1,
-        limit: flatPayments.length,
-        totalClients,
-        totalPayments: flatPayments.length,
-        data: flatPayments,
-      });
-    }
-
-    // Handle name search or general search
-    if (parsedSearch.fullName || parsedSearch.search) {
-      const clientFilter = buildClientSearchFilter(parsedSearch);
-      
-      // Get all matching clients without pagination for search
-      clients = await ClientModel.find(clientFilter)
-        .select("id lname fname mname company")
-        .limit(1000) // Reasonable limit for performance
-        .lean();
-      
-      totalClients = clients.length;
-    } else {
-      // Normal paginated flow for non-search cases
-      [totalClients, clients] = await Promise.all([
-        ClientModel.countDocuments({}),
-        ClientModel.find({})
-          .select("id lname fname mname company")
-          .skip((page - 1) * limit)
-          .limit(parseInt(limit))
-          .lean(),
-      ]);
-    }
-
-    if (!clients.length) {
-      return res.json({
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalClients: 0,
-        totalPayments: 0,
-        data: [],
-      });
-    }
-
-    // Get client IDs for payment queries
-    const clientIds = clients.map((c) => c.id);
-
-    // Process all models in parallel
-    const modelQueries = Object.entries(models)
+    // Get relevant models
+    const relevantModels = Object.entries(models)
       .filter(([modelName]) => {
         const paymentFields = getPaymentFields(modelName);
         return Object.keys(paymentFields).length > 0;
-      })
-      .map(async ([modelName, modelLoader]) => {
-        const model = await modelLoader();
-        const paymentFields = getPaymentFields(modelName);
-        const clientIdField = modelName === "ComplimentaryModel" ? "clientId" : "clientid";
-
-        const matchQuery = {
-          [clientIdField]: { $in: clientIds },
-        };
-
-        if (Object.keys(dateFilter).length > 0) {
-          matchQuery.recvdate = dateFilter;
-        }
-
-        return model.default.aggregate([
-          { $match: matchQuery },
-          {
-            $project: {
-              ...paymentFields,
-              [clientIdField]: 1,
-              model: { $literal: modelName.replace("Model", "") },
-            },
-          },
-          { $sort: { [sort]: order === "desc" ? -1 : 1 } },
-        ]);
       });
 
-    const allModelPayments = await Promise.all(modelQueries);
-    const allPayments = allModelPayments.flat();
+    // Load all models in parallel
+    const loadedModels = await Promise.all(
+      relevantModels.map(async ([modelName, modelLoader]) => {
+        const model = await loadModel(modelName, modelLoader);
+        return model ? [modelName, model] : null;
+      })
+    );
+
+    // Filter out any failed model loads
+    const validModels = loadedModels.filter(Boolean);
+
+    // If searching for a payment reference, search directly in payment models
+    if (parsedSearch.paymentRef) {
+      const paymentRefQuery = buildPaymentRefQuery(parsedSearch.paymentRef);
+      
+      // Process all models in parallel for payment reference search
+      const modelQueries = validModels.map(async ([modelName, model]) => {
+        try {
+          const result = await model.find(paymentRefQuery)
+            .select({ ...getPaymentFields(modelName), clientid: 1, clientId: 1 })
+            .lean()
+            .exec();
+          return result.map(payment => ({
+            ...payment,
+            modelType: modelName.replace('Model', '')
+          }));
+        } catch (err) {
+          console.error(`Error querying ${modelName}:`, err);
+          return [];
+        }
+      });
+
+      const results = await Promise.all(modelQueries);
+      flatPayments = results.flat();
+
+      // Get unique client IDs from payments
+      const clientIds = [...new Set(flatPayments.map(p => p.clientid || p.clientId))];
+      
+      if (clientIds.length > 0) {
+        // Fetch client information
+        clients = await ClientModel.find({ id: { $in: clientIds } })
+          .select('id lname fname mname company')
+          .lean()
+          .exec();
+      }
+    } else {
+      // Handle name search or regular pagination
+      const clientFilter = buildClientSearchFilter(parsedSearch);
+      
+      if (search) {
+        // When searching, get all matching clients
+        clients = await ClientModel.find(clientFilter)
+          .select('id lname fname mname company')
+          .lean()
+          .exec();
+        totalClients = clients.length;
+      } else {
+        // Normal pagination
+        [totalClients, clients] = await Promise.all([
+          ClientModel.countDocuments({}),
+          ClientModel.find({})
+            .select('id lname fname mname company')
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit))
+            .lean()
+            .exec()
+        ]);
+      }
+
+      if (clients.length > 0) {
+        // Get client IDs for payment queries
+        const clientIds = clients.map(c => c.id);
+
+        // Process all models in parallel
+        const modelQueries = validModels.map(async ([modelName, model]) => {
+          try {
+            const query = {
+              $or: [
+                { clientid: { $in: clientIds } },
+                { clientId: { $in: clientIds } }
+              ]
+            };
+
+            if (Object.keys(dateFilter).length > 0) {
+              query.recvdate = dateFilter;
+            }
+
+            const result = await model.find(query)
+              .select({ ...getPaymentFields(modelName), clientid: 1, clientId: 1 })
+              .sort({ [sort]: order === 'desc' ? -1 : 1 })
+              .lean()
+              .exec();
+
+            return result.map(payment => ({
+              ...payment,
+              modelType: modelName.replace('Model', '')
+            }));
+          } catch (err) {
+            console.error(`Error querying ${modelName}:`, err);
+            return [];
+          }
+        });
+
+        const results = await Promise.all(modelQueries);
+        flatPayments = results.flat();
+      }
+    }
 
     // Create client map for faster lookup
-    const clientMap = clients.reduce((acc, client) => {
-      acc[client.id] = {
-        clientName: `${client.lname}, ${client.fname}${
-          client.mname ? " " + client.mname : ""
-        }`,
-        company: client.company,
-      };
-      return acc;
-    }, {});
+    const clientMap = new Map(
+      clients.map(client => [
+        client.id,
+        {
+          clientName: `${client.lname}, ${client.fname}${client.mname ? ' ' + client.mname : ''}`,
+          company: client.company
+        }
+      ])
+    );
 
     // Map payments with client info
-    const flatPayments = allPayments.map((payment) => {
+    const paymentsWithClientInfo = flatPayments.map(payment => {
       const clientId = payment.clientid || payment.clientId;
-      const clientInfo = clientMap[clientId] || {
-        clientName: "Unknown Client",
-        company: "",
+      const clientInfo = clientMap.get(clientId) || {
+        clientName: 'Unknown Client',
+        company: ''
       };
       return {
         ...payment,
         clientId,
-        ...clientInfo,
+        ...clientInfo
       };
     });
 
-    res.json({
+    // Prepare the final result
+    const result = {
       page: parseInt(page),
       limit: parseInt(limit),
       totalClients,
-      totalPayments: flatPayments.length,
-      data: flatPayments,
-    });
+      totalPayments: paymentsWithClientInfo.length,
+      data: paymentsWithClientInfo,
+      executionTime: Date.now() - startTime
+    };
+
+    // Cache the result
+    queryCache.set(cacheKey, result);
+    
+    res.json(result);
   } catch (error) {
-    res.status(500).json({
-      error: "Internal server error",
-      details: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
+    console.error("Error in getAllPayments:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
