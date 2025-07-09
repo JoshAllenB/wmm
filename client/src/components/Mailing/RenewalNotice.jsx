@@ -17,6 +17,9 @@ const RenewalNoticeDataOverlay = forwardRef(({
   const [subscriberCount, setSubscriberCount] = useState(0);
   const [showConfig, setShowConfig] = useState(false);
   const [skippedRecords, setSkippedRecords] = useState([]);
+  const [reminderMonth, setReminderMonth] = useState(new Date().toLocaleString('default', { month: 'long' }));
+  const [reminderYear, setReminderYear] = useState(new Date().getFullYear().toString());
+  const [locationType, setLocationType] = useState('Local'); // 'Local' or 'Foreign'
   
   // Configuration state for positions (defaulted to current values)
   const [positions, setPositions] = useState(() => {
@@ -25,20 +28,30 @@ const RenewalNoticeDataOverlay = forwardRef(({
       return sharedConfig.positions || {
         group1: {
           // Right side fields (ID, Expiry Date, Last Issue)
-          top: 3.3, // ~30% of page height (11 inches * 0.55 = ~6.05 inches, adjusted for practical positioning)
-          left: 0.25, // ~2.5% of page width (8.5 inches * 0.025 = 0.21 inches, rounded)
+          top: 3.3,
+          left: 0.25,
           width: 3.0,
-          lineSpacing: 0.825, // Spacing between 55%, 62.5%, and 70% positions (approx 7.5% difference = 0.825")
+          lineSpacing: 0.825,
           fontSize: 12,
           fontWeight: "bold",
           fontFamily: "Arial"
         },
         group2: {
           // Left side fields (ID, Copies, Name, Address, etc.)
-          top: 3.3, // ~30% of page height
-          left: 0.0, // 0% of page width
-          width: 5.0, // Wide enough for address fields
-          lineSpacing: 0.275, // Spacing for fields at 30%, 32.5%, 35%, etc. (2.5% increments = 0.275")
+          top: 3.3,
+          left: 0.0,
+          width: 5.0,
+          lineSpacing: 0.275,
+          fontSize: 12,
+          fontWeight: "normal",
+          fontFamily: "Arial"
+        },
+        group3: {
+          // Sucat reminder text
+          top: 6.0,
+          left: 0.1, // Aligned with group2
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 12,
           fontWeight: "normal",
           fontFamily: "Arial"
@@ -60,10 +73,10 @@ const RenewalNoticeDataOverlay = forwardRef(({
     return {
       // Group 1: ID, Expiry, Last Issue (Right side fields)
       group1: {
-        top: 1.4, // ~55% of page height (11 inches * 0.55 = ~6.05 inches)
-        left: 4.2, // ~2.5% of page width (8.5 inches * 0.025 = 0.21 inches)
+        top: 1.4,
+        left: 4.2,
         width: 2,
-        lineSpacing: 0.3, // Spacing between 55%, 62.5%, and 70% positions (approx 7.5% difference = 0.825")
+        lineSpacing: 0.3,
         fontSize: 12,
         fontWeight: "bold",
         fontFamily: "Arial"
@@ -71,10 +84,21 @@ const RenewalNoticeDataOverlay = forwardRef(({
       
       // Group 2: ID, Copies, Name, Address, Contact (Left side fields)
       group2: {
-        top: 1.8, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
-        left: 0.1, // 0% of page width
-        width: 3, // Wide enough for address fields
-        lineSpacing: 0.175, // Reduced from 0.275 to make fields appear closer together
+        top: 1.8,
+        left: 0.1,
+        width: 3,
+        lineSpacing: 0.175,
+        fontSize: 12,
+        fontWeight: "normal",
+        fontFamily: "Arial"
+      },
+
+      // Group 3: Sucat reminder text
+      group3: {
+        top: 6.0,
+        left: 0.1, // Aligned with group2
+        width: 4.0,
+        lineSpacing: 0.3,
         fontSize: 12,
         fontWeight: "normal",
         fontFamily: "Arial"
@@ -360,6 +384,15 @@ const RenewalNoticeDataOverlay = forwardRef(({
           left: 0.0,
           width: 5.0,
           lineSpacing: 0.175,
+          fontSize: 12,
+          fontWeight: "normal",
+          fontFamily: "Arial"
+        },
+        group3: {
+          top: 6.0,
+          left: 0.1, // Aligned with group2
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 12,
           fontWeight: "normal",
           fontFamily: "Arial"
@@ -984,6 +1017,95 @@ const RenewalNoticeDataOverlay = forwardRef(({
                     </div>
                   </div>
                 </fieldset>
+
+                {/* Group 3: Sucat Reminder Text */}
+                <fieldset className="border rounded p-3">
+                  <legend className="text-sm font-medium px-1">Group 3: Sucat Reminder</legend>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="block text-xs mb-1">Top (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.group3.top} 
+                        onChange={(e) => handleGroupPositionChange('group3', 'top', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1">Left (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.group3.left} 
+                        onChange={(e) => handleGroupPositionChange('group3', 'left', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1">Width (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.group3.width} 
+                        onChange={(e) => handleGroupPositionChange('group3', 'width', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs mb-1">Line Spacing (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.group3.lineSpacing} 
+                        onChange={(e) => handleGroupPositionChange('group3', 'lineSpacing', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Font settings for Group 3 */}
+                  <div className="mt-2 border-t pt-2">
+                    <div className="text-xs font-medium mb-1">Font Settings</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Size (pt)</label>
+                        <input 
+                          type="number" 
+                          step="1"
+                          value={positions.group3.fontSize} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'fontSize', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Weight</label>
+                        <select
+                          value={positions.group3.fontWeight}
+                          onChange={(e) => handleGroupPositionChange('group3', 'fontWeight', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="bold">Bold</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Font Family</label>
+                        <select
+                          value={positions.group3.fontFamily}
+                          onChange={(e) => handleGroupPositionChange('group3', 'fontFamily', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        >
+                          <option value="Arial">Arial</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Tahoma">Tahoma</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
               </div>
               
               <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
@@ -1041,6 +1163,50 @@ const RenewalNoticeDataOverlay = forwardRef(({
 
         {/* Right side: Live preview pane */}
         <div className="w-3/5">
+          {/* Add reminder settings above the preview */}
+          <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+            <h4 className="font-medium text-sm mb-3">Reminder Settings</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs mb-1">Month</label>
+                <select
+                  value={reminderMonth}
+                  onChange={(e) => setReminderMonth(e.target.value)}
+                  className="w-full px-2 py-1 border rounded text-sm"
+                >
+                  {[
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                  ].map(month => (
+                    <option key={month} value={month}>{month}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1">Year</label>
+                <input
+                  type="number"
+                  value={reminderYear}
+                  onChange={(e) => setReminderYear(e.target.value)}
+                  className="w-full px-2 py-1 border rounded text-sm"
+                  min="2000"
+                  max="2100"
+                />
+              </div>
+              <div>
+                <label className="block text-xs mb-1">Location Type</label>
+                <select
+                  value={locationType}
+                  onChange={(e) => setLocationType(e.target.value)}
+                  className="w-full px-2 py-1 border rounded text-sm"
+                >
+                  <option value="Local">Local</option>
+                  <option value="Foreign">Foreign</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
           <div className="border rounded-lg shadow-sm bg-white p-4 h-full">
             <h3 className="text-center font-semibold text-sm mb-3">Live Preview</h3>
             
@@ -1261,14 +1427,42 @@ const RenewalNoticeDataOverlay = forwardRef(({
                                   width: "100%",
                                   whiteSpace: "pre-wrap"
                                 }}>
-                                  {subscriber.address4.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address4.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
+                                  {subscriber.address4}
                                 </div>
                               )}
+
+                              {/* Add Group 3: Sucat Reminder Text */}
+                              <div 
+                                className="absolute bg-yellow-50 border border-yellow-200 p-2 text-sm font-mono"
+                                style={{
+                                  top: `${positions.group3.top * scaleY}px`,
+                                  left: `${positions.group3.left * scaleX}px`,
+                                  width: `${positions.group3.width * scaleX}px`,
+                                  minHeight: `${positions.group3.lineSpacing * 2 * scaleY}px`,
+                                  fontFamily: positions.group3.fontFamily,
+                                  fontSize: `${positions.group3.fontSize}px`,
+                                  fontWeight: positions.group3.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-yellow-500 font-mono -top-4 -left-1">Group 3</div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: "0px",
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  Sucat - {reminderMonth} {reminderYear}
+                                </div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: `${positions.group3.lineSpacing * scaleY}px`,
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  (Friendly Reminder - {locationType})
+                                </div>
+                              </div>
+
                             </div>
                           </>
                         );
