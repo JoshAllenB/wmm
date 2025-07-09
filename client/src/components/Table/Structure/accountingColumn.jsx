@@ -1,4 +1,6 @@
 import { Checkbox } from "../../UI/ShadCN/checkbox";
+import { ArrowUpDown } from "lucide-react";
+import { Button } from "../../UI/ShadCN/button";
 
 /** @type import ('@tanstack/react-table').ColumnDef<any>*/
 export const useAccountingColumns = () => {
@@ -105,13 +107,28 @@ export const useAccountingColumns = () => {
     },
     {
       id: "Date",
-      header: "Date",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="px-0 font-semibold"
+          >
+            Date
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
       accessorKey: "adddate",
-      cell: ({ getValue }) => (
+      accessorFn: (row) => new Date(row.adddate).getTime(),
+      cell: ({ getValue, row }) => (
         <div className="py-2">
-          {formatDate(getValue())}
+          {formatDate(row.adddate)}
         </div>
       ),
+      sortingFn: "datetime",
+      sortDescFirst: true,
+      enableSorting: true,
       size: 120,
     },
     {
