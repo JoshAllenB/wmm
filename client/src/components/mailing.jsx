@@ -20,7 +20,7 @@ import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
 import DocumentGenerator from "./Mailing/DocumentGenerator";
 
 // Import utility functions
-import { generatePrintHTML, generateChecklistHTML, generatePrnContent } from "./Mailing/PrintGenerator";
+import { generatePrintHTML, generateChecklistHTML } from "./Mailing/PrintGenerator";
 
 // Helper functions
 const convertLegacyLabelToTemplate = (label) => {
@@ -117,8 +117,8 @@ const Mailing = ({
   const [fontSize, setFontSize] = useState(12); // in points (pt)
   const [labelHeight, setLabelHeight] = useState(35); // 130px in mm
   const [horizontalSpacing, setHorizontalSpacing] = useState(13); // 60px in mm
-  const [rowSpacing, setRowSpacing] = useState(58); // 63.5mm (about 2.5 inches)
-  const [selectedFields, setSelectedFields] = useState(["contactnos"]);
+  const [rowSpacing, setRowSpacing] = useState(90); // 63.5mm (about 2.5 inches)
+  const [selectedFields, setSelectedFields] = useState(["contactnos"]); // Initialize with default contact field
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [savedTemplates, setSavedTemplates] = useState([]);
@@ -602,14 +602,6 @@ const Mailing = ({
 
   // Handle print with range
   const handlePrintWithRange = async () => {
-    console.log('Print Preview Clicked - Initial data:', {
-      rowsCount: availableRows.length,
-      dataSource,
-      hasStartId: !!startClientId,
-      hasEndId: !!endClientId,
-      useAllData
-    });
-
     let templateToUse = selectedTemplate;
     if (!templateToUse) {
       templateToUse = {
@@ -622,7 +614,7 @@ const Mailing = ({
           labelHeight: mmToPx(labelHeight),
           horizontalSpacing: mmToPx(horizontalSpacing),
         },
-        selectedFields,
+        selectedFields: selectedFields || [],
         isLegacy: useLegacyFormat
       };
     }
@@ -642,13 +634,6 @@ const Mailing = ({
         });
       }
     }
-
-    console.log('Print Preview - Before filtering:', {
-      rowsToUseCount: rowsToUse.length,
-      startId: startClientId || 'none',
-      endId: endClientId || 'none',
-      useAllData
-    });
 
     // For legacy templates, generate and download .prn file
     if (templateToUse.isLegacy) {
@@ -678,11 +663,6 @@ const Mailing = ({
         return isAfterStart && isBeforeEnd;
       });
 
-      console.log('Legacy Template - After filtering:', {
-        filteredRowsCount: filteredRows.length,
-        useAllData
-      });
-
       if (filteredRows.length === 0) {
         alert("No labels found. Please check your selection and ID range if specified.");
         return;
@@ -697,7 +677,6 @@ const Mailing = ({
       endClientId,
       startPosition,
       rowsToUse,
-      useLegacyFormat,
       templateToUse,
       mmToPx(leftPosition),
       mmToPx(topPosition),
@@ -706,24 +685,21 @@ const Mailing = ({
       mmToPx(rowSpacing),
       fontSize,
       mmToPx(labelHeight),
-      selectedFields,
+      templateToUse.selectedFields || selectedFields || [],
       userRole
     );
     
     const printWindow = window.open("", "_blank", "height=600,width=800");
     if (printWindow) {
-      console.log('Opening print window with data count:', rowsToUse.length);
       printWindow.document.write('<!DOCTYPE html>');
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       // Wait for resources to load before printing
       printWindow.onload = () => {
         try {
-          console.log('Print window loaded, initiating print...');
           printWindow.print();
           // Only close after printing is done or cancelled
           printWindow.onafterprint = () => {
-            console.log('Printing completed or cancelled');
             printWindow.close();
           };
         } catch (error) {
@@ -975,11 +951,6 @@ const Mailing = ({
           total: data.length,
           filtered: data.length
         });
-        console.log('Modal Opened - Data counts:', {
-          availableRows: availableRows.length,
-          allData: data.length,
-          useAllData: useAllData
-        });
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
@@ -989,12 +960,6 @@ const Mailing = ({
         });
       }
       setIsLoadingAllRecords(false);
-    } else {
-      console.log('Modal Opened - Data counts:', {
-        availableRows: availableRows.length,
-        allData: allData?.length || 0,
-        useAllData: useAllData
-      });
     }
   };
   const closeModal = () => setModalOpen(false);
