@@ -2,9 +2,45 @@ import { getModelInstance } from './modelManager.mjs';
 import { parseDate } from './helpers.mjs';
 
 export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
-  let filterQuery = { $and: [] };
+  // Initialize the filter query
   const baseFilter = [];
+  let hasIncludedIds = false;
+  let includedIds = [];
 
+  // Handle client ID inclusion first
+  if (advancedFilterData.includeClientIds) {
+    // Convert to array if it's a single value
+    const includeIds = Array.isArray(advancedFilterData.includeClientIds) 
+      ? advancedFilterData.includeClientIds 
+      : [advancedFilterData.includeClientIds];
+
+    includedIds = includeIds
+      .map(id => Number(id))
+      .filter(id => !isNaN(id) && isFinite(id));
+
+    if (includedIds.length > 0) {
+      hasIncludedIds = true;
+    } else {
+      return { id: -1 }; // No matches if invalid IDs
+    }
+  }
+
+  // Handle client ID exclusion
+  if (advancedFilterData.excludeClientIds) {
+    // Convert to array if it's a single value
+    const excludeIds = Array.isArray(advancedFilterData.excludeClientIds) 
+      ? advancedFilterData.excludeClientIds 
+      : [advancedFilterData.excludeClientIds];
+
+    const validIds = excludeIds
+      .map(id => Number(id))
+      .filter(id => !isNaN(id) && isFinite(id));
+
+    if (validIds.length > 0) {
+      // Add the exclusion filter as a top-level condition
+      baseFilter.push({ id: { $nin: validIds } });
+    }
+  }
 
   // Add group filter
   if (advancedFilterData.group || group) {
@@ -80,27 +116,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     const clientId = parseInt(advancedFilterData.clientId);
     if (!isNaN(clientId)) {
       baseFilter.push({ id: clientId });
-    }
-  }
-
-  // Add client ID inclusion/exclusion filters
-  if (Array.isArray(advancedFilterData.includeClientIds) && advancedFilterData.includeClientIds.length > 0) {
-    const validIds = advancedFilterData.includeClientIds
-      .map((id) => (typeof id === "string" ? parseInt(id) : id))
-      .filter((id) => !isNaN(id));
-
-    if (validIds.length > 0) {
-      baseFilter.push({ id: { $in: validIds } });
-    }
-  }
-
-  if (Array.isArray(advancedFilterData.excludeClientIds) && advancedFilterData.excludeClientIds.length > 0) {
-    const validIds = advancedFilterData.excludeClientIds
-      .map((id) => (typeof id === "string" ? parseInt(id) : id))
-      .filter((id) => !isNaN(id));
-
-    if (validIds.length > 0) {
-      baseFilter.push({ id: { $nin: validIds } });
     }
   }
 
@@ -284,15 +299,96 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     }
   }
 
-  // Clean up and finalize filter query
-  if (baseFilter.length > 0) {
-    filterQuery.$and.push(...baseFilter);
+  // At the end, before returning the query:
+  let filterQuery;
+  
+  if (hasIncludedIds) {
+    // If we have included IDs, create an $or condition that will match either:
+    // 1. The specifically included IDs
+    // 2. All other filter conditions (if any)
+    const conditions = [{ id: { $in: includedIds } }];
+    
+    if (baseFilter.length > 0) {
+      conditions.push({ $and: baseFilter });
+    }
+    
+    filterQuery = { $or: conditions };
+  } else {
+    // If no included IDs, use the regular filter
+    filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
   }
 
-  if (filterQuery.$and.length === 0) {
-    delete filterQuery.$and;
-  } else if (filterQuery.$and.length === 1) {
-    filterQuery = filterQuery.$and[0];
+  // Create a simplified version of the query for logging
+  const simplifiedQuery = {
+    ...filterQuery,
+    $or: filterQuery.$or?.map(cond => {
+      if (cond.id?.$in && cond.id.$in.length > 10) {
+        return {
+          id: {
+            $in: [
+              ...cond.id.$in.slice(0, 3),
+              `...${cond.id.$in.length - 6} more...`,
+              ...cond.id.$in.slice(-3)
+            ]
+          }
+        };
+      }
+      return cond;
+    }),
+    $and: filterQuery.$and?.map(cond => {
+      // Handle ID exclusions
+      if (cond.id?.$nin && cond.id.$nin.length > 10) {
+        return {
+          id: {
+            $nin: [
+              ...cond.id.$nin.slice(0, 3),
+              `...${cond.id.$nin.length - 6} more...`,
+              ...cond.id.$nin.slice(-3)
+            ]
+          }
+        };
+      }
+      // Handle ID inclusions
+      if (cond.id?.$in && cond.id.$in.length > 10) {
+        return {
+          id: {
+            $in: [
+              ...cond.id.$in.slice(0, 3),
+              `...${cond.id.$in.length - 6} more...`,
+              ...cond.id.$in.slice(-3)
+            ]
+          }
+        };
+      }
+      return cond;
+    })
+  };
+
+  // Log both the simplified query and the ID filters separately for debugging
+  console.log("Final MongoDB Query:", JSON.stringify(simplifiedQuery));
+  if (advancedFilterData.excludeClientIds || advancedFilterData.includeClientIds) {
+    // Convert excluded IDs to numbers for logging
+    const excludedIds = advancedFilterData.excludeClientIds
+      ? (Array.isArray(advancedFilterData.excludeClientIds)
+          ? advancedFilterData.excludeClientIds
+          : [advancedFilterData.excludeClientIds])
+        .map(id => Number(id))
+        .filter(id => !isNaN(id) && isFinite(id))
+      : [];
+
+    // Convert included IDs to numbers for logging
+    const includedIds = advancedFilterData.includeClientIds
+      ? (Array.isArray(advancedFilterData.includeClientIds)
+          ? advancedFilterData.includeClientIds
+          : [advancedFilterData.includeClientIds])
+        .map(id => Number(id))
+        .filter(id => !isNaN(id) && isFinite(id))
+      : [];
+
+    console.log("ID Filters:", JSON.stringify({
+      excluded: excludedIds,
+      included: includedIds
+    }));
   }
 
   return filterQuery;

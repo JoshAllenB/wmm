@@ -496,7 +496,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
     const processClientIds = (idsString) => {
       if (!idsString || !idsString.trim()) return [];
-      return idsString.split(",").map(id => id.trim()).filter(Boolean);
+      
+      // First split by commas and/or whitespace and clean up
+      const ids = idsString
+        .split(/[,\s]+/)
+        .map(id => id.trim())
+        .filter(Boolean)
+        .map(id => {
+          // Remove any non-numeric characters
+          const cleanId = id.replace(/[^0-9]/g, '');
+          const num = Number(cleanId);
+          return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+        })
+        .filter(id => id !== null);
+
+      // Remove duplicates and sort
+      return [...new Set(ids)].sort((a, b) => a - b);
     };
 
     // Helper function to only include non-empty values
@@ -584,14 +599,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       ...(filterData.areas?.length > 0 && { areas: filterData.areas }),
       ...(filterData.services?.length > 0 && { services: filterData.services }),
 
-      // Client IDs
-      ...(filterData.clientIdFilterType === 'include' && filterData.clientIncludeIds && {
-        clientIdFilterType: 'include',
-        includeClientIds: processClientIds(filterData.clientIncludeIds)
-      }),
-      ...(filterData.clientIdFilterType === 'exclude' && filterData.clientExcludeIds && {
-        clientIdFilterType: 'exclude',
+      // Handle client ID filters with strict validation
+      ...(filterData.clientIdFilterType === 'exclude' && {
         excludeClientIds: processClientIds(filterData.clientExcludeIds)
+      }),
+      ...(filterData.clientIdFilterType === 'include' && {
+        includeClientIds: processClientIds(filterData.clientIncludeIds)
       }),
 
       // Other flags
@@ -670,10 +683,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Clean the object to remove any undefined or empty values that might have slipped through
     const finalFilterData = cleanObject(processedFilterData);
 
-    // Log the filter data being submitted
+    // Add debug logging
     console.log("\n=== Advanced Filter Submission ===");
     console.log("Timestamp:", new Date().toISOString());
     console.log("Filter Data:", JSON.stringify(finalFilterData, null, 2));
+    console.log("Client IDs to exclude:", processClientIds(filterData.clientExcludeIds));
+    console.log("Client IDs to include:", processClientIds(filterData.clientIncludeIds));
     
     // Apply the filter
     onApplyFilter(finalFilterData);
