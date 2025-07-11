@@ -22,7 +22,15 @@ const ConfigurationPanel = ({
   setTemplateName,
   showTemplateNameInput,
   setShowTemplateNameInput,
-  saveTemplate
+  saveTemplate,
+  paperWidth,
+  setPaperWidth,
+  paperHeight,
+  setPaperHeight,
+  rowsPerPage,
+  setRowsPerPage,
+  columnsPerPage,
+  setColumnsPerPage
 }) => {
   // State for input values
   const [inputValues, setInputValues] = useState({
@@ -33,6 +41,10 @@ const ConfigurationPanel = ({
     labelHeight,
     horizontalSpacing,
     rowSpacing,
+    paperWidth,
+    paperHeight,
+    rowsPerPage,
+    columnsPerPage
   });
 
   // Update input values when props change
@@ -45,8 +57,12 @@ const ConfigurationPanel = ({
       labelHeight,
       horizontalSpacing,
       rowSpacing,
+      paperWidth,
+      paperHeight,
+      rowsPerPage,
+      columnsPerPage
     });
-  }, [topPosition, leftPosition, fontSize, columnWidth, labelHeight, horizontalSpacing, rowSpacing]);
+  }, [topPosition, leftPosition, fontSize, columnWidth, labelHeight, horizontalSpacing, rowSpacing, paperWidth, paperHeight, rowsPerPage, columnsPerPage]);
 
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
 
@@ -107,6 +123,85 @@ const ConfigurationPanel = ({
     <div className="flex flex-col p-4 border rounded mb-4 w-full bg-gray-50">
       <h3 className="text-lg font-semibold mb-3">Configuration</h3>
       
+      {/* Paper Size Settings */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium mb-2">Paper Size</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Paper Width (mm):</label>
+            <input
+              type="text"
+              value={inputValues.paperWidth}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => handleInputChange('paperWidth', e.target.value, setPaperWidth)}
+              onBlur={(e) => handleBlur('paperWidth', e.target.value, setPaperWidth)}
+            />
+            <span className="text-xs text-gray-500 mt-1">
+              ({(inputValues.paperWidth / 25.4).toFixed(1)}")
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Paper Height (mm):</label>
+            <input
+              type="text"
+              value={inputValues.paperHeight}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => handleInputChange('paperHeight', e.target.value, setPaperHeight)}
+              onBlur={(e) => handleBlur('paperHeight', e.target.value, setPaperHeight)}
+            />
+            <span className="text-xs text-gray-500 mt-1">
+              ({(inputValues.paperHeight / 25.4).toFixed(1)}")
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Page Layout Settings */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium mb-2">Page Layout</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Rows per Page:</label>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={inputValues.rowsPerPage}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => {
+                const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
+                handleInputChange('rowsPerPage', value, setRowsPerPage);
+              }}
+              onBlur={(e) => {
+                const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
+                handleBlur('rowsPerPage', value, setRowsPerPage);
+              }}
+            />
+          </div>
+          <div className="flex flex-col">
+            <label className="text-sm mb-1">Columns per Page:</label>
+            <input
+              type="number"
+              min="1"
+              max="4"
+              value={inputValues.columnsPerPage}
+              className="border border-gray-300 rounded p-1 text-center w-full"
+              onChange={(e) => {
+                const value = Math.max(1, Math.min(4, parseInt(e.target.value) || 1));
+                handleInputChange('columnsPerPage', value, setColumnsPerPage);
+              }}
+              onBlur={(e) => {
+                const value = Math.max(1, Math.min(4, parseInt(e.target.value) || 1));
+                handleBlur('columnsPerPage', value, setColumnsPerPage);
+              }}
+            />
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Labels per page: {inputValues.rowsPerPage * inputValues.columnsPerPage}
+        </p>
+      </div>
+
       {/* Label Position Settings */}
       <div className="mb-4">
         <h4 className="text-sm font-medium mb-2">Initial Position</h4>

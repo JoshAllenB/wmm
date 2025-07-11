@@ -5,9 +5,9 @@ const mmToPx = (mm) => Math.round(mm * 96 / 25.4); // Convert mm to pixels at 96
 const inchesToMm = (inches) => inches * 25.4; // Convert inches to mm
 const inchesToPx = (inches) => Math.round(inches * 96); // Convert inches to pixels at 96dpi
 
-// Standard US Letter size in mm
-const LETTER_WIDTH_MM = inchesToMm(8.5);  // 215.9mm
-const LETTER_HEIGHT_MM = inchesToMm(11);   // 279.4mm
+// Default to US Letter size in mm if not specified
+const DEFAULT_PAPER_WIDTH_MM = inchesToMm(8.5);  // 215.9mm
+const DEFAULT_PAPER_HEIGHT_MM = inchesToMm(11);   // 279.4mm
 
 // Helper functions
 const getFullName = (row) => {
@@ -19,8 +19,10 @@ const getContactNumber = (row) => {
   // Function to clean phone numbers
   const cleanPhoneNumber = (number) => {
     if (!number) return "";
+    // Convert to string first to handle number inputs
+    const numberStr = String(number);
     // Remove any text descriptions (e.g., "Cell:", "Phone:", etc.)
-    const withoutLabels = number.replace(/(?:cell|phone|tel|office|contact|#|number|:|\(|\))/gi, '');
+    const withoutLabels = numberStr.replace(/(?:cell|phone|tel|office|contact|#|number|:|\(|\))/gi, '');
     // Keep only digits, spaces, dashes, plus signs, and periods
     const cleaned = withoutLabels.replace(/[^0-9\s\-\+\.]/g, '').trim();
     // Remove multiple spaces/dashes
@@ -70,10 +72,14 @@ const LabelPreview = ({
   labelHeight, // In mm
   selectedFields,
   startPosition,
-  rowSpacing, // Now in mm
+  rowSpacing, // In mm
   topPosition, // In mm
   leftPosition, // In mm
-  userRole
+  userRole,
+  paperWidth = DEFAULT_PAPER_WIDTH_MM, // In mm
+  paperHeight = DEFAULT_PAPER_HEIGHT_MM, // In mm
+  rowsPerPage = 3,
+  columnsPerPage = 2
 }) => {
   // Show loading message in preview when appropriate
   if (isLoading) {
@@ -184,7 +190,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
     );
   }
 
-  // Modern template preview - Calculate dimensions for letter size paper
+  // Modern template preview - Calculate dimensions for paper size
   // Convert all measurements from mm to pixels for display
   const effectiveColumnWidth = mmToPx(columnWidth);
   const effectiveHeight = mmToPx(labelHeight);
@@ -194,8 +200,11 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
   const effectiveRowSpacing = mmToPx(rowSpacing);
 
   // Calculate paper dimensions in pixels
-  const paperWidthPx = mmToPx(LETTER_WIDTH_MM);
-  const paperHeightPx = mmToPx(LETTER_HEIGHT_MM);
+  const paperWidthPx = mmToPx(paperWidth);
+  const paperHeightPx = mmToPx(paperHeight);
+
+  // Calculate labels per page
+  const labelsPerPage = rowsPerPage * columnsPerPage;
   
   return (
     <div 
@@ -208,13 +217,13 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
       }}
     >
       <div className="p-2 bg-gray-100 text-gray-700 text-xs" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-        Real-time preview of how labels will print on US Letter (8.5" × 11")
+        Real-time preview of paper size: {(paperWidth / 25.4).toFixed(1)}" × {(paperHeight / 25.4).toFixed(1)}"
         <div className="text-gray-500">
           Label size: {columnWidth.toFixed(1)}mm × {labelHeight.toFixed(1)}mm
           <br />
           Spacing: H: {horizontalSpacing.toFixed(1)}mm, V: {rowSpacing.toFixed(1)}mm
           <br />
-          Page layout: 3 rows × 2 columns (6 labels per page)
+          Page layout: {rowsPerPage} rows × {columnsPerPage} columns ({labelsPerPage} labels per page)
         </div>
       </div>
 
@@ -226,85 +235,79 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
           position: 'relative'
         }}
       >
-        {/* Create exactly 3 rows with 2 columns each */}
-        {Array.from({ length: 3 }).map((_, rowIdx) => {
-          // Get the data for this row's labels
-          const leftLabel = availableRows[rowIdx * 2];
-          const rightLabel = availableRows[rowIdx * 2 + 1];
-          
+        {/* Create rows based on rowsPerPage */}
+        {Array.from({ length: rowsPerPage }).map((_, rowIdx) => {
           return (
           <div 
             key={`row-${rowIdx}`} 
             className="flex relative" 
             style={{ 
-                marginBottom: rowIdx < 2 ? `${effectiveRowSpacing}px` : '0', // Only add margin to first two rows
+                marginBottom: rowIdx < rowsPerPage - 1 ? `${effectiveRowSpacing}px` : '0',
                 height: `${effectiveHeight}px`,
                 position: 'relative'
             }}
           >
-            {/* Left column */}
-              <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
-                {leftLabel ? (
-              <LabelItem 
-                    rowData={leftLabel.original}
-                width={effectiveColumnWidth}
-                height={effectiveHeight}
-                fontSize={fontSize}
-                selectedFields={selectedFields}
-                align="left"
-                userRole={userRole}
-              />
-                ) : (
-                  <div 
-                    className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
-                  >
-                    Empty Label
+            {/* Create columns based on columnsPerPage */}
+            {Array.from({ length: columnsPerPage }).map((_, colIdx) => {
+              const labelIndex = rowIdx * columnsPerPage + colIdx;
+              const label = availableRows[labelIndex];
+              
+              return (
+                <React.Fragment key={`col-${colIdx}`}>
+                  <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
+                    {label ? (
+                      <LabelItem 
+                        rowData={label.original}
+                        width={effectiveColumnWidth}
+                        height={effectiveHeight}
+                        fontSize={fontSize}
+                        selectedFields={selectedFields}
+                        align={colIdx % 2 === 0 ? "left" : "right"}
+                        userRole={userRole}
+                      />
+                    ) : (
+                      <div 
+                        className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
+                      >
+                        Empty Label
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            
-            {/* Gap */}
-            <div style={{ width: `${effectiveSpacing}px` }}></div>
-            
-            {/* Right column */}
-              <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
-                {rightLabel ? (
-              <LabelItem 
-                    rowData={rightLabel.original}
-                width={effectiveColumnWidth}
-                height={effectiveHeight}
-                fontSize={fontSize}
-                selectedFields={selectedFields}
-                align="right"
-                userRole={userRole}
-              />
-                ) : (
-                  <div 
-                    className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
-                  >
-                    Empty Label
-                  </div>
-            )}
+                  {/* Add spacing between columns except for the last column */}
+                  {colIdx < columnsPerPage - 1 && (
+                    <div style={{ width: `${effectiveSpacing}px` }}></div>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
-            </div>
           );
         })}
 
-        {/* Add guide lines to show page boundaries and row spacing */}
+        {/* Add guide lines to show page boundaries and spacing */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="w-full h-full border border-dashed border-blue-200 opacity-50" />
-          {/* Vertical center line */}
-          <div className="absolute left-1/2 top-0 bottom-0 border-l border-dashed border-blue-200 opacity-50" 
-               style={{ transform: 'translateX(-50%)' }} />
+          {/* Vertical divider lines */}
+          {Array.from({ length: columnsPerPage - 1 }).map((_, idx) => (
+            <div 
+              key={`col-guide-${idx}`}
+              className="absolute top-0 bottom-0 border-l border-dashed border-blue-200 opacity-50"
+              style={{ 
+                left: `${(effectiveColumnWidth + effectiveSpacing) * (idx + 1) - (effectiveSpacing / 2)}px`
+              }}
+            />
+          ))}
           {/* Row spacing guides */}
-          {Array.from({ length: 2 }).map((_, idx) => (
-            <div key={`row-guide-${idx}`}
-                 className="absolute left-0 right-0 border-t border-dashed border-blue-200 opacity-50"
-                 style={{ 
-                   top: `${effectiveHeight * (idx + 1) + effectiveRowSpacing * (idx + 1)}px`,
-                   height: `${effectiveRowSpacing}px`,
-                   background: 'repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.03) 5px, transparent 5px, transparent 10px)'
-                 }} />
+          {Array.from({ length: rowsPerPage - 1 }).map((_, idx) => (
+            <div 
+              key={`row-guide-${idx}`}
+              className="absolute left-0 right-0 border-t border-dashed border-blue-200 opacity-50"
+              style={{ 
+                top: `${effectiveHeight * (idx + 1) + effectiveRowSpacing * (idx + 1)}px`,
+                height: `${effectiveRowSpacing}px`,
+                background: 'repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.03) 5px, transparent 5px, transparent 10px)'
+              }}
+            />
           ))}
         </div>
       </div>
@@ -312,12 +315,12 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
       {/* Page info */}
       <div className="p-2 bg-gray-50 text-gray-600 text-xs border-t border-gray-200 flex justify-between items-center">
         <span>
-          Page 1 preview: {Math.min(availableRows.length, 6)} of {availableRows.length} labels
-          {availableRows.length > 6 && ` (${Math.ceil(availableRows.length / 6)} pages total)`}
+          Page 1 preview: {Math.min(availableRows.length, labelsPerPage)} of {availableRows.length} labels
+          {availableRows.length > labelsPerPage && ` (${Math.ceil(availableRows.length / labelsPerPage)} pages total)`}
         </span>
         <span className="text-blue-600">
-          {availableRows.length > 6 ? 
-            `Next page starts with label #${7}` : 
+          {availableRows.length > labelsPerPage ? 
+            `Next page starts with label #${labelsPerPage + 1}` : 
             'All labels fit on this page'}
         </span>
       </div>

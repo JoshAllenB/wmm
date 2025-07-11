@@ -130,6 +130,14 @@ const Mailing = ({
   const [startClientId, setStartClientId] = useState("");
   const [endClientId, setEndClientId] = useState("");
   const [startPosition, setStartPosition] = useState("left");
+  
+  // Add paper size state (default to US Letter)
+  const [paperWidth, setPaperWidth] = useState(215.9); // 8.5" in mm
+  const [paperHeight, setPaperHeight] = useState(279.4); // 11" in mm
+  
+  // Add page layout configuration
+  const [rowsPerPage, setRowsPerPage] = useState(3);
+  const [columnsPerPage, setColumnsPerPage] = useState(2);
   const [printerSettingsModalOpen, setPrinterSettingsModalOpen] = useState(false);
   const [printerSettings, setPrinterSettings] = useState(() => {
     // Try to load saved settings from localStorage
@@ -541,6 +549,14 @@ const Mailing = ({
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing));
         setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
+        
+        // Set paper size if defined in template
+        if (selected.layout.paperWidth) setPaperWidth(selected.layout.paperWidth);
+        if (selected.layout.paperHeight) setPaperHeight(selected.layout.paperHeight);
+        
+        // Set page layout if defined in template
+        if (selected.layout.rowsPerPage) setRowsPerPage(selected.layout.rowsPerPage);
+        if (selected.layout.columnsPerPage) setColumnsPerPage(selected.layout.columnsPerPage);
       } else {
         setUseLegacyFormat(false);
         
@@ -553,6 +569,14 @@ const Mailing = ({
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing || 20));
         setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
+        
+        // Set paper size if defined in template
+        if (selected.layout.paperWidth) setPaperWidth(selected.layout.paperWidth);
+        if (selected.layout.paperHeight) setPaperHeight(selected.layout.paperHeight);
+        
+        // Set page layout if defined in template
+        if (selected.layout.rowsPerPage) setRowsPerPage(selected.layout.rowsPerPage);
+        if (selected.layout.columnsPerPage) setColumnsPerPage(selected.layout.columnsPerPage);
       }
       setSelectedTemplate(selected);
     }
@@ -576,6 +600,10 @@ const Mailing = ({
           labelHeight: mmToPx(labelHeight),
           horizontalSpacing: mmToPx(horizontalSpacing),
           rowSpacing, // Store in mm
+          paperWidth, // Store paper dimensions in mm
+          paperHeight,
+          rowsPerPage,
+          columnsPerPage
         },
         selectedFields,
       };
@@ -1204,6 +1232,14 @@ const Mailing = ({
                       showTemplateNameInput={showTemplateNameInput}
                       setShowTemplateNameInput={setShowTemplateNameInput}
                       saveTemplate={saveTemplate}
+                      paperWidth={paperWidth}
+                      setPaperWidth={setPaperWidth}
+                      paperHeight={paperHeight}
+                      setPaperHeight={setPaperHeight}
+                      rowsPerPage={rowsPerPage}
+                      setRowsPerPage={setRowsPerPage}
+                      columnsPerPage={columnsPerPage}
+                      setColumnsPerPage={setColumnsPerPage}
                     />
                   </div>
                 )}
@@ -1302,6 +1338,10 @@ const Mailing = ({
                     topPosition={topPosition}
                     leftPosition={leftPosition}
                     userRole={userRole}
+                    paperWidth={paperWidth}
+                    paperHeight={paperHeight}
+                    rowsPerPage={rowsPerPage}
+                    columnsPerPage={columnsPerPage}
                   />
                   <div className="text-sm text-gray-600 mt-4 text-center">
                     <p>Real-time preview of how labels will print</p>
