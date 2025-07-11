@@ -161,6 +161,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     clientExcludeIds: "",
     clientIdFilterType: "include",
     excludeSPackClients: false,
+    excludeCMCClients: false,
     userId: "",
     subscriptionStatus: "all",
     dateRangeName: "",
@@ -341,6 +342,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       clientExcludeIds: "",
       clientIdFilterType: "include",
       excludeSPackClients: false,
+      excludeCMCClients: false,
       userId: "",
       subscriptionStatus: "all",
       dateRangeName: "",
@@ -616,6 +618,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
 
       // Other flags
       ...(filterData.excludeSPackClients && { excludeSPackClients: true }),
+      ...(filterData.excludeCMCClients && { excludeCMCClients: true }),
       ...(filterData.userId && { userId: filterData.userId }),
       ...(filterData.subscriptionStatus !== 'all' && { 
         subscriptionStatus: filterData.subscriptionStatus 
@@ -1173,6 +1176,15 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       });
     }
 
+    // Add "Exclude CMCClients" filter if active
+    if (filterData.excludeCMCClients) {
+      active.push({
+        label: "Exclude CMCClients",
+        value: "Yes",
+        key: "excludeCMCClients",
+      });
+    }
+
     // Add subscription status filter if not set to "all"
     if (
       filterData.subscriptionStatus &&
@@ -1338,6 +1350,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
           break;
         case "excludeSPackClients":
           updates.excludeSPackClients = false;
+          break;
+        case "excludeCMCClients":
+          updates.excludeCMCClients = false;
           break;
         case "subscriptionStatus":
           updates.subscriptionStatus = "all";

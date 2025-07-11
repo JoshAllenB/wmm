@@ -64,6 +64,35 @@ const GroupFilter = ({
             {hasRole("WMM") && "(Hide clients with 'SPack' in group name)"}
           </span>
         </div>
+
+        <div className="flex items-center mt-2">
+          <input
+            type="checkbox"
+            id="excludeCMCClients"
+            name="excludeCMCClients"
+            checked={filterData.excludeCMCClients}
+            onChange={(e) =>
+              handleChange({
+                target: {
+                  name: "excludeCMCClients",
+                  value: e.target.checked,
+                },
+              })
+            }
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={!hasRole("WMM")}
+          />
+          <label
+            htmlFor="excludeCMCClients"
+            className="ml-2 text-xl text-black"
+          >
+            Exclude CMC Clients
+          </label>
+          <span className="ml-2 text-sm text-gray-500">
+            {!hasRole("WMM") && "(Not available for your role)"}
+            {hasRole("WMM") && "(Hide clients with 'CMC' in group name)"}
+          </span>
+        </div>
       </div>
     </div>
   );

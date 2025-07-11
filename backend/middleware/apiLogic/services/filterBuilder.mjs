@@ -68,6 +68,18 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     });
   }
 
+  // Add exclude CMC clients filter
+  if (advancedFilterData.excludeCMCClients) {
+    baseFilter.push({
+      group: {
+        $not: {
+          $regex: "CMC",
+          $options: "i",
+        },
+      },
+    });
+  }
+
   // Add basic text search filter
   if (filter) {
     const numericFilter = Number(filter);
