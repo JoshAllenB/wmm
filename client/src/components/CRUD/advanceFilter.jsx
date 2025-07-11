@@ -9,11 +9,14 @@ import {
 } from "../Table/Data/utilData";
 import { useUser } from "../../utils/Hooks/userProvider";
 import {
-  PersonalInfoFilter,
-  ContactInfoFilter,
   DateRangeFilter,
+  ClientInfoFilter,
+  GroupFilter,
+  TypesFilter,
+  SubclassFilter,
+  AreasFilter,
+  CalendarFilter,
   ServicesFilter,
-  CategoryFilter,
   UserFilter,
 } from "./filterModule";
 
@@ -114,7 +117,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     fname: "",
     mname: "",
     sname: "",
-    birthdate: "",
+    birthdateMonth: "",
+    birthdateDay: "",
+    birthdateYear: "",
     contactnos: "",
     cellno: "",
     ofcno: "",
@@ -292,7 +297,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       fname: "",
       mname: "",
       sname: "",
-      birthdate: "",
+      birthdateMonth: "",
+      birthdateDay: "",
+      birthdateYear: "",
       contactnos: "",
       cellno: "",
       ofcno: "",
@@ -539,7 +546,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       ...(filterData.fname && { fname: filterData.fname }),
       ...(filterData.mname && { mname: filterData.mname }),
       ...(filterData.sname && { sname: filterData.sname }),
-      ...(filterData.birthdate && { birthdate: filterData.birthdate }),
+      ...(filterData.birthdateMonth && filterData.birthdateDay && filterData.birthdateYear && { birthdate: `${filterData.birthdateMonth}/${filterData.birthdateDay}/${filterData.birthdateYear}` }),
 
       // Contact info
       ...(filterData.email && { email: filterData.email }),
@@ -1480,59 +1487,113 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              <PersonalInfoFilter
-                filterData={filterData}
-                handleChange={handleChange}
-              />
+            <div className="space-y-8">
+              {/* Most Frequently Used Filters */}
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="space-y-4">
+                    <DateRangeFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      months={months}
+                      hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
+                      hasRole={hasRole}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white rounded-lg shadow-sm border">
+                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                        Copies
+                      </h2>
+                      <div className="space-y-2">
+                        <select
+                          name="copiesRange"
+                          value={filterData.copiesRange}
+                          onChange={handleChange}
+                          className="w-full p-2 border rounded"
+                        >
+                          <option value="">Select Range</option>
+                          <option value="1">1 Copy</option>
+                          <option value="2">2 Copies</option>
+                          <option value="gt1">More than 1</option>
+                          <option value="custom">Custom Range</option>
+                        </select>
+                        {filterData.copiesRange === "custom" && (
+                          <div className="flex gap-2 mt-2">
+                            <input
+                              type="number"
+                              name="minCopies"
+                              placeholder="Min"
+                              value={filterData.minCopies}
+                              onChange={handleChange}
+                              className="w-1/2 p-2 border rounded"
+                            />
+                            <input
+                              type="number"
+                              name="maxCopies"
+                              placeholder="Max"
+                              value={filterData.maxCopies}
+                              onChange={handleChange}
+                              className="w-1/2 p-2 border rounded"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <CalendarFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                    />
+                    <AreasFilter
+                      filterData={filterData}
+                      handleAreaChange={handleAreaChange}
+                      handleSelectAllLocal={handleSelectAllLocal}
+                      handleSelectAllForeign={handleSelectAllForeign}
+                      areas={areas}
+                      areAllLocalSelected={areAllLocalSelected}
+                      areAllForeignSelected={areAllForeignSelected}
+                      local={local}
+                      foreign={foreign}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <GroupFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      groups={groups}
+                      hasRole={hasRole}
+                    />
+                    <TypesFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      types={types}
+                    />
+                    <SubclassFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      subclasses={subclasses}
+                    />
+                    <ServicesFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      handleServiceChange={handleServiceChange}
+                      handleClientIdFilterTypeChange={handleClientIdFilterTypeChange}
+                      hasRole={hasRole}
+                    />
+                  </div>
+                </div>
+              </div>
 
-              <ContactInfoFilter
-                filterData={filterData}
-                handleChange={handleChange}
-                hasRole={hasRole}
-              />
-
-              <DateRangeFilter
-                filterData={filterData}
-                handleChange={handleChange}
-                months={months}
-                hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
-                hasRole={hasRole}
-              />
-
-              <CategoryFilter
-                filterData={filterData}
-                handleChange={handleChange}
-                handleAreaChange={handleAreaChange}
-                handleSelectAllLocal={handleSelectAllLocal}
-                handleSelectAllForeign={handleSelectAllForeign}
-                groups={groups}
-                types={types}
-                subclasses={subclasses}
-                areas={areas}
-                areAllLocalSelected={areAllLocalSelected}
-                areAllForeignSelected={areAllForeignSelected}
-                local={local}
-                foreign={foreign}
-                hasRole={hasRole}
-              />
-
-              <ServicesFilter
-                filterData={filterData}
-                handleChange={handleChange}
-                handleServiceChange={handleServiceChange}
-                handleClientIdFilterTypeChange={handleClientIdFilterTypeChange}
-                hasRole={hasRole}
-              />
-
-              <UserFilter
-                filterData={filterData}
-                handleChange={handleChange}
-                users={users}
-                currentUser={currentUser}
-                hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
-                user={user}
-              />
+              {/* Client Information */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">
+                  Client Information
+                </h2>
+                <ClientInfoFilter
+                  filterData={filterData}
+                  handleChange={handleChange}
+                />
+              </div>
             </div>
 
             {/* Keep existing Active Filters Section */}

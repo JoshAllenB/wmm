@@ -1,6 +1,9 @@
-export { default as PersonalInfoFilter } from './PersonalInfoFilter';
-export { default as ContactInfoFilter } from './ContactInfoFilter';
 export { default as DateRangeFilter } from './DateRangeFilter';
+export { default as ClientInfoFilter } from './ClientInfoFilter';
+export { default as GroupFilter } from './GroupFilter';
+export { default as TypesFilter } from './TypesFilter';
+export { default as SubclassFilter } from './SubclassFilter';
+export { default as AreasFilter } from './AreasFilter';
+export { default as CalendarFilter } from './CalendarFilter';
 export { default as ServicesFilter } from './ServicesFilter';
-export { default as CategoryFilter } from './CategoryFilter';
 export { default as UserFilter } from './UserFilter'; 
