@@ -28,15 +28,10 @@ export const TableComponent = function TableComponent({
   // Client count display for roles that include WMM
   const clientCountDisplay = hasWmmRole ? (
     <span className="text-base mr-4 text-gray-800">
-      Clients:{" "}
-      <span className="font-bold">
-        {Number(stats?.clientCount?.page || 0).toLocaleString()}
-      </span>{" "}
-      <span className="text-gray-500 text-xs">(Page)</span> /{" "}
+      Clients Total:{" "}
       <span className="font-bold">
         {Number(stats?.clientCount?.total || 0).toLocaleString()}
       </span>{" "}
-      <span className="text-gray-500 text-xs">(Filter)</span>
     </span>
   ) : null;
 
@@ -152,7 +147,7 @@ export const TableComponent = function TableComponent({
             <span className="font-bold">
               {Number(stats?.serviceClientCounts?.wmm?.total || 0).toLocaleString()}
             </span>{" "}
-            <span className="text-gray-500 text-xs">(Total)</span>
+            <span className="text-gray-500 text-xs">(Filter)</span>
           </span>
           <span className="text-base text-blue-700 font-medium ml-4">
             Copies:{" "}
@@ -163,7 +158,7 @@ export const TableComponent = function TableComponent({
             <span className="font-bold">
               {Number(wmmMetric?.total || 0).toLocaleString()}
             </span>{" "}
-            <span className="text-gray-500 text-xs">(Total)</span>
+            <span className="text-gray-500 text-xs">(Filter)</span>
           </span>
         </div>
       );
