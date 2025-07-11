@@ -169,22 +169,26 @@ export const useColumns = () => {
               const subscriptionRecords = row.wmmData.records || [];
 
               // Sort records by subsdate in descending order (most recent first)
-              return [...subscriptionRecords]
+              const sortedRecords = [...subscriptionRecords]
                 .sort((a, b) => {
                   const dateA = new Date(a.subsdate || 0);
                   const dateB = new Date(b.subsdate || 0);
                   return dateB - dateA;
-                })
-                .map((subscription) => {
-                  let {
-                    subsdate,
-                    enddate,
-                    copies,
-                    subsclass,
-                    paymtref,
-                    paymtamt,
-                    calendar
-                  } = subscription;
+                });
+
+              // If filter is applied (indicated by row.isFiltered), only return the most recent record
+              const recordsToProcess = row.isFiltered ? [sortedRecords[0]] : sortedRecords;
+
+              return recordsToProcess.map((subscription) => {
+                let {
+                  subsdate,
+                  enddate,
+                  copies,
+                  subsclass,
+                  paymtref,
+                  paymtamt,
+                  calendar
+                } = subscription;
 
                   if (subsdate) {
                     subsdate = `${new Date(subsdate).toLocaleDateString(

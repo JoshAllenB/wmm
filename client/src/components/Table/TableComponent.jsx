@@ -603,303 +603,310 @@ export const TableComponent = function TableComponent({
         </TableHeader>
         <TableBody>
           {table.getRowModel().rows.length > 0 ? (
-            table.getRowModel().rows.map((row, rowIndex) => (
-              <TableRow
-                key={`${row.id}-${rowIndex}`}
-                className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out ${
-                  animationComplete
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-2"
-                }`}
-                style={{
-                  transitionDelay: `${rowIndex * 40}ms`,
-                }}
-              >
-                {row.getVisibleCells().map((cell) => {
-                  const cellWidth = cell.column.columnDef.size;
-                  return (
-                    <TableCell
-                      key={`${cell.id}-${rowIndex}`}
-                      style={{
-                        width: cellWidth,
-                        maxWidth: cellWidth ? `${cellWidth}px` : "auto",
-                        minWidth: cellWidth ? `${cellWidth}px` : "auto",
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                      }}
-                      className={`${
-                        cell.column.id === "select" ? "p-0 " : "px-4 py-2"
-                      } overflow-visible`}
-                      onClick={(event) => handleCellClick(event, row, cell)}
-                    >
-                      {cell.column.id === "Client Name" ? (
-                        <div style={{ textAlign: "left" }}>
-                          {cell.getValue().split("<br>").map((part, index) => (
-                            <div key={index} className={index > 0 ? "font-bold" : ""}>
-                              {part}
-                            </div>
-                          ))}
-                        </div>
-                      ) : cell.column.id === "Address" ? (
-                        <div style={{ textAlign: "left" }}>
-                          <div>{cell.getValue().split("<br>")[0]}</div>
-                          {cell.getValue().split("<br>")[1] && (
-                            <div className="font-bold">
-                              {cell
-                                .getValue()
-                                .split("<br>")[1]
-                                .replace(/<\/?strong>/g, "")}
-                            </div>
-                          )}
-                        </div>
-                      ) : cell.column.id === "Contact Info" ? (
-                        <div>{cell.getValue()}</div>
-                      ) : cell.column.id === "Added Info" ? (
-                        <div style={{ textAlign: "left" }}>
-                          <div>
-                            <strong>By:</strong>{" "}
-                            {cell.getValue().split(", ")[0].split(": ")[1]}
-                          </div>
-                          <div>
-                            <strong>Date:</strong>{" "}
-                            {cell.getValue().split(", ")[1].split(": ")[1]}
-                          </div>
-                        </div>
-                      ) : cell.column.id === "Subscription" &&
-                        Array.isArray(cell.getValue()) ? (
-                        <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
-                          {cell.getValue().length > 0 ? (
-                            cell.getValue().map((sub, index) => {
-                              // Get status color class
-                              const statusClass =
-                                sub.status === "expired"
-                                  ? "text-red-600 font-bold"
-                                  : sub.status === "expiring-soon"
-                                  ? "text-amber-600 font-bold"
-                                  : sub.status === "active"
-                                  ? "text-green-600"
-                                  : "";
-
-                              // Get status indicator
-                              const statusIndicator =
-                                sub.status === "expired"
-                                  ? "🔴 "
-                                  : sub.status === "expiring-soon"
-                                  ? "🟡 "
-                                  : sub.status === "active"
-                                  ? "🟢 "
-                                  : "";
-
-                              return (
-                                <li key={index} className="mb-1">
-                                  <div className="flex flex-col">
-                                    <span className={statusClass}>
-                                      {statusIndicator}
-                                      <strong>{sub.subsclass}</strong>:{" "}
-                                      {sub.subsdate} - {sub.enddate}, Cps:{" "}
-                                      {sub.copies}
-                                    </span>
-                                    {(sub.paymtref || sub.paymtamt) && (
-                                      <div className="text-xs ml-4 text-gray-600">
-                                        {sub.paymtref && (
-                                          <span>Ref: {sub.paymtref}</span>
-                                        )}
-                                        {sub.paymtref && sub.paymtamt && (
-                                          <span> • </span>
-                                        )}
-                                        {sub.paymtamt && (
-                                          <span>Amt: {sub.paymtamt}</span>
-                                        )}
-                                      </div>
-                                    )}
-                                    {index === 0 && (
-                                      <div className="text-xs ml-4 mt-1">
-                                        {sub.calendar ? (
-                                          <span className="text-white bg-orange-400 px-2 py-0.5 rounded-full font-medium">
-                                            Calendar ✓
-                                          </span>
-                                        ) : (
-                                          <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                            No Calendar
-                                          </span>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                </li>
-                              );
-                            })
-                          ) : (
-                            <li>No subscription data</li>
-                          )}
-                        </ul>
-                      ) : cell.column.id === "HRG Data" &&
-                        Array.isArray(cell.getValue()) ? (
-                        <div className="w-full max-h-[150px] overflow-y-auto">
-                          {cell.getValue().length > 0 ? (
-                            <>
-                              {/* Add status indicator for latest record */}
-                              <div className="flex items-center gap-2 mb-2">
-                                <span
-                                  className={
-                                    cell.getValue()[0].status === "Active"
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }
-                                >
-                                  {cell.getValue()[0].status === "Active"
-                                    ? "🟢"
-                                    : "🔴"}
-                                </span>
-                                <span
-                                  className={
-                                    cell.getValue()[0].status === "Active"
-                                      ? "text-green-600 font-medium"
-                                      : "text-red-600 font-medium"
-                                  }
-                                >
-                                  {cell.getValue()[0].status}
-                                </span>
+            table.getRowModel().rows.map((row, rowIndex) => {
+              // Add isFiltered flag to the row's original data if stats indicate filtering
+              if (stats?.clientCount) {
+                row.original.isFiltered = stats.clientCount.total !== stats.clientCount.page;
+              }
+              
+              return (
+                <TableRow
+                  key={`${row.id}-${rowIndex}`}
+                  className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out ${
+                    animationComplete
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-2"
+                  }`}
+                  style={{
+                    transitionDelay: `${rowIndex * 40}ms`,
+                  }}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const cellWidth = cell.column.columnDef.size;
+                    return (
+                      <TableCell
+                        key={`${cell.id}-${rowIndex}`}
+                        style={{
+                          width: cellWidth,
+                          maxWidth: cellWidth ? `${cellWidth}px` : "auto",
+                          minWidth: cellWidth ? `${cellWidth}px` : "auto",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
+                        className={`${
+                          cell.column.id === "select" ? "p-0 " : "px-4 py-2"
+                        } overflow-visible`}
+                        onClick={(event) => handleCellClick(event, row, cell)}
+                      >
+                        {cell.column.id === "Client Name" ? (
+                          <div style={{ textAlign: "left" }}>
+                            {cell.getValue().split("<br>").map((part, index) => (
+                              <div key={index} className={index > 0 ? "font-bold" : ""}>
+                                {part}
                               </div>
-                              {/* Existing HRG data display */}
-                              {cell.getValue().map((hrg, index) => (
-                                <div
-                                  key={index}
-                                  className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
-                                >
-                                  <div className="flex flex-wrap items-center">
-                                    <div className="font-bold font-xs mr-1">
-                                      Campaign Date: {hrg.campaigndate}
-                                    </div>
-                                    <div className="font-xs mr-1">
-                                      Php {hrg.paymtamt} - Ref: #{hrg.paymtref}
-                                    </div>
-                                    <div className="font-xs mr-1">
-                                      Receive Date: {hrg.recvdate}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            <div className="text-gray-500 italic">
-                              No HRG data
-                            </div>
-                          )}
-                        </div>
-                      ) : cell.column.id === "FOM Data" &&
-                        Array.isArray(cell.getValue()) ? (
-                        <div className="w-full max-h-[150px] overflow-y-auto">
-                          {cell.getValue().length > 0 ? (
-                            <>
-                              {/* Add status indicator for latest record */}
-                              <div className="flex items-center gap-2 mb-2">
-                                <span
-                                  className={
-                                    cell.getValue()[0].status === "Active"
-                                      ? "text-green-600"
-                                      : "text-red-600"
-                                  }
-                                >
-                                  {cell.getValue()[0].status === "Active"
-                                    ? "🟢"
-                                    : "🔴"}
-                                </span>
-                                <span
-                                  className={
-                                    cell.getValue()[0].status === "Active"
-                                      ? "text-green-600 font-medium"
-                                      : "text-red-600 font-medium"
-                                  }
-                                >
-                                  {cell.getValue()[0].status}
-                                </span>
+                            ))}
+                          </div>
+                        ) : cell.column.id === "Address" ? (
+                          <div style={{ textAlign: "left" }}>
+                            <div>{cell.getValue().split("<br>")[0]}</div>
+                            {cell.getValue().split("<br>")[1] && (
+                              <div className="font-bold">
+                                {cell
+                                  .getValue()
+                                  .split("<br>")[1]
+                                  .replace(/<\/?strong>/g, "")}
                               </div>
-                              {/* Existing FOM data display */}
-                              {cell.getValue().map((fom, index) => (
-                                <div
-                                  key={index}
-                                  className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
-                                >
-                                  <div className="flex flex-wrap items-center">
-                                    <div className="font-xs mr-1">
-                                      Receive Date: {fom.recvdate}
+                            )}
+                          </div>
+                        ) : cell.column.id === "Contact Info" ? (
+                          <div>{cell.getValue()}</div>
+                        ) : cell.column.id === "Added Info" ? (
+                          <div style={{ textAlign: "left" }}>
+                            <div>
+                              <strong>By:</strong>{" "}
+                              {cell.getValue().split(", ")[0].split(": ")[1]}
+                            </div>
+                            <div>
+                              <strong>Date:</strong>{" "}
+                              {cell.getValue().split(", ")[1].split(": ")[1]}
+                            </div>
+                          </div>
+                        ) : cell.column.id === "Subscription" &&
+                          Array.isArray(cell.getValue()) ? (
+                          <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
+                            {cell.getValue().length > 0 ? (
+                              cell.getValue().map((sub, index) => {
+                                // Get status color class
+                                const statusClass =
+                                  sub.status === "expired"
+                                    ? "text-red-600 font-bold"
+                                    : sub.status === "expiring-soon"
+                                    ? "text-amber-600 font-bold"
+                                    : sub.status === "active"
+                                    ? "text-green-600"
+                                    : "";
+
+                                // Get status indicator
+                                const statusIndicator =
+                                  sub.status === "expired"
+                                    ? "🔴 "
+                                    : sub.status === "expiring-soon"
+                                    ? "🟡 "
+                                    : sub.status === "active"
+                                    ? "🟢 "
+                                    : "";
+
+                                return (
+                                  <li key={index} className="mb-1">
+                                    <div className="flex flex-col">
+                                      <span className={statusClass}>
+                                        {statusIndicator}
+                                        <strong>{sub.subsclass}</strong>:{" "}
+                                        {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                                        {sub.copies}
+                                      </span>
+                                      {(sub.paymtref || sub.paymtamt) && (
+                                        <div className="text-xs ml-4 text-gray-600">
+                                          {sub.paymtref && (
+                                            <span>Ref: {sub.paymtref}</span>
+                                          )}
+                                          {sub.paymtref && sub.paymtamt && (
+                                            <span> • </span>
+                                          )}
+                                          {sub.paymtamt && (
+                                            <span>Amt: {sub.paymtamt}</span>
+                                          )}
+                                        </div>
+                                      )}
+                                      {index === 0 && (
+                                        <div className="text-xs ml-4 mt-1">
+                                          {sub.calendar ? (
+                                            <span className="text-white bg-orange-400 px-2 py-0.5 rounded-full font-medium">
+                                              Calendar ✓
+                                            </span>
+                                          ) : (
+                                            <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                              No Calendar
+                                            </span>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    <div className="font-xs mr-1">
-                                      Php {fom.paymtamt} - Ref: #{fom.paymtref}
+                                  </li>
+                                );
+                              })
+                            ) : (
+                              <li>No subscription data</li>
+                            )}
+                          </ul>
+                        ) : cell.column.id === "HRG Data" &&
+                          Array.isArray(cell.getValue()) ? (
+                          <div className="w-full max-h-[150px] overflow-y-auto">
+                            {cell.getValue().length > 0 ? (
+                              <>
+                                {/* Add status indicator for latest record */}
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span
+                                    className={
+                                      cell.getValue()[0].status === "Active"
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {cell.getValue()[0].status === "Active"
+                                      ? "🟢"
+                                      : "🔴"}
+                                  </span>
+                                  <span
+                                    className={
+                                      cell.getValue()[0].status === "Active"
+                                        ? "text-green-600 font-medium"
+                                        : "text-red-600 font-medium"
+                                    }
+                                  >
+                                    {cell.getValue()[0].status}
+                                  </span>
+                                </div>
+                                {/* Existing HRG data display */}
+                                {cell.getValue().map((hrg, index) => (
+                                  <div
+                                    key={index}
+                                    className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                                  >
+                                    <div className="flex flex-wrap items-center">
+                                      <div className="font-bold font-xs mr-1">
+                                        Campaign Date: {hrg.campaigndate}
+                                      </div>
+                                      <div className="font-xs mr-1">
+                                        Php {hrg.paymtamt} - Ref: #{hrg.paymtref}
+                                      </div>
+                                      <div className="font-xs mr-1">
+                                        Receive Date: {hrg.recvdate}
+                                      </div>
                                     </div>
                                   </div>
+                                ))}
+                              </>
+                            ) : (
+                              <div className="text-gray-500 italic">
+                                No HRG data
+                              </div>
+                            )}
+                          </div>
+                        ) : cell.column.id === "FOM Data" &&
+                          Array.isArray(cell.getValue()) ? (
+                          <div className="w-full max-h-[150px] overflow-y-auto">
+                            {cell.getValue().length > 0 ? (
+                              <>
+                                {/* Add status indicator for latest record */}
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span
+                                    className={
+                                      cell.getValue()[0].status === "Active"
+                                        ? "text-green-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    {cell.getValue()[0].status === "Active"
+                                      ? "🟢"
+                                      : "🔴"}
+                                  </span>
+                                  <span
+                                    className={
+                                      cell.getValue()[0].status === "Active"
+                                        ? "text-green-600 font-medium"
+                                        : "text-red-600 font-medium"
+                                    }
+                                  >
+                                    {cell.getValue()[0].status}
+                                  </span>
                                 </div>
-                              ))}
-                            </>
-                          ) : (
-                            <div className="text-gray-500 italic">
-                              No FOM data
-                            </div>
-                          )}
-                        </div>
-                      ) : cell.column.id === "CAL Data" &&
-                        Array.isArray(cell.getValue()) ? (
-                        <div className="w-full max-h-[150px] overflow-y-auto">
-                          {cell.getValue().length > 0 ? (
-                            <>
-                              {cell.getValue().map((cal, index) => (
-                                <div
-                                  key={index}
-                                  className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
-                                >
-                                  <div className="flex flex-wrap items-center">
-                                    <span className="font-medium mr-1">
-                                      {cal.recvdate} - {cal.caltype}
-                                    </span>
-                                    <span className="mr-1">
-                                      Qty: {cal.calqty} - Cost: {cal.calamt} ={" "}
-                                      {(
-                                        parseInt(cal.calqty || 0) *
-                                        parseFloat(
-                                          cal.calamt?.replace(/[^\d.-]/g, "") ||
-                                            0
-                                        )
-                                      ).toLocaleString()}
-                                    </span>
-                                    <span>
-                                      Ref: #{cal.paymtref} - {cal.paymtform}
-                                    </span>
+                                {/* Existing FOM data display */}
+                                {cell.getValue().map((fom, index) => (
+                                  <div
+                                    key={index}
+                                    className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                                  >
+                                    <div className="flex flex-wrap items-center">
+                                      <div className="font-xs mr-1">
+                                        Receive Date: {fom.recvdate}
+                                      </div>
+                                      <div className="font-xs mr-1">
+                                        Php {fom.paymtamt} - Ref: #{fom.paymtref}
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </>
-                          ) : (
-                            <div className="text-gray-500 italic">
-                              No CAL data
-                            </div>
-                          )}
-                        </div>
-                      ) : cell.column.id === "Services" &&
-                        Array.isArray(cell.getValue()) ? (
-                        <ul className="text-center">
-                          {cell.getValue().map((service, index) => (
-                            <li
-                              key={index}
-                              style={{
-                                textTransform: "uppercase",
-                              }}
-                            >
-                              <strong>{service}</strong>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )
-                      )}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))
+                                ))}
+                              </>
+                            ) : (
+                              <div className="text-gray-500 italic">
+                                No FOM data
+                              </div>
+                            )}
+                          </div>
+                        ) : cell.column.id === "CAL Data" &&
+                          Array.isArray(cell.getValue()) ? (
+                          <div className="w-full max-h-[150px] overflow-y-auto">
+                            {cell.getValue().length > 0 ? (
+                              <>
+                                {cell.getValue().map((cal, index) => (
+                                  <div
+                                    key={index}
+                                    className="mb-2 pb-2 border-b border-gray-900 last:border-b-0"
+                                  >
+                                    <div className="flex flex-wrap items-center">
+                                      <span className="font-medium mr-1">
+                                        {cal.recvdate} - {cal.caltype}
+                                      </span>
+                                      <span className="mr-1">
+                                        Qty: {cal.calqty} - Cost: {cal.calamt} ={" "}
+                                        {(
+                                          parseInt(cal.calqty || 0) *
+                                          parseFloat(
+                                            cal.calamt?.replace(/[^\d.-]/g, "") ||
+                                              0
+                                          )
+                                        ).toLocaleString()}
+                                      </span>
+                                      <span>
+                                        Ref: #{cal.paymtref} - {cal.paymtform}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            ) : (
+                              <div className="text-gray-500 italic">
+                                No CAL data
+                              </div>
+                            )}
+                          </div>
+                        ) : cell.column.id === "Services" &&
+                          Array.isArray(cell.getValue()) ? (
+                          <ul className="text-center">
+                            {cell.getValue().map((service, index) => (
+                              <li
+                                key={index}
+                                style={{
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                <strong>{service}</strong>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )
+                        )}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              );
+            })
           ) : (
             <TableRow>
               <TableCell
