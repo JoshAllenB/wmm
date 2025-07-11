@@ -35,6 +35,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
         // Month Year date display
         monthYear: {
           top: 2.0, // Position at top of page
+          left: 4.25, // Center of page by default (8.5/2)
           fontSize: 12,
           fontFamily: "Arial"
         },
@@ -80,6 +81,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
       // Month Year date display
       monthYear: {
         top: 1.3, // Position at top of page
+        left: 4.25, // Center of page by default (8.5/2)
         fontSize: 12,
         fontFamily: "Arial"
       },
@@ -368,6 +370,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
         // Month Year date display
         monthYear: {
           top: 2.0, // Position at top of page
+          left: 4.25, // Center of page by default (8.5/2)
           fontSize: 12,
           fontFamily: "Arial"
         },
@@ -1006,6 +1009,16 @@ const ThankYouLetterDataOverlay = forwardRef(({
                       />
                     </div>
                     <div>
+                      <label className="block text-xs mb-1">Left (in)</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={positions.monthYear.left} 
+                        onChange={(e) => handleGroupPositionChange('monthYear', 'left', e.target.value)}
+                        className="w-full px-2 py-1 border rounded text-sm"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-xs mb-1">Font Size (pt)</label>
                       <input 
                         type="number" 
@@ -1015,7 +1028,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         className="w-full px-2 py-1 border rounded text-sm"
                       />
                     </div>
-                    <div>
+                    <div className="col-span-3">
                       <label className="block text-xs mb-1">Font Family</label>
                       <select
                         value={positions.monthYear.fontFamily}
@@ -1243,8 +1256,9 @@ const ThankYouLetterDataOverlay = forwardRef(({
                               className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
                               style={{
                                 top: `${positions.monthYear.top * scaleY}px`,
-                                left: '0',
-                                width: '100%',
+                                left: `${positions.monthYear.left * scaleX}px`,
+                                transform: 'translateX(-50%)', // Center the text around the left position
+                                width: 'auto', // Let width be determined by content
                                 textAlign: 'center',
                                 fontFamily: positions.monthYear.fontFamily,
                                 fontSize: `${positions.monthYear.fontSize}px`
@@ -1314,73 +1328,49 @@ const ThankYouLetterDataOverlay = forwardRef(({
                               )}
                               
                               {/* Address fields with adjusted positions */}
-                              {subscriber.address1 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.addressGroup.top) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address1.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address1.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {subscriber.address2 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address2.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address2.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {subscriber.address3 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * 2) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address3.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address3.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {subscriber.address4 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * 3) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address4.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address4.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
+                              {(() => {
+                                // Process address lines first
+                                const processAddress = (addr) => {
+                                  if (!addr) return null;
+                                  return addr.split('\n')
+                                    .map(line => line.trim())
+                                    .filter(line => line.length > 0)
+                                    .join('\n');
+                                };
+
+                                const addressLines = [];
+                                const address1 = processAddress(subscriber.address1);
+                                const address2 = processAddress(subscriber.address2);
+                                const address3 = processAddress(subscriber.address3);
+                                const address4 = processAddress(subscriber.address4);
+
+                                if (address1) addressLines.push(address1);
+                                if (address2) addressLines.push(address2);
+                                if (address3) addressLines.push(address3);
+                                if (address4) addressLines.push(address4);
+
+                                // Join all address lines into a single string with line breaks
+                                const fullAddress = addressLines.join('\n');
+
+                                // Split the full address into lines for display
+                                const displayLines = fullAddress.split('\n');
+
+                                // Render address lines
+                                return displayLines.map((line, index) => (
+                                  <div
+                                    key={`address-line-${index}`}
+                                    style={{
+                                      position: "absolute",
+                                      top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * index) * scaleY}px`,
+                                      left: "0px",
+                                      width: "100%",
+                                      whiteSpace: "pre-wrap"
+                                    }}
+                                  >
+                                    {line}
+                                  </div>
+                                ));
+                              })()}
                             </div>
                             
                             {/* Greeting below address */}
