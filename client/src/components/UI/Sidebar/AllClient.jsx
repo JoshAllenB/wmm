@@ -1105,7 +1105,7 @@ const AllClient = () => {
       </div>
 
       {/* Filter Status Display */}
-      <div className="mb-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+      <div className="mb-2 p-1 bg-gray-50 rounded-md border border-gray-200">
         <div className="flex items-center gap-4">
           <h3 className="text-base font-semibold text-gray-800 whitespace-nowrap">
             Active Filters:

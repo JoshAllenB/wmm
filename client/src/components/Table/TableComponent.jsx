@@ -21,7 +21,19 @@ export const TableComponent = function TableComponent({
   animationComplete,
   stats, // New single prop for all statistics
   statsLoading = false,
+  containerWidth = 0,
 }) {
+  // Calculate responsive dimensions
+  const isMobile = containerWidth > 0 && containerWidth < 640;
+  const isTablet = containerWidth >= 640 && containerWidth < 1024;
+  
+  // Adjust max heights for scrollable areas based on container width
+  const getMaxHeight = () => {
+    if (isMobile) return 100;
+    if (isTablet) return 120;
+    return 150;
+  };
+
   // Check if role contains WMM (either as a single role or part of a composite role)
   const hasWmmRole = userRole === "WMM" || userRole?.includes("WMM");
 
@@ -136,7 +148,7 @@ export const TableComponent = function TableComponent({
     if (userRole === "WMM") {
       const wmmMetric = findMetric('WMM');
       return (
-        <div className="flex flex-wrap px-2 py-1">
+        <div className="flex flex-wrap">
           {clientCountDisplay}
           <span className="text-base text-blue-700 font-medium ml-4">
             WMM Clients:{" "}
@@ -577,9 +589,10 @@ export const TableComponent = function TableComponent({
                     e.preventDefault();
                     header.column.toggleSorting();
                   }}
-                  className="bg-blue-600 text-white font-bold text-lg sticky top-0 h-14 whitespace-nowrap cursor-pointer"
+                  className="bg-blue-600 text-white font-bold text-base sm:text-lg sticky top-0 whitespace-nowrap cursor-pointer"
                   style={{
-                    position: 'relative'
+                    position: 'relative',
+                    height: isMobile ? '40px' : isTablet ? '48px' : '56px',
                   }}
                 >
                   <div className="flex items-center justify-between">
@@ -612,13 +625,14 @@ export const TableComponent = function TableComponent({
               return (
                 <TableRow
                   key={`${row.id}-${rowIndex}`}
-                  className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out ${
+                  className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
                     animationComplete
                       ? "opacity-100 translate-y-0"
                       : "opacity-0 translate-y-2"
                   }`}
                   style={{
                     transitionDelay: `${rowIndex * 40}ms`,
+                    minHeight: isMobile ? '40px' : isTablet ? '48px' : '56px',
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
@@ -632,10 +646,11 @@ export const TableComponent = function TableComponent({
                           minWidth: cellWidth ? `${cellWidth}px` : "auto",
                           whiteSpace: "normal",
                           wordBreak: "break-word",
+                          minHeight: isMobile ? '40px' : isTablet ? '48px' : '56px',
                         }}
                         className={`${
-                          cell.column.id === "select" ? "p-0 " : "px-4 py-2"
-                        } overflow-visible`}
+                          cell.column.id === "select" ? "p-0" : "px-2 sm:px-4 py-1 sm:py-2"
+                        } overflow-visible text-xs sm:text-sm md:text-base`}
                         onClick={(event) => handleCellClick(event, row, cell)}
                       >
                         {cell.column.id === "Client Name" ? (
@@ -673,7 +688,8 @@ export const TableComponent = function TableComponent({
                           </div>
                         ) : cell.column.id === "Subscription" &&
                           Array.isArray(cell.getValue()) ? (
-                          <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
+                          <ul className="max-w-[450px] overflow-y-auto scrollbar-hide text-xs sm:text-sm md:text-base"
+                              style={{ maxHeight: `${getMaxHeight()}px` }}>
                             {cell.getValue().length > 0 ? (
                               cell.getValue().map((sub, index) => {
                                 // Get status color class
@@ -741,7 +757,8 @@ export const TableComponent = function TableComponent({
                           </ul>
                         ) : cell.column.id === "HRG Data" &&
                           Array.isArray(cell.getValue()) ? (
-                          <div className="w-full max-h-[150px] overflow-y-auto">
+                          <div className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
+                               style={{ maxHeight: `${getMaxHeight()}px` }}>
                             {cell.getValue().length > 0 ? (
                               <>
                                 {/* Add status indicator for latest record */}
@@ -795,7 +812,8 @@ export const TableComponent = function TableComponent({
                           </div>
                         ) : cell.column.id === "FOM Data" &&
                           Array.isArray(cell.getValue()) ? (
-                          <div className="w-full max-h-[150px] overflow-y-auto">
+                          <div className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
+                               style={{ maxHeight: `${getMaxHeight()}px` }}>
                             {cell.getValue().length > 0 ? (
                               <>
                                 {/* Add status indicator for latest record */}
@@ -846,7 +864,8 @@ export const TableComponent = function TableComponent({
                           </div>
                         ) : cell.column.id === "CAL Data" &&
                           Array.isArray(cell.getValue()) ? (
-                          <div className="w-full max-h-[150px] overflow-y-auto">
+                          <div className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
+                               style={{ maxHeight: `${getMaxHeight()}px` }}>
                             {cell.getValue().length > 0 ? (
                               <>
                                 {cell.getValue().map((cal, index) => (
@@ -883,7 +902,7 @@ export const TableComponent = function TableComponent({
                           </div>
                         ) : cell.column.id === "Services" &&
                           Array.isArray(cell.getValue()) ? (
-                          <ul className="text-center">
+                          <ul className="text-center text-xs sm:text-sm md:text-base">
                             {cell.getValue().map((service, index) => (
                               <li
                                 key={index}
@@ -911,7 +930,10 @@ export const TableComponent = function TableComponent({
             <TableRow>
               <TableCell
                 colSpan={table.getVisibleLeafColumns().length}
-                className="text-center text-2xl"
+                className="text-center text-xl sm:text-2xl"
+                style={{
+                  height: isMobile ? '40px' : isTablet ? '48px' : '56px',
+                }}
               >
                 No data
               </TableCell>
@@ -922,13 +944,14 @@ export const TableComponent = function TableComponent({
           <TableRow>
             <TableCell
               colSpan={table.getVisibleLeafColumns().length}
-              className={`h-[30px] sticky bottom-0 bg-white text-xs font-bold transition-opacity duration-300 ease-in-out ${
+              className={`sticky bottom-0 bg-white text-xs sm:text-sm font-bold transition-opacity duration-300 ease-in-out ${
                 animationComplete ? "opacity-100" : "opacity-0"
               }`}
               style={{
                 transitionDelay: `${
                   table.getRowModel().rows.length * 40 + 100
                 }ms`,
+                height: isMobile ? '30px' : isTablet ? '35px' : '40px',
               }}
             >
               {totalLabel}

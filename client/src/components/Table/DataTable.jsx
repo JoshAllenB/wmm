@@ -50,23 +50,54 @@ export default function DataTable({
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
   const [tableHeight, setTableHeight] = useState("700px");
+  const [tableWidth, setTableWidth] = useState(0);
   const containerRef = useRef(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const lastSyncRef = useRef(Date.now());
   const currentDataRef = useRef(null);
 
-  // Responsive height adjustment based on viewport
+  // Enhanced responsive height adjustment based on viewport and container width
   useEffect(() => {
-    const updateTableHeight = () => {
+    const updateTableDimensions = () => {
+      if (!containerRef.current) return;
+
       const viewportHeight = window.innerHeight;
-      const reservedSpace = 300;
-      const calculatedHeight = Math.max(400, viewportHeight - reservedSpace);
+      const viewportWidth = window.innerWidth;
+      const containerWidth = containerRef.current.offsetWidth;
+      
+      // Base height calculation from viewport
+      const reservedSpace = 300; // Space for header, footer, etc.
+      let calculatedHeight = Math.max(400, viewportHeight - reservedSpace);
+      
+      // Adjust height based on width to maintain aspect ratio
+      // Use different ratios for different screen sizes
+      if (viewportWidth < 640) { // mobile
+        calculatedHeight = Math.min(calculatedHeight, containerWidth * 1.2); // taller ratio for mobile
+      } else if (viewportWidth < 1024) { // tablet
+        calculatedHeight = Math.min(calculatedHeight, containerWidth * 0.8); // balanced ratio for tablet
+      } else { // desktop
+        calculatedHeight = Math.min(calculatedHeight, containerWidth * 0.6); // wider ratio for desktop
+      }
+
+      // Ensure minimum height
+      calculatedHeight = Math.max(400, calculatedHeight);
+      
       setTableHeight(`${calculatedHeight}px`);
+      setTableWidth(containerWidth);
     };
 
-    updateTableHeight();
-    window.addEventListener("resize", updateTableHeight);
-    return () => window.removeEventListener("resize", updateTableHeight);
+    // Initial calculation
+    updateTableDimensions();
+
+    // Add event listeners for resize and orientation change
+    window.addEventListener("resize", updateTableDimensions);
+    window.addEventListener("orientationchange", updateTableDimensions);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("resize", updateTableDimensions);
+      window.removeEventListener("orientationchange", updateTableDimensions);
+    };
   }, []);
 
   const { table } = useTableLogic(
@@ -263,7 +294,7 @@ export default function DataTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-md border h-[700px] w-full overflow-hidden">
+      <div className="rounded-md border w-full overflow-hidden" style={{ height: tableHeight }}>
         <div className="flex flex-col h-full">
           <div className="flex-1 flex items-center justify-center bg-muted/10">
             <div className="text-center space-y-6 w-2/3 max-w-md">
@@ -286,7 +317,7 @@ export default function DataTable({
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-[730px]">
+      <div className="flex items-center justify-center" style={{ height: tableHeight }}>
         <div className="text-center text-red-500">
           <div className="text-lg mb-2">Error loading data</div>
           <div className="text-sm">{error}</div>
@@ -303,7 +334,7 @@ export default function DataTable({
           isTransitioning ? "opacity-0" : "opacity-100"
         }`}
       >
-        <ScrollArea className="rounded-md border h-[700px] w-full">
+        <ScrollArea className="rounded-md border w-full" style={{ height: tableHeight }}>
           <TableComponent
             table={table}
             theme={theme}
@@ -311,6 +342,7 @@ export default function DataTable({
             userRole={userRole}
             animationComplete={animationComplete}
             stats={stats}
+            containerWidth={tableWidth}
           />
           <ScrollBar orientation="vertical" />
           <ScrollBar orientation="horizontal" />
