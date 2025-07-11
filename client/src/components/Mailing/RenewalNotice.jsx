@@ -95,9 +95,9 @@ const RenewalNoticeDataOverlay = forwardRef(({
 
       // Group 3: Sucat reminder text
       group3: {
-        top: 6.0,
+        top: 1,
         left: 0.1, // Aligned with group2
-        width: 4.0,
+        width: 3,
         lineSpacing: 0.3,
         fontSize: 12,
         fontWeight: "normal",
@@ -389,7 +389,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
           fontFamily: "Arial"
         },
         group3: {
-          top: 6.0,
+          top: 0.3, // Positioned at the top of the page with small margin
           left: 0.1, // Aligned with group2
           width: 4.0,
           lineSpacing: 0.3,
@@ -644,17 +644,44 @@ const RenewalNoticeDataOverlay = forwardRef(({
         `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
         '';
       
-      // If there's no personal name, company name goes in the name position
+      // Adjust positions based on what fields are present
       if (!subscriber.hasPersonalName && subscriber.hasCompany) {
         namePosition = positions.group2.top + positions.group2.lineSpacing;
-        // Skip the company position since it's now in the name position
+        addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
+      } else if (!subscriber.hasCompany) {
         addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
       }
-      
-      // If there's no company, move address up
-      if (!subscriber.hasCompany) {
-        addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
-      }
+
+      // Calculate actual address line positions
+      const addressLines = [];
+      const processAddress = (addr) => {
+        if (!addr) return null;
+        return addr.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .join('\n');
+      };
+
+      const address1 = processAddress(subscriber.address1);
+      const address2 = processAddress(subscriber.address2);
+      const address3 = processAddress(subscriber.address3);
+      const address4 = processAddress(subscriber.address4);
+
+      if (address1) addressLines.push(address1);
+      if (address2) addressLines.push(address2);
+      if (address3) addressLines.push(address3);
+      if (address4) addressLines.push(address4);
+
+      // Join all address lines into a single string with line breaks
+      const fullAddress = addressLines.join('\n');
+
+      // Split the full address into lines for display
+      const displayLines = fullAddress.split('\n');
+
+      // Adjust addressStartPosition based on number of display lines
+      const addressLinePositions = displayLines.map((_, index) => ({
+        top: addressStartPosition + (positions.group2.lineSpacing * index)
+      }));
       
       overlayHTML += `
         <div class="data-overlay">
@@ -1255,17 +1282,44 @@ const RenewalNoticeDataOverlay = forwardRef(({
                           `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
                           '';
                         
-                        // If there's no personal name, company name goes in the name position
+                        // Adjust positions based on what fields are present
                         if (!subscriber.hasPersonalName && subscriber.hasCompany) {
                           namePosition = positions.group2.top + positions.group2.lineSpacing;
-                          // Skip the company position since it's now in the name position
+                          addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
+                        } else if (!subscriber.hasCompany) {
                           addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
                         }
-                        
-                        // If there's no company, move address up
-                        if (!subscriber.hasCompany) {
-                          addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
-                        }
+
+                        // Calculate actual address line positions
+                        const addressLines = [];
+                        const processAddress = (addr) => {
+                          if (!addr) return null;
+                          return addr.split('\n')
+                            .map(line => line.trim())
+                            .filter(line => line.length > 0)
+                            .join('\n');
+                        };
+
+                        const address1 = processAddress(subscriber.address1);
+                        const address2 = processAddress(subscriber.address2);
+                        const address3 = processAddress(subscriber.address3);
+                        const address4 = processAddress(subscriber.address4);
+
+                        if (address1) addressLines.push(address1);
+                        if (address2) addressLines.push(address2);
+                        if (address3) addressLines.push(address3);
+                        if (address4) addressLines.push(address4);
+
+                        // Join all address lines into a single string with line breaks
+                        const fullAddress = addressLines.join('\n');
+
+                        // Split the full address into lines for display
+                        const displayLines = fullAddress.split('\n');
+
+                        // Adjust addressStartPosition based on number of display lines
+                        const addressLinePositions = displayLines.map((_, index) => ({
+                          top: addressStartPosition + (positions.group2.lineSpacing * index)
+                        }));
                         
                         return (
                           <>
@@ -1368,101 +1422,52 @@ const RenewalNoticeDataOverlay = forwardRef(({
                               )}
                               
                               {/* Address fields with adjusted positions */}
-                              {subscriber.address1 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.group2.top) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address1.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address1.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
+                              {displayLines.map((line, index) => (
+                                <div
+                                  key={`address-line-${index}`}
+                                  style={{
+                                    position: "absolute",
+                                    top: `${(addressLinePositions[index].top - positions.group2.top) * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%",
+                                    whiteSpace: "pre-wrap"
+                                  }}
+                                >
+                                  {line}
                                 </div>
-                              )}
-                              
-                              {subscriber.address2 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address2.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address2.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {subscriber.address3 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing * 2) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address3.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                      {line}
-                                      {i < subscriber.address3.split('\n').length - 1 && <br />}
-                                    </React.Fragment>
-                                  ))}
-                                </div>
-                              )}
-                              
-                              {subscriber.address4 && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${(addressStartPosition - positions.group2.top + positions.group2.lineSpacing * 3) * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%",
-                                  whiteSpace: "pre-wrap"
-                                }}>
-                                  {subscriber.address4}
-                                </div>
-                              )}
+                              ))}
+                            </div>
 
-                              {/* Add Group 3: Sucat Reminder Text */}
-                              <div 
-                                className="absolute bg-yellow-50 border border-yellow-200 p-2 text-sm font-mono"
-                                style={{
-                                  top: `${positions.group3.top * scaleY}px`,
-                                  left: `${positions.group3.left * scaleX}px`,
-                                  width: `${positions.group3.width * scaleX}px`,
-                                  minHeight: `${positions.group3.lineSpacing * 2 * scaleY}px`,
-                                  fontFamily: positions.group3.fontFamily,
-                                  fontSize: `${positions.group3.fontSize}px`,
-                                  fontWeight: positions.group3.fontWeight
-                                }}
-                              >
-                                <div className="absolute text-xs text-yellow-500 font-mono -top-4 -left-1">Group 3</div>
-                                <div style={{
-                                  position: "absolute",
-                                  top: "0px",
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  Sucat - {reminderMonth} {reminderYear}
-                                </div>
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.group3.lineSpacing * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  (Friendly Reminder - {locationType})
-                                </div>
+                            {/* Group 3: Sucat Reminder Text - Moved outside Group 2 container */}
+                            <div 
+                              className="absolute bg-yellow-50 border border-yellow-200 p-2 text-sm font-mono"
+                              style={{
+                                top: `${positions.group3.top * scaleY}px`,
+                                left: `${positions.group3.left * scaleX}px`,
+                                width: `${positions.group3.width * scaleX}px`,
+                                minHeight: `${positions.group3.lineSpacing * 2 * scaleY}px`,
+                                fontFamily: positions.group3.fontFamily,
+                                fontSize: `${positions.group3.fontSize}px`,
+                                fontWeight: positions.group3.fontWeight
+                              }}
+                            >
+                              <div className="absolute text-xs text-yellow-500 font-mono -top-4 -left-1">Group 3</div>
+                              <div style={{
+                                position: "absolute",
+                                top: "0px",
+                                left: "0px",
+                                width: "100%"
+                              }}>
+                                Sucat - {reminderMonth} {reminderYear}
                               </div>
-
+                              <div style={{
+                                position: "absolute",
+                                top: `${positions.group3.lineSpacing * scaleY}px`,
+                                left: "0px",
+                                width: "100%"
+                              }}>
+                                (Friendly Reminder - {locationType})
+                              </div>
                             </div>
                           </>
                         );
