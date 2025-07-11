@@ -74,6 +74,11 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
         { $match: baseMatch },
         { $sort: { clientid: 1, subsdate: -1 } },
         {
+          $addFields: {
+            modelType: "WMM"
+          }
+        },
+        {
           $group: {
             _id: "$clientid",
             recentCopies: { $first: "$copies" },
@@ -113,6 +118,7 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
         { $match: baseMatch },
         {
           $addFields: {
+            modelType: "CAL",
             numericCalQty: { $toInt: "$calqty" },
             numericCalAmt: { $toDouble: "$calamt" },
             lineTotal: {
@@ -134,9 +140,15 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
       ];
 
     default:
+      const modelType = modelName.replace(/model/i, '').toUpperCase();
       return [
         { $match: baseMatch },
         { $sort: { clientid: 1, recvdate: -1 } },
+        {
+          $addFields: {
+            modelType: modelType
+          }
+        },
         {
           $group: {
             _id: "$clientid",

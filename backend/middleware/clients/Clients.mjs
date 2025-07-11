@@ -36,9 +36,13 @@ const fetchClientData = async (req, options = {}) => {
   });
 
   const userRoles = req.user.roles.map((role) => role.role.name);
-  const modelNames = userRoles.includes("Admin")
+  
+  // Handle special roles that need access to multiple models
+  const modelNames = userRoles.includes("Admin") || userRoles.includes("Accounting")
     ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-    : userRoles.map((role) => `${role}Model`);
+    : userRoles
+        .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
+        .map((role) => `${role}Model`);
 
   // Use appropriate data fetching method based on skipPagination
   const results = skipPagination
@@ -154,9 +158,12 @@ router.post(
       });
 
       const userRoles = req.user.roles.map((role) => role.role.name);
-      const modelNames = userRoles.includes("Admin")
+      // Handle special roles that need access to multiple models
+      const modelNames = userRoles.includes("Admin") || userRoles.includes("Accounting")
         ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-        : userRoles.map((role) => `${role}Model`);
+        : userRoles
+            .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
+            .map((role) => `${role}Model`);
 
       // Use the shared fetchClientData function with skipPagination=true
       const results = await fetchClientData(req, {

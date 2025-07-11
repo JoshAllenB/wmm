@@ -22,40 +22,6 @@ export const useAccountingColumns = () => {
 
   return [
     {
-      id: "select",
-      toggleable: false,
-      header: ({ table }) => (
-        <div className="flex">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => {
-              table.toggleAllPageRowsSelected(!!value);
-            }}
-            aria-label="Select all"
-            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-          />
-        </div>
-      ),
-      cell: ({ row }) => (
-        <div className="flex px-4">
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => {
-              row.toggleSelected(!!value);
-            }}
-            aria-label="Select row"
-            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-          />
-        </div>
-      ),
-      enableSorting: false,
-      enableHiding: false,
-      size: 40,
-    },
-    {
       id: "Client",
       header: "Client",
       accessorKey: "clientName",
@@ -119,13 +85,25 @@ export const useAccountingColumns = () => {
           </Button>
         );
       },
-      accessorKey: "adddate",
-      accessorFn: (row) => new Date(row.adddate).getTime(),
-      cell: ({ getValue, row }) => (
-        <div className="py-2">
-          {formatDate(row.adddate)}
-        </div>
-      ),
+      accessorKey: "date",
+      accessorFn: (row) => row.date ? new Date(row.date).getTime() : 0,
+      cell: ({ getValue, row }) => {
+        // If it's a WMM record, always show N/A
+        if (row.original.modelType === 'WMM') {
+          return <div className="py-2">N/A</div>;
+        }
+        
+        // For other models, determine which date field was used
+        const dateField = row.original.paymtdate ? 'Payment Date' :
+                         row.original.recvdate ? 'Received Date' : '';
+        const date = getValue();
+        
+        return (
+          <div className="py-2" title={date ? `${dateField}: ${formatDate(date)}` : 'No date available'}>
+            {date ? formatDate(date) : 'N/A'}
+          </div>
+        );
+      },
       sortingFn: "datetime",
       sortDescFirst: true,
       enableSorting: true,
@@ -154,7 +132,7 @@ export const useAccountingColumns = () => {
     {
       id: "Model",
       header: "Model",
-      accessorKey: "model",
+      accessorKey: "modelType",
       cell: ({ getValue }) => (
         <div className="text-left font-medium py-2">
           {getValue()}

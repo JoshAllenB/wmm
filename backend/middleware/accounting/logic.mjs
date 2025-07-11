@@ -319,18 +319,33 @@ export const getAllPayments = async (req, res) => {
             };
 
             if (Object.keys(dateFilter).length > 0) {
-              query.recvdate = dateFilter;
+              // Apply date filter based on model type
+              const dateField = modelName.toLowerCase().includes('cal') ? 'paymtdate' :
+                               modelName.toLowerCase().includes('wmm') ? null : 'recvdate';
+              if (dateField) {
+                query[dateField] = dateFilter;
+              }
             }
 
             const result = await model.find(query)
-              .select({ ...getPaymentFields(modelName), clientid: 1, clientId: 1 })
+              .select({ 
+                ...getPaymentFields(modelName), 
+                clientid: 1, 
+                clientId: 1,
+                // Include specific date fields based on model
+                ...(modelName.toLowerCase().includes('cal') ? { paymtdate: 1 } : {}),
+                ...(modelName.toLowerCase().includes('hrg') || modelName.toLowerCase().includes('fom') ? { recvdate: 1 } : {})
+              })
               .sort({ [sort]: order === 'desc' ? -1 : 1 })
               .lean()
               .exec();
 
             return result.map(payment => ({
               ...payment,
-              modelType: modelName.replace('Model', '')
+              modelType: modelName.replace('Model', ''),
+              // Normalize date field to a common name while preserving original
+              date: modelName.toLowerCase().includes('wmm') ? null : 
+                    (payment.paymtdate || payment.recvdate)
             }));
           } catch (err) {
             console.error(`Error querying ${modelName}:`, err);
