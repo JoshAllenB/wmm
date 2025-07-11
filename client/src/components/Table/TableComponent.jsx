@@ -625,7 +625,7 @@ export const TableComponent = function TableComponent({
               return (
                 <TableRow
                   key={`${row.id}-${rowIndex}`}
-                  className={`bg-gray-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
+                  className={`even:bg-gray-150 odd:bg-blue-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
                     animationComplete
                       ? "opacity-100 translate-y-0"
                       : "opacity-0 translate-y-2"
