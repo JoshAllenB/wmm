@@ -683,13 +683,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     // Clean the object to remove any undefined or empty values that might have slipped through
     const finalFilterData = cleanObject(processedFilterData);
 
-    // Add debug logging
-    console.log("\n=== Advanced Filter Submission ===");
-    console.log("Timestamp:", new Date().toISOString());
-    console.log("Filter Data:", JSON.stringify(finalFilterData, null, 2));
-    console.log("Client IDs to exclude:", processClientIds(filterData.clientExcludeIds));
-    console.log("Client IDs to include:", processClientIds(filterData.clientIncludeIds));
-    
     // Apply the filter
     onApplyFilter(finalFilterData);
     closeModal();
