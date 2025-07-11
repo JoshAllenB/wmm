@@ -1,4 +1,5 @@
 import { getModelInstance } from './modelManager.mjs';
+import ClientModel from '../../../models/clients.mjs';
 import { parseDate } from './helpers.mjs';
 
 export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
@@ -364,8 +365,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     })
   };
 
-  // Log both the simplified query and the ID filters separately for debugging
-  console.log("Final MongoDB Query:", JSON.stringify(simplifiedQuery));
   if (advancedFilterData.excludeClientIds || advancedFilterData.includeClientIds) {
     // Convert excluded IDs to numbers for logging
     const excludedIds = advancedFilterData.excludeClientIds
@@ -384,11 +383,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         .map(id => Number(id))
         .filter(id => !isNaN(id) && isFinite(id))
       : [];
-
-    console.log("ID Filters:", JSON.stringify({
-      excluded: excludedIds,
-      included: includedIds
-    }));
   }
 
   return filterQuery;
@@ -598,28 +592,31 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       // Special handling for FOM and HRG to ensure exclusivity
       if (serviceClientsMap.FOM || serviceClientsMap.HRG) {
+        // Get DCS clients to exclude
+        const dcsClients = await ClientModel.distinct('id', { group: 'DCS' });
+
         // If both FOM and HRG are selected, they should be mutually exclusive
         if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
           const fomOnlyClients = new Set(
-            [...serviceClientsMap.FOM].filter(id => !serviceClientsMap.HRG.has(id))
+            [...serviceClientsMap.FOM].filter(id => !serviceClientsMap.HRG.has(id) && !dcsClients.includes(id))
           );
           const hrgOnlyClients = new Set(
-            [...serviceClientsMap.HRG].filter(id => !serviceClientsMap.FOM.has(id))
+            [...serviceClientsMap.HRG].filter(id => !serviceClientsMap.FOM.has(id) && !dcsClients.includes(id))
           );
           targetClients = new Set([...fomOnlyClients, ...hrgOnlyClients]);
         }
-        // If only FOM is selected, exclude any clients that have HRG
+        // If only FOM is selected, exclude any clients that have HRG or are in DCS group
         else if (serviceClientsMap.FOM) {
           const hrgClients = await HrgModel.distinct('clientid', {});
           targetClients = new Set(
-            [...serviceClientsMap.FOM].filter(id => !hrgClients.includes(id))
+            [...serviceClientsMap.FOM].filter(id => !hrgClients.includes(id) && !dcsClients.includes(id))
           );
         }
-        // If only HRG is selected, exclude any clients that have FOM
+        // If only HRG is selected, exclude any clients that have FOM or are in DCS group
         else if (serviceClientsMap.HRG) {
           const fomClients = await FomModel.distinct('clientid', {});
           targetClients = new Set(
-            [...serviceClientsMap.HRG].filter(id => !fomClients.includes(id))
+            [...serviceClientsMap.HRG].filter(id => !fomClients.includes(id) && !dcsClients.includes(id))
           );
         }
       }
