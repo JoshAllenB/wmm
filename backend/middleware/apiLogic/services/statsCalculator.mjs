@@ -5,12 +5,13 @@ import CalModel from '../../../models/cal.mjs';
 import ClientModel from '../../../models/clients.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 
-export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20, filteredClientIds = []) {
+export async function calculateStatistics(filterQuery, pageClientIds = [], page = 1, limit = 20) {
   try {
     // Initialize stats array with structured data
     const stats = {
       clientCount: {
-        total: 0,
+        total: 0,  // This will be ALL clients in database
+        filtered: 0,  // This will be filtered count
         page: 0
       },
       serviceClientCounts: {
@@ -33,7 +34,11 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
           label: 'Copies',
           total: 0,
           page: 0,
-          unit: ''
+          unit: '',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
         },
         {
           service: 'CAL',
@@ -72,7 +77,11 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
               tooltip: 'Number of records with non-numeric payment amounts'
             }
           ],
-          currentCalType: ''
+          currentCalType: '',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
         },
         {
           service: 'HRG',
@@ -80,7 +89,11 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
           total: 0,
           page: 0,
           unit: 'Php',
-          tooltip: 'Totals from most recent records based on receive date'
+          tooltip: 'Totals from most recent records based on receive date',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
         },
         {
           service: 'FOM',
@@ -88,7 +101,11 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
           total: 0,
           page: 0,
           unit: 'Php',
-          tooltip: 'Totals from most recent records based on receive date'
+          tooltip: 'Totals from most recent records based on receive date',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
         }
       ],
       dataQuality: {
@@ -113,90 +130,30 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
       }
     };
 
-    // Get total client count for all clients in database
-    const [totalClients, totalFilteredClients] = await Promise.all([
-      ClientModel.countDocuments(),
-      ClientModel.find(filterQuery).countDocuments()
-    ]);
-    stats.clientCount.total = totalClients;
+    // Get total clients in database (unfiltered)
+    const totalClientsInDb = await ClientModel.countDocuments();
+    stats.clientCount.total = totalClientsInDb;
 
-    // Calculate skip for pagination
-    const skip = (page - 1) * limit;
+    // Get filtered clients count
+    const filteredClientsCount = await ClientModel.countDocuments(filterQuery);
+    stats.clientCount.filtered = filteredClientsCount;
+    stats.clientCount.page = pageClientIds.length;
 
-    // Get filtered clients for the current page only
-    const pageClients = await ClientModel.find(filterQuery)
-      .sort({ id: 1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .exec();
-    
-    // Set page-specific client count
-    stats.clientCount.page = pageClients.length;
-
-    // Get all filtered client IDs
-    const allFilteredClients = await ClientModel.find(filterQuery)
-      .select('id')
-      .lean()
-      .exec();
-    
-    const allFilteredClientIds = allFilteredClients.map(client => client.id);
-    const pageClientIds = pageClients.map(client => client.id);
-
-    // Aggregate data for all filtered clients
-    const { combinedData: allCombinedData } = await aggregateClientData(
-      allFilteredClients,
-      ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
-    );
-
-    // Aggregate data for page clients
-    const { combinedData: pageCombinedData } = await aggregateClientData(
-      pageClients,
-      ['WMMModel', 'HRGModel', 'FOMModel', 'CALModel']
-    );
-
-    // Function to count services based on aggregated data
-    const countServices = (clients) => {
-      const counts = {
-        wmm: 0,
-        hrg: 0,
-        fom: 0
-      };
-
-      clients.forEach(client => {
-        // Check if client has active records for each service
-        const hasWMM = client.wmmData?.records?.length > 0;
-        const hasHRG = client.hrgData?.records?.length > 0;
-        const hasFOM = client.fomData?.records?.length > 0;
-
-        // Simple counting - if they have the service, count them
-        if (hasWMM) counts.wmm++;
-        if (hasHRG) counts.hrg++;
-        if (hasFOM) counts.fom++;
-      });
-
-      return counts;
-    };
-
-    // Calculate total service counts
-    const totalCounts = countServices(allCombinedData);
-    stats.serviceClientCounts.wmm.total = totalCounts.wmm;
-    stats.serviceClientCounts.hrgOnly.total = totalCounts.hrg;
-    stats.serviceClientCounts.fomOnly.total = totalCounts.fom;
-
-    // Calculate page-specific service counts
-    const pageCounts = countServices(pageCombinedData);
-    stats.serviceClientCounts.wmm.page = pageCounts.wmm;
-    stats.serviceClientCounts.hrgOnly.page = pageCounts.hrg;
-    stats.serviceClientCounts.fomOnly.page = pageCounts.fom;
+    // Get filtered client IDs for service calculations
+    const filteredClients = await ClientModel.find(filterQuery).select('id').lean();
+    const filteredIds = filteredClients.map(client => client.id);
 
     // Calculate service-specific statistics using filtered client IDs
-    const wmmStats = await calculateWmmStats(allFilteredClientIds, pageClientIds);
+    const wmmStats = await calculateWmmStats(filteredIds, pageClientIds);
     stats.metrics[0].total = wmmStats.totalCopies;
     stats.metrics[0].page = wmmStats.pageSpecificCopies;
+    stats.metrics[0].clientsFound.total = wmmStats.totalClients;
+    stats.metrics[0].clientsFound.page = wmmStats.pageClients;
+    stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
+    stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
 
     // Calculate CAL statistics with current year focus
-    const calStats = await calculateCalStats(allFilteredClientIds, pageClientIds);
+    const calStats = await calculateCalStats(filteredIds, pageClientIds);
     stats.metrics[1].currentCalType = calStats.currentCalType;
     stats.metrics[1].metrics[0].total = calStats.totalQty;
     stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
@@ -208,18 +165,28 @@ export async function calculateStatistics(filterQuery = {}, page = 1, limit = 20
     stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
     stats.metrics[1].metrics[4].total = calStats.nonNumericCount;
     stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
+    stats.metrics[1].clientsFound.total = calStats.totalClients;
+    stats.metrics[1].clientsFound.page = calStats.pageClients;
 
     // Calculate HRG statistics
-    const hrgStats = await calculateHrgStats(allFilteredClientIds, pageClientIds);
+    const hrgStats = await calculateHrgStats(filteredIds, pageClientIds);
     stats.metrics[2].total = hrgStats.totalAmt;
     stats.metrics[2].page = hrgStats.pageSpecificAmt;
+    stats.metrics[2].clientsFound.total = hrgStats.totalClients;
+    stats.metrics[2].clientsFound.page = hrgStats.pageClients;
+    stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
+    stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
     stats.dataQuality.hrg.nonNumericPayments.total = hrgStats.nonNumericCount;
     stats.dataQuality.hrg.nonNumericPayments.page = hrgStats.pageNonNumericCount;
 
     // Calculate FOM statistics
-    const fomStats = await calculateFomStats(allFilteredClientIds, pageClientIds);
+    const fomStats = await calculateFomStats(filteredIds, pageClientIds);
     stats.metrics[3].total = fomStats.totalAmt;
     stats.metrics[3].page = fomStats.pageSpecificAmt;
+    stats.metrics[3].clientsFound.total = fomStats.totalClients;
+    stats.metrics[3].clientsFound.page = fomStats.pageClients;
+    stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
+    stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
     stats.dataQuality.fom.nonNumericPayments.total = fomStats.nonNumericCount;
     stats.dataQuality.fom.nonNumericPayments.page = fomStats.pageNonNumericCount;
 
@@ -234,19 +201,40 @@ async function calculateWmmStats(allFilteredClientIds, pageClientIds) {
   const pipeline = [
     {
       $match: {
-        clientid: { $exists: true }
+        clientid: { $exists: true },
+        copies: { $exists: true }
       }
     },
     {
       $addFields: {
         subsDateObj: {
-          $dateFromString: {
-            dateString: "$subsdate",
-            format: "%m/%d/%Y %H:%M:%S",
-            onError: null,
-            onNull: null
+          $cond: {
+            if: { $regexMatch: { input: "$subsdate", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$subsdate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: { $dateFromString: { dateString: "$subsdate", format: "%m/%d/%Y %H:%M:%S", onError: null, onNull: null } }
+          }
+        },
+        endDateObj: {
+          $cond: {
+            if: { $regexMatch: { input: "$enddate", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$enddate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: { $dateFromString: { dateString: "$enddate", format: "%m/%d/%Y %H:%M:%S", onError: null, onNull: null } }
+          }
+        },
+        copiesNum: { 
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0
           }
         }
+      }
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        endDateObj: { $exists: true }
       }
     },
     {
@@ -258,26 +246,9 @@ async function calculateWmmStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: "$clientid",
-        recentCopies: { $first: "$copies" },
+        recentCopies: { $first: "$copiesNum" },  // Use converted numeric copies
         subsdate: { $first: "$subsdate" },
-        enddate: { $first: "$enddate" },
-        allRecords: { 
-          $push: { 
-            copies: "$copies",
-            subsdate: "$subsdate",
-            enddate: "$enddate"
-          }
-        }
-      }
-    },
-    {
-      $project: {
-        _id: 1,
-        recentCopies: 1,
-        subsdate: 1,
-        enddate: 1,
-        allRecords: 1,
-        clientId: "$_id"
+        enddate: { $first: "$enddate" }
       }
     }
   ];
@@ -293,25 +264,8 @@ async function calculateWmmStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalCopies: {
-          $sum: {
-            $convert: {
-              input: "$recentCopies",
-              to: "double",
-              onError: 0,
-              onNull: 0
-            }
-          }
-        },
-        details: { 
-          $push: { 
-            clientId: "$clientId", 
-            copies: "$recentCopies",
-            subsdate: "$subsdate",
-            enddate: "$enddate",
-            allRecords: "$allRecords"
-          }
-        }
+        totalCopies: { $sum: "$recentCopies" },  // Sum the already converted copies
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -327,25 +281,8 @@ async function calculateWmmStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalCopies: {
-          $sum: {
-            $convert: {
-              input: "$recentCopies",
-              to: "double",
-              onError: 0,
-              onNull: 0
-            }
-          }
-        },
-        details: { 
-          $push: { 
-            clientId: "$clientId", 
-            copies: "$recentCopies",
-            subsdate: "$subsdate",
-            enddate: "$enddate",
-            allRecords: "$allRecords"
-          }
-        }
+        totalCopies: { $sum: "$recentCopies" },  // Sum the already converted copies
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -357,7 +294,9 @@ async function calculateWmmStats(allFilteredClientIds, pageClientIds) {
 
   return {
     totalCopies: totalResult[0]?.totalCopies || 0,
-    pageSpecificCopies: pageResult[0]?.totalCopies || 0
+    pageSpecificCopies: pageResult[0]?.totalCopies || 0,
+    totalClients: totalResult[0]?.clientCount || 0,
+    pageClients: pageResult[0]?.clientCount || 0
   };
 }
 
@@ -459,7 +398,8 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
         totalQty: { $sum: { $convert: { input: "$qty", to: "double", onError: 0, onNull: 0 } } },
         totalAmt: { $sum: "$amt" },
         totalPaymtAmt: { $sum: "$paymtAmt" },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -479,7 +419,8 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
         totalQty: { $sum: { $convert: { input: "$qty", to: "double", onError: 0, onNull: 0 } } },
         totalAmt: { $sum: "$amt" },
         totalPaymtAmt: { $sum: "$paymtAmt" },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -489,8 +430,8 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
     CalModel.aggregate(pagePipeline)
   ]);
 
-  const totalStats = totalResult[0] || {totalQty: 0, totalAmt: 0, totalPaymtAmt: 0, nonNumericCount: 0};
-  const pageStats = pageResult[0] || {totalQty: 0, totalAmt: 0, totalPaymtAmt: 0, nonNumericCount: 0};
+  const totalStats = totalResult[0] || {totalQty: 0, totalAmt: 0, totalPaymtAmt: 0, nonNumericCount: 0, clientCount: 0};
+  const pageStats = pageResult[0] || {totalQty: 0, totalAmt: 0, totalPaymtAmt: 0, nonNumericCount: 0, clientCount: 0};
 
   return {
     currentCalType,
@@ -503,7 +444,9 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
     pageSpecificPaymtAmt: pageStats.totalPaymtAmt,
     pageSpecificBalance: pageStats.totalAmt - pageStats.totalPaymtAmt,
     nonNumericCount: totalStats.nonNumericCount,
-    pageNonNumericCount: pageStats.nonNumericCount
+    pageNonNumericCount: pageStats.nonNumericCount,
+    totalClients: totalStats.clientCount,
+    pageClients: pageStats.clientCount
   };
 }
 
@@ -556,13 +499,6 @@ async function calculateHrgStats(allFilteredClientIds, pageClientIds) {
         _id: "$clientid",
         latestPayment: { $first: "$$ROOT" }
       }
-    },
-    {
-      $project: {
-        _id: 0,
-        clientid: "$_id",
-        paymtAmt: "$latestPayment.convertedPaymtAmt"
-      }
     }
   ];
 
@@ -577,9 +513,9 @@ async function calculateHrgStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$paymtAmt" },
-        clientCount: { $sum: 1 },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
+        nonNumericCount: { $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -595,9 +531,9 @@ async function calculateHrgStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$paymtAmt" },
-        clientCount: { $sum: 1 },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
+        nonNumericCount: { $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -666,13 +602,6 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
         _id: "$clientid",
         latestPayment: { $first: "$$ROOT" }
       }
-    },
-    {
-      $project: {
-        _id: 0,
-        clientid: "$_id",
-        paymtAmt: "$latestPayment.convertedPaymtAmt"
-      }
     }
   ];
 
@@ -687,9 +616,9 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$paymtAmt" },
-        clientCount: { $sum: 1 },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
+        nonNumericCount: { $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];
@@ -705,9 +634,9 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$paymtAmt" },
-        clientCount: { $sum: 1 },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } }
+        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
+        nonNumericCount: { $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] } },
+        clientCount: { $sum: 1 }  // Count unique clients
       }
     }
   ];

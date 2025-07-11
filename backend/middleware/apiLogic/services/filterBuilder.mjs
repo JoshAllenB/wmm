@@ -139,6 +139,14 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               onError: null,
               onNull: null
             }
+          },
+          copiesNum: { 
+            $convert: {
+              input: "$copies",
+              to: "int",
+              onError: 0,
+              onNull: 0
+            }
           }
         }
       },
@@ -150,7 +158,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       {
         $group: {
           _id: "$clientid",
-          latestCopies: { $first: "$copies" }
+          latestCopies: { $first: "$copiesNum" }  // Use the converted numeric copies
         }
       }
     ];

@@ -32,11 +32,19 @@ class DataService {
       const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
       const totalCount = await ClientModel.countDocuments(filterQuery);
 
+      // Get all filtered client IDs
+      const allFilteredClientIds = await ClientModel.find(filterQuery)
+        .select('id')
+        .lean()
+        .exec();
+      const filteredIds = allFilteredClientIds.map(client => client.id);
+      const pageClientIds = clients.map(client => client.id);
+
       // Get paginated data for display
       const { combinedData } = await aggregateClientData(clients, modelNames, advancedFilterData);
 
-      // Calculate statistics using the entire database and current page info
-      const stats = await calculateStatistics(filterQuery, validPage, validLimit);
+      // Calculate statistics using filter query and current page info
+      const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
 
       // Prepare response
       const response = {
