@@ -22,6 +22,15 @@ class DataService {
     } = params;
 
     try {
+      // Check if there are any filters besides services
+      const hasNonServiceFilters = Object.keys(advancedFilterData).some(key => 
+        key !== 'services' && 
+        key !== 'subscriptionStatus' && 
+        advancedFilterData[key] !== undefined && 
+        advancedFilterData[key] !== null && 
+        advancedFilterData[key] !== ''
+      );
+
       // Validate pagination parameters
       const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
 
@@ -43,6 +52,12 @@ class DataService {
       // Get paginated data for display
       const { combinedData } = await aggregateClientData(clients, modelNames, advancedFilterData);
 
+      // Add hasNonServiceFilters flag to each client in combinedData
+      const enrichedData = combinedData.map(client => ({
+        ...client,
+        hasNonServiceFilters
+      }));
+
       // Calculate statistics using filter query and current page info
       const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
 
@@ -52,8 +67,8 @@ class DataService {
         totalPages: Math.ceil(totalCount / validLimit),
         currentPage: validPage,
         pageSize: validLimit,
-        combinedData,
-        clientServices: this._buildClientServices(combinedData)
+        combinedData: enrichedData,
+        clientServices: this._buildClientServices(enrichedData)
       };
 
       return response;

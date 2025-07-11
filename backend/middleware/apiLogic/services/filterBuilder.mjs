@@ -450,6 +450,15 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       const subscriptionStatus = advancedFilterData.subscriptionStatus || 'all';
 
+      // Check if there are any other filters besides services
+      const hasOtherFilters = Object.keys(advancedFilterData).some(key => 
+        key !== 'services' && 
+        key !== 'subscriptionStatus' && 
+        advancedFilterData[key] !== undefined && 
+        advancedFilterData[key] !== null && 
+        advancedFilterData[key] !== ''
+      );
+
       // Get clients for each selected service
       let targetClients = new Set();
       let isFirstService = true;
@@ -469,8 +478,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         // Get clients for this service with subscription status
         let query = {};
         
-        // Special handling for HRG and FOM subscription status
-        if ((service.toUpperCase() === 'HRG' || service.toUpperCase() === 'FOM') && subscriptionStatus !== 'all') {
+        // Only apply subscription status filter if there are other filters
+        if (hasOtherFilters && (service.toUpperCase() === 'HRG' || service.toUpperCase() === 'FOM') && subscriptionStatus !== 'all') {
           if (subscriptionStatus === 'active') {
             // For active subscriptions, only check the most recent record for each client
             const activeClients = await Model.aggregate([

@@ -176,8 +176,10 @@ export const useColumns = () => {
                   return dateB - dateA;
                 });
 
-              // If filter is applied (indicated by row.isFiltered), only return the most recent record
-              const recordsToProcess = row.isFiltered ? [sortedRecords[0]] : sortedRecords;
+              // Check if we should show all records or just the most recent one
+              // Only show most recent record if there are filters applied AND they are not just service filters
+              const hasNonServiceFilters = row.hasNonServiceFilters === true;
+              const recordsToProcess = hasNonServiceFilters ? [sortedRecords[0]] : sortedRecords;
 
               return recordsToProcess.map((subscription) => {
                 let {
