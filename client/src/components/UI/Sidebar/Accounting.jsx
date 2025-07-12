@@ -8,6 +8,9 @@ import useDebounce from "../../../utils/Hooks/useDebounce";
 
 const Accounting = () => {
   const [filtering, setFiltering] = useState("");
+  const [startYear, setStartYear] = useState("");
+  const [endYear, setEndYear] = useState("");
+  const [yearError, setYearError] = useState("");
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -38,13 +41,58 @@ const Accounting = () => {
       newParams.pageSize !== lastQuery.pageSize ||
       newParams.filter !== lastQuery.filter ||
       newParams.sort !== lastQuery.sort ||
-      newParams.order !== lastQuery.order
+      newParams.order !== lastQuery.order ||
+      newParams.startYear !== lastQuery.startYear ||
+      newParams.endYear !== lastQuery.endYear
     );
   }, [lastQuery]);
+
+  // Validate year range
+  const validateYearRange = useCallback(() => {
+    const start = startYear ? parseInt(startYear) : null;
+    const end = endYear ? parseInt(endYear) : null;
+    
+    // Clear error if both fields are empty
+    if (!start && !end) {
+      setYearError("");
+      return true;
+    }
+
+    // Validate year format and range
+    const currentYear = new Date().getFullYear();
+    const minYear = 1900; // Set a reasonable minimum year
+
+    if (start && (isNaN(start) || start < minYear || start > currentYear + 100)) {
+      setYearError(`Start year must be between ${minYear} and ${currentYear + 100}`);
+      return false;
+    }
+
+    if (end && (isNaN(end) || end < minYear || end > currentYear + 100)) {
+      setYearError(`End year must be between ${minYear} and ${currentYear + 100}`);
+      return false;
+    }
+
+    if (start && end && start > end) {
+      setYearError("Start year cannot be greater than end year");
+      return false;
+    }
+
+    setYearError("");
+    return true;
+  }, [startYear, endYear]);
 
   // Separate data fetching from state updates
   const fetchAccountingData = useCallback(
     async (currentPage = 1, currentPageSize = 20, filter = debouncedFiltering) => {
+      if (!validateYearRange()) {
+        return {
+          data: [],
+          totalPages: 0,
+          totalClients: 0,
+          totalPayments: 0
+        };
+      }
+
       // Get current sort settings
       const currentSort = sorting[0] || { id: "Date", desc: true };
       const sortField = currentSort.id === "Date" ? "adddate" : currentSort.id.toLowerCase();
@@ -56,7 +104,9 @@ const Accounting = () => {
         pageSize: currentPageSize, 
         filter,
         sort: sortField,
-        order: sortOrder
+        order: sortOrder,
+        ...(startYear && { startYear: parseInt(startYear) }),
+        ...(endYear && { endYear: parseInt(endYear) })
       };
       
       // Check if this query is different from the last one
@@ -71,20 +121,15 @@ const Accounting = () => {
 
       setIsLoading(true);
       try {
-        const params = new URLSearchParams(
-          filter
-            ? { 
-                search: filter,
-                sort: sortField,
-                order: sortOrder
-              }
-            : {
-                page: currentPage,
-                limit: currentPageSize,
-                sort: sortField,
-                order: sortOrder
-              }
-        );
+        const params = new URLSearchParams({
+          ...(filter && { search: filter }),
+          page: currentPage.toString(),
+          limit: currentPageSize.toString(),
+          sort: sortField,
+          order: sortOrder,
+          ...(startYear && { startYear: startYear.toString() }),
+          ...(endYear && { endYear: endYear.toString() })
+        });
 
         const response = await axiosInstance.get(
           `/accounting/payments?${params.toString()}`
@@ -113,7 +158,7 @@ const Accounting = () => {
         setIsLoading(false);
       }
     },
-    [debouncedFiltering, axiosInstance, hasQueryChanged, data, totalPages, sorting]
+    [debouncedFiltering, axiosInstance, hasQueryChanged, data, totalPages, sorting, startYear, endYear, validateYearRange]
   );
 
   // Use effect for search changes
@@ -135,12 +180,31 @@ const Accounting = () => {
     fetchAccountingData(page, pageSize, filtering);
   }, [sorting]);
 
+  // Effect for year range changes
+  useEffect(() => {
+    if (validateYearRange()) {
+      fetchAccountingData(1, pageSize, filtering);
+    }
+  }, [startYear, endYear]);
+
   const handleSearchChange = (e) => {
     const newValue = e.target.value;
     setFiltering(newValue);
     if (newValue === "") {
       setPage(1);
       fetchAccountingData(1, pageSize, "");
+    }
+  };
+
+  const handleYearChange = (e, type) => {
+    const value = e.target.value;
+    // Only allow digits and empty string
+    if (value === "" || /^\d{0,4}$/.test(value)) {
+      if (type === "start") {
+        setStartYear(value);
+      } else {
+        setEndYear(value);
+      }
     }
   };
 
@@ -176,10 +240,34 @@ const Accounting = () => {
             </div>
           )}
         </div>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2 items-center">
+            <Input
+              type="text"
+              placeholder="Start Year"
+              value={startYear}
+              onChange={(e) => handleYearChange(e, "start")}
+              className="w-24"
+              maxLength={4}
+            />
+            <span className="self-center">-</span>
+            <Input
+              type="text"
+              placeholder="End Year"
+              value={endYear}
+              onChange={(e) => handleYearChange(e, "end")}
+              className="w-24"
+              maxLength={4}
+            />
+          </div>
+          {yearError && (
+            <span className="text-xs text-red-500">{yearError}</span>
+          )}
+        </div>
         <Button
           onClick={handleRefresh}
           className="bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
-          disabled={isLoading}
+          disabled={isLoading || !!yearError}
         >
           {isLoading ? "Loading..." : "Refresh"}
         </Button>

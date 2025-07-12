@@ -14,20 +14,25 @@ const modelCache = new Map();
 
 // Helper function to extract payment fields
 const getPaymentFields = (modelName) => {
+  console.log(`Getting payment fields for ${modelName}`);
   const projectFields = modelConfigs[modelName]?.projectFields || {};
+  console.log(`Project fields for ${modelName}:`, projectFields);
+  
+  // Include all payment-related fields and date fields
   return Object.fromEntries(
     Object.entries(projectFields).filter(
       ([field]) =>
         field.startsWith("paymt") ||
-        ["recvdate", "paymtdate", "adddate"].includes(field)
+        field.startsWith("cal") ||  // Include calendar-related fields
+        ["recvdate", "paymtdate", "adddate", "renewdate", "campaigndate"].includes(field)
     )
   );
 };
 
 // Helper function to generate cache key
 const generateCacheKey = (params) => {
-  const { page, limit, sort, order, startDate, endDate, search } = params;
-  const key = `payments_${page || 1}_${limit || 20}_${sort || 'recvdate'}_${order || 'desc'}_${startDate || ''}_${endDate || ''}_${search || ''}`;
+  const { page, limit, sort, order, startDate, endDate, startYear, endYear, search } = params;
+  const key = `payments_${page || 1}_${limit || 20}_${sort || 'recvdate'}_${order || 'desc'}_${startDate || ''}_${endDate || ''}_${startYear || ''}_${endYear || ''}_${search || ''}`;
   return key.toLowerCase(); // Normalize cache key
 };
 
@@ -55,6 +60,141 @@ const extractPaymentRefNumber = (input) => {
   }
   
   return null;
+};
+
+// Helper function to extract dates from paymtref field
+const extractDatesFromPaymtRef = (paymtref) => {
+  if (!paymtref) return [];
+  
+  // Match dates in format MM/DD/YYYY
+  const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
+  const matches = [...paymtref.matchAll(dateRegex)];
+  
+  return matches.map(match => {
+    const [_, month, day, year] = match;
+    return new Date(year, month - 1, day);
+  });
+};
+
+// Helper function to check if a date falls within a year range
+const isDateInYearRange = (date, startYear, endYear) => {
+  const year = date.getFullYear();
+  if (startYear && !endYear) return year >= parseInt(startYear);
+  if (!startYear && endYear) return year <= parseInt(endYear);
+  if (startYear && endYear) return year >= parseInt(startYear) && year <= parseInt(endYear);
+  return true;
+};
+
+// Helper function to extract dates from paymtform field
+const extractDateFromPaymtForm = (paymtform) => {
+  if (!paymtform) return null;
+  
+  // Match date patterns like BKTR-1/13/25 or similar
+  const dateRegex = /(\d{1,2})\/(\d{1,2})\/(\d{2})/;
+  const match = paymtform.match(dateRegex);
+  
+  if (match) {
+    const [_, month, day, year] = match;
+    // Handle 2-digit year
+    let fullYear = parseInt(year);
+    if (fullYear < 100) {
+      fullYear += fullYear < 50 ? 2000 : 1900;
+    }
+    return new Date(fullYear, parseInt(month) - 1, parseInt(day));
+  }
+  
+  return null;
+};
+
+// Helper function to build date filter aggregation stages
+const buildDateFilterStages = (startYear, endYear, modelName) => {
+  if (!startYear && !endYear) return [];
+
+  // Create Date objects at the start and end of the years
+  const startDate = startYear ? new Date(Date.UTC(parseInt(startYear), 0, 1)) : null;
+  const endDate = endYear ? new Date(Date.UTC(parseInt(endYear), 11, 31, 23, 59, 59, 999)) : null;
+
+  console.log('Date range:', { startDate, endDate });
+
+  // Define date fields to check based on model
+  const dateFields = {
+    wmm: {
+      fields: [],  // WMM only uses dates from paymtref
+      hasPaymtRef: true
+    },
+    hrg: {
+      fields: ['recvdate'],  // Payment received date
+      hasPaymtForm: true
+    },
+    fom: {
+      fields: ['recvdate'],  // Payment received date
+      hasPaymtForm: true
+    },
+    cal: {
+      fields: ['paymtdate', 'recvdate'],  // Payment date and received date
+      hasPaymtForm: true
+    }
+  };
+
+  const modelConfig = dateFields[modelName.toLowerCase()] || { fields: [], hasPaymtRef: false };
+  const stages = [];
+
+  // Stage 1: Add extracted dates from paymtref if applicable
+  if (modelConfig.hasPaymtRef) {
+    stages.push({
+      $addFields: {
+        extractedDates: {
+          $function: {
+            body: function(paymtref) {
+              if (!paymtref) return [];
+              const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
+              const matches = String(paymtref).matchAll(dateRegex);
+              const dates = [];
+              for (const match of matches) {
+                const [_, month, day, year] = match;
+                // Create date in UTC to match the filter dates
+                dates.push(new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day))));
+              }
+              return dates;
+            },
+            args: ["$paymtref"],
+            lang: "js"
+          }
+        }
+      }
+    });
+  }
+
+  // Stage 2: Add extracted date from paymtform if applicable
+  if (modelConfig.hasPaymtForm) {
+    stages.push({
+      $addFields: {
+        paymtformDate: {
+          $function: {
+            body: function(paymtform) {
+              if (!paymtform) return null;
+              const dateRegex = /(\d{1,2})\/(\d{1,2})\/(\d{2})/;
+              const match = String(paymtform).match(dateRegex);
+              if (match) {
+                const [_, month, day, year] = match;
+                let fullYear = parseInt(year);
+                if (fullYear < 100) {
+                  fullYear += fullYear < 50 ? 2000 : 1900;
+                }
+                // Create date in UTC to match the filter dates
+                return new Date(Date.UTC(fullYear, parseInt(month) - 1, parseInt(day)));
+              }
+              return null;
+            },
+            args: ["$paymtform"],
+            lang: "js"
+          }
+        }
+      }
+    });
+  }
+
+  return stages;
 };
 
 // Optimized search parsing with memoization
@@ -191,6 +331,14 @@ const buildPaymentRefQuery = (ref) => {
   };
 };
 
+// Helper function to get the appropriate date field for a model
+function getDateFieldForModel(modelName) {
+  const lowerName = modelName.toLowerCase();
+  if (lowerName.includes('cal')) return 'paymtdate';
+  if (lowerName.includes('wmm')) return null; // Handled specially
+  return 'recvdate'; // Default for other models
+}
+
 // GET /payments - Get all payments for all clients with caching
 export const getAllPayments = async (req, res) => {
   try {
@@ -204,6 +352,8 @@ export const getAllPayments = async (req, res) => {
       order = "desc",
       startDate,
       endDate,
+      startYear,
+      endYear,
       search = "",
     } = req.query;
 
@@ -216,11 +366,6 @@ export const getAllPayments = async (req, res) => {
       return res.json(cachedResult);
     }
 
-    // Build date filter
-    const dateFilter = {};
-    if (startDate) dateFilter.$gte = new Date(startDate);
-    if (endDate) dateFilter.$lte = new Date(endDate);
-
     // Parse search and build client filter
     const parsedSearch = parseTaggedSearch(search);
     
@@ -231,20 +376,43 @@ export const getAllPayments = async (req, res) => {
     // Get relevant models
     const relevantModels = Object.entries(models)
       .filter(([modelName]) => {
+        console.log(`Checking model: ${modelName}`);
+        // Only include WMM, HRG, FOM, and CAL models
+        const validModels = ['wmm', 'hrg', 'fom', 'cal'];
+        const isValidModel = validModels.some(valid => modelName.toLowerCase().includes(valid));
+        if (!isValidModel) return false;
+        
         const paymentFields = getPaymentFields(modelName);
+        console.log(`Payment fields for ${modelName}:`, paymentFields);
         return Object.keys(paymentFields).length > 0;
       });
+
+    console.log('Relevant models:', relevantModels);
 
     // Load all models in parallel
     const loadedModels = await Promise.all(
       relevantModels.map(async ([modelName, modelLoader]) => {
+        console.log(`Loading model: ${modelName}`);
         const model = await loadModel(modelName, modelLoader);
+        console.log(`Model loaded for ${modelName}:`, model ? 'success' : 'failed');
         return model ? [modelName, model] : null;
       })
     );
 
+    console.log('Loaded models:', loadedModels.map(m => m ? m[0] : null));
+
     // Filter out any failed model loads
     const validModels = loadedModels.filter(Boolean);
+    console.log('Valid models:', validModels.map(m => m[0]));
+
+    // Build year filter dates
+    const yearFilter = {};
+    if (startYear) {
+      yearFilter.$gte = new Date(parseInt(startYear), 0, 1);
+    }
+    if (endYear) {
+      yearFilter.$lte = new Date(parseInt(endYear), 11, 31, 23, 59, 59, 999);
+    }
 
     // If searching for a payment reference, search directly in payment models
     if (parsedSearch.paymentRef) {
@@ -253,13 +421,31 @@ export const getAllPayments = async (req, res) => {
       // Process all models in parallel for payment reference search
       const modelQueries = validModels.map(async ([modelName, model]) => {
         try {
-          const result = await model.find(paymentRefQuery)
+          let query = { ...paymentRefQuery };
+
+          // Add year filter if needed
+          if (Object.keys(yearFilter).length > 0) {
+            const dateField = getDateFieldForModel(modelName);
+            if (dateField) {
+              query[dateField] = yearFilter;
+            } else if (modelName.toLowerCase().includes('wmm')) {
+              // For WMM, we'll filter after fetching
+              query.isWmm = true;
+            }
+          }
+
+          const result = await model.find(query)
             .select({ ...getPaymentFields(modelName), clientid: 1, clientId: 1 })
             .lean()
             .exec();
+
           return result.map(payment => ({
             ...payment,
-            modelType: modelName.replace('Model', '')
+            modelType: modelName.replace('Model', ''),
+            // For WMM, extract dates from paymtref
+            ...(modelName.toLowerCase().includes('wmm') && { 
+              extractedDates: extractDatesFromPaymtRef(payment.paymtref) 
+            })
           }));
         } catch (err) {
           console.error(`Error querying ${modelName}:`, err);
@@ -269,6 +455,19 @@ export const getAllPayments = async (req, res) => {
 
       const results = await Promise.all(modelQueries);
       flatPayments = results.flat();
+
+      // Apply year filter for WMM models if needed
+      if (Object.keys(yearFilter).length > 0) {
+        flatPayments = flatPayments.filter(payment => {
+          if (payment.modelType.toLowerCase().includes('wmm')) {
+            return payment.extractedDates?.some(date => 
+              (!yearFilter.$gte || date >= yearFilter.$gte) &&
+              (!yearFilter.$lte || date <= yearFilter.$lte)
+            );
+          }
+          return true; // Other models already filtered in query
+        });
+      }
 
       // Get unique client IDs from payments
       const clientIds = [...new Set(flatPayments.map(p => p.clientid || p.clientId))];
@@ -308,45 +507,192 @@ export const getAllPayments = async (req, res) => {
         // Get client IDs for payment queries
         const clientIds = clients.map(c => c.id);
 
-        // Process all models in parallel
+        // Process all models in parallel with aggregation for better date handling
         const modelQueries = validModels.map(async ([modelName, model]) => {
           try {
-            const query = {
-              $or: [
-                { clientid: { $in: clientIds } },
-                { clientId: { $in: clientIds } }
-              ]
-            };
-
-            if (Object.keys(dateFilter).length > 0) {
-              // Apply date filter based on model type
-              const dateField = modelName.toLowerCase().includes('cal') ? 'paymtdate' :
-                               modelName.toLowerCase().includes('wmm') ? null : 'recvdate';
-              if (dateField) {
-                query[dateField] = dateFilter;
-              }
+            const isWmmModel = modelName.toLowerCase().includes('wmm');
+            const isCalModel = modelName.toLowerCase().includes('cal');
+            const isHrgModel = modelName.toLowerCase().includes('hrg');
+            const isFomModel = modelName.toLowerCase().includes('fom');
+            
+            // Determine date fields based on model type
+            let dateFields = [];
+            if (isWmmModel) {
+              // WMM dates are handled through paymtref extraction
+              dateFields = [];
+            } else if (isCalModel) {
+              dateFields = ['paymtdate', 'recvdate'];
+            } else {
+              // HRG and FOM use recvdate
+              dateFields = ['recvdate'];
             }
 
-            const result = await model.find(query)
-              .select({ 
-                ...getPaymentFields(modelName), 
-                clientid: 1, 
-                clientId: 1,
-                // Include specific date fields based on model
-                ...(modelName.toLowerCase().includes('cal') ? { paymtdate: 1 } : {}),
-                ...(modelName.toLowerCase().includes('hrg') || modelName.toLowerCase().includes('fom') ? { recvdate: 1 } : {})
-              })
-              .sort({ [sort]: order === 'desc' ? -1 : 1 })
-              .lean()
-              .exec();
+            console.log(`Processing ${modelName} with date fields:`, dateFields);
 
-            return result.map(payment => ({
-              ...payment,
-              modelType: modelName.replace('Model', ''),
-              // Normalize date field to a common name while preserving original
-              date: modelName.toLowerCase().includes('wmm') ? null : 
-                    (payment.paymtdate || payment.recvdate)
-            }));
+            // Base pipeline stages
+            const pipeline = [
+              {
+                $match: {
+                  $or: [
+                    { clientid: { $in: clientIds } },
+                    { clientId: { $in: clientIds } }
+                  ]
+                }
+              }
+            ];
+
+            // Add date extraction for WMM model
+            if (isWmmModel && Object.keys(yearFilter).length > 0) {
+              console.log(`Adding WMM date extraction for ${modelName}`);
+              pipeline.push({
+                $addFields: {
+                  extractedDates: {
+                    $function: {
+                      body: function(paymtref) {
+                        if (!paymtref) return [];
+                        const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
+                        const matches = String(paymtref).matchAll(dateRegex);
+                        const dates = [];
+                        for (const match of matches) {
+                          const [_, month, day, year] = match;
+                          dates.push(new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day))));
+                        }
+                        return dates;
+                      },
+                      args: ["$paymtref"],
+                      lang: "js"
+                    }
+                  }
+                }
+              });
+
+              // Add date filter for WMM
+              if (yearFilter.$gte || yearFilter.$lte) {
+                console.log(`Adding WMM date filter for ${modelName}:`, yearFilter);
+                pipeline.push({
+                  $match: {
+                    extractedDates: {
+                      $elemMatch: yearFilter
+                    }
+                  }
+                });
+              }
+            }
+            // Add date handling for HRG and FOM models
+            else if ((isHrgModel || isFomModel) && Object.keys(yearFilter).length > 0) {
+              console.log(`Adding date handling for ${modelName}`);
+              
+              // Add paymtform date extraction
+              pipeline.push({
+                $addFields: {
+                  extractedPaymtFormDate: {
+                    $function: {
+                      body: function(paymtform) {
+                        if (!paymtform) return null;
+                        const match = String(paymtform).match(/(\d{1,2})\/(\d{1,2})\/(\d{2})/);
+                        if (match) {
+                          const [_, month, day, year] = match;
+                          let fullYear = parseInt(year);
+                          if (fullYear < 100) {
+                            fullYear += fullYear < 50 ? 2000 : 1900;
+                          }
+                          return new Date(Date.UTC(fullYear, parseInt(month) - 1, parseInt(day)));
+                        }
+                        return null;
+                      },
+                      args: ["$paymtform"],
+                      lang: "js"
+                    }
+                  },
+                  // Convert string dates to Date objects
+                  parsedRecvDate: {
+                    $dateFromString: {
+                      dateString: "$recvdate",
+                      onError: null
+                    }
+                  }
+                }
+              });
+
+              // Add date filter for both recvdate and paymtform date
+              pipeline.push({
+                $match: {
+                  $or: [
+                    {
+                      parsedRecvDate: yearFilter
+                    },
+                    {
+                      extractedPaymtFormDate: yearFilter
+                    }
+                  ]
+                }
+              });
+            }
+            // Add date handling for CAL model
+            else if (isCalModel && Object.keys(yearFilter).length > 0) {
+              console.log(`Adding CAL date handling for ${modelName}`);
+              
+              // Convert string dates to Date objects
+              pipeline.push({
+                $addFields: {
+                  parsedPaymtDate: {
+                    $dateFromString: {
+                      dateString: "$paymtdate",
+                      onError: null
+                    }
+                  },
+                  parsedRecvDate: {
+                    $dateFromString: {
+                      dateString: "$recvdate",
+                      onError: null
+                    }
+                  }
+                }
+              });
+
+              // Add date filter for both dates
+              pipeline.push({
+                $match: {
+                  $or: [
+                    {
+                      parsedPaymtDate: yearFilter
+                    },
+                    {
+                      parsedRecvDate: yearFilter
+                    }
+                  ]
+                }
+              });
+            }
+
+            // Add projection
+            pipeline.push({
+              $project: {
+                ...getPaymentFields(modelName),
+                clientid: 1,
+                clientId: 1,
+                modelType: { $literal: modelName.replace('Model', '') },
+                ...(isWmmModel ? { paymtref: 1, extractedDates: 1 } : {}),
+                ...(isCalModel ? { paymtdate: 1, recvdate: 1 } : {}),
+                ...((isHrgModel || isFomModel) ? { 
+                  recvdate: 1,
+                  paymtform: 1,
+                  extractedPaymtFormDate: 1
+                } : {}),
+                ...(!isCalModel && !isWmmModel && !isHrgModel && !isFomModel ? { recvdate: 1 } : {})
+              }
+            });
+
+            console.log(`Final pipeline for ${modelName}:`, JSON.stringify(pipeline, null, 2));
+
+            // Add sorting
+            pipeline.push({
+              $sort: { [sort]: order === 'desc' ? -1 : 1 }
+            });
+
+            const result = await model.aggregate(pipeline);
+            console.log(`Results for ${modelName}:`, result.length);
+            return result;
           } catch (err) {
             console.error(`Error querying ${modelName}:`, err);
             return [];
@@ -379,7 +725,10 @@ export const getAllPayments = async (req, res) => {
       return {
         ...payment,
         clientId,
-        ...clientInfo
+        ...clientInfo,
+        // Normalize date for display
+        date: payment.paymtdate || payment.recvdate || 
+              (payment.extractedDates ? payment.extractedDates[0] : null)
       };
     });
 
