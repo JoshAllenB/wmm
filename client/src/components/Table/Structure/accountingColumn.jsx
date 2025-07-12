@@ -131,7 +131,7 @@ export const useAccountingColumns = () => {
     },
     {
       id: "Model",
-      header: "Model",
+      header: "Services",
       accessorKey: "modelType",
       cell: ({ getValue }) => (
         <div className="text-left font-medium py-2">
