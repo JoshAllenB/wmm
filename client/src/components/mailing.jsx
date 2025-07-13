@@ -261,7 +261,14 @@ const Mailing = ({
       return allData.map(item => ({ original: item }));
     }
 
-    if (!table || typeof table.getRowModel !== "function") return [];
+    if (!table || typeof table.getRowModel !== "function") {
+      // If table is not ready but we have data, use it
+      if (table?.options?.data && Array.isArray(table.options.data)) {
+        return table.options.data.map(item => ({ original: item }));
+      }
+      return [];
+    }
+
     try {
       // First check if there are selected rows
       const selectedRows = table.getSelectedRowModel().rows;
@@ -274,6 +281,10 @@ const Mailing = ({
       return Array.isArray(allRows) ? allRows : [];
     } catch (error) {
       console.error("Error getting available rows:", error);
+      // If there's an error but we have data, use it
+      if (table?.options?.data && Array.isArray(table.options.data)) {
+        return table.options.data.map(item => ({ original: item }));
+      }
       return [];
     }
   }, [table, useAllData, allData]);
@@ -1092,35 +1103,33 @@ const Mailing = ({
 
   return (
     <div className="flex flex-col justify-between">
-      {(hasAvailableRows || allData) && (
-        <div className="flex gap-2">
-          <Button
-            onClick={toggleModal}
-            className="text-sm bg-green-600 hover:bg-green-800 text-white"
-            disabled={isLoading || isFetchingAll}
-          >
-            {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${availableRows.length})`}
-          </Button>
-          
-          {/* Document Generator Button */}
-          <Button
-            onClick={handleOpenDocumentGenerator}
-            className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
-            disabled={isLoading || isFetchingAll}
-          >
-            <span className="mr-1">🖨️</span> Print Documents
-          </Button>
-          
-          {/* CSV Export Button */}
-          <Button
-            onClick={handleOpenCsvExport}
-            className="text-sm bg-purple-600 hover:bg-purple-700 text-white"
-            disabled={isLoading || isFetchingAll}
-          >
-            <span className="mr-1">📊</span> Export CSV
-          </Button>
-        </div>
-      )}
+      <div className="flex gap-2">
+        <Button
+          onClick={toggleModal}
+          className="text-sm bg-green-600 hover:bg-green-800 text-white"
+          disabled={isLoading || isFetchingAll}
+        >
+          {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${availableRows.length})`}
+        </Button>
+        
+        {/* Document Generator Button */}
+        <Button
+          onClick={handleOpenDocumentGenerator}
+          className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
+          disabled={isLoading || isFetchingAll}
+        >
+          <span className="mr-1">🖨️</span> Print Documents
+        </Button>
+        
+        {/* CSV Export Button */}
+        <Button
+          onClick={handleOpenCsvExport}
+          className="text-sm bg-purple-600 hover:bg-purple-700 text-white"
+          disabled={isLoading || isFetchingAll}
+        >
+          <span className="mr-1">📊</span> Export CSV
+        </Button>
+      </div>
       
       {/* Main Mailing Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal}>
