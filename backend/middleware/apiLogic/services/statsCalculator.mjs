@@ -7,6 +7,9 @@ import { aggregateClientData } from './dataAggregator.mjs';
 
 export async function calculateStatistics(filterQuery, pageClientIds = [], page = 1, limit = 20) {
   try {
+    // Ensure pageClientIds is always an array
+    const validPageClientIds = Array.isArray(pageClientIds) ? pageClientIds : [];
+    
     // Initialize stats array with structured data
     const stats = {
       clientCount: {
@@ -137,14 +140,19 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
     // Get filtered clients count
     const filteredClientsCount = await ClientModel.countDocuments(filterQuery);
     stats.clientCount.filtered = filteredClientsCount;
-    stats.clientCount.page = pageClientIds.length;
+    stats.clientCount.page = validPageClientIds.length;
 
     // Get filtered client IDs for service calculations
     const filteredClients = await ClientModel.find(filterQuery).select('id').lean();
     const filteredIds = filteredClients.map(client => client.id);
 
+    // Ensure we have valid arrays for calculations
+    if (!Array.isArray(filteredIds) || filteredIds.length === 0) {
+      return stats; // Return empty stats if no filtered IDs
+    }
+
     // Calculate service-specific statistics using filtered client IDs
-    const wmmStats = await calculateWmmStats(filteredIds, pageClientIds);
+    const wmmStats = await calculateWmmStats(filteredIds, validPageClientIds);
     stats.metrics[0].total = wmmStats.totalCopies;
     stats.metrics[0].page = wmmStats.pageSpecificCopies;
     stats.metrics[0].clientsFound.total = wmmStats.totalClients;
@@ -153,7 +161,7 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
     stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
 
     // Calculate CAL statistics with current year focus
-    const calStats = await calculateCalStats(filteredIds, pageClientIds);
+    const calStats = await calculateCalStats(filteredIds, validPageClientIds);
     stats.metrics[1].currentCalType = calStats.currentCalType;
     stats.metrics[1].metrics[0].total = calStats.totalQty;
     stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
@@ -169,7 +177,7 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
     stats.metrics[1].clientsFound.page = calStats.pageClients;
 
     // Calculate HRG statistics
-    const hrgStats = await calculateHrgStats(filteredIds, pageClientIds);
+    const hrgStats = await calculateHrgStats(filteredIds, validPageClientIds);
     stats.metrics[2].total = hrgStats.totalAmt;
     stats.metrics[2].page = hrgStats.pageSpecificAmt;
     stats.metrics[2].clientsFound.total = hrgStats.totalClients;
@@ -180,7 +188,7 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
     stats.dataQuality.hrg.nonNumericPayments.page = hrgStats.pageNonNumericCount;
 
     // Calculate FOM statistics
-    const fomStats = await calculateFomStats(filteredIds, pageClientIds);
+    const fomStats = await calculateFomStats(filteredIds, validPageClientIds);
     stats.metrics[3].total = fomStats.totalAmt;
     stats.metrics[3].page = fomStats.pageSpecificAmt;
     stats.metrics[3].clientsFound.total = fomStats.totalClients;

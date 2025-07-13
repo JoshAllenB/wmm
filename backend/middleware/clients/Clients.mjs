@@ -27,6 +27,7 @@ const fetchClientData = async (req, options = {}) => {
     pageSize = 20,
     filter = "",
     group = "",
+    modelNames = [],
     ...advancedFilterData
   } = options;
 
@@ -37,24 +38,31 @@ const fetchClientData = async (req, options = {}) => {
 
   const userRoles = req.user.roles.map((role) => role.role.name);
   
-  // Handle special roles that need access to multiple models
-  const modelNames = userRoles.includes("Admin") || userRoles.includes("Accounting")
-    ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-    : userRoles
-        .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
-        .map((role) => `${role}Model`);
+  // Ensure modelNames is always a valid array
+  const validModelNames = Array.isArray(modelNames) && modelNames.length > 0 
+    ? modelNames 
+    : userRoles.includes("Admin") || userRoles.includes("Accounting")
+      ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
+      : userRoles
+          .filter(role => role !== "Accounting")
+          .map((role) => `${role}Model`);
+
+  // Ensure we have at least one model to query
+  if (validModelNames.length === 0) {
+    validModelNames.push("WmmModel");
+  }
 
   // Use appropriate data fetching method based on skipPagination
   const results = skipPagination
     ? await dataService.fetchAllData({
-        modelNames,
+        modelNames: validModelNames,
         filter,
         group,
         clientIds: null,
         advancedFilterData
       })
     : await dataService.fetchData({
-        modelNames,
+        modelNames: validModelNames,
         filter,
         page,
         limit: pageSize,
@@ -158,19 +166,29 @@ router.post(
       });
 
       const userRoles = req.user.roles.map((role) => role.role.name);
-      // Handle special roles that need access to multiple models
-      const modelNames = userRoles.includes("Admin") || userRoles.includes("Accounting")
-        ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-        : userRoles
-            .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
-            .map((role) => `${role}Model`);
+      
+      // Ensure modelNames is always an array
+      let modelNames = [];
+      if (userRoles.includes("Admin") || userRoles.includes("Accounting")) {
+        modelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel"];
+      } else {
+        modelNames = userRoles
+          .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
+          .map((role) => `${role}Model`);
+      }
+
+      // Validate modelNames is not empty
+      if (!Array.isArray(modelNames) || modelNames.length === 0) {
+        modelNames = ["WmmModel"]; // Default to WmmModel if no roles match
+      }
 
       // Use the shared fetchClientData function with skipPagination=true
       const results = await fetchClientData(req, {
         skipPagination: true,
         filter,
         group,
-        ...advancedFilterData
+        ...advancedFilterData,
+        modelNames // Pass modelNames explicitly
       });
 
       // Extract the processed data
@@ -209,6 +227,7 @@ router.post(
       res.status(500).json({
         error: "Internal server error",
         message: error.message,
+        details: process.env.NODE_ENV === "development" ? error.stack : undefined
       });
     }
   }

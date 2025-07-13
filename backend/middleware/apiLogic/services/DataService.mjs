@@ -119,15 +119,24 @@ class DataService {
     } = params;
 
     try {
+      // Ensure modelNames is an array
+      const validModelNames = Array.isArray(modelNames) ? modelNames : [];
+      if (validModelNames.length === 0) {
+        throw new Error('No valid model names provided');
+      }
+
       // Build filter query
       let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
 
-      // Add clientIds filter if provided
-      if (clientIds && Array.isArray(clientIds) && clientIds.length > 0) {
-        filterQuery = {
-          ...filterQuery,
-          id: { $in: clientIds.map(id => parseInt(id)) }
-        };
+      // Add clientIds filter if provided and ensure it's a valid array
+      if (clientIds) {
+        const validClientIds = Array.isArray(clientIds) ? clientIds.filter(id => id !== null && id !== undefined) : [];
+        if (validClientIds.length > 0) {
+          filterQuery = {
+            ...filterQuery,
+            id: { $in: validClientIds.map(id => parseInt(id) || id) }
+          };
+        }
       }
 
       // Get ALL clients without pagination
@@ -136,10 +145,10 @@ class DataService {
         .lean();
 
       // Get all data without pagination
-      const { combinedData } = await aggregateClientData(clients, modelNames, advancedFilterData);
+      const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
 
       // Calculate statistics for the entire dataset
-      const stats = await calculateStatistics(filterQuery, 1, clients.length);
+      const stats = await calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length);
 
       // Prepare response
       const response = {
