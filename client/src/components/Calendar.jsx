@@ -189,8 +189,8 @@ const CalendarUpdate = ({
     <>
       <Button
         onClick={handleOpenCalendarModal}
-        className="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors duration-200 font-medium flex items-center gap-1"
-      >
+        className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
+        >
         <Calendar className="h-4 w-4" />
         <span>Update Calendar Status</span>
       </Button>

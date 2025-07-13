@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { CssBaseline } from "@mui/material";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Topbar from "./UI/Topbar";
 import Sidebar from "./UI/Sidebar/Sidebar";
 import AllClient from "./UI/Sidebar/AllClient";
 import LoginPage from "../utils/UserAuth/login";
@@ -104,21 +103,15 @@ const App = () => {
     [isLoggedIn]
   );
 
-  const memoizedTopbar = useMemo(
-    () =>
-      isLoggedIn && (
-        <Topbar
-          setIsSidebar={setIsSidebar}
-          setIsLoggedIn={setIsLoggedIn}
-          onInactivityTimeoutChange={handleInactivity}
-        />
-      ),
-    [isLoggedIn, handleInactivity]
-  );
-
   const memoizedSidebar = useMemo(
-    () => isLoggedIn && <Sidebar isSidebar={isSidebar} />,
-    [isLoggedIn, isSidebar]
+    () => isLoggedIn && (
+      <Sidebar 
+        isSidebar={isSidebar} 
+        setIsLoggedIn={setIsLoggedIn}
+        onInactivityTimeoutChange={handleInactivity}
+      />
+    ),
+    [isLoggedIn, isSidebar, handleInactivity]
   );
 
   const memoizedErrorModal = useMemo(
@@ -150,7 +143,6 @@ const App = () => {
               <div className="app">
                 {memoizedSidebar}
                 <div className="content">
-                  {memoizedTopbar}
                   {memoizedErrorModal}
                   {memoizedRoutes}
                 </div>

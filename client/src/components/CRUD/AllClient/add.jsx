@@ -2091,7 +2091,7 @@ const Add = ({ fetchClients }) => {
     <div className="relative">
       <Button
         onClick={openModal}
-        className="bg-green-600 mb-4 hover:bg-green-700 text-white"
+        className="bg-green-600 hover:bg-green-800 text-white font-semibold px-6 text-base shadow-sm mb-1"
       >
         Add Client
       </Button>

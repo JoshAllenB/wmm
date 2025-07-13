@@ -1106,7 +1106,7 @@ const Mailing = ({
       <div className="flex gap-2">
         <Button
           onClick={toggleModal}
-          className="text-sm bg-green-600 hover:bg-green-800 text-white"
+          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
           disabled={isLoading || isFetchingAll}
         >
           {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${availableRows.length})`}
@@ -1115,7 +1115,7 @@ const Mailing = ({
         {/* Document Generator Button */}
         <Button
           onClick={handleOpenDocumentGenerator}
-          className="text-sm bg-blue-600 hover:bg-blue-700 text-white"
+          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
           disabled={isLoading || isFetchingAll}
         >
           <span className="mr-1">🖨️</span> Print Documents
@@ -1124,7 +1124,7 @@ const Mailing = ({
         {/* CSV Export Button */}
         <Button
           onClick={handleOpenCsvExport}
-          className="text-sm bg-purple-600 hover:bg-purple-700 text-white"
+          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
           disabled={isLoading || isFetchingAll}
         >
           <span className="mr-1">📊</span> Export CSV

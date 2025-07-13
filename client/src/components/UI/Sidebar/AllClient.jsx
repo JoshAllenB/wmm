@@ -1039,15 +1039,16 @@ const AllClient = () => {
   };
 
   return (
-    <div className="mr-[10px] ml-[10px]">
-      <div className="flex gap-2">
+    <div className="mr-[10px] ml-[10px] mt-[10px]">
+      <div className="flex justify-between">
         <Add fetchClients={() => fetchClients(setClientData)} />
-        <Mailing 
-          table={tableInstance} 
-          advancedFilterData={advancedFilterData}
-          selectedGroup={selectedGroup}
-          filtering={filtering}
-        />
+        <div className="flex gap-2 w-[690px]">
+          <Mailing 
+            table={tableInstance} 
+            advancedFilterData={advancedFilterData}
+            selectedGroup={selectedGroup}
+            filtering={filtering}
+          />
           <CalendarUpdate
             filtering={filtering}
             selectedGroup={selectedGroup}
@@ -1057,6 +1058,7 @@ const AllClient = () => {
             pageSize={pageSize}
             debouncedFiltering={debouncedFiltering}
           />
+        </div>
       </div>
       <div className="flex gap-4 mb-4">
         <Input

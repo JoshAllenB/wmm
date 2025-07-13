@@ -175,11 +175,9 @@ const AdminPanel = () => {
   }, []);
 
   return (
-    <div className="m-2">
-      <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
-
+    <div className="mr-[10px] ml-[10px] mt-[10px]">
       {/* Tab Navigation */}
-      <div className="flex space-x-2 mb-4 border-b">
+      <div className="flex space-x-2 border-b mb-3">
         <button
           className={`px-4 py-2 ${
             activeTab === "users"
@@ -215,22 +213,22 @@ const AdminPanel = () => {
       {activeTab === "users" ? (
         <>
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-3">
-            <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-blue-500">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-3">
+            <div className="bg-white shadow-md rounded-lg p-2 border-l-4 border-blue-500">
               <p className="text-gray-500 text-sm">Total Users</p>
-              <p className="text-2xl font-bold">{stats.totalUsers}</p>
+              <p className="text-xl font-bold">{stats.totalUsers}</p>
             </div>
             <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-green-500">
               <p className="text-gray-500 text-sm">Active Users</p>
-              <p className="text-2xl font-bold">{stats.activeUsers}</p>
+              <p className="text-xl font-bold">{stats.activeUsers}</p>
             </div>
             <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-yellow-500">
               <p className="text-gray-500 text-sm">Inactive Users</p>
-              <p className="text-2xl font-bold">{stats.inactiveUsers}</p>
+              <p className="text-xl font-bold">{stats.inactiveUsers}</p>
             </div>
             <div className="bg-white shadow-md rounded-lg p-4 border-l-4 border-red-500">
               <p className="text-gray-500 text-sm">Logged-off Users</p>
-              <p className="text-2xl font-bold">{stats.loggedOffUsers}</p>
+              <p className="text-xl font-bold">{stats.loggedOffUsers}</p>
             </div>
           </div>
 
