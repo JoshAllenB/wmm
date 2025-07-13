@@ -14,9 +14,7 @@ const modelCache = new Map();
 
 // Helper function to extract payment fields
 const getPaymentFields = (modelName) => {
-  console.log(`Getting payment fields for ${modelName}`);
   const projectFields = modelConfigs[modelName]?.projectFields || {};
-  console.log(`Project fields for ${modelName}:`, projectFields);
   
   // Include all payment-related fields and date fields
   return Object.fromEntries(
@@ -113,8 +111,6 @@ const buildDateFilterStages = (startYear, endYear, modelName) => {
   // Create Date objects at the start and end of the years
   const startDate = startYear ? new Date(Date.UTC(parseInt(startYear), 0, 1)) : null;
   const endDate = endYear ? new Date(Date.UTC(parseInt(endYear), 11, 31, 23, 59, 59, 999)) : null;
-
-  console.log('Date range:', { startDate, endDate });
 
   // Define date fields to check based on model
   const dateFields = {
@@ -357,6 +353,10 @@ export const getAllPayments = async (req, res) => {
       search = "",
     } = req.query;
 
+    const pageNum = parseInt(page);
+    const pageSize = parseInt(limit);
+    const skip = (pageNum - 1) * pageSize;
+
     // Generate cache key
     const cacheKey = generateCacheKey(req.query);
     
@@ -370,40 +370,31 @@ export const getAllPayments = async (req, res) => {
     const parsedSearch = parseTaggedSearch(search);
     
     let clients = [];
-    let totalClients = 0;
+    let totalRecords = 0;
     let flatPayments = [];
+    let paginatedPayments = [];
 
     // Get relevant models
     const relevantModels = Object.entries(models)
       .filter(([modelName]) => {
-        console.log(`Checking model: ${modelName}`);
         // Only include WMM, HRG, FOM, and CAL models
         const validModels = ['wmm', 'hrg', 'fom', 'cal'];
         const isValidModel = validModels.some(valid => modelName.toLowerCase().includes(valid));
         if (!isValidModel) return false;
-        
         const paymentFields = getPaymentFields(modelName);
-        console.log(`Payment fields for ${modelName}:`, paymentFields);
         return Object.keys(paymentFields).length > 0;
       });
-
-    console.log('Relevant models:', relevantModels);
 
     // Load all models in parallel
     const loadedModels = await Promise.all(
       relevantModels.map(async ([modelName, modelLoader]) => {
-        console.log(`Loading model: ${modelName}`);
         const model = await loadModel(modelName, modelLoader);
-        console.log(`Model loaded for ${modelName}:`, model ? 'success' : 'failed');
         return model ? [modelName, model] : null;
       })
     );
 
-    console.log('Loaded models:', loadedModels.map(m => m ? m[0] : null));
-
     // Filter out any failed model loads
     const validModels = loadedModels.filter(Boolean);
-    console.log('Valid models:', validModels.map(m => m[0]));
 
     // Build year filter dates
     const yearFilter = {};
@@ -413,6 +404,63 @@ export const getAllPayments = async (req, res) => {
     if (endYear) {
       yearFilter.$lte = new Date(parseInt(endYear), 11, 31, 23, 59, 59, 999);
     }
+
+    // First, get total count of all payments that match the filters
+    const getTotalCount = async () => {
+      if (parsedSearch.paymentRef) {
+        const paymentRefQuery = buildPaymentRefQuery(parsedSearch.paymentRef);
+        const countQueries = validModels.map(async ([modelName, model]) => {
+          try {
+            let query = { ...paymentRefQuery };
+            if (Object.keys(yearFilter).length > 0) {
+              const dateField = getDateFieldForModel(modelName);
+              if (dateField) {
+                query[dateField] = yearFilter;
+              }
+            }
+            return await model.countDocuments(query);
+          } catch (err) {
+            console.error(`Error counting ${modelName}:`, err);
+            return 0;
+          }
+        });
+        const counts = await Promise.all(countQueries);
+        return counts.reduce((sum, count) => sum + count, 0);
+      } else {
+        const clientFilter = buildClientSearchFilter(parsedSearch);
+        const clientCount = await ClientModel.countDocuments(clientFilter);
+        if (clientCount === 0) return 0;
+
+        const countQueries = validModels.map(async ([modelName, model]) => {
+          try {
+            let query = {};
+            if (Object.keys(yearFilter).length > 0) {
+              const dateField = getDateFieldForModel(modelName);
+              if (dateField) {
+                query[dateField] = yearFilter;
+              }
+            }
+            return await model.countDocuments(query);
+          } catch (err) {
+            console.error(`Error counting ${modelName}:`, err);
+            return 0;
+          }
+        });
+        const counts = await Promise.all(countQueries);
+        return counts.reduce((sum, count) => sum + count, 0);
+      }
+    };
+
+    // Get total count first
+    totalRecords = await getTotalCount();
+    const calculatedTotalPages = Math.ceil(totalRecords / pageSize);
+    
+    // Ensure page number is within valid range
+    const validPageNum = Math.max(1, Math.min(pageNum, calculatedTotalPages));
+    
+    // Calculate slice indices
+    const startIndex = (validPageNum - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
     // If searching for a payment reference, search directly in payment models
     if (parsedSearch.paymentRef) {
@@ -489,18 +537,14 @@ export const getAllPayments = async (req, res) => {
           .select('id lname fname mname company')
           .lean()
           .exec();
-        totalClients = clients.length;
       } else {
         // Normal pagination
-        [totalClients, clients] = await Promise.all([
-          ClientModel.countDocuments({}),
-          ClientModel.find({})
-            .select('id lname fname mname company')
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit))
-            .lean()
-            .exec()
-        ]);
+        clients = await ClientModel.find({})
+          .select('id lname fname mname company')
+          .skip(skip)
+          .limit(pageSize)
+          .lean()
+          .exec();
       }
 
       if (clients.length > 0) {
@@ -527,8 +571,6 @@ export const getAllPayments = async (req, res) => {
               dateFields = ['recvdate'];
             }
 
-            console.log(`Processing ${modelName} with date fields:`, dateFields);
-
             // Base pipeline stages
             const pipeline = [
               {
@@ -543,7 +585,6 @@ export const getAllPayments = async (req, res) => {
 
             // Add date extraction for WMM model
             if (isWmmModel && Object.keys(yearFilter).length > 0) {
-              console.log(`Adding WMM date extraction for ${modelName}`);
               pipeline.push({
                 $addFields: {
                   extractedDates: {
@@ -568,7 +609,6 @@ export const getAllPayments = async (req, res) => {
 
               // Add date filter for WMM
               if (yearFilter.$gte || yearFilter.$lte) {
-                console.log(`Adding WMM date filter for ${modelName}:`, yearFilter);
                 pipeline.push({
                   $match: {
                     extractedDates: {
@@ -580,7 +620,6 @@ export const getAllPayments = async (req, res) => {
             }
             // Add date handling for HRG and FOM models
             else if ((isHrgModel || isFomModel) && Object.keys(yearFilter).length > 0) {
-              console.log(`Adding date handling for ${modelName}`);
               
               // Add paymtform date extraction
               pipeline.push({
@@ -630,7 +669,6 @@ export const getAllPayments = async (req, res) => {
             }
             // Add date handling for CAL model
             else if (isCalModel && Object.keys(yearFilter).length > 0) {
-              console.log(`Adding CAL date handling for ${modelName}`);
               
               // Convert string dates to Date objects
               pipeline.push({
@@ -683,15 +721,12 @@ export const getAllPayments = async (req, res) => {
               }
             });
 
-            console.log(`Final pipeline for ${modelName}:`, JSON.stringify(pipeline, null, 2));
-
             // Add sorting
             pipeline.push({
               $sort: { [sort]: order === 'desc' ? -1 : 1 }
             });
 
             const result = await model.aggregate(pipeline);
-            console.log(`Results for ${modelName}:`, result.length);
             return result;
           } catch (err) {
             console.error(`Error querying ${modelName}:`, err);
@@ -726,19 +761,36 @@ export const getAllPayments = async (req, res) => {
         ...payment,
         clientId,
         ...clientInfo,
-        // Normalize date for display
         date: payment.paymtdate || payment.recvdate || 
               (payment.extractedDates ? payment.extractedDates[0] : null)
       };
     });
 
-    // Prepare the final result
+    // Sort payments if needed
+    if (sort) {
+      const sortField = sort === 'date' ? 'date' : sort;
+      paymentsWithClientInfo.sort((a, b) => {
+        const aVal = a[sortField];
+        const bVal = b[sortField];
+        if (!aVal && !bVal) return 0;
+        if (!aVal) return order === 'desc' ? 1 : -1;
+        if (!bVal) return order === 'desc' ? -1 : 1;
+        return order === 'desc' 
+          ? (bVal > aVal ? 1 : -1)
+          : (aVal > bVal ? 1 : -1);
+      });
+    }
+
+    // Slice the data for current page
+    paginatedPayments = paymentsWithClientInfo.slice(startIndex, endIndex);
+
+    // Prepare the final result with consistent pagination
     const result = {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      totalClients,
-      totalPayments: paymentsWithClientInfo.length,
-      data: paymentsWithClientInfo,
+      page: validPageNum,
+      limit: pageSize,
+      totalRecords,
+      totalPages: calculatedTotalPages,
+      data: paginatedPayments,
       executionTime: Date.now() - startTime
     };
 
