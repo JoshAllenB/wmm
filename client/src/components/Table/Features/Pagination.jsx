@@ -1,7 +1,7 @@
 import { Button } from "../../UI/ShadCN/button";
-import { useEffect } from "react";
+import { useEffect, useCallback, memo } from "react";
 
-export const PaginationComponent = ({
+export const PaginationComponent = memo(({
   totalPages,
   handlePreviousPage,
   handleNextPage,
@@ -13,26 +13,37 @@ export const PaginationComponent = ({
   handleLastPage,
   handlePageJump,
 }) => {
-  // Ensure totalPages is at least 1
-  const effectiveTotalPages = Math.max(1, totalPages || 1);
+  // Ensure totalPages is at least 1 and is a number
+  const effectiveTotalPages = Math.max(1, Number(totalPages) || 1);
+  // Ensure page is a valid number
+  const effectivePage = Math.min(Math.max(1, Number(page) || 1), effectiveTotalPages);
 
-  // Reset to page 1 if current page is greater than total pages
   useEffect(() => {
-    if (page > effectiveTotalPages) {
-      setPage(1);
+
+    // Reset to page 1 if current page is greater than total pages
+    if (effectivePage !== page) {
+      setPage(effectivePage);
     }
-  }, [effectiveTotalPages, page, setPage]);
+  }, [effectiveTotalPages, page, effectivePage, setPage]);
 
-  const handlePageSizeChange = (e) => {
+  const handlePageSizeChange = useCallback((e) => {
     const newSize = Number(e.target.value);
-    setPageSize(newSize);
-    setPage(1);
-  };
+    if (newSize !== pageSize) {
+      setPageSize(newSize);
+    }
+  }, [pageSize, setPageSize]);
 
-  const validateAndJumpToPage = (newPage) => {
+  const validateAndJumpToPage = useCallback((newPage) => {
     const validatedPage = Math.min(Math.max(1, newPage), effectiveTotalPages);
-    handlePageJump(validatedPage);
-  };
+    if (validatedPage !== page) {
+      handlePageJump(validatedPage);
+    }
+  }, [effectiveTotalPages, page, handlePageJump]);
+
+  const pageSizeOptions = [
+    10, 20, 30, 50, 100, 500,
+    { label: "All", value: 100000 }
+  ];
 
   return (
     <div className="flex items-center justify-between">
@@ -47,21 +58,20 @@ export const PaginationComponent = ({
             value={pageSize}
             onChange={handlePageSizeChange}
           >
-            {[10, 20, 30, 50, 100, 500, { label: "All", value: 100000 }].map(
-              (size) => (
-                <option
-                  key={typeof size === "object" ? size.value : size}
-                  value={typeof size === "object" ? size.value : size}
-                >
-                  {typeof size === "object" ? size.label : size}
-                </option>
-              )
-            )}
+            {pageSizeOptions.map((size) => (
+              <option
+                key={typeof size === "object" ? size.value : size}
+                value={typeof size === "object" ? size.value : size}
+              >
+                {typeof size === "object" ? size.label : size}
+              </option>
+            ))}
           </select>
         </div>
 
         <div className="flex items-center space-x-2">
           <Button
+            variant="outline"
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleFirstPage}
             disabled={page <= 1}
@@ -69,6 +79,7 @@ export const PaginationComponent = ({
             First
           </Button>
           <Button
+            variant="outline"
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handlePreviousPage}
             disabled={page <= 1}
@@ -77,13 +88,14 @@ export const PaginationComponent = ({
           </Button>
           <input
             type="number"
-            className="h-8 rounded-md border border-input text-center"
+            className="h-8 w-[50px] rounded-md border border-input text-center"
             value={page}
             onChange={(e) => validateAndJumpToPage(Number(e.target.value))}
             min={1}
             max={effectiveTotalPages}
           />
           <Button
+            variant="outline"
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleNextPage}
             disabled={page >= effectiveTotalPages}
@@ -91,6 +103,7 @@ export const PaginationComponent = ({
             Next
           </Button>
           <Button
+            variant="outline"
             className="border rounded bg-blue-500 hover:bg-blue-600 text-white"
             onClick={handleLastPage}
             disabled={page >= effectiveTotalPages}
@@ -101,4 +114,6 @@ export const PaginationComponent = ({
       </div>
     </div>
   );
-};
+});
+
+PaginationComponent.displayName = 'PaginationComponent';

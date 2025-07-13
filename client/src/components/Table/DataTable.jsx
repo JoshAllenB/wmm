@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ScrollArea, ScrollBar } from "../UI/ShadCN/scroll-area";
 import { useTheme } from "@mui/material";
 import { PaginationComponent } from "./Features/Pagination";
@@ -55,6 +55,8 @@ export default function DataTable({
   const [isSyncing, setIsSyncing] = useState(false);
   const lastSyncRef = useRef(Date.now());
   const currentDataRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const [localLoading, setLocalLoading] = useState(true);
 
   // Enhanced responsive height adjustment based on viewport and container width
   useEffect(() => {
@@ -174,17 +176,165 @@ export default function DataTable({
     }
   };
 
-  // Initial data load
-  useEffect(() => {
-    loadData();
+  const fetchData = useCallback(async (isSync = false) => {
+    if (!fetchFunction) return;
+
+    // Cancel previous request if it exists
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    if (!isSync) {
+      setIsTransitioning(true);
+      setAnimationComplete(false);
+      setLocalLoading(true);
+    }
+
+    try {
+      const result = await fetchFunction(
+        page,
+        pageSize,
+        searchTerm,
+        selectedGroup,
+        advancedFilterData
+      );
+
+      if (result === null || controller.signal.aborted) return;
+
+      // Store the result in ref for comparison
+      currentDataRef.current = result;
+
+      let dataToSet = [];
+      let pagesToSet = 1;
+      let pageToSet = page;
+
+      // Case 1: Direct array response (like in admin panel)
+      if (Array.isArray(result)) {
+        dataToSet = result;
+        pagesToSet = Math.ceil(result.length / pageSize) || 1;
+        pageToSet = Math.min(page, pagesToSet);
+      }
+      // Case 2: Object response with data/combinedData (paginated response)
+      else if (result && typeof result === 'object') {
+        if (Array.isArray(result.data)) {
+          dataToSet = result.data;
+        } else if (Array.isArray(result.combinedData)) {
+          dataToSet = result.combinedData;
+        } else if (result.data || result.combinedData) {
+          dataToSet = Array.isArray(result.data || result.combinedData) ? 
+            (result.data || result.combinedData) : [];
+        }
+        
+        pagesToSet = result.totalPages || Math.ceil(dataToSet.length / pageSize) || 1;
+        pageToSet = Math.min(result.currentPage || page, pagesToSet);
+      }
+      // Case 3: Invalid/unexpected response
+      else {
+        console.warn("[Table] Unexpected data format:", result);
+        dataToSet = [];
+        pagesToSet = 1;
+        pageToSet = 1;
+      }
+
+      // Update state in the correct order to prevent UI jumps
+      if (pagesToSet !== totalPages) {
+        setTotalPages(pagesToSet);
+      }
+      if (pageToSet !== page) {
+        setPage(pageToSet);
+      }
+      setLocalData(dataToSet);
+
+      // Add a small delay before completing the transition
+      setTimeout(() => {
+        if (!controller.signal.aborted) {
+          setIsTransitioning(false);
+          setTimeout(() => {
+            if (!controller.signal.aborted) {
+              setAnimationComplete(true);
+              setLocalLoading(false);
+            }
+          }, 100);
+        }
+      }, 300);
+
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        console.error("[Table] Error loading data:", error);
+        setError(error.message);
+        setLocalData([]);
+        setTotalPages(1);
+        setLocalLoading(false);
+      }
+    } finally {
+      abortControllerRef.current = null;
+    }
   }, [
     page,
     pageSize,
     searchTerm,
     selectedGroup,
     advancedFilterData,
-    isLoading,
+    fetchFunction,
+    totalPages
   ]);
+
+  // Initial data load
+  useEffect(() => {
+    fetchData(false);
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [
+    page,
+    pageSize,
+    searchTerm,
+    selectedGroup,
+    JSON.stringify(advancedFilterData),
+    fetchFunction
+  ]);
+
+  // Remove duplicate effect
+  useEffect(() => {
+    if (initialTotalPages !== undefined && initialTotalPages !== totalPages) {
+      setTotalPages(initialTotalPages);
+    }
+  }, [initialTotalPages]);
+
+  // Optimize data sync
+  useEffect(() => {
+    if (Array.isArray(data) && data !== localData) {
+      setLocalData(data);
+    }
+  }, [data]);
+
+  // Optimize table instance updates
+  useEffect(() => {
+    if (!setTableInstance || !table) return;
+
+    const updatedTable = {
+      ...table,
+      getSelectedRowModel: () => ({
+        rows: table.getSelectedRowModel().rows,
+      }),
+      getRowModel: () => ({
+        rows: table.getRowModel().rows || [],
+      }),
+      getFilteredRowModel: () => ({
+        rows: table.getFilteredRowModel().rows || [],
+      }),
+      options: {
+        ...table.options,
+        data: localData || []
+      }
+    };
+    setTableInstance(updatedTable);
+  }, [table, setTableInstance, rowSelection, localData]);
 
   // Handle socket updates with improved sync logic
   useEffect(() => {
@@ -194,7 +344,7 @@ export default function DataTable({
     if (socketData.type === "sync-complete") {
       setIsSyncing(false);
       lastSyncRef.current = Date.now();
-      loadData(true);
+      fetchData(true);
       return;
     }
 
@@ -268,31 +418,9 @@ export default function DataTable({
 
       return updatedData;
     });
-  }, [socketData, socket]);
+  }, [socketData, socket, fetchData]);
 
-  useEffect(() => {
-    if (initialTotalPages !== undefined) {
-      setTotalPages(initialTotalPages);
-    }
-  }, [initialTotalPages]);
-
-  useEffect(() => {
-    setLocalData(Array.isArray(data) ? data : []);
-  }, [data]);
-
-  useEffect(() => {
-    if (setTableInstance && table) {
-      const updatedTable = {
-        ...table,
-        getSelectedRowModel: () => ({
-          rows: table.getSelectedRowModel().rows,
-        }),
-      };
-      setTableInstance(updatedTable);
-    }
-  }, [table, setTableInstance, rowSelection, localData]);
-
-  if (isLoading) {
+  if (isLoading || localLoading) {
     return (
       <div className="rounded-md border w-full overflow-hidden" style={{ height: tableHeight }}>
         <div className="flex flex-col h-full">
@@ -326,6 +454,7 @@ export default function DataTable({
     );
   }
 
+  // Update PaginationComponent props
   return (
     <>
       <div
@@ -401,30 +530,34 @@ export default function DataTable({
                     advancedFilterData
                   )
                 }
-                handlePageJump={(newPage) =>
-                  handlePageJump(
-                    newPage,
-                    setPage,
-                    fetchFunction,
-                    setLocalData,
-                    pageSize,
-                    totalPages,
-                    searchTerm,
-                    selectedGroup,
-                    advancedFilterData
-                  )
-                }
+                handlePageJump={(newPage) => {
+                  if (newPage > 0 && newPage <= totalPages && newPage !== page) {
+                    handlePageJump(
+                      newPage,
+                      setPage,
+                      fetchFunction,
+                      setLocalData,
+                      pageSize,
+                      totalPages,
+                      searchTerm,
+                      selectedGroup,
+                      advancedFilterData
+                    );
+                  }
+                }}
                 pageSize={pageSize}
                 setPageSize={(newSize) => {
-                  setPageSize(newSize);
-                  setPage(1);
-                  fetchFunction(
-                    1,
-                    newSize,
-                    searchTerm,
-                    selectedGroup,
-                    advancedFilterData
-                  );
+                  if (newSize !== pageSize) {
+                    setPageSize(newSize);
+                    setPage(1);
+                    fetchFunction(
+                      1,
+                      newSize,
+                      searchTerm,
+                      selectedGroup,
+                      advancedFilterData
+                    );
+                  }
                 }}
                 page={page}
                 setPage={setPage}
