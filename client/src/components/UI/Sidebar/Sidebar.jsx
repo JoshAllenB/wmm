@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sidebar,
   sidebarClasses,
@@ -7,10 +7,9 @@ import {
   SubMenu,
 } from "react-pro-sidebar";
 import { Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import AdminPanelSettingsSharpIcon from "@mui/icons-material/AdminPanelSettingsSharp";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import SpaceDashboardSharpIcon from "@mui/icons-material/SpaceDashboardSharp";
 import MenuSharpIcon from "@mui/icons-material/MenuSharp";
 import GroupsSharpIcon from "@mui/icons-material/GroupsSharp";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -24,6 +23,8 @@ export default function MenuSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [selected, setSelected] = useState("Dashboard");
   const { hasRole } = useUser();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -32,6 +33,44 @@ export default function MenuSidebar() {
   const handleSelect = (item) => {
     setSelected(item);
   };
+
+  // Check if user has any of the client management roles
+  const hasClientManagementRole = () => {
+    return hasRole("WMM") || hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
+  };
+
+  // Auto-select route based on role
+  useEffect(() => {
+    // Only redirect if we're at the root path
+    if (location.pathname === "/" || location.pathname === "/login") {
+      // Priority based routing
+      if (hasClientManagementRole()) {
+        navigate("/all-client");
+        handleSelect("All Clients");
+      } else if (hasRole("Accounting")) {
+        navigate("/accounting");
+        handleSelect("Accounting");
+      } else if (hasRole("Admin")) {
+        navigate("/admin-panel");
+        handleSelect("Manage Team");
+      } else {
+        // If no specific role matches, redirect to login
+        navigate("/login");
+      }
+    } else {
+      // Set selected based on current path
+      const pathToSelected = {
+        "/all-client": "All Clients",
+        "/accounting": "Accounting",
+        "/admin-panel": "Manage Team",
+        "/subclass": "Sub. Class",
+        "/area": "Area",
+        "/group": "Group",
+        "/data-export": "Data Export"
+      };
+      setSelected(pathToSelected[location.pathname] || "Dashboard");
+    }
+  }, [hasRole, navigate, location.pathname]);
 
   return (
     <div className="h-full z-20">
@@ -58,20 +97,6 @@ export default function MenuSidebar() {
             )}
           </MenuItem>
           <div className="w-full">
-            <MenuItem
-              icon={<SpaceDashboardSharpIcon style={{ color: "#333333" }} />}
-              onClick={() => handleSelect("Dashboard")}
-              selected={selected === "Dashboard"}
-              style={{
-                backgroundColor:
-                  selected === "Dashboard" ? "#e3f2fd" : "transparent",
-                color: selected === "Dashboard" ? "#1976d2" : "#333333",
-              }}
-            >
-              <Typography variant="h6">Dashboard</Typography>
-              {/* <Link to={"/dashboard"} /> */}
-            </MenuItem>
-
             <MenuItem
               icon={<GroupsSharpIcon style={{ color: "#333333" }} />}
               component={<Link to="/all-client" />}
