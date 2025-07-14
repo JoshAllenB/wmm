@@ -241,6 +241,7 @@ const initWebSocket = (io) => {
           const processedData = {
             // Base client info
             id: clientId,
+            spack: clientData.spack || updatedClientData.spack || false,
             title: clientData.title || updatedClientData.title || "",
             fname: clientData.fname || updatedClientData.fname || "",
             mname: clientData.mname || updatedClientData.mname || "",
