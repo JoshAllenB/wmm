@@ -1380,5 +1380,148 @@ router.post(
   }
 );
 
+router.post(
+  "/preview-spack-update",
+  verifyToken,
+  attachSocketId,
+  async (req, res) => {
+    try {
+      const { filter = "", group = "", advancedFilterData = {} } = req.body;
+
+      // Get the filter query
+      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+
+      // Get all matching clients
+      const clients = await ClientModel.find(filterQuery).lean();
+
+      res.json({
+        success: true,
+        totalClients: clients.length
+      });
+
+    } catch (error) {
+      console.error("Error getting spack update preview:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message
+      });
+    }
+  }
+);
+
+router.post(
+  "/update-spack",
+  verifyToken,
+  attachSocketId,
+  async (req, res) => {
+    const io = req.io;
+    try {
+      const { filter = "", group = "", advancedFilterData = {}, setSpackTo, clientIds = [] } = req.body;
+
+      if (setSpackTo === undefined) {
+        return res.status(400).json({
+          error: "Bad Request",
+          message: "setSpackTo parameter is required"
+        });
+      }
+
+      let clients;
+      if (clientIds.length > 0) {
+        // If specific client IDs are provided, use those
+        clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
+      } else {
+        // Otherwise use the filter query
+        const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+        clients = await ClientModel.find(filterQuery).lean();
+      }
+
+      if (!clients || clients.length === 0) {
+        return res.json({
+          success: true,
+          message: "No matching clients found",
+          modifiedCount: 0
+        });
+      }
+
+      let modifiedCount = 0;
+      let processedCount = 0;
+      let skippedCount = 0;
+      let errorCount = 0;
+      let updatedClientIds = []; // Track successful updates
+      let failedClientIds = []; // Track failed updates
+
+      // Update each client's spack status
+      for (const client of clients) {
+        try {
+          processedCount++;
+          
+          // Update the client's spack status
+          const updateResult = await ClientModel.updateOne(
+            { id: client.id },
+            { 
+              $set: { 
+                spack: setSpackTo,
+                editdate: new Date(),
+                edituser: req.user.username
+              }
+            }
+          );
+
+          if (updateResult.modifiedCount > 0) {
+            modifiedCount++;
+            updatedClientIds.push({
+              id: client.id,
+              name: `${client.lname}, ${client.fname}`
+            });
+          } else {
+            skippedCount++;
+            failedClientIds.push({
+              id: client.id,
+              error: "No changes made"
+            });
+          }
+        } catch (err) {
+          errorCount++;
+          failedClientIds.push({
+            id: client.id,
+            error: err.message || "Unknown error"
+          });
+          console.error(`Error processing client ID ${client.id}:`, err);
+        }
+      }
+
+      // Emit socket event for data update
+      if (io) {
+        io.emit("data-update", {
+          type: "bulk-update",
+          message: "Spack status updated for clients"
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Updated spack status for ${modifiedCount} records`,
+        modifiedCount,
+        summary: {
+          totalClientsFound: clients.length,
+          processedCount,
+          modifiedCount,
+          skippedCount,
+          errorCount,
+          updatedClientIds,
+          failedClientIds
+        }
+      });
+
+    } catch (error) {
+      console.error("Error updating spack status:", error);
+      res.status(500).json({
+        error: "Internal Server Error",
+        message: error.message
+      });
+    }
+  }
+);
+
 export default router;
 
