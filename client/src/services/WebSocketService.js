@@ -177,12 +177,6 @@ class WebSocketService {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
       }
-
-      console.log("[WebSocket] Connected successfully:", {
-        socketId: this.socket.id,
-        userId: this.sessionData.userId,
-        username: this.sessionData.username
-      });
       
       // Request data sync after connection
       this.requestDataSync();
@@ -203,12 +197,6 @@ class WebSocketService {
         clearInterval(this.pingInterval);
         this.pingInterval = null;
       }
-
-      console.log("[WebSocket] Disconnected:", {
-        reason,
-        socketId: this.socket?.id,
-        userId: this.sessionData.userId
-      });
 
       if (reason === "io server disconnect" || reason === "client namespace disconnect") {
         // Set a timer to reconnect
@@ -233,7 +221,6 @@ class WebSocketService {
     });
 
     this.socket.on("session-transferred", () => {
-      console.log("[WebSocket] Session transferred to another connection");
       this.socket.disconnect();
     });
 
@@ -245,12 +232,10 @@ class WebSocketService {
     // Add data sync event handlers
     this.socket.on("data-sync-start", () => {
       this.pendingDataSync = true;
-      console.log("[WebSocket] Data sync started");
     });
 
     this.socket.on("data-sync-complete", () => {
       this.pendingDataSync = false;
-      console.log("[WebSocket] Data sync completed");
       // Notify all data-update subscribers to refresh their data
       const handlers = this.eventHandlers.get("data-update") || new Set();
       handlers.forEach(handler => {
@@ -265,21 +250,136 @@ class WebSocketService {
 
     // Add data update handler
     this.socket.on("data-update", (data) => {
-      // Ensure subscription data arrays are always present
-      if (data.type === "update" || data.type === "add") {
-        data.data = {
+
+      // Ensure data has the correct structure
+      if (!data || !data.data) {
+        console.warn("[WebSocket] Invalid data update format:", data);
+        return;
+      }
+
+      // For add/update events, ensure we have the complete data
+      if ((data.type === 'add' || data.type === 'update') && !data.data.wmmData) {
+        console.warn("[WebSocket] Missing service data in update:", data.type);
+      }
+
+      // Standardize the data structure
+      const standardizedData = {
+        type: data.type || 'update',
+        data: {
           ...data.data,
-          wmmData: data.data.wmmData || [],
-          hrgData: data.data.hrgData || [],
-          fomData: data.data.fomData || [],
-          calData: data.data.calData || [],
-          services: data.data.services || []
-        };
+          // Ensure all required arrays exist with records structure
+          wmmData: {
+            records: Array.isArray(data.data.wmmData?.records) 
+              ? data.data.wmmData.records 
+              : Array.isArray(data.data.wmmData) 
+                ? data.data.wmmData 
+                : []
+          },
+          hrgData: {
+            records: Array.isArray(data.data.hrgData?.records) 
+              ? data.data.hrgData.records 
+              : Array.isArray(data.data.hrgData) 
+                ? data.data.hrgData 
+                : []
+          },
+          fomData: {
+            records: Array.isArray(data.data.fomData?.records) 
+              ? data.data.fomData.records 
+              : Array.isArray(data.data.fomData) 
+                ? data.data.fomData 
+                : []
+          },
+          calData: {
+            records: Array.isArray(data.data.calData?.records) 
+              ? data.data.calData.records 
+              : Array.isArray(data.data.calData) 
+                ? data.data.calData 
+                : []
+          },
+          // Ensure services array is properly built
+          services: Array.from(new Set([
+            ...(Array.isArray(data.data.services) ? data.data.services : []),
+            // Add service types based on data presence
+            ...(data.data.wmmData?.records?.length > 0 || data.data.wmmData?.length > 0 ? ['WMM'] : []),
+            ...(data.data.hrgData?.records?.length > 0 || data.data.hrgData?.length > 0 ? ['HRG'] : []),
+            ...(data.data.fomData?.records?.length > 0 || data.data.fomData?.length > 0 ? ['FOM'] : []),
+            ...(data.data.calData?.records?.length > 0 || data.data.calData?.length > 0 ? ['CAL'] : []),
+            // Add group-based services
+            ...(data.data.group === 'DCS' ? ['DCS'] : []),
+            ...(data.data.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
+            ...(data.data.group === 'MCCJ' ? ['MCCJ'] : [])
+          ])),
+          // Ensure other required fields exist
+          id: data.data.id,
+          title: data.data.title || "",
+          fname: data.data.fname || "",
+          mname: data.data.mname || "",
+          lname: data.data.lname || "",
+          address: data.data.address || "",
+          cellno: data.data.cellno || "",
+          officeno: data.data.officeno || "",
+          email: data.data.email || "",
+          acode: data.data.acode || "",
+          adduser: data.data.adduser || "",
+          adddate: data.data.adddate || "",
+          editedBy: data.data.editedBy || "",
+          editedAt: data.data.editedAt || "",
+          group: data.data.group || ""
+        },
+        timestamp: data.timestamp || Date.now(),
+        sourceUserId: data.sourceUserId
+      };
+
+      // For filter-update type, ensure combinedData is present and properly structured
+      if (data.type === 'filter-update' && data.data.combinedData) {
+        standardizedData.data.combinedData = data.data.combinedData.map(client => ({
+          ...client,
+          wmmData: {
+            records: Array.isArray(client.wmmData?.records) 
+              ? client.wmmData.records 
+              : Array.isArray(client.wmmData) 
+                ? client.wmmData 
+                : []
+          },
+          hrgData: {
+            records: Array.isArray(client.hrgData?.records) 
+              ? client.hrgData.records 
+              : Array.isArray(client.hrgData) 
+                ? client.hrgData 
+                : []
+          },
+          fomData: {
+            records: Array.isArray(client.fomData?.records) 
+              ? client.fomData.records 
+              : Array.isArray(client.fomData) 
+                ? client.fomData 
+                : []
+          },
+          calData: {
+            records: Array.isArray(client.calData?.records) 
+              ? client.calData.records 
+              : Array.isArray(client.calData) 
+                ? client.calData 
+                : []
+          },
+          services: Array.from(new Set([
+            ...(Array.isArray(client.services) ? client.services : []),
+            // Add service types based on data presence
+            ...(client.wmmData?.records?.length > 0 || client.wmmData?.length > 0 ? ['WMM'] : []),
+            ...(client.hrgData?.records?.length > 0 || client.hrgData?.length > 0 ? ['HRG'] : []),
+            ...(client.fomData?.records?.length > 0 || client.fomData?.length > 0 ? ['FOM'] : []),
+            ...(client.calData?.records?.length > 0 || client.calData?.length > 0 ? ['CAL'] : []),
+            // Add group-based services
+            ...(client.group === 'DCS' ? ['DCS'] : []),
+            ...(client.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
+            ...(client.group === 'MCCJ' ? ['MCCJ'] : [])
+          ]))
+        }));
       }
 
       // Notify all subscribers
       const handlers = this.eventHandlers.get("data-update") || new Set();
-      handlers.forEach(handler => handler(data));
+      handlers.forEach(handler => handler(standardizedData));
     });
   }
 
@@ -298,7 +398,6 @@ class WebSocketService {
   reconnect() {
     // Only try to reconnect if we have valid session data
     if (this.sessionData.userId && this.sessionData.username && this.sessionData.sessionId) {
-      console.log("[WebSocket] Attempting reconnection...");
       this.connect({ query: this.sessionData });
     } else {
       console.warn("[WebSocket] Cannot reconnect: No valid session data");
@@ -310,15 +409,8 @@ class WebSocketService {
       this.eventHandlers.set(event, new Set());
     }
     
-    // Wrap the handler with debug logging
+    // Wrap the handler 
     const wrappedHandler = (data) => {
-      if (this.debug) {
-        console.log(`[WebSocket] Event ${event} received:`, {
-          type: data?.type,
-          timestamp: data?.timestamp,
-          dataId: data?.data?.id || 'none'
-        });
-      }
       handler(data);
     };
     

@@ -221,6 +221,7 @@ const initWebSocket = (io) => {
 
           await new Promise(resolve => setTimeout(resolve, 100));
 
+          // Use DataService to fetch complete client data
           const result = await dataService.fetchAllData({
             modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
             filter: "",
@@ -253,7 +254,8 @@ const initWebSocket = (io) => {
             adddate: clientData.adddate || updatedClientData.adddate || "",
             editedBy: clientData.editedBy || updatedClientData.editedBy || "",
             editedAt: clientData.editedAt || updatedClientData.editedAt || "",
-            group: clientData.group || updatedClientData.group || ""
+            group: clientData.group || updatedClientData.group || "",
+            type: clientData.type || updatedClientData.type || "",
           };
 
           // Add service-specific data with records array structure
@@ -304,8 +306,9 @@ const initWebSocket = (io) => {
 
           // Emit the standardized data update
           io.emit("data-update", formatDataEvent(updateData.type || 'update', processedData, userId));
+
         } catch (error) {
-          console.error("[Socket] Error processing data update:", error.message);
+          console.error("[Socket] Error processing data update:", error);
           socket.emit("data-update-error", formatDataEvent('error', {
             error: error.message,
             originalData: data

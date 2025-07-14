@@ -390,25 +390,26 @@ router.post("/add", verifyToken, async (req, res) => {
       CalModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean()
     ]);
 
+    // Build the complete client data object
+    const completeClientData = {
+      ...newClient.toObject(),
+      services: roleSubmissions.map(sub => sub.roleType),
+      wmmData: { records: wmmData || [] },
+      hrgData: { records: hrgData || [] },
+      fomData: { records: fomData || [] },
+      calData: { records: calData || [] }
+    };
+
+    // Emit the data update event
     io.emit("data-update", {
       type: "add",
-      data: {
-        ...newClient.toObject(),
-        services: roleSubmissions.map(sub => sub.roleType),
-        wmmData: wmmData || [],
-        hrgData: hrgData || [],
-        fomData: fomData || [],
-        calData: calData || []
-      }
+      data: completeClientData,
+      timestamp: Date.now()
     });
 
     res.json({ 
       success: true, 
-      client: newClient,
-      wmmData: wmmData || [],
-      hrgData: hrgData || [],
-      fomData: fomData || [],
-      calData: calData || [],
+      client: completeClientData,
       roleResults
     });
   } catch (err) {
