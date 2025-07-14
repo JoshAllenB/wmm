@@ -31,21 +31,21 @@ export const useAccountingColumns = () => {
         
         // If clientName is "undefined, undefined", only show company
         if (clientName === "undefined, undefined") {
-          return <div className="py-2">{company || "N/A"}</div>;
+          return <div className="py-2 font-bold text-base">{company || "N/A"}</div>;
         }
         
         // If both are available and valid, show both
         if (clientName && company && clientName !== company) {
           return (
             <div className="py-2">
-              <div className="font-medium">{clientName}</div>
-              <div className="text-xs text-muted-foreground">{company}</div>
+              <div className="font-bold text-base">{clientName}</div>
+              <div className="text-sm italic">{company}</div>
             </div>
           );
         }
         
-        // Otherwise show either clientName or company
-        return <div className="py-2">{clientName || company || "N/A"}</div>;
+        // Otherwise show either clientName or company with bold styling
+        return <div className="py-2 font-bold text-base">{clientName || company || "N/A"}</div>;
       },
       size: 200,
     },

@@ -129,7 +129,7 @@ const Accounting = () => {
   }, [pageSize, debouncedFiltering, handleFetch]);
 
   return (
-    <div className="mr-[10px] ml-[10px]">
+    <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex gap-4 mb-4">
         <div className="relative flex-1 max-w-sm">
           <Input
