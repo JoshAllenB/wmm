@@ -1098,6 +1098,24 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Add removeEmptyFields helper function before handleSubmit
+  const removeEmptyFields = (obj) => {
+    const result = {};
+    for (const key in obj) {
+      if (obj[key] !== null && obj[key] !== undefined && obj[key] !== "") {
+        if (typeof obj[key] === "object" && !Array.isArray(obj[key])) {
+          const nestedResult = removeEmptyFields(obj[key]);
+          if (Object.keys(nestedResult).length > 0) {
+            result[key] = nestedResult;
+          }
+        } else {
+          result[key] = obj[key];
+        }
+      }
+    }
+    return result;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -1111,13 +1129,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         return formData.bdate || "";
       };
 
-      // Prepare the client data for submission
-      const clientData = {
+      // Prepare the client data for submission and clean empty fields
+      const clientData = removeEmptyFields({
         ...formData,
         bdate: formatBdate(),
         address: combinedAddress, // Use the combined address from state
         ...areaData,  // This includes acode, area, and zipcode
-      };
+      });
 
       // Determine what role-specific data to submit
       let roleData = {};
@@ -1128,7 +1146,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
         if (subscriptionMode === "edit" && selectedSubscription) {
           // If editing an existing subscription
-          roleData = {
+          roleData = removeEmptyFields({
             id: selectedSubscription._id || selectedSubscription.id, // Prefer _id for MongoDB ObjectId
             subsdate: roleSpecificData.subsdate,
             enddate: roleSpecificData.enddate,
@@ -1142,7 +1160,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             donorid: parseInt(roleSpecificData.donorid) || 0,
             paymtref: roleSpecificData.paymtref || "",
             remarks: roleSpecificData.remarks || "",
-          };
+          });
         } else if (subscriptionMode === "add") {
           // Validate new subscription data
           const validation = validateNewSubscription(newSubscription);
@@ -1152,7 +1170,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           }
 
           // If adding a new subscription
-          roleData = {
+          roleData = removeEmptyFields({
             subsdate: newSubscription.subsdate,
             enddate: newSubscription.enddate,
             renewdate: newSubscription.renewdate || "",
@@ -1166,14 +1184,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             paymtref: newSubscription.paymtref || "",
             remarks: newSubscription.remarks || "",
             isNewSubscription: true,
-          };
+          });
         }
       } else {
         // Handle other role types (HRG, FOM, CAL)
         if (selectedRole === "HRG" && hasRole("HRG")) {
           roleType = "HRG";
           if (roleRecordMode === "edit" && selectedHrgRecord) {
-            roleData = {
+            roleData = removeEmptyFields({
               id: selectedHrgRecord.id || selectedHrgRecord._id,
               recvdate: roleSpecificData.recvdate,
               renewdate: roleSpecificData.renewdate,
@@ -1182,9 +1200,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               paymtamt: roleSpecificData.paymtamt,
               unsubscribe: roleSpecificData.unsubscribe,
               remarks: roleSpecificData.remarks,
-            };
+            });
           } else {
-            roleData = {
+            roleData = removeEmptyFields({
               recvdate: newRoleData.recvdate,
               renewdate: newRoleData.renewdate,
               campaigndate: newRoleData.campaigndate,
@@ -1193,12 +1211,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               unsubscribe: newRoleData.unsubscribe,
               remarks: newRoleData.remarks,
               isNewRecord: true,
-            };
+            });
           }
         } else if (selectedRole === "FOM" && hasRole("FOM")) {
           roleType = "FOM";
           if (roleRecordMode === "edit" && selectedFomRecord) {
-            roleData = {
+            roleData = removeEmptyFields({
               id: selectedFomRecord.id || selectedFomRecord._id,
               recvdate: roleSpecificData.recvdate,
               paymtamt: roleSpecificData.paymtamt,
@@ -1206,9 +1224,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               paymtref: roleSpecificData.paymtref,
               unsubscribe: roleSpecificData.unsubscribe,
               remarks: roleSpecificData.remarks,
-            };
+            });
           } else {
-            roleData = {
+            roleData = removeEmptyFields({
               recvdate: newRoleData.recvdate,
               paymtamt: newRoleData.paymtamt,
               paymtform: newRoleData.paymtform,
@@ -1216,12 +1234,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               unsubscribe: newRoleData.unsubscribe,
               remarks: newRoleData.remarks,
               isNewRecord: true,
-            };
+            });
           }
         } else if (selectedRole === "CAL" && hasRole("CAL")) {
           roleType = "CAL";
           if (roleRecordMode === "edit" && selectedCalRecord) {
-            roleData = {
+            roleData = removeEmptyFields({
               id: selectedCalRecord.id || selectedCalRecord._id,
               recvdate: roleSpecificData.recvdate,
               caltype: roleSpecificData.caltype,
@@ -1232,9 +1250,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               paymtform: roleSpecificData.paymtform,
               paymtdate: roleSpecificData.paymtdate,
               remarks: roleSpecificData.remarks,
-            };
+            });
           } else {
-            roleData = {
+            roleData = removeEmptyFields({
               recvdate: newRoleData.recvdate,
               caltype: newRoleData.caltype,
               calqty: newRoleData.calqty,
@@ -1245,18 +1263,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               paymtdate: newRoleData.paymtdate,
               remarks: newRoleData.remarks,
               isNewRecord: true,
-            };
+            });
           }
         }
       }
 
       // Prepare the submission data
-      const submissionData = {
+      const submissionData = removeEmptyFields({
         clientId: rowData.id,
         clientData,
         roleType,
         roleData,
-      };
+      });
 
       // Send the update request
       const response = await axios.put(
@@ -1287,21 +1305,21 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         };
 
         // Emit data update event via WebSocket
-                  try {
-            await webSocketService.emit("data-update", {
-              type: "update",
-              operation: "edit",
-              ids: [rowData.id],
-              data: {
-                id: rowData.id,
-                ...updatedData,
-                // Ensure subscription data is properly structured
-                wmmData: response.data.wmmData || [],
-                hrgData: response.data.hrgData || [],
-                fomData: response.data.fomData || [],
-                calData: response.data.calData || []
-              }
-            });
+        try {
+          await webSocketService.emit("data-update", {
+            type: "update",
+            operation: "edit",
+            ids: [rowData.id],
+            data: {
+              id: rowData.id,
+              ...updatedData,
+              // Ensure subscription data is properly structured
+              wmmData: response.data.wmmData || [],
+              hrgData: response.data.hrgData || [],
+              fomData: response.data.fomData || [],
+              calData: response.data.calData || []
+            }
+          });
         } catch (wsError) {
           console.warn("WebSocket update failed, but data was saved:", wsError);
           // Continue with success flow since the data was saved
@@ -1333,6 +1351,24 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 Personal Information
               </h2>
               <div className="space-y-3">
+                <div className="mb-4">
+                  <label className="block text-black text-xl mb-1">
+                    Special Package:
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="spack"
+                      name="spack"
+                      checked={formData.spack || false}
+                      onChange={(e) => setFormData(prev => ({ ...prev, spack: e.target.checked }))}
+                      className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    />
+                    <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
+                      Mark as Special Package
+                    </label>
+                  </div>
+                </div>
                 <InputField
                   label="Title:"
                   id="title"

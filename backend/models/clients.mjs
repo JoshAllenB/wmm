@@ -10,6 +10,7 @@ const clientConnection = mongoose.createConnection(process.env.MONGODB_URI, {
 const ClientSchema = new mongoose.Schema(
   {
     id: { type: Number, index: true },
+    spack: { type: Boolean, index: true },
     lname: { type: String, index: true },
     fname: { type: String, index: true },
     mname: String,

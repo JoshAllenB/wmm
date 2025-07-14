@@ -2138,6 +2138,24 @@ const Add = ({ fetchClients }) => {
                     {/* Personal Information Card */}
                     <div>
                       <div className="">
+                        <div className="mb-4">
+                          <label className="block text-black text-xl mb-1">
+                            Special Package:
+                          </label>
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              id="spack"
+                              name="spack"
+                              checked={formData.spack || false}
+                              onChange={(e) => setFormData(prev => ({ ...prev, spack: e.target.checked }))}
+                              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                            <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
+                              Mark as Special Package
+                            </label>
+                          </div>
+                        </div>
                         <InputField
                           label="Title:"
                           id="title"
