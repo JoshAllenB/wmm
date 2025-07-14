@@ -94,17 +94,39 @@ export const useColumns = () => {
           .filter(Boolean)
           .join(" ");
 
-        // If no name parts are available, use company name as fallback
-        const displayName =
-          nameParts.trim() || (row.company ? row.company : "No Name");
+        const nameDisplay = nameParts.trim();
+        const companyDisplay = row.company ? row.company : "";
+        
+        // Determine the main display name
+        let displayParts = [];
+        
+        // Add Spack status first - only if true
+        if (row.spack) {
+          displayParts.push(`Spack: Spack Client`);
+        }
+        
+        // Add name and/or company
+        if (nameDisplay) {
+          displayParts.push(`Name: ${nameDisplay}`);
+        }
+        if (companyDisplay) {
+          displayParts.push(`Company: ${companyDisplay}`);
+        }
+        if (!nameDisplay && !companyDisplay) {
+          displayParts.push(`Name: No Name`);
+        }
 
-        // Add type and group on separate lines
-        const typePart = row.type ? `<br>Type: ${row.type}` : "";
-        const groupPart = row.group ? `<br>Group: ${row.group}` : "";
+        // Add type and group
+        if (row.type) {
+          displayParts.push(`Type: ${row.type}`);
+        }
+        if (row.group) {
+          displayParts.push(`Group: ${row.group}`);
+        }
 
-        return `${displayName}${typePart}${groupPart}`;
+        return displayParts.join("<br>");
       },
-      size: 150,
+      size: 200,
     },
     {
       id: "Address",
