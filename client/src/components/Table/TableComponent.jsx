@@ -655,11 +655,39 @@ export const TableComponent = function TableComponent({
                       >
                         {cell.column.id === "Client Name" ? (
                           <div style={{ textAlign: "left" }}>
-                            {cell.getValue().split("<br>").map((part, index) => (
-                              <div key={index} className={index > 0 ? "font-bold" : ""}>
-                                {part}
-                              </div>
-                            ))}
+                            {cell.getValue().split("<br>").map((part, index) => {
+                              if (part.startsWith("Spack: ")) {
+                                return (
+                                  <div key={index} className="mt-1">
+                                    <span className={`px-2 py-0.5 text-sm font-medium bg-amber-100 text-amber-800`}>
+                                      {part.substring(6)} {/* Remove "Spack: " prefix */}
+                                    </span>
+                                  </div>
+                                );
+                              } else if (part.startsWith("Name: ")) {
+                                const name = part.substring(6); // Remove "Name: " prefix
+                                const hasCompany = cell.getValue().split("<br>").some(p => p.startsWith("Company: "));
+                                return (
+                                  <div key={index} className={`${name !== "No Name" ? "font-bold text-base" : "text-base"}`}>
+                                    {name}
+                                  </div>
+                                );
+                              } else if (part.startsWith("Company: ")) {
+                                const hasName = cell.getValue().split("<br>").some(p => p.startsWith("Name: ") && !p.includes("No Name"));
+                                return (
+                                  <div key={index} className={`${hasName ? "text-sm italic" : "font-bold text-base"}`}>
+                                    {part.substring(9)} {/* Remove "Company: " prefix */}
+                                  </div>
+                                );
+                              } else if (part.startsWith("Type: ") || part.startsWith("Group: ")) {
+                                return (
+                                  <div key={index} className="text-gray-600 font-medium">
+                                    {part}
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })}
                           </div>
                         ) : cell.column.id === "Address" ? (
                           <div style={{ textAlign: "left" }}>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "../UI/ShadCN/button";
 import { toast } from "react-hot-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../UI/ShadCN/dialog";
 
 const CsvExport = ({ 
   selectedRows,
@@ -16,7 +17,8 @@ const CsvExport = ({
   useAllData,
   setUseAllData,
   onClose,
-  onRefreshAllData
+  onRefreshAllData,
+  isOpen = false
 }) => {
   // State for custom filename
   const [csvFilename, setCsvFilename] = useState("");
@@ -431,312 +433,319 @@ const CsvExport = ({
   );
 
   return (
-    <div className="w-full max-w-[1500px]">
-      <h2 className="flex justify-center text-xl font-bold text-black mb-2">
-        Export Subscriber Data to CSV
-      </h2>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[30vw]">
+        <DialogHeader>
+          <DialogTitle>Export CSV</DialogTitle>
+        </DialogHeader>
+        <div className="w-full">
+          <h2 className="flex justify-center text-xl font-bold text-black mb-2">
+            Export Subscriber Data to CSV
+          </h2>
 
-      <p className="text-center text-sm text-gray-500 mb-4">
-        {getRowCount()} {getRowCount() === 1 ? "subscriber" : "subscribers"}{" "}
-        {getDataSourceLabel()}
-      </p>
-
-      <div className="flex flex-col items-center">
-        <DataSourceToggle />
-
-        {/* Filename Input */}
-        <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-          <h3 className="text-sm font-semibold mb-2">File Name:</h3>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={csvFilename}
-              onChange={(e) => setCsvFilename(e.target.value)}
-              placeholder={`subscribers_export_${new Date().toISOString().slice(0, 10)}`}
-              className="border border-gray-300 rounded p-2 w-full"
-            />
-            <span className="text-sm text-gray-500">.csv</span>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Leave blank to use default filename
+          <p className="text-center text-sm text-gray-500 mb-4">
+            {getRowCount()} {getRowCount() === 1 ? "subscriber" : "subscribers"}{" "}
+            {getDataSourceLabel()}
           </p>
-        </div>
 
-        {/* Data Range Selection */}
-        <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-          <h3 className="text-sm font-semibold mb-2">Select Data Range:</h3>
-          <div className="flex flex-wrap gap-2 mb-2">
-            <Button
-              onClick={() => handleDataSourceChange("all")}
-              variant={dataSource === "all" ? "default" : "outline"}
-              className="flex-1"
-            >
-              All Records
-            </Button>
-            <Button
-              onClick={() => handleDataSourceChange("selected")}
-              variant={dataSource === "selected" ? "default" : "outline"}
-              className="flex-1"
-              disabled={table.getSelectedRowModel().rows.length === 0}
-            >
-              Selected Only
-            </Button>
-            <Button
-              onClick={() => handleDataSourceChange("range")}
-              variant={dataSource === "range" ? "default" : "outline"}
-              className="flex-1"
-            >
-              ID Range
-            </Button>
-          </div>
-        </div>
+          <div className="flex flex-col items-center">
+            <DataSourceToggle />
 
-        {/* Client ID Range Input - if range is selected */}
-        {dataSource === "range" && (
-          <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
-            <h3 className="text-lg font-semibold mb-2">Export Range</h3>
-
-            <div className="bg-blue-50 p-2 rounded mb-3 w-full text-xs text-blue-700">
-              Specify which subscribers to include using Client IDs.
+            {/* Filename Input */}
+            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+              <h3 className="text-sm font-semibold mb-2">File Name:</h3>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={csvFilename}
+                  onChange={(e) => setCsvFilename(e.target.value)}
+                  placeholder={`subscribers_export_${new Date().toISOString().slice(0, 10)}`}
+                  className="border border-gray-300 rounded p-2 w-full"
+                />
+                <span className="text-sm text-gray-500">.csv</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave blank to use default filename
+              </p>
             </div>
 
-            <div className="flex items-center space-x-2 w-full mb-2">
-              <label
-                htmlFor="startId"
-                className="text-sm w-28 text-right font-medium text-gray-600"
+            {/* Data Range Selection */}
+            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+              <h3 className="text-sm font-semibold mb-2">Select Data Range:</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                <Button
+                  onClick={() => handleDataSourceChange("all")}
+                  variant={dataSource === "all" ? "default" : "outline"}
+                  className="flex-1"
+                >
+                  All Records
+                </Button>
+                <Button
+                  onClick={() => handleDataSourceChange("selected")}
+                  variant={dataSource === "selected" ? "default" : "outline"}
+                  className="flex-1"
+                  disabled={table.getSelectedRowModel().rows.length === 0}
+                >
+                  Selected Only
+                </Button>
+                <Button
+                  onClick={() => handleDataSourceChange("range")}
+                  variant={dataSource === "range" ? "default" : "outline"}
+                  className="flex-1"
+                >
+                  ID Range
+                </Button>
+              </div>
+            </div>
+
+            {/* Client ID Range Input - if range is selected */}
+            {dataSource === "range" && (
+              <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
+                <h3 className="text-lg font-semibold mb-2">Export Range</h3>
+
+                <div className="bg-blue-50 p-2 rounded mb-3 w-full text-xs text-blue-700">
+                  Specify which subscribers to include using Client IDs.
+                </div>
+
+                <div className="flex items-center space-x-2 w-full mb-2">
+                  <label
+                    htmlFor="startId"
+                    className="text-sm w-28 text-right font-medium text-gray-600"
+                  >
+                    Start Client ID:
+                  </label>
+                  <input
+                    type="text"
+                    id="startId"
+                    value={startClientId}
+                    onChange={(e) => setStartClientId(e.target.value)}
+                    placeholder={`First: ${
+                      table.getFilteredRowModel().rows[0]?.original?.id || "N/A"
+                    }`}
+                    className="border border-gray-300 rounded p-2 w-full"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 w-full mb-3">
+                  <label
+                    htmlFor="endId"
+                    className="text-sm w-28 text-right font-medium text-gray-600"
+                  >
+                    End Client ID:
+                  </label>
+                  <input
+                    type="text"
+                    id="endId"
+                    value={endClientId}
+                    onChange={(e) => setEndClientId(e.target.value)}
+                    placeholder={`Last: ${
+                      table.getFilteredRowModel().rows[
+                        table.getFilteredRowModel().rows.length - 1
+                      ]?.original?.id || "N/A"
+                    }`}
+                    className="border border-gray-300 rounded p-2 w-full"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* CSV Fields Selection */}
+            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
+              <h3 className="text-sm font-semibold mb-2">Select Fields to Include:</h3>
+
+              {/* Basic Fields (All Users) */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2">Basic Information (All Users):</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-id"
+                      checked={csvIncludeFields.includes("id")}
+                      onChange={() => toggleCsvField("id")}
+                      className="mr-2"
+                      disabled
+                    />
+                    <label htmlFor="csv-id" className="text-sm">Client ID</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-name"
+                      checked={csvIncludeFields.includes("name")}
+                      onChange={() => toggleCsvField("name")}
+                      className="mr-2"
+                      disabled
+                    />
+                    <label htmlFor="csv-name" className="text-sm">Name</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-address"
+                      checked={csvIncludeFields.includes("address")}
+                      onChange={() => toggleCsvField("address")}
+                      className="mr-2"
+                      disabled
+                    />
+                    <label htmlFor="csv-address" className="text-sm">Address</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-acode"
+                      checked={csvIncludeFields.includes("acode")}
+                      onChange={() => toggleCsvField("acode")}
+                      className="mr-2"
+                      disabled
+                    />
+                    <label htmlFor="csv-acode" className="text-sm">Area Code</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-contactnos"
+                      checked={csvIncludeFields.includes("contactnos")}
+                      onChange={() => toggleCsvField("contactnos")}
+                      className="mr-2"
+                      disabled
+                    />
+                    <label htmlFor="csv-contactnos" className="text-sm">Contact Numbers</label>
+                  </div>
+                </div>
+              </div>
+
+              {/* WMM Fields */}
+              <div className="mb-4">
+                <h4 className="text-xs font-medium text-gray-600 mb-2">WMM Information:</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-company"
+                      checked={csvIncludeFields.includes("company")}
+                      onChange={() => toggleCsvField("company")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-company" className="text-sm">
+                      {renderFieldLabel("company", "Company")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-copies"
+                      checked={csvIncludeFields.includes("copies")}
+                      onChange={() => toggleCsvField("copies")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-copies" className="text-sm">
+                      {renderFieldLabel("copies", "Copies")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-enddate"
+                      checked={csvIncludeFields.includes("enddate")}
+                      onChange={() => toggleCsvField("enddate")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-enddate" className="text-sm">
+                      {renderFieldLabel("enddate", "Expiry Date")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-subsclass"
+                      checked={csvIncludeFields.includes("subsclass")}
+                      onChange={() => toggleCsvField("subsclass")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-subsclass" className="text-sm">
+                      {renderFieldLabel("subsclass", "Subscription Class")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-subsdate"
+                      checked={csvIncludeFields.includes("subsdate")}
+                      onChange={() => toggleCsvField("subsdate")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-subsdate" className="text-sm">
+                      {renderFieldLabel("subsdate", "Subscription Date")}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service-specific Fields */}
+              <div>
+                <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Information:</h4>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-hrgData"
+                      checked={csvIncludeFields.includes("hrgData")}
+                      onChange={() => toggleCsvField("hrgData")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-hrgData" className="text-sm">
+                      {renderFieldLabel("hrgData", "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-fomData"
+                      checked={csvIncludeFields.includes("fomData")}
+                      onChange={() => toggleCsvField("fomData")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-fomData" className="text-sm">
+                      {renderFieldLabel("fomData", "FOM Data (Payment Details + Unsubscribe Status)")}
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="csv-calData"
+                      checked={csvIncludeFields.includes("calData")}
+                      onChange={() => toggleCsvField("calData")}
+                      className="mr-2"
+                    />
+                    <label htmlFor="csv-calData" className="text-sm">
+                      {renderFieldLabel("calData", "CAL Data (Type, Quantity, Unit Amount + Payment Details)")}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-center space-x-4 w-full max-w-lg">
+              <Button
+                onClick={handleExportCSV}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex-grow"
+                disabled={!hasData || csvIncludeFields.length === 0}
               >
-                Start Client ID:
-              </label>
-              <input
-                type="text"
-                id="startId"
-                value={startClientId}
-                onChange={(e) => setStartClientId(e.target.value)}
-                placeholder={`First: ${
-                  table.getFilteredRowModel().rows[0]?.original?.id || "N/A"
-                }`}
-                className="border border-gray-300 rounded p-2 w-full"
-              />
-            </div>
-            <div className="flex items-center space-x-2 w-full mb-3">
-              <label
-                htmlFor="endId"
-                className="text-sm w-28 text-right font-medium text-gray-600"
+                Export CSV
+              </Button>
+              <Button
+                onClick={onClose}
+                variant="secondary"
+                className="flex-grow"
               >
-                End Client ID:
-              </label>
-              <input
-                type="text"
-                id="endId"
-                value={endClientId}
-                onChange={(e) => setEndClientId(e.target.value)}
-                placeholder={`Last: ${
-                  table.getFilteredRowModel().rows[
-                    table.getFilteredRowModel().rows.length - 1
-                  ]?.original?.id || "N/A"
-                }`}
-                className="border border-gray-300 rounded p-2 w-full"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* CSV Fields Selection */}
-        <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-          <h3 className="text-sm font-semibold mb-2">Select Fields to Include:</h3>
-
-          {/* Basic Fields (All Users) */}
-          <div className="mb-4">
-            <h4 className="text-xs font-medium text-gray-600 mb-2">Basic Information (All Users):</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-id"
-                  checked={csvIncludeFields.includes("id")}
-                  onChange={() => toggleCsvField("id")}
-                  className="mr-2"
-                  disabled
-                />
-                <label htmlFor="csv-id" className="text-sm">Client ID</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-name"
-                  checked={csvIncludeFields.includes("name")}
-                  onChange={() => toggleCsvField("name")}
-                  className="mr-2"
-                  disabled
-                />
-                <label htmlFor="csv-name" className="text-sm">Name</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-address"
-                  checked={csvIncludeFields.includes("address")}
-                  onChange={() => toggleCsvField("address")}
-                  className="mr-2"
-                  disabled
-                />
-                <label htmlFor="csv-address" className="text-sm">Address</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-acode"
-                  checked={csvIncludeFields.includes("acode")}
-                  onChange={() => toggleCsvField("acode")}
-                  className="mr-2"
-                  disabled
-                />
-                <label htmlFor="csv-acode" className="text-sm">Area Code</label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-contactnos"
-                  checked={csvIncludeFields.includes("contactnos")}
-                  onChange={() => toggleCsvField("contactnos")}
-                  className="mr-2"
-                  disabled
-                />
-                <label htmlFor="csv-contactnos" className="text-sm">Contact Numbers</label>
-              </div>
-            </div>
-          </div>
-
-          {/* WMM Fields */}
-          <div className="mb-4">
-            <h4 className="text-xs font-medium text-gray-600 mb-2">WMM Information:</h4>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-company"
-                  checked={csvIncludeFields.includes("company")}
-                  onChange={() => toggleCsvField("company")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-company" className="text-sm">
-                  {renderFieldLabel("company", "Company")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-copies"
-                  checked={csvIncludeFields.includes("copies")}
-                  onChange={() => toggleCsvField("copies")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-copies" className="text-sm">
-                  {renderFieldLabel("copies", "Copies")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-enddate"
-                  checked={csvIncludeFields.includes("enddate")}
-                  onChange={() => toggleCsvField("enddate")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-enddate" className="text-sm">
-                  {renderFieldLabel("enddate", "Expiry Date")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-subsclass"
-                  checked={csvIncludeFields.includes("subsclass")}
-                  onChange={() => toggleCsvField("subsclass")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-subsclass" className="text-sm">
-                  {renderFieldLabel("subsclass", "Subscription Class")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-subsdate"
-                  checked={csvIncludeFields.includes("subsdate")}
-                  onChange={() => toggleCsvField("subsdate")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-subsdate" className="text-sm">
-                  {renderFieldLabel("subsdate", "Subscription Date")}
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Service-specific Fields */}
-          <div>
-            <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Information:</h4>
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-hrgData"
-                  checked={csvIncludeFields.includes("hrgData")}
-                  onChange={() => toggleCsvField("hrgData")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-hrgData" className="text-sm">
-                  {renderFieldLabel("hrgData", "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-fomData"
-                  checked={csvIncludeFields.includes("fomData")}
-                  onChange={() => toggleCsvField("fomData")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-fomData" className="text-sm">
-                  {renderFieldLabel("fomData", "FOM Data (Payment Details + Unsubscribe Status)")}
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="csv-calData"
-                  checked={csvIncludeFields.includes("calData")}
-                  onChange={() => toggleCsvField("calData")}
-                  className="mr-2"
-                />
-                <label htmlFor="csv-calData" className="text-sm">
-                  {renderFieldLabel("calData", "CAL Data (Type, Quantity, Unit Amount + Payment Details)")}
-                </label>
-              </div>
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-center space-x-4 w-full max-w-lg">
-          <Button
-            onClick={handleExportCSV}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex-grow"
-            disabled={!hasData || csvIncludeFields.length === 0}
-          >
-            Export CSV
-          </Button>
-          <Button
-            onClick={onClose}
-            variant="secondary"
-            className="flex-grow"
-          >
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

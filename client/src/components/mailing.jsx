@@ -85,7 +85,10 @@ const Mailing = ({
   copies,
   advancedFilterData = {},
   selectedGroup = "",
-  filtering = ""
+  filtering = "",
+  isOpen = false,
+  onClose,
+  initialAction = 'label'
 }) => {
   const { hasRole } = useUser();
   
@@ -110,7 +113,7 @@ const Mailing = ({
   }, [hasRole]);
 
   // State variables - using mm for dimensions and pt for font size
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(isOpen);
   const [leftPosition, setLeftPosition] = useState(1); // 4px in mm
   const [topPosition, setTopPosition] = useState(32); // 125px in mm
   const [columnWidth, setColumnWidth] = useState(95); // 330px in mm
@@ -353,6 +356,11 @@ const Mailing = ({
       setEndClientId("");
     }
   }, [modalOpen]);
+
+  // Update modal open state when isOpen prop changes
+  useEffect(() => {
+    setModalOpen(isOpen);
+  }, [isOpen]);
 
   // Fetch templates on component mount
   useEffect(() => {
@@ -1099,314 +1107,316 @@ const Mailing = ({
     }
   };
 
+  // Update parent component when modal closes
+  const handleClose = () => {
+    setModalOpen(false);
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const [currentAction, setCurrentAction] = useState(initialAction);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showCsvModal, setShowCsvModal] = useState(false);
+
+  // Update currentAction when initialAction changes
+  useEffect(() => {
+    setCurrentAction(initialAction);
+    // Show appropriate modal based on action
+    if (initialAction === 'document') {
+      setShowDocumentModal(true);
+    } else if (initialAction === 'csv') {
+      setShowCsvModal(true);
+    }
+  }, [initialAction]);
+
+  // Function to render content based on current action
+  const renderContent = () => {
+    switch (currentAction) {
+      case 'document':
+        return (
+          <DocumentGenerator
+            startClientId={startClientId}
+            endClientId={endClientId}
+            availableRows={availableRows}
+            allData={allData}
+            useAllData={useAllData}
+            setUseAllData={setUseAllData}
+            onSkippedDataUpdate={handleSkippedDataUpdate}
+            onRefreshAllData={refreshAllData}
+          />
+        );
+      case 'csv':
+        return (
+          <CsvExport
+            selectedRows={availableRows}
+            dataSource={dataSource}
+            startClientId={startClientId}
+            endClientId={endClientId}
+            setDataSource={setDataSource}
+            setStartClientId={setStartClientId}
+            setEndClientId={setEndClientId}
+            getRowCount={getRowCount}
+            table={table}
+            allData={allData}
+            useAllData={useAllData}
+            setUseAllData={setUseAllData}
+            onRefreshAllData={refreshAllData}
+          />
+        );
+      case 'label':
+      default:
+        return (
+          <>
+            <h2 className="flex justify-center text-xl font-bold text-black mb-4">
+              Mailing Label Options
+            </h2>
+
+            <div className="flex w-full gap-6">
+              {/* Left Panel - Configuration Controls */}
+              <div className="w-[400px] flex-shrink-0">
+                <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
+                  {/* Standardized Data Source Toggle */}
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                    <div className="flex flex-col">
+                      <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          onClick={() => setUseAllData(false)}
+                          size="sm"
+                          variant={useAllData ? "outline" : "default"}
+                          className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
+                        >
+                          Selected ({availableRows.length})
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            setUseAllData(true);
+                            setIsLoadingAllRecords(true);
+                            try {
+                              const data = await fetchAllData();
+                              setAllData(data);
+                              setRecordCounts({
+                                total: data.length,
+                                filtered: data.length
+                              });
+                            } catch (error) {
+                              console.error("Error fetching all data:", error);
+                              toast({
+                                title: "Error",
+                                description: "Failed to fetch all records. Using table data instead.",
+                                variant: "destructive"
+                              });
+                            } finally {
+                              setIsLoadingAllRecords(false);
+                            }
+                          }}
+                          size="sm"
+                          variant={useAllData ? "default" : "outline"}
+                          className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+                        >
+                          {isLoadingAllRecords ? (
+                            <div className="flex items-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              <span>Loading...</span>
+                            </div>
+                          ) : (
+                            `All Records (${recordCounts?.total || allData?.length || 0})`
+                          )}
+                        </Button>
+                      </div>
+                      {isLoadingAllRecords && (
+                        <p className="text-xs mt-2 text-blue-700">Fetching all records...</p>
+                      )}
+                      {recordCounts && !isLoadingAllRecords && (
+                        <p className="text-xs mt-2 text-blue-700">
+                          {recordCounts.total} total records available
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Configuration Toggle and Checklist Button */}
+                  <div className="flex justify-center gap-2 mb-4">
+                    <Button onClick={toggleShowInputs} variant="outline">
+                      {showInputs ? "Hide Configuration" : "Show Configuration"}
+                    </Button>
+                    <Button
+                      onClick={handlePrintChecklist}
+                      variant="outline"
+                      disabled={!hasAvailableRows || isLoading}
+                    >
+                      Print Checklist
+                    </Button>
+                  </div>
+
+                  {/* Configuration Panel */}
+                  {showInputs && (
+                    <div className="mb-6">
+                      <ConfigurationPanel
+                        fontSize={fontSize}
+                        setFontSize={setFontSize}
+                        columnWidth={columnWidth}
+                        setColumnWidth={setColumnWidth}
+                        leftPosition={leftPosition}
+                        setLeftPosition={setLeftPosition}
+                        topPosition={topPosition}
+                        setTopPosition={setTopPosition}
+                        labelHeight={labelHeight}
+                        setLabelHeight={setLabelHeight}
+                        horizontalSpacing={horizontalSpacing}
+                        setHorizontalSpacing={setHorizontalSpacing}
+                        rowSpacing={rowSpacing}
+                        setRowSpacing={setRowSpacing}
+                        selectedFields={selectedFields}
+                        setSelectedFields={setSelectedFields}
+                        templateName={templateName}
+                        setTemplateName={setTemplateName}
+                        showTemplateNameInput={showTemplateNameInput}
+                        setShowTemplateNameInput={setShowTemplateNameInput}
+                        saveTemplate={saveTemplate}
+                        paperWidth={paperWidth}
+                        setPaperWidth={setPaperWidth}
+                        paperHeight={paperHeight}
+                        setPaperHeight={setPaperHeight}
+                        rowsPerPage={rowsPerPage}
+                        setRowsPerPage={setRowsPerPage}
+                        columnsPerPage={columnsPerPage}
+                        setColumnsPerPage={setColumnsPerPage}
+                      />
+                    </div>
+                  )}
+
+                  {/* Configuration Panel with Thank You Letter options */}
+                  {showInputs && (
+                    <div className="mb-6 border rounded p-3 bg-blue-50">
+                      <h4 className="font-medium mb-2">Form Integration</h4>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          onClick={syncConfigToRenewalNotice}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Sync Renewal Notice
+                        </Button>
+                        <Button 
+                          onClick={previewRenewalNotice}
+                          variant="outline"
+                          size="sm" 
+                          className="text-xs bg-white"
+                        >
+                          Preview Renewal Notice
+                        </Button>
+                        <Button 
+                          onClick={syncConfigToThankYouLetter}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          Sync Thank You Letter
+                        </Button>
+                        <Button 
+                          onClick={previewThankYouLetter}
+                          variant="outline"
+                          size="sm" 
+                          className="text-xs bg-white"
+                        >
+                          Preview Thank You Letter
+                        </Button>
+                      </div>
+                      <p className="text-xs mt-2 text-blue-700">
+                        Use these options to configure form overlays from this interface
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Template Selector */}
+                  <div className="mb-6">
+                    <TemplateSelector
+                      selectedTemplate={selectedTemplate}
+                      savedTemplates={savedTemplates}
+                      isLoading={isLoading}
+                      onTemplateSelect={handleTemplateSelect}
+                      userRole={userRole}
+                    />
+                  </div>
+
+                  {/* Range Selector */}
+                  <div className="mb-6">
+                    <RangeSelector
+                      startClientId={startClientId}
+                      setStartClientId={setStartClientId}
+                      endClientId={endClientId}
+                      setEndClientId={setEndClientId}
+                      startPosition={startPosition}
+                      setStartPosition={setStartPosition}
+                      availableRows={availableRows}
+                      onSetFromSelection={setRangeFromSelection}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Panel - Preview */}
+              <div className="flex-grow">
+                <div className="border rounded-lg p-6 bg-white shadow-sm h-full">
+                  <h3 className="text-center font-semibold mb-4">
+                    Label Preview
+                  </h3>
+                  <div className="flex flex-col items-center justify-center h-[calc(90vh-200px)]">
+                    <LabelPreview
+                      isLoading={isLoading}
+                      selectedTemplate={selectedTemplate}
+                      hasAvailableRows={hasAvailableRows}
+                      availableRows={availableRows}
+                      useLegacyFormat={useLegacyFormat}
+                      fontSize={fontSize}
+                      columnWidth={columnWidth}
+                      horizontalSpacing={horizontalSpacing}
+                      labelHeight={labelHeight}
+                      selectedFields={selectedFields}
+                      startPosition={startPosition}
+                      rowSpacing={rowSpacing}
+                      topPosition={topPosition}
+                      leftPosition={leftPosition}
+                      userRole={userRole}
+                      paperWidth={paperWidth}
+                      paperHeight={paperHeight}
+                      rowsPerPage={rowsPerPage}
+                      columnsPerPage={columnsPerPage}
+                    />
+                    <div className="text-sm text-gray-600 mt-4 text-center">
+                      <p>Real-time preview of how labels will print</p>
+                      <p className="text-xs">
+                        {useLegacyFormat && selectedTemplate?.isLegacy ? 
+                          `Legacy format: optimized for ${selectedTemplate.printer || "dot matrix printers"}` :
+                          `Layout dimensions: ${Math.max(columnWidth * 2, 200)}px × ${Math.max(labelHeight * 2, 100)}px`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+    }
+  };
+
   if (!table) return null;
 
   return (
-    <div className="flex flex-col justify-between">
-      <div className="flex gap-2">
-        <Button
-          onClick={toggleModal}
-          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-          disabled={isLoading || isFetchingAll}
-        >
-          {isLoading || isFetchingAll ? 'Loading...' : `Print Mailing Label (${availableRows.length})`}
-        </Button>
-        
-        {/* Document Generator Button */}
-        <Button
-          onClick={handleOpenDocumentGenerator}
-          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-          disabled={isLoading || isFetchingAll}
-        >
-          <span className="mr-1">🖨️</span> Print Documents
-        </Button>
-        
-        {/* CSV Export Button */}
-        <Button
-          onClick={handleOpenCsvExport}
-          className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-          disabled={isLoading || isFetchingAll}
-        >
-          <span className="mr-1">📊</span> Export CSV
-        </Button>
-      </div>
-      
-      {/* Main Mailing Modal */}
-      <Modal isOpen={modalOpen} onClose={closeModal}>
+    <div>
+      {/* Main Mailing Modal - only show for label printing */}
+      <Modal isOpen={isOpen && currentAction === 'label'} onClose={handleClose}>
         <div className="w-full max-w-[95vw]">
-          <h2 className="flex justify-center text-xl font-bold text-black mb-4">
-            Mailing Label Options
-          </h2>
-
-          <div className="flex w-full gap-6">
-            {/* Left Panel - Configuration Controls */}
-            <div className="w-[400px] flex-shrink-0">
-              <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
-                {/* Standardized Data Source Toggle */}
-                <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                  <div className="flex flex-col">
-                    <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        onClick={() => setUseAllData(false)}
-                        size="sm"
-                        variant={useAllData ? "outline" : "default"}
-                        className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
-                      >
-                        Selected ({availableRows.length})
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          setUseAllData(true);
-                          setIsLoadingAllRecords(true);
-                          try {
-                            const data = await fetchAllData();
-                            setAllData(data);
-                            setRecordCounts({
-                              total: data.length,
-                              filtered: data.length
-                            });
-                          } catch (error) {
-                            console.error("Error fetching all data:", error);
-                            toast({
-                              title: "Error",
-                              description: "Failed to fetch all records. Using table data instead.",
-                              variant: "destructive"
-                            });
-                          } finally {
-                            setIsLoadingAllRecords(false);
-                          }
-                        }}
-                        size="sm"
-                        variant={useAllData ? "default" : "outline"}
-                        className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
-                      >
-                        {isLoadingAllRecords ? (
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                            <span>Loading...</span>
-                          </div>
-                        ) : (
-                          `All Records (${recordCounts?.total || allData?.length || 0})`
-                        )}
-                      </Button>
-                    </div>
-                    {isLoadingAllRecords && (
-                      <p className="text-xs mt-2 text-blue-700">Fetching all records...</p>
-                    )}
-                    {recordCounts && !isLoadingAllRecords && (
-                      <p className="text-xs mt-2 text-blue-700">
-                        {recordCounts.total} total records available
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Configuration Toggle and Checklist Button */}
-                <div className="flex justify-center gap-2 mb-4">
-                  <Button onClick={toggleShowInputs} variant="outline">
-                    {showInputs ? "Hide Configuration" : "Show Configuration"}
-                  </Button>
-                  <Button
-                    onClick={handlePrintChecklist}
-                    variant="outline"
-                    disabled={!hasAvailableRows || isLoading}
-                  >
-                    Print Checklist
-                  </Button>
-                </div>
-
-                {/* Configuration Panel */}
-                {showInputs && (
-                  <div className="mb-6">
-                    <ConfigurationPanel
-                      fontSize={fontSize}
-                      setFontSize={setFontSize}
-                      columnWidth={columnWidth}
-                      setColumnWidth={setColumnWidth}
-                      leftPosition={leftPosition}
-                      setLeftPosition={setLeftPosition}
-                      topPosition={topPosition}
-                      setTopPosition={setTopPosition}
-                      labelHeight={labelHeight}
-                      setLabelHeight={setLabelHeight}
-                      horizontalSpacing={horizontalSpacing}
-                      setHorizontalSpacing={setHorizontalSpacing}
-                      rowSpacing={rowSpacing}
-                      setRowSpacing={setRowSpacing}
-                      selectedFields={selectedFields}
-                      setSelectedFields={setSelectedFields}
-                      templateName={templateName}
-                      setTemplateName={setTemplateName}
-                      showTemplateNameInput={showTemplateNameInput}
-                      setShowTemplateNameInput={setShowTemplateNameInput}
-                      saveTemplate={saveTemplate}
-                      paperWidth={paperWidth}
-                      setPaperWidth={setPaperWidth}
-                      paperHeight={paperHeight}
-                      setPaperHeight={setPaperHeight}
-                      rowsPerPage={rowsPerPage}
-                      setRowsPerPage={setRowsPerPage}
-                      columnsPerPage={columnsPerPage}
-                      setColumnsPerPage={setColumnsPerPage}
-                    />
-                  </div>
-                )}
-
-                {/* Configuration Panel with Thank You Letter options */}
-                {showInputs && (
-                  <div className="mb-6 border rounded p-3 bg-blue-50">
-                    <h4 className="font-medium mb-2">Form Integration</h4>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        onClick={syncConfigToRenewalNotice}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                      >
-                        Sync Renewal Notice
-                      </Button>
-                      <Button 
-                        onClick={previewRenewalNotice}
-                        variant="outline"
-                        size="sm" 
-                        className="text-xs bg-white"
-                      >
-                        Preview Renewal Notice
-                      </Button>
-                      <Button 
-                        onClick={syncConfigToThankYouLetter}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                      >
-                        Sync Thank You Letter
-                      </Button>
-                      <Button 
-                        onClick={previewThankYouLetter}
-                        variant="outline"
-                        size="sm" 
-                        className="text-xs bg-white"
-                      >
-                        Preview Thank You Letter
-                      </Button>
-                    </div>
-                    <p className="text-xs mt-2 text-blue-700">
-                      Use these options to configure form overlays from this interface
-                    </p>
-                  </div>
-                )}
-
-                {/* Template Selector */}
-                <div className="mb-6">
-                  <TemplateSelector
-                    selectedTemplate={selectedTemplate}
-                    savedTemplates={savedTemplates}
-                    isLoading={isLoading}
-                    onTemplateSelect={handleTemplateSelect}
-                    userRole={userRole}
-                  />
-                </div>
-
-                {/* Range Selector */}
-                <div className="mb-6">
-                  <RangeSelector
-                    startClientId={startClientId}
-                    setStartClientId={setStartClientId}
-                    endClientId={endClientId}
-                    setEndClientId={setEndClientId}
-                    startPosition={startPosition}
-                    setStartPosition={setStartPosition}
-                    availableRows={availableRows}
-                    onSetFromSelection={setRangeFromSelection}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Right Panel - Preview */}
-            <div className="flex-grow">
-              <div className="border rounded-lg p-6 bg-white shadow-sm h-full">
-                <h3 className="text-center font-semibold mb-4">
-                  Label Preview
-                </h3>
-                <div className="flex flex-col items-center justify-center h-[calc(90vh-200px)]">
-                  <LabelPreview
-                    isLoading={isLoading}
-                    selectedTemplate={selectedTemplate}
-                    hasAvailableRows={hasAvailableRows}
-                    availableRows={availableRows}
-                    useLegacyFormat={useLegacyFormat}
-                    fontSize={fontSize}
-                    columnWidth={columnWidth}
-                    horizontalSpacing={horizontalSpacing}
-                    labelHeight={labelHeight}
-                    selectedFields={selectedFields}
-                    startPosition={startPosition}
-                    rowSpacing={rowSpacing}
-                    topPosition={topPosition}
-                    leftPosition={leftPosition}
-                    userRole={userRole}
-                    paperWidth={paperWidth}
-                    paperHeight={paperHeight}
-                    rowsPerPage={rowsPerPage}
-                    columnsPerPage={columnsPerPage}
-                  />
-                  <div className="text-sm text-gray-600 mt-4 text-center">
-                    <p>Real-time preview of how labels will print</p>
-                    <p className="text-xs">
-                      {useLegacyFormat && selectedTemplate?.isLegacy ? 
-                        `Legacy format: optimized for ${selectedTemplate.printer || "dot matrix printers"}` :
-                        `Layout dimensions: ${Math.max(columnWidth * 2, 200)}px × ${Math.max(labelHeight * 2, 100)}px`
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex justify-center space-x-4 mt-6">
-            <Button
-              onClick={handlePrintWithRange}
-              className="bg-green-600 hover:bg-green-700 text-white w-48"
-              disabled={!hasAvailableRows || isLoading}
-            >
-              {isLoading ? 'Loading...' : selectedTemplate?.isLegacy ? 'Download .prn File' : 'Print Preview'}
-            </Button>
-            
-            {selectedTemplate?.isLegacy && (
-              <Button
-                onClick={handleDirectPrintToDotMatrix}
-                className="bg-blue-600 hover:bg-blue-700 text-white w-48"
-                disabled={!hasAvailableRows || isLoading}
-              >
-                {isLoading ? 'Printing...' : 'Print to Dot Matrix'}
-              </Button>
-            )}
-            
-            <Button
-              onClick={closeModal}
-              variant="secondary"
-              className="w-24"
-            >
-              Cancel
-            </Button>
-          </div>
+          {renderContent()}
         </div>
       </Modal>
 
       {/* Document Generator Modal */}
-      <Modal 
-        isOpen={documentGeneratorOpen} 
-        onClose={() => {
-          setDocumentGeneratorOpen(false);
-          setUseAllData(false);
-          setSkippedData([]);
-          setShowSkippedData(false);
-        }}
-      >
+      {currentAction === 'document' && (
         <DocumentGenerator
           startClientId={startClientId}
           endClientId={endClientId}
@@ -1416,14 +1426,31 @@ const Mailing = ({
           setUseAllData={setUseAllData}
           onSkippedDataUpdate={handleSkippedDataUpdate}
           onRefreshAllData={refreshAllData}
-          onClose={() => {
-            setDocumentGeneratorOpen(false);
-            setUseAllData(false);
-            setSkippedData([]);
-            setShowSkippedData(false);
-          }}
+          isOpen={isOpen}
+          onClose={handleClose}
         />
-      </Modal>
+      )}
+
+      {/* CSV Export Modal */}
+      {currentAction === 'csv' && (
+        <CsvExport
+          selectedRows={availableRows}
+          dataSource={dataSource}
+          startClientId={startClientId}
+          endClientId={endClientId}
+          setDataSource={setDataSource}
+          setStartClientId={setStartClientId}
+          setEndClientId={setEndClientId}
+          getRowCount={getRowCount}
+          table={table}
+          allData={allData}
+          useAllData={useAllData}
+          setUseAllData={setUseAllData}
+          onRefreshAllData={refreshAllData}
+          isOpen={isOpen}
+          onClose={handleClose}
+        />
+      )}
 
       {/* Display skipped data information */}
       {skippedData.length > 0 && (

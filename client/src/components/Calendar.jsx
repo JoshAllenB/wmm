@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "./UI/ShadCN/button";
 import { Calendar } from "lucide-react";
 import { toast } from "./UI/ShadCN/hooks/use-toast";
@@ -20,13 +20,30 @@ const CalendarUpdate = ({
   onUpdateSuccess,
   page,
   pageSize,
-  debouncedFiltering
+  debouncedFiltering,
+  isOpen = false,
+  onClose
 }) => {
   const [isUpdatingCalendar, setIsUpdatingCalendar] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(isOpen);
+  const [showResultsDialog, setShowResultsDialog] = useState(false);
+  const [updateResults, setUpdateResults] = useState(null);
   const [selectedCalendarStatus, setSelectedCalendarStatus] = useState(null);
   const [previewCounts, setPreviewCounts] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+
+  // Update modal open state when isOpen prop changes
+  useEffect(() => {
+    setShowCalendarModal(isOpen);
+  }, [isOpen]);
+
+  // Update parent component when modal closes
+  const handleClose = () => {
+    setShowCalendarModal(false);
+    if (onClose) {
+      onClose();
+    }
+  };
 
   const handleUpdateCalendar = async () => {
     if (selectedCalendarStatus === null) {
@@ -67,69 +84,24 @@ const CalendarUpdate = ({
         throw new Error(data.message || "Failed to update calendar status");
       }
 
-      // Enhanced success message with detailed stats
-      const summary = data.summary || {};
+      // Store the results and show the results dialog
+      setUpdateResults(data.summary || {});
+      setShowResultsDialog(true);
       
-      // Create a dialog content with scrollable list of updated clients
-      const updatedClientsDialog = (
-        <Dialog open={true} onOpenChange={() => {}}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Calendar Update Results</DialogTitle>
-              <DialogDescription asChild>
-                <div className="space-y-4">
-                  <dl className="text-sm grid grid-cols-2 gap-2">
-                    <dt>Total clients found:</dt>
-                    <dd>{summary.totalClientsFound}</dd>
-                    <dt>Successfully updated:</dt>
-                    <dd>{summary.modifiedCount}</dd>
-                    <dt>Skipped:</dt>
-                    <dd>{summary.skippedCount}</dd>
-                    <dt>Errors:</dt>
-                    <dd>{summary.errorCount}</dd>
-                  </dl>
-                  
-                  {summary.updatedClientIds && summary.updatedClientIds.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="text-sm font-medium mb-2">Updated Clients:</h3>
-                      <div className="max-h-[300px] overflow-y-auto border rounded-md">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50 sticky top-0">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">ID</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Name</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {summary.updatedClientIds.map((client) => (
-                              <tr key={client.id} className="hover:bg-gray-50">
-                                <td className="px-4 py-2 text-sm">{client.id}</td>
-                                <td className="px-4 py-2 text-sm">{client.name}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </DialogDescription>
-            </DialogHeader>
-          </DialogContent>
-        </Dialog>
-      );
-
-      // Show the detailed results dialog
+      // Show a simple success toast
       toast({
         title: "Success",
-        description: updatedClientsDialog,
-        duration: 10000, // Keep it visible longer
+        description: "Calendar status updated successfully",
+        duration: 3000,
       });
       
       // Call the callback to refresh data
       onUpdateSuccess(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData);
-      setShowCalendarModal(false);
+      
+      // Reset the form but keep the modal open
       setSelectedCalendarStatus(null);
+      setIsLoadingPreview(true);
+      fetchPreviewCounts(); // Refresh the preview counts
     } catch (error) {
       console.error("Error updating calendar status:", error);
       toast({
@@ -187,16 +159,8 @@ const CalendarUpdate = ({
 
   return (
     <>
-      <Button
-        onClick={handleOpenCalendarModal}
-        className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300"
-        >
-        <Calendar className="h-4 w-4" />
-        <span>Update Calendar Status</span>
-      </Button>
-
       {/* Calendar Status Modal */}
-      <Dialog open={showCalendarModal} onOpenChange={setShowCalendarModal}>
+      <Dialog open={showCalendarModal} onOpenChange={handleClose}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Calendar Status</DialogTitle>
@@ -255,7 +219,7 @@ const CalendarUpdate = ({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowCalendarModal(false)}
+              onClick={handleClose}
               disabled={isUpdatingCalendar}
             >
               Cancel
@@ -267,6 +231,58 @@ const CalendarUpdate = ({
             >
               {isUpdatingCalendar ? "Updating..." : `Update ${previewCounts?.clientsWithWmm || ''} Records`}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Results Dialog */}
+      <Dialog open={showResultsDialog} onOpenChange={setShowResultsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Calendar Update Results</DialogTitle>
+            <DialogDescription asChild>
+              {updateResults && (
+                <div className="space-y-4">
+                  <dl className="text-sm grid grid-cols-2 gap-2">
+                    <dt>Total clients found:</dt>
+                    <dd>{updateResults.totalClientsFound}</dd>
+                    <dt>Successfully updated:</dt>
+                    <dd>{updateResults.modifiedCount}</dd>
+                    <dt>Skipped:</dt>
+                    <dd>{updateResults.skippedCount}</dd>
+                    <dt>Errors:</dt>
+                    <dd>{updateResults.errorCount}</dd>
+                  </dl>
+                  
+                  {updateResults.updatedClientIds && updateResults.updatedClientIds.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium mb-2">Updated Clients:</h3>
+                      <div className="max-h-[300px] overflow-y-auto border rounded-md">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">ID</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Name</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {updateResults.updatedClientIds.map((client) => (
+                              <tr key={client.id} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-sm">{client.id}</td>
+                                <td className="px-4 py-2 text-sm">{client.name}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowResultsDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

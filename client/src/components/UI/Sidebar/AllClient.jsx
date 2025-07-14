@@ -13,7 +13,7 @@ import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
 import { ColumnToggle } from "../../Table/ColumnToggle";
-import { ArrowDown, Calendar } from "lucide-react";
+import { ArrowDown, Calendar, Package, Mail, Settings2, FileText, FileSpreadsheet } from "lucide-react";
 import { toast } from "../ShadCN/hooks/use-toast";
 import {
   Dialog,
@@ -26,6 +26,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "../ShadCN/radio-group";
 import { Label } from "../ShadCN/label";
 import CalendarUpdate from "../../Calendar";
+import SpackUpdate from "../../SpackUpdate";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "../ShadCN/dropdown-menu";
 
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
@@ -1038,28 +1048,99 @@ const AllClient = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const [showMailingModal, setShowMailingModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showSpackModal, setShowSpackModal] = useState(false);
+  const [mailingAction, setMailingAction] = useState('label'); // 'label', 'document', or 'csv'
+
+  const handleMailingAction = (action) => {
+    setMailingAction(action);
+    setShowMailingModal(true);
+  };
+
   return (
     <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex justify-between">
         <Add fetchClients={() => fetchClients(setClientData)} />
-        <div className="flex gap-2 w-[690px]">
-          <Mailing 
-            table={tableInstance} 
-            advancedFilterData={advancedFilterData}
-            selectedGroup={selectedGroup}
-            filtering={filtering}
-          />
-          <CalendarUpdate
-            filtering={filtering}
-            selectedGroup={selectedGroup}
-            advancedFilterData={advancedFilterData}
-            onUpdateSuccess={fetchData}
-            page={page}
-            pageSize={pageSize}
-            debouncedFiltering={debouncedFiltering}
-          />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
+              <Settings2 className="h-4 w-4 mr-2" />
+              Client Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Mail className="h-4 w-4 mr-2" />
+                Mailing Options
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onSelect={() => handleMailingAction('label')}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  Print Mailing Label
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleMailingAction('document')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Print Documents
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleMailingAction('csv')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem onSelect={() => setShowCalendarModal(true)}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Update Calendar Status
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setShowSpackModal(true)}>
+              <Package className="h-4 w-4 mr-2" />
+              Update Spack Status
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
+      {/* Render modals */}
+      <Mailing 
+        table={tableInstance} 
+        advancedFilterData={advancedFilterData}
+        selectedGroup={selectedGroup}
+        filtering={filtering}
+        isOpen={showMailingModal}
+        onClose={() => {
+          setShowMailingModal(false);
+          setMailingAction('label'); // Reset to default
+        }}
+        initialAction={mailingAction}
+      />
+      
+      <CalendarUpdate
+        filtering={filtering}
+        selectedGroup={selectedGroup}
+        advancedFilterData={advancedFilterData}
+        onUpdateSuccess={fetchData}
+        page={page}
+        pageSize={pageSize}
+        debouncedFiltering={debouncedFiltering}
+        isOpen={showCalendarModal}
+        onClose={() => setShowCalendarModal(false)}
+      />
+      
+      <SpackUpdate
+        filtering={filtering}
+        selectedGroup={selectedGroup}
+        advancedFilterData={advancedFilterData}
+        onUpdateSuccess={fetchData}
+        page={page}
+        pageSize={pageSize}
+        debouncedFiltering={debouncedFiltering}
+        table={tableInstance}
+        isOpen={showSpackModal}
+        onClose={() => setShowSpackModal(false)}
+      />
+
       <div className="flex gap-4 mb-4">
         <Input
           placeholder="Search by name, company, ID, or payment ref (e.g., MS 001234 or ref:MS 001234)"
