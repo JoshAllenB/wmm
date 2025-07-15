@@ -37,11 +37,26 @@ const SpackUpdate = ({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [clientIdsText, setClientIdsText] = useState("");
   const [activeTab, setActiveTab] = useState("filter");
+  const [clientsData, setClientsData] = useState({});  // Store client data
 
   // Update modal open state when isOpen prop changes
   useEffect(() => {
     setShowSpackModal(isOpen);
   }, [isOpen]);
+
+  // Store client data when table data changes
+  useEffect(() => {
+    if (table) {
+      const newClientsData = {};
+      table.getRowModel().rows.forEach(row => {
+        newClientsData[row.original.id] = {
+          fname: row.original.fname,
+          lname: row.original.lname
+        };
+      });
+      setClientsData(newClientsData);
+    }
+  }, [table]);
 
   // Update parent component when modal closes
   const handleClose = () => {
@@ -67,6 +82,9 @@ const SpackUpdate = ({
 
     try {
       setIsUpdatingSpack(true);
+      
+      // Store current client data before making the request
+      const currentClientsData = { ...clientsData };
       
       const requestData = {
         filter: activeTab === "filter" ? filtering : "",
@@ -100,8 +118,25 @@ const SpackUpdate = ({
         throw new Error(data.message || "Failed to update spack status");
       }
 
-      // Store the results and show the results dialog
-      setUpdateResults(data.summary || {});
+      // Add client names to the results
+      const enrichedResults = {
+        ...data.summary,
+        skippedClientIds: (data.summary.skippedClientIds || []).map(client => ({
+          ...client,
+          ...currentClientsData[client.id]
+        })),
+        failedClientIds: (data.summary.failedClientIds || []).map(client => ({
+          ...client,
+          ...currentClientsData[client.id]
+        })),
+        updatedClientIds: (data.summary.updatedClientIds || []).map(client => ({
+          ...client,
+          ...currentClientsData[client.id]
+        }))
+      };
+
+      // Store the enriched results and show the results dialog
+      setUpdateResults(enrichedResults);
       setShowResultsDialog(true);
       
       // Show a simple success toast
@@ -324,7 +359,7 @@ const SpackUpdate = ({
                     <dd>{updateResults.totalClientsFound}</dd>
                     <dt>Successfully updated:</dt>
                     <dd>{updateResults.modifiedCount}</dd>
-                    <dt>Skipped:</dt>
+                    <dt>Already have status:</dt>
                     <dd>{updateResults.skippedCount}</dd>
                     <dt>Errors:</dt>
                     <dd>{updateResults.errorCount}</dd>
@@ -345,7 +380,9 @@ const SpackUpdate = ({
                             {updateResults.updatedClientIds.map((client) => (
                               <tr key={client.id} className="hover:bg-gray-50">
                                 <td className="px-4 py-2 text-sm">{client.id}</td>
-                                <td className="px-4 py-2 text-sm">{client.name}</td>
+                                <td className="px-4 py-2 text-sm">
+                                  {client.lname && client.fname ? `${client.lname}, ${client.fname}` : '-'}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -354,7 +391,50 @@ const SpackUpdate = ({
                     </div>
                   )}
 
-                  {updateResults.failedClientIds && updateResults.failedClientIds.length > 0 && (
+                  {/* Show Already Have Status section */}
+                  {((updateResults.skippedClientIds && updateResults.skippedClientIds.length > 0) || 
+                    (updateResults.failedClientIds && updateResults.failedClientIds.some(client => 
+                      client.error === 'No changes made' || client.error === 'Already has status'
+                    ))) && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium mb-2 text-amber-600">Already Have Status:</h3>
+                      <div className="max-h-[300px] overflow-y-auto border border-amber-200 rounded-md">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-amber-50 sticky top-0">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-amber-700">ID</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-amber-700">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-amber-700">Current Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {[
+                              ...(updateResults.skippedClientIds || []),
+                              ...(updateResults.failedClientIds?.filter(client => 
+                                client.error === 'No changes made' || client.error === 'Already has status'
+                              ) || [])
+                            ].map((client) => (
+                              <tr key={client.id} className="hover:bg-amber-50">
+                                <td className="px-4 py-2 text-sm">{client.id}</td>
+                                <td className="px-4 py-2 text-sm">
+                                  {client.lname && client.fname ? `${client.lname}, ${client.fname}` : '-'}
+                                </td>
+                                <td className="px-4 py-2 text-sm text-amber-600">
+                                  {client.error === 'No changes made' ? 'Already has desired status' : 
+                                   client.currentStatus ? 'Already Spack Yes' : 'Already Spack No'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show Failed Updates section */}
+                  {updateResults.failedClientIds && updateResults.failedClientIds.some(client => 
+                    client.error !== 'No changes made' && client.error !== 'Already has status'
+                  ) && (
                     <div className="mt-4">
                       <h3 className="text-sm font-medium mb-2 text-red-600">Failed Updates:</h3>
                       <div className="max-h-[300px] overflow-y-auto border border-red-200 rounded-md">
@@ -362,16 +442,22 @@ const SpackUpdate = ({
                           <thead className="bg-red-50 sticky top-0">
                             <tr>
                               <th className="px-4 py-2 text-left text-xs font-medium text-red-700">ID</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-red-700">Error</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-red-700">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-red-700">Error Reason</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {updateResults.failedClientIds.map((client) => (
-                              <tr key={client.id} className="hover:bg-red-50">
-                                <td className="px-4 py-2 text-sm">{client.id}</td>
-                                <td className="px-4 py-2 text-sm text-red-600">{client.error}</td>
-                              </tr>
-                            ))}
+                            {updateResults.failedClientIds
+                              .filter(client => client.error !== 'No changes made' && client.error !== 'Already has status')
+                              .map((client) => (
+                                <tr key={client.id} className="hover:bg-red-50">
+                                  <td className="px-4 py-2 text-sm">{client.id}</td>
+                                  <td className="px-4 py-2 text-sm">
+                                    {client.lname && client.fname ? `${client.lname}, ${client.fname}` : '-'}
+                                  </td>
+                                  <td className="px-4 py-2 text-sm text-red-600">{client.error}</td>
+                                </tr>
+                              ))}
                           </tbody>
                         </table>
                       </div>

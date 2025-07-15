@@ -7,8 +7,8 @@ const CalendarFilter = ({
       <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
         Calendar Status
       </h2>
-      <div className="space-y-4">
-        <div className="flex flex-col space-y-2">
+      <div>
+        <div className="flex gap-5">
           <div className="flex items-center">
             <input
               type="checkbox"
