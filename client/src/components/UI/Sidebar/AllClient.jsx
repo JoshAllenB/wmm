@@ -1124,6 +1124,7 @@ const AllClient = () => {
         page={page}
         pageSize={pageSize}
         debouncedFiltering={debouncedFiltering}
+        table={tableInstance}
         isOpen={showCalendarModal}
         onClose={() => setShowCalendarModal(false)}
       />

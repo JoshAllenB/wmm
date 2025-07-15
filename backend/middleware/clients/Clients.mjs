@@ -1276,7 +1276,7 @@ router.post(
   async (req, res) => {
     const io = req.io;
     try {
-      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo } = req.body;
+      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo, clientIds = [] } = req.body;
 
       if (setCalendarTo === undefined) {
         return res.status(400).json({
@@ -1285,11 +1285,15 @@ router.post(
         });
       }
 
-      // First get the filter query
-      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
-
-      // Get all matching clients
-      const clients = await ClientModel.find(filterQuery).lean();
+      let clients;
+      if (clientIds.length > 0) {
+        // If specific client IDs are provided, use those
+        clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
+      } else {
+        // Otherwise use the filter query
+        const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+        clients = await ClientModel.find(filterQuery).lean();
+      }
 
       if (!clients || clients.length === 0) {
         return res.json({
@@ -1303,7 +1307,8 @@ router.post(
       let processedCount = 0;
       let skippedCount = 0;
       let errorCount = 0;
-      let updatedClientIds = []; // Track updated client IDs
+      let updatedClientIds = []; // Track successful updates
+      let failedClientIds = []; // Track failed updates and skips
 
       // Update each client's most recent WMM record
       for (const client of clients) {
@@ -1318,8 +1323,20 @@ router.post(
             // Get the most recent record
             const mostRecentRecord = wmmRecords[0];
             
+            // Check if the status is already what we want to set it to
+            if (mostRecentRecord.calendar === setCalendarTo) {
+              skippedCount++;
+              failedClientIds.push({
+                id: client.id,
+                fname: client.fname,
+                lname: client.lname,
+                error: "No changes made",
+                currentStatus: setCalendarTo
+              });
+              continue;
+            }
+            
             // Update the calendar status for the most recent record
-            // Use updateOne with overwrite option to force update
             const updateResult = await WmmModel.updateOne(
               { _id: mostRecentRecord._id },
               { 
@@ -1332,18 +1349,41 @@ router.post(
               { overwrite: false, upsert: false }  // Don't overwrite whole doc, but force update
             );
 
-            // Count as modified since we're forcing the update
-            modifiedCount++;
-            updatedClientIds.push({
-              id: client.id,
-              name: `${client.lname}, ${client.fname}`,
-              wmmId: mostRecentRecord._id
-            });
+            if (updateResult.modifiedCount > 0) {
+              modifiedCount++;
+              updatedClientIds.push({
+                id: client.id,
+                fname: client.fname,
+                lname: client.lname,
+                wmmId: mostRecentRecord._id
+              });
+            } else {
+              skippedCount++;
+              failedClientIds.push({
+                id: client.id,
+                fname: client.fname,
+                lname: client.lname,
+                error: "Already has status",
+                currentStatus: mostRecentRecord.calendar
+              });
+            }
           } else {
             skippedCount++;
+            failedClientIds.push({
+              id: client.id,
+              fname: client.fname,
+              lname: client.lname,
+              error: "No WMM record found"
+            });
           }
         } catch (err) {
           errorCount++;
+          failedClientIds.push({
+            id: client.id,
+            fname: client.fname,
+            lname: client.lname,
+            error: err.message || "Unknown error"
+          });
           console.error(`Error processing client ID ${client.id}:`, err);
         }
       }
@@ -1366,7 +1406,8 @@ router.post(
           modifiedCount,
           skippedCount,
           errorCount,
-          updatedClientIds
+          updatedClientIds,
+          failedClientIds
         }
       });
 
