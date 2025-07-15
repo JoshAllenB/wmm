@@ -355,7 +355,6 @@ export const getAllPayments = async (req, res) => {
 
     const pageNum = parseInt(page);
     const pageSize = parseInt(limit);
-    const skip = (pageNum - 1) * pageSize;
 
     // Generate cache key
     const cacheKey = generateCacheKey(req.query);
@@ -370,7 +369,6 @@ export const getAllPayments = async (req, res) => {
     const parsedSearch = parseTaggedSearch(search);
     
     let clients = [];
-    let totalRecords = 0;
     let flatPayments = [];
     let paginatedPayments = [];
 
@@ -404,63 +402,6 @@ export const getAllPayments = async (req, res) => {
     if (endYear) {
       yearFilter.$lte = new Date(parseInt(endYear), 11, 31, 23, 59, 59, 999);
     }
-
-    // First, get total count of all payments that match the filters
-    const getTotalCount = async () => {
-      if (parsedSearch.paymentRef) {
-        const paymentRefQuery = buildPaymentRefQuery(parsedSearch.paymentRef);
-        const countQueries = validModels.map(async ([modelName, model]) => {
-          try {
-            let query = { ...paymentRefQuery };
-            if (Object.keys(yearFilter).length > 0) {
-              const dateField = getDateFieldForModel(modelName);
-              if (dateField) {
-                query[dateField] = yearFilter;
-              }
-            }
-            return await model.countDocuments(query);
-          } catch (err) {
-            console.error(`Error counting ${modelName}:`, err);
-            return 0;
-          }
-        });
-        const counts = await Promise.all(countQueries);
-        return counts.reduce((sum, count) => sum + count, 0);
-      } else {
-        const clientFilter = buildClientSearchFilter(parsedSearch);
-        const clientCount = await ClientModel.countDocuments(clientFilter);
-        if (clientCount === 0) return 0;
-
-        const countQueries = validModels.map(async ([modelName, model]) => {
-          try {
-            let query = {};
-            if (Object.keys(yearFilter).length > 0) {
-              const dateField = getDateFieldForModel(modelName);
-              if (dateField) {
-                query[dateField] = yearFilter;
-              }
-            }
-            return await model.countDocuments(query);
-          } catch (err) {
-            console.error(`Error counting ${modelName}:`, err);
-            return 0;
-          }
-        });
-        const counts = await Promise.all(countQueries);
-        return counts.reduce((sum, count) => sum + count, 0);
-      }
-    };
-
-    // Get total count first
-    totalRecords = await getTotalCount();
-    const calculatedTotalPages = Math.ceil(totalRecords / pageSize);
-    
-    // Ensure page number is within valid range
-    const validPageNum = Math.max(1, Math.min(pageNum, calculatedTotalPages));
-    
-    // Calculate slice indices
-    const startIndex = (validPageNum - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, totalRecords);
 
     // If searching for a payment reference, search directly in payment models
     if (parsedSearch.paymentRef) {
@@ -531,21 +472,11 @@ export const getAllPayments = async (req, res) => {
       // Handle name search or regular pagination
       const clientFilter = buildClientSearchFilter(parsedSearch);
       
-      if (search) {
-        // When searching, get all matching clients
-        clients = await ClientModel.find(clientFilter)
-          .select('id lname fname mname company')
-          .lean()
-          .exec();
-      } else {
-        // Normal pagination
-        clients = await ClientModel.find({})
-          .select('id lname fname mname company')
-          .skip(skip)
-          .limit(pageSize)
-          .lean()
-          .exec();
-      }
+      // Get all matching clients first
+      clients = await ClientModel.find(clientFilter)
+        .select('id lname fname mname company')
+        .lean()
+        .exec();
 
       if (clients.length > 0) {
         // Get client IDs for payment queries
@@ -721,11 +652,6 @@ export const getAllPayments = async (req, res) => {
               }
             });
 
-            // Add sorting
-            pipeline.push({
-              $sort: { [sort]: order === 'desc' ? -1 : 1 }
-            });
-
             const result = await model.aggregate(pipeline);
             return result;
           } catch (err) {
@@ -781,15 +707,22 @@ export const getAllPayments = async (req, res) => {
       });
     }
 
-    // Slice the data for current page
+    // Calculate pagination based on actual data length
+    const totalRecords = paymentsWithClientInfo.length;
+    const totalPages = Math.ceil(totalRecords / pageSize);
+    const validPageNum = Math.max(1, Math.min(pageNum, totalPages));
+    const startIndex = (validPageNum - 1) * pageSize;
+    const endIndex = Math.min(startIndex + pageSize, totalRecords);
+
+    // Get paginated data
     paginatedPayments = paymentsWithClientInfo.slice(startIndex, endIndex);
 
-    // Prepare the final result with consistent pagination
+    // Prepare the final result
     const result = {
       page: validPageNum,
       limit: pageSize,
       totalRecords,
-      totalPages: calculatedTotalPages,
+      totalPages,
       data: paginatedPayments,
       executionTime: Date.now() - startTime
     };
