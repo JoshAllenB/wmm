@@ -6,4 +6,5 @@ export { default as SubclassFilter } from './SubclassFilter';
 export { default as AreasFilter } from './AreasFilter';
 export { default as CalendarFilter } from './CalendarFilter';
 export { default as ServicesFilter } from './ServicesFilter';
-export { default as UserFilter } from './UserFilter'; 
+export { default as UserFilter } from './UserFilter';
+export { default as SpackFilter } from './SpackFilter'; 

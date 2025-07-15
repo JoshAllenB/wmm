@@ -18,6 +18,7 @@ import {
   CalendarFilter,
   ServicesFilter,
   UserFilter,
+  SpackFilter,
 } from "./filterModule";
 
 // Utility function to format date to "MM/DD/YY"
@@ -204,6 +205,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
     fomPaymentToYear: "",
     calendarReceived: false,
     calendarNotReceived: false,
+    spackReceived: false,
+    spackNotReceived: false,
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -385,6 +388,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       fomPaymentToYear: "",
       calendarReceived: false,
       calendarNotReceived: false,
+      spackReceived: false,
+      spackNotReceived: false,
     });
   };
 
@@ -688,6 +693,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
       // Calendar status
       ...(filterData.calendarReceived && { calendarReceived: true }),
       ...(filterData.calendarNotReceived && { calendarNotReceived: true }),
+      // Spack status
+      ...(filterData.spackReceived && { spackReceived: true }),
+      ...(filterData.spackNotReceived && { spackNotReceived: true }),
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
@@ -1556,6 +1564,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       </div>
                     </div>
                     <CalendarFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                    />
+                    <SpackFilter
                       filterData={filterData}
                       handleChange={handleChange}
                     />

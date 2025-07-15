@@ -711,6 +711,46 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       baseFilter.push({ id: -1 });
     }
   }
+
+  // Handle SPack Status Filter
+  if (advancedFilterData.spackReceived || advancedFilterData.spackNotReceived) {
+    try {
+      let spackQuery = {};
+
+      // Build query based on selected options
+      if (advancedFilterData.spackReceived && !advancedFilterData.spackNotReceived) {
+        spackQuery = { spack: true };
+      } else if (advancedFilterData.spackNotReceived && !advancedFilterData.spackReceived) {
+        spackQuery = { 
+          $or: [
+            { spack: false },
+            { spack: { $exists: false } },
+            { spack: null }
+          ]
+        };
+      } else if (advancedFilterData.spackReceived && advancedFilterData.spackNotReceived) {
+        // If both are selected, no need to filter by spack status
+        return;
+      }
+
+      // Only proceed if we have a valid query
+      if (Object.keys(spackQuery).length > 0) {
+        const clientsWithSpackStatus = await ClientModel.find(spackQuery).distinct('id');
+        const validClientIds = clientsWithSpackStatus
+          .map(id => parseInt(id))
+          .filter(id => !isNaN(id));
+
+        if (validClientIds.length > 0) {
+          baseFilter.push({ id: { $in: validClientIds } });
+        } else {
+          baseFilter.push({ id: -1 });
+        }
+      }
+    } catch (error) {
+      console.error('Error in spack status filtering:', error);
+      baseFilter.push({ id: -1 });
+    }
+  }
 }
 
 function addPersonalInfoFilters(baseFilter, advancedFilterData) {
