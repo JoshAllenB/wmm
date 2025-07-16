@@ -664,7 +664,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (addressData.barangay) lines.push(addressData.barangay.trim());
     
     // Line 4: Zipcode and City (no comma for last line)
-    const lastLine = [areaData.zipcode, area].filter(Boolean).join(" ").trim();
+    const zipcode = areaData.zipcode || addressData.zipcode;
+    const cityName = area || '';
+    // Ensure we use the complete city name
+    const lastLine = [
+      zipcode,
+      cityName.length > 0 ? cityName.toUpperCase() : ''
+    ].filter(Boolean).join(" ").trim();
+    
     if (lastLine) lines.push(lastLine);
     
     return lines.join("\n");
@@ -700,7 +707,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Update handleAreaChange to ensure values are never undefined
   const handleAreaChange = (field, value) => {
-    const safeValue = value || ""; // Ensure value is never undefined
+    // Allow empty string values to persist
+    const safeValue = value === undefined ? "" : value;
 
     setAreaData((prevData) => {
       const newAreaData = {
@@ -708,6 +716,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         [field]: safeValue,
       };
 
+      // Update address data and form data based on field
       if (field === 'zipcode') {
         setAddressData(prev => ({
           ...prev,
@@ -716,13 +725,65 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         
         setFormData(prev => ({
           ...prev,
-          zipcode: safeValue ? parseInt(safeValue) : 0 // Use 0 instead of empty string
+          zipcode: safeValue ? parseInt(safeValue) : "", // Allow empty string
+        }));
+      } else if (field === 'city') {
+        // Ensure we store the complete city name
+        const upperValue = safeValue.toUpperCase();
+        setFormData(prev => ({
+          ...prev,
+          area: upperValue,
+        }));
+        // Update the combined address immediately for city changes
+        const formattedAddress = formatAddressLines(
+          addressData,
+          upperValue,
+          {
+            ...newAreaData,
+            zipcode: addressData.zipcode || newAreaData.zipcode
+          }
+        );
+        setCombinedAddress(formattedAddress);
+        setFormData(prev => ({
+          ...prev,
+          area: upperValue,
+          address: formattedAddress
+        }));
+      } else if (field === 'acode') {
+        setFormData(prev => ({
+          ...prev,
+          acode: safeValue,
+        }));
+      }
+
+      // Only update combined address for non-city changes
+      if (field !== 'city') {
+        const updatedAddressData = {
+          ...addressData,
+          zipcode: field === 'zipcode' ? safeValue : addressData.zipcode
+        };
+
+        const formattedAddress = formatAddressLines(
+          updatedAddressData,
+          formData.area,
+          {
+            ...newAreaData,
+            zipcode: field === 'zipcode' ? safeValue : newAreaData.zipcode
+          }
+        );
+        
+        setCombinedAddress(formattedAddress);
+        setFormData(prev => ({
+          ...prev,
+          address: formattedAddress
         }));
       }
 
       return newAreaData;
     });
   };
+
+
 
   // Update handleCombinedAddressChange to ensure values are never undefined
   const handleCombinedAddressChange = (e) => {

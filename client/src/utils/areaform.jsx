@@ -162,15 +162,17 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   }, [citySearchResults, showCityResults, highlightedIndex]);
 
   // Handle city input change using trie search
-  const handleCityInputChange = async (e) => {
-    const value = e.target.value;
+  const handleCityInputChange = (e) => {
+    const value = e.target.value.toUpperCase();
     setCity(value);
+    
+    // Always trigger the city change first
     onAreaChange("city", value);
 
     if (value.length >= 2) {
       const results = searchTrie(cityTrie, value);
       const formattedResults = results.map(location => ({
-        name: location.name,
+        name: location.name.toUpperCase(),
         _id: location._id,
         zipcode: location.zipcode
       }));
@@ -179,26 +181,51 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     } else {
       setCitySearchResults([]);
       setShowCityResults(false);
+      // Clear related fields when city is cleared
+      setAcode("");
+      setZipcode("");
+      onAreaChange("acode", "");
+      onAreaChange("zipcode", "");
+      // Force another city update to ensure the combined address updates
+      setTimeout(() => {
+        onAreaChange("city", value);
+      }, 0);
     }
   };
 
   // Handle city selection
   const handleCitySelect = (cityName, areaCode, cityZipcode) => {
-    setCity(cityName);
-    setAcode(areaCode);
-    onAreaChange("city", cityName);
-    onAreaChange("acode", areaCode);
+    const upperCityName = cityName.toUpperCase();
     
-    if (cityZipcode) {
-      const zipcodeStr = String(cityZipcode);
-      setZipcode(zipcodeStr);
-      onAreaChange("zipcode", zipcodeStr);
-    }
+    // First update the city to trigger the address update
+    onAreaChange("city", upperCityName);
+    
+    // Then update area code and zipcode
+    setCity(upperCityName);
+    setAcode(areaCode);
+    
+    // Find the matching area and location
+    const selectedArea = areas.find(area => area._id === areaCode);
+    const selectedLocation = selectedArea?.locations.find(loc => 
+      loc.name.toUpperCase() === upperCityName
+    );
+    
+    // Get the zipcode either from the selected location or passed zipcode
+    const newZipcode = selectedLocation?.zipcode || cityZipcode || "";
+    setZipcode(String(newZipcode));
+
+    // Update parent component with all changes in sequence
+    onAreaChange("acode", areaCode);
+    onAreaChange("zipcode", String(newZipcode));
+    
+    // Force another city update to ensure the combined address updates
+    setTimeout(() => {
+      onAreaChange("city", upperCityName);
+    }, 0);
     
     setShowCityResults(false);
 
     // Update available zipcodes for the selected area
-    const selectedArea = areas.find((area) => area._id === areaCode);
     if (selectedArea?.locations) {
       const zipcodes = selectedArea.locations
         .filter((loc) => loc.zipcode)
@@ -214,6 +241,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     setAcode(value);
     onAreaChange("acode", value);
 
+    // Only show search results if there's a value
     if (value.length >= 1) {
       const results = searchTrie(areaTrie, value);
       setAreaSearchResults(results);
@@ -221,11 +249,10 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     } else {
       setAreaSearchResults([]);
       setShowAreaResults(false);
+      // Clear related fields when area code is cleared
+      setZipcode("");
+      onAreaChange("zipcode", "");
     }
-
-    // Clear zipcode when area changes
-    setZipcode("");
-    onAreaChange("zipcode", "");
   };
 
   // Handle area code selection
@@ -357,17 +384,17 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
 
   useEffect(() => {
     if (initialAreaData) {
-      if (initialAreaData.acode !== undefined && initialAreaData.acode !== acode) {
+      // Only update if the values are different and not explicitly cleared by user
+      if (initialAreaData.acode !== undefined && initialAreaData.acode !== acode && !acode.trim() === "") {
         setAcode(initialAreaData.acode);
       }
-      if (initialAreaData.zipcode !== undefined && String(initialAreaData.zipcode) !== zipcode) {
+      if (initialAreaData.zipcode !== undefined && String(initialAreaData.zipcode) !== zipcode && !zipcode.trim() === "") {
         setZipcode(String(initialAreaData.zipcode));
       }
-      if (initialAreaData.city !== undefined && initialAreaData.city !== city) {
+      if (initialAreaData.city !== undefined && initialAreaData.city !== city && !city.trim() === "") {
         setCity(initialAreaData.city);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialAreaData]);
 
   return (
