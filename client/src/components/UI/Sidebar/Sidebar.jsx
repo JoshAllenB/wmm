@@ -63,6 +63,10 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
     return hasRole("WMM") || hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
   };
 
+  const hasDataExportAccess = () => {
+    return hasRole("WMM") || hasRole("HRG") || hasRole("CAL");
+  };
+
   useEffect(() => {
     if (location.pathname === "/" || location.pathname === "/login") {
       if (hasClientManagementRole()) {
@@ -195,6 +199,17 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
               </MenuItem>
             )}
 
+            {hasDataExportAccess() && (
+              <MenuItem
+                icon={<DownloadIcon />}
+                component={<Link to="/data-export" />}
+                onClick={() => handleSelect("Data Export")}
+                active={selected === "Data Export"}
+              >
+                Data Export
+              </MenuItem>
+            )}
+
             {hasRole("WMM") && (
               <SubMenu
                 label="Settings"
@@ -223,14 +238,6 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
                   active={selected === "Group"}
                 >
                   Groups
-                </MenuItem>
-                <MenuItem
-                  icon={<DownloadIcon />}
-                  component={<Link to="/data-export" />}
-                  onClick={() => handleSelect("Data Export")}
-                  active={selected === "Data Export"}
-                >
-                  Data Export
                 </MenuItem>
               </SubMenu>
             )}

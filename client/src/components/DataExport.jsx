@@ -1,42 +1,55 @@
 import React, { useState, useEffect } from "react";
 import { dataExportService } from "../services/DataExportService";
-import { useUser } from "../utils/Hooks/userProvider"; // Use the existing user context
+import { useUser } from "../utils/Hooks/userProvider";
 
 const DataExport = () => {
-  const { userData } = useUser(); // Get the current user from user context
-  const [month, setMonth] = useState(new Date().getMonth() + 1); // Current month (1-12)
-  const [year, setYear] = useState(new Date().getFullYear()); // Current year
+  const { userData, hasRole } = useUser();
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [year, setYear] = useState(new Date().getFullYear());
   const [exportStatus, setExportStatus] = useState(
     dataExportService.getExportStatus()
   );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [downloadReady, setDownloadReady] = useState(false);
+  const [exportType, setExportType] = useState("");
 
-  // Month names for the dropdown
+  // Determine available export types based on user roles
+  const availableExportTypes = React.useMemo(() => {
+    const types = [];
+    if (hasRole("WMM")) {
+      types.push("WMM");
+    }
+    if (hasRole("HRG")) {
+      types.push("HRG");
+    }
+    return types;
+  }, [hasRole]);
+
+  // Set initial export type based on available types
+  useEffect(() => {
+    if (availableExportTypes.length === 1) {
+      setExportType(availableExportTypes[0]);
+    } else if (availableExportTypes.length > 1) {
+      // Default to WMM if user has both roles
+      setExportType(availableExportTypes.includes("WMM") ? "WMM" : availableExportTypes[0]);
+    } else {
+      setExportType(''); // Clear export type if no roles available
+      setError("You don't have permission to generate any reports");
+    }
+  }, [availableExportTypes]);
+
   const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
   ];
 
-  // Years for the dropdown (current year and 5 years back)
   const years = Array.from(
     { length: 6 },
     (_, i) => new Date().getFullYear() - i
   );
 
   useEffect(() => {
-    // Subscribe to export status updates
     const handleStatusUpdate = (status) => {
       setExportStatus(status);
       setIsGenerating(status.inProgress);
@@ -54,7 +67,6 @@ const DataExport = () => {
       );
     }
 
-    // Cleanup on unmount
     return () => {
       if (userData?.id) {
         dataExportService.unsubscribeFromExportStatus(userData.id);
@@ -68,6 +80,11 @@ const DataExport = () => {
       return;
     }
 
+    if (!exportType) {
+      setError("Please select a report type");
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setError(null);
@@ -76,7 +93,8 @@ const DataExport = () => {
         month,
         year,
         userData.id,
-        userData.username
+        userData.username,
+        exportType
       );
     } catch (err) {
       setError(err.message || "Failed to generate report");
@@ -92,7 +110,7 @@ const DataExport = () => {
 
     try {
       await dataExportService.downloadReport(exportStatus.filename);
-      setDownloadReady(false); // Reset download state after successful download
+      setDownloadReady(false);
     } catch (err) {
       setError(err.message || "Failed to download report");
     }
@@ -105,56 +123,88 @@ const DataExport = () => {
       </h2>
 
       <div className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Month
-            </label>
-            <select
-              value={month}
-              onChange={(e) => setMonth(parseInt(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isGenerating}
-            >
-              {monthNames.map((name, index) => (
-                <option key={index + 1} value={index + 1}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {availableExportTypes.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Report Type
+              </label>
+              <select
+                value={exportType}
+                onChange={(e) => setExportType(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isGenerating}
+              >
+                {availableExportTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type} Report
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Year
-            </label>
-            <select
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              disabled={isGenerating}
-            >
-              {years.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
+          {availableExportTypes.length > 0 ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Month
+                </label>
+                <select
+                  value={month}
+                  onChange={(e) => setMonth(parseInt(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isGenerating}
+                >
+                  {monthNames.map((name, index) => (
+                    <option key={index + 1} value={index + 1}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Year
+                </label>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(parseInt(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isGenerating}
+                >
+                  {years.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div className="col-span-3">
+              <div className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md">
+                <p>You don't have access to any report types. Please contact your administrator to get the necessary permissions.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end">
-          <button
-            onClick={handleGenerateReport}
-            disabled={isGenerating}
-            className={`px-4 py-2 rounded-md text-white font-medium ${
-              isGenerating
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {isGenerating ? "Generating..." : "Generate Report"}
-          </button>
+          {availableExportTypes.length > 0 && (
+            <button
+              onClick={handleGenerateReport}
+              disabled={isGenerating}
+              className={`px-4 py-2 rounded-md text-white font-medium ${
+                isGenerating
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
+            >
+              {isGenerating ? "Generating..." : `Generate ${exportType} Report`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -191,7 +241,7 @@ const DataExport = () => {
             onClick={handleDownloadReport}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
           >
-            Download Report
+            Download {exportType} Report
           </button>
         </div>
       )}
