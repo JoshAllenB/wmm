@@ -831,7 +831,7 @@ const RenewalNoticeDataOverlay = forwardRef(({
   };
 
   return (
-    <div className="p-4 border rounded shadow-sm bg-white w-[1000px]">
+    <div className="p-4 border rounded shadow-sm bg-white w-full max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Renewal Notice Data Overlay</h3>
         <div className="flex gap-2">
@@ -851,655 +851,658 @@ const RenewalNoticeDataOverlay = forwardRef(({
         </div>
       </div>
 
-      {/* Reorganized to two-column layout with config on left, preview on right */}
-      <div className="flex flex-row w-full gap-4">
-        {/* Left side: Configuration */}
-        <div className="w-2/5">
-          {(showConfig || useSharedConfig) && !useSharedConfig && (
-            <div className="mb-6 border rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="font-medium">Position Configuration</h4>
-                <div className="flex gap-2">
-                  <Button onClick={savePositions} variant="secondary" size="sm">Save</Button>
-                  <Button onClick={loadPositions} variant="secondary" size="sm">Load</Button>
-                  <Button onClick={resetPositions} variant="outline" size="sm">Reset</Button>
+      {/* Main content area with scroll */}
+      <div className="flex-1 overflow-auto">
+        {/* Reorganized to two-column layout with config on left, preview on right */}
+        <div className="flex flex-col md:flex-row w-full gap-4">
+          {/* Left side: Configuration */}
+          <div className="w-full md:w-2/5">
+            {(showConfig || useSharedConfig) && !useSharedConfig && (
+              <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium">Position Configuration</h4>
+                  <div className="flex gap-2">
+                    <Button onClick={savePositions} variant="secondary" size="sm">Save</Button>
+                    <Button onClick={loadPositions} variant="secondary" size="sm">Load</Button>
+                    <Button onClick={resetPositions} variant="outline" size="sm">Reset</Button>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4 mb-4">
-                {/* Group 1: ID, Expiry, Last Issue */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Group 1: ID, Expiry, Last Issue</legend>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group1.top} 
-                        onChange={(e) => handleGroupPositionChange('group1', 'top', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group1.left} 
-                        onChange={(e) => handleGroupPositionChange('group1', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Width (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group1.width} 
-                        onChange={(e) => handleGroupPositionChange('group1', 'width', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Line Spacing (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group1.lineSpacing} 
-                        onChange={(e) => handleGroupPositionChange('group1', 'lineSpacing', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Font settings for Group 1 */}
-                  <div className="mt-2 border-t pt-2">
-                    <div className="text-xs font-medium mb-1">Font Settings</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-xs mb-1">Size (pt)</label>
-                        <input 
-                          type="number" 
-                          step="1"
-                          value={positions.group1.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('group1', 'fontSize', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Weight</label>
-                        <select
-                          value={positions.group1.fontWeight}
-                          onChange={(e) => handleGroupPositionChange('group1', 'fontWeight', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Font Family</label>
-                        <select
-                          value={positions.group1.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('group1', 'fontFamily', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                          <option value="Verdana">Verdana</option>
-                          <option value="Tahoma">Tahoma</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
                 
-                {/* Group 2: ID Header, Name & Address */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Group 2: ID, Name, Address</legend>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group2.top} 
-                        onChange={(e) => handleGroupPositionChange('group2', 'top', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group2.left} 
-                        onChange={(e) => handleGroupPositionChange('group2', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Width (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group2.width} 
-                        onChange={(e) => handleGroupPositionChange('group2', 'width', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Line Spacing (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group2.lineSpacing} 
-                        onChange={(e) => handleGroupPositionChange('group2', 'lineSpacing', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Font settings for Group 2 */}
-                  <div className="mt-2 border-t pt-2">
-                    <div className="text-xs font-medium mb-1">Font Settings</div>
-                    <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  {/* Group 1: ID, Expiry, Last Issue */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Group 1: ID, Expiry, Last Issue</legend>
+                    <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <label className="block text-xs mb-1">Size (pt)</label>
+                        <label className="block text-xs mb-1">Top (in)</label>
                         <input 
                           type="number" 
-                          step="1"
-                          value={positions.group2.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('group2', 'fontSize', e.target.value)}
+                          step="0.01"
+                          value={positions.group1.top} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'top', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs mb-1">Weight</label>
-                        <select
-                          value={positions.group2.fontWeight}
-                          onChange={(e) => handleGroupPositionChange('group2', 'fontWeight', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Font Family</label>
-                        <select
-                          value={positions.group2.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('group2', 'fontFamily', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                          <option value="Verdana">Verdana</option>
-                          <option value="Tahoma">Tahoma</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </fieldset>
-
-                {/* Group 3: Sucat Reminder Text */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Group 3: Sucat Reminder</legend>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group3.top} 
-                        onChange={(e) => handleGroupPositionChange('group3', 'top', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group3.left} 
-                        onChange={(e) => handleGroupPositionChange('group3', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Width (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group3.width} 
-                        onChange={(e) => handleGroupPositionChange('group3', 'width', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Line Spacing (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.group3.lineSpacing} 
-                        onChange={(e) => handleGroupPositionChange('group3', 'lineSpacing', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Font settings for Group 3 */}
-                  <div className="mt-2 border-t pt-2">
-                    <div className="text-xs font-medium mb-1">Font Settings</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-xs mb-1">Size (pt)</label>
+                        <label className="block text-xs mb-1">Left (in)</label>
                         <input 
                           type="number" 
-                          step="1"
-                          value={positions.group3.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('group3', 'fontSize', e.target.value)}
+                          step="0.01"
+                          value={positions.group1.left} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'left', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs mb-1">Weight</label>
-                        <select
-                          value={positions.group3.fontWeight}
-                          onChange={(e) => handleGroupPositionChange('group3', 'fontWeight', e.target.value)}
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group1.width} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'width', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
+                        />
                       </div>
                       <div>
-                        <label className="block text-xs mb-1">Font Family</label>
-                        <select
-                          value={positions.group3.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('group3', 'fontFamily', e.target.value)}
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group1.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'lineSpacing', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                          <option value="Verdana">Verdana</option>
-                          <option value="Tahoma">Tahoma</option>
-                        </select>
+                        />
                       </div>
                     </div>
-                  </div>
-                </fieldset>
-              </div>
-              
-              <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                <p className="font-medium text-blue-700">Measurement Tips:</p>
-                <p className="text-xs text-blue-600">
-                  All positions are measured in inches from the top-left corner of the page. 
-                  Use the preview button to verify layout before printing.
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <span className="mr-2 text-sm">ID Range:</span>
-              <span className="font-medium">{startId || "Start"} - {endId || "End"}</span>
-            </div>
-            
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-sm">
-                <span className="font-medium">{subscriberCount}</span> subscribers selected for printing
-              </div>
-              
-              <div className="text-xs text-gray-500">
-                {subscriberCount > 0 && subscriberCount < 20 && 
-                  `Estimated pages: ${subscriberCount} (one subscriber per page)`
-                }
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            
-            <Button 
-              onClick={handlePrintDataOverlay} 
-              disabled={isLoading || subscriberCount === 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <span className="mr-1">🖨️</span> Preview Print
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Right side: Live preview pane */}
-        <div className="w-3/5">
-          {/* Add reminder settings above the preview */}
-          <div className="mb-4 p-4 border rounded-lg bg-gray-50">
-            <h4 className="font-medium text-sm mb-3">Reminder Settings</h4>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs mb-1">Month</label>
-                <select
-                  value={reminderMonth}
-                  onChange={(e) => setReminderMonth(e.target.value)}
-                  className="w-full px-2 py-1 border rounded text-sm"
-                >
-                  {[
-                    'January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'
-                  ].map(month => (
-                    <option key={month} value={month}>{month}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs mb-1">Year</label>
-                <input
-                  type="number"
-                  value={reminderYear}
-                  onChange={(e) => setReminderYear(e.target.value)}
-                  className="w-full px-2 py-1 border rounded text-sm"
-                  min="2000"
-                  max="2100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs mb-1">Location Type</label>
-                <select
-                  value={locationType}
-                  onChange={(e) => setLocationType(e.target.value)}
-                  className="w-full px-2 py-1 border rounded text-sm"
-                >
-                  <option value="Local">Local</option>
-                  <option value="Foreign">Foreign</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div className="border rounded-lg shadow-sm bg-white p-4 h-full">
-            <h3 className="text-center font-semibold text-sm mb-3">Live Preview</h3>
-            
-            <div className="relative flex items-center justify-center overflow-auto border rounded">
-              {filteredSubscribers.length > 0 ? (
-                <div className="relative w-full bg-gray-50">
-                  <div className="mx-auto" style={{
-                    width: "100%",
-                    maxWidth: "650px", 
-                    height: "750px",
-                    backgroundColor: "white",
-                    margin: "10px auto",
-                    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-                    position: "relative",
-                    overflow: "hidden"
-                  }}>
-                    {/* Page representation */}
-                    <div style={{
-                      position: "absolute",
-                      top: "0",
-                      left: "0",
-                      width: "100%",
-                      height: "100%",
-                      transform: "scale(0.95)", 
-                      transformOrigin: "top center"
-                    }}>
-                      {/* Real-time preview of the first subscriber */}
-                      {(() => {
-                        if (filteredSubscribers.length === 0) return null;
-                        
-                        const subscriber = processSubscriberData(filteredSubscribers[0]);
-                        if (!subscriber) return null;
-                        
-                        // Calculate scale factors to convert inches to pixels in our preview
-                        // For a standard 8.5x11 inch page in our container
-                        const scaleX = 650 / 8.5; // pixels per inch horizontally
-                        const scaleY = 750 / 11;  // pixels per inch vertically
-                        
-                        // Determine if we need to adjust positions based on missing fields
-                        let namePosition = positions.group2.top + positions.group2.lineSpacing;
-                        let companyPosition = positions.group2.top + positions.group2.lineSpacing * 2;
-                        let addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 3;
-                        
-                        // If company exists but no personal name, use company as the name
-                        const displayName = subscriber.hasPersonalName ? 
-                          `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
-                          '';
-                        
-                        // Adjust positions based on what fields are present
-                        if (!subscriber.hasPersonalName && subscriber.hasCompany) {
-                          namePosition = positions.group2.top + positions.group2.lineSpacing;
-                          addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
-                        } else if (!subscriber.hasCompany) {
-                          addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
-                        }
-
-                        // Calculate actual address line positions
-                        const addressLines = [];
-                        const processAddress = (addr) => {
-                          if (!addr) return null;
-                          return addr.split('\n')
-                            .map(line => line.trim())
-                            .filter(line => line.length > 0)
-                            .join('\n');
-                        };
-
-                        const address1 = processAddress(subscriber.address1);
-                        const address2 = processAddress(subscriber.address2);
-                        const address3 = processAddress(subscriber.address3);
-                        const address4 = processAddress(subscriber.address4);
-
-                        if (address1) addressLines.push(address1);
-                        if (address2) addressLines.push(address2);
-                        if (address3) addressLines.push(address3);
-                        if (address4) addressLines.push(address4);
-
-                        // Join all address lines into a single string with line breaks
-                        const fullAddress = addressLines.join('\n');
-
-                        // Split the full address into lines for display
-                        const displayLines = fullAddress.split('\n');
-
-                        // Adjust addressStartPosition based on number of display lines
-                        const addressLinePositions = displayLines.map((_, index) => ({
-                          top: addressStartPosition + (positions.group2.lineSpacing * index)
-                        }));
-                        
-                        return (
-                          <>
-                            {/* Group 1: ID, Expiry, Last Issue (Right side) */}
-                            <div 
-                              className="absolute bg-blue-50 border border-blue-200 p-2 text-sm font-mono"
-                              style={{
-                                top: `${positions.group1.top * scaleY}px`,
-                                left: `${positions.group1.left * scaleX}px`,
-                                width: `${positions.group1.width * scaleX}px`,
-                                height: `${positions.group1.lineSpacing * 3 * scaleY}px`,
-                                fontFamily: positions.group1.fontFamily,
-                                fontSize: `${positions.group1.fontSize}px`,
-                                fontWeight: positions.group1.fontWeight
-                              }}
-                            >
-                              <div className="absolute text-xs text-blue-500 font-mono -top-4 -left-1">Group 1</div>
-                              <div style={{
-                                position: "absolute",
-                                top: "0px",
-                                left: "0px"
-                              }}>
-                                <strong>{subscriber.id}</strong>
-                              </div>
-                              
-                              <div style={{
-                                position: "absolute",
-                                top: `${positions.group1.lineSpacing * scaleY}px`,
-                                left: "0px"
-                              }}>
-                                <strong>{subscriber.expiryDate}</strong>
-                              </div>
-                              
-                              <div style={{
-                                position: "absolute",
-                                top: `${positions.group1.lineSpacing * 2 * scaleY}px`,
-                                left: "0px"
-                              }}>
-                                <strong>{getLastIssue(subscriber.expiryDate)}</strong>
-                              </div>
-                            </div>
-                            
-                            {/* Group 2: ID Header, Name & Address (Left side) */}
-                            <div 
-                              className="absolute bg-green-50 border border-green-200 p-2 text-sm font-mono"
-                              style={{
-                                top: `${positions.group2.top * scaleY}px`,
-                                left: `${positions.group2.left * scaleX}px`,
-                                width: `${positions.group2.width * scaleX}px`,
-                                minHeight: `${positions.group2.lineSpacing * 7 * scaleY}px`,
-                                fontFamily: positions.group2.fontFamily,
-                                fontSize: `${positions.group2.fontSize}px`,
-                                fontWeight: positions.group2.fontWeight
-                              }}
-                            >
-                              <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Group 2</div>
-                              <div style={{
-                                position: "absolute",
-                                top: "0px",
-                                left: "0px",
-                                width: "100%"
-                              }}>
-                                {subscriber.id + '/Exp:' + subscriber.expiryDate + '/' + subscriber.copies + 'cps' + (subscriber.acode ? '/' + subscriber.acode : '')}
-                              </div>
-                              
-                              {/* Add personal name if it exists */}
-                              {subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.group2.lineSpacing * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {displayName}
-                                </div>
-                              )}
-                              
-                              {/* Add company if it exists (and wasn't already used as the name) */}
-                              {subscriber.hasCompany && subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.group2.lineSpacing * 2 * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {subscriber.company}
-                                </div>
-                              )}
-                              
-                              {/* Company being used as the name */}
-                              {subscriber.hasCompany && !subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.group2.lineSpacing * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {subscriber.company}
-                                </div>
-                              )}
-                              
-                              {/* Address fields with adjusted positions */}
-                              {displayLines.map((line, index) => (
-                                <div
-                                  key={`address-line-${index}`}
-                                  style={{
-                                    position: "absolute",
-                                    top: `${(addressLinePositions[index].top - positions.group2.top) * scaleY}px`,
-                                    left: "0px",
-                                    width: "100%",
-                                    whiteSpace: "pre-wrap"
-                                  }}
-                                >
-                                  {line}
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* Group 3: Sucat Reminder Text - Moved outside Group 2 container */}
-                            <div 
-                              className="absolute bg-yellow-50 border border-yellow-200 p-2 text-sm font-mono"
-                              style={{
-                                top: `${positions.group3.top * scaleY}px`,
-                                left: `${positions.group3.left * scaleX}px`,
-                                width: `${positions.group3.width * scaleX}px`,
-                                minHeight: `${positions.group3.lineSpacing * 2 * scaleY}px`,
-                                fontFamily: positions.group3.fontFamily,
-                                fontSize: `${positions.group3.fontSize}px`,
-                                fontWeight: positions.group3.fontWeight
-                              }}
-                            >
-                              <div className="absolute text-xs text-yellow-500 font-mono -top-4 -left-1">Group 3</div>
-                              <div style={{
-                                position: "absolute",
-                                top: "0px",
-                                left: "0px",
-                                width: "100%"
-                              }}>
-                                Sucat - {reminderMonth} {reminderYear}
-                              </div>
-                              <div style={{
-                                position: "absolute",
-                                top: `${positions.group3.lineSpacing * scaleY}px`,
-                                left: "0px",
-                                width: "100%"
-                              }}>
-                                (Friendly Reminder - {locationType})
-                              </div>
-                            </div>
-                          </>
-                        );
-                      })()}
-                      
-                      {/* Page guides */}
-                      <div className="absolute text-xs text-gray-400 font-bold" style={{ top: "10px", left: "10px" }}>
-                        8.5" × 11"
-                      </div>
-                      
-                      {/* Grid lines for reference - using the scale factors */}
-                      <div className="absolute inset-0 pointer-events-none">
-                        <div className="h-full w-full opacity-30" style={{
-                          backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
-                          backgroundSize: `${650/8.5}px ${750/11}px` // This makes grid lines at 1-inch intervals
-                        }}></div>
+                    
+                    {/* Font settings for Group 1 */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.group1.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.group1.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.group1.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </fieldset>
+                  
+                  {/* Group 2: ID Header, Name & Address */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Group 2: ID, Name, Address</legend>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.top} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.left} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.width} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'width', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'lineSpacing', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Font settings for Group 2 */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.group2.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.group2.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.group2.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  {/* Group 3: Sucat Reminder Text */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Group 3: Sucat Reminder</legend>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group3.top} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group3.left} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group3.width} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'width', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group3.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'lineSpacing', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Font settings for Group 3 */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.group3.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.group3.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.group3.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-4 h-[400px]">
-                  <p className="text-gray-500">No subscribers selected to preview</p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    Select subscribers and specify an ID range to see the preview
+                
+                <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                  <p className="font-medium text-blue-700">Measurement Tips:</p>
+                  <p className="text-xs text-blue-600">
+                    All positions are measured in inches from the top-left corner of the page. 
+                    Use the preview button to verify layout before printing.
                   </p>
                 </div>
-              )}
+              </div>
+            )}
+            
+            <div className="mb-4">
+              <div className="flex items-center mb-2">
+                <span className="mr-2 text-sm">ID Range:</span>
+                <span className="font-medium">{startId || "Start"} - {endId || "End"}</span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm">
+                  <span className="font-medium">{subscriberCount}</span> subscribers selected for printing
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                  {subscriberCount > 0 && subscriberCount < 20 && 
+                    `Estimated pages: ${subscriberCount} (one subscriber per page)`
+                  }
+                </div>
+              </div>
             </div>
             
-            <div className="mt-2 text-center text-xs text-gray-500">
-              Live preview shows placement for the first subscriber in your range
+            <div className="flex flex-wrap gap-3">
+              
+              <Button 
+                onClick={handlePrintDataOverlay} 
+                disabled={isLoading || subscriberCount === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-1">🖨️</span> Preview Print
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Right side: Live preview pane */}
+          <div className="w-full md:w-3/5">
+            {/* Add reminder settings above the preview */}
+            <div className="mb-4 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-medium text-sm mb-3">Reminder Settings</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs mb-1">Month</label>
+                  <select
+                    value={reminderMonth}
+                    onChange={(e) => setReminderMonth(e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    {[
+                      'January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'
+                    ].map(month => (
+                      <option key={month} value={month}>{month}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Year</label>
+                  <input
+                    type="number"
+                    value={reminderYear}
+                    onChange={(e) => setReminderYear(e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                    min="2000"
+                    max="2100"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1">Location Type</label>
+                  <select
+                    value={locationType}
+                    onChange={(e) => setLocationType(e.target.value)}
+                    className="w-full px-2 py-1 border rounded text-sm"
+                  >
+                    <option value="Local">Local</option>
+                    <option value="Foreign">Foreign</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="border rounded-lg shadow-sm bg-white p-4 h-full">
+              <h3 className="text-center font-semibold text-sm mb-3">Live Preview</h3>
+              
+              <div className="relative flex items-center justify-center overflow-auto border rounded">
+                {filteredSubscribers.length > 0 ? (
+                  <div className="relative w-full bg-gray-50">
+                    <div className="mx-auto" style={{
+                      width: "100%",
+                      maxWidth: "650px", 
+                      height: "750px",
+                      backgroundColor: "white",
+                      margin: "10px auto",
+                      boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}>
+                      {/* Page representation */}
+                      <div style={{
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        width: "100%",
+                        height: "100%",
+                        transform: "scale(0.95)", 
+                        transformOrigin: "top center"
+                      }}>
+                        {/* Real-time preview of the first subscriber */}
+                        {(() => {
+                          if (filteredSubscribers.length === 0) return null;
+                          
+                          const subscriber = processSubscriberData(filteredSubscribers[0]);
+                          if (!subscriber) return null;
+                          
+                          // Calculate scale factors to convert inches to pixels in our preview
+                          // For a standard 8.5x11 inch page in our container
+                          const scaleX = 650 / 8.5; // pixels per inch horizontally
+                          const scaleY = 750 / 11;  // pixels per inch vertically
+                          
+                          // Determine if we need to adjust positions based on missing fields
+                          let namePosition = positions.group2.top + positions.group2.lineSpacing;
+                          let companyPosition = positions.group2.top + positions.group2.lineSpacing * 2;
+                          let addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 3;
+                          
+                          // If company exists but no personal name, use company as the name
+                          const displayName = subscriber.hasPersonalName ? 
+                            `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
+                            '';
+                          
+                          // Adjust positions based on what fields are present
+                          if (!subscriber.hasPersonalName && subscriber.hasCompany) {
+                            namePosition = positions.group2.top + positions.group2.lineSpacing;
+                            addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
+                          } else if (!subscriber.hasCompany) {
+                            addressStartPosition = positions.group2.top + positions.group2.lineSpacing * 2;
+                          }
+
+                          // Calculate actual address line positions
+                          const addressLines = [];
+                          const processAddress = (addr) => {
+                            if (!addr) return null;
+                            return addr.split('\n')
+                              .map(line => line.trim())
+                              .filter(line => line.length > 0)
+                              .join('\n');
+                          };
+
+                          const address1 = processAddress(subscriber.address1);
+                          const address2 = processAddress(subscriber.address2);
+                          const address3 = processAddress(subscriber.address3);
+                          const address4 = processAddress(subscriber.address4);
+
+                          if (address1) addressLines.push(address1);
+                          if (address2) addressLines.push(address2);
+                          if (address3) addressLines.push(address3);
+                          if (address4) addressLines.push(address4);
+
+                          // Join all address lines into a single string with line breaks
+                          const fullAddress = addressLines.join('\n');
+
+                          // Split the full address into lines for display
+                          const displayLines = fullAddress.split('\n');
+
+                          // Adjust addressStartPosition based on number of display lines
+                          const addressLinePositions = displayLines.map((_, index) => ({
+                            top: addressStartPosition + (positions.group2.lineSpacing * index)
+                          }));
+                          
+                          return (
+                            <>
+                              {/* Group 1: ID, Expiry, Last Issue (Right side) */}
+                              <div 
+                                className="absolute bg-blue-50 border border-blue-200 p-2 text-sm font-mono"
+                                style={{
+                                  top: `${positions.group1.top * scaleY}px`,
+                                  left: `${positions.group1.left * scaleX}px`,
+                                  width: `${positions.group1.width * scaleX}px`,
+                                  height: `${positions.group1.lineSpacing * 3 * scaleY}px`,
+                                  fontFamily: positions.group1.fontFamily,
+                                  fontSize: `${positions.group1.fontSize}px`,
+                                  fontWeight: positions.group1.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-blue-500 font-mono -top-4 -left-1">Group 1</div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: "0px",
+                                  left: "0px"
+                                }}>
+                                  <strong>{subscriber.id}</strong>
+                                </div>
+                                
+                                <div style={{
+                                  position: "absolute",
+                                  top: `${positions.group1.lineSpacing * scaleY}px`,
+                                  left: "0px"
+                                }}>
+                                  <strong>{subscriber.expiryDate}</strong>
+                                </div>
+                                
+                                <div style={{
+                                  position: "absolute",
+                                  top: `${positions.group1.lineSpacing * 2 * scaleY}px`,
+                                  left: "0px"
+                                }}>
+                                  <strong>{getLastIssue(subscriber.expiryDate)}</strong>
+                                </div>
+                              </div>
+                              
+                              {/* Group 2: ID Header, Name & Address (Left side) */}
+                              <div 
+                                className="absolute bg-green-50 border border-green-200 p-2 text-sm font-mono"
+                                style={{
+                                  top: `${positions.group2.top * scaleY}px`,
+                                  left: `${positions.group2.left * scaleX}px`,
+                                  width: `${positions.group2.width * scaleX}px`,
+                                  minHeight: `${positions.group2.lineSpacing * 7 * scaleY}px`,
+                                  fontFamily: positions.group2.fontFamily,
+                                  fontSize: `${positions.group2.fontSize}px`,
+                                  fontWeight: positions.group2.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Group 2</div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: "0px",
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  {subscriber.id + '/Exp:' + subscriber.expiryDate + '/' + subscriber.copies + 'cps' + (subscriber.acode ? '/' + subscriber.acode : '')}
+                                </div>
+                                
+                                {/* Add personal name if it exists */}
+                                {subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.group2.lineSpacing * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {displayName}
+                                  </div>
+                                )}
+                                
+                                {/* Add company if it exists (and wasn't already used as the name) */}
+                                {subscriber.hasCompany && subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.group2.lineSpacing * 2 * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {subscriber.company}
+                                  </div>
+                                )}
+                                
+                                {/* Company being used as the name */}
+                                {subscriber.hasCompany && !subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.group2.lineSpacing * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {subscriber.company}
+                                  </div>
+                                )}
+                                
+                                {/* Address fields with adjusted positions */}
+                                {displayLines.map((line, index) => (
+                                  <div
+                                    key={`address-line-${index}`}
+                                    style={{
+                                      position: "absolute",
+                                      top: `${(addressLinePositions[index].top - positions.group2.top) * scaleY}px`,
+                                      left: "0px",
+                                      width: "100%",
+                                      whiteSpace: "pre-wrap"
+                                    }}
+                                  >
+                                    {line}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Group 3: Sucat Reminder Text - Moved outside Group 2 container */}
+                              <div 
+                                className="absolute bg-yellow-50 border border-yellow-200 p-2 text-sm font-mono"
+                                style={{
+                                  top: `${positions.group3.top * scaleY}px`,
+                                  left: `${positions.group3.left * scaleX}px`,
+                                  width: `${positions.group3.width * scaleX}px`,
+                                  minHeight: `${positions.group3.lineSpacing * 2 * scaleY}px`,
+                                  fontFamily: positions.group3.fontFamily,
+                                  fontSize: `${positions.group3.fontSize}px`,
+                                  fontWeight: positions.group3.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-yellow-500 font-mono -top-4 -left-1">Group 3</div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: "0px",
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  Sucat - {reminderMonth} {reminderYear}
+                                </div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: `${positions.group3.lineSpacing * scaleY}px`,
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  (Friendly Reminder - {locationType})
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                        
+                        {/* Page guides */}
+                        <div className="absolute text-xs text-gray-400 font-bold" style={{ top: "10px", left: "10px" }}>
+                          8.5" × 11"
+                        </div>
+                        
+                        {/* Grid lines for reference - using the scale factors */}
+                        <div className="absolute inset-0 pointer-events-none">
+                          <div className="h-full w-full opacity-30" style={{
+                            backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
+                            backgroundSize: `${650/8.5}px ${750/11}px` // This makes grid lines at 1-inch intervals
+                          }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-4 h-[400px]">
+                    <p className="text-gray-500">No subscribers selected to preview</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Select subscribers and specify an ID range to see the preview
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-2 text-center text-xs text-gray-500">
+                Live preview shows placement for the first subscriber in your range
+              </div>
             </div>
           </div>
         </div>
@@ -1508,12 +1511,12 @@ const RenewalNoticeDataOverlay = forwardRef(({
       {/* Preview Modal */}
       { previewHTML && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-[95vw] h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-medium">Renewal Notice Preview</h3>
               <Button onClick={() => setPreviewHTML(null)} variant="ghost" size="sm">Close</Button>
             </div>
-            <div className="flex-grow overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4">
               <iframe
                 srcDoc={previewHTML}
                 className="w-full h-full border-0"

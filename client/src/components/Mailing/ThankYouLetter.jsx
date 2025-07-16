@@ -842,7 +842,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
   }));
 
   return (
-    <div className="p-4 border rounded shadow-sm bg-white w-[1000px]">
+    <div className="p-4 border rounded shadow-sm bg-white w-full max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Thank You Letter Data Overlay</h3>
         <div className="flex gap-2">
@@ -862,125 +862,179 @@ const ThankYouLetterDataOverlay = forwardRef(({
         </div>
       </div>
 
-      {/* Reorganized to two-column layout with config on left, preview on right */}
-      <div className="flex flex-row w-full gap-4">
-        {/* Left side: Configuration */}
-        <div className="w-2/5">
-          {(showConfig || useSharedConfig) && !useSharedConfig && (
-            <div className="mb-6 border rounded-lg p-4 bg-gray-50">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="font-medium">Position Configuration</h4>
-                <div className="flex gap-2">
-                  <Button onClick={savePositions} variant="secondary" size="sm">Save</Button>
-                  <Button onClick={loadPositions} variant="secondary" size="sm">Load</Button>
-                  <Button onClick={resetPositions} variant="outline" size="sm">Reset</Button>
+      {/* Main content area with scroll */}
+      <div className="flex-1 overflow-auto">
+        {/* Reorganized to two-column layout with config on left, preview on right */}
+        <div className="flex flex-col md:flex-row w-full gap-4">
+          {/* Left side: Configuration */}
+          <div className="w-full md:w-2/5">
+            {(showConfig || useSharedConfig) && !useSharedConfig && (
+              <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium">Position Configuration</h4>
+                  <div className="flex gap-2">
+                    <Button onClick={savePositions} variant="secondary" size="sm">Save</Button>
+                    <Button onClick={loadPositions} variant="secondary" size="sm">Load</Button>
+                    <Button onClick={resetPositions} variant="outline" size="sm">Reset</Button>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 gap-4 mb-4">
-                {/* Spacing Configuration */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Spacing Configuration</legend>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Month Year to Address (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.spacing.monthYearToAddress} 
-                        onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Address to Greeting (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.spacing.addressToGreeting} 
-                        onChange={(e) => handleGroupPositionChange('spacing', 'addressToGreeting', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                </fieldset>
-
-                {/* Address Group Configuration */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Address Group</legend>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.addressGroup.top} 
-                        onChange={(e) => handleGroupPositionChange('addressGroup', 'top', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.addressGroup.left} 
-                        onChange={(e) => handleGroupPositionChange('addressGroup', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Width (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.addressGroup.width} 
-                        onChange={(e) => handleGroupPositionChange('addressGroup', 'width', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Line Spacing (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.addressGroup.lineSpacing} 
-                        onChange={(e) => handleGroupPositionChange('addressGroup', 'lineSpacing', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Font settings for Address Group */}
-                  <div className="mt-2 border-t pt-2">
-                    <div className="text-xs font-medium mb-1">Font Settings</div>
-                    <div className="grid grid-cols-3 gap-2">
+                
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  {/* Spacing Configuration */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Spacing Configuration</legend>
+                    <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-xs mb-1">Size (pt)</label>
+                        <label className="block text-xs mb-1">Month Year to Address (in)</label>
                         <input 
                           type="number" 
-                          step="1"
-                          value={positions.addressGroup.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'fontSize', e.target.value)}
+                          step="0.01"
+                          value={positions.spacing.monthYearToAddress} 
+                          onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs mb-1">Weight</label>
-                        <select
-                          value={positions.addressGroup.fontWeight}
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'fontWeight', e.target.value)}
+                        <label className="block text-xs mb-1">Address to Greeting (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.spacing.addressToGreeting} 
+                          onChange={(e) => handleGroupPositionChange('spacing', 'addressToGreeting', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
+                        />
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  {/* Address Group Configuration */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Address Group</legend>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.addressGroup.top} 
+                          onChange={(e) => handleGroupPositionChange('addressGroup', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
                       </div>
                       <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.addressGroup.left} 
+                          onChange={(e) => handleGroupPositionChange('addressGroup', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.addressGroup.width} 
+                          onChange={(e) => handleGroupPositionChange('addressGroup', 'width', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.addressGroup.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('addressGroup', 'lineSpacing', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Font settings for Address Group */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.addressGroup.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.addressGroup.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.addressGroup.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
+
+                  {/* Month Year Configuration */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Month Year</legend>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.monthYear.top} 
+                          onChange={(e) => handleGroupPositionChange('monthYear', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.monthYear.left} 
+                          onChange={(e) => handleGroupPositionChange('monthYear', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Font Size (pt)</label>
+                        <input 
+                          type="number" 
+                          step="1"
+                          value={positions.monthYear.fontSize} 
+                          onChange={(e) => handleGroupPositionChange('monthYear', 'fontSize', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div className="col-span-3">
                         <label className="block text-xs mb-1">Font Family</label>
                         <select
-                          value={positions.addressGroup.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'fontFamily', e.target.value)}
+                          value={positions.monthYear.fontFamily}
+                          onChange={(e) => handleGroupPositionChange('monthYear', 'fontFamily', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         >
                           <option value="Arial">Arial</option>
@@ -991,447 +1045,397 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         </select>
                       </div>
                     </div>
-                  </div>
-                </fieldset>
-
-                {/* Month Year Configuration */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Month Year</legend>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
+                    <div className="mt-2">
+                      <label className="block text-xs mb-1">Spacing to Address Group (in)</label>
                       <input 
                         type="number" 
                         step="0.01"
-                        value={positions.monthYear.top} 
-                        onChange={(e) => handleGroupPositionChange('monthYear', 'top', e.target.value)}
+                        value={positions.spacing.monthYearToAddress} 
+                        onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
                         className="w-full px-2 py-1 border rounded text-sm"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.monthYear.left} 
-                        onChange={(e) => handleGroupPositionChange('monthYear', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Font Size (pt)</label>
-                      <input 
-                        type="number" 
-                        step="1"
-                        value={positions.monthYear.fontSize} 
-                        onChange={(e) => handleGroupPositionChange('monthYear', 'fontSize', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <label className="block text-xs mb-1">Font Family</label>
-                      <select
-                        value={positions.monthYear.fontFamily}
-                        onChange={(e) => handleGroupPositionChange('monthYear', 'fontFamily', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Tahoma">Tahoma</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mt-2">
-                    <label className="block text-xs mb-1">Spacing to Address Group (in)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      value={positions.spacing.monthYearToAddress} 
-                      onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
-                      className="w-full px-2 py-1 border rounded text-sm"
-                    />
-                  </div>
-                </fieldset>
+                  </fieldset>
 
-                {/* Greeting Configuration */}
-                <fieldset className="border rounded p-3">
-                  <legend className="text-sm font-medium px-1">Greeting</legend>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Top (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.greeting.top} 
-                        onChange={(e) => handleGroupPositionChange('greeting', 'top', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
+                  {/* Greeting Configuration */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Greeting</legend>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.greeting.top} 
+                          onChange={(e) => handleGroupPositionChange('greeting', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.greeting.left} 
+                          onChange={(e) => handleGroupPositionChange('greeting', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.greeting.width} 
+                          onChange={(e) => handleGroupPositionChange('greeting', 'width', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Font Size (pt)</label>
+                        <input 
+                          type="number" 
+                          step="1"
+                          value={positions.greeting.fontSize} 
+                          onChange={(e) => handleGroupPositionChange('greeting', 'fontSize', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs mb-1">Left (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.greeting.left} 
-                        onChange={(e) => handleGroupPositionChange('greeting', 'left', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Font Weight</label>
+                        <select
+                          value={positions.greeting.fontWeight}
+                          onChange={(e) => handleGroupPositionChange('greeting', 'fontWeight', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        >
+                          <option value="normal">Normal</option>
+                          <option value="bold">Bold</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Font Family</label>
+                        <select
+                          value={positions.greeting.fontFamily}
+                          onChange={(e) => handleGroupPositionChange('greeting', 'fontFamily', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        >
+                          <option value="Arial">Arial</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Courier New">Courier New</option>
+                          <option value="Verdana">Verdana</option>
+                          <option value="Tahoma">Tahoma</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-xs mb-1">Width (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.greeting.width} 
-                        onChange={(e) => handleGroupPositionChange('greeting', 'width', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Font Size (pt)</label>
-                      <input 
-                        type="number" 
-                        step="1"
-                        value={positions.greeting.fontSize} 
-                        onChange={(e) => handleGroupPositionChange('greeting', 'fontSize', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs mb-1">Font Weight</label>
-                      <select
-                        value={positions.greeting.fontWeight}
-                        onChange={(e) => handleGroupPositionChange('greeting', 'fontWeight', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      >
-                        <option value="normal">Normal</option>
-                        <option value="bold">Bold</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs mb-1">Font Family</label>
-                      <select
-                        value={positions.greeting.fontFamily}
-                        onChange={(e) => handleGroupPositionChange('greeting', 'fontFamily', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Tahoma">Tahoma</option>
-                      </select>
-                    </div>
-                  </div>
-                </fieldset>
-              </div>
-              
-              <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
-                <p className="font-medium text-blue-700">Measurement Tips:</p>
-                <p className="text-xs text-blue-600">
-                  All positions are measured in inches from the top-left corner of the page. 
-                  Use the preview button to verify layout before printing.
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <div className="mb-4">
-            <div className="flex items-center mb-2">
-              <span className="mr-2 text-sm">ID Range:</span>
-              <span className="font-medium">{startId || "Start"} - {endId || "End"}</span>
-            </div>
-            
-            <div className="flex justify-between items-center mb-4">
-              <div className="text-sm">
-                <span className="font-medium">{subscriberCount}</span> subscribers selected for printing
-              </div>
-              
-              <div className="text-xs text-gray-500">
-                {subscriberCount > 0 && subscriberCount < 20 && 
-                  `Estimated pages: ${subscriberCount} (one subscriber per page)`
-                }
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            <Button 
-              onClick={handlePrintDataOverlay} 
-              disabled={isLoading || subscriberCount === 0}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <span className="mr-1">🖨️</span> Preview Print
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-        
-        {/* Right side: Live preview pane */}
-        <div className="w-3/5">
-          <div className="border rounded-lg shadow-sm bg-white p-4 h-full">
-            <h3 className="text-center font-semibold text-sm mb-3">Live Preview</h3>
-            
-            <div className="relative flex items-center justify-center overflow-auto border rounded">
-              {filteredSubscribers.length > 0 ? (
-                <div className="relative w-full bg-gray-50">
-                  <div className="mx-auto" style={{
-                    width: "100%",
-                    maxWidth: "650px", 
-                    height: "750px",
-                    backgroundColor: "white",
-                    margin: "10px auto",
-                    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-                    position: "relative",
-                    overflow: "hidden"
-                  }}>
-                    {/* Page representation */}
-                    <div style={{
-                      position: "absolute",
-                      top: "0",
-                      left: "0",
-                      width: "100%",
-                      height: "100%",
-                      transform: "scale(0.95)", 
-                      transformOrigin: "top center"
-                    }}>
-                      {/* Real-time preview of the first subscriber */}
-                      {(() => {
-                        if (filteredSubscribers.length === 0) return null;
-                        
-                        const subscriber = processSubscriberData(filteredSubscribers[0]);
-                        if (!subscriber) return null;
-                        
-                        // Calculate scale factors to convert inches to pixels in our preview
-                        // For a standard 8.5x11 inch page in our container
-                        const scaleX = 650 / 8.5; // pixels per inch horizontally
-                        const scaleY = 750 / 11;  // pixels per inch vertically
-                        
-                        // Determine if we need to adjust positions based on missing fields
-                        let namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-                        let companyPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                        let addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 3;
-                        
-                        // If company exists but no personal name, use company as the name
-                        const displayName = subscriber.hasPersonalName ? 
-                          `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
-                          '';
-                        
-                        // For the greeting
-                        const greetingName = subscriber.hasPersonalName ?
-                          `${subscriber.title} ${subscriber.lastName}` :
-                          (subscriber.hasCompany ? subscriber.company : "Customer");
-                        
-                        // If there's no personal name, company name goes in the name position
-                        if (!subscriber.hasPersonalName && subscriber.hasCompany) {
-                          namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-                          // Skip the company position since it's now in the name position
-                          addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                        }
-                        
-                        // If there's no company, move address up
-                        if (!subscriber.hasCompany) {
-                          addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                        }
-                        
-                        return (
-                          <>
-                            {/* Month Year centered at top */}
-                            <div 
-                              className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
-                              style={{
-                                top: `${positions.monthYear.top * scaleY}px`,
-                                left: `${positions.monthYear.left * scaleX}px`,
-                                transform: 'translateX(-50%)', // Center the text around the left position
-                                width: 'auto', // Let width be determined by content
-                                textAlign: 'center',
-                                fontFamily: positions.monthYear.fontFamily,
-                                fontSize: `${positions.monthYear.fontSize}px`
-                              }}
-                            >
-                              <div className="absolute text-xs text-blue-500 font-mono -top-4 left-1/2 transform -translate-x-1/2">Month Year</div>
-                              {getCurrentMonthYear()}
-                            </div>
-                            
-                            {/* Address Group */}
-                            <div 
-                              className="absolute bg-green-50 border border-green-200 p-2 text-sm font-mono"
-                              style={{
-                                top: `${positions.addressGroup.top * scaleY}px`,
-                                left: `${positions.addressGroup.left * scaleX}px`,
-                                width: `${positions.addressGroup.width * scaleX}px`,
-                                minHeight: `${positions.addressGroup.lineSpacing * 7 * scaleY}px`,
-                                fontFamily: positions.addressGroup.fontFamily,
-                                fontSize: `${positions.addressGroup.fontSize}px`,
-                                fontWeight: positions.addressGroup.fontWeight
-                              }}
-                            >
-                              <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Address Group</div>
-                              <div style={{
-                                position: "absolute",
-                                top: "0px",
-                                left: "0px",
-                                width: "100%"
-                              }}>
-                                {subscriber.accountCode}
-                              </div>
-                              
-                              {/* Add personal name if it exists */}
-                              {subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.addressGroup.lineSpacing * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {displayName}
-                                </div>
-                              )}
-                              
-                              {/* Add company if it exists (and wasn't already used as the name) */}
-                              {subscriber.hasCompany && subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.addressGroup.lineSpacing * 2 * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {subscriber.company}
-                                </div>
-                              )}
-                              
-                              {/* Company being used as the name */}
-                              {subscriber.hasCompany && !subscriber.hasPersonalName && (
-                                <div style={{
-                                  position: "absolute",
-                                  top: `${positions.addressGroup.lineSpacing * scaleY}px`,
-                                  left: "0px",
-                                  width: "100%"
-                                }}>
-                                  {subscriber.company}
-                                </div>
-                              )}
-                              
-                              {/* Address fields with adjusted positions */}
-                              {(() => {
-                                // Process address lines first
-                                const processAddress = (addr) => {
-                                  if (!addr) return null;
-                                  return addr.split('\n')
-                                    .map(line => line.trim())
-                                    .filter(line => line.length > 0)
-                                    .join('\n');
-                                };
-
-                                const addressLines = [];
-                                const address1 = processAddress(subscriber.address1);
-                                const address2 = processAddress(subscriber.address2);
-                                const address3 = processAddress(subscriber.address3);
-                                const address4 = processAddress(subscriber.address4);
-
-                                if (address1) addressLines.push(address1);
-                                if (address2) addressLines.push(address2);
-                                if (address3) addressLines.push(address3);
-                                if (address4) addressLines.push(address4);
-
-                                // Join all address lines into a single string with line breaks
-                                const fullAddress = addressLines.join('\n');
-
-                                // Split the full address into lines for display
-                                const displayLines = fullAddress.split('\n');
-
-                                // Render address lines
-                                return displayLines.map((line, index) => (
-                                  <div
-                                    key={`address-line-${index}`}
-                                    style={{
-                                      position: "absolute",
-                                      top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * index) * scaleY}px`,
-                                      left: "0px",
-                                      width: "100%",
-                                      whiteSpace: "pre-wrap"
-                                    }}
-                                  >
-                                    {line}
-                                  </div>
-                                ));
-                              })()}
-                            </div>
-                            
-                            {/* Greeting below address */}
-                            <div 
-                              className="absolute bg-purple-50 border border-purple-200 p-1 text-sm font-mono"
-                              style={{
-                                top: `${(positions.greeting.top) * scaleY}px`,
-                                left: `${positions.greeting.left * scaleX}px`,
-                                width: `${positions.greeting.width * scaleX}px`,
-                                fontFamily: positions.greeting.fontFamily,
-                                fontSize: `${positions.greeting.fontSize}px`,
-                                fontWeight: positions.greeting.fontWeight
-                              }}
-                            >
-                              <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">Greeting</div>
-                              Dear {greetingName},
-                            </div>
-                            
-                            {/* Page guides */}
-                            <div className="absolute text-xs text-gray-400 font-bold" style={{ top: "10px", left: "10px" }}>
-                              8.5" × 11"
-                            </div>
-                            
-                            {/* Grid lines for reference - using the scale factors */}
-                            <div className="absolute inset-0 pointer-events-none">
-                              <div className="h-full w-full opacity-30" style={{
-                                backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
-                                backgroundSize: `${650/8.5}px ${750/11}px` // This makes grid lines at 1-inch intervals
-                              }}></div>
-                            </div>
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                  </fieldset>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center p-4 h-[400px]">
-                  <p className="text-gray-500">No subscribers selected to preview</p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    Select subscribers and specify an ID range to see the preview
+                
+                <div className="mt-2 p-2 bg-blue-50 rounded text-sm">
+                  <p className="font-medium text-blue-700">Measurement Tips:</p>
+                  <p className="text-xs text-blue-600">
+                    All positions are measured in inches from the top-left corner of the page. 
+                    Use the preview button to verify layout before printing.
                   </p>
                 </div>
-              )}
+              </div>
+            )}
+            
+            <div className="mb-4">
+              <div className="flex items-center mb-2">
+                <span className="mr-2 text-sm">ID Range:</span>
+                <span className="font-medium">{startId || "Start"} - {endId || "End"}</span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm">
+                  <span className="font-medium">{subscriberCount}</span> subscribers selected for printing
+                </div>
+                
+                <div className="text-xs text-gray-500">
+                  {subscriberCount > 0 && subscriberCount < 20 && 
+                    `Estimated pages: ${subscriberCount} (one subscriber per page)`
+                  }
+                </div>
+              </div>
             </div>
             
-            <div className="mt-2 text-center text-xs text-gray-500">
-              Live preview shows placement for the first subscriber in your range
+            <div className="flex flex-wrap gap-3">
+              <Button 
+                onClick={handlePrintDataOverlay} 
+                disabled={isLoading || subscriberCount === 0}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <span className="mr-1">🖨️</span> Preview Print
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Right side: Live preview pane */}
+          <div className="w-full md:w-3/5">
+            <div className="border rounded-lg shadow-sm bg-white p-4 h-full">
+              <h3 className="text-center font-semibold text-sm mb-3">Live Preview</h3>
+              
+              <div className="relative flex items-center justify-center overflow-auto border rounded">
+                {filteredSubscribers.length > 0 ? (
+                  <div className="relative w-full bg-gray-50">
+                    <div className="mx-auto" style={{
+                      width: "100%",
+                      maxWidth: "650px", 
+                      height: "750px",
+                      backgroundColor: "white",
+                      margin: "10px auto",
+                      boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+                      position: "relative",
+                      overflow: "hidden"
+                    }}>
+                      {/* Page representation */}
+                      <div style={{
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        width: "100%",
+                        height: "100%",
+                        transform: "scale(0.95)", 
+                        transformOrigin: "top center"
+                      }}>
+                        {/* Real-time preview of the first subscriber */}
+                        {(() => {
+                          if (filteredSubscribers.length === 0) return null;
+                          
+                          const subscriber = processSubscriberData(filteredSubscribers[0]);
+                          if (!subscriber) return null;
+                          
+                          // Calculate scale factors to convert inches to pixels in our preview
+                          // For a standard 8.5x11 inch page in our container
+                          const scaleX = 650 / 8.5; // pixels per inch horizontally
+                          const scaleY = 750 / 11;  // pixels per inch vertically
+                          
+                          // Determine if we need to adjust positions based on missing fields
+                          let namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
+                          let companyPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
+                          let addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 3;
+                          
+                          // If company exists but no personal name, use company as the name
+                          const displayName = subscriber.hasPersonalName ? 
+                            `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
+                            '';
+                          
+                          // For the greeting
+                          const greetingName = subscriber.hasPersonalName ?
+                            `${subscriber.title} ${subscriber.lastName}` :
+                            (subscriber.hasCompany ? subscriber.company : "Customer");
+                          
+                          // If there's no personal name, company name goes in the name position
+                          if (!subscriber.hasPersonalName && subscriber.hasCompany) {
+                            namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
+                            // Skip the company position since it's now in the name position
+                            addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
+                          }
+                          
+                          // If there's no company, move address up
+                          if (!subscriber.hasCompany) {
+                            addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
+                          }
+                          
+                          return (
+                            <>
+                              {/* Month Year centered at top */}
+                              <div 
+                                className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
+                                style={{
+                                  top: `${positions.monthYear.top * scaleY}px`,
+                                  left: `${positions.monthYear.left * scaleX}px`,
+                                  transform: 'translateX(-50%)', // Center the text around the left position
+                                  width: 'auto', // Let width be determined by content
+                                  textAlign: 'center',
+                                  fontFamily: positions.monthYear.fontFamily,
+                                  fontSize: `${positions.monthYear.fontSize}px`
+                                }}
+                              >
+                                <div className="absolute text-xs text-blue-500 font-mono -top-4 left-1/2 transform -translate-x-1/2">Month Year</div>
+                                {getCurrentMonthYear()}
+                              </div>
+                              
+                              {/* Address Group */}
+                              <div 
+                                className="absolute bg-green-50 border border-green-200 p-2 text-sm font-mono"
+                                style={{
+                                  top: `${positions.addressGroup.top * scaleY}px`,
+                                  left: `${positions.addressGroup.left * scaleX}px`,
+                                  width: `${positions.addressGroup.width * scaleX}px`,
+                                  minHeight: `${positions.addressGroup.lineSpacing * 7 * scaleY}px`,
+                                  fontFamily: positions.addressGroup.fontFamily,
+                                  fontSize: `${positions.addressGroup.fontSize}px`,
+                                  fontWeight: positions.addressGroup.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Address Group</div>
+                                <div style={{
+                                  position: "absolute",
+                                  top: "0px",
+                                  left: "0px",
+                                  width: "100%"
+                                }}>
+                                  {subscriber.accountCode}
+                                </div>
+                                
+                                {/* Add personal name if it exists */}
+                                {subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.addressGroup.lineSpacing * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {displayName}
+                                  </div>
+                                )}
+                                
+                                {/* Add company if it exists (and wasn't already used as the name) */}
+                                {subscriber.hasCompany && subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.addressGroup.lineSpacing * 2 * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {subscriber.company}
+                                  </div>
+                                )}
+                                
+                                {/* Company being used as the name */}
+                                {subscriber.hasCompany && !subscriber.hasPersonalName && (
+                                  <div style={{
+                                    position: "absolute",
+                                    top: `${positions.addressGroup.lineSpacing * scaleY}px`,
+                                    left: "0px",
+                                    width: "100%"
+                                  }}>
+                                    {subscriber.company}
+                                  </div>
+                                )}
+                                
+                                {/* Address fields with adjusted positions */}
+                                {(() => {
+                                  // Process address lines first
+                                  const processAddress = (addr) => {
+                                    if (!addr) return null;
+                                    return addr.split('\n')
+                                      .map(line => line.trim())
+                                      .filter(line => line.length > 0)
+                                      .join('\n');
+                                  };
+
+                                  const addressLines = [];
+                                  const address1 = processAddress(subscriber.address1);
+                                  const address2 = processAddress(subscriber.address2);
+                                  const address3 = processAddress(subscriber.address3);
+                                  const address4 = processAddress(subscriber.address4);
+
+                                  if (address1) addressLines.push(address1);
+                                  if (address2) addressLines.push(address2);
+                                  if (address3) addressLines.push(address3);
+                                  if (address4) addressLines.push(address4);
+
+                                  // Join all address lines into a single string with line breaks
+                                  const fullAddress = addressLines.join('\n');
+
+                                  // Split the full address into lines for display
+                                  const displayLines = fullAddress.split('\n');
+
+                                  // Render address lines
+                                  return displayLines.map((line, index) => (
+                                    <div
+                                      key={`address-line-${index}`}
+                                      style={{
+                                        position: "absolute",
+                                        top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * index) * scaleY}px`,
+                                        left: "0px",
+                                        width: "100%",
+                                        whiteSpace: "pre-wrap"
+                                      }}
+                                    >
+                                      {line}
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                              
+                              {/* Greeting below address */}
+                              <div 
+                                className="absolute bg-purple-50 border border-purple-200 p-1 text-sm font-mono"
+                                style={{
+                                  top: `${(positions.greeting.top) * scaleY}px`,
+                                  left: `${positions.greeting.left * scaleX}px`,
+                                  width: `${positions.greeting.width * scaleX}px`,
+                                  fontFamily: positions.greeting.fontFamily,
+                                  fontSize: `${positions.greeting.fontSize}px`,
+                                  fontWeight: positions.greeting.fontWeight
+                                }}
+                              >
+                                <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">Greeting</div>
+                                Dear {greetingName},
+                              </div>
+                              
+                              {/* Page guides */}
+                              <div className="absolute text-xs text-gray-400 font-bold" style={{ top: "10px", left: "10px" }}>
+                                8.5" × 11"
+                              </div>
+                              
+                              {/* Grid lines for reference - using the scale factors */}
+                              <div className="absolute inset-0 pointer-events-none">
+                                <div className="h-full w-full opacity-30" style={{
+                                  backgroundImage: 'linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)',
+                                  backgroundSize: `${650/8.5}px ${750/11}px` // This makes grid lines at 1-inch intervals
+                                }}></div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-4 h-[400px]">
+                    <p className="text-gray-500">No subscribers selected to preview</p>
+                    <p className="text-sm text-gray-400 mt-2">
+                      Select subscribers and specify an ID range to see the preview
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-2 text-center text-xs text-gray-500">
+                Live preview shows placement for the first subscriber in your range
+              </div>
             </div>
           </div>
         </div>
       </div>
       
+      {/* Preview Modal */}
       {previewHTML && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-[95vw] h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center">
               <h3 className="font-medium">Thank You Letter Preview</h3>
               <Button onClick={() => setPreviewHTML(null)} variant="ghost" size="sm">Close</Button>
             </div>
-            <div className="flex-grow overflow-auto p-4">
+            <div className="flex-1 overflow-auto p-4">
               <iframe
                 srcDoc={previewHTML}
                 className="w-full h-full border-0"

@@ -215,11 +215,11 @@ const DocumentGenerator = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw]">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Document Generator</DialogTitle>
         </DialogHeader>
-        <div className="w-full">
+        <div className="flex-1 overflow-auto">
           <h2 className="text-2xl font-bold mb-3 text-center">Document Generator</h2>
           
           <DataSourceToggle />
