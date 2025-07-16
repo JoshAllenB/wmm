@@ -515,7 +515,7 @@ export const getAllPayments = async (req, res) => {
             ];
 
             // Add date extraction for WMM model
-            if (isWmmModel && Object.keys(yearFilter).length > 0) {
+            if (isWmmModel) {
               pipeline.push({
                 $addFields: {
                   extractedDates: {
@@ -534,12 +534,29 @@ export const getAllPayments = async (req, res) => {
                       args: ["$paymtref"],
                       lang: "js"
                     }
+                  },
+                  // Add first extracted date for sorting
+                  firstExtractedDate: {
+                    $function: {
+                      body: function(paymtref) {
+                        if (!paymtref) return null;
+                        const dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/g;
+                        const match = String(paymtref).match(dateRegex);
+                        if (match && match[0]) {
+                          const [month, day, year] = match[0].split('/');
+                          return new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day)));
+                        }
+                        return null;
+                      },
+                      args: ["$paymtref"],
+                      lang: "js"
+                    }
                   }
                 }
               });
 
-              // Add date filter for WMM
-              if (yearFilter.$gte || yearFilter.$lte) {
+              // Add date filter for WMM if year filter exists
+              if (Object.keys(yearFilter).length > 0) {
                 pipeline.push({
                   $match: {
                     extractedDates: {
@@ -550,9 +567,7 @@ export const getAllPayments = async (req, res) => {
               }
             }
             // Add date handling for HRG and FOM models
-            else if ((isHrgModel || isFomModel) && Object.keys(yearFilter).length > 0) {
-              
-              // Add paymtform date extraction
+            else if (isHrgModel || isFomModel) {
               pipeline.push({
                 $addFields: {
                   extractedPaymtFormDate: {
@@ -574,34 +589,42 @@ export const getAllPayments = async (req, res) => {
                       lang: "js"
                     }
                   },
-                  // Convert string dates to Date objects
                   parsedRecvDate: {
                     $dateFromString: {
                       dateString: "$recvdate",
                       onError: null
                     }
+                  },
+                  // Add effective date for sorting
+                  effectiveDate: {
+                    $cond: {
+                      if: { $ne: ["$recvdate", null] },
+                      then: {
+                        $dateFromString: {
+                          dateString: "$recvdate",
+                          onError: null
+                        }
+                      },
+                      else: "$extractedPaymtFormDate"
+                    }
                   }
                 }
               });
 
-              // Add date filter for both recvdate and paymtform date
-              pipeline.push({
-                $match: {
-                  $or: [
-                    {
-                      parsedRecvDate: yearFilter
-                    },
-                    {
-                      extractedPaymtFormDate: yearFilter
-                    }
-                  ]
-                }
-              });
+              // Add date filter if year filter exists
+              if (Object.keys(yearFilter).length > 0) {
+                pipeline.push({
+                  $match: {
+                    $or: [
+                      { parsedRecvDate: yearFilter },
+                      { extractedPaymtFormDate: yearFilter }
+                    ]
+                  }
+                });
+              }
             }
             // Add date handling for CAL model
-            else if (isCalModel && Object.keys(yearFilter).length > 0) {
-              
-              // Convert string dates to Date objects
+            else if (isCalModel) {
               pipeline.push({
                 $addFields: {
                   parsedPaymtDate: {
@@ -615,23 +638,39 @@ export const getAllPayments = async (req, res) => {
                       dateString: "$recvdate",
                       onError: null
                     }
+                  },
+                  // Add effective date for sorting
+                  effectiveDate: {
+                    $cond: {
+                      if: { $ne: ["$paymtdate", null] },
+                      then: {
+                        $dateFromString: {
+                          dateString: "$paymtdate",
+                          onError: null
+                        }
+                      },
+                      else: {
+                        $dateFromString: {
+                          dateString: "$recvdate",
+                          onError: null
+                        }
+                      }
+                    }
                   }
                 }
               });
 
-              // Add date filter for both dates
-              pipeline.push({
-                $match: {
-                  $or: [
-                    {
-                      parsedPaymtDate: yearFilter
-                    },
-                    {
-                      parsedRecvDate: yearFilter
-                    }
-                  ]
-                }
-              });
+              // Add date filter if year filter exists
+              if (Object.keys(yearFilter).length > 0) {
+                pipeline.push({
+                  $match: {
+                    $or: [
+                      { parsedPaymtDate: yearFilter },
+                      { parsedRecvDate: yearFilter }
+                    ]
+                  }
+                });
+              }
             }
 
             // Add projection
@@ -641,16 +680,36 @@ export const getAllPayments = async (req, res) => {
                 clientid: 1,
                 clientId: 1,
                 modelType: { $literal: modelName.replace('Model', '') },
-                ...(isWmmModel ? { paymtref: 1, extractedDates: 1 } : {}),
-                ...(isCalModel ? { paymtdate: 1, recvdate: 1 } : {}),
+                ...(isWmmModel ? { 
+                  paymtref: 1, 
+                  extractedDates: 1,
+                  effectiveDate: "$firstExtractedDate"
+                } : {}),
+                ...(isCalModel ? { 
+                  paymtdate: 1, 
+                  recvdate: 1,
+                  parsedPaymtDate: 1,
+                  parsedRecvDate: 1,
+                  effectiveDate: 1
+                } : {}),
                 ...((isHrgModel || isFomModel) ? { 
                   recvdate: 1,
                   paymtform: 1,
-                  extractedPaymtFormDate: 1
+                  extractedPaymtFormDate: 1,
+                  parsedRecvDate: 1,
+                  effectiveDate: 1
                 } : {}),
                 ...(!isCalModel && !isWmmModel && !isHrgModel && !isFomModel ? { recvdate: 1 } : {})
               }
             });
+
+            // Add sorting if needed
+            if (sort) {
+              const sortField = sort === 'date' ? 'effectiveDate' : sort;
+              pipeline.push({
+                $sort: { [sortField]: order === 'desc' ? -1 : 1 }
+              });
+            }
 
             const result = await model.aggregate(pipeline);
             return result;
@@ -676,31 +735,54 @@ export const getAllPayments = async (req, res) => {
       ])
     );
 
-    // Map payments with client info
+    // Map payments with client info and normalize dates
     const paymentsWithClientInfo = flatPayments.map(payment => {
       const clientId = payment.clientid || payment.clientId;
       const clientInfo = clientMap.get(clientId) || {
         clientName: 'Unknown Client',
         company: ''
       };
+
+      // Use effectiveDate if available, otherwise fall back to model-specific logic
+      let displayDate = payment.effectiveDate;
+      
+      if (!displayDate) {
+        if (payment.modelType.toLowerCase().includes('wmm') && payment.extractedDates?.length) {
+          displayDate = payment.extractedDates[0];
+        } else if (payment.modelType.toLowerCase().includes('cal')) {
+          displayDate = payment.parsedPaymtDate || payment.parsedRecvDate;
+        } else if (payment.modelType.toLowerCase().includes('hrg') || payment.modelType.toLowerCase().includes('fom')) {
+          displayDate = payment.parsedRecvDate || payment.extractedPaymtFormDate;
+        } else {
+          displayDate = payment.recvdate ? new Date(payment.recvdate) : null;
+        }
+      }
+
       return {
         ...payment,
         clientId,
         ...clientInfo,
-        date: payment.paymtdate || payment.recvdate || 
-              (payment.extractedDates ? payment.extractedDates[0] : null)
+        date: displayDate
       };
     });
 
-    // Sort payments if needed
-    if (sort) {
-      const sortField = sort === 'date' ? 'date' : sort;
+    // Sort payments if needed (only for payment reference searches since they bypass aggregation)
+    if (sort && parsedSearch.paymentRef) {
       paymentsWithClientInfo.sort((a, b) => {
-        const aVal = a[sortField];
-        const bVal = b[sortField];
+        const aVal = sort === 'date' ? a.date : a[sort];
+        const bVal = sort === 'date' ? b.date : b[sort];
+        
+        // Handle null/undefined values
         if (!aVal && !bVal) return 0;
         if (!aVal) return order === 'desc' ? 1 : -1;
         if (!bVal) return order === 'desc' ? -1 : 1;
+        
+        // Compare dates
+        if (aVal instanceof Date && bVal instanceof Date) {
+          return order === 'desc' ? bVal - aVal : aVal - bVal;
+        }
+        
+        // Compare other values
         return order === 'desc' 
           ? (bVal > aVal ? 1 : -1)
           : (aVal > bVal ? 1 : -1);
