@@ -1395,6 +1395,18 @@ const Mailing = ({
                         }
                       </p>
                     </div>
+                    
+                    {/* Add Mailing Actions */}
+                    <div className="mt-6 w-full max-w-md">
+                      <MailingActions
+                        isLoading={isLoading}
+                        hasAvailableRows={hasAvailableRows}
+                        selectedTemplate={selectedTemplate}
+                        useLegacyFormat={useLegacyFormat}
+                        onPrintPreview={handlePrintWithRange}
+                        onDirectPrint={handleDirectPrintToDotMatrix}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
