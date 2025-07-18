@@ -16,6 +16,10 @@ const GroupFilter = ({
     ));
   }, [groups]);
 
+  const hasExcludeAccess = () => {
+    return hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
+  };
+
   return (
     <div className="p-4 border rounded-lg shadow-sm">
       <div className="space-y-4">
@@ -80,7 +84,7 @@ const GroupFilter = ({
               })
             }
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            disabled={!hasRole("WMM")}
+            disabled={!hasExcludeAccess()}
           />
           <label
             htmlFor="excludeCMCClients"
@@ -89,8 +93,8 @@ const GroupFilter = ({
             Exclude CMC Clients
           </label>
           <span className="ml-2 text-sm text-gray-500">
-            {!hasRole("WMM") && "(Not available for your role)"}
-            {hasRole("WMM") && "(Hide clients with 'CMC' in group name)"}
+            {!hasExcludeAccess() && "(Not available for your role)"}
+            {hasExcludeAccess() && "(Hide clients with 'CMC' in group name)"}
           </span>
         </div>
       </div>
