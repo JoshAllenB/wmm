@@ -67,6 +67,9 @@ const AllClient = () => {
 
   const [tableInstance, setTableInstance] = useState(null);
 
+  // Add subscription type state
+  const [subscriptionType, setSubscriptionType] = useState("WMM");
+
   const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
   const [advancedFilterData, setAdvancedFilterData] = useState(() => {
     // Initialize with default empty values
@@ -253,7 +256,8 @@ const AllClient = () => {
       currentPageSize,
       filter = "",
       group = "",
-      advancedFilterData = {}
+      advancedFilterData = {},
+      overrideSubscriptionType = null
     ) => {
       try {
         // Show loading state if it will take time
@@ -360,12 +364,15 @@ const AllClient = () => {
           delete filtersToUse.adddate_regex;
         }
 
+        const currentSubscriptionType = overrideSubscriptionType || subscriptionType;
+
         const response = await fetchClients(
           currentPage,
           currentPageSize,
           filter,
           group,
-          filtersToUse
+          filtersToUse,
+          currentSubscriptionType
         );
 
         // Skip state updates if the request was cancelled (response is null)
@@ -395,7 +402,7 @@ const AllClient = () => {
         return null;
       }
     },
-    [addedToday, hasRole, parseTaggedSearch]
+    [addedToday, hasRole, parseTaggedSearch, subscriptionType]
   );
 
   // Auto-set services based on user roles on component mount (run this FIRST)
@@ -530,6 +537,7 @@ const AllClient = () => {
     servicesDependency, // This is calculated from advancedFilterData.services
     addedToday,
     isLoading, // Only run when loading is complete
+    subscriptionType, // Add subscription type to dependencies
   ]);
 
   const handleDeleteSuccess = useCallback(
@@ -1058,10 +1066,98 @@ const AllClient = () => {
     setShowMailingModal(true);
   };
 
+  // Update handleSubscriptionTypeChange to also update services
+  const handleSubscriptionTypeChange = (type) => {
+    setSubscriptionType(type);
+    setPage(1); // Reset to first page
+
+    // Update services based on subscription type for WMM role
+    if (hasRole("WMM")) {
+      let newServices = [];
+      switch (type) {
+        case "Promo":
+          newServices = ["PROMO"];
+          break;
+        case "Complimentary":
+          newServices = ["COMP"];
+          break;
+        default: // WMM
+          newServices = ["WMM"];
+      }
+
+      // Update advancedFilterData with new services
+      setAdvancedFilterData(prev => ({
+        ...prev,
+        services: newServices,
+        subscriptionType: type
+      }));
+    }
+
+    // Create a snapshot of what the filter will be
+    const filterSnapshot = JSON.stringify({
+      services: advancedFilterData.services,
+      page: 1,
+      filtering: debouncedFiltering,
+      group: selectedGroup,
+      addedToday,
+      subscriptionType: type,
+    });
+    // Update last filter ref to prevent bounce
+    lastFilterRef.current = filterSnapshot;
+
+    // Fetch data with updated subscription type
+    const updatedAdvancedFilterData = {
+      ...advancedFilterData,
+      subscriptionType: type,
+      services: hasRole("WMM") ? (type === "Promo" ? ["PROMO"] : type === "Complimentary" ? ["COMP"] : ["WMM"]) : advancedFilterData.services
+    };
+
+    fetchData(1, pageSize, debouncedFiltering, selectedGroup, updatedAdvancedFilterData, type);
+  };
+
   return (
     <div className="mr-[10px] ml-[10px] mt-[10px]">
-      <div className="flex justify-between">
+      <div className="flex justify-between items-center mb-4">
         <Add fetchClients={() => fetchClients(setClientData)} />
+        
+        {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
+        {(hasRole("WMM") || hasRole("Admin")) && (
+          <div className="flex items-center gap-2">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => handleSubscriptionTypeChange("WMM")}
+                className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                  subscriptionType === "WMM"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                }`}
+              >
+                WMM
+              </button>
+              <button
+                onClick={() => handleSubscriptionTypeChange("Promo")}
+                className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                  subscriptionType === "Promo"
+                    ? "bg-emerald-600 text-white shadow-sm"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                }`}
+              >
+                Promo
+              </button>
+              <button
+                onClick={() => handleSubscriptionTypeChange("Complimentary")}
+                className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                  subscriptionType === "Complimentary"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                }`}
+              >
+                Complimentary
+              </button>
+            </div>
+          </div>
+        )}
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
@@ -1153,6 +1249,7 @@ const AllClient = () => {
           onApplyFilter={handleApplyFilter}
           groups={groups}
           selectedGroup={selectedGroup}
+          subscriptionType={subscriptionType}
         />
         <Button
           onClick={handleAddedTodayClick}

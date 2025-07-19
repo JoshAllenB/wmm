@@ -3,9 +3,29 @@ import { getModelInstance } from './modelManager.mjs';
 export async function aggregateClientData(clients, modelNames, advancedFilterData = {}) {
   const modelDataMap = new Map();
   
+  // Handle subscription type logic
+  const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+  let adjustedModelNames = [...modelNames];
+
+  // Replace WmmModel with appropriate subscription model
+  if (modelNames.includes('WmmModel')) {
+    adjustedModelNames = modelNames.filter(name => name !== 'WmmModel');
+    
+    switch(subscriptionType) {
+      case 'Promo':
+        adjustedModelNames.push('PromoModel');
+        break;
+      case 'Complimentary':
+        adjustedModelNames.push('ComplimentaryModel');
+        break;
+      default: // WMM
+        adjustedModelNames.push('WmmModel');
+    }
+  }
+
   // Process model data in parallel
   const modelDataArrays = await Promise.all(
-    modelNames.map(async (modelName) => {
+    adjustedModelNames.map(async (modelName) => {
       const Model = await getModelInstance(modelName);
       const clientIds = clients.map(c => c.id);
 
@@ -25,12 +45,31 @@ export async function aggregateClientData(clients, modelNames, advancedFilterDat
 
       const dataObject = {
         ...item,
-        records: filterRecords(item.records || [], advancedFilterData, modelNames[index])
+        records: filterRecords(item.records || [], advancedFilterData, adjustedModelNames[index])
       };
 
-      // Set the data for this model with consistent service type naming
-      const serviceType = normalizeServiceType(modelNames[index]);
-      modelDataMap.get(clientId)[serviceType] = dataObject;
+      // Map each subscription type to its own data array
+      const modelType = adjustedModelNames[index].toLowerCase();
+      let serviceType;
+      
+      // Handle subscription types
+      if (modelType.includes('wmm')) {
+        serviceType = 'wmmData';
+      } else if (modelType.includes('promo')) {
+        serviceType = 'promoData';
+      } else if (modelType.includes('complimentary')) {
+        serviceType = 'compData';
+      } else {
+        serviceType = normalizeServiceType(adjustedModelNames[index]);
+      }
+
+      // Only set the data for the current subscription type
+      if ((subscriptionType === 'WMM' && serviceType === 'wmmData') ||
+          (subscriptionType === 'Promo' && serviceType === 'promoData') ||
+          (subscriptionType === 'Complimentary' && serviceType === 'compData') ||
+          (!['wmmData', 'promoData', 'compData'].includes(serviceType))) {
+        modelDataMap.get(clientId)[serviceType] = dataObject;
+      }
     });
   });
 
@@ -38,7 +77,8 @@ export async function aggregateClientData(clients, modelNames, advancedFilterDat
   const combinedData = clients.map(client => {
     const clientData = {
       ...client,
-      ...modelDataMap.get(client.id)
+      ...modelDataMap.get(client.id),
+      subscriptionType // Add subscription type at root level
     };
 
     // Add DCS and MCCJ services if they match the client's group
@@ -67,52 +107,81 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
     clientid: { $in: clientIds.map(id => parseInt(id)) }
   };
 
-  // Add model-specific pipeline stages
-  switch(modelName.toLowerCase()) {
-    case 'wmm':
-      return [
-        { $match: baseMatch },
-        { $sort: { clientid: 1, subsdate: -1 } },
-        {
-          $addFields: {
-            modelType: "WMM"
-          }
-        },
-        {
-          $group: {
-            _id: "$clientid",
-            recentCopies: { $first: "$copies" },
-            totalCopies: { $sum: { $toInt: "$copies" } },
-            subsclass: { $first: "$subsclass" },
-            subsdate: { $first: "$subsdate" },
-            enddate: { $first: "$enddate" },
-            records: { 
-              $push: {
-                $mergeObjects: [
-                  "$$ROOT",
-                  {
-                    _id: { $toString: "$_id" },
-                    clientid: { $toString: "$clientid" }
-                  }
-                ]
-              }
+  // Use same pipeline for all subscription models (WMM, Promo, Complimentary)
+  if (modelName.toLowerCase().match(/wmm|promo|complimentary/)) {
+    const isPromo = modelName.toLowerCase().includes('promo');
+    const isWmm = modelName.toLowerCase().includes('wmm');
+
+    return [
+      { $match: baseMatch },
+      { $sort: { clientid: 1, subsdate: -1 } },
+      {
+        $addFields: {
+          modelType: modelName.replace(/model/i, '').toUpperCase()
+        }
+      },
+      {
+        $group: {
+          _id: "$clientid",
+          recentCopies: { $first: "$copies" },
+          totalCopies: { $sum: { $toInt: "$copies" } },
+          subsclass: { $first: "$subsclass" },
+          subsdate: { $first: "$subsdate" },
+          enddate: { $first: "$enddate" },
+          subsyear: { $first: "$subsyear" },
+          remarks: { $first: "$remarks" },
+          calendar: { $first: "$calendar" },
+          adddate: { $first: "$adddate" },
+          adduser: { $first: "$adduser" },
+          // WMM specific fields
+          paymtref: { $first: { $cond: [isWmm, "$paymtref", null] } },
+          paymtamt: { $first: { $cond: [isWmm, "$paymtamt", null] } },
+          paymtmasses: { $first: { $cond: [isWmm, "$paymtmasses", null] } },
+          donorid: { $first: { $cond: [isWmm, "$donorid", null] } },
+          // Promo specific fields
+          referralid: { $first: { $cond: [isPromo, "$referralid", null] } },
+          records: { 
+            $push: {
+              $mergeObjects: [
+                "$$ROOT",
+                {
+                  _id: { $toString: "$_id" },
+                  clientid: { $toString: "$clientid" }
+                }
+              ]
             }
           }
-        },
-        {
-          $project: {
-            _id: 0,
-            clientid: "$_id",
-            recentCopies: 1,
-            totalCopies: 1,
-            subsclass: 1,
-            subsdate: 1,
-            enddate: 1,
-            records: 1
-          }
         }
-      ];
+      },
+      {
+        $project: {
+          _id: 0,
+          clientid: "$_id",
+          recentCopies: 1,
+          totalCopies: 1,
+          subsclass: 1,
+          subsdate: 1,
+          enddate: 1,
+          subsyear: 1,
+          remarks: 1,
+          calendar: 1,
+          adddate: 1,
+          adduser: 1,
+          // WMM specific fields
+          paymtref: 1,
+          paymtamt: 1,
+          paymtmasses: 1,
+          donorid: 1,
+          // Promo specific fields
+          referralid: 1,
+          records: 1
+        }
+      }
+    ];
+  }
 
+  // Handle other models
+  switch(modelName.toLowerCase()) {
     case 'cal':
       return [
         { $match: baseMatch },
@@ -194,7 +263,12 @@ function filterRecords(records, advancedFilterData, modelName) {
 function normalizeServiceType(modelName) {
   const modelNameLower = modelName.toLowerCase();
   
+  // Handle subscription types
   if (modelNameLower.includes('wmm')) return 'wmmData';
+  if (modelNameLower.includes('promo')) return 'promoData';
+  if (modelNameLower.includes('complimentary')) return 'compData';
+  
+  // Handle other services
   if (modelNameLower.includes('hrg')) return 'hrgData';
   if (modelNameLower.includes('fom')) return 'fomData';
   if (modelNameLower.includes('cal')) return 'calData';

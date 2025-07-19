@@ -436,7 +436,21 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
   // Handle service filtering
   if (advancedFilterData.services) {
     try {
-      const WmmModel = await getModelInstance('WmmModel');
+      const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+      
+      // Get the appropriate subscription model based on type
+      let SubscriptionModel;
+      switch(subscriptionType) {
+        case 'Promo':
+          SubscriptionModel = await getModelInstance('PromoModel');
+          break;
+        case 'Complimentary':
+          SubscriptionModel = await getModelInstance('ComplimentaryModel');
+          break;
+        default:
+          SubscriptionModel = await getModelInstance('WmmModel');
+      }
+
       const FomModel = await getModelInstance('FomModel');
       const HrgModel = await getModelInstance('HrgModel');
       const CalModel = await getModelInstance('CalModel');
@@ -454,6 +468,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       const hasOtherFilters = Object.keys(advancedFilterData).some(key => 
         key !== 'services' && 
         key !== 'subscriptionStatus' && 
+        key !== 'subscriptionType' && 
         advancedFilterData[key] !== undefined && 
         advancedFilterData[key] !== null && 
         advancedFilterData[key] !== ''
@@ -466,12 +481,25 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       // First, get all clients for each service
       const serviceClientsMap = {};
       for (const service of services) {
-        const Model = {
-          'WMM': WmmModel,
-          'FOM': FomModel,
-          'HRG': HrgModel,
-          'CAL': CalModel
-        }[service.toUpperCase()];  // Ensure case-insensitive matching
+        let Model;
+        switch(service.toUpperCase()) {
+          case 'WMM':
+          case 'PROMO':
+          case 'COMP':
+            Model = SubscriptionModel; // Use the appropriate subscription model
+            break;
+          case 'FOM':
+            Model = FomModel;
+            break;
+          case 'HRG':
+            Model = HrgModel;
+            break;
+          case 'CAL':
+            Model = CalModel;
+            break;
+          default:
+            continue;
+        }
 
         if (!Model) continue;
 
@@ -483,9 +511,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           if (subscriptionStatus === 'active') {
             // For active subscriptions, only check the most recent record for each client
             const activeClients = await Model.aggregate([
-              // First stage: Match only records with valid receive date and not unsubscribed
               { $match: {} },
-              // Second stage: Convert recvdate string to Date for proper sorting
               {
                 $addFields: {
                   recvDateObj: {
@@ -498,11 +524,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
                   }
                 }
               },
-              // Only consider records with valid date
               { $match: { recvDateObj: { $ne: null}}},
-              // Sort by client ID and receive date (newest first)
               { $sort: { clientid: 1, recvDateObj: -1 }},
-               // Group by client ID to get most recent record
               {
                 $group: {
                   _id: "$clientid",
@@ -523,7 +546,6 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
                   ]
                 }
               },
-              // Final stage: Project only the client ID
               {
                 $project: {
                   _id: 1
@@ -641,9 +663,25 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           );
         }
       }
-      // For other services or combinations, use the original intersection logic
+      // For subscription services (WMM/PROMO/COMP) or other combinations
       else {
+        // Get the appropriate service key based on subscription type
+        const subscriptionServiceKey = {
+          'WMM': 'WMM',
+          'Promo': 'PROMO',
+          'Complimentary': 'COMP'
+        }[subscriptionType];
+
+        // Initialize targetClients with subscription service clients if available
+        if (serviceClientsMap[subscriptionServiceKey]) {
+          targetClients = serviceClientsMap[subscriptionServiceKey];
+          isFirstService = false;
+        }
+
+        // Add other services using intersection
         for (const [service, clients] of Object.entries(serviceClientsMap)) {
+          if (service === subscriptionServiceKey) continue; // Skip subscription service as it's already handled
+
           if (isFirstService) {
             targetClients = clients;
             isFirstService = false;

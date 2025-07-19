@@ -25,7 +25,7 @@ class DataService {
       // Check if there are any filters besides services
       const hasNonServiceFilters = Object.keys(advancedFilterData).some(key => 
         key !== 'services' && 
-        key !== 'subscriptionStatus' && 
+        key !== 'subscriptionType' && 
         advancedFilterData[key] !== undefined && 
         advancedFilterData[key] !== null && 
         advancedFilterData[key] !== ''
@@ -39,6 +39,7 @@ class DataService {
 
       // Get filtered clients with pagination for display
       const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
+      
       const totalCount = await ClientModel.countDocuments(filterQuery);
 
       // Get all filtered client IDs
@@ -49,17 +50,76 @@ class DataService {
       const filteredIds = allFilteredClientIds.map(client => client.id);
       const pageClientIds = clients.map(client => client.id);
 
+      // Adjust model names based on subscription type
+      let adjustedModelNames = [...modelNames];
+      const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+
+      if (modelNames.includes('WmmModel')) {
+        // Remove WmmModel and add appropriate subscription model
+        adjustedModelNames = modelNames.filter(name => name !== 'WmmModel');
+        
+        switch(subscriptionType) {
+          case 'Promo':
+            adjustedModelNames.push('PromoModel');
+            break;
+          case 'Complimentary':
+            adjustedModelNames.push('ComplimentaryModel');
+            break;
+          default:
+            adjustedModelNames.push('WmmModel');
+        }
+      }
+
       // Get paginated data for display
-      const { combinedData } = await aggregateClientData(clients, modelNames, advancedFilterData);
+      const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
+        ...advancedFilterData,
+        subscriptionType
+      });
 
       // Add hasNonServiceFilters flag to each client in combinedData
-      const enrichedData = combinedData.map(client => ({
-        ...client,
-        hasNonServiceFilters
-      }));
+      const enrichedData = combinedData.map(client => {
+        // Start with base client data
+        const enrichedClient = {
+          ...client,
+          hasNonServiceFilters,
+          subscriptionType
+        };
+
+        // Only include the relevant subscription data based on type
+        switch(subscriptionType) {
+          case 'WMM':
+            enrichedClient.wmmData = client.wmmData || null;
+            delete enrichedClient.promoData;
+            delete enrichedClient.compData;
+            break;
+          case 'Promo':
+            enrichedClient.promoData = client.promoData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.compData;
+            break;
+          case 'Complimentary':
+            enrichedClient.compData = client.compData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.promoData;
+            break;
+        }
+
+        // Keep other service data
+        if (client.hrgData) enrichedClient.hrgData = client.hrgData;
+        if (client.fomData) enrichedClient.fomData = client.fomData;
+        if (client.calData) enrichedClient.calData = client.calData;
+        if (client.dcsData) enrichedClient.dcsData = client.dcsData;
+        if (client.mccjData) enrichedClient.mccjData = client.mccjData;
+        if (client.mccjAsiaData) enrichedClient.mccjAsiaData = client.mccjAsiaData;
+
+        return enrichedClient;
+      });
 
       // Calculate statistics using filter query and current page info
       const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
+
+      // Build client services based on subscription type
+      const clientServices = this._buildClientServices(enrichedData, subscriptionType);
 
       // Prepare response
       const response = {
@@ -68,7 +128,7 @@ class DataService {
         currentPage: validPage,
         pageSize: validLimit,
         combinedData: enrichedData,
-        clientServices: this._buildClientServices(enrichedData)
+        clientServices
       };
 
       return response;
@@ -79,17 +139,31 @@ class DataService {
   }
 
   async _getFilteredClients(filterQuery, skip, limit) {
-    return ClientModel.find(filterQuery)
+    const clients = await ClientModel.find(filterQuery)
       .sort({ id: 1 })
       .skip(skip)
       .limit(limit)
       .lean();
+    return clients;
   }
 
-  _buildClientServices(combinedData) {
+  _buildClientServices(combinedData, subscriptionType) {
     return combinedData.map(client => {
       const services = [];
-      if (client.wmmData) services.push('WMM');
+      
+      // Add subscription service based on type
+      switch(subscriptionType) {
+        case 'Promo':
+          if (client.promoData) services.push('PROMO');
+          break;
+        case 'Complimentary':
+          if (client.compData) services.push('COMP');
+          break;
+        default:
+          if (client.wmmData) services.push('WMM');
+      }
+
+      // Add other services
       if (client.hrgData) services.push('HRG');
       if (client.fomData) services.push('FOM');
       if (client.calData) services.push('CAL');

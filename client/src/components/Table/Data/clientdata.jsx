@@ -7,15 +7,18 @@ export const fetchClients = async (
   pageSize = 20,
   filter = "",
   group = "",
-  advancedFilterData = {}
+  advancedFilterData = {},
+  subscriptionType = "WMM"
 ) => {
   try {
+
     // Normalize filter parameters
     const normalizedParams = {
       page: Number(page) || 1,
       pageSize: Number(pageSize) || 20,
       filter: filter || "",
       group: group || "",
+      subscriptionType: subscriptionType || "WMM", // Add subscription type as standalone parameter
     };
 
     // Process advanced filter data to ensure proper types

@@ -14,6 +14,8 @@ import { logClientCreation, logClientUpdate, logClientDeletion } from '../client
 import { checkDuplicates } from './duplicateCheck.mjs';
 import { calculateStatistics } from '../apiLogic/services/statsCalculator.mjs';
 import { buildFilterQuery } from '../apiLogic/services/filterBuilder.mjs';
+import PromoModel from "../../models/promo.mjs";
+import ComplimentaryModel from "../../models/complimentary.mjs";
 
 dotenv.config();
 
@@ -104,6 +106,7 @@ router.get(
       pageSize = 20,
       filter = "",
       group = "",
+      subscriptionType = "WMM",
       ...advancedFilterData
     } = req.query;
 
@@ -113,12 +116,23 @@ router.get(
       const validPage = isNaN(parsedPage) ? 1 : parsedPage;
       const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
 
+      // Normalize subscription type
+      let normalizedSubscriptionType = Array.isArray(subscriptionType) 
+        ? subscriptionType[0] 
+        : subscriptionType;
+
+      // Update advancedFilterData with the normalized subscription type
+      const updatedAdvancedFilterData = {
+        ...advancedFilterData,
+        subscriptionType: normalizedSubscriptionType
+      };
+
       const { processedData, stats, totalPages, currentPage } = await fetchClientData(req, {
         page: validPage,
         pageSize: validPageSize,
         filter,
         group,
-        ...advancedFilterData
+        ...updatedAdvancedFilterData
       });
 
       const actualPage = Math.min(currentPage, totalPages || 1);
@@ -1563,6 +1577,39 @@ router.post(
     }
   }
 );
+
+router.get("/test-subscription-data", async (req, res) => {
+  try {
+    // Test queries for both models
+    const promoCount = await PromoModel.countDocuments();
+    const complimentaryCount = await ComplimentaryModel.countDocuments();
+    
+    // Get sample data from each model
+    const promoSample = await PromoModel.find().limit(5).lean();
+    const complimentarySample = await ComplimentaryModel.find().limit(5).lean();
+
+    // Log the results for debugging
+    console.log('Test Route - Promo Count:', promoCount);
+    console.log('Test Route - Complimentary Count:', complimentaryCount);
+    console.log('Test Route - Promo Sample:', promoSample);
+    console.log('Test Route - Complimentary Sample:', complimentarySample);
+
+    res.json({
+      promoCount,
+      complimentaryCount,
+      promoSample,
+      complimentarySample,
+      message: "Query completed successfully"
+    });
+  } catch (error) {
+    console.error("Error in test subscription data route:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
 
 export default router;
 
