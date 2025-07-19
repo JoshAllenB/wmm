@@ -153,6 +153,32 @@ export const modelConfigs = {
       adduser: "$adduser",
     },
   },
+  PromoModel: {
+    projectFields: {
+      id: 1,
+      clientId: 1,
+      subsdate: 1,
+      enddate: 1,
+      subsyear: 1,
+      copies: 1,
+      remarks: 1,
+      calendar: 1,
+      referralid: 1,
+      adddate: 1,
+      adduser: 1,
+    },
+    groupFields: {
+      subsdate: "$subsdate",
+      enddate: "$enddate",
+      subsyear: "$subsyear",
+      copies: "$copies",
+      remarks: "$remarks",
+      calendar: "$calendar",
+      referralid: "$referralid",
+      adddate: "$adddate",
+      adduser: "$adduser",
+    },
+  },
 };
 
 export const clientFields =
