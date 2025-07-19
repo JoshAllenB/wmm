@@ -13,7 +13,7 @@ const complimentaryConnection = mongoose.createConnection(
 const ComplimentarySchema = new mongoose.Schema(
   {
     id: Number,
-    clientId: Number,
+    clientid: Number, // Changed from clientId to clientid
     subsdate: String,
     enddate: String,
     subsyear: Number,

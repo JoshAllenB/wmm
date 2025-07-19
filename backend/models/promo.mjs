@@ -10,7 +10,7 @@ const promoConnection = mongoose.createConnection(process.env.MONGODB_URI, {
 const PromoSchema = new mongoose.Schema(
   {
     id: Number,
-    clientId: Number,
+    clientid: Number, // Changed from clientId to clientid
     subsdate: Date,
     enddate: Date,
     subsyear: Number,
