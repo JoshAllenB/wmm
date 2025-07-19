@@ -8,6 +8,8 @@ const additionalModels = {
   HrgModel: () => import("../../../models/hrg.mjs"),
   FomModel: () => import("../../../models/fom.mjs"),
   CalModel: () => import("../../../models/cal.mjs"),
+  PromoModel: () => import("../../../models/promo.mjs"),
+  ComplimentaryModel: () => import("../../../models/complimentary.mjs"),
 };
 
 // Helper function to get model from cache or import it

@@ -9,6 +9,7 @@ export const models = {
   CALModel: () => import("./cal.mjs"),
   GroupModel: () => import("./groups.mjs"),
   ComplimentaryModel: () => import("./complimentary.mjs"),
+  PromoModel: () => import("./promo.mjs"), // Add PromoModel import
 };
 
 export const modelConfigs = {
@@ -132,7 +133,7 @@ export const modelConfigs = {
   },
   ComplimentaryModel: {
     projectFields: {
-      clientId: 1,
+      clientid: 1,
       subsdate: 1,
       enddate: 1,
       subsyear: 1,
@@ -155,8 +156,7 @@ export const modelConfigs = {
   },
   PromoModel: {
     projectFields: {
-      id: 1,
-      clientId: 1,
+      clientid: 1,
       subsdate: 1,
       enddate: 1,
       subsyear: 1,
