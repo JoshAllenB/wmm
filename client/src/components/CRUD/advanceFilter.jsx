@@ -86,7 +86,7 @@ const formatDateToISO = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
+const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType = "WMM" }) => {
   const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
 
@@ -250,23 +250,39 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
   useEffect(() => {
     // Only set services if the filter is empty to avoid overriding user selections
     if (filterData.services.length === 0) {
-      const roleBasedServices = [];
+      let services = [];
 
-      // Check each role and add corresponding service
-      if (hasRole("WMM")) roleBasedServices.push("WMM");
-      if (hasRole("FOM")) roleBasedServices.push("FOM");
-      if (hasRole("HRG")) roleBasedServices.push("HRG");
-      if (hasRole("CAL")) roleBasedServices.push("CAL");
+      if (hasRole("WMM")) {
+        // For WMM role, use subscription type
+        switch (subscriptionType) {
+          case "Promo":
+            services = ["PROMO"];
+            break;
+          case "Complimentary":
+            services = ["COMP"];
+            break;
+          default:
+            services = ["WMM"];
+        }
+      } else if (hasRole("Admin")) {
+        // For Admin, show all services except Promo and Complimentary
+        services = ["WMM", "HRG", "FOM", "CAL"];
+      } else {
+        // For other roles (HRG, FOM, CAL), add their respective services
+        if (hasRole("HRG")) services.push("HRG");
+        if (hasRole("FOM")) services.push("FOM");
+        if (hasRole("CAL")) services.push("CAL");
+      }
 
-      // Only update if we found matching roles
-      if (roleBasedServices.length > 0) {
+      // Only update if we found matching services
+      if (services.length > 0) {
         setFilterData((prev) => ({
           ...prev,
-          services: roleBasedServices,
+          services: services,
         }));
       }
     }
-  }, [hasRole]);
+  }, [hasRole, subscriptionType]);
 
   const openModal = () => {
     // Reset the filter form when opening the modal
@@ -1606,6 +1622,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup }) => {
                       handleServiceChange={handleServiceChange}
                       handleClientIdFilterTypeChange={handleClientIdFilterTypeChange}
                       hasRole={hasRole}
+                      subscriptionType={subscriptionType}
                     />
                   </div>
                 </div>
