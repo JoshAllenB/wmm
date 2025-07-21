@@ -573,11 +573,9 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
   if (advancedFilterData.services) {
     try {
       const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
-      console.log('subscriptionType', subscriptionType);
       
       // Get the appropriate subscription model based on type
       const SubscriptionModel = await getSubscriptionModel(subscriptionType);
-      console.log("Using " + subscriptionType + " Model");
 
       const FomModel = await getModelInstance('FomModel');
       const HrgModel = await getModelInstance('HrgModel');
@@ -804,7 +802,6 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           'Promo': 'PROMO',
           'Complimentary': 'COMP'
         }[subscriptionType];
-        console.log('subscriptionServiceKey', subscriptionServiceKey);
 
         // Initialize targetClients with subscription service clients if available
         if (serviceClientsMap[subscriptionServiceKey]) {
@@ -1161,7 +1158,6 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   if (advancedFilterData.wmmActiveFromDate || advancedFilterData.wmmActiveToDate) {
     try {
       const Model = await getSubscriptionModel(advancedFilterData.subscriptionType);
-      console.log("Using " + advancedFilterData.subscriptionType + " Model");
 
       let fromDate = null, toDate = null;
       if (advancedFilterData.wmmActiveFromDate) {
