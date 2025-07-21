@@ -6,6 +6,18 @@ export const useColumns = () => {
   const { hasRole, user } = useUser();
   const userRole = user?.role;
 
+  // Function to get checkbox color class based on subscription type
+  const getCheckboxColorClass = (row) => {
+    switch (row?.subscriptionType) {
+      case "Promo":
+        return "border-[3px] border-emerald-900 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600 hover:border-emerald-800";
+      case "Complimentary":
+        return "border-[3px] border-purple-900 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-900 hover:border-white";
+      default:
+        return "border-[3px] border-blue-900 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600 hover:border-blue-800";
+    }
+  };
+
   // Function to determine subscription status based on enddate
   const getSubscriptionStatus = (enddate) => {
     if (!enddate || enddate === "N/A") return "unknown";
@@ -48,21 +60,25 @@ export const useColumns = () => {
     {
       id: "select",
       toggleable: false,
-      header: ({ table }) => (
-        <div className="flex">
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) => {
-              table.toggleAllPageRowsSelected(!!value);
-            }}
-            aria-label="Select all"
-            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-          />
-        </div>
-      ),
+      header: ({ table }) => {
+        // Get the first row's subscription type for consistent header styling
+        const firstRow = table.getRowModel().rows[0]?.original;
+        return (
+          <div className="flex">
+            <Checkbox
+              checked={
+                table.getIsAllPageRowsSelected() ||
+                (table.getIsSomePageRowsSelected() && "indeterminate")
+              }
+              onCheckedChange={(value) => {
+                table.toggleAllPageRowsSelected(!!value);
+              }}
+              aria-label="Select all"
+              className={getCheckboxColorClass(firstRow)}
+            />
+          </div>
+        );
+      },
       cell: ({ row }) => (
         <div className="flex px-4">
           <Checkbox
@@ -71,7 +87,7 @@ export const useColumns = () => {
               row.toggleSelected(!!value);
             }}
             aria-label="Select row"
-            className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+            className={getCheckboxColorClass(row.original)}
           />
         </div>
       ),
@@ -182,13 +198,26 @@ export const useColumns = () => {
             id: "Subscription",
             Header: "Subscription",
             accessorFn: (row) => {
-              // Check if wmmData exists and has records
-              if (!row.wmmData || !row.wmmData.records) {
+              // Get the appropriate subscription data based on type
+              let subscriptionData;
+              switch (row.subscriptionType) {
+                case "Promo":
+                  subscriptionData = row.promoData;
+                  break;
+                case "Complimentary":
+                  subscriptionData = row.compData;
+                  break;
+                default: // WMM
+                  subscriptionData = row.wmmData;
+              }
+
+              // Check if subscription data exists and has records
+              if (!subscriptionData || !subscriptionData.records) {
                 return [];
               }
 
-              // Use the records array from wmmData
-              const subscriptionRecords = row.wmmData.records || [];
+              // Use the records array from subscription data
+              const subscriptionRecords = subscriptionData.records || [];
 
               // Sort records by subsdate in descending order (most recent first)
               const sortedRecords = [...subscriptionRecords]
@@ -214,41 +243,42 @@ export const useColumns = () => {
                   calendar
                 } = subscription;
 
-                  if (subsdate) {
-                    subsdate = `${new Date(subsdate).toLocaleDateString(
-                      "en-US"
-                    )}`;
-                  } else {
-                    subsdate = "N/A";
-                  }
+                if (subsdate) {
+                  subsdate = `${new Date(subsdate).toLocaleDateString(
+                    "en-US"
+                  )}`;
+                } else {
+                  subsdate = "N/A";
+                }
 
-                  if (enddate) {
-                    enddate = `${new Date(enddate).toLocaleDateString(
-                      "en-US"
-                    )}`;
-                  } else {
-                    enddate = "N/A";
-                  }
+                if (enddate) {
+                  enddate = `${new Date(enddate).toLocaleDateString(
+                    "en-US"
+                  )}`;
+                } else {
+                  enddate = "N/A";
+                }
 
-                  // Format payment amount if exists
-                  const formattedPayment = paymtamt
-                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
-                    : null;
+                // Format payment amount if exists
+                const formattedPayment = paymtamt
+                  ? `₱${parseFloat(paymtamt).toFixed(2)}`
+                  : null;
 
-                  // Determine subscription status
-                  const status = getSubscriptionStatus(enddate);
+                // Determine subscription status
+                const status = getSubscriptionStatus(enddate);
 
-                  return {
-                    subsclass,
-                    subsdate,
-                    enddate,
-                    copies: `${copies || "N/A"}`,
-                    paymtref: paymtref || null,
-                    paymtamt: formattedPayment,
-                    status,
-                    calendar: calendar || false
-                  };
-                });
+                return {
+                  subsclass,
+                  subsdate,
+                  enddate,
+                  copies: `${copies || "N/A"}`,
+                  paymtref: paymtref || null,
+                  paymtamt: formattedPayment,
+                  status,
+                  calendar: calendar || false,
+                  type: row.subscriptionType // Add subscription type to display
+                };
+              });
             },
             cell: ({ getValue }) => {
               const subscriptions = getValue();
@@ -269,15 +299,27 @@ export const useColumns = () => {
                         ? "🟢 "
                         : "";
 
+                    // Get subscription type badge color
+                    const typeBadgeColor = sub.type === "Promo" 
+                      ? "bg-emerald-100 text-emerald-800"
+                      : sub.type === "Complimentary"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-blue-100 text-blue-800";
+
                     return (
                       <li key={index} className="mb-1">
                         <div className="flex flex-col">
-                          <span className={statusClass}>
-                            {statusIndicator}
-                            <strong>{sub.subsclass}</strong>:{" "}
-                            {sub.subsdate} - {sub.enddate}, Cps:{" "}
-                            {sub.copies}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={statusClass}>
+                              {statusIndicator}
+                              <strong>{sub.subsclass}</strong>:{" "}
+                              {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                              {sub.copies}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadgeColor}`}>
+                              {sub.type}
+                            </span>
+                          </div>
                           {(sub.paymtref || sub.paymtamt) && (
                             <div className="text-xs ml-4 text-gray-600">
                               {sub.paymtref && (

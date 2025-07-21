@@ -472,6 +472,7 @@ export default function DataTable({
             animationComplete={animationComplete}
             stats={stats}
             containerWidth={tableWidth}
+            subscriptionType={advancedFilterData?.subscriptionType || "WMM"} // Pass subscription type from advancedFilterData
           />
           <ScrollBar orientation="vertical" />
           <ScrollBar orientation="horizontal" />

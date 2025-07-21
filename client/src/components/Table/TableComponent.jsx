@@ -22,6 +22,7 @@ export const TableComponent = function TableComponent({
   stats, // New single prop for all statistics
   statsLoading = false,
   containerWidth = 0,
+  subscriptionType = "WMM", // Add subscriptionType prop with default value
 }) {
   // Calculate responsive dimensions
   const isMobile = containerWidth > 0 && containerWidth < 640;
@@ -568,6 +569,42 @@ export const TableComponent = function TableComponent({
     statsLoading
   ]);
 
+  // Get header background color based on subscription type
+  const getHeaderBackgroundColor = () => {
+    switch (subscriptionType) {
+      case "Promo":
+        return "bg-emerald-600";
+      case "Complimentary":
+        return "bg-purple-600";
+      default:
+        return "bg-blue-600";
+    }
+  };
+
+  // Get row colors based on subscription type
+  const getRowColors = () => {
+    switch (subscriptionType) {
+      case "Promo":
+        return {
+          even: "even:bg-white",
+          odd: "odd:bg-emerald-100",
+          hover: "hover:bg-emerald-300"
+        };
+      case "Complimentary":
+        return {
+          even: "even:bg-white",
+          odd: "odd:bg-purple-100",
+          hover: "hover:bg-purple-200"
+        };
+      default: // WMM
+        return {
+          even: "even:bg-white",
+          odd: "odd:bg-blue-100",
+          hover: "hover:bg-blue-200"
+        };
+    }
+  };
+
   const handleCellClick = (event, row, cell) => {
     if (cell.column.id === "select") {
       event.stopPropagation();
@@ -589,7 +626,7 @@ export const TableComponent = function TableComponent({
                     e.preventDefault();
                     header.column.toggleSorting();
                   }}
-                  className="bg-blue-600 text-white font-bold text-base sm:text-lg sticky top-0 whitespace-nowrap cursor-pointer"
+                  className={`${getHeaderBackgroundColor()} text-white font-bold text-base sm:text-lg sticky top-0 whitespace-nowrap cursor-pointer`}
                   style={{
                     position: 'relative',
                     height: isMobile ? '40px' : isTablet ? '48px' : '56px',
@@ -622,10 +659,12 @@ export const TableComponent = function TableComponent({
                 row.original.isFiltered = stats.clientCount.total !== stats.clientCount.page;
               }
               
+              const rowColors = getRowColors();
+              
               return (
                 <TableRow
                   key={`${row.id}-${rowIndex}`}
-                  className={`even:bg-gray-150 odd:bg-blue-100 hover:bg-blue-100 hover:cursor-pointer border-b border-gray-500 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
+                  className={`${rowColors.even} ${rowColors.odd} ${rowColors.hover} cursor-pointer border-b border-gray-200 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
                     animationComplete
                       ? "opacity-100 translate-y-0"
                       : "opacity-0 translate-y-2"
@@ -958,7 +997,7 @@ export const TableComponent = function TableComponent({
             <TableRow>
               <TableCell
                 colSpan={table.getVisibleLeafColumns().length}
-                className="text-center text-xl sm:text-2xl"
+                className="text-center text-xl sm:text-2xl bg-white"
                 style={{
                   height: isMobile ? '40px' : isTablet ? '48px' : '56px',
                 }}
