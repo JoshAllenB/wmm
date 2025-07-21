@@ -265,8 +265,17 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
             services = ["WMM"];
         }
       } else if (hasRole("Admin")) {
-        // For Admin, show all services except Promo and Complimentary
-        services = ["WMM", "HRG", "FOM", "CAL"];
+        // For Admin, only set the service based on subscription type
+        switch (subscriptionType) {
+          case "Promo":
+            services = ["PROMO"];
+            break;
+          case "Complimentary":
+            services = ["COMP"];
+            break;
+          default:
+            services = ["WMM"];
+        }
       } else {
         // For other roles (HRG, FOM, CAL), add their respective services
         if (hasRole("HRG")) services.push("HRG");
@@ -564,6 +573,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
 
     // Process the filter data
     const processedFilterData = cleanObject({
+      // Add subscription type to the filter data
+      subscriptionType,
+
       // Personal info
       ...(filterData.lname && { lname: filterData.lname }),
       ...(filterData.fname && { fname: filterData.fname }),
