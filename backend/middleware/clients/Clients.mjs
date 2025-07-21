@@ -30,6 +30,7 @@ const fetchClientData = async (req, options = {}) => {
     filter = "",
     group = "",
     modelNames = [],
+    subscriptionType = "WMM",  // Add default subscription type
     ...advancedFilterData
   } = options;
 
@@ -41,7 +42,7 @@ const fetchClientData = async (req, options = {}) => {
   const userRoles = req.user.roles.map((role) => role.role.name);
   
   // Ensure modelNames is always a valid array
-  const validModelNames = Array.isArray(modelNames) && modelNames.length > 0 
+  let validModelNames = Array.isArray(modelNames) && modelNames.length > 0 
     ? modelNames 
     : userRoles.includes("Admin") || userRoles.includes("Accounting")
       ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
@@ -54,6 +55,21 @@ const fetchClientData = async (req, options = {}) => {
     validModelNames.push("WmmModel");
   }
 
+  // Replace WmmModel with appropriate subscription model
+  if (validModelNames.includes("WmmModel")) {
+    validModelNames = validModelNames.filter(name => name !== "WmmModel");
+    switch(subscriptionType) {
+      case "Promo":
+        validModelNames.push("PromoModel");
+        break;
+      case "Complimentary":
+        validModelNames.push("ComplimentaryModel");
+        break;
+      default:
+        validModelNames.push("WmmModel");
+    }
+  }
+
   // Use appropriate data fetching method based on skipPagination
   const results = skipPagination
     ? await dataService.fetchAllData({
@@ -61,7 +77,10 @@ const fetchClientData = async (req, options = {}) => {
         filter,
         group,
         clientIds: null,
-        advancedFilterData
+        advancedFilterData: {
+          ...advancedFilterData,
+          subscriptionType
+        }
       })
     : await dataService.fetchData({
         modelNames: validModelNames,
@@ -71,7 +90,10 @@ const fetchClientData = async (req, options = {}) => {
         pageSize,
         group,
         clientIds: null,
-        advancedFilterData
+        advancedFilterData: {
+          ...advancedFilterData,
+          subscriptionType
+        }
       });
 
   // Process and merge client services data
@@ -83,6 +105,7 @@ const fetchClientData = async (req, options = {}) => {
     return {
       ...client,
       services: clientService ? clientService.services : [],
+      subscriptionType // Add subscription type to processed data
     };
   });
 
@@ -90,7 +113,8 @@ const fetchClientData = async (req, options = {}) => {
     processedData,
     stats,
     totalPages,
-    currentPage
+    currentPage,
+    subscriptionType // Add subscription type to return object
   };
 };
 
@@ -121,18 +145,18 @@ router.get(
         ? subscriptionType[0] 
         : subscriptionType;
 
-      // Update advancedFilterData with the normalized subscription type
-      const updatedAdvancedFilterData = {
-        ...advancedFilterData,
-        subscriptionType: normalizedSubscriptionType
-      };
+      // Validate subscription type
+      if (!["WMM", "Promo", "Complimentary"].includes(normalizedSubscriptionType)) {
+        normalizedSubscriptionType = "WMM";
+      }
 
       const { processedData, stats, totalPages, currentPage } = await fetchClientData(req, {
         page: validPage,
         pageSize: validPageSize,
         filter,
         group,
-        ...updatedAdvancedFilterData
+        subscriptionType: normalizedSubscriptionType,
+        ...advancedFilterData
       });
 
       const actualPage = Math.min(currentPage, totalPages || 1);
@@ -141,13 +165,15 @@ router.get(
         combinedData: processedData,
         page: actualPage,
         totalPages: totalPages || 1,
-        stats
+        stats,
+        subscriptionType: normalizedSubscriptionType
       });
 
       if (io && socketId) {
         io.to(socketId).emit("dataFetched", {
           message: "Data fetched successfully",
           timestamp: new Date(),
+          subscriptionType: normalizedSubscriptionType
         });
       }
     } catch (error) {

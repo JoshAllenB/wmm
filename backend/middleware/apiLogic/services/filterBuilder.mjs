@@ -2,6 +2,142 @@ import { getModelInstance } from './modelManager.mjs';
 import ClientModel from '../../../models/clients.mjs';
 import { parseDate } from './helpers.mjs';
 
+// Helper to get first and last day of a month from a date string
+function getMonthRange(dateString) {
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return { start: null, end: null };
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0, 23, 59, 59, 999); // last day of month
+  return { start, end };
+}
+
+// Helper function to get the appropriate subscription model
+async function getSubscriptionModel(subscriptionType) {
+  switch(subscriptionType) {
+    case 'Promo':
+      return await getModelInstance('PromoModel');
+    case 'Complimentary':
+      return await getModelInstance('ComplimentaryModel');
+    default:
+      return await getModelInstance('WmmModel');
+  }
+}
+
+// Helper function to create date pipeline stages
+function createDatePipeline(dateField, subscriptionType = 'WMM') {
+  const pipeline = [
+    {
+      $match: {
+        [dateField]: { $exists: true, $ne: null }
+      }
+    }
+  ];
+
+  // Add date conversion based on subscription type
+  if (subscriptionType === 'Promo') {
+    // Handle Promo date format (M/D/YYYY HH:mm:ss)
+    pipeline.push({
+      $addFields: {
+        normalizedDate: {
+          $let: {
+            vars: {
+              // First get just the date part if there's a space
+              datePart: { 
+                $cond: {
+                  if: { $regexMatch: { input: `$${dateField}`, regex: ' ' } },
+                  then: { $arrayElemAt: [{ $split: [`$${dateField}`, ' '] }, 0] },
+                  else: `$${dateField}`
+                }
+              }
+            },
+            in: {
+              $cond: {
+                if: { $regexMatch: { input: '$$datePart', regex: '/' } },
+                then: {
+                  $let: {
+                    vars: {
+                      parts: { $split: ['$$datePart', '/'] },
+                      year: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 2] },
+                      month: { 
+                        $toString: {
+                          $cond: {
+                            if: { $lt: [{ $strLenBytes: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] } }, 2] },
+                            then: { 
+                              $concat: ['0', { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] }]
+                            },
+                            else: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] }
+                          }
+                        }
+                      },
+                      day: {
+                        $toString: {
+                          $cond: {
+                            if: { $lt: [{ $strLenBytes: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] } }, 2] },
+                            then: {
+                              $concat: ['0', { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] }]
+                            },
+                            else: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] }
+                          }
+                        }
+                      }
+                    },
+                    in: {
+                      $dateFromString: {
+                        dateString: {
+                          $concat: ['$$year', '-', '$$month', '-', '$$day']
+                        },
+                        format: '%Y-%m-%d',
+                        timezone: 'UTC',
+                        onError: null,
+                        onNull: null
+                      }
+                    }
+                  }
+                },
+                else: {
+                  $dateFromString: {
+                    dateString: '$$datePart',
+                    format: '%Y-%m-%d',
+                    timezone: 'UTC',
+                    onError: null,
+                    onNull: null
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  } else {
+    // Handle WMM and Complimentary date format (YYYY-MM-DD)
+    pipeline.push({
+      $addFields: {
+        normalizedDate: {
+          $dateFromString: {
+            dateString: `$${dateField}`,
+            format: '%Y-%m-%d',
+            timezone: 'UTC',
+            onError: null,
+            onNull: null
+          }
+        }
+      }
+    });
+  }
+
+  // Filter out invalid dates
+  pipeline.push({
+    $match: {
+      normalizedDate: { $ne: null }
+    }
+  });
+
+  return pipeline;
+}
+
 export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Initialize the filter query
   const baseFilter = [];
@@ -437,19 +573,11 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
   if (advancedFilterData.services) {
     try {
       const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+      console.log('subscriptionType', subscriptionType);
       
       // Get the appropriate subscription model based on type
-      let SubscriptionModel;
-      switch(subscriptionType) {
-        case 'Promo':
-          SubscriptionModel = await getModelInstance('PromoModel');
-          break;
-        case 'Complimentary':
-          SubscriptionModel = await getModelInstance('ComplimentaryModel');
-          break;
-        default:
-          SubscriptionModel = await getModelInstance('WmmModel');
-      }
+      const SubscriptionModel = await getSubscriptionModel(subscriptionType);
+      console.log("Using " + subscriptionType + " Model");
 
       const FomModel = await getModelInstance('FomModel');
       const HrgModel = await getModelInstance('HrgModel');
@@ -486,7 +614,12 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           case 'WMM':
           case 'PROMO':
           case 'COMP':
-            Model = SubscriptionModel; // Use the appropriate subscription model
+            // Only use the subscription model that matches the current subscription type
+            if ((subscriptionType === 'WMM' && service === 'WMM') ||
+                (subscriptionType === 'Promo' && service === 'PROMO') ||
+                (subscriptionType === 'Complimentary' && service === 'COMP')) {
+              Model = SubscriptionModel;
+            }
             break;
           case 'FOM':
             Model = FomModel;
@@ -671,6 +804,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           'Promo': 'PROMO',
           'Complimentary': 'COMP'
         }[subscriptionType];
+        console.log('subscriptionServiceKey', subscriptionServiceKey);
 
         // Initialize targetClients with subscription service clients if available
         if (serviceClientsMap[subscriptionServiceKey]) {
@@ -821,6 +955,8 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       const FomModel = await getModelInstance('FomModel');
       const HrgModel = await getModelInstance('HrgModel');
       const CalModel = await getModelInstance('CalModel');
+      const PromoModel = await getModelInstance('PromoModel');
+      const ComplimentaryModel = await getModelInstance('ComplimentaryModel');
 
       // Create pipeline for regex date filtering
       const createRegexPipeline = [
@@ -840,11 +976,13 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       ];
 
       // Execute aggregation for each model in parallel
-      const [wmmClients, fomClients, hrgClients, calClients] = await Promise.all([
+      const [wmmClients, fomClients, hrgClients, calClients, promoClients, complimentaryClients] = await Promise.all([
         WmmModel.aggregate(createRegexPipeline),
         FomModel.aggregate(createRegexPipeline),
         HrgModel.aggregate(createRegexPipeline),
-        CalModel.aggregate(createRegexPipeline)
+        CalModel.aggregate(createRegexPipeline),
+        PromoModel.aggregate(createRegexPipeline),
+        ComplimentaryModel.aggregate(createRegexPipeline)
       ]);
 
       // Combine all client IDs
@@ -852,7 +990,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         ...wmmClients.map(c => Number(c._id)),
         ...fomClients.map(c => Number(c._id)),
         ...hrgClients.map(c => Number(c._id)),
-        ...calClients.map(c => Number(c._id))
+        ...calClients.map(c => Number(c._id)),
+        ...promoClients.map(c => Number(c._id)),
+        ...complimentaryClients.map(c => Number(c._id))
       ])].filter(id => !isNaN(id));
 
       if (matchingClientIds.length > 0) {
@@ -883,47 +1023,14 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         endDate.setHours(23, 59, 59, 999);
       }
 
-      // Create base pipeline for date filtering
-      const createDatePipeline = (dateField) => [
-        {
-          $match: {
-            [dateField]: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            parsedDate: {
-              $dateFromString: {
-                dateString: `$${dateField}`,
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            parsedDate: {
-              ...(startDate && { $gte: startDate }),    // adddate >= startDate at midnight
-              ...(endDate && { $lte: endDate })         // adddate <= endDate at 23:59:59
-            }
-          }
-        },
-        {
-          $group: {
-            _id: "$clientid"
-          }
-        }
-      ];
-
       // Execute aggregation for each model in parallel
-      const [wmmClients, fomClients, hrgClients, calClients] = await Promise.all([
-        WmmModel.aggregate(createDatePipeline('adddate')),
+      const [wmmClients, fomClients, hrgClients, calClients, promoClients, complimentaryClients] = await Promise.all([
+        WmmModel.aggregate(createDatePipeline('adddate', 'WMM')),
         FomModel.aggregate(createDatePipeline('adddate')),
         HrgModel.aggregate(createDatePipeline('adddate')),
-        CalModel.aggregate(createDatePipeline('adddate'))
+        CalModel.aggregate(createDatePipeline('adddate')),
+        PromoModel.aggregate(createDatePipeline('adddate', 'Promo')),
+        ComplimentaryModel.aggregate(createDatePipeline('adddate', 'Complimentary'))
       ]);
 
       // Combine all client IDs
@@ -931,7 +1038,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         ...wmmClients.map(c => Number(c._id)),
         ...fomClients.map(c => Number(c._id)),
         ...hrgClients.map(c => Number(c._id)),
-        ...calClients.map(c => Number(c._id))
+        ...calClients.map(c => Number(c._id)),
+        ...promoClients.map(c => Number(c._id)),
+        ...complimentaryClients.map(c => Number(c._id))
       ])].filter(id => !isNaN(id));
 
       if (matchingClientIds.length > 0) {
@@ -945,21 +1054,115 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     }
   }
 
-  // Helper to get first and last day of a month from a date string
-  function getMonthRange(dateString) {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return { start: null, end: null };
-    const year = d.getFullYear();
-    const month = d.getMonth();
-    const start = new Date(year, month, 1);
-    const end = new Date(year, month + 1, 0, 23, 59, 59, 999); // last day of month
-    return { start, end };
-  }
+  // Update the createDatePipeline function
+  const createDatePipeline = (dateField, subscriptionType = 'WMM') => [
+    {
+      $match: {
+        [dateField]: { $exists: true, $ne: null }
+      }
+    },
+    {
+      $addFields: {
+        normalizedDate: {
+          $cond: {
+            if: { $eq: [subscriptionType, 'Promo'] },
+            then: {
+              // For Promo model, handle M/D/YYYY HH:mm:ss format
+              $let: {
+                vars: {
+                  datePart: { 
+                    $cond: {
+                      if: { $regexMatch: { input: `$${dateField}`, regex: ' ' } },
+                      then: { $arrayElemAt: [{ $split: [`$${dateField}`, ' '] }, 0] },
+                      else: `$${dateField}`
+                    }
+                  }
+                },
+                in: {
+                  $cond: {
+                    if: { $regexMatch: { input: '$$datePart', regex: '/' } },
+                    then: {
+                      $let: {
+                        vars: {
+                          parts: { $split: ['$$datePart', '/'] },
+                          year: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 2] },
+                          month: { 
+                            $toString: {
+                              $cond: {
+                                if: { $lt: [{ $strLenBytes: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] } }, 2] },
+                                then: { 
+                                  $concat: ['0', { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] }]
+                                },
+                                else: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 0] }
+                              }
+                            }
+                          },
+                          day: {
+                            $toString: {
+                              $cond: {
+                                if: { $lt: [{ $strLenBytes: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] } }, 2] },
+                                then: {
+                                  $concat: ['0', { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] }]
+                                },
+                                else: { $arrayElemAt: [{ $split: ['$$datePart', '/'] }, 1] }
+                              }
+                            }
+                          }
+                        },
+                        in: {
+                          $dateFromString: {
+                            dateString: {
+                              $concat: ['$$year', '-', '$$month', '-', '$$day']
+                            },
+                            format: '%Y-%m-%d',
+                            timezone: 'UTC',
+                            onError: null,
+                            onNull: null
+                          }
+                        }
+                      }
+                    },
+                    else: {
+                      // For WMM and Complimentary models, handle YYYY-MM-DD format
+                      $dateFromString: {
+                        dateString: `$${dateField}`,
+                        format: '%Y-%m-%d',
+                        timezone: 'UTC',
+                        onError: null,
+                        onNull: null
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            else: {
+              // For WMM and Complimentary models, handle YYYY-MM-DD format
+              $dateFromString: {
+                dateString: `$${dateField}`,
+                format: '%Y-%m-%d',
+                timezone: 'UTC',
+                onError: null,
+                onNull: null
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      $match: {
+        normalizedDate: { $ne: null }
+      }
+    }
+  ];
 
   // Handle WMM Active Subscription Filter
   if (advancedFilterData.wmmActiveFromDate || advancedFilterData.wmmActiveToDate) {
     try {
-      const WmmModel = await getModelInstance('WmmModel');
+      const Model = await getSubscriptionModel(advancedFilterData.subscriptionType);
+      console.log("Using " + advancedFilterData.subscriptionType + " Model");
+
       let fromDate = null, toDate = null;
       if (advancedFilterData.wmmActiveFromDate) {
         fromDate = getMonthRange(advancedFilterData.wmmActiveFromDate).start;
@@ -967,30 +1170,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       if (advancedFilterData.wmmActiveToDate) {
         toDate = getMonthRange(advancedFilterData.wmmActiveToDate).end;
       }
+
       const pipeline = [
-        {
-          $match: {
-            subsdate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            subsDateObj: {
-              $dateFromString: {
-                dateString: "$subsdate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            subsDateObj: { $ne: null }
-          }
-        }
+        ...createDatePipeline('subsdate', advancedFilterData.subscriptionType || 'WMM')
       ];
 
       // Match the old SQL logic exactly:
@@ -1001,21 +1183,21 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         dateConditions.push({
           $expr: {
             $and: [
-              { $gte: ["$subsDateObj", fromDate] },           // subsdate >= fromDate at midnight
-              { $lte: ["$subsDateObj", toDate] }              // subsdate <= toDate at 23:59:59
+              { $gte: ["$normalizedDate", fromDate] },           // subsdate >= fromDate at midnight
+              { $lte: ["$normalizedDate", toDate] }              // subsdate <= toDate at 23:59:59
             ]
           }
         });
       } else if (fromDate) {
         dateConditions.push({
           $expr: {
-            $gte: ["$subsDateObj", fromDate]                  // subsdate >= fromDate at midnight
+            $gte: ["$normalizedDate", fromDate]                  // subsdate >= fromDate at midnight
           }
         });
       } else if (toDate) {
         dateConditions.push({
           $expr: {
-            $lte: ["$subsDateObj", toDate]                    // subsdate <= toDate at 23:59:59
+            $lte: ["$normalizedDate", toDate]                    // subsdate <= toDate at 23:59:59
           }
         });
       }
@@ -1030,8 +1212,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         }
       });
 
-      const activeClients = await WmmModel.aggregate(pipeline);
+      const activeClients = await Model.aggregate(pipeline);
       const validClientIds = activeClients.map(c => Number(c._id)).filter(id => !isNaN(id));
+      
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {
@@ -1144,27 +1327,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
 
       const pipeline = [
+        ...createDatePipeline('recvdate'),
         {
           $match: {
-            recvdate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            recvDateObj: {
-              $dateFromString: {
-                dateString: "$recvdate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            recvDateObj: {
+            normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate })
             }
@@ -1204,27 +1370,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
 
       const pipeline = [
+        ...createDatePipeline('paymtdate'),
         {
           $match: {
-            paymtdate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            paymtDateObj: {
-              $dateFromString: {
-                dateString: "$paymtdate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            paymtDateObj: {
+            normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate })
             }
@@ -1264,27 +1413,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
 
       const pipeline = [
+        ...createDatePipeline('recvdate'),
         {
           $match: {
-            recvdate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            recvDateObj: {
-              $dateFromString: {
-                dateString: "$recvdate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            recvDateObj: {
+            normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate })
             }
@@ -1324,27 +1456,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
 
       const pipeline = [
+        ...createDatePipeline('campaigndate'),
         {
           $match: {
-            campaigndate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            campaignDateObj: {
-              $dateFromString: {
-                dateString: "$campaigndate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            campaignDateObj: {
+            normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate })
             }
@@ -1384,27 +1499,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
 
       const pipeline = [
+        ...createDatePipeline('recvdate'),
         {
           $match: {
-            recvdate: { $exists: true, $ne: null }
-          }
-        },
-        {
-          $addFields: {
-            recvDateObj: {
-              $dateFromString: {
-                dateString: "$recvdate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null
-              }
-            }
-          }
-        },
-        {
-          $match: {
-            recvDateObj: {
+            normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate })
             }

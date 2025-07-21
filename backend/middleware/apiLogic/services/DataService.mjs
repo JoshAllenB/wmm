@@ -22,6 +22,9 @@ class DataService {
     } = params;
 
     try {
+      // Ensure subscription type is set
+      const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+
       // Check if there are any filters besides services
       const hasNonServiceFilters = Object.keys(advancedFilterData).some(key => 
         key !== 'services' && 
@@ -34,8 +37,11 @@ class DataService {
       // Validate pagination parameters
       const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
 
-      // Build filter query
-      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      // Build filter query with subscription type
+      const filterQuery = await buildFilterQuery(filter, group, {
+        ...advancedFilterData,
+        subscriptionType
+      });
 
       // Get filtered clients with pagination for display
       const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
@@ -52,7 +58,6 @@ class DataService {
 
       // Adjust model names based on subscription type
       let adjustedModelNames = [...modelNames];
-      const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
 
       if (modelNames.includes('WmmModel')) {
         // Remove WmmModel and add appropriate subscription model
@@ -70,13 +75,13 @@ class DataService {
         }
       }
 
-      // Get paginated data for display
+      // Get paginated data for display with subscription type
       const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
         ...advancedFilterData,
         subscriptionType
       });
 
-      // Add hasNonServiceFilters flag to each client in combinedData
+      // Add hasNonServiceFilters flag and subscription type to each client in combinedData
       const enrichedData = combinedData.map(client => {
         // Start with base client data
         const enrichedClient = {
@@ -87,11 +92,6 @@ class DataService {
 
         // Only include the relevant subscription data based on type
         switch(subscriptionType) {
-          case 'WMM':
-            enrichedClient.wmmData = client.wmmData || null;
-            delete enrichedClient.promoData;
-            delete enrichedClient.compData;
-            break;
           case 'Promo':
             enrichedClient.promoData = client.promoData || null;
             delete enrichedClient.wmmData;
@@ -102,15 +102,16 @@ class DataService {
             delete enrichedClient.wmmData;
             delete enrichedClient.promoData;
             break;
+          default: // WMM
+            enrichedClient.wmmData = client.wmmData || null;
+            delete enrichedClient.promoData;
+            delete enrichedClient.compData;
         }
 
         // Keep other service data
         if (client.hrgData) enrichedClient.hrgData = client.hrgData;
         if (client.fomData) enrichedClient.fomData = client.fomData;
         if (client.calData) enrichedClient.calData = client.calData;
-        if (client.dcsData) enrichedClient.dcsData = client.dcsData;
-        if (client.mccjData) enrichedClient.mccjData = client.mccjData;
-        if (client.mccjAsiaData) enrichedClient.mccjAsiaData = client.mccjAsiaData;
 
         return enrichedClient;
       });
@@ -128,7 +129,8 @@ class DataService {
         currentPage: validPage,
         pageSize: validLimit,
         combinedData: enrichedData,
-        clientServices
+        clientServices,
+        subscriptionType // Include subscription type in response
       };
 
       return response;
