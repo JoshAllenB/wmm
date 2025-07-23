@@ -26,7 +26,8 @@ const CalendarUpdate = ({
   debouncedFiltering,
   table,
   isOpen = false,
-  onClose
+  onClose,
+  subscriptionType = "WMM"  // Add subscriptionType prop with default value
 }) => {
   const [isUpdatingCalendar, setIsUpdatingCalendar] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(isOpen);
@@ -91,7 +92,8 @@ const CalendarUpdate = ({
         group: activeTab === "filter" ? selectedGroup : "",
         advancedFilterData: activeTab === "filter" ? advancedFilterData : {},
         setCalendarTo: selectedCalendarStatus === "received",
-        clientIds: activeTab === "specific" ? clientIdsText.split(/[\s,]+/).map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : []
+        clientIds: activeTab === "specific" ? clientIdsText.split(/[\s,]+/).map(id => parseInt(id.trim())).filter(id => !isNaN(id)) : [],
+        subscriptionType // Add subscriptionType to request data
       };
 
       // If using selected rows, override clientIds

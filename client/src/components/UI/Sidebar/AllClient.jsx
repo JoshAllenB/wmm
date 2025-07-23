@@ -1226,6 +1226,7 @@ const AllClient = () => {
         table={tableInstance}
         isOpen={showCalendarModal}
         onClose={() => setShowCalendarModal(false)}
+        subscriptionType={subscriptionType}  // Add this line
       />
       
       <SpackUpdate

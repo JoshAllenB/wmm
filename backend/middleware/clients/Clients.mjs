@@ -1367,7 +1367,7 @@ router.post(
   async (req, res) => {
     const io = req.io;
     try {
-      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo, clientIds = [] } = req.body;
+      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo, clientIds = [], subscriptionType = "WMM" } = req.body;
 
       if (setCalendarTo === undefined) {
         return res.status(400).json({
@@ -1401,18 +1401,32 @@ router.post(
       let updatedClientIds = []; // Track successful updates
       let failedClientIds = []; // Track failed updates and skips
 
-      // Update each client's most recent WMM record
+      // Determine which model to use based on subscription type
+      let SubscriptionModel;
+      console.log(subscriptionType);
+      switch(subscriptionType) {
+        case "Promo":
+          SubscriptionModel = PromoModel;
+          break;
+        case "Complimentary":
+          SubscriptionModel = ComplimentaryModel;
+          break;
+        default:
+          SubscriptionModel = WmmModel;
+      }
+
+      // Update each client's most recent subscription record
       for (const client of clients) {
         try {
           processedCount++;
-          // Find all WMM records for this client
-          const wmmRecords = await WmmModel.find({ clientid: client.id })
+          // Find all subscription records for this client
+          const subscriptionRecords = await SubscriptionModel.find({ clientid: client.id })
             .sort({ subsdate: -1 })
             .lean();
 
-          if (wmmRecords && wmmRecords.length > 0) {
+          if (subscriptionRecords && subscriptionRecords.length > 0) {
             // Get the most recent record
-            const mostRecentRecord = wmmRecords[0];
+            const mostRecentRecord = subscriptionRecords[0];
             
             // Check if the status is already what we want to set it to
             if (mostRecentRecord.calendar === setCalendarTo) {
@@ -1428,7 +1442,7 @@ router.post(
             }
             
             // Update the calendar status for the most recent record
-            const updateResult = await WmmModel.updateOne(
+            const updateResult = await SubscriptionModel.updateOne(
               { _id: mostRecentRecord._id },
               { 
                 $set: { 
@@ -1436,8 +1450,7 @@ router.post(
                   editdate: new Date(),
                   edituser: req.user.username
                 }
-              },
-              { overwrite: false, upsert: false }  // Don't overwrite whole doc, but force update
+              }
             );
 
             if (updateResult.modifiedCount > 0) {
@@ -1464,7 +1477,7 @@ router.post(
               id: client.id,
               fname: client.fname,
               lname: client.lname,
-              error: "No WMM record found"
+              error: `No ${subscriptionType} record found`
             });
           }
         } catch (err) {
