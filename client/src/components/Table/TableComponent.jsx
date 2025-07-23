@@ -151,8 +151,8 @@ export const TableComponent = function TableComponent({
       return (
         <div className="flex flex-wrap">
           {clientCountDisplay}
-          <span className="text-base text-blue-700 font-medium ml-4">
-            WMM Clients:{" "}
+          <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
+            {subscriptionType} Clients:{" "}
             <span className="font-bold">
               {Number(stats?.serviceClientCounts?.wmm?.page || 0).toLocaleString()}
             </span>{" "}
@@ -162,7 +162,7 @@ export const TableComponent = function TableComponent({
             </span>{" "}
             <span className="text-gray-500 text-xs">(Filter)</span>
           </span>
-          <span className="text-base text-blue-700 font-medium ml-4">
+          <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
             Copies:{" "}
             <span className="font-bold">
               {Number(wmmMetric?.page || 0).toLocaleString()}
@@ -532,8 +532,8 @@ export const TableComponent = function TableComponent({
         return (
           <div className="flex flex-wrap px-2 py-1">
             {clientCountDisplay}
-            <span className="text-base text-blue-700 font-medium ml-4">
-              WMM Clients:{" "}
+            <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
+              {subscriptionType} Clients:{" "}
               <span className="font-bold">
                 {Number(stats?.serviceClientCounts?.wmm?.page || 0).toLocaleString()}
               </span>{" "}
@@ -543,7 +543,7 @@ export const TableComponent = function TableComponent({
               </span>{" "}
               <span className="text-gray-500 text-xs">(Total)</span>
             </span>
-            <span className="text-base text-blue-700 font-medium ml-4">
+            <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
               Copies:{" "}
               <span className="font-bold">
                 {Number(wmmMetric?.page || 0).toLocaleString()}
@@ -566,7 +566,8 @@ export const TableComponent = function TableComponent({
     userRole,
     hasWmmRole,
     clientCountDisplay,
-    statsLoading
+    statsLoading,
+    subscriptionType
   ]);
 
   // Get header background color based on subscription type
@@ -802,14 +803,19 @@ export const TableComponent = function TableComponent({
                                         </div>
                                       )}
                                       {index === 0 && (
-                                        <div className="text-xs ml-4 mt-1">
+                                        <div className="text-xs ml-4 mt-1 flex items-center gap-2">
                                           {sub.calendar ? (
-                                            <span className="text-white bg-orange-400 px-2 py-0.5 rounded-full font-medium">
+                                            <span className="text-white bg-orange-400 p-1 rounded-md font-medium">
                                               Calendar ✓
                                             </span>
                                           ) : (
-                                            <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                            <span className="text-gray-500 bg-gray-100 p-1 rounded-md">
                                               No Calendar
+                                            </span>
+                                          )}
+                                          {sub.referralid && (
+                                            <span className="text-sky-900 bg-sky-200 p-1 rounded-md font-medium">
+                                              Referral ID: {sub.referralid}
                                             </span>
                                           )}
                                         </div>
@@ -969,7 +975,7 @@ export const TableComponent = function TableComponent({
                           </div>
                         ) : cell.column.id === "Services" &&
                           Array.isArray(cell.getValue()) ? (
-                          <ul className="text-center text-xs sm:text-sm md:text-base">
+                          <ul className="text-xs sm:text-sm md:text-base">
                             {cell.getValue().map((service, index) => (
                               <li
                                 key={index}
