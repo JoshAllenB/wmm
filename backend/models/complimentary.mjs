@@ -20,7 +20,7 @@ const ComplimentarySchema = new mongoose.Schema(
     copies: Number,
     remarks: String,
     calendar: Number,
-    adddate: Date,
+    adddate: String,
     adduser: String,
   },
   {

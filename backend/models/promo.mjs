@@ -11,14 +11,14 @@ const PromoSchema = new mongoose.Schema(
   {
     id: Number,
     clientid: Number, // Changed from clientId to clientid
-    subsdate: Date,
-    enddate: Date,
+    subsdate: String,
+    enddate: String,
     subsyear: Number,
     copies: Number,
-    remarks: Number,
+    remarks: String,
     calendar: Number,
     referralid: Number,
-    adddate: Date,
+    adddate: String,
     adduser: String,
   },
   {
