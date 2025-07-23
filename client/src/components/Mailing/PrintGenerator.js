@@ -28,14 +28,26 @@ export const getContactNumber = (data) => {
   return '';
 };
 
-export const generateLabelContent = (data, selectedFields = [], userRole) => {
+export const generateLabelContent = (data, selectedFields = [], userRole, subscriptionType) => {
   if (!data) return '';
 
   // Ensure selectedFields is always an array
   const fields = Array.isArray(selectedFields) ? selectedFields : [];
 
-  const wmmData = data.wmmData;
-  const subscription = wmmData?.records?.[0] || wmmData || {};
+  // Get the appropriate subscription data based on type
+  let subscriptionData;
+  switch (subscriptionType) {
+    case "Promo":
+      subscriptionData = data.promoData;
+      break;
+    case "Complimentary":
+      subscriptionData = data.compData;
+      break;
+    default: // WMM
+      subscriptionData = data.wmmData;
+  }
+
+  const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
   const copies = subscription.copies ?? "N/A";
   let enddate = "N/A";
   
@@ -47,7 +59,9 @@ export const generateLabelContent = (data, selectedFields = [], userRole) => {
   }
 
   // Check if user role should hide expiry and copies
-  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
+  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role)) || 
+                                  subscriptionType === "Promo" || 
+                                  subscriptionType === "Complimentary";
 
   const idLine = data.id || "";
   const expiryAndCopies = !shouldHideExpiryAndCopies ? 
@@ -87,7 +101,8 @@ export const generatePrintHTML = (
   fontSize,
   labelHeight,
   selectedFields,
-  userRole
+  userRole,
+  subscriptionType
 ) => {
   // Filter rows based on start/end Client IDs only if they are specified
   const filteredRows = rows.filter((row) => {
@@ -117,45 +132,30 @@ export const generatePrintHTML = (
 
   if (filteredRows.length === 0) {
     return `
-      <!DOCTYPE html>
       <html>
         <head>
-          <title>Print Preview</title>
+          <title>No Labels to Print</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
-            .error { color: red; text-align: center; margin-top: 20px; }
           </style>
         </head>
         <body>
-          <div class="error">
-            <h3>No labels found.</h3>
-            <p>Please check your selection${startClientId || endClientId ? ' and ID range' : ''}.</p>
-          </div>
+          <h1>No labels found</h1>
+          <p>Please check your selection and ID range if specified.</p>
         </body>
       </html>
     `;
   }
 
-  // Calculate dimensions
-  const pageWidth = 215.9; // US Letter width in mm
-  const pageHeight = 279.4; // US Letter height in mm
-  
-  // Convert mm to px for display
-  const pxPerMm = 3.78; // Approximate pixels per mm for 96 DPI
-  const pagePxWidth = Math.round(pageWidth * pxPerMm);
-  const pagePxHeight = Math.round(pageHeight * pxPerMm);
+  // Calculate the number of labels per page
+  const labelsPerPage = 6; // 2 columns × 3 rows
+  const totalPages = Math.ceil(filteredRows.length / labelsPerPage);
 
-  // Calculate rows and columns
-  const labelsPerRow = 2;
-  const rowsPerPage = 3;
-  const totalLabelsPerPage = labelsPerRow * rowsPerPage;
-
-  // Start HTML content
+  // Create HTML content
   let html = `
-    <!DOCTYPE html>
     <html>
       <head>
-        <title>Print Preview</title>
+        <title>Mailing Labels</title>
         <style>
           @page {
             size: letter;
@@ -165,95 +165,71 @@ export const generatePrintHTML = (
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
-            background: white;
+            font-size: ${fontSize}pt;
+            position: relative;
           }
           .page {
-            width: ${pagePxWidth}px;
-            height: ${pagePxHeight}px;
+            width: 8.5in;
+            height: 11in;
             position: relative;
             page-break-after: always;
-            margin: 0 auto;
-            background: white;
+          }
+          .page:last-child {
+            page-break-after: auto;
           }
           .label {
             position: absolute;
-            font-size: ${fontSize}pt;
             width: ${columnWidth}px;
-            height: ${labelHeight}px;
-            overflow: hidden;
-            padding: 2mm;
-            box-sizing: border-box;
-            background: white;
-          }
-          .preview-info {
-            text-align: center;
-            padding: 10px;
-            margin-bottom: 20px;
-            font-size: 12px;
-            color: #666;
-            background: white;
           }
           @media print {
-            .preview-info {
-              display: none;
-            }
-            body, .page, .label {
-              background: white !important;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-            }
+            body { margin: 0; }
+            .page { page-break-after: always; }
           }
         </style>
       </head>
       <body>
-        <div class="preview-info">
-          <p>Real-time preview of how labels will print on US Letter (8.5" × 11")</p>
-          <p>Label size: ${columnWidth/pxPerMm}mm × ${labelHeight/pxPerMm}mm</p>
-          <p>Spacing: H: ${horizontalSpacing/pxPerMm}mm, V: ${rowSpacing/pxPerMm}mm</p>
-          <p>Page layout: ${rowsPerPage} rows × ${labelsPerRow} columns (${totalLabelsPerPage} labels per page)</p>
-        </div>
   `;
 
-  // Calculate number of pages needed
-  const totalPages = Math.ceil(filteredRows.length / totalLabelsPerPage);
-  
-  // Generate pages
-  let currentRow = 0;
-  for (let page = 0; page < totalPages; page++) {
+  // Process each page
+  for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
     html += '<div class="page">';
     
-    for (let row = 0; row < rowsPerPage && currentRow < filteredRows.length; row++) {
-      const yPos = topPosition + (row * rowSpacing);
+    // Process labels for this page
+    const startIndex = pageIndex * labelsPerPage;
+    const endIndex = Math.min(startIndex + labelsPerPage, filteredRows.length);
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const row = filteredRows[i];
+      const data = row.original;
       
-      for (let col = 0; col < labelsPerRow && currentRow < filteredRows.length; col++) {
-        // Skip first position if starting from right
-        if (page === 0 && row === 0 && col === 0 && startPosition === "right") {
-          continue;
-        }
-        
-        if (currentRow < filteredRows.length) {
-          const xPos = leftPosition + (col * (columnWidth + horizontalSpacing));
-          const data = filteredRows[currentRow].original;
-          
-          html += `
-            <div class="label" style="left: ${xPos}px; top: ${yPos}px;">
-              ${generateLabelContent(data, selectedFields, userRole)}
-            </div>
-          `;
-          
-          currentRow++;
-        }
-      }
+      // Calculate position
+      const positionInPage = i % labelsPerPage;
+      const column = positionInPage % 2;
+      const rowInPage = Math.floor(positionInPage / 2);
+      
+      // Adjust starting position based on user preference
+      const startFromRight = startPosition === 'right' && pageIndex === 0 && i === startIndex;
+      const effectiveColumn = startFromRight ? 1 : column;
+      
+      const xPos = leftPosition + (effectiveColumn * (columnWidth + horizontalSpacing));
+      const yPos = topPosition + (rowInPage * rowSpacing);
+      
+      // Generate label content with subscription type
+      html += `
+        <div class="label" style="left: ${xPos}px; top: ${yPos}px;">
+          ${generateLabelContent(data, selectedFields, userRole, data.subscriptionType || subscriptionType)}
+        </div>
+      `;
     }
     
-    html += '</div>';
+    html += '</div>'; // Close page div
   }
-  
-  html += '</body></html>';
-  
-  // Add script to trigger print immediately
-  html = html.replace('</body>', '<script>window.print(); window.close();</script></body>');
-  
+
+  html += `
+      </body>
+    </html>
+  `;
+
   return html;
 };
 

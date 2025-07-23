@@ -48,7 +48,7 @@ const formatDateLegacy = (dateString) => {
   if (!dateString) return "N/A";
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return "N/A";
-  
+
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
   const year = date.getFullYear().toString().slice(2);
@@ -60,10 +60,10 @@ const formatIdLegacy = (id) => {
   return id.toString().padStart(6, '0');
 };
 
-const LabelPreview = ({ 
-  isLoading, 
-  selectedTemplate, 
-  hasAvailableRows, 
+const LabelPreview = ({
+  isLoading,
+  selectedTemplate,
+  hasAvailableRows,
   availableRows,
   useLegacyFormat,
   fontSize, // Now in points (pt)
@@ -79,7 +79,8 @@ const LabelPreview = ({
   paperWidth = DEFAULT_PAPER_WIDTH_MM, // In mm
   paperHeight = DEFAULT_PAPER_HEIGHT_MM, // In mm
   rowsPerPage = 3,
-  columnsPerPage = 2
+  columnsPerPage = 2,
+  subscriptionType // Add subscription type prop
 }) => {
   // Show loading message in preview when appropriate
   if (isLoading) {
@@ -101,14 +102,14 @@ const LabelPreview = ({
   }
 
   if (useLegacyFormat && selectedTemplate?.isLegacy) {
-    // Legacy template preview 
+    // Legacy template preview
     // Use real data from available rows if possible
     const previewRow = availableRows.length > 0 ? availableRows[0].original : null;
     const wmmData = previewRow?.wmmData;
     const subscription = wmmData?.records?.[0] || wmmData || {};
     const displayCopies = previewRow ? (subscription.copies || "1") : "1";
     const displayAcode = previewRow?.acode || "WM001";
-    
+
     // Get the expiration date if available
     let displayExpDate = "N/A";
     if (subscription.enddate) {
@@ -116,23 +117,23 @@ const LabelPreview = ({
     } else {
       displayExpDate = formatDateLegacy(new Date());
     }
-    
+
     // Format the ID properly
     const displayId = previewRow ? formatIdLegacy(previewRow.id) : "000001";
-    
+
     // Get proper name
-    const displayName = previewRow ? 
-      getFullName(previewRow) : 
+    const displayName = previewRow ?
+      getFullName(previewRow) :
       getFullName({title: "", fname: "John", lname: "Doe", mname: ""});
-    
+
     // Get proper address
     const displayAddress = previewRow?.address || "123 Main Street, Anytown, USA";
-    
+
     // Get proper contact number if needed
-    const displayContact = previewRow ? 
-      getContactNumber(previewRow) : 
+    const displayContact = previewRow ?
+      getContactNumber(previewRow) :
       "555-123-4567";
-    
+
     return (
       <div
         className="mailing-label-preview border border-dashed border-gray-400 relative bg-white shadow-md overflow-hidden font-mono h-full"
@@ -148,7 +149,7 @@ const LabelPreview = ({
           Legacy Dot Matrix Format ({selectedTemplate.printer || "Dot Matrix"})
           {previewRow ? " - Real Data" : " - Sample Data"}
         </div>
-        
+
         {/* Add a paper feed visuals at the top */}
         <div className="absolute top-2 left-0 right-0 flex justify-center">
           <div className="flex space-x-1">
@@ -157,7 +158,7 @@ const LabelPreview = ({
             ))}
           </div>
         </div>
-        
+
         {/* Sample content */}
         <div className="mt-6 pt-2 relative">
           {/* Guidelines */}
@@ -167,7 +168,7 @@ const LabelPreview = ({
               backgroundSize: '10px 12px'
             }}></div>
           </div>
-          
+
           <pre className="relative z-10 p-2 text-sm overflow-hidden leading-tight font-mono text-gray-800">
             {`${displayId}-S-${displayExpDate}-${displayCopies}cps/${displayAcode}
 ${displayName}
@@ -175,7 +176,7 @@ ${displayAddress}
 ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayContact}` : ""}`}
           </pre>
         </div>
-        
+
         {/* Format string tooltip */}
         <div className="absolute bottom-0 left-0 right-0 bg-gray-100 text-gray-600 text-xs px-2 py-1 overflow-hidden">
           <details>
@@ -205,9 +206,9 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
 
   // Calculate labels per page
   const labelsPerPage = rowsPerPage * columnsPerPage;
-  
+
   return (
-    <div 
+    <div
       className="mailing-label-preview flex flex-col border border-dashed border-gray-400 relative bg-white shadow-md overflow-auto"
       style={{
         width: `${paperWidthPx}px`,
@@ -227,9 +228,9 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
         </div>
       </div>
 
-      <div 
-        className="flex-grow relative" 
-        style={{ 
+      <div
+        className="flex-grow relative"
+        style={{
           paddingTop: `${effectiveTopPosition}px`,
           paddingLeft: `${effectiveLeftPosition}px`,
           position: 'relative'
@@ -238,10 +239,10 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
         {/* Create rows based on rowsPerPage */}
         {Array.from({ length: rowsPerPage }).map((_, rowIdx) => {
           return (
-          <div 
-            key={`row-${rowIdx}`} 
-            className="flex relative" 
-            style={{ 
+          <div
+            key={`row-${rowIdx}`}
+            className="flex relative"
+            style={{
                 marginBottom: rowIdx < rowsPerPage - 1 ? `${effectiveRowSpacing}px` : '0',
                 height: `${effectiveHeight}px`,
                 position: 'relative'
@@ -251,12 +252,12 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
             {Array.from({ length: columnsPerPage }).map((_, colIdx) => {
               const labelIndex = rowIdx * columnsPerPage + colIdx;
               const label = availableRows[labelIndex];
-              
+
               return (
                 <React.Fragment key={`col-${colIdx}`}>
                   <div className="relative" style={{ width: `${effectiveColumnWidth}px` }}>
                     {label ? (
-                      <LabelItem 
+                      <LabelItem
                         rowData={label.original}
                         width={effectiveColumnWidth}
                         height={effectiveHeight}
@@ -264,9 +265,10 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
                         selectedFields={selectedFields}
                         align={colIdx % 2 === 0 ? "left" : "right"}
                         userRole={userRole}
+                        subscriptionType={subscriptionType}
                       />
                     ) : (
-                      <div 
+                      <div
                         className="border border-dashed border-gray-300 bg-gray-50 w-full h-full flex items-center justify-center text-gray-400 text-sm"
                       >
                         Empty Label
@@ -289,20 +291,20 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
           <div className="w-full h-full border border-dashed border-blue-200 opacity-50" />
           {/* Vertical divider lines */}
           {Array.from({ length: columnsPerPage - 1 }).map((_, idx) => (
-            <div 
+            <div
               key={`col-guide-${idx}`}
               className="absolute top-0 bottom-0 border-l border-dashed border-blue-200 opacity-50"
-              style={{ 
+              style={{
                 left: `${(effectiveColumnWidth + effectiveSpacing) * (idx + 1) - (effectiveSpacing / 2)}px`
               }}
             />
           ))}
           {/* Row spacing guides */}
           {Array.from({ length: rowsPerPage - 1 }).map((_, idx) => (
-            <div 
+            <div
               key={`row-guide-${idx}`}
               className="absolute left-0 right-0 border-t border-dashed border-blue-200 opacity-50"
-              style={{ 
+              style={{
                 top: `${effectiveHeight * (idx + 1) + effectiveRowSpacing * (idx + 1)}px`,
                 height: `${effectiveRowSpacing}px`,
                 background: 'repeating-linear-gradient(45deg, rgba(59, 130, 246, 0.03), rgba(59, 130, 246, 0.03) 5px, transparent 5px, transparent 10px)'
@@ -311,7 +313,7 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
           ))}
         </div>
       </div>
-      
+
       {/* Page info */}
       <div className="p-2 bg-gray-50 text-gray-600 text-xs border-t border-gray-200 flex justify-between items-center">
         <span>
@@ -319,8 +321,8 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
           {availableRows.length > labelsPerPage && ` (${Math.ceil(availableRows.length / labelsPerPage)} pages total)`}
         </span>
         <span className="text-blue-600">
-          {availableRows.length > labelsPerPage ? 
-            `Next page starts with label #${labelsPerPage + 1}` : 
+          {availableRows.length > labelsPerPage ?
+            `Next page starts with label #${labelsPerPage + 1}` :
             'All labels fit on this page'}
         </span>
       </div>
@@ -329,23 +331,40 @@ ${selectedTemplate.selectedFields.includes("contactnos") ? `Cell# ${displayConta
 };
 
 // Helper component for individual label items
-const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, userRole }) => {
+const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, userRole, subscriptionType }) => {
   if (!rowData) return null;
+
+  // Get the appropriate subscription data based on type
+  let subscriptionData;
+  const rowSubscriptionType = rowData.subscriptionType || subscriptionType;
   
-  const wmmData = rowData.wmmData;
-  let subscription = wmmData?.records?.[0] || wmmData || {};
+  switch (rowSubscriptionType) {
+    case "Promo":
+      subscriptionData = rowData.promoData;
+      break;
+    case "Complimentary":
+      subscriptionData = rowData.compData;
+      break;
+    default: // WMM
+      subscriptionData = rowData.wmmData;
+  }
+
+  const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
   const copies = subscription.copies ?? "N/A";
   let enddate = "N/A";
+
   if (subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
       enddate = date.toLocaleDateString();
     }
   }
-  
+
   // Check if user role should hide expiry and copies
-  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role));
-  
+  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role)) || 
+                                  rowSubscriptionType === "Promo" || 
+                                  rowSubscriptionType === "Complimentary";
+
   // Only add right padding to left column
   const paddingStyle = align === 'left' ? 
     { paddingRight: '24px' } : 
@@ -361,7 +380,7 @@ const LabelItem = ({ rowData, width, height, fontSize, selectedFields, align, us
     fontSize: `${fontSize}pt`,
     textAlign: "left" // Ensure consistent left alignment
   };
-  
+
   return (
     <div
       className="address-container-preview border border-gray-300 bg-white flex-shrink-0"

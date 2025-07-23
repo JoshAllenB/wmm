@@ -1227,6 +1227,7 @@ const AllClient = () => {
           setMailingAction('label'); // Reset to default
         }}
         initialAction={mailingAction}
+        subscriptionType={subscriptionType} // Add subscription type here
       />
       
       <CalendarUpdate

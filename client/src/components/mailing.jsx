@@ -88,7 +88,8 @@ const Mailing = ({
   filtering = "",
   isOpen = false,
   onClose,
-  initialAction = 'label'
+  initialAction = 'label',
+  subscriptionType = "WMM" // Add subscription type with default value
 }) => {
   const { hasRole } = useUser();
   
@@ -733,7 +734,8 @@ const Mailing = ({
       fontSize,
       mmToPx(labelHeight),
       templateToUse.selectedFields || selectedFields || [],
-      userRole
+      userRole,
+      subscriptionType // Add subscription type here
     );
     
     const printWindow = window.open("", "_blank", "height=600,width=800");
@@ -1385,6 +1387,7 @@ const Mailing = ({
                       paperHeight={paperHeight}
                       rowsPerPage={rowsPerPage}
                       columnsPerPage={columnsPerPage}
+                      subscriptionType={subscriptionType} // Add subscription type here
                     />
                     <div className="text-sm text-gray-600 mt-4 text-center">
                       <p>Real-time preview of how labels will print</p>
@@ -1440,6 +1443,7 @@ const Mailing = ({
           onRefreshAllData={refreshAllData}
           isOpen={isOpen}
           onClose={handleClose}
+          subscriptionType={subscriptionType}
         />
       )}
 
@@ -1461,6 +1465,7 @@ const Mailing = ({
           onRefreshAllData={refreshAllData}
           isOpen={isOpen}
           onClose={handleClose}
+          subscriptionType={subscriptionType}
         />
       )}
 
@@ -1538,6 +1543,7 @@ const Mailing = ({
             setCsvExportOpen(false);
             setUseAllData(false);
           }}
+          subscriptionType={subscriptionType}
         />
       </Modal>
 
