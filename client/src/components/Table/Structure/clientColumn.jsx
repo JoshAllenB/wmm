@@ -187,7 +187,7 @@ export const useColumns = () => {
         const services = getValue();
         return services.join(", ");
       },
-      size: 50,
+      size: 20,
     },
   ];
 
@@ -240,7 +240,8 @@ export const useColumns = () => {
                   subsclass,
                   paymtref,
                   paymtamt,
-                  calendar
+                  calendar,
+                  referralid
                 } = subscription;
 
                 if (subsdate) {
@@ -276,7 +277,8 @@ export const useColumns = () => {
                   paymtamt: formattedPayment,
                   status,
                   calendar: calendar || false,
-                  type: row.subscriptionType // Add subscription type to display
+                  type: row.subscriptionType, // Add subscription type to display
+                  referralid: referralid || null
                 };
               });
             },
@@ -342,6 +344,11 @@ export const useColumns = () => {
                               ) : (
                                 <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                                   No Calendar
+                                </span>
+                              )}
+                              {sub.referralid && (
+                                <span>
+                                  Referral ID: {sub.referralid}
                                 </span>
                               )}
                             </div>
