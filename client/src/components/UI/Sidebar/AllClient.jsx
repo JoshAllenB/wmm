@@ -144,15 +144,28 @@ const AllClient = () => {
 
     // Get role-based services
     const roleBasedServices = [];
-    if (hasRole("WMM")) roleBasedServices.push("WMM");
+    if (hasRole("WMM")) {
+      // For WMM role, use subscription type to determine service
+      switch (subscriptionType) {
+        case "Promo":
+          roleBasedServices.push("PROMO");
+          break;
+        case "Complimentary":
+          roleBasedServices.push("COMP");
+          break;
+        default:
+          roleBasedServices.push("WMM");
+      }
+    }
     if (hasRole("FOM")) roleBasedServices.push("FOM");
     if (hasRole("HRG")) roleBasedServices.push("HRG");
     if (hasRole("CAL")) roleBasedServices.push("CAL");
 
-    // Create new filter with just services and keep the selected group if there is one
+    // Create new filter with just services, subscription type, and keep the selected group if there is one
     const newFilter = {
       services: roleBasedServices,
       group: selectedGroup || "",
+      subscriptionType, // Preserve the subscription type
     };
 
     // Create a snapshot of what the filter will be
@@ -162,6 +175,7 @@ const AllClient = () => {
       filtering: "",
       group: selectedGroup,
       addedToday: false,
+      subscriptionType, // Include subscription type in snapshot
     });
 
     // Update last filter ref to prevent bounce
@@ -170,7 +184,7 @@ const AllClient = () => {
     // Update the filter state
     setAdvancedFilterData(newFilter);
 
-    // Fetch with the role-based services
+    // Fetch with the role-based services and preserved subscription type
     fetchData(page, pageSize, "", selectedGroup, newFilter);
   };
 

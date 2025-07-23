@@ -571,9 +571,28 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       return result;
     };
 
+    // Get services based on subscription type for WMM role
+    let services = [...(filterData.services || [])];
+    if (hasRole("WMM")) {
+      // Remove any existing WMM/PROMO/COMP services
+      services = services.filter(service => !["WMM", "PROMO", "COMP"].includes(service));
+      
+      // Add the correct service based on subscription type
+      switch (subscriptionType) {
+        case "Promo":
+          services.push("PROMO");
+          break;
+        case "Complimentary":
+          services.push("COMP");
+          break;
+        default: // WMM
+          services.push("WMM");
+      }
+    }
+
     // Process the filter data
     const processedFilterData = cleanObject({
-      // Add subscription type to the filter data
+      // Always include subscription type in the filter data
       subscriptionType,
 
       // Personal info
@@ -595,6 +614,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       ...(filterData.type && { type: filterData.type }),
       ...(filterData.subsclass && { subsclass: filterData.subsclass }),
       ...(filterData.acode && { acode: filterData.acode }),
+
+      // Always include services array with subscription type service
+      services,
 
       // Dates
       startDate: formatDateComponentsToISO(
