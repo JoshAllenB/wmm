@@ -16,6 +16,7 @@ import { calculateStatistics } from '../apiLogic/services/statsCalculator.mjs';
 import { buildFilterQuery } from '../apiLogic/services/filterBuilder.mjs';
 import PromoModel from "../../models/promo.mjs";
 import ComplimentaryModel from "../../models/complimentary.mjs";
+import { getSubscriptionModelName, adjustModelNamesForSubscription } from '../apiLogic/services/helpers.mjs';
 
 dotenv.config();
 
@@ -55,20 +56,8 @@ const fetchClientData = async (req, options = {}) => {
     validModelNames.push("WmmModel");
   }
 
-  // Replace WmmModel with appropriate subscription model
-  if (validModelNames.includes("WmmModel")) {
-    validModelNames = validModelNames.filter(name => name !== "WmmModel");
-    switch(subscriptionType) {
-      case "Promo":
-        validModelNames.push("PromoModel");
-        break;
-      case "Complimentary":
-        validModelNames.push("ComplimentaryModel");
-        break;
-      default:
-        validModelNames.push("WmmModel");
-    }
-  }
+  // Replace WmmModel with appropriate subscription model using helper function
+  validModelNames = adjustModelNamesForSubscription(validModelNames, subscriptionType);
 
   // Use appropriate data fetching method based on skipPagination
   const results = skipPagination
@@ -464,7 +453,7 @@ router.post("/add", verifyToken, async (req, res) => {
     // Build the complete client data object
     const completeClientData = {
       ...newClient.toObject(),
-      subscriptionType: clientData.subscriptionType, // Add this line to preserve the subscription type
+      subscriptionType: clientData.subscriptionType,
       services: roleSubmissions.map(sub => sub.roleType),
       wmmData: { records: wmmData || [] },
       hrgData: { records: hrgData || [] },

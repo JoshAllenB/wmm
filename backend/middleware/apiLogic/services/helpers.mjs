@@ -142,3 +142,26 @@ export const getTargetServiceFromFilter = (advancedFilterData) => {
   
   return null;
 }; 
+
+// Helper to get subscription model name based on subscription type
+export const getSubscriptionModelName = (subscriptionType) => {
+  switch(subscriptionType) {
+    case "Promo":
+      return "PromoModel";
+    case "Complimentary":
+      return "ComplimentaryModel";
+    default:
+      return "WmmModel";
+  }
+};
+
+// Helper to adjust model names based on subscription type
+export const adjustModelNamesForSubscription = (modelNames, subscriptionType) => {
+  if (!modelNames.includes('WmmModel')) {
+    return modelNames;
+  }
+
+  // Remove WmmModel and add appropriate subscription model
+  const filteredNames = modelNames.filter(name => name !== 'WmmModel');
+  return [...filteredNames, getSubscriptionModelName(subscriptionType)];
+}; 

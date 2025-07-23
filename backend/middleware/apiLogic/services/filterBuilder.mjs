@@ -1,6 +1,6 @@
 import { getModelInstance } from './modelManager.mjs';
 import ClientModel from '../../../models/clients.mjs';
-import { parseDate } from './helpers.mjs';
+import { parseDate, getSubscriptionModelName } from './helpers.mjs';
 
 // Helper to get first and last day of a month from a date string
 function getMonthRange(dateString) {
@@ -15,14 +15,8 @@ function getMonthRange(dateString) {
 
 // Helper function to get the appropriate subscription model
 async function getSubscriptionModel(subscriptionType) {
-  switch(subscriptionType) {
-    case 'Promo':
-      return await getModelInstance('PromoModel');
-    case 'Complimentary':
-      return await getModelInstance('ComplimentaryModel');
-    default:
-      return await getModelInstance('WmmModel');
-  }
+  const modelName = getSubscriptionModelName(subscriptionType);
+  return await getModelInstance(modelName);
 }
 
 // Helper function to create date pipeline stages

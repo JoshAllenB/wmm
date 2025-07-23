@@ -1,7 +1,7 @@
 import { buildFilterQuery } from './filterBuilder.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 import { calculateStatistics } from './statsCalculator.mjs';
-import { validatePaginationParams, parseDate } from './helpers.mjs';
+import { validatePaginationParams, parseDate, adjustModelNamesForSubscription } from './helpers.mjs';
 import ClientModel from "../../../models/clients.mjs";
 
 class DataService {
@@ -56,24 +56,8 @@ class DataService {
       const filteredIds = allFilteredClientIds.map(client => client.id);
       const pageClientIds = clients.map(client => client.id);
 
-      // Adjust model names based on subscription type
-      let adjustedModelNames = [...modelNames];
-
-      if (modelNames.includes('WmmModel')) {
-        // Remove WmmModel and add appropriate subscription model
-        adjustedModelNames = modelNames.filter(name => name !== 'WmmModel');
-        
-        switch(subscriptionType) {
-          case 'Promo':
-            adjustedModelNames.push('PromoModel');
-            break;
-          case 'Complimentary':
-            adjustedModelNames.push('ComplimentaryModel');
-            break;
-          default:
-            adjustedModelNames.push('WmmModel');
-        }
-      }
+      // Adjust model names based on subscription type using helper function
+      const adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
 
       // Get paginated data for display with subscription type
       const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
