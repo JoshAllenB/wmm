@@ -1118,7 +1118,10 @@ const AllClient = () => {
   return (
     <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex justify-between items-center mb-4">
-        <Add fetchClients={() => fetchClients(setClientData)} />
+        <Add 
+          fetchClients={() => fetchClients(setClientData)} 
+          subscriptionType={subscriptionType}
+        />
         
         {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
         {(hasRole("WMM") || hasRole("Admin")) && (
