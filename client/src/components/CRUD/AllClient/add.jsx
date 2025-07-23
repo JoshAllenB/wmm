@@ -47,7 +47,7 @@ const formatDateToInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const Add = ({ fetchClients }) => {
+const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
 
   // Array of month names for the dropdown
@@ -99,7 +99,9 @@ const Add = ({ fetchClients }) => {
     subscriptionFreq: "",
     subscriptionStart: "",
     subscriptionEnd: "",
-    subsclass: ""
+    subsclass: "",
+    subscriptionType: subscriptionType,
+    referralid: "" // Add referralid field for Promo subscriptions
   });
 
   const [addressData, setAddressData] = useState({
@@ -293,7 +295,26 @@ const Add = ({ fetchClients }) => {
     }
   }, [addressData.housestreet, addressData.subdivision, addressData.barangay, areaData.zipcode, formData.area, isEditingCombinedAddress]);
 
-  const openModal = () => setShowModal(true);
+  // Add subscription type indicator styles
+  const getSubscriptionTypeStyles = () => {
+          switch (subscriptionType) {
+        case "Promo":
+          return "bg-emerald-600 text-white border-emerald-700";
+        case "Complimentary":
+          return "bg-purple-600 text-white border-purple-700";
+        default: // WMM
+          return "bg-blue-600 text-white border-blue-700";
+    }
+  };
+
+  // Update openModal to include subscription type in form data
+  const openModal = () => {
+    setFormData(prevData => ({
+      ...prevData,
+      subscriptionType: subscriptionType
+    }));
+    setShowModal(true);
+  };
 
   // Reset form function to clean up all form data
   const resetForm = () => {
@@ -331,7 +352,8 @@ const Add = ({ fetchClients }) => {
       subscriptionFreq: "",
       subscriptionStart: "",
       subscriptionEnd: "",
-      subsclass: ""
+      subsclass: "",
+      subscriptionType: subscriptionType
     });
 
     // Reset address data
@@ -1136,7 +1158,92 @@ const Add = ({ fetchClients }) => {
     return cleanObj;
   };
 
+  // Add this function before getSubscriptionSpecificData
+  const formatDateForWMM = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Add this function before getSubscriptionSpecificData
+  const formatDateForPromo = (date) => {
+    const d = new Date(date);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  // Update getSubscriptionSpecificData function
+  const getSubscriptionSpecificData = () => {
+    const baseData = {
+      subsyear: formData.subscriptionFreq ? parseInt(formData.subscriptionFreq) : 0,
+      copies: parseInt(roleSpecificData.copies) || 1,
+      remarks: roleSpecificData.remarks || "",
+      calendar: roleSpecificData.calendar || false,
+      adddate: new Date().toLocaleDateString("en-US", {
+        month: "numeric",
+        day: "numeric",
+        year: "numeric",
+      })
+    };
+
+    // Format dates based on subscription type
+    if (subscriptionType === "Promo") {
+      return {
+        ...baseData,
+        subsdate: formData.subscriptionStart ? formatDateForPromo(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
+        enddate: formData.subscriptionEnd ? formatDateForPromo(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
+        referralid: formData.referralid || 0,
+        adddate: new Date().toLocaleString("en-US", {
+          month: "numeric",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false
+        })
+      };
+    } else if (subscriptionType === "Complimentary") {
+      return {
+        ...baseData,
+        subsdate: formData.subscriptionStart ? formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
+        enddate: formData.subscriptionEnd ? formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
+        adddate: formatDateForWMM(new Date())
+      };
+    } else { // WMM
+      return {
+        ...baseData,
+        subsdate: formData.subscriptionStart ? formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
+        enddate: formData.subscriptionEnd ? formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
+        paymtref: roleSpecificData.paymtref || "",
+        paymtamt: roleSpecificData.paymtamt || "",
+        paymtmasses: roleSpecificData.paymtmasses || "",
+        donorid: roleSpecificData.donorid || "",
+        adddate: formatDateForWMM(new Date())
+      };
+    }
+  };
+
+  // Add this function before handleConfirmedSubmit
+  const getServiceFromSubscriptionType = () => {
+    switch (subscriptionType) {
+      case "Promo":
+        return "PROMO";
+      case "Complimentary":
+        return "COMP";
+      default:
+        return "WMM";
+    }
+  };
+
   const handleConfirmedSubmit = async () => {
+    console.log('=== Frontend Submit Debug ===');
+    console.log('Subscription Type:', subscriptionType);
+
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -1168,24 +1275,25 @@ const Add = ({ fetchClients }) => {
     // Prepare role submissions
     const roleSubmissions = [];
 
-    // Only submit WMM data if user has WMM role
+    // Only add subscription data if user has WMM role
     if (hasRole("WMM")) {
-      const wmmData = removeEmptyFields({
-        ...roleSpecificData,
-        subscriptionFreq: formData.subscriptionFreq,
-        subscriptionStart: formData.subscriptionStart,
-        subscriptionEnd: formData.subscriptionEnd,
-        subsclass: formData.subsclass,
-        calendar: roleSpecificData.calendar || false
+      const subscriptionData = getSubscriptionSpecificData();
+      console.log('Subscription Data:', subscriptionData);
+      
+      // Map subscription types to their model types
+      const modelType = {
+        "WMM": "WMM",
+        "Promo": "PROMO",
+        "Complimentary": "COMP"
+      }[subscriptionType];
+
+      roleSubmissions.push({
+        roleType: modelType,
+        roleData: subscriptionData
       });
-      if (Object.keys(wmmData).length > 0) {
-        roleSubmissions.push({
-          roleType: "WMM",
-          roleData: wmmData
-        });
-      }
     }
-    // Only submit HRG data if user has HRG role
+
+    // Add other role submissions if they have data
     if (hasRole("HRG")) {
       const cleanHrgData = removeEmptyFields(hrgData);
       if (Object.keys(cleanHrgData).length > 0) {
@@ -1195,7 +1303,7 @@ const Add = ({ fetchClients }) => {
         });
       }
     }
-    // Only submit FOM data if user has FOM role
+
     if (hasRole("FOM")) {
       const cleanFomData = removeEmptyFields(fomData);
       if (Object.keys(cleanFomData).length > 0) {
@@ -1205,7 +1313,7 @@ const Add = ({ fetchClients }) => {
         });
       }
     }
-    // Only submit CAL data if user has CAL role
+
     if (hasRole("CAL")) {
       const cleanCalData = removeEmptyFields(calData);
       if (Object.keys(cleanCalData).length > 0) {
@@ -1217,10 +1325,16 @@ const Add = ({ fetchClients }) => {
     }
 
     const submissionData = {
-      clientData,
+      clientData: {
+        ...clientData,
+        service: getServiceFromSubscriptionType(),
+        subscriptionType: subscriptionType,
+      },
       roleSubmissions,
       adddate: formatDate(new Date()),
     };
+
+    console.log('Submission Data:', submissionData);
 
     try {
       const response = await axios.post(
@@ -1228,6 +1342,7 @@ const Add = ({ fetchClients }) => {
         submissionData
       );
       if (response.data.success) {
+        console.log('Response Data:', response.data);
         // Emit data update event via WebSocket
         webSocketService.emit("data-update", {
           type: "add",
@@ -1239,6 +1354,8 @@ const Add = ({ fetchClients }) => {
             hrgData: response.data.hrgData || [],
             fomData: response.data.fomData || [],
             calData: response.data.calData || [],
+            promoData: response.data.promoData || [],
+            complimentaryData: response.data.complimentaryData || [],
             services: roleSubmissions.map(role => role.roleType)
           }
         });
@@ -2089,11 +2206,11 @@ const Add = ({ fetchClients }) => {
 
   return (
     <div className="relative">
-      <Button
-        onClick={openModal}
-        className="bg-green-600 hover:bg-green-800 text-white font-semibold px-6 text-base shadow-sm mb-1"
-      >
-        Add Client
+              <Button
+          onClick={openModal}
+          className={`${getSubscriptionTypeStyles()} hover:opacity-90 transition-opacity duration-200`}
+        >
+          <span>Add Client {subscriptionType}</span>
       </Button>
 
       {showModal && (
@@ -2126,8 +2243,8 @@ const Add = ({ fetchClients }) => {
                   className="flex-1 p-4 overflow-y-auto lg:max-w-[calc(100%-380px)]"
                 >
                   <div className="mb-2 border-b pb-2">
-                    <h1 className="text-black text-3xl font-bold">
-                      Add Client
+                    <h1 className={`${getSubscriptionTypeStyles()} p-2 text-center text-black text-3xl font-bold`}>
+                      Add Client {subscriptionType}
                     </h1>
                     <p className="text-gray-500 text-base">
                       Fill in the details to add a new client
@@ -2783,9 +2900,11 @@ const Add = ({ fetchClients }) => {
 
                     {hasRole("WMM") && (
                       <div className="p-4 border rounded-lg shadow-sm">
-                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                          Subscription
+                        <h2 className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center`}>
+                          {subscriptionType} Subscription
                         </h2>
+
+                        {/* Common fields for all subscription types */}
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Subscription Frequency:
@@ -2797,9 +2916,7 @@ const Add = ({ fetchClients }) => {
                             onChange={handleChange}
                             className="w-full p-2 border rounded-md text-base"
                           >
-                            <option value="">
-                              Select Subscription Frequency
-                            </option>
+                            <option value="">Select Subscription Frequency</option>
                             <option value="6">6 Months</option>
                             <option value="11">1 Year</option>
                             <option value="22">2 Years</option>
@@ -2807,6 +2924,7 @@ const Add = ({ fetchClients }) => {
                           </select>
                         </div>
 
+                        {/* Start Date - Common for all types */}
                         <div className="mb-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Subscription Start:
@@ -2828,7 +2946,6 @@ const Add = ({ fetchClients }) => {
                                 ))}
                               </select>
                             </div>
-
                             <input
                               type="text"
                               id="subStartDay"
@@ -2851,6 +2968,8 @@ const Add = ({ fetchClients }) => {
                             />
                           </div>
                         </div>
+
+                        {/* End Date - Common for all types */}
                         <div className="mb-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Subscription End:
@@ -2894,9 +3013,11 @@ const Add = ({ fetchClients }) => {
                             />
                           </div>
                         </div>
-                        <div className="flex space-x-4">
+
+                        {/* Common fields for copies and calendar */}
+                        <div className="flex space-x-4 mb-4">
                           <div className="flex flex-row items-center justify-center gap-2">
-                            <label className="block text-sm font-medium leading-6 text-gray-600">
+                            <label className="block text-lg font-medium leading-6 text-gray-600">
                               Copies:
                             </label>
                             <input
@@ -2910,7 +3031,7 @@ const Add = ({ fetchClients }) => {
                             />
                           </div>
                           <div className="flex items-center gap-2">
-                            <label htmlFor="calendar" className="text-sm font-medium text-gray-600">
+                            <label htmlFor="calendar" className="text-lg font-medium">
                               Calendar Received:
                             </label>
                             <input
@@ -2923,38 +3044,86 @@ const Add = ({ fetchClients }) => {
                             />
                           </div>
                         </div>
-                        <div className="mt-4">
-                          <select
-                            id="subsclass"
-                            name="subsclass"
-                            value={formData.subsclass}
-                            onChange={handleChange}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            <option value="">Select a classification</option>
-                            {subclasses.map((subclass) => (
-                              <option key={subclass.id} value={subclass.id}>
-                                {subclass.name} ({subclass.id})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="mt-4">
-                          <InputField
-                            label="Payment Reference:"
-                            id="paymtref"
-                            name="paymtref"
-                            value={roleSpecificData.paymtref}
-                            onChange={handleRoleSpecificChange}
-                            className="w-full p-2 border rounded-md text-base"
-                          />
 
+                        {/* Subscription Type Specific Fields */}
+                        {subscriptionType === "WMM" && (
+                          <>
+                            <div className="mt-4">
+                              <select
+                                id="subsclass"
+                                name="subsclass"
+                                value={formData.subsclass}
+                                onChange={handleChange}
+                                className="w-full p-2 border rounded-md text-base"
+                              >
+                                <option value="">Select a classification</option>
+                                {subclasses.map((subclass) => (
+                                  <option key={subclass.id} value={subclass.id}>
+                                    {subclass.name} ({subclass.id})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="mt-4 space-y-4">
+                              <InputField
+                                label="Payment Reference:"
+                                id="paymtref"
+                                name="paymtref"
+                                value={roleSpecificData.paymtref}
+                                onChange={handleRoleSpecificChange}
+                                className="w-full p-2 border rounded-md text-base"
+                              />
+                              <InputField
+                                label="Payment Amount:"
+                                id="paymtamt"
+                                name="paymtamt"
+                                value={roleSpecificData.paymtamt}
+                                onChange={handleRoleSpecificChange}
+                                className="w-full p-2 border rounded-md text-base"
+                              />
+                              <InputField
+                                label="Payment Masses:"
+                                id="paymtmasses"
+                                name="paymtmasses"
+                                value={roleSpecificData.paymtmasses}
+                                onChange={handleRoleSpecificChange}
+                                className="w-full p-2 border rounded-md text-base"
+                              />
+                              <InputField
+                                label="Donor ID:"
+                                id="donorid"
+                                name="donorid"
+                                value={roleSpecificData.donorid}
+                                onChange={handleRoleSpecificChange}
+                                className="w-full p-2 border rounded-md text-base"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {subscriptionType === "Promo" && (
+                          <div className="mt-4">
+                            <InputField
+                              label="Referral ID:"
+                              id="referralid"
+                              name="referralid"
+                              value={formData.referralid}
+                              onChange={handleChange}
+                              className="w-full p-2 border rounded-md text-base"
+                              placeholder="Enter referral ID"
+                            />
+                          </div>
+                        )}
+
+                        {/* Remarks field - Common for all types */}
+                        <div className="mt-4">
                           <InputField
-                            label="Payment Amount:"
-                            id="paymtamt"
-                            name="paymtamt"
-                            value={roleSpecificData.paymtamt}
+                            label="Remarks:"
+                            id="remarks"
+                            name="remarks"
+                            value={roleSpecificData.remarks}
                             onChange={handleRoleSpecificChange}
+                            type="textarea"
                             className="w-full p-2 border rounded-md text-base"
                           />
                         </div>
