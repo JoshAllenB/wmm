@@ -379,6 +379,8 @@ router.post("/add", verifyToken, async (req, res) => {
       HRG: HrgModel,
       FOM: FomModel,
       CAL: CalModel,
+      PROMO: PromoModel,
+      COMP: ComplimentaryModel
     };
 
     const roleResults = [];
@@ -387,6 +389,22 @@ router.post("/add", verifyToken, async (req, res) => {
     for (const submission of roleSubmissions) {
       const { roleType, roleData } = submission;
 
+      // Map subscription types to their model types
+      const subscriptionModelTypes = {
+        "Promo": "PROMO",
+        "Complimentary": "COMP",
+        "WMM": "WMM"
+      };
+
+      // If this is a subscription-related submission
+      if (["WMM", "PROMO", "COMP"].includes(roleType)) {
+        // Only process if it matches the client's subscription type
+        const expectedModelType = subscriptionModelTypes[clientData.subscriptionType];
+        if (roleType !== expectedModelType) {
+          continue;
+        }
+      }
+
       if (roleType && roleModelMap[roleType]) {
         const RoleModel = roleModelMap[roleType];
 
@@ -394,12 +412,15 @@ router.post("/add", verifyToken, async (req, res) => {
         const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
         const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
-        const roleSpecificData = {
-          id: newRoleSpecificId,
-          clientid: newClientId,
-          ...roleData,
-          adduser: user.username,
-          adddate: new Date()
+        // Format adddate based on subscription type
+        let formattedAddDate;
+        if (roleType === "COMP") {
+          // For complimentary subscriptions, format as YYYY-MM-DD
+          const now = new Date();
+          formattedAddDate = now.toISOString().split('T')[0];
+        } else {
+          // For other types, use the existing format
+          formattedAddDate = new Date()
             .toLocaleString("en-US", {
               month: "numeric",
               day: "numeric",
@@ -409,7 +430,15 @@ router.post("/add", verifyToken, async (req, res) => {
               second: "2-digit",
               hour12: true,
             })
-            .replace(",", ""),
+            .replace(",", "");
+        }
+
+        const roleSpecificData = {
+          id: newRoleSpecificId,
+          clientid: newClientId,
+          ...roleData,
+          adduser: user.username,
+          adddate: formattedAddDate,
         };
 
         // Insert role-specific data
@@ -422,22 +451,27 @@ router.post("/add", verifyToken, async (req, res) => {
       }
     }
 
-    // Emit socket event with complete data
-    const [wmmData, hrgData, fomData, calData] = await Promise.all([
-      WmmModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean(),
+    // Emit socket event with complete data - only fetch data for the correct subscription type
+    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
+      clientData.subscriptionType === "WMM" ? WmmModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : [],
       HrgModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
       FomModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
-      CalModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean()
+      CalModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
+      clientData.subscriptionType === "Promo" ? PromoModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : [],
+      clientData.subscriptionType === "Complimentary" ? ComplimentaryModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : []
     ]);
 
     // Build the complete client data object
     const completeClientData = {
       ...newClient.toObject(),
+      subscriptionType: clientData.subscriptionType, // Add this line to preserve the subscription type
       services: roleSubmissions.map(sub => sub.roleType),
       wmmData: { records: wmmData || [] },
       hrgData: { records: hrgData || [] },
       fomData: { records: fomData || [] },
-      calData: { records: calData || [] }
+      calData: { records: calData || [] },
+      promoData: { records: promoData || [] },
+      complimentaryData: { records: complimentaryData || [] }
     };
 
     // Emit the data update event
@@ -650,11 +684,15 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           );
         } else {
           // If role-specific data doesn't exist, create it
-          const newRoleSpecificData = {
-            clientid: id,
-            ...roleData,
-            adduser: user.username,
-            adddate: new Date()
+          // Format adddate based on subscription type
+          let formattedAddDate;
+          if (roleType === "COMP") {
+            // For complimentary subscriptions, format as YYYY-MM-DD
+            const now = new Date();
+            formattedAddDate = now.toISOString().split('T')[0];
+          } else {
+            // For other types, use the existing format
+            formattedAddDate = new Date()
               .toLocaleString("en-US", {
                 month: "numeric",
                 day: "numeric",
@@ -664,7 +702,14 @@ router.put("/update/:id", verifyToken, async (req, res) => {
                 second: "2-digit",
                 hour12: true,
               })
-              .replace(",", ""),
+              .replace(",", "");
+          }
+
+          const newRoleSpecificData = {
+            clientid: id,
+            ...roleData,
+            adduser: user.username,
+            adddate: formattedAddDate,
           };
           updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
         }
@@ -773,11 +818,13 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     }
 
     // Fetch all associated data before deletion for logging purposes
-    const [wmmData, hrgData, fomData, calData] = await Promise.all([
+    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
       WmmModel.find({ clientid: parseInt(id) }).lean(),
       HrgModel.find({ clientid: parseInt(id) }).lean(),
       FomModel.find({ clientid: parseInt(id) }).lean(),
-      CalModel.find({ clientid: parseInt(id) }).lean()
+      CalModel.find({ clientid: parseInt(id) }).lean(),
+      PromoModel.find({ clientid: parseInt(id) }).lean(),
+      ComplimentaryModel.find({ clientid: parseInt(id) }).lean()
     ]);
 
     // Store complete client data for logging
@@ -786,7 +833,9 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       wmmData,
       hrgData,
       fomData,
-      calData
+      calData,
+      promoData,
+      complimentaryData
     };
 
     // Delete from ClientModel
@@ -800,7 +849,9 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       WmmModel.deleteMany({ clientid: parseInt(id) }),
       HrgModel.deleteMany({ clientid: parseInt(id) }),
       FomModel.deleteMany({ clientid: parseInt(id) }),
-      CalModel.deleteMany({ clientid: parseInt(id) })
+      CalModel.deleteMany({ clientid: parseInt(id) }),
+      PromoModel.deleteMany({ clientid: parseInt(id) }),
+      ComplimentaryModel.deleteMany({ clientid: parseInt(id) })
     ];
 
     // Wait for all delete operations to complete
@@ -815,7 +866,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       
       // Use the DataService to fetch filtered data
       const results = await dataService.fetchData({
-        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
         filter,
         page: parseInt(page),
         limit: parseInt(pageSize),
