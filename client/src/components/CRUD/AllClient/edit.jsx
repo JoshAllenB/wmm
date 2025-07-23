@@ -117,6 +117,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     type: rowData?.type || "",
     group: rowData?.group || "",
     remarks: rowData?.remarks || "",
+    subscriptionType: rowData?.subscriptionType || "WMM", // Add subscription type
+    referralid: rowData?.referralid || "", // Add referral ID for Promo subscriptions
   });
 
   const [addressData, setAddressData] = useState({
@@ -322,91 +324,108 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Initialize WMM subscription data
   useEffect(() => {
-    if (rowData && rowData.wmmData && rowData.wmmData.records && rowData.wmmData.records.length > 0) {
-      // Get the most recent subscription
-      const subscriptions = rowData.wmmData.records;
-      const latestSubscription = subscriptions[subscriptions.length - 1];
+    if (rowData) {
+      // Get subscription type from rowData or default to WMM
+      const subscriptionType = rowData.subscriptionType || "WMM";
       
+      // Get the appropriate subscription data based on type
+      let subscriptionData;
+      if (subscriptionType === "Promo") {
+        subscriptionData = rowData.promoData?.records || [];
+      } else if (subscriptionType === "Complimentary") {
+        subscriptionData = rowData.complimentaryData?.records || [];
+      } else {
+        subscriptionData = rowData.wmmData?.records || [];
+      }
+
       // Set available subscriptions
-      setAvailableSubscriptions(subscriptions);
+      setAvailableSubscriptions(subscriptionData);
       
-      // Select the latest subscription
-      setSelectedSubscription(latestSubscription);
-      
-      // Initialize subscription mode to edit
-      setSubscriptionMode("edit");
-      
-      // Parse dates
-      const subsdate = parseDate(latestSubscription.subsdate);
-      const enddate = parseDate(latestSubscription.enddate);
-      
-      if (subsdate && enddate) {
-        // Calculate the difference in months
-        const diffMonths = (enddate.getFullYear() - subsdate.getFullYear()) * 12 + 
+      // If there are subscriptions, select the latest one
+      if (subscriptionData.length > 0) {
+        const latestSubscription = subscriptionData[subscriptionData.length - 1];
+        
+        // Select the latest subscription
+        setSelectedSubscription(latestSubscription);
+        
+        // Initialize subscription mode to edit
+        setSubscriptionMode("edit");
+        
+        // Parse dates
+        const subsdate = parseDate(latestSubscription.subsdate);
+        const enddate = parseDate(latestSubscription.enddate);
+        
+        if (subsdate && enddate) {
+          // Calculate the difference in months
+          const diffMonths = (enddate.getFullYear() - subsdate.getFullYear()) * 12 + 
                           (enddate.getMonth() - subsdate.getMonth());
-        
-        // Set subscription frequency based on month difference
-        let frequency = "";
-        if (diffMonths >= 22 && diffMonths <= 26) {
-          frequency = "22"; // 2 years
-        } else if (diffMonths >= 10 && diffMonths <= 14) {
-          frequency = "11"; // 1 year
-        } else if (diffMonths >= 5 && diffMonths <= 7) {
-          frequency = "5";  // 6 months
-        }
-        
+          
+          // Set subscription frequency based on month difference
+          let frequency = "";
+          if (diffMonths >= 22 && diffMonths <= 26) {
+            frequency = "22"; // 2 years
+          } else if (diffMonths >= 10 && diffMonths <= 14) {
+            frequency = "11"; // 1 year
+          } else if (diffMonths >= 5 && diffMonths <= 7) {
+            frequency = "5";  // 6 months
+          }
+          
           setSubscriptionFreq(frequency);
-        
-        // Extract month, day, year for start date
-        const subStartMonth = String(subsdate.getMonth() + 1).padStart(2, "0");
-        const subStartDay = String(subsdate.getDate()).padStart(2, "0");
-        const subStartYear = String(subsdate.getFullYear());
+          
+          // Extract month, day, year for start date
+          const subStartMonth = String(subsdate.getMonth() + 1).padStart(2, "0");
+          const subStartDay = String(subsdate.getDate()).padStart(2, "0");
+          const subStartYear = String(subsdate.getFullYear());
 
-        // Extract month, day, year for end date
-        const subEndMonth = String(enddate.getMonth() + 1).padStart(2, "0");
-        const subEndDay = String(enddate.getDate()).padStart(2, "0");
-        const subEndYear = String(enddate.getFullYear());
+          // Extract month, day, year for end date
+          const subEndMonth = String(enddate.getMonth() + 1).padStart(2, "0");
+          const subEndDay = String(enddate.getDate()).padStart(2, "0");
+          const subEndYear = String(enddate.getFullYear());
 
-        // Format dates for display
-        const formattedStartDate = `${subStartMonth}/${subStartDay}/${subStartYear}`;
-        const formattedEndDate = `${subEndMonth}/${subEndDay}/${subEndYear}`;
+          // Format dates for display
+          const formattedStartDate = `${subStartMonth}/${subStartDay}/${subStartYear}`;
+          const formattedEndDate = `${subEndMonth}/${subEndDay}/${subEndYear}`;
 
-        // Update formData with subscription details
-        setFormData(prev => ({
-          ...prev,
-          subscriptionFreq: frequency,
-          subscriptionStart: formattedStartDate,
-          subscriptionEnd: formattedEndDate,
-          subStartMonth,
-          subStartDay,
-          subStartYear,
-          subEndMonth,
-          subEndDay,
-          subEndYear,
-          subsclass: latestSubscription.subsclass || ""
-        }));
-        
-        // Update roleSpecificData with subscription details
-        setRoleSpecificData(prev => ({
-          ...prev,
-          subsdate: formattedStartDate,
-          enddate: formattedEndDate,
-          subsDateMonth: subStartMonth,
-          subsDateDay: subStartDay, 
-          subsDateYear: subStartYear,
-          endDateMonth: subEndMonth,
-          endDateDay: subEndDay,
-          endDateYear: subEndYear,
-          subsyear: latestSubscription.subsyear || 0,
-          copies: latestSubscription.copies || 1,
-          paymtamt: latestSubscription.paymtamt || "",
-          paymtmasses: latestSubscription.paymtmasses || "",
-          calendar: latestSubscription.calendar || false,
-          subsclass: latestSubscription.subsclass || "",
-          donorid: latestSubscription.donorid || "",
-          paymtref: latestSubscription.paymtref || "",
-          remarks: latestSubscription.remarks || ""
-        }));
+          // Update formData with subscription details
+          setFormData(prev => ({
+            ...prev,
+            subscriptionType,
+            subscriptionFreq: frequency,
+            subscriptionStart: formattedStartDate,
+            subscriptionEnd: formattedEndDate,
+            subStartMonth,
+            subStartDay,
+            subStartYear,
+            subEndMonth,
+            subEndDay,
+            subEndYear,
+            subsclass: latestSubscription.subsclass || "",
+            referralid: subscriptionType === "Promo" ? (latestSubscription.referralid || "") : ""
+          }));
+          
+          // Update roleSpecificData with subscription details
+          setRoleSpecificData(prev => ({
+            ...prev,
+            subsdate: formattedStartDate,
+            enddate: formattedEndDate,
+            subsDateMonth: subStartMonth,
+            subsDateDay: subStartDay, 
+            subsDateYear: subStartYear,
+            endDateMonth: subEndMonth,
+            endDateDay: subEndDay,
+            endDateYear: subEndYear,
+            subsyear: latestSubscription.subsyear || 0,
+            copies: latestSubscription.copies || 1,
+            paymtamt: latestSubscription.paymtamt || "",
+            paymtmasses: latestSubscription.paymtmasses || "",
+            calendar: latestSubscription.calendar || false,
+            subsclass: latestSubscription.subsclass || "",
+            donorid: latestSubscription.donorid || "",
+            paymtref: latestSubscription.paymtref || "",
+            remarks: latestSubscription.remarks || "",
+            referralid: subscriptionType === "Promo" ? (latestSubscription.referralid || "") : undefined
+          }));
+        }
       }
     }
   }, [rowData]);
@@ -929,7 +948,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (mode === "edit" && selectedSubscription) {
       // Switch to edit mode and load the selected subscription
       setRoleSpecificData({
-        id: selectedSubscription.id,
+        id: selectedSubscription.id || selectedSubscription._id,
         subsdate: selectedSubscription.subsdate || "",
         enddate: selectedSubscription.enddate || "",
         renewdate: selectedSubscription.renewdate || "",
@@ -940,10 +959,40 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         calendar: selectedSubscription.calendar || false,
         subsclass: selectedSubscription.subsclass || "",
         donorid: selectedSubscription.donorid || 0,
+        paymtref: selectedSubscription.paymtref || "",
         remarks: selectedSubscription.remarks || "",
+        referralid: formData.subscriptionType === "Promo" ? (selectedSubscription.referralid || "") : undefined
       });
     } else if (mode === "add") {
       // Switch to add mode and initialize with new subscription data
+      const today = new Date();
+      const startMonth = String(today.getMonth() + 1).padStart(2, "0");
+      const startDay = String(today.getDate()).padStart(2, "0");
+      const startYear = String(today.getFullYear());
+      const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
+
+      setNewSubscription({
+        subsdate: formattedStartDate,
+        enddate: "",
+        renewdate: "",
+        subsyear: 0,
+        copies: 1,
+        paymtamt: 0,
+        paymtmasses: 0,
+        calendar: false,
+        subsclass: "",
+        donorid: 0,
+        paymtref: "",
+        remarks: "",
+        referralid: formData.subscriptionType === "Promo" ? "" : undefined,
+        subsDateMonth: startMonth,
+        subsDateDay: startDay,
+        subsDateYear: startYear,
+        endDateMonth: "",
+        endDateDay: "",
+        endDateYear: ""
+      });
+
       setRoleSpecificData(newSubscription);
     }
   };
@@ -1009,7 +1058,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subsDateYear,
         endDateMonth,
         endDateDay,
-        endDateYear
+        endDateYear,
+        // Add subscription type specific fields
+        referralid: formData.subscriptionType === "Promo" ? (selectedSub.referralid || "") : undefined
       });
 
       // Also update the formData for consistency
@@ -1022,7 +1073,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subStartYear: subsDateYear,
         subEndMonth: endDateMonth,
         subEndDay: endDateDay,
-        subEndYear: endDateYear
+        subEndYear: endDateYear,
+        subsclass: selectedSub.subsclass || "",
+        referralid: formData.subscriptionType === "Promo" ? (selectedSub.referralid || "") : ""
       }));
 
       // Determine subscription frequency based on the subscription period
@@ -1177,225 +1230,195 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return result;
   };
 
+  // Add subscription type styles
+  const getSubscriptionTypeStyles = () => {
+    switch (formData.subscriptionType) {
+      case "Promo":
+        return "bg-emerald-600 text-white border-emerald-700";
+      case "Complimentary":
+        return "bg-purple-600 text-white border-purple-700";
+      default: // WMM
+        return "bg-blue-600 text-white border-blue-700";
+    }
+  };
+
+  // Add date formatting functions
+  const formatDateForWMM = (date) => {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatDateForPromo = (date) => {
+    const d = new Date(date);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const year = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
+  // Update handleSubmit to use the new date formatting functions
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
+
+    // Format birth date if all parts are present
+    const formatBdate = () => {
+      if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
+        return `${formData.bdateMonth}/${formData.bdateDay}/${formData.bdateYear}`;
+      }
+      return formData.bdate || "";
+    };
+
+    // Prepare base client data
+    const baseClientData = {
+      ...formData,
+      bdate: formatBdate(),
+      address: combinedAddress,
+      ...areaData,
+    };
+
+    // Clean the client data by removing empty fields
+    const clientData = removeEmptyFields(baseClientData);
+
+    // Determine role type based on subscription type
+    let roleType = "";
+    let roleData = {};
+
+    if (hasRole("WMM")) {
+      // Map subscription types to their model types
+      const modelType = {
+        "WMM": "WMM",
+        "Promo": "PROMO",
+        "Complimentary": "COMP"
+      }[formData.subscriptionType];
+
+      roleType = modelType;
+
+      if (subscriptionMode === "edit" && selectedSubscription) {
+        // If editing an existing subscription
+        const subsdate = formData.subscriptionStart ? 
+          (formData.subscriptionType === "Promo" || formData.subscriptionType === "Complimentary" ? 
+            formatDateForPromo(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) :
+            formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay))) : 
+          "";
+
+        const enddate = formData.subscriptionEnd ? 
+          (formData.subscriptionType === "Promo" || formData.subscriptionType === "Complimentary" ? 
+            formatDateForPromo(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) :
+            formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay))) : 
+          "";
+
+        roleData = removeEmptyFields({
+          id: selectedSubscription.id || selectedSubscription._id,
+          subsdate,
+          enddate,
+          renewdate: roleSpecificData.renewdate || "",
+          subsyear: parseFloat(roleSpecificData.subsyear) || 1,
+          copies: parseInt(roleSpecificData.copies) || 1,
+          paymtamt: parseFloat(roleSpecificData.paymtamt) || 0,
+          paymtmasses: parseInt(roleSpecificData.paymtmasses) || 0,
+          calendar: roleSpecificData.calendar || false,
+          subsclass: roleSpecificData.subsclass || "",
+          donorid: parseInt(roleSpecificData.donorid) || 0,
+          paymtref: roleSpecificData.paymtref || "",
+          remarks: roleSpecificData.remarks || "",
+          referralid: formData.subscriptionType === "Promo" ? (formData.referralid || 0) : undefined
+        });
+      } else {
+        // If adding a new subscription
+        const subsdate = formData.subscriptionStart ? 
+          (formData.subscriptionType === "Promo" || formData.subscriptionType === "Complimentary" ? 
+            formatDateForPromo(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) :
+            formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay))) : 
+          "";
+
+        const enddate = formData.subscriptionEnd ? 
+          (formData.subscriptionType === "Promo" || formData.subscriptionType === "Complimentary" ? 
+            formatDateForPromo(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) :
+            formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay))) : 
+          "";
+
+        roleData = removeEmptyFields({
+          subsdate,
+          enddate,
+          renewdate: roleSpecificData.renewdate || "",
+          subsyear: parseFloat(roleSpecificData.subsyear) || 1,
+          copies: parseInt(roleSpecificData.copies) || 1,
+          paymtamt: parseFloat(roleSpecificData.paymtamt) || 0,
+          paymtmasses: parseInt(roleSpecificData.paymtmasses) || 0,
+          calendar: roleSpecificData.calendar || false,
+          subsclass: roleSpecificData.subsclass || "",
+          donorid: parseInt(roleSpecificData.donorid) || 0,
+          paymtref: roleSpecificData.paymtref || "",
+          remarks: roleSpecificData.remarks || "",
+          referralid: formData.subscriptionType === "Promo" ? (formData.referralid || 0) : undefined,
+          isNewSubscription: true,
+          adddate: formData.subscriptionType === "Promo" || formData.subscriptionType === "Complimentary" ? 
+            new Date().toLocaleString("en-US", {
+              month: "numeric",
+              day: "numeric",
+              year: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false
+            }) :
+            formatDateForWMM(new Date())
+        });
+      }
+    }
 
     try {
-      // Format the birth date properly
-      const formatBdate = () => {
-        if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
-          return `${formData.bdateMonth}/${formData.bdateDay}/${formData.bdateYear}`;
-        }
-        return formData.bdate || "";
-      };
-
-      // Prepare the client data for submission and clean empty fields
-      const clientData = removeEmptyFields({
-        ...formData,
-        bdate: formatBdate(),
-        address: combinedAddress, // Use the combined address from state
-        ...areaData,  // This includes acode, area, and zipcode
-      });
-
-      // Determine what role-specific data to submit
-      let roleData = {};
-      let roleType = "";
-
-      if (hasRole("WMM")) {
-        roleType = "WMM";
-
-        if (subscriptionMode === "edit" && selectedSubscription) {
-          // If editing an existing subscription
-          roleData = removeEmptyFields({
-            id: selectedSubscription._id || selectedSubscription.id, // Prefer _id for MongoDB ObjectId
-            subsdate: roleSpecificData.subsdate,
-            enddate: roleSpecificData.enddate,
-            renewdate: roleSpecificData.renewdate,
-            subsyear: parseFloat(roleSpecificData.subsyear) || 0,
-            copies: parseInt(roleSpecificData.copies) || 1,
-            paymtamt: parseFloat(roleSpecificData.paymtamt) || 0,
-            paymtmasses: parseInt(roleSpecificData.paymtmasses) || 0,
-            calendar: roleSpecificData.calendar || false,
-            subsclass: roleSpecificData.subsclass || "",
-            donorid: parseInt(roleSpecificData.donorid) || 0,
-            paymtref: roleSpecificData.paymtref || "",
-            remarks: roleSpecificData.remarks || "",
-          });
-        } else if (subscriptionMode === "add") {
-          // Validate new subscription data
-          const validation = validateNewSubscription(newSubscription);
-          if (!validation.isValid) {
-            setValidationErrors(validation.errors);
-            return;
-          }
-
-          // If adding a new subscription
-          roleData = removeEmptyFields({
-            subsdate: newSubscription.subsdate,
-            enddate: newSubscription.enddate,
-            renewdate: newSubscription.renewdate || "",
-            subsyear: parseFloat(newSubscription.subsyear) || 1,
-            copies: parseInt(newSubscription.copies) || 1,
-            paymtamt: parseFloat(newSubscription.paymtamt) || 0,
-            paymtmasses: parseInt(newSubscription.paymtmasses) || 0,
-            calendar: newSubscription.calendar || false,
-            subsclass: newSubscription.subsclass || "",
-            donorid: parseInt(newSubscription.donorid) || 0,
-            paymtref: newSubscription.paymtref || "",
-            remarks: newSubscription.remarks || "",
-            isNewSubscription: true,
-          });
-        }
-      } else {
-        // Handle other role types (HRG, FOM, CAL)
-        if (selectedRole === "HRG" && hasRole("HRG")) {
-          roleType = "HRG";
-          if (roleRecordMode === "edit" && selectedHrgRecord) {
-            roleData = removeEmptyFields({
-              id: selectedHrgRecord.id || selectedHrgRecord._id,
-              recvdate: roleSpecificData.recvdate,
-              renewdate: roleSpecificData.renewdate,
-              campaigndate: roleSpecificData.campaigndate,
-              paymtref: roleSpecificData.paymtref,
-              paymtamt: roleSpecificData.paymtamt,
-              unsubscribe: roleSpecificData.unsubscribe,
-              remarks: roleSpecificData.remarks,
-            });
-          } else {
-            roleData = removeEmptyFields({
-              recvdate: newRoleData.recvdate,
-              renewdate: newRoleData.renewdate,
-              campaigndate: newRoleData.campaigndate,
-              paymtref: newRoleData.paymtref,
-              paymtamt: newRoleData.paymtamt,
-              unsubscribe: newRoleData.unsubscribe,
-              remarks: newRoleData.remarks,
-              isNewRecord: true,
-            });
-          }
-        } else if (selectedRole === "FOM" && hasRole("FOM")) {
-          roleType = "FOM";
-          if (roleRecordMode === "edit" && selectedFomRecord) {
-            roleData = removeEmptyFields({
-              id: selectedFomRecord.id || selectedFomRecord._id,
-              recvdate: roleSpecificData.recvdate,
-              paymtamt: roleSpecificData.paymtamt,
-              paymtform: roleSpecificData.paymtform,
-              paymtref: roleSpecificData.paymtref,
-              unsubscribe: roleSpecificData.unsubscribe,
-              remarks: roleSpecificData.remarks,
-            });
-          } else {
-            roleData = removeEmptyFields({
-              recvdate: newRoleData.recvdate,
-              paymtamt: newRoleData.paymtamt,
-              paymtform: newRoleData.paymtform,
-              paymtref: newRoleData.paymtref,
-              unsubscribe: newRoleData.unsubscribe,
-              remarks: newRoleData.remarks,
-              isNewRecord: true,
-            });
-          }
-        } else if (selectedRole === "CAL" && hasRole("CAL")) {
-          roleType = "CAL";
-          if (roleRecordMode === "edit" && selectedCalRecord) {
-            roleData = removeEmptyFields({
-              id: selectedCalRecord.id || selectedCalRecord._id,
-              recvdate: roleSpecificData.recvdate,
-              caltype: roleSpecificData.caltype,
-              calqty: roleSpecificData.calqty,
-              calamt: roleSpecificData.calamt,
-              paymtref: roleSpecificData.paymtref,
-              paymtamt: roleSpecificData.paymtamt,
-              paymtform: roleSpecificData.paymtform,
-              paymtdate: roleSpecificData.paymtdate,
-              remarks: roleSpecificData.remarks,
-            });
-          } else {
-            roleData = removeEmptyFields({
-              recvdate: newRoleData.recvdate,
-              caltype: newRoleData.caltype,
-              calqty: newRoleData.calqty,
-              calamt: newRoleData.calamt,
-              paymtref: newRoleData.paymtref,
-              paymtamt: newRoleData.paymtamt,
-              paymtform: newRoleData.paymtform,
-              paymtdate: newRoleData.paymtdate,
-              remarks: newRoleData.remarks,
-              isNewRecord: true,
-            });
-          }
-        }
-      }
-
-      // Prepare the submission data
-      const submissionData = removeEmptyFields({
-        clientId: rowData.id,
-        clientData,
-        roleType,
-        roleData,
-      });
-
-      // Send the update request
       const response = await axios.put(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${rowData.id}`,
-        submissionData,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
+          clientData,
+          roleType,
+          roleData,
+          isNewRecord: subscriptionMode === "new",
+          isNewRoleData: true,
+          recordId: selectedSubscription?.id || selectedSubscription?._id
         }
       );
 
-      if (response.data.success) {
-        // Prepare updated data
-        const updatedData = {
-          ...rowData,
-          ...clientData,
-          // Always include all subscription data from the response
-          wmmData: response.data.wmmData || [],
-          hrgData: response.data.hrgData || [],
-          fomData: response.data.fomData || [],
-          calData: response.data.calData || [],
-          // Update services array
-          services: Array.from(new Set([
-            ...(rowData.services || []),
-            roleType
-          ]))
-        };
-
+      if (response.data) {
         // Emit data update event via WebSocket
-        try {
-          await webSocketService.emit("data-update", {
-            type: "update",
-            operation: "edit",
-            ids: [rowData.id],
-            data: {
-              id: rowData.id,
-              ...updatedData,
-              // Ensure subscription data is properly structured
-              wmmData: response.data.wmmData || [],
-              hrgData: response.data.hrgData || [],
-              fomData: response.data.fomData || [],
-              calData: response.data.calData || []
-            }
-          });
-        } catch (wsError) {
-          console.warn("WebSocket update failed, but data was saved:", wsError);
-          // Continue with success flow since the data was saved
-        }
+        webSocketService.emit("data-update", {
+          type: "update",
+          data: {
+            id: rowData.id,
+            ...clientData,
+            services: [roleType],
+            subscriptionType: formData.subscriptionType,
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || [],
+            promoData: response.data.promoData || [],
+            complimentaryData: response.data.complimentaryData || []
+          }
+        });
 
         if (onEditSuccess) {
-          onEditSuccess(updatedData);
+          onEditSuccess({
+            id: rowData.id,
+            ...clientData,
+            services: [roleType],
+            subscriptionType: formData.subscriptionType,
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || [],
+            promoData: response.data.promoData || [],
+            complimentaryData: response.data.complimentaryData || []
+          });
         }
-        closeModal();
+        onClose();
       }
     } catch (error) {
       console.error("Error updating client:", error);
-      // Handle error state here
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -1694,8 +1717,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             {/* WMM Subscription Information - Only show if user has WMM role */}
             {hasRole("WMM") && (
               <div className="p-4 border rounded-lg shadow-sm col-span-2">
-                <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                  Subscription Information
+                <h2 className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center mb-2`}>
+                  {formData.subscriptionType} Subscription
                 </h2>
                 
                 {/* Mode toggle - Edit existing or Add new */}
@@ -1749,278 +1772,241 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 </div>
                 
                 {/* Subscription Form Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Start Date Fields */}
                   <div>
-                  <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Frequency:
-                      </label>
-                      <select
-                        id="subscriptionFreq"
-                        name="subscriptionFreq"
-                        value={subscriptionFreq}
-                        onChange={handleSubscriptionFreqChange}
-                        className="w-full p-2 border rounded-md text-base"
-                      >
-                        <option value="">Select Frequency</option>
-                        <option value="5">6 Months</option>
-                        <option value="11">1 Year</option>
-                        <option value="22">2 Years</option>
-                      </select>
-                    </div>
-                    
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Start:
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="relative">
-                          <select
-                            id="subStartMonth"
-                            name="subStartMonth"
-                            value={
-                              subscriptionMode === "edit"
-                                ? formData.subStartMonth || ""
-                                : newSubscription.subsDateMonth || ""
-                            }
-                            onChange={
-                              subscriptionMode === "edit"
-                                ? handleChange
-                                : (e) => setNewSubscription({...newSubscription, subsDateMonth: e.target.value})
-                            }
-                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="">Month</option>
-                            {months.map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <input
-                          type="text"
-                          id="subStartDay"
-                          name="subStartDay"
-                          value={
-                            subscriptionMode === "edit"
-                              ? formData.subStartDay || ""
-                              : newSubscription.subsDateDay || ""
-                          }
-                          onChange={
-                            subscriptionMode === "edit"
-                              ? handleChange
-                              : (e) => setNewSubscription({...newSubscription, subsDateDay: e.target.value})
-                          }
-                          placeholder="DD"
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Date:
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="relative">
+                        <select
+                          id="subStartMonth"
+                          name="subStartMonth"
+                          value={formData.subStartMonth || ""}
+                          onChange={handleChange}
                           className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="2"
-                        />
-                        <input
-                          type="text"
-                          id="subStartYear"
-                          name="subStartYear"
-                          value={
-                            subscriptionMode === "edit"
-                              ? formData.subStartYear || ""
-                              : newSubscription.subsDateYear || ""
-                          }
-                          onChange={
-                            subscriptionMode === "edit"
-                              ? handleChange
-                              : (e) => setNewSubscription({...newSubscription, subsDateYear: e.target.value})
-                          }
-                          placeholder="YYYY"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="4"
-                        />
+                        >
+                          <option value="">Month</option>
+                          {months.map((month) => (
+                            <option key={month.value} value={month.value}>
+                              {month.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                    
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription End:
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="relative">
-                          <select
-                            id="subEndMonth"
-                            name="subEndMonth"
-                            value={
-                              subscriptionMode === "edit"
-                                ? formData.subEndMonth || ""
-                                : newSubscription.endDateMonth || ""
-                            }
-                            onChange={
-                              subscriptionMode === "edit"
-                                ? handleChange
-                                : (e) => setNewSubscription({...newSubscription, endDateMonth: e.target.value})
-                            }
-                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="">Month</option>
-                            {months.map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <input
-                          type="text"
-                          id="subEndDay"
-                          name="subEndDay"
-                          value={
-                            subscriptionMode === "edit"
-                              ? formData.subEndDay || ""
-                              : newSubscription.endDateDay || ""
-                          }
-                          onChange={
-                            subscriptionMode === "edit"
-                              ? handleChange
-                              : (e) => setNewSubscription({...newSubscription, endDateDay: e.target.value})
-                          }
-                          placeholder="DD"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="2"
-                        />
-                        <input
-                          type="text"
-                          id="subEndYear"
-                          name="subEndYear"
-                          value={
-                            subscriptionMode === "edit"
-                              ? formData.subEndYear || ""
-                              : newSubscription.endDateYear || ""
-                          }
-                          onChange={
-                            subscriptionMode === "edit"
-                              ? handleChange
-                              : (e) => setNewSubscription({...newSubscription, endDateYear: e.target.value})
-                          }
-                          placeholder="YYYY"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="4"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Class:
-                      </label>
-                      <select
-                        id="subsclass"
-                        name="subsclass"
-                        value={
-                          subscriptionMode === "edit"
-                            ? roleSpecificData.subsclass || ""
-                            : newSubscription.subsclass || ""
-                        }
-                        onChange={
-                          subscriptionMode === "edit"
-                            ? handleRoleSpecificChange
-                            : handleNewSubscriptionChange
-                        }
-                        className="w-full p-2 border rounded-md text-base"
-                      >
-                        <option value="">Select a classification</option>
-                        {subclasses.map((subclass) => (
-                          <option key={subclass.id} value={subclass.id}>
-                            {subclass.name} ({subclass.id})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div className="flex flex-row items-center justify-center gap-2">
-                      <label className="block text-sm font-medium leading-6 text-gray-600">
-                        Copies:
-                      </label>
                       <input
-                        id="copies"
-                        name="copies"
-                        value={
-                          subscriptionMode === "edit"
-                            ? roleSpecificData.copies || 1
-                            : newSubscription.copies || 1
-                        }
-                        onChange={
-                          subscriptionMode === "edit"
-                            ? handleRoleSpecificChange
-                            : handleNewSubscriptionChange
-                        }
-                        type="number"
-                        min="1"
-                        className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
+                        type="text"
+                        id="subStartDay"
+                        name="subStartDay"
+                        value={formData.subStartDay || ""}
+                        onChange={handleChange}
+                        placeholder="DD"
+                        className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        maxLength="2"
+                      />
+                      <input
+                        type="text"
+                        id="subStartYear"
+                        name="subStartYear"
+                        value={formData.subStartYear || ""}
+                        onChange={handleChange}
+                        placeholder="YYYY"
+                        className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        maxLength="4"
                       />
                     </div>
                   </div>
-                  
+
+                  {/* End Date Fields */}
                   <div>
-                    <div className="grid grid-cols-1 gap-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date:
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="relative">
+                        <select
+                          id="subEndMonth"
+                          name="subEndMonth"
+                          value={formData.subEndMonth || ""}
+                          onChange={handleChange}
+                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        >
+                          <option value="">Month</option>
+                          {months.map((month) => (
+                            <option key={month.value} value={month.value}>
+                              {month.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <input
+                        type="text"
+                        id="subEndDay"
+                        name="subEndDay"
+                        value={formData.subEndDay || ""}
+                        onChange={handleChange}
+                        placeholder="DD"
+                        className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        maxLength="2"
+                      />
+                      <input
+                        type="text"
+                        id="subEndYear"
+                        name="subEndYear"
+                        value={formData.subEndYear || ""}
+                        onChange={handleChange}
+                        placeholder="YYYY"
+                        className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        maxLength="4"
+                      />
+                    </div>
+                  </div>
+
+
+                  {/* Copies */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Copies:
+                    </label>
+                    <input
+                      type="number"
+                      name="copies"
+                      value={roleSpecificData.copies}
+                      onChange={handleRoleSpecificChange}
+                      min="1"
+                      className="w-full p-2 border rounded-md text-base"
+                    />
+                  </div>
+
+                  {/* Payment Fields - Only for WMM subscription type */}
+                  {formData.subscriptionType === "WMM" && (
+                    <>
+                      {/* Subscription Class - Only for WMM */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Payment Details
+                          Subscription Class:
                         </label>
-                        <div className="space-y-3 border rounded-md p-3">
-                          <InputField
-                            label="Reference No:"
-                            id="paymtref"
-                            name="paymtref"
-                            value={
-                              subscriptionMode === "edit"
-                                ? roleSpecificData.paymtref || ""
-                                : newSubscription.paymtref || ""
-                            }
-                            onChange={
-                              subscriptionMode === "edit"
-                                ? handleRoleSpecificChange
-                                : handleNewSubscriptionChange
-                            }
-                            className="text-base"
-                          />
-                          
-                          <div className="grid grid-cols-2 gap-3">
-                            <InputField
-                              label="Amount:"
-                              id="paymtamt"
-                              name="paymtamt"
-                              type="number"
-                              value={
-                                subscriptionMode === "edit"
-                                  ? roleSpecificData.paymtamt || ""
-                                  : newSubscription.paymtamt || ""
-                              }
-                              onChange={
-                                subscriptionMode === "edit"
-                                  ? handleRoleSpecificChange
-                                  : handleNewSubscriptionChange
-                              }
-                              className="text-base"
-                            />
-                            
-                            <InputField
-                              label="Masses:"
-                              id="paymtmasses"
-                              name="paymtmasses"
-                              type="number"
-                              value={
-                                subscriptionMode === "edit"
-                                  ? roleSpecificData.paymtmasses || ""
-                                  : newSubscription.paymtmasses || ""
-                              }
-                              onChange={
-                                subscriptionMode === "edit"
-                                  ? handleRoleSpecificChange
-                                  : handleNewSubscriptionChange
-                              }
-                              className="text-base"
-                            />
-                          </div>
-                        </div>
+                        <select
+                          name="subsclass"
+                          value={roleSpecificData.subsclass}
+                          onChange={handleRoleSpecificChange}
+                          className="w-full p-2 border rounded-md text-base"
+                        >
+                          <option value="">Select Class</option>
+                          {subclasses.map((subclass) => (
+                            <option key={subclass.id} value={subclass.name}>
+                              {subclass.name}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
+                      {/* Payment Reference */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Reference:
+                        </label>
+                        <input
+                          type="text"
+                          name="paymtref"
+                          value={roleSpecificData.paymtref}
+                          onChange={handleRoleSpecificChange}
+                          className="w-full p-2 border rounded-md text-base"
+                        />
+                      </div>
+
+                      {/* Payment Amount */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Amount:
+                        </label>
+                        <input
+                          type="number"
+                          name="paymtamt"
+                          value={roleSpecificData.paymtamt}
+                          onChange={handleRoleSpecificChange}
+                          min="0"
+                          step="0.01"
+                          className="w-full p-2 border rounded-md text-base"
+                        />
+                      </div>
+
+                      {/* Payment Masses */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Payment Masses:
+                        </label>
+                        <input
+                          type="number"
+                          name="paymtmasses"
+                          value={roleSpecificData.paymtmasses}
+                          onChange={handleRoleSpecificChange}
+                          min="0"
+                          className="w-full p-2 border rounded-md text-base"
+                        />
+                      </div>
+
+                      {/* Donor ID */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Donor ID:
+                        </label>
+                        <input
+                          type="text"
+                          name="donorid"
+                          value={roleSpecificData.donorid}
+                          onChange={handleRoleSpecificChange}
+                          className="w-full p-2 border rounded-md text-base"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Referral ID - Only for Promo subscription type */}
+                  {formData.subscriptionType === "Promo" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Referral ID:
+                      </label>
+                      <input
+                        type="text"
+                        name="referralid"
+                        value={formData.referralid}
+                        onChange={handleChange}
+                        className="w-full p-2 border rounded-md text-base"
+                      />
                     </div>
+                  )}
+
+                  {/* Calendar Checkbox */}
+                  <div className="col-span-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        name="calendar"
+                        checked={roleSpecificData.calendar}
+                        onChange={handleRoleSpecificChange}
+                        className="form-checkbox h-5 w-5 text-blue-600"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Include Calendar
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Remarks */}
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Remarks:
+                    </label>
+                    <textarea
+                      name="remarks"
+                      value={roleSpecificData.remarks}
+                      onChange={handleRoleSpecificChange}
+                      className="w-full p-2 border rounded-md text-base"
+                      rows="3"
+                    />
                   </div>
                 </div>
               </div>
