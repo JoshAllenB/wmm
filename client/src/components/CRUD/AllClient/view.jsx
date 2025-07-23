@@ -14,6 +14,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [hrgData, setHrgData] = useState({});
   const [fomData, setFomData] = useState({});
   const [calData, setCalData] = useState({});
+  const [promoData, setPromoData] = useState([]); // Add promoData state
+  const [compData, setCompData] = useState([]); // Add compData state
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -22,26 +24,63 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       setFormData(rowData);
       setShowModal(true);
 
-      // Determine which services this client actually has
+      // Determine subscription type and services
+      const subscriptionType = rowData.subscriptionType || "WMM";
       const clientServices = rowData.services || [];
       
-      // Handle WMM data properly
-      if (rowData.wmmData) {
-        if (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) {
-          // If wmmData is a direct array, use it as is
-          setWmmData(rowData.wmmData);
-        } else if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records) && rowData.wmmData.records.length > 0) {
-          // If wmmData has a records property with data, use that array
-          setWmmData(rowData.wmmData.records);
-        } else if (typeof rowData.wmmData === 'object' && Object.keys(rowData.wmmData).length > 0) {
-          // If it's a single object with data (non-empty), convert to array
-          setWmmData([rowData.wmmData].filter(item => Object.keys(item).length > 0));
+      // Handle subscription data based on type
+      if (subscriptionType === "Promo") {
+        if (rowData.promoData) {
+          if (Array.isArray(rowData.promoData) && rowData.promoData.length > 0) {
+            setPromoData(rowData.promoData);
+          } else if (rowData.promoData.records && Array.isArray(rowData.promoData.records)) {
+            setPromoData(rowData.promoData.records);
+          } else if (typeof rowData.promoData === 'object' && Object.keys(rowData.promoData).length > 0) {
+            setPromoData([rowData.promoData].filter(item => Object.keys(item).length > 0));
+          } else {
+            setPromoData([]);
+          }
         } else {
-          // Empty or invalid data
+          setPromoData([]);
+        }
+        // Clear other subscription data
+        setWmmData([]);
+        setCompData([]);
+      } else if (subscriptionType === "Complimentary") {
+        if (rowData.compData) {
+          if (Array.isArray(rowData.compData) && rowData.compData.length > 0) {
+            setCompData(rowData.compData);
+          } else if (rowData.compData.records && Array.isArray(rowData.compData.records)) {
+            setCompData(rowData.compData.records);
+          } else if (typeof rowData.compData === 'object' && Object.keys(rowData.compData).length > 0) {
+            setCompData([rowData.compData].filter(item => Object.keys(item).length > 0));
+          } else {
+            setCompData([]);
+          }
+        } else {
+          setCompData([]);
+        }
+        // Clear other subscription data
+        setWmmData([]);
+        setPromoData([]);
+      } else {
+        // Default to WMM
+        if (rowData.wmmData) {
+          if (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) {
+            setWmmData(rowData.wmmData);
+          } else if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records)) {
+            setWmmData(rowData.wmmData.records);
+          } else if (typeof rowData.wmmData === 'object' && Object.keys(rowData.wmmData).length > 0) {
+            setWmmData([rowData.wmmData].filter(item => Object.keys(item).length > 0));
+          } else {
+            setWmmData([]);
+          }
+        } else {
           setWmmData([]);
         }
-      } else {
-        setWmmData([]);
+        // Clear other subscription data
+        setPromoData([]);
+        setCompData([]);
       }
       
       // Handle HRG data properly
@@ -96,6 +135,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       ...formData,
       wmmData: {
         records: Array.isArray(wmmData) ? wmmData : []
+      },
+      promoData: {
+        records: Array.isArray(promoData) ? promoData : []
+      },
+      complimentaryData: {
+        records: Array.isArray(compData) ? compData : []
       },
       hrgData: hrgData,
       fomData: fomData,
@@ -288,23 +333,57 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Function to get subscription type styles
+  const getSubscriptionTypeStyles = (type) => {
+    switch (type) {
+      case "Promo":
+        return {
+          headerClass: "bg-emerald-500 text-white"
+        };
+      case "Complimentary":
+        return {
+          headerClass: "bg-purple-500 text-white"
+        };
+      default: // WMM
+        return {
+          headerClass: "bg-blue-500 text-white"
+        };
+    }
+  };
+
   const renderWmmData = () => {
-    // Check if wmmData exists and has items
-    if (!wmmData || wmmData.length === 0) {
-      return null;
+    // Determine which subscription data to use based on type
+    let subscriptionData = [];
+    let subscriptionType = formData.subscriptionType || "WMM";
+
+    switch (subscriptionType) {
+      case "Promo":
+        subscriptionData = promoData;
+        break;
+      case "Complimentary":
+        subscriptionData = compData;
+        break;
+      default:
+        subscriptionData = wmmData;
     }
 
+    // Check if subscription data exists and has items
+    if (!subscriptionData || subscriptionData.length === 0) {
+      return (
+        <div className="p-4">
+          <p className="text-center">No {subscriptionType.toLowerCase()} subscription data available</p>
+        </div>
+      );
+    }
 
-    // Sort wmmData by subsdate in descending order (latest to oldest)
-    const sortedWmmData = [...wmmData].sort((a, b) => {
-      // Handle missing subsdate values
+    // Sort subscription data by subsdate in descending order (latest to oldest)
+    const sortedData = [...subscriptionData].sort((a, b) => {
       if (!a.subsdate) return 1;
       if (!b.subsdate) return -1;
       
       const dateA = new Date(a.subsdate);
       const dateB = new Date(b.subsdate);
       
-      // Check if dates are valid
       if (isNaN(dateA.getTime())) return 1;
       if (isNaN(dateB.getTime())) return -1;
       
@@ -313,8 +392,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     return (
       <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-full">
-        {sortedWmmData.map((subscription, index) => {
-          // Skip rendering if subscription is empty or not an object
+        {sortedData.map((subscription, index) => {
           if (!subscription || typeof subscription !== 'object' || Object.keys(subscription).length === 0) {
             return null;
           }
@@ -324,13 +402,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const statusIndicator = getStatusIndicator(status);
 
           return (
-            <div key={index} className="border-b border-gray-300 pb-2 mb-2">
+            <div key={index} className="border-b border-gray-200 pb-2 mb-2">
               <div className="flex flex-col">
                 <div className="flex space-x-1">
                   <span className={statusClass}>
                     {statusIndicator}
                     <span className="font-bold">
-                      {subscription.subsclass || 'N/A'}
+                      {subscription.subsclass || ''}
                     </span>: {formatDate(subscription.subsdate || new Date())} -{" "}
                     {formatDate(subscription.enddate || new Date())} Cps:{" "}
                     {subscription.copies || '1'}
@@ -352,57 +430,62 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   </div>
                 )}
 
-                {/* Payment details */}
-                {subscription.paymtref && (
+                {/* Payment details - Only show for WMM type */}
+                {formData.subscriptionType === "WMM" && subscription.paymtref && (
                   <div className="mt-1 pl-4 text-sm">
                     <div className="grid grid-cols-2 gap-x-4">
                       <div>
-                        <span className="text-black font-semibold">
+                        <span className="font-semibold">
                           Payment Ref:
                         </span>{" "}
-                        <span className="text-black">
+                        <span>
                           {subscription.paymtref}
                         </span>
                       </div>
                       <div>
-                        <span className="text-black font-semibold">
+                        <span className="font-semibold">
                           Amount:
                         </span>{" "}
-                        <span className="text-black">
+                        <span>
                           {subscription.paymtamt || '0'}
                         </span>
                       </div>
                       {subscription.paymtmasses && (
                         <div>
-                          <span className="text-black font-semibold">
+                          <span className="font-semibold">
                             Masses:
                           </span>{" "}
-                          <span className="text-black">
+                          <span>
                             {subscription.paymtmasses}
                           </span>
                         </div>
                       )}
                       {subscription.donorid && (
                         <div>
-                          <span className="text-black font-semibold">
+                          <span className="font-semibold">
                             Donor ID:
                           </span>{" "}
-                          <span className="text-black">
+                          <span>
                             {subscription.donorid}
                           </span>
                         </div>
                       )}
-                      {subscription.adddate && (
-                        <div>
-                          <span className="text-black font-semibold">
-                            Added:
-                          </span>{" "}
-                          <span className="text-black">
-                            {formatDate(subscription.adddate)}
-                          </span>
-                        </div>
-                      )}
                     </div>
+                  </div>
+                )}
+
+                {/* Referral ID - Only show for Promo type */}
+                {formData.subscriptionType === "Promo" && subscription.referralid && (
+                  <div className="mt-1 pl-4 text-sm">
+                    <span className="font-semibold">Referral ID:</span>{" "}
+                    <span>{subscription.referralid}</span>
+                  </div>
+                )}
+
+                {subscription.adddate && (
+                  <div className="mt-1 pl-4 text-sm">
+                    <span className="font-semibold">Added:</span>{" "}
+                    <span>{formatDate(subscription.adddate)}</span>
                   </div>
                 )}
               </div>
@@ -627,54 +710,53 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 </div>
   
                 {/* Subscription & Payment History Card */}
-                {wmmData && wmmData.length > 0 ? (
+                {formData.subscriptionType && (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      Subscription & Payment History
-                    </h2>
+                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles(formData.subscriptionType).headerClass}`}>
+                      <h2 className="text-lg font-bold">
+                        {formData.subscriptionType === "WMM" 
+                          ? "Subscription & Payment History" 
+                          : `${formData.subscriptionType} Subscription History`}
+                      </h2>
+                    </div>
                     {renderWmmData()}
-                  </div>
-                ) : (
-                  <div className="p-4 border rounded-lg shadow-sm">
-                    <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                      Subscription & Payment History
-                    </h2>
-                    <p>No subscription or payment history available.</p>
                   </div>
                 )}
   
                 {/* Always render HRG, FOM, and CAL data at the bottom */}
-                <div className="border border-gray-300 rounded-lg shadow-sm p-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 col-span-3">
-                {/* HRG Data Card */}
-                  {hrgData && hrgData.records && hrgData.records.length > 0 && (
-                    <div>
-                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                        HRG Data
-                      </h2>
-                      {renderHrgData()}
-                    </div>
-                  )}
-  
-                  {/* FOM Data Card */}
-                  {fomData && fomData.records && fomData.records.length > 0 && (
-                    <div>
-                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                        FOM Data
-                      </h2>
-                      {renderFomData()}
-                    </div>
-                  )}
-  
-                  {/* CAL Data Card */}
-                  {calData && calData.records && calData.records.length > 0 && (
-                    <div>
-                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                        CAL Data
-                      </h2>
-                      {renderCalData()}
-                    </div>
-                  )}
-                </div>
+                {(hrgData.records?.length > 0 || fomData.records?.length > 0 || calData.records?.length > 0) && (
+                  <div className="border border-gray-300 rounded-lg shadow-sm p-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 col-span-3">
+                    {/* HRG Data Card */}
+                    {hrgData.records?.length > 0 && (
+                      <div>
+                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                          HRG Data
+                        </h2>
+                        {renderHrgData()}
+                      </div>
+                    )}
+
+                    {/* FOM Data Card */}
+                    {fomData.records?.length > 0 && (
+                      <div>
+                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                          FOM Data
+                        </h2>
+                        {renderFomData()}
+                      </div>
+                    )}
+
+                    {/* CAL Data Card */}
+                    {calData.records?.length > 0 && (
+                      <div>
+                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                          CAL Data
+                        </h2>
+                        {renderCalData()}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex justify-between mt-8 pt-4 border-t">
                 <div className="flex gap-1">
