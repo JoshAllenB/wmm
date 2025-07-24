@@ -18,7 +18,8 @@ const CsvExport = ({
   setUseAllData,
   onClose,
   onRefreshAllData,
-  isOpen = false
+  isOpen = false,
+  subscriptionType = "WMM" // Add default subscription type
 }) => {
   // State for custom filename
   const [csvFilename, setCsvFilename] = useState("");
@@ -41,7 +42,10 @@ const CsvExport = ({
     // Service-specific fields
     "hrgData",      // HRG Data
     "fomData",      // FOM Data
-    "calData"       // CAL Data
+    "calData",      // CAL Data
+
+    // Promo-specific fields
+    "referralid"    // Referral ID
   ]);
 
   // Add loading state
@@ -93,6 +97,7 @@ const CsvExport = ({
       subsdate: false,
       subsclass: false,
       email: false,
+      referralid: false,  // Add referralID field
       // Add service-specific data fields
       hrgData: false,
       fomData: false,
@@ -104,8 +109,21 @@ const CsvExport = ({
 
     selectedRows.forEach((row) => {
       const subscriber = row.original;
-      const wmmData = subscriber?.wmmData;
-      const subscription = wmmData?.records?.[0] || {};
+      
+      // Get the appropriate subscription data based on type
+      let subscriptionData;
+      switch (subscriptionType) {
+        case "Promo":
+          subscriptionData = subscriber?.promoData;
+          break;
+        case "Complimentary":
+          subscriptionData = subscriber?.compData;
+          break;
+        default: // WMM
+          subscriptionData = subscriber?.wmmData;
+      }
+      
+      const subscription = subscriptionData?.records?.[0] || {};
 
       // Check each field for non-empty values
       if (subscriber.id) fieldsWithData.id = true;
@@ -120,6 +138,7 @@ const CsvExport = ({
       if (subscriber.acode !== undefined && subscriber.acode !== null) fieldsWithData.acode = true;
       if (typeof subscriber.email === 'string' && subscriber.email.trim()) fieldsWithData.email = true;
       if (typeof subscription.subsclass === 'string' && subscription.subsclass.trim()) fieldsWithData.subsclass = true;
+      if (subscription.referralid) fieldsWithData.referralid = true;  // Check referralID
 
       // Check dates
       if (subscription.enddate) {
@@ -158,7 +177,7 @@ const CsvExport = ({
     };
   };
 
-  // Generate CSV content from the selected data
+  // Update generateCSV function to handle different subscription types
   const generateCSV = () => {
     // Filter rows based on start/end Client IDs
     const filteredRows = selectedRows.filter((row) => {
@@ -238,6 +257,10 @@ const CsvExport = ({
       headers.push("Expiry Date");
     if (csvIncludeFields.includes("subsdate") && fieldsWithData.subsdate)
       headers.push("Subscription Date");
+    if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
+      headers.push("Subscription Class");
+    if (subscriptionType === "Promo" && fieldsWithData.referralid)
+      headers.push("Referral ID");
 
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
@@ -247,8 +270,20 @@ const CsvExport = ({
     filteredRows.forEach((row, index) => {
       const subscriber = row.original;
 
-      const wmmData = subscriber?.wmmData;
-      const subscription = wmmData?.records?.[0] || {};
+      // Get the appropriate subscription data based on type
+      let subscriptionData;
+      switch (subscriptionType) {
+        case "Promo":
+          subscriptionData = subscriber?.promoData;
+          break;
+        case "Complimentary":
+          subscriptionData = subscriber?.compData;
+          break;
+        default: // WMM
+          subscriptionData = subscriber?.wmmData;
+      }
+
+      const subscription = subscriptionData?.records?.[0] || {};
       const rowData = [];
 
       try {
@@ -300,6 +335,13 @@ const CsvExport = ({
           rowData.push(`"${subsdate}"`);
         }
 
+        if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
+          rowData.push(`"${subscription.subsclass || ""}"`);
+
+        // Add referral ID for promo subscriptions
+        if (subscriptionType === "Promo" && fieldsWithData.referralid)
+          rowData.push(`"${subscription.referralid || ""}"`);
+
         if (rowData.length === headers.length) {
           csvContent += rowData.join(",") + "\n";
           processedRows++;
@@ -340,38 +382,75 @@ const CsvExport = ({
 
   // Handle CSV export
   const handleExportCSV = () => {
-    const csvContent = generateCSV();
-    if (!csvContent) return;
+    try {
+      const csvContent = generateCSV();
+      if (!csvContent) {
+        toast.error("No data to export");
+        return;
+      }
 
-    // Create a Blob with the CSV content
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      // Generate default filename if custom filename is empty
+      const defaultFilename = `subscribers_export_${new Date().toISOString().slice(0, 10)}`;
+      const filename = csvFilename.trim() || defaultFilename;
+      
+      // Ensure filename ends with .csv
+      const finalFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
 
-    // Create a download link
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+      // Create a Blob for better memory management
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
 
-    // Generate default filename if custom filename is empty
-    const defaultFilename = `subscribers_export_${new Date().toISOString().slice(0, 10)}`;
-    const filename = csvFilename.trim() || defaultFilename;
-    
-    // Ensure filename ends with .csv
-    const finalFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+      // Create a temporary link element
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", finalFilename);
+      
+      // Add to body, click, and remove
+      document.body.appendChild(link);
+      
+      // Use a Promise to handle the download completion
+      const downloadPromise = new Promise((resolve) => {
+        link.onclick = () => {
+          // Give browser time to start the download
+          setTimeout(resolve, 1000);
+        };
+        
+        link.click();
+        
+        // Fallback in case click event doesn't fire
+        setTimeout(resolve, 2000);
+      });
+      
+      // Wait for download to start before cleanup
+      downloadPromise.then(() => {
+        // Clean up
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        }
+        window.URL.revokeObjectURL(url);
+        
+        // Only update state after cleanup
+        setCsvFilename(""); // Reset filename after download
+        onClose();
+        toast.success("CSV exported successfully");
+      });
 
-    // Set link properties
-    link.setAttribute("href", url);
-    link.setAttribute("download", finalFilename);
-
-    // Append to body, click, and clean up
-    document.body.appendChild(link);
-    link.click();
-
-    setTimeout(() => {
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 100);
-
-    onClose();
-    setCsvFilename(""); // Reset filename after download
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast.error("Failed to export CSV. Please try again.");
+      
+      // Attempt cleanup of any lingering elements
+      try {
+        const links = document.querySelectorAll('a[download]');
+        links.forEach(link => {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+        });
+      } catch (cleanupError) {
+        console.error("Error during cleanup:", cleanupError);
+      }
+    }
   };
 
   // Toggle CSV field selection

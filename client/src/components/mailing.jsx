@@ -1164,6 +1164,7 @@ const Mailing = ({
             useAllData={useAllData}
             setUseAllData={setUseAllData}
             onRefreshAllData={refreshAllData}
+            subscriptionType={subscriptionType}
           />
         );
       case 'label':
