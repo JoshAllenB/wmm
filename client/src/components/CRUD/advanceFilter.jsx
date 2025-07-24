@@ -1572,8 +1572,6 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                       hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
                       hasRole={hasRole}
                     />
-                  </div>
-                  <div className="space-y-4">
                     <div className="p-4 bg-white rounded-lg shadow-sm border">
                       <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
                         Copies
@@ -1612,7 +1610,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                           </div>
                         )}
                       </div>
-                    </div>
+                  </div>
+                  </div>
+                  <div className="space-y-4">
                     <CalendarFilter
                       filterData={filterData}
                       handleChange={handleChange}

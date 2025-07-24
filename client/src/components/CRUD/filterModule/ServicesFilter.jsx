@@ -49,8 +49,8 @@ const ServicesFilter = ({
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-sm border">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">Services</h2>
-      <div className="space-y-2">
+      <h2 className="text-black text-xl font-medium mb-1">Services</h2>
+      <div className="space-y-2 flex gap-2">
         {/* Show services based on role */}
         {!hasRole("WMM") && hasRole("HRG") && (
           <label className="flex items-center space-x-2">
@@ -87,7 +87,7 @@ const ServicesFilter = ({
         )}
         {/* Show all services for Admin */}
         {hasRole("Admin") && (
-          <>
+          <div className="flex gap-2 text-lg">
             <label className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -124,13 +124,13 @@ const ServicesFilter = ({
               />
               <span>CAL</span>
             </label>
-          </>
+          </div>
         )}
       </div>
 
       {/* Client ID Filter Section */}
       <div className="mt-4 space-y-2">
-        <h3 className="font-medium text-gray-700">Client ID Filter</h3>
+        <h3 className="font-medium text-xl border-t">Client ID Filter</h3>
         <div className="flex gap-2">
           <label className="flex items-center space-x-2">
             <input

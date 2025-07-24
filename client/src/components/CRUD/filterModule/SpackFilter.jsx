@@ -17,20 +17,7 @@ const SpackFilter = ({ filterData, handleChange }) => {
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label htmlFor="calendarReceived" className="ml-2 text-lg text-black">
-            SPack Received
-          </label>
-        </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            name="spackNotReceived"
-            id="spackNotReceived"
-            checked={filterData.spackNotReceived}
-            onChange={handleChange}
-            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-          />
-            <label htmlFor="calendarNotReceived" className="ml-2 text-lg text-black">
-            SPack Not Received
+            SPack Client
           </label>
         </div>
       </div>
