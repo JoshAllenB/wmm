@@ -150,8 +150,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     wmmExpiringToDay: "",
     wmmExpiringToYear: "",
     copiesRange: "",
-    minCopies: "",
-    maxCopies: "",
+    customCopies: "",
     group: selectedGroup || "",
     type: "",
     subsclass: "",
@@ -358,8 +357,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       wmmExpiringToDay: "",
       wmmExpiringToYear: "",
       copiesRange: "",
-      minCopies: "",
-      maxCopies: "",
+      customCopies: "",
       group: selectedGroup || "",
       type: "",
       subsclass: "",
@@ -553,6 +551,27 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       return [...new Set(ids)].sort((a, b) => a - b);
     };
 
+    // Helper function to process custom copies
+    const processCustomCopies = (copiesString) => {
+      if (!copiesString || !copiesString.trim()) return [];
+      
+      // Split by commas and/or whitespace and clean up
+      const copies = copiesString
+        .split(/[,\s]+/)
+        .map(copy => copy.trim())
+        .filter(Boolean)
+        .map(copy => {
+          // Remove any non-numeric characters
+          const cleanCopy = copy.replace(/[^0-9]/g, '');
+          const num = Number(cleanCopy);
+          return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
+        })
+        .filter(copy => copy !== null);
+
+      // Remove duplicates and sort
+      return [...new Set(copies)].sort((a, b) => a - b);
+    };
+
     // Helper function to only include non-empty values
     const cleanObject = (obj) => {
       const result = {};
@@ -653,9 +672,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       // Copies
       ...(filterData.copiesRange && { 
         copiesRange: filterData.copiesRange,
-        ...(filterData.copiesRange === 'custom' && {
-          minCopies: filterData.minCopies || undefined,
-          maxCopies: filterData.maxCopies || undefined
+        ...(filterData.copiesRange === 'custom' && filterData.customCopies && {
+          customCopies: parseInt(filterData.customCopies)
         })
       }),
 
@@ -1587,26 +1605,28 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                           <option value="1">1 Copy</option>
                           <option value="2">2 Copies</option>
                           <option value="gt1">More than 1</option>
-                          <option value="custom">Custom Range</option>
+                          <option value="custom">Custom Amount</option>
                         </select>
                         {filterData.copiesRange === "custom" && (
-                          <div className="flex gap-2 mt-2">
+                          <div className="mt-2">
                             <input
                               type="number"
-                              name="minCopies"
-                              placeholder="Min"
-                              value={filterData.minCopies}
-                              onChange={handleChange}
-                              className="w-1/2 p-2 border rounded"
+                              name="customCopies"
+                              placeholder="Enter number of copies"
+                              value={filterData.customCopies || ""}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Only allow positive integers
+                                if (value === "" || (/^\d+$/.test(value) && parseInt(value) > 0)) {
+                                  handleChange(e);
+                                }
+                              }}
+                              min="1"
+                              className="w-full p-2 border rounded"
                             />
-                            <input
-                              type="number"
-                              name="maxCopies"
-                              placeholder="Max"
-                              value={filterData.maxCopies}
-                              onChange={handleChange}
-                              className="w-1/2 p-2 border rounded"
-                            />
+                            <p className="text-sm text-gray-500 mt-1">
+                              Enter a specific number of copies
+                            </p>
                           </div>
                         )}
                       </div>

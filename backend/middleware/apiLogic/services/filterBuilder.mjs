@@ -277,17 +277,27 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add copies filter
   if (advancedFilterData.copiesRange) {
     const WmmModel = await getModelInstance('WmmModel');
-    let copiesQuery = {};
+    let customCopiesNum = null;
+
+    // For custom copies, ensure we have a valid number
+    if (advancedFilterData.copiesRange === 'custom' && advancedFilterData.customCopies) {
+      customCopiesNum = parseInt(advancedFilterData.customCopies);
+      if (isNaN(customCopiesNum)) {
+        baseFilter.push({ id: -1 }); // No matches if invalid number
+        return;
+      }
+    }
 
     // Create aggregation pipeline to get most recent record for each client
     const pipeline = [
-      // First stage: Match only records with valid dates
+      // First stage: Match only records with valid dates and copies
       {
         $match: {
-          subsdate: { $exists: true, $ne: null }
+          subsdate: { $exists: true, $ne: null },
+          copies: { $exists: true, $ne: null }
         }
       },
-      // Second stage: Convert subsdate string to Date for proper sorting
+      // Second stage: Convert subsdate string to Date and copies to number
       {
         $addFields: {
           subsDateObj: {
@@ -299,24 +309,29 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             }
           },
           copiesNum: { 
-            $convert: {
-              input: "$copies",
-              to: "int",
-              onError: 0,
-              onNull: 0
-            }
+            $toInt: "$copies" // Simpler conversion to integer
           }
         }
       },
-      // Only consider records with valid date
-      { $match: { subsDateObj: { $ne: null } } },
+      // Only consider records with valid date and copies
+      { 
+        $match: { 
+          subsDateObj: { $ne: null },
+          copiesNum: { $ne: null }
+        } 
+      },
       // Sort by client ID and subscription date (newest first)
-      { $sort: { clientid: 1, subsDateObj: -1 } },
+      { 
+        $sort: { 
+          clientid: 1, 
+          subsDateObj: -1 
+        } 
+      },
       // Group by client ID to get most recent record
       {
         $group: {
           _id: "$clientid",
-          latestCopies: { $first: "$copiesNum" }  // Use the converted numeric copies
+          latestCopies: { $first: "$copiesNum" }
         }
       }
     ];
@@ -324,30 +339,46 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     // Add match stage based on copies range
     switch (advancedFilterData.copiesRange) {
       case '1':
-        pipeline.push({ $match: { latestCopies: 1 } });
+        pipeline.push({ 
+          $match: { 
+            latestCopies: 1 
+          } 
+        });
         break;
       case '2':
-        pipeline.push({ $match: { latestCopies: 2 } });
+        pipeline.push({ 
+          $match: { 
+            latestCopies: 2 
+          } 
+        });
         break;
       case 'gt1':
-        pipeline.push({ $match: { latestCopies: { $gt: 1 } } });
+        pipeline.push({ 
+          $match: { 
+            latestCopies: { $gt: 1 } 
+          } 
+        });
         break;
       case 'custom':
-        const matchStage = { $match: {} };
-        if (advancedFilterData.minCopies) {
-          matchStage.$match.latestCopies = { $gte: parseInt(advancedFilterData.minCopies) };
-        }
-        if (advancedFilterData.maxCopies) {
-          matchStage.$match.latestCopies = { ...matchStage.$match.latestCopies, $lte: parseInt(advancedFilterData.maxCopies) };
-        }
-        if (Object.keys(matchStage.$match).length > 0) {
-          pipeline.push(matchStage);
+        if (customCopiesNum !== null) {
+          pipeline.push({ 
+            $match: { 
+              latestCopies: customCopiesNum
+            } 
+          });
         }
         break;
     }
 
-    // Execute aggregation
+    // Execute aggregation and log for debugging
     const clientsWithCopies = await WmmModel.aggregate(pipeline);
+    console.log('Copies Filter Debug:', {
+      filterType: advancedFilterData.copiesRange,
+      customCopies: customCopiesNum,
+      matchedClients: clientsWithCopies.length,
+      pipeline: pipeline
+    });
+
     const clientIds = clientsWithCopies.map(c => c._id);
 
     if (clientIds.length > 0) {
