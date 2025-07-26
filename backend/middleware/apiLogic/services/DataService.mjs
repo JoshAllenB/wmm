@@ -98,12 +98,6 @@ class DataService {
 
         return enrichedClient;
       });
-      console.log('Passing to statsCalculator:', {
-        filterQuery,
-        pageClientIdsCount: pageClientIds.length,
-        samplePageClientIds: pageClientIds.slice(0, 5),
-        allFilteredClientIdsCount: filteredIds.length
-      });
 
       // Calculate statistics using filter query and current page info
       const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
