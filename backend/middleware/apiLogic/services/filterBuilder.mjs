@@ -1805,10 +1805,17 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 }
 
 function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
+  const escapeRegex = (string) => {
+    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  };
+  
   // Single area code filter
   if (advancedFilterData.acode && advancedFilterData.acode.trim()) {
+    const acodePattern = advancedFilterData.acode.trim();
     baseFilter.push({
-      acode: advancedFilterData.acode.trim(), // Exact match with client's acode field
+      acode: { 
+        $regex: new RegExp(`^${escapeRegex(acodePattern)}\\s*$`, 'i')
+      }
     });
   }
 
@@ -1827,11 +1834,13 @@ function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
     ];
 
     if (validAreas.length > 0) {
-      // Match client's acode field against the selected areas
+      // Create regex patterns for each area code
+      const areaPatterns = validAreas.map(area => 
+        new RegExp(`^${escapeRegex(area)}\\s*$`, 'i')
+      );
+      
       baseFilter.push({
-        acode: {
-          $in: validAreas,
-        },
+        $or: areaPatterns.map(pattern => ({ acode: pattern }))
       });
     }
   }
