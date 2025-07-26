@@ -3,6 +3,8 @@ import HrgModel from '../../../models/hrg.mjs';
 import FomModel from '../../../models/fom.mjs';
 import CalModel from '../../../models/cal.mjs';
 import ClientModel from '../../../models/clients.mjs';
+import PromoModel from '../../../models/promo.mjs';
+import ComplimentaryModel from '../../../models/complimentary.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 
 export async function calculateStatistics(filterQuery, pageClientIds = [], page = 1, limit = 20) {
@@ -27,6 +29,14 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
           page: 0
         },
         fomOnly: {
+          total: 0,
+          page: 0
+        },
+        promo: {
+          total: 0,
+          page: 0
+        },
+        complimentary: {
           total: 0,
           page: 0
         }
@@ -105,6 +115,28 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
           page: 0,
           unit: 'Php',
           tooltip: 'Totals from most recent records based on receive date',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
+        },
+        {
+          service: 'Promo',
+          label: 'Copies',
+          total: 0,
+          page: 0,
+          unit: '',
+          clientsFound: {
+            total: 0,
+            page: 0
+          }
+        },
+        {
+          service: 'Complimentary',
+          label: 'Copies',
+          total: 0,
+          page: 0,
+          unit: '',
           clientsFound: {
             total: 0,
             page: 0
@@ -197,6 +229,24 @@ export async function calculateStatistics(filterQuery, pageClientIds = [], page 
     stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
     stats.dataQuality.fom.nonNumericPayments.total = fomStats.nonNumericCount;
     stats.dataQuality.fom.nonNumericPayments.page = fomStats.pageNonNumericCount;
+
+    // Calculate Promo statistics
+    const promoStats = await calculatePromoStats(filteredIds, validPageClientIds);
+    stats.metrics[4].total = promoStats.totalCopies;
+    stats.metrics[4].page = promoStats.pageSpecificCopies;
+    stats.metrics[4].clientsFound.total = promoStats.totalClients;
+    stats.metrics[4].clientsFound.page = promoStats.pageClients;
+    stats.serviceClientCounts.promo.total = promoStats.totalClients;
+    stats.serviceClientCounts.promo.page = promoStats.pageClients;
+
+    // Calculate Complimentary statistics
+    const complimentaryStats = await calculateComplimentaryStats(filteredIds, validPageClientIds);
+    stats.metrics[5].total = complimentaryStats.totalCopies;
+    stats.metrics[5].page = complimentaryStats.pageSpecificCopies;
+    stats.metrics[5].clientsFound.total = complimentaryStats.totalClients;
+    stats.metrics[5].clientsFound.page = complimentaryStats.pageClients;
+    stats.serviceClientCounts.complimentary.total = complimentaryStats.totalClients;
+    stats.serviceClientCounts.complimentary.page = complimentaryStats.pageClients;
 
     return stats;
   } catch (error) {
@@ -661,6 +711,185 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
     pageClients: pageResult[0]?.clientCount || 0,
     nonNumericCount: totalResult[0]?.nonNumericCount || 0,
     pageNonNumericCount: pageResult[0]?.nonNumericCount || 0
+  };
+}
+
+async function calculatePromoStats(allFilteredClientIds, pageClientIds) {
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+        copies: { $exists: true }
+      }
+    },
+    {
+      $addFields: {
+        subsDateObj: {
+          $cond: {
+            if: { $regexMatch: { input: "$subsdate", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$subsdate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: {
+              $dateFromString: { 
+                dateString: "$subsdate", 
+                format: "%m/%d/%Y %H:%M:%S", 
+                onError: null, 
+                onNull: null 
+              }
+            }
+          }
+        },
+        endDateObj: {
+          $cond: {
+            if: { $regexMatch: { input: "$enddate", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$enddate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: {
+              $dateFromString: { 
+                dateString: "$enddate", 
+                format: "%m/%d/%Y %H:%M:%S", 
+                onError: null, 
+                onNull: null 
+              }
+            }
+          }
+        },
+        copiesNum: { 
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0
+          }
+        }
+      }
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        $or: [
+          { endDateObj: { $exists: true, $ne: null } },
+          { subsDateObj: { $exists: true, $ne: null } }
+        ]
+      }
+    },
+    {
+      $sort: { 
+        clientid: 1, 
+        subsDateObj: -1  // Sort by subscription date (newest first)
+      }
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentCopies: { $first: "$copiesNum" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" }
+      }
+    }
+  ];
+
+  const totalPipeline = [
+    { $match: { clientid: { $in: allFilteredClientIds } } },
+    ...pipeline,
+    { $group: { _id: null, totalCopies: { $sum: "$recentCopies" }, clientCount: { $sum: 1 } } }
+  ];
+
+  const pagePipeline = [
+    { $match: { clientid: { $in: pageClientIds } } },
+    ...pipeline,
+    { $group: { _id: null, totalCopies: { $sum: "$recentCopies" }, clientCount: { $sum: 1 } } }
+  ];
+
+  const [totalResult, pageResult] = await Promise.all([
+    PromoModel.aggregate(totalPipeline),
+    PromoModel.aggregate(pagePipeline)
+  ]);
+
+  return {
+    totalCopies: totalResult[0]?.totalCopies || 0,
+    pageSpecificCopies: pageResult[0]?.totalCopies || 0,
+    totalClients: totalResult[0]?.clientCount || 0,
+    pageClients: pageResult[0]?.clientCount || 0
+  };
+}
+
+async function calculateComplimentaryStats(allFilteredClientIds, pageClientIds) {
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+        copies: { $exists: true }
+      }
+    },
+    {
+      $addFields: {
+        subsDateObj: {
+          $cond: {
+            if: { $regexMatch: { input: "$subsdate", regex: /^\\d{4}-\\d{2}-\\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$subsdate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: { $dateFromString: { dateString: "$subsdate", format: "%m/%d/%Y %H:%M:%S", onError: null, onNull: null } }
+          }
+        },
+        endDateObj: {
+          $cond: {
+            if: { $regexMatch: { input: "$enddate", regex: /^\\d{4}-\\d{2}-\\d{2}$/ } },
+            then: { $dateFromString: { dateString: "$enddate", format: "%Y-%m-%d", onError: null, onNull: null } },
+            else: { $dateFromString: { dateString: "$enddate", format: "%m/%d/%Y %H:%M:%S", onError: null, onNull: null } }
+          }
+        },
+        copiesNum: { 
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0
+          }
+        }
+      }
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        endDateObj: { $exists: true }
+      }
+    },
+    {
+      $sort: { 
+        clientid: 1, 
+        subsDateObj: -1
+      }
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentCopies: { $first: "$copiesNum" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" }
+      }
+    }
+  ];
+
+  const totalPipeline = [
+    { $match: { clientid: { $in: allFilteredClientIds } } },
+    ...pipeline,
+    { $group: { _id: null, totalCopies: { $sum: "$recentCopies" }, clientCount: { $sum: 1 } } }
+  ];
+
+  const pagePipeline = [
+    { $match: { clientid: { $in: pageClientIds } } },
+    ...pipeline,
+    { $group: { _id: null, totalCopies: { $sum: "$recentCopies" }, clientCount: { $sum: 1 } } }
+  ];
+
+  const [totalResult, pageResult] = await Promise.all([
+    ComplimentaryModel.aggregate(totalPipeline),
+    ComplimentaryModel.aggregate(pagePipeline)
+  ]);
+
+  return {
+    totalCopies: totalResult[0]?.totalCopies || 0,
+    pageSpecificCopies: pageResult[0]?.totalCopies || 0,
+    totalClients: totalResult[0]?.clientCount || 0,
+    pageClients: pageResult[0]?.clientCount || 0
   };
 }
 

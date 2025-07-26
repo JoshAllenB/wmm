@@ -45,7 +45,7 @@ class DataService {
 
       // Get filtered clients with pagination for display
       const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
-      
+      const pageClientIds = clients.map(client => client.id);
       const totalCount = await ClientModel.countDocuments(filterQuery);
 
       // Get all filtered client IDs
@@ -54,7 +54,6 @@ class DataService {
         .lean()
         .exec();
       const filteredIds = allFilteredClientIds.map(client => client.id);
-      const pageClientIds = clients.map(client => client.id);
 
       // Adjust model names based on subscription type using helper function
       const adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
@@ -98,6 +97,12 @@ class DataService {
         if (client.calData) enrichedClient.calData = client.calData;
 
         return enrichedClient;
+      });
+      console.log('Passing to statsCalculator:', {
+        filterQuery,
+        pageClientIdsCount: pageClientIds.length,
+        samplePageClientIds: pageClientIds.slice(0, 5),
+        allFilteredClientIdsCount: filteredIds.length
       });
 
       // Calculate statistics using filter query and current page info

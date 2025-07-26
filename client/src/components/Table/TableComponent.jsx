@@ -50,7 +50,7 @@ export const TableComponent = function TableComponent({
 
   // Helper function to find metric by service and label
   const findMetric = (service, label = null) => {
-    const serviceMetric = stats?.metrics?.find(m => m.service === service);
+    const serviceMetric = stats?.metrics?.find(m => m.service.toLowerCase() === service.toLowerCase());
     if (!serviceMetric) return null;
     
     if (label && serviceMetric.metrics) {
@@ -147,31 +147,34 @@ export const TableComponent = function TableComponent({
 
     // Force WMM display if user only has WMM role
     if (userRole === "WMM") {
-      const wmmMetric = findMetric('WMM');
+      const serviceKey = subscriptionType.toLowerCase(); // "promo", "complimentary", or "wmm"
+      const serviceCounts = stats?.serviceClientCounts?.[serviceKey] || stats?.serviceClientCounts?.wmm;
+      const serviceMetric = findMetric(subscriptionType.toUpperCase()) || findMetric('WMM');
+      
       return (
-        <div className="flex flex-wrap">
+        <div className="flex flex-wrap px-2 py-1">
           {clientCountDisplay}
           <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
             {subscriptionType} Clients:{" "}
             <span className="font-bold">
-              {Number(stats?.serviceClientCounts?.wmm?.page || 0).toLocaleString()}
+              {Number(serviceCounts?.page || 0).toLocaleString()}
             </span>{" "}
             <span className="text-gray-500 text-xs">(Page)</span> /{" "}
             <span className="font-bold">
-              {Number(stats?.serviceClientCounts?.wmm?.total || 0).toLocaleString()}
+              {Number(serviceCounts?.total || 0).toLocaleString()}
             </span>{" "}
-            <span className="text-gray-500 text-xs">(Filter)</span>
+            <span className="text-gray-500 text-xs">(Total)</span>
           </span>
           <span className={`text-base ${subscriptionType === "Promo" ? "text-emerald-600" : subscriptionType === "Complimentary" ? "text-purple-600" : "text-blue-600"} font-medium ml-4`}>
             Copies:{" "}
             <span className="font-bold">
-              {Number(wmmMetric?.page || 0).toLocaleString()}
+              {Number(serviceMetric?.page || 0).toLocaleString()}
             </span>{" "}
             <span className="text-gray-500 text-xs">(Page)</span> /{" "}
             <span className="font-bold">
-              {Number(wmmMetric?.total || 0).toLocaleString()}
+              {Number(serviceMetric?.total || 0).toLocaleString()}
             </span>{" "}
-            <span className="text-gray-500 text-xs">(Filter)</span>
+            <span className="text-gray-500 text-xs">(Total)</span>
           </span>
         </div>
       );
