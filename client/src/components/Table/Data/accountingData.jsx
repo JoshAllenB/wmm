@@ -78,3 +78,42 @@ export const fetchAccounting = async (
     throw err;
   }
 }; 
+
+
+export const fetchAllAccounting = async (
+  filter = "",
+  advancedFilterData={}
+) => {
+  try {
+    // Build query parameter - no pagination for all records
+    const params = new URLSearchParams({
+      ...(filter && { search: filter }),
+      sort: advancedFilterData.sortId === "Date" ? "recvdate" : (advancedFilterData.sortId?.toLowerCase() || "recvdate"),
+      order: advancedFilterData.sortDesc ? "desc" : 'asc',
+      ...(advancedFilterData.startYear && { startYear: advancedFilterData.startYear.toString()}),
+      ...(advancedFilterData.endYear && { endYear: advancedFilterData.endYear.toString() })
+    });
+    
+    console.log("filter", params.filter, params.advancedFilterData)
+    const response = await axios.get(
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/accounting/payments/all?${params.toString()}`,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        }
+      }
+    );      
+
+    const json = response.data;
+
+    if (!json.data || !Array.isArray(json.data)) {
+      console.error("Invalid data format received:", json);
+      return [];
+    }
+
+    return json.data;
+  } catch (err) {
+    console.error("Error fetching all accounting data:", err)
+    throw err;
+  }
+}
