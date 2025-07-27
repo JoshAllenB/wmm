@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
 import Modal from "./modal";
 import { Button } from "./UI/ShadCN/button";
 import { ScrollArea } from "./UI/ShadCN/scroll-area";
@@ -13,26 +19,28 @@ import LabelPreview from "./Mailing/LabelPreview";
 import RangeSelector from "./Mailing/RangeSelector";
 import ConfigurationPanel from "./Mailing/ConfigurationPanel";
 import CsvExport from "./Mailing/CsvExport";
-import CsvImport from "./Mailing/CsvImport";
 import MailingActions from "./Mailing/MailingActions";
 import RenewalNoticeDataOverlay from "./Mailing/RenewalNotice";
 import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
 import DocumentGenerator from "./Mailing/DocumentGenerator";
 
 // Import utility functions
-import { generatePrintHTML, generateChecklistHTML } from "./Mailing/PrintGenerator";
+import {
+  generatePrintHTML,
+  generateChecklistHTML,
+} from "./Mailing/PrintGenerator";
 
 // Helper functions
 const convertLegacyLabelToTemplate = (label) => {
   // Handle initialization command field which could be "init" or "initCommand"
   const initValue = label.init || label.initCommand || "";
-  
+
   // Handle format field which could be "format" or "formatStr"
   const formatValue = label.format || label.formatStr || "";
-  
+
   // Handle reset field which could be "reset" or "resetCommand"
   const resetValue = label.reset || label.resetCommand || "";
-  
+
   return {
     id: label.id || `label-${Math.random().toString(36).substr(2, 9)}`,
     name: label.description || label.id || "Unnamed Label",
@@ -50,58 +58,58 @@ const convertLegacyLabelToTemplate = (label) => {
       horizontalSpacing: 20,
     },
     // Determine if this legacy label includes cell number based on content
-    selectedFields: 
-      (formatValue && 
-      (String(formatValue).includes("Cell#") || 
-       String(formatValue).includes("cellno"))) 
-      ? ["contactnos"] 
-      : [],
+    selectedFields:
+      formatValue &&
+      (String(formatValue).includes("Cell#") ||
+        String(formatValue).includes("cellno"))
+        ? ["contactnos"]
+        : [],
     isLegacy: true,
     printer: label.printer || "Dot Matrix Printer",
     // Use original field names for better compatibility
     init: initValue,
     format: formatValue,
     reset: resetValue,
-    type: label.type || "LEGACY"
+    type: label.type || "LEGACY",
   };
 };
 
 // Conversion functions
-const mmToPx = (mm) => Math.round(mm * 96 / 25.4);
-const pxToMm = (px) => Number((px * 25.4 / 96).toFixed(2));
+const mmToPx = (mm) => Math.round((mm * 96) / 25.4);
+const pxToMm = (px) => Number(((px * 25.4) / 96).toFixed(2));
 
 const Mailing = ({
   table,
-  id,
-  address,
-  acode,
-  zipcode,
-  lname,
-  fname,
-  mname,
-  contactnos,
-  cellno,
-  officeno,
-  copies,
+  // id,
+  // address,
+  // acode,
+  // zipcode,
+  // lname,
+  // fname,
+  // mname,
+  // contactnos,
+  // cellno,
+  // officeno,
+  // copies,
   advancedFilterData = {},
   selectedGroup = "",
   filtering = "",
   isOpen = false,
   onClose,
-  initialAction = 'label',
-  subscriptionType = "WMM" // Add subscription type with default value
+  initialAction = "label",
+  subscriptionType = "WMM", // Add subscription type with default value
 }) => {
   const { hasRole } = useUser();
-  
+
   // Determine user role
   const userRole = React.useMemo(() => {
     const roles = [];
-    
+
     // Check for admin first
     if (hasRole("ADMIN")) {
       return "ADMIN";
     }
-    
+
     // Add other roles
     if (hasRole("WMM")) roles.push("WMM");
     if (hasRole("HRG")) roles.push("HRG");
@@ -109,7 +117,7 @@ const Mailing = ({
     if (hasRole("CAL")) roles.push("CAL");
     if (hasRole("COMP")) roles.push("COMP");
     if (hasRole("PROMO")) roles.push("PROMO");
-    
+
     return roles.length > 0 ? roles.join(" ") : "";
   }, [hasRole]);
 
@@ -129,46 +137,22 @@ const Mailing = ({
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
   const [useLegacyFormat, setUseLegacyFormat] = useState(false);
-  const [legacyLabels, setLegacyLabels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [startClientId, setStartClientId] = useState("");
   const [endClientId, setEndClientId] = useState("");
   const [startPosition, setStartPosition] = useState("left");
-  
+
   // Add paper size state (default to US Letter)
   const [paperWidth, setPaperWidth] = useState(215.9); // 8.5" in mm
   const [paperHeight, setPaperHeight] = useState(279.4); // 11" in mm
-  
+
   // Add page layout configuration
   const [rowsPerPage, setRowsPerPage] = useState(3);
   const [columnsPerPage, setColumnsPerPage] = useState(2);
-  const [printerSettingsModalOpen, setPrinterSettingsModalOpen] = useState(false);
-  const [printerSettings, setPrinterSettings] = useState(() => {
-    // Try to load saved settings from localStorage
-    const savedSettings = localStorage.getItem('dotMatrixPrinterSettings');
-    if (savedSettings) {
-      try {
-        return JSON.parse(savedSettings);
-      } catch (e) {
-        console.error('Error parsing saved printer settings:', e);
-      }
-    }
-    
-    // Default settings if none were saved
-    return {
-      type: 'network',
-      address: '192.168.1.100',
-      port: 9100,
-      vendorId: '',
-      productId: '',
-      queueName: '',
-      useCups: false
-    };
-  });
+  const [printerSettingsModalOpen, setPrinterSettingsModalOpen] =
+    useState(false);
   const [savedPrinterJobData, setSavedPrinterJobData] = useState(null);
-  const [isDiscoveringPrinters, setIsDiscoveringPrinters] = useState(false);
-  const [discoveredPrinters, setDiscoveredPrinters] = useState([]);
-  
+
   // Data source selector for CSV export
   const [dataSource, setDataSource] = useState("all");
 
@@ -180,7 +164,7 @@ const Mailing = ({
   // Renewal notice configuration
   const [renewalNoticeConfig, setRenewalNoticeConfig] = useState(null);
   const renewalNoticeRef = useRef(null);
-  
+
   // Thank you letter configuration
   const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
   const thankYouLetterRef = useRef(null);
@@ -221,14 +205,14 @@ const Mailing = ({
         setAllData(data);
         setRecordCounts({
           total: data.length,
-          filtered: data.length
+          filtered: data.length,
         });
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
           title: "Error",
           description: "Failed to fetch all records. Using table data instead.",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
       setIsLoadingAllRecords(false);
@@ -245,14 +229,14 @@ const Mailing = ({
         setAllData(data);
         setRecordCounts({
           total: data.length,
-          filtered: data.length
+          filtered: data.length,
         });
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
           title: "Error",
           description: "Failed to fetch all records. Using table data instead.",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
       setIsLoadingAllRecords(false);
@@ -262,13 +246,13 @@ const Mailing = ({
   // Get rows based on current selection
   const getAvailableRows = useCallback(() => {
     if (useAllData && allData) {
-      return allData.map(item => ({ original: item }));
+      return allData.map((item) => ({ original: item }));
     }
 
     if (!table || typeof table.getRowModel !== "function") {
       // If table is not ready but we have data, use it
       if (table?.options?.data && Array.isArray(table.options.data)) {
-        return table.options.data.map(item => ({ original: item }));
+        return table.options.data.map((item) => ({ original: item }));
       }
       return [];
     }
@@ -279,7 +263,7 @@ const Mailing = ({
       if (Array.isArray(selectedRows) && selectedRows.length > 0) {
         return selectedRows;
       }
-      
+
       // If no rows selected, use all available rows from the current page
       const allRows = table.getRowModel().rows;
       return Array.isArray(allRows) ? allRows : [];
@@ -287,7 +271,7 @@ const Mailing = ({
       console.error("Error getting available rows:", error);
       // If there's an error but we have data, use it
       if (table?.options?.data && Array.isArray(table.options.data)) {
-        return table.options.data.map(item => ({ original: item }));
+        return table.options.data.map((item) => ({ original: item }));
       }
       return [];
     }
@@ -300,7 +284,7 @@ const Mailing = ({
   // Get row count based on selected dataSource
   const getRowCount = useCallback(() => {
     if (!table) return 0;
-    
+
     if (dataSource === "all") {
       return table.getFilteredRowModel().rows.length;
     } else if (dataSource === "selected") {
@@ -310,7 +294,7 @@ const Mailing = ({
       return availableRows.filter((row) => {
         const clientId = row?.original?.id?.toString();
         if (!clientId) return false;
-        
+
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
         const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
@@ -326,7 +310,8 @@ const Mailing = ({
   const setRangeFromSelection = () => {
     if (hasAvailableRows) {
       const firstId = availableRows[0]?.original?.id?.toString() || "";
-      const lastId = availableRows[availableRows.length - 1]?.original?.id?.toString() || "";
+      const lastId =
+        availableRows[availableRows.length - 1]?.original?.id?.toString() || "";
 
       if (firstId && lastId) {
         const firstNum = parseInt(firstId, 10);
@@ -393,19 +378,20 @@ const Mailing = ({
     if (useAllData) {
       setIsLoadingAllRecords(true);
       fetchAllData()
-        .then(data => {
+        .then((data) => {
           setAllData(data);
           setRecordCounts({
             total: data.length,
-            filtered: data.length
+            filtered: data.length,
           });
         })
-        .catch(error => {
+        .catch((error) => {
           console.error("Error fetching all data:", error);
           toast({
             title: "Error",
-            description: "Failed to fetch all records. Using table data instead.",
-            variant: "destructive"
+            description:
+              "Failed to fetch all records. Using table data instead.",
+            variant: "destructive",
           });
         })
         .finally(() => {
@@ -422,15 +408,15 @@ const Mailing = ({
         {
           filter: filtering,
           group: selectedGroup,
-          advancedFilterData
+          advancedFilterData,
         },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          }
+          },
         }
       );
-      
+
       if (response.data && response.data.combinedData) {
         return response.data.combinedData;
       }
@@ -455,7 +441,7 @@ const Mailing = ({
         }
       );
       const templatesData = templatesResponse.data;
-      
+
       // Fetch legacy labels
       let legacyLabelsData = [];
       try {
@@ -472,32 +458,37 @@ const Mailing = ({
         console.error("Error fetching legacy labels:", labelError);
         legacyLabelsData = [];
       }
-      
-      setLegacyLabels(legacyLabelsData);
-      
+
       // Convert legacy labels to template format
       let legacyTemplates = [];
-      
+
       if (legacyLabelsData && legacyLabelsData.length > 0) {
         // Convert all labels to templates
         legacyTemplates = legacyLabelsData
-          .map(label => {
+          .map((label) => {
             try {
               const template = convertLegacyLabelToTemplate(label);
               return template;
             } catch (conversionError) {
-              console.error(`Error converting label ${label?.id || 'unknown'}:`, conversionError);
+              console.error(
+                `Error converting label ${label?.id || "unknown"}:`,
+                conversionError
+              );
               return null;
             }
           })
           .filter(Boolean); // Remove any null entries
-      } 
-      
+      }
+
       // Add the templates to state
-      const validLegacyTemplates = Array.isArray(legacyTemplates) ? legacyTemplates : [];
-      const validModernTemplates = Array.isArray(templatesData) ? templatesData : [];
+      const validLegacyTemplates = Array.isArray(legacyTemplates)
+        ? legacyTemplates
+        : [];
+      const validModernTemplates = Array.isArray(templatesData)
+        ? templatesData
+        : [];
       const allTemplates = [...validModernTemplates, ...validLegacyTemplates];
-      
+
       // If no templates were found, add a default template
       if (allTemplates.length === 0) {
         allTemplates.push({
@@ -520,31 +511,33 @@ const Mailing = ({
           isLegacy: false,
         });
       }
-      
+
       setSavedTemplates(allTemplates);
     } catch (error) {
       console.error("Error in fetchAllTemplates:", error);
-      
+
       // Add only a default template
-      setSavedTemplates([{
-        id: "DEFAULT",
-        name: "Default Template",
-        description: "Default Mailing Label Template",
-        layout: {
-          left: 1,
-          width: 43,
-          height: 22,
-          columns: 2,
-          fontSize: 12,
-          leftPosition: 10,
-          topPosition: 10,
-          columnWidth: 300,
-          labelHeight: 100,
-          horizontalSpacing: 20,
+      setSavedTemplates([
+        {
+          id: "DEFAULT",
+          name: "Default Template",
+          description: "Default Mailing Label Template",
+          layout: {
+            left: 1,
+            width: 43,
+            height: 22,
+            columns: 2,
+            fontSize: 12,
+            leftPosition: 10,
+            topPosition: 10,
+            columnWidth: 300,
+            labelHeight: 100,
+            horizontalSpacing: 20,
+          },
+          selectedFields: ["contactnos"],
+          isLegacy: false,
         },
-        selectedFields: ["contactnos"],
-        isLegacy: false,
-      }]);
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -555,11 +548,11 @@ const Mailing = ({
     const selected = savedTemplates.find(
       (template) => template.name === templateName
     );
-    
+
     if (selected) {
       if (selected.isLegacy) {
         setUseLegacyFormat(true);
-        
+
         // Set the layout settings (convert dimensions to mm, keep font size in pt)
         setFontSize(selected.layout.fontSize); // Font size stays in pt
         setLeftPosition(pxToMm(selected.layout.leftPosition));
@@ -569,17 +562,21 @@ const Mailing = ({
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing));
         setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
-        
+
         // Set paper size if defined in template
-        if (selected.layout.paperWidth) setPaperWidth(selected.layout.paperWidth);
-        if (selected.layout.paperHeight) setPaperHeight(selected.layout.paperHeight);
-        
+        if (selected.layout.paperWidth)
+          setPaperWidth(selected.layout.paperWidth);
+        if (selected.layout.paperHeight)
+          setPaperHeight(selected.layout.paperHeight);
+
         // Set page layout if defined in template
-        if (selected.layout.rowsPerPage) setRowsPerPage(selected.layout.rowsPerPage);
-        if (selected.layout.columnsPerPage) setColumnsPerPage(selected.layout.columnsPerPage);
+        if (selected.layout.rowsPerPage)
+          setRowsPerPage(selected.layout.rowsPerPage);
+        if (selected.layout.columnsPerPage)
+          setColumnsPerPage(selected.layout.columnsPerPage);
       } else {
         setUseLegacyFormat(false);
-        
+
         // Regular template settings
         setFontSize(selected.layout.fontSize); // Font size stays in pt
         setLeftPosition(pxToMm(selected.layout.leftPosition));
@@ -589,14 +586,18 @@ const Mailing = ({
         setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing || 20));
         setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
         setSelectedFields(selected.selectedFields);
-        
+
         // Set paper size if defined in template
-        if (selected.layout.paperWidth) setPaperWidth(selected.layout.paperWidth);
-        if (selected.layout.paperHeight) setPaperHeight(selected.layout.paperHeight);
-        
+        if (selected.layout.paperWidth)
+          setPaperWidth(selected.layout.paperWidth);
+        if (selected.layout.paperHeight)
+          setPaperHeight(selected.layout.paperHeight);
+
         // Set page layout if defined in template
-        if (selected.layout.rowsPerPage) setRowsPerPage(selected.layout.rowsPerPage);
-        if (selected.layout.columnsPerPage) setColumnsPerPage(selected.layout.columnsPerPage);
+        if (selected.layout.rowsPerPage)
+          setRowsPerPage(selected.layout.rowsPerPage);
+        if (selected.layout.columnsPerPage)
+          setColumnsPerPage(selected.layout.columnsPerPage);
       }
       setSelectedTemplate(selected);
     }
@@ -623,7 +624,7 @@ const Mailing = ({
           paperWidth, // Store paper dimensions in mm
           paperHeight,
           rowsPerPage,
-          columnsPerPage
+          columnsPerPage,
         },
         selectedFields,
       };
@@ -637,7 +638,7 @@ const Mailing = ({
           },
         }
       );
-      
+
       alert("Template saved successfully!");
       setSavedTemplates([...savedTemplates, newTemplate]);
       setShowTemplateNameInput(false);
@@ -663,7 +664,7 @@ const Mailing = ({
           horizontalSpacing: mmToPx(horizontalSpacing),
         },
         selectedFields: selectedFields || [],
-        isLegacy: useLegacyFormat
+        isLegacy: useLegacyFormat,
       };
     }
 
@@ -672,53 +673,17 @@ const Mailing = ({
     if (useAllData) {
       try {
         const allData = await fetchAllData();
-        rowsToUse = allData.map(item => ({ original: item }));
+        rowsToUse = allData.map((item) => ({ original: item }));
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
           title: "Error",
-          description: "Failed to fetch all records. Using available rows instead.",
-          variant: "destructive"
+          description:
+            "Failed to fetch all records. Using available rows instead.",
+          variant: "destructive",
         });
       }
     }
-
-    // For legacy templates, generate and download .prn file
-    if (templateToUse.isLegacy) {
-      // Filter rows based on start/end Client IDs only if they are specified
-      const filteredRows = rowsToUse.filter((row) => {
-        const clientId = row?.original?.id?.toString();
-        if (!clientId) return false;
-        
-        const trimmedStartId = startClientId?.trim();
-        const trimmedEndId = endClientId?.trim();
-        
-        // If no range is specified, include all rows
-        if (!trimmedStartId && !trimmedEndId) return true;
-        
-        // Convert to numbers for comparison
-        const numericClientId = parseInt(clientId, 10);
-        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
-        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
-        
-        // Check if any conversion resulted in NaN
-        if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
-          return false;
-        }
-        
-        const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
-        const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
-        return isAfterStart && isBeforeEnd;
-      });
-
-      if (filteredRows.length === 0) {
-        alert("No labels found. Please check your selection and ID range if specified.");
-        return;
-      }
-
-      return;
-    }
-
     // For non-legacy templates, show print preview
     const htmlContent = generatePrintHTML(
       startClientId,
@@ -737,10 +702,10 @@ const Mailing = ({
       userRole,
       subscriptionType // Add subscription type here
     );
-    
+
     const printWindow = window.open("", "_blank", "height=600,width=800");
     if (printWindow) {
-      printWindow.document.write('<!DOCTYPE html>');
+      printWindow.document.write("<!DOCTYPE html>");
       printWindow.document.write(htmlContent);
       printWindow.document.close();
       // Wait for resources to load before printing
@@ -752,95 +717,14 @@ const Mailing = ({
             printWindow.close();
           };
         } catch (error) {
-          console.error('Print error:', error);
+          console.error("Print error:", error);
           // Keep window open if print fails
         }
       };
     } else {
-      alert("Could not open print window. Please check your pop-up blocker settings.");
-    }
-  };
-
-  // Handle direct print to dot matrix
-  const handleDirectPrintToDotMatrix = async () => {
-    if (!selectedTemplate || !selectedTemplate.isLegacy) {
-      alert("Please select a legacy dot matrix template first");
-      return;
-    }
-
-    try {
-      // Determine if we need all data
-      let rowsToUse = availableRows;
-      if (dataSource === "all") {
-        const allData = await fetchAllData();
-        rowsToUse = allData.map(item => ({ original: item }));
-      }
-
-      // Filter rows based on start/end Client IDs only if they are specified
-      const filteredRows = rowsToUse.filter((row) => {
-        const clientId = row?.original?.id?.toString();
-        if (!clientId) return false;
-        
-        const trimmedStartId = startClientId?.trim();
-        const trimmedEndId = endClientId?.trim();
-        
-        // If no range is specified, include all rows
-        if (!trimmedStartId && !trimmedEndId) return true;
-        
-        // Convert to numbers for comparison
-        const numericClientId = parseInt(clientId, 10);
-        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
-        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
-        
-        // Check if any conversion resulted in NaN
-        if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
-          return false;
-        }
-        
-        const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
-        const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
-        return isAfterStart && isBeforeEnd;
-      });
-
-      if (filteredRows.length === 0) {
-        alert("No labels found. Please check your selection and ID range if specified.");
-        return;
-      }
-
-      // Format the data for the printer
-      const printData = filteredRows.map(row => {
-        const original = row.original;
-        const wmmData = original?.wmmData;
-        const subscription = wmmData?.records?.[0] || wmmData || {};
-        
-        return {
-          id: original.id || "",
-          expdate: subscription.enddate || new Date(),
-          copies: subscription.copies || "1",
-          acode: original.acode || "",
-          title: original.title || "",
-          fname: original.fname || "",
-          mname: original.mname || "",
-          lname: original.lname || "",
-          sname: original.sname || "",
-          company: original.company || "",
-          address: original.address || "",
-          cellno: original.cellno || "",
-          contactnos: original.contactnos || "",
-        };
-      });
-
-      // Save the data for later use after printer settings are confirmed
-      setSavedPrinterJobData({
-        labelId: selectedTemplate.id,
-        data: printData,
-      });
-
-      // Open the printer settings modal
-      setPrinterSettingsModalOpen(true);
-    } catch (error) {
-      console.error("Error preparing print job:", error);
-      alert(`Error: ${error.message || "Failed to prepare print job"}`);
+      alert(
+        "Could not open print window. Please check your pop-up blocker settings."
+      );
     }
   };
 
@@ -852,7 +736,7 @@ const Mailing = ({
     }
 
     setIsLoading(true);
-    
+
     try {
       // Send the data to the backend for printing
       const response = await axios.post(
@@ -864,7 +748,7 @@ const Mailing = ({
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
@@ -880,111 +764,38 @@ const Mailing = ({
       }
     } catch (error) {
       console.error("Error sending print job to printer:", error);
-      alert(`Error: ${error.response?.data?.error || error.message || "Failed to send print job"}`);
+      alert(
+        `Error: ${
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to send print job"
+        }`
+      );
     } finally {
       setIsLoading(false);
       setSavedPrinterJobData(null);
     }
   };
 
-  // Discover printers
-  const discoverPrinters = async () => {
-    setIsDiscoveringPrinters(true);
-    setDiscoveredPrinters([]);
-    
-    try {
-      // Call the backend API to discover printers
-      const response = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/discover-printers`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-          params: {
-            network: 'false' // Set to 'true' to include network scanning (slower)
-          }
-        }
-      );
-      
-      if (response.data.success && response.data.printers) {
-        // Combine all printer types into one list
-        const allPrinters = response.data.printers.all || [];
-        setDiscoveredPrinters(allPrinters);
-        
-        if (allPrinters.length === 0) {
-          alert('No printers were discovered. Make sure your printer is connected and try again.');
-        }
-      } else {
-        alert('Failed to discover printers. Please check the server logs for details.');
-      }
-    } catch (error) {
-      console.error('Error discovering printers:', error);
-      alert(`Error discovering printers: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsDiscoveringPrinters(false);
-    }
-  };
-
-  // Handle discovered printer selection
-  const handleDiscoveredPrinterSelect = (event) => {
-    const selectedIndex = parseInt(event.target.value, 10);
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= discoveredPrinters.length) {
-      return;
-    }
-    
-    const selectedPrinter = discoveredPrinters[selectedIndex];
-    let newSettings = { ...printerSettings };
-    
-    // Update settings based on printer type
-    if (selectedPrinter.type === 'network') {
-      newSettings = {
-        ...newSettings,
-        type: 'network',
-        address: selectedPrinter.address,
-        port: selectedPrinter.port || 9100,
-        useCups: false
-      };
-    } else if (selectedPrinter.type === 'usb') {
-      newSettings = {
-        ...newSettings,
-        type: 'usb',
-        vendorId: selectedPrinter.vendorId,
-        productId: selectedPrinter.productId,
-        useCups: false
-      };
-    } else if (selectedPrinter.type === 'cups') {
-      newSettings = {
-        ...newSettings,
-        type: 'network', // Default to network for CUPS
-        queueName: selectedPrinter.queueName,
-        useCups: true
-      };
-    }
-    
-    // Update the settings
-    setPrinterSettings(newSettings);
-    
-    // Save to localStorage
-    try {
-      localStorage.setItem('dotMatrixPrinterSettings', JSON.stringify(newSettings));
-    } catch (e) {
-      console.error('Error saving printer settings:', e);
-    }
-  };
-
   // Print checklist
   const handlePrintChecklist = () => {
-    const filteredColumns = table.getAllColumns().filter(
-      column => column.id !== "addedBy" && column.id !== "Added Info"
-    );
-    
+    const filteredColumns = table
+      .getAllColumns()
+      .filter(
+        (column) => column.id !== "addedBy" && column.id !== "Added Info"
+      );
+
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.open();
-      printWindow.document.write(generateChecklistHTML(filteredColumns, availableRows));
+      printWindow.document.write(
+        generateChecklistHTML(filteredColumns, availableRows)
+      );
       printWindow.document.close();
     } else {
-      alert("Could not open print window. Please check your pop-up blocker settings.");
+      alert(
+        "Could not open print window. Please check your pop-up blocker settings."
+      );
     }
   };
 
@@ -998,14 +809,14 @@ const Mailing = ({
         setAllData(data);
         setRecordCounts({
           total: data.length,
-          filtered: data.length
+          filtered: data.length,
         });
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
           title: "Error",
           description: "Failed to fetch all records. Using table data instead.",
-          variant: "destructive"
+          variant: "destructive",
         });
       }
       setIsLoadingAllRecords(false);
@@ -1018,15 +829,19 @@ const Mailing = ({
   const handleImportComplete = (results) => {
     if (results && results.success + results.updated > 0) {
       // Optionally refresh data or show notification
-      alert(`Successfully imported/updated ${results.success + results.updated} subscribers.`);
+      alert(
+        `Successfully imported/updated ${
+          results.success + results.updated
+        } subscribers.`
+      );
     }
   };
 
   // Function to update renewal notice positions from shared config
   const updateRenewalNoticePositions = (positions) => {
-    setRenewalNoticeConfig(prev => ({
+    setRenewalNoticeConfig((prev) => ({
       ...prev,
-      positions: positions
+      positions: positions,
     }));
   };
 
@@ -1036,17 +851,17 @@ const Mailing = ({
       const currentPositions = renewalNoticeRef.current.getPositions();
       setRenewalNoticeConfig({
         positions: currentPositions,
-        updatePositions: updateRenewalNoticePositions
+        updatePositions: updateRenewalNoticePositions,
       });
     }
   };
-  
+
   // Function to preview renewal notice in the mailing modal
   const previewRenewalNotice = () => {
     if (renewalNoticeRef.current) {
       // First sync the config if needed
       syncConfigToRenewalNotice();
-      
+
       // Generate the preview using the component's method
       renewalNoticeRef.current.generatePreview();
     } else {
@@ -1057,9 +872,9 @@ const Mailing = ({
 
   // Function to update thank you letter positions from shared config
   const updateThankYouLetterPositions = (positions) => {
-    setThankYouLetterConfig(prev => ({
+    setThankYouLetterConfig((prev) => ({
       ...prev,
-      positions: positions
+      positions: positions,
     }));
   };
 
@@ -1069,17 +884,17 @@ const Mailing = ({
       const currentPositions = thankYouLetterRef.current.getPositions();
       setThankYouLetterConfig({
         positions: currentPositions,
-        updatePositions: updateThankYouLetterPositions
+        updatePositions: updateThankYouLetterPositions,
       });
     }
   };
-  
+
   // Function to preview thank you letter in the mailing modal
   const previewThankYouLetter = () => {
     if (thankYouLetterRef.current) {
       // First sync the config if needed
       syncConfigToThankYouLetter();
-      
+
       // Generate the preview using the component's method
       thankYouLetterRef.current.generatePreview();
     } else {
@@ -1095,7 +910,7 @@ const Mailing = ({
       setAllData(data);
       setRecordCounts({
         total: data.length,
-        filtered: data.length
+        filtered: data.length,
       });
       return data;
     } catch (error) {
@@ -1103,7 +918,7 @@ const Mailing = ({
       toast({
         title: "Error",
         description: "Failed to fetch all records. Using table data instead.",
-        variant: "destructive"
+        variant: "destructive",
       });
       throw error;
     }
@@ -1125,9 +940,9 @@ const Mailing = ({
   useEffect(() => {
     setCurrentAction(initialAction);
     // Show appropriate modal based on action
-    if (initialAction === 'document') {
+    if (initialAction === "document") {
       setShowDocumentModal(true);
-    } else if (initialAction === 'csv') {
+    } else if (initialAction === "csv") {
       setShowCsvModal(true);
     }
   }, [initialAction]);
@@ -1135,7 +950,7 @@ const Mailing = ({
   // Function to render content based on current action
   const renderContent = () => {
     switch (currentAction) {
-      case 'document':
+      case "document":
         return (
           <DocumentGenerator
             startClientId={startClientId}
@@ -1148,7 +963,7 @@ const Mailing = ({
             onRefreshAllData={refreshAllData}
           />
         );
-      case 'csv':
+      case "csv":
         return (
           <CsvExport
             selectedRows={availableRows}
@@ -1167,7 +982,7 @@ const Mailing = ({
             subscriptionType={subscriptionType}
           />
         );
-      case 'label':
+      case "label":
       default:
         return (
           <>
@@ -1178,17 +993,24 @@ const Mailing = ({
             <div className="flex w-full gap-6">
               {/* Left Panel - Configuration Controls */}
               <div className="w-[400px] flex-shrink-0">
-                <div className="border rounded-lg p-4 bg-white shadow-sm" style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}>
+                <div
+                  className="border rounded-lg p-4 bg-white shadow-sm"
+                  style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}
+                >
                   {/* Standardized Data Source Toggle */}
                   <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                     <div className="flex flex-col">
-                      <h4 className="font-medium text-gray-700 mb-2">Data Source</h4>
+                      <h4 className="font-medium text-gray-700 mb-2">
+                        Data Source
+                      </h4>
                       <div className="flex items-center gap-3">
                         <Button
                           onClick={() => setUseAllData(false)}
                           size="sm"
                           variant={useAllData ? "outline" : "default"}
-                          className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
+                          className={`flex-1 ${
+                            !useAllData ? "bg-blue-600 text-white" : ""
+                          }`}
                         >
                           Selected ({availableRows.length})
                         </Button>
@@ -1201,14 +1023,15 @@ const Mailing = ({
                               setAllData(data);
                               setRecordCounts({
                                 total: data.length,
-                                filtered: data.length
+                                filtered: data.length,
                               });
                             } catch (error) {
                               console.error("Error fetching all data:", error);
                               toast({
                                 title: "Error",
-                                description: "Failed to fetch all records. Using table data instead.",
-                                variant: "destructive"
+                                description:
+                                  "Failed to fetch all records. Using table data instead.",
+                                variant: "destructive",
                               });
                             } finally {
                               setIsLoadingAllRecords(false);
@@ -1216,7 +1039,9 @@ const Mailing = ({
                           }}
                           size="sm"
                           variant={useAllData ? "default" : "outline"}
-                          className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+                          className={`flex-1 ${
+                            useAllData ? "bg-blue-600 text-white" : ""
+                          }`}
                         >
                           {isLoadingAllRecords ? (
                             <div className="flex items-center gap-2">
@@ -1224,12 +1049,16 @@ const Mailing = ({
                               <span>Loading...</span>
                             </div>
                           ) : (
-                            `All Records (${recordCounts?.total || allData?.length || 0})`
+                            `All Records (${
+                              recordCounts?.total || allData?.length || 0
+                            })`
                           )}
                         </Button>
                       </div>
                       {isLoadingAllRecords && (
-                        <p className="text-xs mt-2 text-blue-700">Fetching all records...</p>
+                        <p className="text-xs mt-2 text-blue-700">
+                          Fetching all records...
+                        </p>
                       )}
                       {recordCounts && !isLoadingAllRecords && (
                         <p className="text-xs mt-2 text-blue-700">
@@ -1295,7 +1124,7 @@ const Mailing = ({
                     <div className="mb-6 border rounded p-3 bg-blue-50">
                       <h4 className="font-medium mb-2">Form Integration</h4>
                       <div className="flex gap-2 flex-wrap">
-                        <Button 
+                        <Button
                           onClick={syncConfigToRenewalNotice}
                           variant="outline"
                           size="sm"
@@ -1303,15 +1132,15 @@ const Mailing = ({
                         >
                           Sync Renewal Notice
                         </Button>
-                        <Button 
+                        <Button
                           onClick={previewRenewalNotice}
                           variant="outline"
-                          size="sm" 
+                          size="sm"
                           className="text-xs bg-white"
                         >
                           Preview Renewal Notice
                         </Button>
-                        <Button 
+                        <Button
                           onClick={syncConfigToThankYouLetter}
                           variant="outline"
                           size="sm"
@@ -1319,17 +1148,18 @@ const Mailing = ({
                         >
                           Sync Thank You Letter
                         </Button>
-                        <Button 
+                        <Button
                           onClick={previewThankYouLetter}
                           variant="outline"
-                          size="sm" 
+                          size="sm"
                           className="text-xs bg-white"
                         >
                           Preview Thank You Letter
                         </Button>
                       </div>
                       <p className="text-xs mt-2 text-blue-700">
-                        Use these options to configure form overlays from this interface
+                        Use these options to configure form overlays from this
+                        interface
                       </p>
                     </div>
                   )}
@@ -1393,13 +1223,17 @@ const Mailing = ({
                     <div className="text-sm text-gray-600 mt-4 text-center">
                       <p>Real-time preview of how labels will print</p>
                       <p className="text-xs">
-                        {useLegacyFormat && selectedTemplate?.isLegacy ? 
-                          `Legacy format: optimized for ${selectedTemplate.printer || "dot matrix printers"}` :
-                          `Layout dimensions: ${Math.max(columnWidth * 2, 200)}px × ${Math.max(labelHeight * 2, 100)}px`
-                        }
+                        {useLegacyFormat && selectedTemplate?.isLegacy
+                          ? `Legacy format: optimized for ${
+                              selectedTemplate.printer || "dot matrix printers"
+                            }`
+                          : `Layout dimensions: ${Math.max(
+                              columnWidth * 2,
+                              200
+                            )}px × ${Math.max(labelHeight * 2, 100)}px`}
                       </p>
                     </div>
-                    
+
                     {/* Add Mailing Actions */}
                     <div className="mt-6 w-full max-w-md">
                       <MailingActions
@@ -1408,7 +1242,6 @@ const Mailing = ({
                         selectedTemplate={selectedTemplate}
                         useLegacyFormat={useLegacyFormat}
                         onPrintPreview={handlePrintWithRange}
-                        onDirectPrint={handleDirectPrintToDotMatrix}
                       />
                     </div>
                   </div>
@@ -1425,14 +1258,12 @@ const Mailing = ({
   return (
     <div>
       {/* Main Mailing Modal - only show for label printing */}
-      <Modal isOpen={isOpen && currentAction === 'label'} onClose={handleClose}>
-        <div className="w-full max-w-[95vw]">
-          {renderContent()}
-        </div>
+      <Modal isOpen={isOpen && currentAction === "label"} onClose={handleClose}>
+        <div className="w-full max-w-[95vw]">{renderContent()}</div>
       </Modal>
 
       {/* Document Generator Modal */}
-      {currentAction === 'document' && (
+      {currentAction === "document" && (
         <DocumentGenerator
           startClientId={startClientId}
           endClientId={endClientId}
@@ -1449,7 +1280,7 @@ const Mailing = ({
       )}
 
       {/* CSV Export Modal */}
-      {currentAction === 'csv' && (
+      {currentAction === "csv" && (
         <CsvExport
           selectedRows={availableRows}
           dataSource={dataSource}
@@ -1484,10 +1315,10 @@ const Mailing = ({
                 onClick={() => setShowSkippedData(!showSkippedData)}
                 className="text-yellow-800 hover:text-yellow-900"
               >
-                {showSkippedData ? 'Hide Details' : 'Show Details'}
+                {showSkippedData ? "Hide Details" : "Show Details"}
               </Button>
             </div>
-            
+
             {showSkippedData && (
               <ScrollArea className="h-[200px] w-full rounded border border-yellow-200 bg-white">
                 <div className="p-4">
@@ -1501,12 +1332,17 @@ const Mailing = ({
                     </thead>
                     <tbody>
                       {skippedData.map((record, index) => (
-                        <tr key={index} className="border-b border-yellow-100 last:border-0">
+                        <tr
+                          key={index}
+                          className="border-b border-yellow-100 last:border-0"
+                        >
                           <td className="py-2">{record.id}</td>
                           <td className="py-2">
-                            {record.name || record.company || 'N/A'}
+                            {record.name || record.company || "N/A"}
                           </td>
-                          <td className="py-2 text-yellow-700">{record.reason}</td>
+                          <td className="py-2 text-yellow-700">
+                            {record.reason}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1519,8 +1355,8 @@ const Mailing = ({
       )}
 
       {/* CSV Export Modal */}
-      <Modal 
-        isOpen={csvExportOpen} 
+      <Modal
+        isOpen={csvExportOpen}
         onClose={() => {
           setCsvExportOpen(false);
           setUseAllData(false);
@@ -1549,18 +1385,19 @@ const Mailing = ({
       </Modal>
 
       {/* Printer Settings Modal */}
-      <Modal isOpen={printerSettingsModalOpen} onClose={() => setPrinterSettingsModalOpen(false)}>
+      <Modal
+        isOpen={printerSettingsModalOpen}
+        onClose={() => setPrinterSettingsModalOpen(false)}
+      >
         <h2 className="flex justify-center text-xl font-bold text-black mb-4">
           Dot Matrix Printer Settings
         </h2>
-        
+
         <PrinterSettings
           printerSettings={printerSettings}
           setPrinterSettings={setPrinterSettings}
           isDiscoveringPrinters={isDiscoveringPrinters}
           discoveredPrinters={discoveredPrinters}
-          discoverPrinters={discoverPrinters}
-          handleDiscoveredPrinterSelect={handleDiscoveredPrinterSelect}
           isLoading={isLoading}
           executePrintJob={executePrintJob}
           onClose={() => setPrinterSettingsModalOpen(false)}
@@ -1568,14 +1405,20 @@ const Mailing = ({
       </Modal>
 
       {/* Renewal Notice Modal */}
-      <Modal isOpen={renewalNoticeModalOpen} onClose={() => setRenewalNoticeModalOpen(false)}>
+      <Modal
+        isOpen={renewalNoticeModalOpen}
+        onClose={() => setRenewalNoticeModalOpen(false)}
+      >
         <div className="w-full max-w-[1500px]">
-          <h2 className="text-2xl font-bold mb-3 text-center">Renewal Notice Printing</h2>
+          <h2 className="text-2xl font-bold mb-3 text-center">
+            Renewal Notice Printing
+          </h2>
           <p className="text-sm text-gray-600 mb-5 text-center max-w-2xl mx-auto border-b pb-4">
-            This tool allows you to print variable data onto pre-printed renewal notice forms.
-            You can adjust positions of all data fields to match your specific form layout.
+            This tool allows you to print variable data onto pre-printed renewal
+            notice forms. You can adjust positions of all data fields to match
+            your specific form layout.
           </p>
-          <RenewalNoticeDataOverlay 
+          <RenewalNoticeDataOverlay
             ref={renewalNoticeRef}
             startId={startClientId}
             endId={endClientId}
@@ -1587,14 +1430,20 @@ const Mailing = ({
       </Modal>
 
       {/* Thank You Letter Modal */}
-      <Modal isOpen={thankYouLetterModalOpen} onClose={() => setThankYouLetterModalOpen(false)}>
+      <Modal
+        isOpen={thankYouLetterModalOpen}
+        onClose={() => setThankYouLetterModalOpen(false)}
+      >
         <div className="w-full max-w-[1500px]">
-          <h2 className="text-2xl font-bold mb-3 text-center">Thank You Letter Printing</h2>
+          <h2 className="text-2xl font-bold mb-3 text-center">
+            Thank You Letter Printing
+          </h2>
           <p className="text-sm text-gray-600 mb-5 text-center max-w-2xl mx-auto border-b pb-4">
-            This tool allows you to print variable data onto pre-printed thank you letter forms.
-            You can adjust positions of all data fields to match your specific form layout.
+            This tool allows you to print variable data onto pre-printed thank
+            you letter forms. You can adjust positions of all data fields to
+            match your specific form layout.
           </p>
-          <ThankYouLetterDataOverlay 
+          <ThankYouLetterDataOverlay
             ref={thankYouLetterRef}
             startId={startClientId}
             endId={endClientId}
