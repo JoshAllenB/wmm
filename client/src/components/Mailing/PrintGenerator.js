@@ -1,35 +1,40 @@
 // Helper functions
 export const getFullName = (data) => {
-  const title = data.title || '';
-  const fname = data.fname || '';
-  const mname = data.mname || '';
-  const lname = data.lname || '';
-  const sname = data.sname || '';
-  const company = data.company || '';
+  const title = data.title || "";
+  const fname = data.fname || "";
+  const mname = data.mname || "";
+  const lname = data.lname || "";
+  const sname = data.sname || "";
+  const company = data.company || "";
 
   if (company) {
     return company;
   }
 
   return [title, fname, mname, lname, sname]
-    .filter(part => part && part.trim())
-    .join(' ');
+    .filter((part) => part && part.trim())
+    .join(" ");
 };
 
 export const getContactNumber = (data) => {
-  const contactnos = data.contactnos || '';
-  const cellno = data.cellno || '';
-  const officeno = data.officeno || '';
+  const contactnos = data.contactnos || "";
+  const cellno = data.cellno || "";
+  const officeno = data.officeno || "";
 
   if (contactnos) return contactnos;
   if (cellno || officeno) {
-    return [cellno, officeno].filter(num => num).join(' / ');
+    return [cellno, officeno].filter((num) => num).join(" / ");
   }
-  return '';
+  return "";
 };
 
-export const generateLabelContent = (data, selectedFields = [], userRole, subscriptionType) => {
-  if (!data) return '';
+export const generateLabelContent = (
+  data,
+  selectedFields = [],
+  userRole,
+  subscriptionType
+) => {
+  if (!data) return "";
 
   // Ensure selectedFields is always an array
   const fields = Array.isArray(selectedFields) ? selectedFields : [];
@@ -50,7 +55,7 @@ export const generateLabelContent = (data, selectedFields = [], userRole, subscr
   const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
   const copies = subscription.copies ?? "N/A";
   let enddate = "N/A";
-  
+
   if (subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
@@ -59,30 +64,47 @@ export const generateLabelContent = (data, selectedFields = [], userRole, subscr
   }
 
   // Check if user role should hide expiry and copies
-  const shouldHideExpiryAndCopies = ['HRG', 'FOM', 'CAL'].some(role => userRole?.includes(role)) || 
-                                  subscriptionType === "Promo" || 
-                                  subscriptionType === "Complimentary";
+  const shouldHideExpiryAndCopies =
+    ["HRG", "FOM", "CAL"].some((role) => userRole?.includes(role)) ||
+    subscriptionType === "Promo" ||
+    subscriptionType === "Complimentary";
+
+  const isSpecialRole = ["HRG", "FOM", "CAL"].some((role) =>
+    userRole?.includes(role)
+  );
+  const group = (data.group || "").toUpperCase();
+  const isCMCGroup = group === "CMC" || group.includes("CMC");
 
   const idLine = data.id || "";
-  const expiryAndCopies = !shouldHideExpiryAndCopies ? 
-    ` - ${enddate} - ${copies}cps/${data.acode || ""}` : 
-    (data.acode ? `/${data.acode}` : "");
-  
+  const expiryAndCopies = !shouldHideExpiryAndCopies
+    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+    : isSpecialRole && isCMCGroup
+    ? `/${group}/${data.acode || ""}`
+    : data.acode
+    ? `/${data.acode}`
+    : "";
+
   const name = getFullName(data);
   // Clean up address by removing empty lines and extra whitespace while preserving valid line breaks
-  const address = data.address ? data.address
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .join('<br />') : "";
+  const address = data.address
+    ? data.address
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join("<br />")
+    : "";
   const contact = fields.includes("contactnos") ? getContactNumber(data) : "";
 
   return `
     <div style="font-size: inherit; line-height: 1.2;">
       <p style="margin: 0 0 4px 0;">${idLine}${expiryAndCopies}</p>
-      ${name ? `<p style="margin: 0 0 4px 0; font-weight: normal;">${name}</p>` : ''}
-      ${address ? `<p style="margin: 0 0 4px 0;">${address}</p>` : ''}
-      ${contact ? `<p style="margin: 0;">${contact}</p>` : ''}
+      ${
+        name
+          ? `<p style="margin: 0 0 4px 0; font-weight: normal;">${name}</p>`
+          : ""
+      }
+      ${address ? `<p style="margin: 0 0 4px 0;">${address}</p>` : ""}
+      ${contact ? `<p style="margin: 0;">${contact}</p>` : ""}
     </div>
   `;
 };
@@ -108,24 +130,30 @@ export const generatePrintHTML = (
   const filteredRows = rows.filter((row) => {
     const clientId = row?.original?.id?.toString();
     if (!clientId) return false;
-    
+
     const trimmedStartId = startClientId?.trim();
     const trimmedEndId = endClientId?.trim();
-    
+
     // If no range is specified, include all rows
     if (!trimmedStartId && !trimmedEndId) return true;
-    
+
     // Convert to numbers for comparison
     const numericClientId = parseInt(clientId, 10);
     const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
     const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
-    
+
     // Check if any conversion resulted in NaN
-    if (isNaN(numericClientId) || (numericStartId && isNaN(numericStartId)) || (numericEndId && isNaN(numericEndId))) {
+    if (
+      isNaN(numericClientId) ||
+      (numericStartId && isNaN(numericStartId)) ||
+      (numericEndId && isNaN(numericEndId))
+    ) {
       return false;
     }
-    
-    const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+
+    const isAfterStart = numericStartId
+      ? numericClientId >= numericStartId
+      : true;
     const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
     return isAfterStart && isBeforeEnd;
   });
@@ -193,36 +221,43 @@ export const generatePrintHTML = (
   // Process each page
   for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
     html += '<div class="page">';
-    
+
     // Process labels for this page
     const startIndex = pageIndex * labelsPerPage;
     const endIndex = Math.min(startIndex + labelsPerPage, filteredRows.length);
-    
+
     for (let i = startIndex; i < endIndex; i++) {
       const row = filteredRows[i];
       const data = row.original;
-      
+
       // Calculate position
       const positionInPage = i % labelsPerPage;
       const column = positionInPage % 2;
       const rowInPage = Math.floor(positionInPage / 2);
-      
+
       // Adjust starting position based on user preference
-      const startFromRight = startPosition === 'right' && pageIndex === 0 && i === startIndex;
+      const startFromRight =
+        startPosition === "right" && pageIndex === 0 && i === startIndex;
       const effectiveColumn = startFromRight ? 1 : column;
-      
-      const xPos = leftPosition + (effectiveColumn * (columnWidth + horizontalSpacing));
-      const yPos = topPosition + (rowInPage * rowSpacing);
-      
+
+      const xPos =
+        leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
+      const yPos = topPosition + rowInPage * rowSpacing;
+
       // Generate label content with subscription type
       html += `
         <div class="label" style="left: ${xPos}px; top: ${yPos}px;">
-          ${generateLabelContent(data, selectedFields, userRole, data.subscriptionType || subscriptionType)}
+          ${generateLabelContent(
+            data,
+            selectedFields,
+            userRole,
+            data.subscriptionType || subscriptionType
+          )}
         </div>
       `;
     }
-    
-    html += '</div>'; // Close page div
+
+    html += "</div>"; // Close page div
   }
 
   html += `
@@ -362,4 +397,4 @@ export const generateChecklistHTML = (columns, rowsToUse) => {
     </body>
   </html>
   `;
-}; 
+};
