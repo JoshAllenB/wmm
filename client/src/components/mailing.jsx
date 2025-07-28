@@ -14,7 +14,6 @@ import { toast } from "react-hot-toast";
 
 // Import components
 import TemplateSelector from "./Mailing/TemplateSelector";
-import PrinterSettings from "./Mailing/PrinterSettings";
 import LabelPreview from "./Mailing/LabelPreview";
 import RangeSelector from "./Mailing/RangeSelector";
 import ConfigurationPanel from "./Mailing/ConfigurationPanel";
@@ -743,7 +742,6 @@ const Mailing = ({
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/print-dot-matrix`,
         {
           ...savedPrinterJobData,
-          printerConfig: printerSettings,
         },
         {
           headers: {
@@ -1392,16 +1390,6 @@ const Mailing = ({
         <h2 className="flex justify-center text-xl font-bold text-black mb-4">
           Dot Matrix Printer Settings
         </h2>
-
-        <PrinterSettings
-          printerSettings={printerSettings}
-          setPrinterSettings={setPrinterSettings}
-          isDiscoveringPrinters={isDiscoveringPrinters}
-          discoveredPrinters={discoveredPrinters}
-          isLoading={isLoading}
-          executePrintJob={executePrintJob}
-          onClose={() => setPrinterSettingsModalOpen(false)}
-        />
       </Modal>
 
       {/* Renewal Notice Modal */}
