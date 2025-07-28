@@ -231,12 +231,37 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add group filter
   if (advancedFilterData.group || group) {
     const groupValue = advancedFilterData.group || group;
-    if (typeof groupValue === "string" && groupValue.trim()) {
-      baseFilter.push({ group: groupValue });
-    } else if (Array.isArray(groupValue) && groupValue.some((g) => g.trim())) {
-      const validGroups = groupValue.filter((g) => g.trim());
+
+    const normalizeGroup = (groupName) => {
+      if (!groupName || typeof groupName !== "string") return "";
+      return groupName.trim().toLowerCase();
+    };
+
+    if (typeof groupValue === "string") {
+      const normalizedGroup = normalizeGroup(groupValue);
+      if (normalizedGroup) {
+        baseFilter.push({
+          $expr: {
+            $eq: [
+              { $trim: { input: { $toLower: "$group" } } },
+              normalizedGroup,
+            ],
+          },
+        });
+      }
+    } else if (Array.isArray(groupValue)) {
+      // Filter out empty/whitespace groups and normalize
+      const validGroups = groupValue
+        .map((g) => normalizeGroup(g))
+        .filter((g) => g.length > 0);
+
       if (validGroups.length > 0) {
-        baseFilter.push({ group: { $in: validGroups } });
+        // Match any of the valid groups (case insensitive, trimmed)
+        baseFilter.push({
+          $expr: {
+            $in: [{ $trim: { input: { $toLower: "$group" } } }, validGroups],
+          },
+        });
       }
     }
   }
@@ -246,8 +271,10 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     baseFilter.push({
       group: {
         $not: {
-          $regex: "SPack",
-          $options: "i",
+          $regexMatch: {
+            input: { $trim: { input: { $toLower: "$group" } } },
+            regex: "spack",
+          },
         },
       },
     });
@@ -258,8 +285,10 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     baseFilter.push({
       group: {
         $not: {
-          $regex: "CMC",
-          $options: "i",
+          $regexMatch: {
+            input: { $trim: { input: { $toLower: "$group" } } },
+            regex: "cmc",
+          },
         },
       },
     });
@@ -871,8 +900,21 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         // Get DCS clients to exclude
         const dcsClients = await ClientModel.distinct("id", { group: "DCS" });
 
+        const allThreeSelected =
+          serviceClientsMap.FOM &&
+          serviceClientsMap.HRG &&
+          serviceClientsMap.CAL;
+
+        // If all three services are selected, bypass the exclusivity logic
+        if (allThreeSelected) {
+          targetClients = new Set([
+            ...serviceClientsMap.FOM,
+            ...serviceClientsMap.HRG,
+            ...serviceClientsMap.CAL,
+          ]);
+        }
         // If both FOM and HRG are selected, they should be mutually exclusive
-        if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
+        else if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
           const fomOnlyClients = new Set(
             [...serviceClientsMap.FOM].filter(
               (id) => !serviceClientsMap.HRG.has(id) && !dcsClients.includes(id)
@@ -1806,16 +1848,16 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
 function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
   const escapeRegex = (string) => {
-    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
   };
-  
+
   // Single area code filter
   if (advancedFilterData.acode && advancedFilterData.acode.trim()) {
     const acodePattern = advancedFilterData.acode.trim();
     baseFilter.push({
-      acode: { 
-        $regex: new RegExp(`^${escapeRegex(acodePattern)}\\s*$`, 'i')
-      }
+      acode: {
+        $regex: new RegExp(`^${escapeRegex(acodePattern)}\\s*$`, "i"),
+      },
     });
   }
 
@@ -1835,12 +1877,12 @@ function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
 
     if (validAreas.length > 0) {
       // Create regex patterns for each area code
-      const areaPatterns = validAreas.map(area => 
-        new RegExp(`^${escapeRegex(area)}\\s*$`, 'i')
+      const areaPatterns = validAreas.map(
+        (area) => new RegExp(`^${escapeRegex(area)}\\s*$`, "i")
       );
-      
+
       baseFilter.push({
-        $or: areaPatterns.map(pattern => ({ acode: pattern }))
+        $or: areaPatterns.map((pattern) => ({ acode: pattern })),
       });
     }
   }
