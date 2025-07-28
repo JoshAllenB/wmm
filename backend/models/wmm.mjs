@@ -23,6 +23,7 @@ const WmmSchema = new mongoose.Schema(
     calendar: Boolean,
     subsclass: String,
     donorid: Number,
+    donornote: String,
     adddate: String,
     adduser: String,
   },

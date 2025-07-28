@@ -28,6 +28,7 @@ export const modelConfigs = {
       paymtmasses: 1,
       calendar: 1,
       donorid: 1,
+      donornote: 1,
       adddate: 1,
     },
     groupFields: {
@@ -43,6 +44,7 @@ export const modelConfigs = {
       paymtmasses: "$paymtmasses",
       calendar: "$calendar",
       donorid: "$donorid",
+      donornote: "$donornote",
       adddate: "$adddate",
     },
   },
