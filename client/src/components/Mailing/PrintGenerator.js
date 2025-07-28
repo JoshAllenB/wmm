@@ -84,7 +84,23 @@ export const generateLabelContent = (
     ? `/${data.acode}`
     : "";
 
-  const name = getFullName(data);
+  // Handle name and company display
+  let nameLines = [];
+  const fullName = getFullName(data);
+  const company = data.company || "";
+
+  if (fullName && company && fullName !== company) {
+    // Both name and company exist and they're different
+    nameLines.push(fullName);
+    nameLines.push(company);
+  } else {
+    // Either name or company or neither, or they're the same
+    const displayName = fullName || company;
+    if (displayName) {
+      nameLines.push(displayName);
+    }
+  }
+
   // Clean up address by removing empty lines and extra whitespace while preserving valid line breaks
   const address = data.address
     ? data.address
@@ -95,16 +111,17 @@ export const generateLabelContent = (
     : "";
   const contact = fields.includes("contactnos") ? getContactNumber(data) : "";
 
+  // Build content with consistent spacing
+  const commonStyle = "margin: 0; padding: 0;";
+
   return `
-    <div style="font-size: inherit; line-height: 1.2;">
-      <p style="margin: 0 0 4px 0;">${idLine}${expiryAndCopies}</p>
-      ${
-        name
-          ? `<p style="margin: 0 0 4px 0; font-weight: normal;">${name}</p>`
-          : ""
-      }
-      ${address ? `<p style="margin: 0 0 4px 0;">${address}</p>` : ""}
-      ${contact ? `<p style="margin: 0;">${contact}</p>` : ""}
+    <div>
+      <p style="${commonStyle}">${idLine}${expiryAndCopies}</p>
+      ${nameLines
+        .map((line) => `<p style="${commonStyle}">${line}</p>`)
+        .join("")}
+      ${address ? `<p style="${commonStyle}">${address}</p>` : ""}
+      ${contact ? `<p style="${commonStyle}">${contact}</p>` : ""}
     </div>
   `;
 };
@@ -164,7 +181,7 @@ export const generatePrintHTML = (
         <head>
           <title>No Labels to Print</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
+            body { padding: 20px; }
           </style>
         </head>
         <body>
@@ -192,8 +209,6 @@ export const generatePrintHTML = (
           body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            font-size: ${fontSize}pt;
             position: relative;
           }
           .page {
