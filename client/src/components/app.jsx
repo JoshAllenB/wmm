@@ -7,6 +7,7 @@ import LoginPage from "../utils/UserAuth/login";
 import AdminPanel from "./UI/Sidebar/AdminPanel";
 import SubClass from "./UI/Sidebar/SubClass";
 import Accounting from "./UI/Sidebar/Accounting";
+import Donor from "./UI/Sidebar/Donor";
 import Area from "./UI/Sidebar/Area";
 import GroupManagement from "./CRUD/Group";
 import DataExport from "../components/DataExport";
@@ -67,6 +68,10 @@ const App = () => {
           }
         />
         <Route
+          path="/donor"
+          element={isLoggedIn ? <Donor /> : <Navigate to="/login" replace />}
+        />
+        <Route
           path="/admin-panel"
           element={
             isLoggedIn ? <AdminPanel /> : <Navigate to="/login" replace />
@@ -104,13 +109,14 @@ const App = () => {
   );
 
   const memoizedSidebar = useMemo(
-    () => isLoggedIn && (
-      <Sidebar 
-        isSidebar={isSidebar} 
-        setIsLoggedIn={setIsLoggedIn}
-        onInactivityTimeoutChange={handleInactivity}
-      />
-    ),
+    () =>
+      isLoggedIn && (
+        <Sidebar
+          isSidebar={isSidebar}
+          setIsLoggedIn={setIsLoggedIn}
+          onInactivityTimeoutChange={handleInactivity}
+        />
+      ),
     [isLoggedIn, isSidebar, handleInactivity]
   );
 

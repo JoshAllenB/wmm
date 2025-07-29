@@ -17,6 +17,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import PeopleIcon from "@mui/icons-material/People";
 import AccountCircleSharpIcon from "@mui/icons-material/AccountCircleSharp";
+import VolunteerActivismIcon from "@mui/icons-material/VolunteerActivism";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import {
   DropdownMenu,
@@ -36,7 +37,10 @@ import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import { CircleUser, LogOut, Timer } from "lucide-react";
 import Logout from "../../../utils/UserAuth/logout";
 
-export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }) {
+export default function MenuSidebar({
+  setIsLoggedIn,
+  onInactivityTimeoutChange,
+}) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
   const [inactiveTimeout, setInactiveTimeout] = useState(300);
@@ -89,7 +93,7 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
         "/subclass": "Sub. Class",
         "/area": "Area",
         "/group": "Group",
-        "/data-export": "Data Export"
+        "/data-export": "Data Export",
       };
       setSelected(pathToSelected[location.pathname] || "Dashboard");
     }
@@ -97,33 +101,34 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
 
   const menuItemStyles = {
     root: {
-      fontSize: '0.875rem',
+      fontSize: "0.875rem",
       fontWeight: 500,
     },
     button: {
-      padding: '8px 16px',
-      '&:hover': {
-        backgroundColor: '#e3f2fd !important',
-        color: '#1976d2 !important',
+      padding: "8px 16px",
+      "&:hover": {
+        backgroundColor: "#e3f2fd !important",
+        color: "#1976d2 !important",
       },
       [`&.ps-active`]: {
-        backgroundColor: '#e3f2fd !important',
-        color: '#1976d2 !important',
-        fontWeight: '600',
+        backgroundColor: "#e3f2fd !important",
+        color: "#1976d2 !important",
+        fontWeight: "600",
       },
     },
     icon: {
-      color: '#163366',
-      '&:hover': {
-        color: '#1976d2',
+      color: "#163366",
+      "&:hover": {
+        color: "#1976d2",
       },
     },
     SubMenuExpandIcon: {
-      color: '#64748b',
+      color: "#64748b",
     },
     subMenuContent: {
-      backgroundColor: 'white !important',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+      backgroundColor: "white !important",
+      boxShadow:
+        "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
     },
   };
 
@@ -136,26 +141,32 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
         className="h-full shadow-sm z-50"
         rootStyles={{
           [`.${sidebarClasses.container}`]: {
-            backgroundColor: 'white',
-            color: '#1e293b',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            position: 'relative',
+            backgroundColor: "white",
+            color: "#1e293b",
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            position: "relative",
           },
-          '.ps-submenu-content': {
-            backgroundColor: 'white !important',
+          ".ps-submenu-content": {
+            backgroundColor: "white !important",
           },
-          '.ps-menu-button': {
-            padding: '8px 16px !important',
+          ".ps-menu-button": {
+            padding: "8px 16px !important",
           },
-          '.ps-submenu-content .ps-menu-button': {
-            padding: '8px 24px !important',
+          ".ps-submenu-content .ps-menu-button": {
+            padding: "8px 24px !important",
           },
         }}
       >
         <Menu menuItemStyles={menuItemStyles} className="flex-1">
-          <div className={`mb-2 flex items-center ${isCollapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'}`}>
+          <div
+            className={`mb-2 flex items-center ${
+              isCollapsed
+                ? "justify-center px-2 py-3"
+                : "justify-between px-4 py-3"
+            }`}
+          >
             {!isCollapsed && (
               <span className="text-lg font-semibold text-gray-800">WMM</span>
             )}
@@ -175,6 +186,14 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
               active={selected === "All Clients"}
             >
               All Clients
+            </MenuItem>
+            <MenuItem
+              icon={<VolunteerActivismIcon />}
+              component={<Link to="/donor" />}
+              onClick={() => handleSelect("Donor")}
+              active={selected === "Donor"}
+            >
+              Donor List
             </MenuItem>
 
             {hasRole("Accounting") && (
@@ -211,10 +230,7 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
             )}
 
             {hasRole("WMM") && (
-              <SubMenu
-                label="Settings"
-                icon={<SettingsIcon />}
-              >
+              <SubMenu label="Settings" icon={<SettingsIcon />}>
                 <MenuItem
                   icon={<ListIcon />}
                   onClick={() => handleSelect("Sub. Class")}
@@ -273,16 +289,28 @@ export default function MenuSidebar({ setIsLoggedIn, onInactivityTimeoutChange }
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
                         <DropdownMenuRadioGroup value={inactiveTimeout}>
-                          <DropdownMenuRadioItem value={30} onClick={() => handleTimeout(30)}>
+                          <DropdownMenuRadioItem
+                            value={30}
+                            onClick={() => handleTimeout(30)}
+                          >
                             30 seconds
                           </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value={300} onClick={() => handleTimeout(300)}>
+                          <DropdownMenuRadioItem
+                            value={300}
+                            onClick={() => handleTimeout(300)}
+                          >
                             5 minutes
                           </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value={900} onClick={() => handleTimeout(900)}>
+                          <DropdownMenuRadioItem
+                            value={900}
+                            onClick={() => handleTimeout(900)}
+                          >
                             15 minutes
                           </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem value={1800} onClick={() => handleTimeout(1800)}>
+                          <DropdownMenuRadioItem
+                            value={1800}
+                            onClick={() => handleTimeout(1800)}
+                          >
                             30 minutes
                           </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
