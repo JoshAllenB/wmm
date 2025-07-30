@@ -296,6 +296,21 @@ class WebSocketService {
                 ? data.data.calData 
                 : []
           },
+          // Add Promo and Complimentary data
+          promoData: {
+            records: Array.isArray(data.data.promoData?.records) 
+              ? data.data.promoData.records 
+              : Array.isArray(data.data.promoData) 
+                ? data.data.promoData 
+                : []
+          },
+          compData: {
+            records: Array.isArray(data.data.compData?.records) 
+              ? data.data.compData.records 
+              : Array.isArray(data.data.compData) 
+                ? data.data.compData 
+                : []
+          },
           // Ensure services array is properly built
           services: Array.from(new Set([
             ...(Array.isArray(data.data.services) ? data.data.services : []),
@@ -304,6 +319,8 @@ class WebSocketService {
             ...(data.data.hrgData?.records?.length > 0 || data.data.hrgData?.length > 0 ? ['HRG'] : []),
             ...(data.data.fomData?.records?.length > 0 || data.data.fomData?.length > 0 ? ['FOM'] : []),
             ...(data.data.calData?.records?.length > 0 || data.data.calData?.length > 0 ? ['CAL'] : []),
+            ...(data.data.promoData?.records?.length > 0 || data.data.promoData?.length > 0 ? ['PROMO'] : []),
+            ...(data.data.compData?.records?.length > 0 || data.data.compData?.length > 0 ? ['COMP'] : []),
             // Add group-based services
             ...(data.data.group === 'DCS' ? ['DCS'] : []),
             ...(data.data.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
@@ -362,6 +379,21 @@ class WebSocketService {
                 ? client.calData 
                 : []
           },
+          // Add Promo and Complimentary data
+          promoData: {
+            records: Array.isArray(client.promoData?.records) 
+              ? client.promoData.records 
+              : Array.isArray(client.promoData) 
+                ? client.promoData 
+                : []
+          },
+          compData: {
+            records: Array.isArray(client.compData?.records) 
+              ? client.compData.records 
+              : Array.isArray(client.compData) 
+                ? client.compData 
+                : []
+          },
           services: Array.from(new Set([
             ...(Array.isArray(client.services) ? client.services : []),
             // Add service types based on data presence
@@ -369,6 +401,8 @@ class WebSocketService {
             ...(client.hrgData?.records?.length > 0 || client.hrgData?.length > 0 ? ['HRG'] : []),
             ...(client.fomData?.records?.length > 0 || client.fomData?.length > 0 ? ['FOM'] : []),
             ...(client.calData?.records?.length > 0 || client.calData?.length > 0 ? ['CAL'] : []),
+            ...(client.promoData?.records?.length > 0 || client.promoData?.length > 0 ? ['PROMO'] : []),
+            ...(client.compData?.records?.length > 0 || client.compData?.length > 0 ? ['COMP'] : []),
             // Add group-based services
             ...(client.group === 'DCS' ? ['DCS'] : []),
             ...(client.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),

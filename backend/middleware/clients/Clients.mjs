@@ -705,44 +705,50 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       }
     }
 
-    // Gather all role-specific data after update
-    const [wmmData, hrgData, fomData, calData] = await Promise.all([
-      WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-      HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
-    ]);
-    
-    // WebSocket updates
-    if (req.io) {
-      
-      // Get all subscription data for this client
-      const [wmmData, hrgData, fomData, calData] = await Promise.all([
+          // Gather all role-specific data after update
+      const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
         WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
         HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
         FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-        CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
+        CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+        PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+        ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
       ]);
+      
+      // WebSocket updates
+      if (req.io) {
+        
+        // Get all subscription data for this client
+        const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
+          WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+          HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+          FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+          CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+          PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+          ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
+        ]);
 
-      // Emit the updated client data with all subscription data
-      req.io.emit("data-update", [{
-        type: "update",
-        data: {
-          ...updatedClient.toObject(),
-          services: [roleType],
-          wmmData: wmmData || [],
-          hrgData: hrgData || [],
-          fomData: fomData || [],
-          calData: calData || []
-        }
-      }]);
+        // Emit the updated client data with all subscription data
+        req.io.emit("data-update", [{
+          type: "update",
+          data: {
+            ...updatedClient.toObject(),
+            services: [roleType],
+            wmmData: wmmData || [],
+            hrgData: hrgData || [],
+            fomData: fomData || [],
+            calData: calData || [],
+            promoData: promoData || [],
+            complimentaryData: complimentaryData || []
+          }
+        }]);
 
       // Then fetch and emit the filtered data
       const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
       
       // Use the DataService to fetch filtered data
       const results = await dataService.fetchData({
-        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
         filter,
         page: parseInt(page),
         limit: parseInt(pageSize),
@@ -782,7 +788,9 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       wmmData: await WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
       hrgData: await HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
       fomData: await FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      calData: await CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean()
+      calData: await CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      promoData: await PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+      complimentaryData: await ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
     };
 
     res.json(responseData);

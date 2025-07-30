@@ -2,6 +2,8 @@ import WmmModel from './models/wmm.mjs';
 import HrgModel from './models/hrg.mjs';
 import FomModel from './models/fom.mjs';
 import CalModel from './models/cal.mjs';
+import PromoModel from './models/promo.mjs';
+import ComplimentaryModel from './models/complimentary.mjs';
 import dataService from './middleware/apiLogic/services/DataService.mjs';
 
 // Helper function to format data events
@@ -223,7 +225,7 @@ const initWebSocket = (io) => {
 
           // Use DataService to fetch complete client data
           const result = await dataService.fetchAllData({
-            modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+            modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
             filter: "",
             group: "",
             clientIds: [clientId],
@@ -284,11 +286,26 @@ const initWebSocket = (io) => {
               ? updatedClientData.calData.records
               : [];
 
+          // Add Promo and Complimentary data
+          const promoRecords = Array.isArray(updatedClientData.promoData) 
+            ? updatedClientData.promoData 
+            : Array.isArray(updatedClientData.promoData?.records)
+              ? updatedClientData.promoData.records
+              : [];
+
+          const compRecords = Array.isArray(updatedClientData.compData) 
+            ? updatedClientData.compData 
+            : Array.isArray(updatedClientData.compData?.records)
+              ? updatedClientData.compData.records
+              : [];
+
           // Add records to processed data
           processedData.wmmData = { records: wmmRecords };
           processedData.hrgData = { records: hrgRecords };
           processedData.fomData = { records: fomRecords };
           processedData.calData = { records: calRecords };
+          processedData.promoData = { records: promoRecords };
+          processedData.compData = { records: compRecords };
 
           // Build services array from available data
           processedData.services = Array.from(new Set([
@@ -299,6 +316,8 @@ const initWebSocket = (io) => {
             ...(hrgRecords.length > 0 ? ['HRG'] : []),
             ...(fomRecords.length > 0 ? ['FOM'] : []),
             ...(calRecords.length > 0 ? ['CAL'] : []),
+            ...(promoRecords.length > 0 ? ['PROMO'] : []),
+            ...(compRecords.length > 0 ? ['COMP'] : []),
             // Add group-based services
             ...(processedData.group === 'DCS' ? ['DCS'] : []),
             ...(processedData.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
@@ -339,7 +358,7 @@ const initWebSocket = (io) => {
 
         // Fetch latest client data
         const result = await dataService.fetchAllData({
-          modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel"],
+          modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
           filter: "",
           group: "",
           clientIds: [clientId],
@@ -398,11 +417,26 @@ const initWebSocket = (io) => {
             ? updatedClientData.calData.records
             : [];
 
+        // Add Promo and Complimentary data
+        const promoRecords = Array.isArray(updatedClientData.promoData) 
+          ? updatedClientData.promoData 
+          : Array.isArray(updatedClientData.promoData?.records)
+            ? updatedClientData.promoData.records
+            : [];
+
+        const compRecords = Array.isArray(updatedClientData.compData) 
+          ? updatedClientData.compData 
+          : Array.isArray(updatedClientData.compData?.records)
+            ? updatedClientData.compData.records
+            : [];
+
         // Add records to processed data
         processedData.wmmData = { records: wmmRecords };
         processedData.hrgData = { records: hrgRecords };
         processedData.fomData = { records: fomRecords };
         processedData.calData = { records: calRecords };
+        processedData.promoData = { records: promoRecords };
+        processedData.compData = { records: compRecords };
 
         // Build services array from available data
         processedData.services = Array.from(new Set([
@@ -413,6 +447,8 @@ const initWebSocket = (io) => {
           ...(hrgRecords.length > 0 ? ['HRG'] : []),
           ...(fomRecords.length > 0 ? ['FOM'] : []),
           ...(calRecords.length > 0 ? ['CAL'] : []),
+          ...(promoRecords.length > 0 ? ['PROMO'] : []),
+          ...(compRecords.length > 0 ? ['COMP'] : []),
           // Add group-based services
           ...(processedData.group === 'DCS' ? ['DCS'] : []),
           ...(processedData.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
