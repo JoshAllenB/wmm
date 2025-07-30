@@ -457,23 +457,31 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const checkForDuplicates = useCallback(
     debounce(async (checkData, fieldChanged = null) => {
-      // Clear duplicates if all fields are empty or insufficient
-      if (
-        !checkData.fname &&
-        !checkData.lname &&
-        !checkData.bdate &&
-        !checkData.company &&
-        (!checkData.address || checkData.address.length < 3) &&
-        (!checkData.cellno || checkData.cellno.length < 5) &&
-        !checkData.email.includes("@") &&
-        (!checkData.contactnos || checkData.contactnos.length < 5) &&
-        !checkData.acode
-      ) {
+      // Start duplicate check as soon as lname is populated (minimum 2 characters)
+      if (!checkData.lname || checkData.lname.length < 2) {
         setPotentialDuplicates([]);
         setShowDuplicates(false);
         setIsCheckingDuplicates(false);
         return;
       }
+
+      // Calculate search precision based on available fields
+      const availableFields = {
+        lname: checkData.lname && checkData.lname.length >= 2,
+        fname: checkData.fname && checkData.fname.length >= 2,
+        address: checkData.address && checkData.address.length >= 3,
+        email: checkData.email && checkData.email.includes("@"),
+        cellno: checkData.cellno && checkData.cellno.length >= 5,
+        contactnos: checkData.contactnos && checkData.contactnos.length >= 5,
+        company: checkData.company && checkData.company.length >= 2,
+        bdate: checkData.bdate && checkData.bdate.length > 0,
+        acode: checkData.acode && checkData.acode.length >= 3
+      };
+
+      const filledFieldsCount = Object.values(availableFields).filter(Boolean).length;
+      
+      // If we only have lname, still proceed but with lower precision
+      // If we have more fields, the search will be more precise
 
       try {
         // Prepare the data for sending to the server, prioritizing lname, address, fname
@@ -496,6 +504,19 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
             addressSecond: true, // Second priority
             fnameThird: true, // Third priority
             contactEqualWeight: true, // Similar weights for contact/birth info
+          },
+          // Add precision information for better search results
+          searchPrecision: {
+            filledFieldsCount,
+            availableFields,
+            hasLname: availableFields.lname,
+            hasFname: availableFields.fname,
+            hasAddress: availableFields.address,
+            hasEmail: availableFields.email,
+            hasPhone: availableFields.cellno || availableFields.contactnos,
+            hasCompany: availableFields.company,
+            hasBdate: availableFields.bdate,
+            hasAcode: availableFields.acode
           },
         };
 
@@ -886,16 +907,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           acode: areaData.acode || "",
         };
 
-        if (
-          (currentFormData.fname && currentFormData.fname.length > 1) ||
-          (currentFormData.lname && currentFormData.lname.length > 1) ||
-          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
-          (currentFormData.company && currentFormData.company.length > 2) ||
-          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
-          (currentFormData.email && currentFormData.email.includes("@")) ||
-          (formattedAddress && formattedAddress.length > 3) ||
-          (currentFormData.acode && currentFormData.acode.length > 3)
-        ) {
+        // Always check for duplicates if we have lname (minimum requirement)
+        if (currentFormData.lname && currentFormData.lname.length >= 2) {
           checkForDuplicates(currentFormData, "address");
         } else {
           setIsCheckingDuplicates(false);
@@ -952,16 +965,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           acode: areaData.acode || "",
         };
 
-        if (
-          (currentFormData.fname && currentFormData.fname.length > 1) ||
-          (currentFormData.lname && currentFormData.lname.length > 1) ||
-          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
-          (currentFormData.company && currentFormData.company.length > 2) ||
-          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
-          (currentFormData.email && currentFormData.email.includes("@")) ||
-          (formattedAddress && formattedAddress.length > 3) ||
-          (currentFormData.acode && currentFormData.acode.length > 3)
-        ) {
+        // Always check for duplicates if we have lname (minimum requirement)
+        if (currentFormData.lname && currentFormData.lname.length >= 2) {
           setTimeout(() => {
             checkForDuplicates(currentFormData, "city");
           }, 100);
@@ -1006,16 +1011,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           acode: value,
         };
 
-        if (
-          (currentFormData.fname && currentFormData.fname.length > 1) ||
-          (currentFormData.lname && currentFormData.lname.length > 1) ||
-          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
-          (currentFormData.company && currentFormData.company.length > 2) ||
-          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
-          (currentFormData.email && currentFormData.email.includes("@")) ||
-          (combinedAddress && combinedAddress.length > 3) ||
-          (value && value.length > 3)
-        ) {
+        // Always check for duplicates if we have lname (minimum requirement)
+        if (currentFormData.lname && currentFormData.lname.length >= 2) {
           setTimeout(() => {
             checkForDuplicates(currentFormData, "acode");
           }, 100);
@@ -1813,14 +1810,14 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                             let bgColor, textColor, borderColor;
                             switch (service) {
                               case "WMM":
-                                bgColor = "bg-indigo-50";
-                                textColor = "text-indigo-600";
-                                borderColor = "border-indigo-100";
+                                bgColor = "bg-blue-50";
+                                textColor = "text-blue-600";
+                                borderColor = "border-blue-100";
                                 break;
                               case "HRG":
-                                bgColor = "bg-teal-50";
-                                textColor = "text-teal-600";
-                                borderColor = "border-teal-100";
+                                bgColor = "bg-yellow-50";
+                                textColor = "text-yellow-600";
+                                borderColor = "border-yellow-100";
                                 break;
                               case "FOM":
                                 bgColor = "bg-rose-50";
@@ -1831,6 +1828,16 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 bgColor = "bg-cyan-50";
                                 textColor = "text-cyan-600";
                                 borderColor = "border-cyan-100";
+                                break;
+                              case "PROMO":
+                                bgColor = "bg-emerald-50";
+                                textColor = "text-emerald-600";
+                                borderColor = "border-emerald-100";
+                                break;
+                              case "COMP":
+                                bgColor = "bg-purple-50";
+                                textColor = "text-purple-600";
+                                borderColor = "border-purple-100";
                                 break;
                               default:
                                 bgColor = "bg-gray-50";
@@ -2210,7 +2217,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           onClick={openModal}
           className={`${getSubscriptionTypeStyles()} hover:opacity-90 transition-opacity duration-200`}
         >
-          <span>Add Client {subscriptionType}</span>
+          <span>Add Client {subscriptionType === "HRG" || subscriptionType === "FOM" || subscriptionType === "CAL" || subscriptionType === "WMM" ? "" : ` ${subscriptionType}`}</span>
       </Button>
 
       {showModal && (
@@ -2244,7 +2251,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                 >
                   <div className="mb-2 border-b pb-2">
                     <h1 className={`${getSubscriptionTypeStyles()} p-2 text-center text-black text-3xl font-bold`}>
-                      Add Client {subscriptionType}
+                      Add Client {subscriptionType === "HRG" || subscriptionType === "FOM" || subscriptionType === "CAL" || subscriptionType === "WMM" ? "" : ` ${subscriptionType}`}
                     </h1>
                     <p className="text-gray-500 text-base">
                       Fill in the details to add a new client

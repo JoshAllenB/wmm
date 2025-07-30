@@ -3,6 +3,8 @@ import WmmModel from "../../models/wmm.mjs";
 import HrgModel from "../../models/hrg.mjs";
 import FomModel from "../../models/fom.mjs";
 import CalModel from "../../models/cal.mjs";
+import PromoModel from "../../models/promo.mjs";
+import ComplimentaryModel from "../../models/complimentary.mjs";
 
 // Address standardization utility function
 const standardizeAddress = (address) => {
@@ -88,10 +90,30 @@ export async function checkDuplicates({
   addressComponents,
   acode,
   company,
-  priorities
+  priorities,
+  searchPrecision
 }) {
   // Track if we have any significant data to search with
   let hasSearchableData = false;
+  
+  // Determine search strategy based on available data
+  const hasLname = lname && lname.length >= 2;
+  const hasFname = fname && fname.length >= 2;
+  const hasAddress = address && address.length >= 3;
+  const hasEmail = email && email.includes("@");
+  const hasPhone = (cellno && cellno.length >= 5) || (contactnos && contactnos.length >= 5);
+  const hasCompany = company && company.length >= 2;
+  const hasBdate = bdate && bdate.length > 0;
+  const hasAcode = acode && acode.length >= 3;
+  
+  // Calculate search precision level
+  const filledFieldsCount = [hasLname, hasFname, hasAddress, hasEmail, hasPhone, hasCompany, hasBdate, hasAcode]
+    .filter(Boolean).length;
+  
+  // Adjust search strategy based on available data
+  const isHighPrecision = filledFieldsCount >= 3;
+  const isMediumPrecision = filledFieldsCount >= 2;
+  const isLowPrecision = hasLname; // At minimum, we need lname
 
   // Build a query to find potential duplicates
   const query = { $or: [] };
@@ -99,18 +121,22 @@ export async function checkDuplicates({
   // Create a scoring pipeline for prioritizing matches
   const scoringPipeline = [];
 
-  // Last name-based matching (highest priority)
-  if (lname && lname.length > 1) {
+  // Last name-based matching (highest priority) - always required
+  if (hasLname) {
     // Use exact match first, then partial match
     query.$or.push({ lname: lname });
     query.$or.push({ lname: { $regex: new RegExp(`^${lname}`, "i") } });
+    
+    // Adjust scoring based on precision level
+    const lnameExactScore = isHighPrecision ? 25 : isMediumPrecision ? 20 : 15;
+    const lnamePartialScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
     
     scoringPipeline.push({
       $addFields: {
         lnameMatch: {
           $cond: [
             { $eq: ["$lname", lname] },
-            20,
+            lnameExactScore,
             {
               $cond: [
                 {
@@ -119,7 +145,7 @@ export async function checkDuplicates({
                     regex: new RegExp(`^${lname}`, "i"),
                   },
                 },
-                15,
+                lnamePartialScore,
                 0,
               ],
             },
@@ -135,7 +161,7 @@ export async function checkDuplicates({
   const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
   const standardizedComponents = standardizeAddressComponents(addressComponents);
   
-  if (clientStandardizedAddress || Object.values(standardizedComponents).some(v => v)) {
+  if (hasAddress && (clientStandardizedAddress || Object.values(standardizedComponents).some(v => v))) {
     try {
       // Match on full standardized address if available
       if (clientStandardizedAddress) {
@@ -182,7 +208,13 @@ export async function checkDuplicates({
         query.$or.push({ province: standardizedComponents.province });
       }
 
-      // Add scoring for address matches
+      // Add scoring for address matches with precision-based scoring
+      const addressFullScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
+      const addressPartialScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
+      const addressComponentScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 6;
+      const addressCityScore = isHighPrecision ? 10 : isMediumPrecision ? 7 : 5;
+      const addressProvinceScore = isHighPrecision ? 8 : isMediumPrecision ? 5 : 3;
+      
       scoringPipeline.push({
         $addFields: {
           addressMatch: {
@@ -191,7 +223,7 @@ export async function checkDuplicates({
               { 
                 $cond: [
                   { $eq: ["$address", clientStandardizedAddress] },
-                  15,
+                  addressFullScore,
                   { 
                     $cond: [
                       { 
@@ -200,7 +232,7 @@ export async function checkDuplicates({
                           regex: new RegExp(clientStandardizedAddress, "i")
                         }
                       },
-                      10,
+                      addressPartialScore,
                       0
                     ]
                   }
@@ -220,21 +252,21 @@ export async function checkDuplicates({
                       }
                     ]
                   },
-                  8,
+                  addressComponentScore,
                   0
                 ]
               },
               {
                 $cond: [
                   { $eq: ["$city", standardizedComponents.city] },
-                  7,
+                  addressCityScore,
                   0
                 ]
               },
               {
                 $cond: [
                   { $eq: ["$province", standardizedComponents.province] },
-                  5,
+                  addressProvinceScore,
                   0
                 ]
               }
@@ -250,14 +282,18 @@ export async function checkDuplicates({
   }
 
   // Email exact matching (high priority)
-  if (email && email.includes("@")) {
+  if (hasEmail) {
     query.$or.push({ email: email.toLowerCase() });
+    
+    // Adjust email scoring based on precision
+    const emailScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
+    
     scoringPipeline.push({
       $addFields: {
         emailMatch: {
           $cond: [
             { $eq: ["$email", email.toLowerCase()] },
-            15,
+            emailScore,
             0
           ]
         }
@@ -267,14 +303,23 @@ export async function checkDuplicates({
   }
 
   // Phone number exact matching
-  if (cellno && cellno.length > 3) {
-    query.$or.push({ cellno: cellno });
+  if (hasPhone) {
+    const phoneNumber = cellno || contactnos;
+    query.$or.push({ cellno: phoneNumber });
+    query.$or.push({ contactnos: phoneNumber });
+    
+    // Adjust phone scoring based on precision
+    const phoneScore = isHighPrecision ? 18 : isMediumPrecision ? 12 : 8;
+    
     scoringPipeline.push({
       $addFields: {
         cellnoMatch: {
           $cond: [
-            { $eq: ["$cellno", cellno] },
-            12,
+            { $or: [
+              { $eq: ["$cellno", phoneNumber] },
+              { $eq: ["$contactnos", phoneNumber] }
+            ]},
+            phoneScore,
             0
           ]
         }
@@ -284,16 +329,20 @@ export async function checkDuplicates({
   }
 
   // First name matching (lower priority)
-  if (fname && fname.length > 1) {
+  if (hasFname) {
     query.$or.push({ fname: fname });
     query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
+    
+    // Adjust first name scoring based on precision
+    const fnameExactScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
+    const fnamePartialScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 6;
     
     scoringPipeline.push({
       $addFields: {
         fnameMatch: {
           $cond: [
             { $eq: ["$fname", fname] },
-            10,
+            fnameExactScore,
             {
               $cond: [
                 {
@@ -302,7 +351,7 @@ export async function checkDuplicates({
                     regex: new RegExp(`^${fname}`, "i"),
                   },
                 },
-                8,
+                fnamePartialScore,
                 0,
               ],
             },
@@ -314,16 +363,20 @@ export async function checkDuplicates({
   }
 
   // Company exact matching
-  if (company && company.length > 2) {
+  if (hasCompany) {
     query.$or.push({ company: company });
     query.$or.push({ company: { $regex: new RegExp(`^${company}`, "i") } });
+    
+    // Adjust company scoring based on precision
+    const companyExactScore = isHighPrecision ? 12 : isMediumPrecision ? 10 : 6;
+    const companyPartialScore = isHighPrecision ? 10 : isMediumPrecision ? 8 : 5;
     
     scoringPipeline.push({
       $addFields: {
         companyMatch: {
           $cond: [
             { $eq: ["$company", company] },
-            10,
+            companyExactScore,
             {
               $cond: [
                 {
@@ -332,7 +385,7 @@ export async function checkDuplicates({
                     regex: new RegExp(`^${company}`, "i"),
                   },
                 },
-                8,
+                companyPartialScore,
                 0,
               ],
             },
@@ -343,7 +396,8 @@ export async function checkDuplicates({
     hasSearchableData = true;
   }
 
-  if (!hasSearchableData || query.$or.length === 0) {
+  // Ensure we have at least lname to proceed
+  if (!hasLname || query.$or.length === 0) {
     return { matches: [] };
   }
 
@@ -420,7 +474,7 @@ export async function checkDuplicates({
 
       if (clientIds.length > 0) {
         // Run service queries in parallel with increased timeouts
-        const [wmmClients, hrgClients, fomClients, calClients] = await Promise.all([
+        const [wmmClients, hrgClients, fomClients, calClients, promoClients, complimentaryClients] = await Promise.all([
           WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
             .maxTimeMS(5000)
             .lean()
@@ -441,6 +495,16 @@ export async function checkDuplicates({
             .lean()
             .exec()
             .catch(() => []),
+          PromoModel.distinct("clientid", { clientid: { $in: clientIds } })
+            .maxTimeMS(5000)
+            .lean()
+            .exec()
+            .catch(() => []),
+          ComplimentaryModel.distinct("clientid", { clientid: { $in: clientIds } })
+            .maxTimeMS(5000)
+            .lean()
+            .exec()
+            .catch(() => []),
         ]);
 
         clientsWithServices = clients.map((client) => {
@@ -452,6 +516,8 @@ export async function checkDuplicates({
             if (hrgClients.includes(clientId)) clientCopy.services.push("HRG");
             if (fomClients.includes(clientId)) clientCopy.services.push("FOM");
             if (calClients.includes(clientId)) clientCopy.services.push("CAL");
+            if (promoClients.includes(clientId)) clientCopy.services.push("PROMO");
+            if (complimentaryClients.includes(clientId)) clientCopy.services.push("COMP");
           }
 
           return clientCopy;
