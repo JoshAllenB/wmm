@@ -232,17 +232,19 @@ export const useColumns = () => {
               const hasNonServiceFilters = row.hasNonServiceFilters === true;
               const recordsToProcess = hasNonServiceFilters ? [sortedRecords[0]] : sortedRecords;
 
-              return recordsToProcess.map((subscription) => {
-                let {
-                  subsdate,
-                  enddate,
-                  copies,
-                  subsclass,
-                  paymtref,
-                  paymtamt,
-                  calendar,
-                  referralid
-                } = subscription;
+              return recordsToProcess
+                .filter(subscription => subscription) // Filter out undefined/null subscriptions
+                .map((subscription) => {
+                  let {
+                    subsdate,
+                    enddate,
+                    copies,
+                    subsclass,
+                    paymtref,
+                    paymtamt,
+                    calendar,
+                    referralid
+                  } = subscription;
 
                 if (subsdate) {
                   subsdate = `${new Date(subsdate).toLocaleDateString(
