@@ -2,6 +2,32 @@ import { getModelInstance } from "./modelManager.mjs";
 import ClientModel from "../../../models/clients.mjs";
 import { parseDate, getSubscriptionModelName } from "./helpers.mjs";
 
+// Helper function to extract payment reference numbers from various formats
+const extractPaymentRefNumber = (input) => {
+  if (!input) return null;
+
+  // Common payment reference patterns
+  const patterns = [
+    /^(?:OR#?\s*)?(\d{5,6})$/i, // OR number: OR#12345 or 12345
+    /^(?:MS\s*)?(\d{6})$/i, // MS number: MS123456 or 123456
+    /^(?:GCASH\s*)?(\d{6,})$/i, // GCASH number
+    /^[A-Z]{2}\s*\d{6}$/i, // Two letters followed by 6 digits (MS 123456)
+    /^\d{4,}[A-Z]?$/, // 4+ digits optionally followed by a letter
+  ];
+
+  const inputStr = input.toString().trim();
+
+  // Check if input matches any of our payment reference patterns
+  for (const pattern of patterns) {
+    const match = inputStr.match(pattern);
+    if (match) {
+      return match[1] || match[0]; // Return the captured group if exists, otherwise full match
+    }
+  }
+
+  return null;
+};
+
 // Helper to get first and last day of a month from a date string
 function getMonthRange(dateString) {
   const d = new Date(dateString);
@@ -296,18 +322,56 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 
   // Add basic text search filter
   if (filter) {
-    const numericFilter = Number(filter);
-    const isNumeric = !isNaN(numericFilter);
-    baseFilter.push({
-      $or: [
-        ...(isNumeric ? [{ id: numericFilter }] : []),
-        { lname: { $regex: filter, $options: "i" } },
-        { fname: { $regex: filter, $options: "i" } },
-        { mname: { $regex: filter, $options: "i" } },
-        { sname: { $regex: filter, $options: "i" } },
-        { company: { $regex: filter, $options: "i" } },
-      ],
-    });
+    console.log("Filter:", filter);
+    // Check if it's a payment reference search
+    if (filter.toLowerCase().startsWith("ref:")) {
+      const paymentRef = filter.substring(4).trim();
+      if (paymentRef) {
+        try {
+          const WmmModel = await getModelInstance("WmmModel");
+
+          // Use the helper to extract the reference number
+          const extractedRef = extractPaymentRefNumber(paymentRef);
+          const searchPattern = extractedRef || paymentRef;
+
+          // Search in WMM Model for payment reference
+          const clientsWithPaymentRef = await WmmModel.find({
+            paymtref: { $regex: searchPattern, $options: "i" },
+          }).distinct("clientid");
+
+          if (clientsWithPaymentRef.length > 0) {
+            const validClientIds = clientsWithPaymentRef
+              .map((id) => parseInt(id))
+              .filter((id) => !isNaN(id));
+
+            if (validClientIds.length > 0) {
+              baseFilter.push({ id: { $in: validClientIds } });
+            } else {
+              baseFilter.push({ id: -1 }); // No matches if invalid IDs
+            }
+          } else {
+            baseFilter.push({ id: -1 }); // No matches if no payment refs found
+          }
+        } catch (error) {
+          console.error("Error in payment reference filtering:", error);
+          baseFilter.push({ id: -1 }); // No matches on error
+        }
+      }
+    } else {
+      // Handle regular search (client ID, names)
+      const numericFilter = Number(filter);
+      const isNumeric = !isNaN(numericFilter);
+      baseFilter.push({
+        $or: [
+          ...(isNumeric ? [{ id: numericFilter }] : []),
+          { lname: { $regex: filter, $options: "i" } },
+          { fname: { $regex: filter, $options: "i" } },
+          { mname: { $regex: filter, $options: "i" } },
+          { sname: { $regex: filter, $options: "i" } },
+          { company: { $regex: filter, $options: "i" } },
+        ],
+      });
+    }
   }
 
   // Add full name search
@@ -664,7 +728,10 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
     const modelName = getSubscriptionModelName(subscriptionType);
     const SubscriptionModel = await getModelInstance(modelName);
     const paymentRef = advancedFilterData.paymentRef.trim();
-    let refPattern = paymentRef;
+
+    // Use the helper to extract the reference number
+    const extractedRef = extractPaymentRefNumber(paymentRef);
+    let refPattern = extractedRef || paymentRef;
 
     const msMatch = paymentRef.match(/^([A-Z]{2})\s*(\d{6})/i);
     if (msMatch) {
