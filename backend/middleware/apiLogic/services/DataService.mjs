@@ -25,6 +25,12 @@ class DataService {
       // Ensure subscription type is set
       const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
 
+      // Check if this is a search query
+      const isSearchQuery = filter && filter.trim() !== "";
+      const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+      const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
+      const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
+
       // Check if there are any filters besides services
       const hasNonServiceFilters = Object.keys(advancedFilterData).some(key => 
         key !== 'services' && 
@@ -55,8 +61,16 @@ class DataService {
         .exec();
       const filteredIds = allFilteredClientIds.map(client => client.id);
 
-      // Adjust model names based on subscription type using helper function
-      const adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
+      // For search queries, use ALL models regardless of user roles
+      let adjustedModelNames;
+      if (isSearchQuery) {
+        // Use all available models for search queries
+        adjustedModelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"];
+        console.log("Using all models for search query:", filter);
+      } else {
+        // Use role-based models for non-search queries
+        adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
+      }
 
       // Get paginated data for display with subscription type
       const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
@@ -103,7 +117,7 @@ class DataService {
       const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
 
       // Build client services based on subscription type
-      const clientServices = this._buildClientServices(enrichedData, subscriptionType);
+      const clientServices = this._buildClientServices(enrichedData, subscriptionType, isSearchQuery);
 
       // Prepare response
       const response = {
@@ -132,26 +146,37 @@ class DataService {
     return clients;
   }
 
-  _buildClientServices(combinedData, subscriptionType) {
+  _buildClientServices(combinedData, subscriptionType, isSearchQuery = false) {
     return combinedData.map(client => {
       const services = [];
       
-      // Add subscription service based on type
-      switch(subscriptionType) {
-        case 'Promo':
-          if (client.promoData) services.push('PROMO');
-          break;
-        case 'Complimentary':
-          if (client.compData) services.push('COMP');
-          break;
-        default:
-          if (client.wmmData) services.push('WMM');
-      }
+      // For search queries, include all available services
+      if (isSearchQuery) {
+        // Add all subscription services that exist
+        if (client.wmmData) services.push('WMM');
+        if (client.promoData) services.push('PROMO');
+        if (client.compData) services.push('COMP');
+        if (client.hrgData) services.push('HRG');
+        if (client.fomData) services.push('FOM');
+        if (client.calData) services.push('CAL');
+      } else {
+        // Add subscription service based on type
+        switch(subscriptionType) {
+          case 'Promo':
+            if (client.promoData) services.push('PROMO');
+            break;
+          case 'Complimentary':
+            if (client.compData) services.push('COMP');
+            break;
+          default:
+            if (client.wmmData) services.push('WMM');
+        }
 
-      // Add other services
-      if (client.hrgData) services.push('HRG');
-      if (client.fomData) services.push('FOM');
-      if (client.calData) services.push('CAL');
+        // Add other services
+        if (client.hrgData) services.push('HRG');
+        if (client.fomData) services.push('FOM');
+        if (client.calData) services.push('CAL');
+      }
       
       // Add group-based services
       if (client.group) {
@@ -178,10 +203,24 @@ class DataService {
     } = params;
 
     try {
-      // Ensure modelNames is an array
-      const validModelNames = Array.isArray(modelNames) ? modelNames : [];
-      if (validModelNames.length === 0) {
-        throw new Error('No valid model names provided');
+      // Check if this is a search query
+      const isSearchQuery = filter && filter.trim() !== "";
+      const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+      const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
+      const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
+
+      // For search queries, use ALL models regardless of user roles
+      let validModelNames;
+      if (isSearchQuery) {
+        // Use all available models for search queries
+        validModelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"];
+        console.log("Using all models for search query in fetchAllData:", filter);
+      } else {
+        // Use role-based models for non-search queries
+        validModelNames = Array.isArray(modelNames) ? modelNames : [];
+        if (validModelNames.length === 0) {
+          throw new Error('No valid model names provided');
+        }
       }
 
       // Build filter query
@@ -213,7 +252,7 @@ class DataService {
       const response = {
         stats,
         combinedData,
-        clientServices: this._buildClientServices(combinedData)
+        clientServices: this._buildClientServices(combinedData, advancedFilterData.subscriptionType || 'WMM', isSearchQuery)
       };
 
       return response;

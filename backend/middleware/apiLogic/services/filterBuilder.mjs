@@ -218,6 +218,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   const baseFilter = [];
   let hasIncludedIds = false;
   let includedIds = [];
+  let filterQuery = {}; // Initialize filterQuery early for scoring
+
+  // Check if this is a search-based query (names, client ID, or payment ref)
+  const isSearchQuery = filter && filter.trim() !== "";
+  const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+  const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
+  const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
   // Handle client ID inclusion first
   if (advancedFilterData.includeClientIds) {
@@ -328,19 +335,40 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       const paymentRef = filter.substring(4).trim();
       if (paymentRef) {
         try {
+          // Search across ALL subscription models for payment references
           const WmmModel = await getModelInstance("WmmModel");
+          const PromoModel = await getModelInstance("PromoModel");
+          const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+          const FomModel = await getModelInstance("FomModel");
+          const HrgModel = await getModelInstance("HrgModel");
+          const CalModel = await getModelInstance("CalModel");
 
           // Use the helper to extract the reference number
           const extractedRef = extractPaymentRefNumber(paymentRef);
           const searchPattern = extractedRef || paymentRef;
 
-          // Search in WMM Model for payment reference
-          const clientsWithPaymentRef = await WmmModel.find({
-            paymtref: { $regex: searchPattern, $options: "i" },
-          }).distinct("clientid");
+          // Search in ALL models for payment reference
+          const [wmmClients, promoClients, complimentaryClients, fomClients, hrgClients, calClients] = await Promise.all([
+            WmmModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
+            PromoModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
+            ComplimentaryModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
+            FomModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
+            HrgModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
+            CalModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid")
+          ]);
 
-          if (clientsWithPaymentRef.length > 0) {
-            const validClientIds = clientsWithPaymentRef
+          // Combine all client IDs from all models
+          const allClientIds = [
+            ...wmmClients,
+            ...promoClients,
+            ...complimentaryClients,
+            ...fomClients,
+            ...hrgClients,
+            ...calClients
+          ];
+
+          if (allClientIds.length > 0) {
+            const validClientIds = allClientIds
               .map((id) => parseInt(id))
               .filter((id) => !isNaN(id));
 
@@ -358,42 +386,125 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         }
       }
     } else {
-      // Handle regular search (client ID, names)
+      // Handle regular search (client ID, names, company names)
       const numericFilter = Number(filter);
       const isNumeric = !isNaN(numericFilter);
-      baseFilter.push({
-        $or: [
-          ...(isNumeric ? [{ id: numericFilter }] : []),
-          { lname: { $regex: filter, $options: "i" } },
-          { fname: { $regex: filter, $options: "i" } },
-          { mname: { $regex: filter, $options: "i" } },
-          { sname: { $regex: filter, $options: "i" } },
-          { company: { $regex: filter, $options: "i" } },
-        ],
-      });
+      
+      // Check if the search term contains spaces (likely a full name or company name)
+      const hasSpaces = filter.includes(" ");
+      
+      if (hasSpaces) {
+        // Handle full names and company names with spaces
+        const searchTerms = filter.split(/\s+/).filter(term => term.trim() !== "");
+        
+        if (searchTerms.length > 0) {
+          const searchQueries = [];
+          
+          // Add exact full name/company match
+          searchQueries.push({
+            $or: [
+              { company: { $regex: filter, $options: "i" } },
+              // Try to match as full name (first + last name)
+              {
+                $and: [
+                  { fname: { $regex: searchTerms[0], $options: "i" } },
+                  { lname: { $regex: searchTerms[1] || "", $options: "i" } }
+                ]
+              },
+              // Try reverse order (last + first name)
+              {
+                $and: [
+                  { lname: { $regex: searchTerms[0], $options: "i" } },
+                  { fname: { $regex: searchTerms[1] || "", $options: "i" } }
+                ]
+              }
+            ]
+          });
+          
+          // Add partial matches for each search term
+          searchQueries.push({
+            $or: searchTerms.map(term => ({
+              $or: [
+                { fname: { $regex: term, $options: "i" } },
+                { lname: { $regex: term, $options: "i" } },
+                { mname: { $regex: term, $options: "i" } },
+                { sname: { $regex: term, $options: "i" } },
+                { company: { $regex: term, $options: "i" } }
+              ]
+            }))
+          });
+          
+          baseFilter.push({ $or: searchQueries });
+        }
+      } else {
+        // Handle single word searches (client ID, single names, company names)
+        baseFilter.push({
+          $or: [
+            ...(isNumeric ? [{ id: numericFilter }] : []),
+            { lname: { $regex: filter, $options: "i" } },
+            { fname: { $regex: filter, $options: "i" } },
+            { mname: { $regex: filter, $options: "i" } },
+            { sname: { $regex: filter, $options: "i" } },
+            { company: { $regex: filter, $options: "i" } },
+          ],
+        });
+      }
     }
   }
 
   // Add full name search
   if (advancedFilterData.fullName) {
     const fullName = advancedFilterData.fullName.trim();
-    const nameParts = fullName.split(/\s+/);
+    const nameParts = fullName.split(/\s+/).filter(part => part.trim() !== "");
 
     if (nameParts.length > 0) {
       const nameQueries = [];
+      
+      // Add exact company name match
       nameQueries.push({ company: { $regex: fullName, $options: "i" } });
 
       if (nameParts.length > 1) {
+        // Handle full names with multiple parts
         nameQueries.push({
-          $and: nameParts.map((part) => ({
-            $or: [
-              { fname: { $regex: part, $options: "i" } },
-              { lname: { $regex: part, $options: "i" } },
-              { mname: { $regex: part, $options: "i" } },
-              { sname: { $regex: part, $options: "i" } },
-              { company: { $regex: part, $options: "i" } },
-            ],
-          })),
+          $or: [
+            // Try to match as full name (first + last name)
+            {
+              $and: [
+                { fname: { $regex: nameParts[0], $options: "i" } },
+                { lname: { $regex: nameParts[1], $options: "i" } }
+              ]
+            },
+            // Try reverse order (last + first name)
+            {
+              $and: [
+                { lname: { $regex: nameParts[0], $options: "i" } },
+                { fname: { $regex: nameParts[1], $options: "i" } }
+              ]
+            },
+            // Try to match any combination of name parts
+            {
+              $and: nameParts.map((part) => ({
+                $or: [
+                  { fname: { $regex: part, $options: "i" } },
+                  { lname: { $regex: part, $options: "i" } },
+                  { mname: { $regex: part, $options: "i" } },
+                  { sname: { $regex: part, $options: "i" } },
+                  { company: { $regex: part, $options: "i" } },
+                ],
+              })),
+            }
+          ]
+        });
+      } else {
+        // Handle single word names
+        nameQueries.push({
+          $or: [
+            { fname: { $regex: nameParts[0], $options: "i" } },
+            { lname: { $regex: nameParts[0], $options: "i" } },
+            { mname: { $regex: nameParts[0], $options: "i" } },
+            { sname: { $regex: nameParts[0], $options: "i" } },
+            { company: { $regex: nameParts[0], $options: "i" } },
+          ],
         });
       }
 
@@ -410,8 +521,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     }
   }
 
-  // Add service-specific filters
-  await addServiceFilters(baseFilter, advancedFilterData);
+  // Add service-specific filters (bypass if this is a search query)
+  // Only apply service filters if this is NOT a search query
+  if (!isSearchQuery) {
+    await addServiceFilters(baseFilter, advancedFilterData);
+  } else {
+    console.log("Bypassing service role filters for search query:", filter);
+  }
 
   // Add personal info field filters
   addPersonalInfoFilters(baseFilter, advancedFilterData);
@@ -629,8 +745,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   }
 
   // At the end, before returning the query:
-  let filterQuery;
-
   if (hasIncludedIds) {
     // If we have included IDs, create an $or condition that will match either:
     // 1. The specifically included IDs
