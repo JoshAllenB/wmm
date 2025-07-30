@@ -40,7 +40,7 @@ import {
 const AllClient = () => {
   const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
-  const debouncedFiltering = useDebounce(filtering, 300);
+  const debouncedFiltering = useDebounce(filtering, 500); // Increased from 300 to 500ms
   const [pageSize, setPageSize] = useState(20);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
@@ -191,11 +191,31 @@ const AllClient = () => {
   const [isLoading, setIsLoading] = useState(true);
   const initialLoadComplete = useRef(false);
   const lastFilterRef = useRef(null);
+  const currentRequestRef = useRef(null); // Add this to track current request
 
   // Create a dependency value that will change when services changes
   const servicesDependency = Array.isArray(advancedFilterData.services)
     ? advancedFilterData.services.join(",")
     : "";
+
+  // Memoize the current filter snapshot to prevent unnecessary re-renders
+  const currentFilterSnapshot = useMemo(() => {
+    return JSON.stringify({
+      services: advancedFilterData.services,
+      page,
+      filtering: debouncedFiltering,
+      group: selectedGroup,
+      addedToday,
+      subscriptionType,
+    });
+  }, [
+    advancedFilterData.services,
+    page,
+    debouncedFiltering,
+    selectedGroup,
+    addedToday,
+    subscriptionType,
+  ]);
 
   // Memoized parsing function for tagged search
   const parseTaggedSearch = useMemo(() => {
@@ -250,10 +270,15 @@ const AllClient = () => {
         !filters.fullName &&
         searchValue.includes(" ") &&
         !filters.clientId &&
-        !filters.paymentRef
+        !filters.paymentRef &&
+        searchValue.trim().length > 0
       ) {
-        filters.fullName = searchValue;
-        searchValue = ""; // Since we're treating the whole thing as a full name
+        // Check if it looks like a name (contains letters and spaces, not just numbers)
+        const namePattern = /^[a-zA-Z\s]+$/;
+        if (namePattern.test(searchValue.trim())) {
+          filters.fullName = searchValue.trim();
+          searchValue = ""; // Since we're treating the whole thing as a full name
+        }
       }
 
       // Any remaining text is treated as a general search
@@ -274,6 +299,15 @@ const AllClient = () => {
       overrideSubscriptionType = null
     ) => {
       try {
+        // Cancel any existing request
+        if (currentRequestRef.current) {
+          currentRequestRef.current.cancel = true;
+        }
+
+        // Create a new request ID
+        const requestId = Date.now();
+        currentRequestRef.current = { id: requestId, cancel: false };
+
         // Show loading state if it will take time
         if (Object.keys(advancedFilterData).length > 2) {
           setIsLoading(true);
@@ -380,6 +414,11 @@ const AllClient = () => {
 
         const currentSubscriptionType = overrideSubscriptionType || subscriptionType;
 
+        // Check if request was cancelled before making the API call
+        if (currentRequestRef.current?.cancel) {
+          return null;
+        }
+
         const response = await fetchClients(
           currentPage,
           currentPageSize,
@@ -388,6 +427,12 @@ const AllClient = () => {
           filtersToUse,
           currentSubscriptionType
         );
+
+        // Check if request was cancelled during the API call
+        if (currentRequestRef.current?.cancel || currentRequestRef.current?.id !== requestId) {
+          setIsLoading(false);
+          return null;
+        }
 
         // Skip state updates if the request was cancelled (response is null)
         if (!response) {
@@ -497,12 +542,21 @@ const AllClient = () => {
     }, 100);
   }, [
     hasRole,
-    advancedFilterData, // Since we're spreading this, we need it as a dependency
+    JSON.stringify(advancedFilterData), // Since we're spreading this, we need it as a dependency
     page,
     debouncedFiltering,
     selectedGroup,
     addedToday,
   ]);
+
+  // Cleanup effect to cancel pending requests on unmount
+  useEffect(() => {
+    return () => {
+      if (currentRequestRef.current) {
+        currentRequestRef.current.cancel = true;
+      }
+    };
+  }, []);
 
   // Main data loading effect (runs AFTER role-based services are set)
   useEffect(() => {
@@ -511,22 +565,18 @@ const AllClient = () => {
       return;
     }
 
-    // Create a snapshot of the current filter
-    const currentFilter = JSON.stringify({
-      services: advancedFilterData.services,
-      page,
-      filtering: debouncedFiltering,
-      group: selectedGroup,
-      addedToday,
-    });
+    // Skip if search term is too short (less than 2 characters) unless it's empty
+    if (debouncedFiltering && debouncedFiltering.trim().length < 2) {
+      return;
+    }
 
     // If this is the same as our last filter, skip to prevent bouncing
-    if (lastFilterRef.current === currentFilter) {
+    if (lastFilterRef.current === currentFilterSnapshot) {
       return;
     }
 
     // Update our last filter reference
-    lastFilterRef.current = currentFilter;
+    lastFilterRef.current = currentFilterSnapshot;
 
     // Use a single fetch call with a slight delay to avoid race conditions
     const fetchTimer = setTimeout(() => {
@@ -537,21 +587,15 @@ const AllClient = () => {
         selectedGroup,
         advancedFilterData
       );
-    }, 50); // Small delay to debounce multiple sequential state updates
+    }, 100); // Increased delay to better debounce multiple sequential state updates
 
     // Clean up timeout if component unmounts or dependencies change
     return () => clearTimeout(fetchTimer);
   }, [
-    page,
+    currentFilterSnapshot, // Use memoized snapshot instead of individual dependencies
     pageSize,
-    debouncedFiltering, // Already debounced so this won't cause rapid re-renders
-    selectedGroup,
-    fetchData,
-    advancedFilterData,
-    servicesDependency, // This is calculated from advancedFilterData.services
-    addedToday,
     isLoading, // Only run when loading is complete
-    subscriptionType, // Add subscription type to dependencies
+    // Removed individual dependencies since they're now in currentFilterSnapshot
   ]);
 
   const handleDeleteSuccess = useCallback(
@@ -577,12 +621,16 @@ const AllClient = () => {
   // Update handleSearchChange function
   const handleSearchChange = (e) => {
     const value = e.target.value;
-    setFiltering(value);
-    setPage(1);
+    
+    // Only update if the value actually changed
+    if (value !== filtering) {
+      setFiltering(value);
+      setPage(1);
 
-    // Auto-disable Added Today filter when search is used
-    if (value.trim() !== "") {
-      setAddedToday(false);
+      // Auto-disable Added Today filter when search is used
+      if (value.trim() !== "" && addedToday) {
+        setAddedToday(false);
+      }
     }
   };
 
@@ -671,15 +719,6 @@ const AllClient = () => {
     // Update state and trigger data fetch
     setAdvancedFilterData(formattedFilterData);
     setPage(1); // Reset to first page with new filters
-
-    // Directly fetch data with the new filter to avoid bouncing
-    fetchData(
-      1,
-      pageSize,
-      debouncedFiltering,
-      selectedGroup,
-      formattedFilterData
-    );
   };
 
   // Update the getActiveFilters function to display tagged search filters
@@ -1258,12 +1297,24 @@ const AllClient = () => {
       />
 
       <div className="flex gap-4 mb-4">
-        <Input
-          placeholder="Search by name, company, ID, or payment ref (e.g., MS 001234 or ref:MS 001234)"
-          value={filtering}
-          onChange={handleSearchChange}
-          className="max-w-sm"
-        />
+        <div className="relative max-w-sm">
+          <Input
+            placeholder="Search by full name, company, ID, or payment ref (e.g., 'rodrigo remedios', 'MS 001234', or ref:MS 001234)"
+            value={filtering}
+            onChange={handleSearchChange}
+            className="max-w-sm"
+          />
+          {isLoading && filtering && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+            </div>
+          )}
+          {filtering && filtering.trim().length === 1 && (
+            <div className="absolute -bottom-6 left-0 text-xs text-gray-500">
+              Type at least 2 characters to search
+            </div>
+          )}
+        </div>
         <AdvancedFilter
           onApplyFilter={handleApplyFilter}
           groups={groups}
