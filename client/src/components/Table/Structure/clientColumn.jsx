@@ -363,7 +363,7 @@ export const useColumns = () => {
             size: 250,
           },
           // Added Info column - only show for WMM role but not for HRG FOM CAL combined role
-          ...(userRole !== "HRG FOM CAL" && userRole !== "Admin"
+          ...(userRole !== "HRG FOM CAL"
             ? [
                 {
                   id: "Added Info",
@@ -379,7 +379,7 @@ export const useColumns = () => {
         ]
       : []),
     // Always include HRG data column if the user has HRG role or Admin role
-    ...(hasRole("HRG")
+    ...(hasRole("HRG") || hasRole("Admin")
       ? [
           {
             id: "HRG Data",
@@ -647,8 +647,8 @@ export const useColumns = () => {
           },
         ]
       : []),
-    // Always include CAL data column if the user has CAL role or Admin role
-    ...(hasRole("CAL") || hasRole("Admin")
+    // Always include CAL data column if the user has CAL role
+    ...(hasRole("CAL")
       ? [
           {
             id: "CAL Data",
@@ -741,6 +741,20 @@ export const useColumns = () => {
               );
             },
             size: 300,
+          },
+        ]
+      : []),
+    // Always include ADDED BY column for Admin role
+    ...(hasRole("Admin")
+      ? [
+          {
+            id: "Added By",
+            Header: "Added By",
+            accessorFn: (row) =>
+              `By: ${row.adduser || "N/A"}, Date: ${
+                row.adddate || "N/A"
+              }`,
+            size: 150,
           },
         ]
       : []),
