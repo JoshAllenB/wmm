@@ -1,5 +1,4 @@
-import { getModelInstance } from "../apiLogic/services/modelManager.mjs";
-import ClientModel from "../../models/clients.mjs";
+import { getModelInstance, ClientModel } from "../apiLogic/services/modelManager.mjs";
 
 export async function getDonorRecipientData({
   page = 1,
@@ -10,14 +9,63 @@ export async function getDonorRecipientData({
 } = {}) {
   const WmmModel = await getModelInstance("WmmModel");
 
+  // Build search conditions
+  let searchConditions = [
+    { $expr: { $ne: ["$clientid", "$donorid"] } },
+    { donorid: { $ne: 0 } },
+  ];
+
+  // Add search functionality for ClientID and client name/company
+  if (searchTerm && searchTerm.trim()) {
+    const trimmedSearchTerm = searchTerm.trim();
+    
+    // Build search conditions for client lookup
+    const clientSearchConditions = [];
+    
+    // Check if search term is a number (for ID search)
+    const isNumeric = !isNaN(trimmedSearchTerm) && !isNaN(parseFloat(trimmedSearchTerm));
+    
+    if (isNumeric) {
+      // If numeric, search for exact ID match
+      clientSearchConditions.push({ id: parseInt(trimmedSearchTerm) });
+    }
+    
+    // Always search in string fields (name and company)
+    clientSearchConditions.push(
+      { fname: { $regex: trimmedSearchTerm, $options: "i" } },
+      { lname: { $regex: trimmedSearchTerm, $options: "i" } },
+      { company: { $regex: trimmedSearchTerm, $options: "i" } }
+    );
+    
+    // First, get client IDs that match the search term
+    const matchingClients = await ClientModel.find({
+      $or: clientSearchConditions,
+    }, { id: 1 }).lean();
+
+    const matchingClientIds = matchingClients.map(client => client.id);
+    
+    if (matchingClientIds.length > 0) {
+      searchConditions.push({
+        $or: [
+          { donorid: { $in: matchingClientIds } },
+          { clientid: { $in: matchingClientIds } },
+        ],
+      });
+    } else {
+      // If no matching clients found, return empty result
+      return {
+        data: [],
+        totalPages: 0,
+        totalRecords: 0,
+      };
+    }
+  }
+
   //1. Get all gift subscriptions from these donors
   const giftSubscriptions = await WmmModel.aggregate([
     {
       $match: {
-        $and: [
-          { $expr: { $ne: ["$clientid", "$donorid"] } },
-          { donorid: { $ne: 0 } },
-        ],
+        $and: searchConditions,
       },
     },
     { $sort: { donorid: 1, subsdate: -1 } },
@@ -138,10 +186,7 @@ export async function getDonorRecipientData({
   const totalRecords = await WmmModel.aggregate([
     {
       $match: {
-        $and: [
-          { $expr: { $ne: ["$clientid", "$donorid"] } },
-          { donorid: { $ne: 0 } },
-        ],
+        $and: searchConditions,
       },
     },
     {

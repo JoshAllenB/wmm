@@ -1,9 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "../ShadCN/button";
 import { Input } from "../ShadCN/input";
 import DataTable from "../../Table/DataTable";
 import { useDonorColumns } from "../../Table/Structure/donorColumn";
 import { getDonorRecipientData } from "../../Table/Data/donorData";
+import useDebounce from "../../../utils/Hooks/useDebounce";
 
 const Donor = () => {
   const [filtering, setFiltering] = useState("");
@@ -16,6 +17,9 @@ const Donor = () => {
   const [sorting, setSorting] = useState([{ id: "DonorName", desc: false }]);
 
   const columns = useDonorColumns();
+  
+  // Debounce the search term
+  const debouncedSearchTerm = useDebounce(filtering, 500);
 
   const handleFetch = useCallback(
     async (page, pageSize, searchTerm) => {
@@ -25,11 +29,9 @@ const Donor = () => {
         const response = await getDonorRecipientData({
           page,
           pageSize,
-          searchTerm,
+          searchTerm: searchTerm || debouncedSearchTerm,
           sorting: sorting[0],
         });
-
-        console.log("Processed response:", response);
 
         setData(response.data);
         setTotalPages(response.totalPages);
@@ -43,14 +45,12 @@ const Donor = () => {
         setIsLoading(false);
       }
     },
-    [sorting]
+    [sorting, debouncedSearchTerm]
   );
 
   // Memoize the search handler to prevent unnecessary re-renders
   const handleSearchChange = useCallback((e) => {
     setFiltering(e.target.value);
-    // Reset to page 1 when searching
-    setPage(1);
   }, []);
 
   // Memoize the refresh handler
@@ -58,13 +58,21 @@ const Donor = () => {
     handleFetch(1, pageSize);
   }, [pageSize, handleFetch]);
 
+  // Effect to trigger search when debounced term changes
+  useEffect(() => {
+    if (debouncedSearchTerm !== filtering) {
+      setPage(1); // Reset to first page when searching
+      handleFetch(1, pageSize, debouncedSearchTerm);
+    }
+  }, [debouncedSearchTerm, pageSize, handleFetch]);
+
   return (
     <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex gap-4 mb-4">
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-sm">
             <Input
-              placeholder="Search donors by name or ID"
+              placeholder="Search by Client ID, donor name, or company"
               value={filtering}
               onChange={handleSearchChange}
               className="pr-8"

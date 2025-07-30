@@ -21,10 +21,7 @@ export const getDonorRecipientData = async ({
         },
       }
     );
-    console.log("response.data", response.data);
-    console.log(
-      `Fetched donor-recipient data: ${response.data.length} records`
-    );
+
     return {
       data: response.data.data || response.data, // handle both structures
       totalPages: response.data.totalPages || 1,
