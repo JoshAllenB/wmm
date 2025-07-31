@@ -324,8 +324,16 @@ const initWebSocket = (io) => {
             ...(processedData.group === 'MCCJ' ? ['MCCJ'] : [])
           ]));
 
+            // Emit the standardized data update - MODIFY THIS SECTION
+            const emitData = {
+              type: updateData.type || 'update',
+              data: processedData, // This is the properly formatted data
+              timestamp: Date.now(),
+              sourceUserId: userId
+            };
+  
           // Emit the standardized data update
-          io.emit("data-update", formatDataEvent(updateData.type || 'update', processedData, userId));
+          io.emit("data-update", emitData);
 
         } catch (error) {
           console.error("[Socket] Error processing data update:", error);

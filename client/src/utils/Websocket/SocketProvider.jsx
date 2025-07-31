@@ -59,6 +59,7 @@ export const SocketProvider = ({ children }) => {
     if (!connected) return;
 
     const handleSocketData = (data) => {
+      console.log("[SocketProvider] Socket data:", data);
       // Ensure data has required fields
       const processedData = {
         type: data?.type || 'unknown',

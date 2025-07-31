@@ -337,88 +337,191 @@ export default function DataTable({
   }, [table, setTableInstance, rowSelection, localData]);
 
   // Handle socket updates with improved sync logic
-  useEffect(() => {
-    if (!socketData) return;
+useEffect(() => {
+  if (!socketData) return;
 
-    // Handle sync events
-    if (socketData.type === "sync-complete") {
-      setIsSyncing(false);
-      lastSyncRef.current = Date.now();
-      fetchData(true);
-      return;
+  console.log("[DataTable] Received socket update:", socketData);
+
+  // Handle sync events
+  if (socketData.type === "sync-complete") {
+    setIsSyncing(false);
+    lastSyncRef.current = Date.now();
+    // Use fetchData with current filter state
+    fetchData(true);
+    return;
+  }
+
+  if (socketData.type === "sync-start") {
+    setIsSyncing(true);
+    return;
+  }
+
+  // Skip updates during sync
+  if (isSyncing) {
+    console.log("[DataTable] Skipping update during sync");
+    return;
+  }
+
+  // For normal updates, apply them to the local data
+  setLocalData((prevData) => {
+    if (!Array.isArray(prevData)) {
+      console.warn("[DataTable] Previous data is not an array:", prevData);
+      return prevData;
     }
 
-    if (socketData.type === "sync-start") {
-      setIsSyncing(true);
-      return;
+    // Skip updates that are older than our last sync
+    if (socketData.timestamp && socketData.timestamp < lastSyncRef.current) {
+      console.log("[DataTable] Skipping old update:", socketData);
+      return prevData;
     }
 
-    // Skip updates during sync
-    if (isSyncing) {
-      return;
+    // Don't update if we don't have any data yet
+    if (!currentDataRef.current) {
+      console.log("[DataTable] No current data, requesting sync");
+      socket.emit("request-data-sync", {
+        timestamp: Date.now()
+      });
+      return prevData;
     }
 
-    // For normal updates, apply them to the local data
-    setLocalData((prevData) => {
-      // Skip updates that are older than our last sync
-      if (socketData.timestamp && socketData.timestamp < lastSyncRef.current) {
-        return prevData;
-      }
+    const processedData = Array.isArray(socketData) ? socketData[0] : socketData;
+    console.log("[DataTable] Processing update:", processedData);
 
-      // Don't update if we don't have any data yet
-      if (!currentDataRef.current) {
-        socket.emit("request-data-sync", {
-          timestamp: Date.now()
-        });
-        return prevData;
-      }
-
-      const updatedData = (() => {
-        switch (socketData.type) {
-          case "add":
-            if (!prevData.some((item) => item.id === socketData.data.id)) {
-              return [{
-                ...socketData.data,
-                wmmData: socketData.data.wmmData || [],
-                hrgData: socketData.data.hrgData || [],
-                fomData: socketData.data.fomData || [],
-                calData: socketData.data.calData || [],
-                services: socketData.data.services || []
-              }, ...prevData];
-            }
-            return prevData;
-          case "update":
-            return prevData.map((item) => {
-              if (item.id === socketData.data.id) {
-                // Deep merge subscription arrays
-                const updatedItem = {
-                    ...item,
-                    ...socketData.data,
-                  // Only override subscription data if the new data has items
-                  wmmData: socketData.data.wmmData?.length > 0 ? socketData.data.wmmData : (item.wmmData || []),
-                  hrgData: socketData.data.hrgData?.length > 0 ? socketData.data.hrgData : (item.hrgData || []),
-                  fomData: socketData.data.fomData?.length > 0 ? socketData.data.fomData : (item.fomData || []),
-                  calData: socketData.data.calData?.length > 0 ? socketData.data.calData : (item.calData || []),
-                    // Merge services arrays without duplicates
-                    services: Array.from(new Set([
-                      ...(item.services || []),
-                      ...(socketData.data.services || [])
-                    ]))
-                };
-                return updatedItem;
-              }
-              return item;
-            });
-          case "delete":
-            return prevData.filter((item) => item.id !== socketData.data.id);
-          default:
-            return prevData;
+    const updatedData = (() => {
+      switch (processedData.type) {
+        case "add": {
+          if (!prevData.some((item) => item.id === processedData.data.id)) {
+            const newData = [{
+              ...processedData.data,
+              wmmData: {
+                records: Array.isArray(processedData.data.wmmData?.records) 
+                  ? processedData.data.wmmData.records 
+                  : Array.isArray(processedData.data.wmmData) 
+                    ? processedData.data.wmmData 
+                    : []
+              },
+              hrgData: {
+                records: Array.isArray(processedData.data.hrgData?.records) 
+                  ? processedData.data.hrgData.records 
+                  : Array.isArray(processedData.data.hrgData) 
+                    ? processedData.data.hrgData 
+                    : []
+              },
+              fomData: {
+                records: Array.isArray(processedData.data.fomData?.records) 
+                  ? processedData.data.fomData.records 
+                  : Array.isArray(processedData.data.fomData) 
+                    ? processedData.data.fomData 
+                    : []
+              },
+              calData: {
+                records: Array.isArray(processedData.data.calData?.records) 
+                  ? processedData.data.calData.records 
+                  : Array.isArray(processedData.data.calData) 
+                    ? processedData.data.calData 
+                    : []
+              },
+              promoData: {
+                records: Array.isArray(processedData.data.promoData?.records) 
+                  ? processedData.data.promoData.records 
+                  : Array.isArray(processedData.data.promoData) 
+                    ? processedData.data.promoData 
+                    : []
+              },
+              compData: {
+                records: Array.isArray(processedData.data.compData?.records) 
+                  ? processedData.data.compData.records 
+                  : Array.isArray(processedData.data.compData) 
+                    ? processedData.data.compData 
+                    : []
+              },
+              services: processedData.data.services || []
+            }, ...prevData];
+            console.log("[DataTable] Added new item:", newData[0]);
+            return newData;
+          }
+          return prevData;
         }
-      })();
+        case "update": {
+          const updatedData = prevData.map((item) => {
+            if (item.id === processedData.data.id) {
+              const updatedItem = {
+                ...item,
+                ...processedData.data,
+                wmmData: {
+                  records: Array.isArray(processedData.data.wmmData?.records) 
+                    ? processedData.data.wmmData.records 
+                    : Array.isArray(processedData.data.wmmData) 
+                      ? processedData.data.wmmData 
+                      : item.wmmData?.records || []
+                },
+                hrgData: {
+                  records: Array.isArray(processedData.data.hrgData?.records) 
+                    ? processedData.data.hrgData.records 
+                    : Array.isArray(processedData.data.hrgData) 
+                      ? processedData.data.hrgData 
+                      : item.hrgData?.records || []
+                },
+                fomData: {
+                  records: Array.isArray(processedData.data.fomData?.records) 
+                    ? processedData.data.fomData.records 
+                    : Array.isArray(processedData.data.fomData) 
+                      ? processedData.data.fomData 
+                      : item.fomData?.records || []
+                },
+                calData: {
+                  records: Array.isArray(processedData.data.calData?.records) 
+                    ? processedData.data.calData.records 
+                    : Array.isArray(processedData.data.calData) 
+                      ? processedData.data.calData 
+                      : item.calData?.records || []
+                },
+                promoData: {
+                  records: Array.isArray(processedData.data.promoData?.records) 
+                    ? processedData.data.promoData.records 
+                    : Array.isArray(processedData.data.promoData) 
+                      ? processedData.data.promoData 
+                      : item.promoData?.records || []
+                },
+                compData: {
+                  records: Array.isArray(processedData.data.compData?.records) 
+                    ? processedData.data.compData.records 
+                    : Array.isArray(processedData.data.compData) 
+                      ? processedData.data.compData 
+                      : item.compData?.records || []
+                },
+                services: Array.from(new Set([
+                  ...(item.services || []),
+                  ...(processedData.data.services || [])
+                ]))
+              };
+              console.log("[DataTable] Updated item:", updatedItem);
+              return updatedItem;
+            }
+            return item;
+          });
+          return updatedData;
+        }
+        case "delete":
+          const filteredData = prevData.filter((item) => item.id !== processedData.data.id);
+          console.log("[DataTable] Deleted item:", processedData.data.id);
+          return filteredData;
+        default:
+          console.log("[DataTable] Unknown update type:", processedData.type);
+          return prevData;
+      }
+    })();
 
-      return updatedData;
-    });
-  }, [socketData, socket, fetchData]);
+    // Trigger animation
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setIsTransitioning(false);
+      setAnimationComplete(true);
+    }, 300);
+
+    return updatedData;
+  });
+}, [socketData, socket, isSyncing, fetchData]);
 
   if (isLoading || localLoading) {
     return (

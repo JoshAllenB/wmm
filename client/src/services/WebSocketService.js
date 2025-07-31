@@ -250,23 +250,31 @@ class WebSocketService {
 
     // Add data update handler
     this.socket.on("data-update", (data) => {
+      // Handle case where data comes as an array
+      if (Array.isArray(data)) {
+        if (data.length === 0) {
+          console.warn("[WebSocket] Empty array received in data update");
+          return;
+        }
+        // Use the first item if it's an array
+        data = data[0];
+      }
 
-      // Ensure data has the correct structure
-      if (!data || !data.data) {
+      // Preserve filter state for updates
+      const preserveFilters = data.type === "update" || data.type === "add" || data.type === "delete";
+
+        // Ensure data has the correct structure
+      if (!data || typeof data !== 'object') {
         console.warn("[WebSocket] Invalid data update format:", data);
         return;
       }
 
-      // For add/update events, ensure we have the complete data
-      if ((data.type === 'add' || data.type === 'update') && !data.data.wmmData) {
-        console.warn("[WebSocket] Missing service data in update:", data.type);
-      }
+      const rawData = data.data || data;
 
       // Standardize the data structure
       const standardizedData = {
         type: data.type || 'update',
         data: {
-          ...data.data,
           // Ensure all required arrays exist with records structure
           wmmData: {
             records: Array.isArray(data.data.wmmData?.records) 
@@ -347,71 +355,7 @@ class WebSocketService {
         sourceUserId: data.sourceUserId
       };
 
-      // For filter-update type, ensure combinedData is present and properly structured
-      if (data.type === 'filter-update' && data.data.combinedData) {
-        standardizedData.data.combinedData = data.data.combinedData.map(client => ({
-          ...client,
-          wmmData: {
-            records: Array.isArray(client.wmmData?.records) 
-              ? client.wmmData.records 
-              : Array.isArray(client.wmmData) 
-                ? client.wmmData 
-                : []
-          },
-          hrgData: {
-            records: Array.isArray(client.hrgData?.records) 
-              ? client.hrgData.records 
-              : Array.isArray(client.hrgData) 
-                ? client.hrgData 
-                : []
-          },
-          fomData: {
-            records: Array.isArray(client.fomData?.records) 
-              ? client.fomData.records 
-              : Array.isArray(client.fomData) 
-                ? client.fomData 
-                : []
-          },
-          calData: {
-            records: Array.isArray(client.calData?.records) 
-              ? client.calData.records 
-              : Array.isArray(client.calData) 
-                ? client.calData 
-                : []
-          },
-          // Add Promo and Complimentary data
-          promoData: {
-            records: Array.isArray(client.promoData?.records) 
-              ? client.promoData.records 
-              : Array.isArray(client.promoData) 
-                ? client.promoData 
-                : []
-          },
-          compData: {
-            records: Array.isArray(client.compData?.records) 
-              ? client.compData.records 
-              : Array.isArray(client.compData) 
-                ? client.compData 
-                : []
-          },
-          services: Array.from(new Set([
-            ...(Array.isArray(client.services) ? client.services : []),
-            // Add service types based on data presence
-            ...(client.wmmData?.records?.length > 0 || client.wmmData?.length > 0 ? ['WMM'] : []),
-            ...(client.hrgData?.records?.length > 0 || client.hrgData?.length > 0 ? ['HRG'] : []),
-            ...(client.fomData?.records?.length > 0 || client.fomData?.length > 0 ? ['FOM'] : []),
-            ...(client.calData?.records?.length > 0 || client.calData?.length > 0 ? ['CAL'] : []),
-            ...(client.promoData?.records?.length > 0 || client.promoData?.length > 0 ? ['PROMO'] : []),
-            ...(client.compData?.records?.length > 0 || client.compData?.length > 0 ? ['COMP'] : []),
-            // Add group-based services
-            ...(client.group === 'DCS' ? ['DCS'] : []),
-            ...(client.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
-            ...(client.group === 'MCCJ' ? ['MCCJ'] : [])
-          ]))
-        }));
-      }
-
-      // Notify all subscribers
+      // Notify subscribers
       const handlers = this.eventHandlers.get("data-update") || new Set();
       handlers.forEach(handler => handler(standardizedData));
     });
@@ -499,7 +443,7 @@ class WebSocketService {
       if (this.sessionData.userId && this.sessionData.username) {
         this.connect({ query: this.sessionData });
         this.socket.once('connect', () => {
-          this.socket.emit(event, data);
+          this.socket.emit(event, this._formatEventData(event, data));
         });
         return;
       } else {
@@ -508,7 +452,84 @@ class WebSocketService {
       }
     }
     
-    this.socket.emit(event, data);
+    this.socket.emit(event, this._formatEventData(event, data));
+  }
+
+  _formatEventData(event, data) {
+    // Only format data-update events
+    if (event !== 'data-update') {
+      return data;
+    }
+
+    // If data is an array, take the first item
+    const updateData = Array.isArray(data) ? data[0] : data;
+    const clientData = updateData.data || updateData;
+
+    // Format the data according to the expected structure
+    return {
+      type: updateData.type || 'update',
+      data: {
+        ...clientData,
+        // Ensure service data has records structure
+        wmmData: {
+          records: Array.isArray(clientData.wmmData?.records)
+            ? clientData.wmmData.records
+            : Array.isArray(clientData.wmmData)
+              ? clientData.wmmData
+              : []
+        },
+        hrgData: {
+          records: Array.isArray(clientData.hrgData?.records)
+            ? clientData.hrgData.records
+            : Array.isArray(clientData.hrgData)
+              ? clientData.hrgData
+              : []
+        },
+        fomData: {
+          records: Array.isArray(clientData.fomData?.records)
+            ? clientData.fomData.records
+            : Array.isArray(clientData.fomData)
+              ? clientData.fomData
+              : []
+        },
+        calData: {
+          records: Array.isArray(clientData.calData?.records)
+            ? clientData.calData.records
+            : Array.isArray(clientData.calData)
+              ? clientData.calData
+              : []
+        },
+        promoData: {
+          records: Array.isArray(clientData.promoData?.records)
+            ? clientData.promoData.records
+            : Array.isArray(clientData.promoData)
+              ? clientData.promoData
+              : []
+        },
+        compData: {
+          records: Array.isArray(clientData.compData?.records)
+            ? clientData.compData.records
+            : Array.isArray(clientData.compData)
+              ? clientData.compData
+              : []
+        },
+        // Ensure services array is properly built
+        services: Array.from(new Set([
+          ...(Array.isArray(clientData.services) ? clientData.services : []),
+          ...(clientData.wmmData?.records?.length > 0 || clientData.wmmData?.length > 0 ? ['WMM'] : []),
+          ...(clientData.hrgData?.records?.length > 0 || clientData.hrgData?.length > 0 ? ['HRG'] : []),
+          ...(clientData.fomData?.records?.length > 0 || clientData.fomData?.length > 0 ? ['FOM'] : []),
+          ...(clientData.calData?.records?.length > 0 || clientData.calData?.length > 0 ? ['CAL'] : []),
+          ...(clientData.promoData?.records?.length > 0 || clientData.promoData?.length > 0 ? ['PROMO'] : []),
+          ...(clientData.compData?.records?.length > 0 || clientData.compData?.length > 0 ? ['COMP'] : []),
+          ...(clientData.group === 'DCS' ? ['DCS'] : []),
+          ...(clientData.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
+          ...(clientData.group === 'MCCJ' ? ['MCCJ'] : [])
+        ]))
+      },
+      timestamp: Date.now(),
+      sourceUserId: this.sessionData.userId
+    };
   }
 
   disconnect() {
