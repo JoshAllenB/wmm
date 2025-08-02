@@ -1408,7 +1408,6 @@ router.post(
 
       // Determine which model to use based on subscription type
       let SubscriptionModel;
-      console.log(subscriptionType);
       switch(subscriptionType) {
         case "Promo":
           SubscriptionModel = PromoModel;
@@ -1682,12 +1681,6 @@ router.get("/test-subscription-data", async (req, res) => {
     // Get sample data from each model
     const promoSample = await PromoModel.find().limit(5).lean();
     const complimentarySample = await ComplimentaryModel.find().limit(5).lean();
-
-    // Log the results for debugging
-    console.log('Test Route - Promo Count:', promoCount);
-    console.log('Test Route - Complimentary Count:', complimentaryCount);
-    console.log('Test Route - Promo Sample:', promoSample);
-    console.log('Test Route - Complimentary Sample:', complimentarySample);
 
     res.json({
       promoCount,

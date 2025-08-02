@@ -79,14 +79,6 @@ const standardizeAddressComponents = (components) => {
   };
 };
 
-const logFieldCheck = (fieldName, value, condition) => {
-  console.log(`Field Check - ${fieldName}:`, {
-    value: value,
-    hasValue: condition,
-    type: typeof value,
-  });
-}
-
 export async function checkDuplicates({
   fname,
   lname,
@@ -118,33 +110,10 @@ export async function checkDuplicates({
   const hasPhone = (cellno && cellno.length >= 5) || (contactnos && contactnos.length >= 3);
   const hasBdate = (bdate && bdate.length > 0) || (bdateMonth && bdateDay && bdateYear);
 
-  logFieldCheck("lname", lname, hasLname);
-  logFieldCheck("fname", fname, hasFname);
-  logFieldCheck("address", address, hasAddress);
-  logFieldCheck("addressComponents.housestreet", addressComponents?.housestreet, hasHouseStreet);
-  logFieldCheck("addressComponents.subdivision", addressComponents?.subdivision, hasSubdivision);
-  logFieldCheck("addressComponents.barangay", addressComponents?.barangay, hasBarangay);
-  logFieldCheck("bdate", bdate, hasBdate);
-  logFieldCheck("phone", {cellno, contactnos}, hasPhone);
-
-
-  console.log('Overall field check result:', {
-    hasLname,
-    hasFname,
-    hasAddress,
-    hasHouseStreet,
-    hasSubdivision,
-    hasBarangay,
-    hasPhone,
-    hasBdate,
-  })
   // If none of the specified fields are present, return empty results
   if (!hasLname && !hasFname && !hasHouseStreet && !hasSubdivision && !hasBarangay && !hasPhone && !hasBdate) {
-    console.log('No fields with values - skipping duplicate check');
     return { matches: [] };
   }
-
-  console.log('Proceeding with duplicate check...');
 
   // Calculate search precision level based on key fields
   const filledFieldsCount = [hasLname, hasFname, hasHouseStreet, hasSubdivision, hasBarangay, hasPhone, hasBdate]
