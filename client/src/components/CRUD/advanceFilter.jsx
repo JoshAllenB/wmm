@@ -160,8 +160,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     clientIncludeIds: "",
     clientExcludeIds: "",
     clientIdFilterType: "include",
-    excludeSPackClients: false,
     excludeCMCClients: false,
+    excludeDCSClients: false,
     userId: "",
     subscriptionStatus: "all",
     dateRangeName: "",
@@ -367,7 +367,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       clientIncludeIds: "",
       clientExcludeIds: "",
       clientIdFilterType: "include",
-      excludeSPackClients: false,
+      excludeDCSClients: false,
       excludeCMCClients: false,
       userId: "",
       subscriptionStatus: "all",
@@ -690,7 +690,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       }),
 
       // Other flags
-      ...(filterData.excludeSPackClients && { excludeSPackClients: true }),
+      ...(filterData.excludeDCSClients && { excludeDCSClients: true }),
       ...(filterData.excludeCMCClients && { excludeCMCClients: true }),
       ...(filterData.userId && { userId: filterData.userId }),
       ...(filterData.subscriptionStatus !== 'all' && { 
@@ -1244,11 +1244,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     }
 
     // Add "Exclude SPack Clients" filter if active
-    if (filterData.excludeSPackClients) {
+    if (filterData.excludeDCSClients) {
       active.push({
-        label: "Exclude SPack",
+        label: "Exclude DCS",
         value: "Yes",
-        key: "excludeSPackClients",
+        key: "excludeDCSClients",
       });
     }
 
@@ -1424,8 +1424,8 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
         case "clientExcludeIds":
           updates.clientExcludeIds = "";
           break;
-        case "excludeSPackClients":
-          updates.excludeSPackClients = false;
+        case "excludeDCSClients":
+          updates.excludeDCSClients = false;
           break;
         case "excludeCMCClients":
           updates.excludeCMCClients = false;

@@ -298,21 +298,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       }
     }
   }
-
-  // Add exclude SPack clients filter
-  if (advancedFilterData.excludeSPackClients) {
-    baseFilter.push({
-      group: {
-        $not: {
-          $regexMatch: {
-            input: { $trim: { input: { $toLower: "$group" } } },
-            regex: "spack",
-          },
-        },
-      },
-    });
-  }
-
+  
   // Add exclude CMC clients filter
   if (advancedFilterData.excludeCMCClients) {
     baseFilter.push({
@@ -321,6 +307,20 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           $regexMatch: {
             input: { $trim: { input: { $toLower: "$group" } } },
             regex: "cmc",
+          },
+        },
+      },
+    });
+  }
+
+  // Add exclude DCS clients filter
+  if (advancedFilterData.excludeDCSClients) {
+    baseFilter.push({
+      group: {
+        $not: {
+          $regexMatch: {
+            input: { $trim: { input: { $toLower: "$group" } } },
+            regex: "dcs",
           },
         },
       },
