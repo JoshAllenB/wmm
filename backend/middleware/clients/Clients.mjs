@@ -974,70 +974,44 @@ router.get("/:id", verifyToken, async (req, res) => {
       path: "roles.role",
       populate: { path: "defaultPermissions" },
     });
-
-    const userRoles = req.user.roles.map((role) => role.role.name);
     
-
     // Gather data from each role-specific model
     const roleData = {};
     
-    // Admin should get data from all models
-    const isAdmin = userRoles.includes("Admin");
+    try {
+      // Fetch all subscription data
+      const wmmData = await WmmModel.find({ clientid: parseInt(id) })
+        .sort({ subsdate: -1 })
+        .lean();
+      roleData.wmmData = wmmData;
 
-    // For Admin users, always fetch all role data regardless of other roles
-    if (isAdmin) {
-      try {
-        const wmmData = await WmmModel.find({ clientid: parseInt(id) })
-          .sort({ subsdate: -1 })
-          .lean();
-        roleData.wmmData = wmmData;
-        
-        const hrgData = await HrgModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.hrgData = hrgData;
-        
-        const fomData = await FomModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.fomData = fomData;
-        
-        const calData = await CalModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.calData = calData;
-      } catch (error) {
-        console.error("Error fetching role data for admin:", error);
-      }
-    } else {
-      // If not admin, fetch data based on user roles
-      if (userRoles.includes("WMM")) {
-        const wmmData = await WmmModel.find({ clientid: parseInt(id) })
-          .sort({ subsdate: -1 })
-          .lean();
-        roleData.wmmData = wmmData;
-      }
+      const promoData = await PromoModel.find({ clientid: parseInt(id) })
+        .sort({ subsdate: -1 })
+        .lean();
+      roleData.promoData = promoData;
 
-      if (userRoles.includes("HRG")) {
-        const hrgData = await HrgModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.hrgData = hrgData;
-      }
+      const compData = await ComplimentaryModel.find({ clientid: parseInt(id) })
+        .sort({ subsdate: -1 })
+        .lean();
+      roleData.compData = compData;
 
-      if (userRoles.includes("FOM")) {
-        const fomData = await FomModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.fomData = fomData;
-      }
+      // Fetch all service data
+      const hrgData = await HrgModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.hrgData = hrgData;
 
-      if (userRoles.includes("CAL")) {
-        const calData = await CalModel.find({ clientid: parseInt(id) })
-          .sort({ recvdate: -1 })
-          .lean();
-        roleData.calData = calData;
-      }
+      const fomData = await FomModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.fomData = fomData;
+
+      const calData = await CalModel.find({ clientid: parseInt(id) })
+        .sort({ recvdate: -1 })
+        .lean();
+      roleData.calData = calData;
+    } catch (error) {
+      console.error("Error fetching client data:", error);
     }
 
     // Return combined data

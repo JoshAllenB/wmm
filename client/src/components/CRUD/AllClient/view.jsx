@@ -10,12 +10,12 @@ import Edit from "./edit"; // Import the existing Edit component
 const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole, hasPermission } = useUser();
   const [formData, setFormData] = useState({});
-  const [wmmData, setWmmData] = useState([]);
-  const [hrgData, setHrgData] = useState({});
-  const [fomData, setFomData] = useState({});
-  const [calData, setCalData] = useState({});
-  const [promoData, setPromoData] = useState([]); // Add promoData state
-  const [compData, setCompData] = useState([]); // Add compData state
+  const [wmmData, setWmmData] = useState({ records: [] });
+  const [hrgData, setHrgData] = useState({ records: [] });
+  const [fomData, setFomData] = useState({ records: [] });
+  const [calData, setCalData] = useState({ records: [] });
+  const [promoData, setPromoData] = useState({ records: [] }); // Add promoData state
+  const [compData, setCompData] = useState({ records: [] }); // Add compData state
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -24,63 +24,58 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       setFormData(rowData);
       setShowModal(true);
 
-      // Determine subscription type and services
-      const subscriptionType = rowData.subscriptionType || "WMM";
+      // Get services array
       const clientServices = rowData.services || [];
       
-      // Handle subscription data based on type
-      if (subscriptionType === "Promo") {
-        if (rowData.promoData) {
-          if (Array.isArray(rowData.promoData) && rowData.promoData.length > 0) {
-            setPromoData(rowData.promoData);
-          } else if (rowData.promoData.records && Array.isArray(rowData.promoData.records)) {
-            setPromoData(rowData.promoData.records);
-          } else if (typeof rowData.promoData === 'object' && Object.keys(rowData.promoData).length > 0) {
-            setPromoData([rowData.promoData].filter(item => Object.keys(item).length > 0));
-          } else {
-            setPromoData([]);
-          }
+      // Handle WMM data if present
+      if (rowData.wmmData) {
+        if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records)) {
+          setWmmData(rowData.wmmData);
+        } else if (Array.isArray(rowData.wmmData)) {
+          setWmmData({ records: rowData.wmmData });
+        } else if (typeof rowData.wmmData === 'object') {
+          setWmmData({
+            records: [rowData.wmmData].filter(item => Object.keys(item).length > 0)
+          });
         } else {
-          setPromoData([]);
+          setWmmData({ records: [] });
         }
-        // Clear other subscription data
-        setWmmData([]);
-        setCompData([]);
-      } else if (subscriptionType === "Complimentary") {
-        if (rowData.compData) {
-          if (Array.isArray(rowData.compData) && rowData.compData.length > 0) {
-            setCompData(rowData.compData);
-          } else if (rowData.compData.records && Array.isArray(rowData.compData.records)) {
-            setCompData(rowData.compData.records);
-          } else if (typeof rowData.compData === 'object' && Object.keys(rowData.compData).length > 0) {
-            setCompData([rowData.compData].filter(item => Object.keys(item).length > 0));
-          } else {
-            setCompData([]);
-          }
-        } else {
-          setCompData([]);
-        }
-        // Clear other subscription data
-        setWmmData([]);
-        setPromoData([]);
       } else {
-        // Default to WMM
-        if (rowData.wmmData) {
-          if (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) {
-            setWmmData(rowData.wmmData);
-          } else if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records)) {
-            setWmmData(rowData.wmmData.records);
-          } else if (typeof rowData.wmmData === 'object' && Object.keys(rowData.wmmData).length > 0) {
-            setWmmData([rowData.wmmData].filter(item => Object.keys(item).length > 0));
-          } else {
-            setWmmData([]);
-          }
+        setWmmData({ records: [] });
+      }
+
+      // Handle Promo data if present
+      if (rowData.promoData) {
+        if (rowData.promoData.records && Array.isArray(rowData.promoData.records)) {
+          setPromoData(rowData.promoData);
+        } else if (Array.isArray(rowData.promoData)) {
+          setPromoData({ records: rowData.promoData });
+        } else if (typeof rowData.promoData === 'object') {
+          setPromoData({
+            records: [rowData.promoData].filter(item => Object.keys(item).length > 0)
+          });
         } else {
-          setWmmData([]);
+          setPromoData({ records: [] });
         }
-        // Clear other subscription data
-        setPromoData([]);
-        setCompData([]);
+      } else {
+        setPromoData({ records: [] });
+      }
+
+      // Handle Complimentary data if present
+      if (rowData.compData) {
+        if (rowData.compData.records && Array.isArray(rowData.compData.records)) {
+          setCompData(rowData.compData);
+        } else if (Array.isArray(rowData.compData)) {
+          setCompData({ records: rowData.compData });
+        } else if (typeof rowData.compData === 'object') {
+          setCompData({
+            records: [rowData.compData].filter(item => Object.keys(item).length > 0)
+          });
+        } else {
+          setCompData({ records: [] });
+        }
+      } else {
+        setCompData({ records: [] });
       }
       
       // Handle HRG data properly
@@ -133,15 +128,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     // Ensure subscription data is properly structured before passing to edit
     const editData = {
       ...formData,
-      wmmData: {
-        records: Array.isArray(wmmData) ? wmmData : []
-      },
-      promoData: {
-        records: Array.isArray(promoData) ? promoData : []
-      },
-      complimentaryData: {
-        records: Array.isArray(compData) ? compData : []
-      },
+      wmmData: wmmData,
+      promoData: promoData,
+      complimentaryData: compData,
       hrgData: hrgData,
       fomData: fomData,
       calData: calData
@@ -351,27 +340,14 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
-  const renderWmmData = () => {
-    // Determine which subscription data to use based on type
-    let subscriptionData = [];
-    let subscriptionType = formData.subscriptionType || "WMM";
-
-    switch (subscriptionType) {
-      case "Promo":
-        subscriptionData = promoData;
-        break;
-      case "Complimentary":
-        subscriptionData = compData;
-        break;
-      default:
-        subscriptionData = wmmData;
-    }
+  const renderSubscriptionData = (data, type) => {
+    const subscriptionData = data?.records || [];
 
     // Check if subscription data exists and has items
     if (!subscriptionData || subscriptionData.length === 0) {
       return (
         <div className="p-4">
-          <p className="text-center">No {subscriptionType.toLowerCase()} subscription data available</p>
+          <p className="text-center">No {type.toLowerCase()} subscription data available</p>
         </div>
       );
     }
@@ -709,17 +685,34 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   ])}
                 </div>
   
-                {/* Subscription & Payment History Card */}
-                {formData.subscriptionType && (
+                {/* Subscription & Payment History Cards */}
+                {/* WMM Data */}
+                {wmmData.records?.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles(formData.subscriptionType).headerClass}`}>
-                      <h2 className="text-lg font-bold">
-                        {formData.subscriptionType === "WMM" 
-                          ? "Subscription & Payment History" 
-                          : `${formData.subscriptionType} Subscription History`}
-                      </h2>
+                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("WMM").headerClass}`}>
+                      <h2 className="text-lg font-bold">Subscription & Payment History</h2>
                     </div>
-                    {renderWmmData()}
+                    {renderSubscriptionData(wmmData, "WMM")}
+                  </div>
+                )}
+                
+                {/* Promo Data */}
+                {promoData.records?.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
+                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("Promo").headerClass}`}>
+                      <h2 className="text-lg font-bold">Promo Subscription History</h2>
+                    </div>
+                    {renderSubscriptionData(promoData, "Promo")}
+                  </div>
+                )}
+                
+                {/* Complimentary Data */}
+                {compData.records?.length > 0 && (
+                  <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
+                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("Complimentary").headerClass}`}>
+                      <h2 className="text-lg font-bold">Complimentary Subscription History</h2>
+                    </div>
+                    {renderSubscriptionData(compData, "Complimentary")}
                   </div>
                 )}
   
