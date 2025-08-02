@@ -916,12 +916,16 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       cellno, 
       contactnos, 
       bdate, 
+      bdateMonth,
+      bdateDay,
+      bdateYear,
       address, 
       standardizedAddress, 
       addressComponents, 
       acode, 
       company,
-      priorities
+      priorities,
+      searchPrecision
     } = req.body;
 
     const result = await checkDuplicates({
@@ -931,12 +935,16 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       cellno,
       contactnos,
       bdate,
+      bdateMonth,
+      bdateDay,
+      bdateYear,
       address,
       standardizedAddress,
       addressComponents,
       acode,
       company,
-      priorities
+      priorities,
+      searchPrecision
     });
 
     res.json(result);

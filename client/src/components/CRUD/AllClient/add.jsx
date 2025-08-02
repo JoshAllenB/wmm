@@ -457,54 +457,63 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const checkForDuplicates = useCallback(
     debounce(async (checkData, fieldChanged = null) => {
-      // Start duplicate check as soon as lname is populated (minimum 2 characters)
-      if (!checkData.lname || checkData.lname.length < 2) {
+      // Check if any of the specified fields are populated
+      const hasRequiredData = 
+      (checkData.lname && checkData.lname.length >= 2) ||
+      (checkData.fname && checkData.fname.length >= 2) ||
+      (checkData.company && checkData.company.length >= 2) ||
+      (checkData.address && checkData.address.length >= 3) ||
+      (checkData.cellno && checkData.cellno.length >= 5) ||
+      (checkData.contactnos && checkData.contactnos.length >= 5) ||
+      (checkData.bdate && checkData.bdate.length > 0) ||
+      (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
+      (addressData.housestreet && addressData.housestreet.length >= 2) ||
+      (addressData.subdivision && addressData.subdivision.length >= 2) ||
+      (addressData.barangay && addressData.barangay.length >= 2);
+
+      if (!hasRequiredData) {
         setPotentialDuplicates([]);
         setShowDuplicates(false);
         setIsCheckingDuplicates(false);
         return;
       }
-
       // Calculate search precision based on available fields
       const availableFields = {
         lname: checkData.lname && checkData.lname.length >= 2,
         fname: checkData.fname && checkData.fname.length >= 2,
+        company: checkData.company && checkData.company.length >= 2,
         address: checkData.address && checkData.address.length >= 3,
+        housestreet: addressData.housestreet && addressData.housestreet.length >= 2,
+        subdivision: addressData.subdivision && addressData.subdivision.length >= 2,
+        barangay: addressData.barangay && addressData.barangay.length >= 2,
         email: checkData.email && checkData.email.includes("@"),
         cellno: checkData.cellno && checkData.cellno.length >= 5,
         contactnos: checkData.contactnos && checkData.contactnos.length >= 5,
-        company: checkData.company && checkData.company.length >= 2,
         bdate: checkData.bdate && checkData.bdate.length > 0,
+        bdateComponents: checkData.bdateMonth && checkData.bdateDay, // Day and month present
+        bdateComplete: checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear, // Complete date
         acode: checkData.acode && checkData.acode.length >= 3
       };
 
       const filledFieldsCount = Object.values(availableFields).filter(Boolean).length;
-      
-      // If we only have lname, still proceed but with lower precision
-      // If we have more fields, the search will be more precise
 
       try {
         // Prepare the data for sending to the server, prioritizing lname, address, fname
         const duplicateCheckData = {
           ...checkData,
           // Send both original and standardized address for better matching
-          address: checkData.address,
-          standardizedAddress: normalizeAddress(checkData.address),
+          address: combinedAddress,
+          standardizedAddress: normalizeAddress(combinedAddress),
           // Break down address components for better matching
           addressComponents: {
             housestreet: addressData.housestreet || "",
             subdivision: addressData.subdivision || "",
             barangay: addressData.barangay || "",
-            city: areaData.city || addressData.city || "",
-            province: areaData.province || "",
           },
-          // Priority flags to indicate to the server the desired search priority
-          priorities: {
-            lnameHighest: true, // Highest priority
-            addressSecond: true, // Second priority
-            fnameThird: true, // Third priority
-            contactEqualWeight: true, // Similar weights for contact/birth info
-          },
+          // Add bdate components for better matching
+          bdateMonth: checkData.bdateMonth || "",
+          bdateDay: checkData.bdateDay || "",
+          bdateYear: checkData.bdateYear || "",
           // Add precision information for better search results
           searchPrecision: {
             filledFieldsCount,
@@ -512,6 +521,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
             hasLname: availableFields.lname,
             hasFname: availableFields.fname,
             hasAddress: availableFields.address,
+            hasHousestreet: availableFields.housestreet,
+            hasSubdivision: availableFields.subdivision,
+            hasBarangay: availableFields.barangay,
             hasEmail: availableFields.email,
             hasPhone: availableFields.cellno || availableFields.contactnos,
             hasCompany: availableFields.company,
@@ -547,7 +559,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         setIsCheckingDuplicates(false);
       }
     }, 300), // 300ms debounce for responsive checking
-    [] // Empty dependency array to prevent recreation of the debounced function
+    [addressData, combinedAddress, areaData] // Empty dependency array to prevent recreation of the debounced function
   );
 
   // Add an immediate clearing function for better UX
@@ -565,6 +577,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     const duplicateRelatedFields = [
       "fname",
       "lname",
+      "company",
       "bdate",
       "bdateMonth",
       "bdateDay",
@@ -573,11 +586,29 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       "cellno",
       "contactnos",
       "company",
+      "housestreet",
+      "subdivision",
+      "barangay",
     ];
     if (duplicateRelatedFields.includes(name)) {
       immediatelyClearDuplicates();
       setIsCheckingDuplicates(true); // Show loading state immediately
     }
+
+    const normalizeYear = (year) => {
+      if (year.length === 2) {
+        const currentYear = new Date().getFullYear();
+        const currentCentury = Math.floor(currentYear / 100) * 100;
+        const yearNum = parseInt(year, 10);
+        // If the 2-digit year is <= current year's last 2 digits, use current century
+        // Otherwise use previous century
+        const fullYear = yearNum <= (currentYear % 100) 
+          ? currentCentury + yearNum 
+          : (currentCentury - 100) + yearNum;
+        return fullYear.toString();
+      }
+      return year;
+    };
 
     // Handle bdate parts
     if (name === "bdateMonth" || name === "bdateDay" || name === "bdateYear") {
@@ -589,43 +620,59 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
         // Combine the date parts into bdate if all are present
         if (newData.bdateMonth && newData.bdateDay && newData.bdateYear) {
-          newData.bdate = `${newData.bdateMonth}/${newData.bdateDay}/${newData.bdateYear}`;
+          const fullYear = normalizeYear(newData.bdateYear);
+          // Format as YYYY-MM-DD for consistent database storage and duplicate checking
+          const month = newData.bdateMonth.padStart(2, '0');
+          const day = newData.bdateDay.padStart(2, '0');
+          newData.bdate = `${fullYear}-${month}-${day}`;
         } else {
           newData.bdate = "";
         }
 
+        // Trigger duplicate check after updating birthdate
+        if (duplicateRelatedFields.includes(name)) {
+          setTimeout(() => {
+            // Only check if we have at least one identifying field with enough content
+            if (
+              (newData.fname && newData.fname.length > 1) ||
+              (newData.lname && newData.lname.length > 1) ||
+              (newData.company && newData.company.length > 1) ||
+              (newData.bdate && newData.bdate.length > 0) ||
+              (newData.bdateMonth && newData.bdateDay) || // Trigger if day and month are present
+              (newData.cellno && newData.cellno.length > 5) ||
+              (newData.contactnos && newData.contactnos.length > 5) ||
+              (addressData.housestreet && addressData.housestreet.length > 2) ||
+              (addressData.subdivision && addressData.subdivision.length > 2) ||
+              (addressData.barangay && addressData.barangay.length > 2)
+            ) {
+              const checkData = {
+                fname: newData.fname,
+                lname: newData.lname,
+                bdate: newData.bdate || "",
+                bdateMonth: newData.bdateMonth,
+                bdateDay: newData.bdateDay,
+                bdateYear: newData.bdateYear,
+                company: newData.company,
+                email: newData.email,
+                cellno: newData.cellno,
+                contactnos: newData.contactnos,
+                address: combinedAddress,
+                addressComponents: {
+                  housestreet: addressData.housestreet || "",
+                  subdivision: addressData.subdivision || "",
+                  barangay: addressData.barangay || "",
+                },
+                acode: areaData.acode || "",
+              };
+              checkForDuplicates(checkData, name);
+            } else {
+              setIsCheckingDuplicates(false);
+            }
+          }, 0);
+        }
+
         return newData;
       });
-
-      setTimeout(() => {
-        // Check for duplicates after updating the date
-        const checkData = {
-          fname: formData.fname,
-          lname: formData.lname,
-          bdate: formData.bdate || "",
-          company: formData.company,
-          email: formData.email,
-          cellno: formData.cellno,
-          contactnos: formData.contactnos,
-          address: combinedAddress,
-          acode: areaData.acode || "",
-        };
-
-        if (
-          (checkData.fname && checkData.fname.length > 1) ||
-          (checkData.lname && checkData.lname.length > 1) ||
-          (checkData.bdate && checkData.bdate.length > 0) ||
-          (checkData.company && checkData.company.length > 2) ||
-          (checkData.cellno && checkData.cellno.length > 5) ||
-          (checkData.email && checkData.email.includes("@")) ||
-          (combinedAddress && combinedAddress.length > 3) ||
-          (areaData.acode && areaData.acode.length > 3)
-        ) {
-          checkForDuplicates(checkData, name);
-        } else {
-          setIsCheckingDuplicates(false);
-        }
-      }, 0);
 
       return;
     }
@@ -785,28 +832,38 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       };
 
       // Trigger duplicate check after state update
-      if (duplicateRelatedFields.includes(name) || name === "address") {
+      if (duplicateRelatedFields.includes(name)) {
         setTimeout(() => {
           // Only check if we have at least one identifying field with enough content
           if (
             (newData.fname && newData.fname.length > 1) ||
             (newData.lname && newData.lname.length > 1) ||
+            (newData.company && newData.company.length > 1) ||
             (newData.bdate && newData.bdate.length > 0) ||
-            (newData.company && newData.company.length > 2) ||
+            (newData.bdateMonth && newData.bdateDay) || // Trigger if day and month are present
             (newData.cellno && newData.cellno.length > 5) ||
-            (newData.email && newData.email.includes("@")) ||
-            (combinedAddress && combinedAddress.length > 3) ||
-            (areaData.acode && areaData.acode.length > 3)
+            (newData.contactnos && newData.contactnos.length > 5) ||
+            (addressData.housestreet && addressData.housestreet.length > 2) ||
+            (addressData.subdivision && addressData.subdivision.length > 2) ||
+            (addressData.barangay && addressData.barangay.length > 2)
           ) {
             const checkData = {
               fname: newData.fname,
               lname: newData.lname,
-              bdate: newData.bdate,
+              bdate: newData.bdate || "",
+              bdateMonth: newData.bdateMonth,
+              bdateDay: newData.bdateDay,
+              bdateYear: newData.bdateYear,
               company: newData.company,
               email: newData.email,
               cellno: newData.cellno,
               contactnos: newData.contactnos,
               address: combinedAddress,
+              addressComponents: {
+                housestreet: addressData.housestreet || "",
+                subdivision: addressData.subdivision || "",
+                barangay: addressData.barangay || "",
+              },
               acode: areaData.acode || "",
             };
             checkForDuplicates(checkData, name);
@@ -907,8 +964,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           acode: areaData.acode || "",
         };
 
-        // Always check for duplicates if we have lname (minimum requirement)
-        if (currentFormData.lname && currentFormData.lname.length >= 2) {
+        // Check for duplicates if any of the key fields are populated
+        if (
+          (currentFormData.fname && currentFormData.fname.length > 1) ||
+          (currentFormData.lname && currentFormData.lname.length > 1) ||
+          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
+          (currentFormData.bdateMonth && currentFormData.bdateDay) || // Trigger if day and month are present
+          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
+          (currentFormData.contactnos && currentFormData.contactnos.length > 5) ||
+          (newAddressData.housestreet && newAddressData.housestreet.length > 2) ||
+          (newAddressData.subdivision && newAddressData.subdivision.length > 2) ||
+          (newAddressData.barangay && newAddressData.barangay.length > 2)
+        ) {
           checkForDuplicates(currentFormData, "address");
         } else {
           setIsCheckingDuplicates(false);
@@ -957,6 +1024,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           fname: formData.fname,
           lname: formData.lname,
           bdate: formData.bdate,
+          bdateMonth: formData.bdateMonth,
+          bdateDay: formData.bdateDay,
+          bdateYear: formData.bdateYear,
           company: formData.company,
           email: formData.email,
           cellno: formData.cellno,
@@ -1003,6 +1073,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           fname: formData.fname,
           lname: formData.lname,
           bdate: formData.bdate,
+          bdateMonth: formData.bdateMonth,
+          bdateDay: formData.bdateDay,
+          bdateYear: formData.bdateYear,
           company: formData.company,
           email: formData.email,
           cellno: formData.cellno,
@@ -1238,13 +1311,14 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   };
 
   const handleConfirmedSubmit = async () => {
-    console.log('=== Frontend Submit Debug ===');
-    console.log('Subscription Type:', subscriptionType);
-
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
-        return `${formData.bdateMonth}/${formData.bdateDay}/${formData.bdateYear}`;
+        const fullYear = normalizeYear(formData.bdateYear);
+        // Format as YYYY-MM-DD for consistent database storage and duplicate checking
+        const month = formData.bdateMonth.padStart(2, '0');
+        const day = formData.bdateDay.padStart(2, '0');
+        return `${fullYear}-${month}-${day}`;
       }
       return formData.bdate || "";
     };
@@ -1275,7 +1349,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Only add subscription data if user has WMM role
     if (hasRole("WMM")) {
       const subscriptionData = getSubscriptionSpecificData();
-      console.log('Subscription Data:', subscriptionData);
       
       // Map subscription types to their model types
       const modelType = {
@@ -1331,7 +1404,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       adddate: formatDate(new Date()),
     };
 
-    console.log('Submission Data:', submissionData);
 
     try {
       const response = await axios.post(
@@ -1339,7 +1411,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         submissionData
       );
       if (response.data.success) {
-        console.log('Response Data:', response.data);
         // Emit data update event via WebSocket
         webSocketService.emit("data-update", {
           type: "add",
@@ -2147,7 +2218,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     setIsEditingCombinedAddress(true);
     const value = e.target.value;
     setCombinedAddress(value);
-
+  
     // Parse the combined address back into individual fields
     const lines = value.split('\n').map(line => line.trim().replace(/,\s*$/, '')).filter(line => line);
     
@@ -2156,46 +2227,85 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       const lastLine = lines[lines.length - 1] || '';
       const zipMatch = lastLine.match(/^\d+/);
       const zipcode = zipMatch ? zipMatch[0] : '';
-
+  
       return {
         housestreet: lines[0] || '',
         subdivision: lines[1] || '',
         barangay: lines[2] || '',
         city: prev.city, // Preserve city from area data
-        zipcode: zipcode // Add zipcode
+        zipcode: zipcode
       };
     });
-
-    // Update formData with both combined and individual fields
+  
+    // Update formData
     setFormData(prev => {
       const lastLine = lines[lines.length - 1] || '';
       const zipMatch = lastLine.match(/^\d+/);
       const zipcode = zipMatch ? zipMatch[0] : '';
       const city = lastLine.replace(zipcode, '').trim();
-
+  
       return {
         ...prev,
         address: value,
         housestreet: lines[0] || '',
         subdivision: lines[1] || '',
         barangay: lines[2] || '',
-        zipcode: zipcode ? parseInt(zipcode) : '', // Convert to number for schema
+        zipcode: zipcode ? parseInt(zipcode) : '',
         area: city
       };
     });
-
+  
     // Extract zipcode and city from the last line if it exists
     if (lines.length > 0) {
       const lastLine = lines[lines.length - 1];
       const zipMatch = lastLine.match(/^\d+/);
       const zipcode = zipMatch ? zipMatch[0] : '';
       const city = lastLine.replace(zipcode, '').trim();
-
+  
       setAreaData(prev => ({
         ...prev,
         zipcode,
         city
       }));
+    }
+  
+    // Trigger duplicate check
+    const checkData = {
+      fname: formData.fname,
+      lname: formData.lname,
+      bdate: formData.bdate || "",
+      bdateMonth: formData.bdateMonth,
+      bdateDay: formData.bdateDay,
+      bdateYear: formData.bdateYear,
+      company: formData.company,
+      email: formData.email,
+      cellno: formData.cellno,
+      contactnos: formData.contactnos,
+      address: combinedAddress,
+      addressComponents: {
+        housestreet: addressData.housestreet || "",
+        subdivision: addressData.subdivision || "",
+        barangay: addressData.barangay || "",
+      },
+      acode: areaData.acode || "",
+    };
+  
+    const hasEnoughData = 
+      (checkData.lname && checkData.lname.length >= 2) ||
+      (checkData.fname && checkData.fname.length >= 2) ||
+      (lines[0] && lines[0].length >= 2) || // housestreet
+      (lines[1] && lines[1].length >= 2) || // subdivision
+      (lines[2] && lines[2].length >= 2) || // barangay
+      (checkData.cellno && checkData.cellno.length >= 5) ||
+      (checkData.contactnos && checkData.contactnos.length >= 5) ||
+      (checkData.bdate && checkData.bdate.length > 0) ||
+      (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
+      (checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear);
+  
+    if (hasEnoughData) {
+      checkForDuplicates(checkData, "address");
+    } else {
+      setIsCheckingDuplicates(false);
     }
   };
 
@@ -2366,7 +2476,12 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                               id="bdateYear"
                               name="bdateYear"
                               value={formData.bdateYear}
-                              onChange={handleChange}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (/^\d{0,4}$/.test(value)) {
+                                  handleChange(e);
+                                }
+                                }}
                               placeholder="YYYY"
                               className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
                               autoComplete="off"
