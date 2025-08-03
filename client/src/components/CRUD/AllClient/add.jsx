@@ -7,10 +7,15 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
-import { fetchSubclasses, fetchTypes, fetchAreas } from "../../Table/Data/utilData";
+import {
+  fetchSubclasses,
+  fetchTypes,
+  fetchAreas,
+} from "../../Table/Data/utilData";
 import { debounce } from "lodash";
 import View from "./view";
 import { webSocketService } from "../../../services/WebSocketService";
+import DonorAdd from "../donorAdd";
 
 // Utility function to normalize address for more consistent duplicate checking
 const normalizeAddress = (address) => {
@@ -101,7 +106,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     subscriptionEnd: "",
     subsclass: "",
     subscriptionType: subscriptionType,
-    referralid: "" // Add referralid field for Promo subscriptions
+    referralid: "", // Add referralid field for Promo subscriptions
   });
 
   const [addressData, setAddressData] = useState({
@@ -139,7 +144,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     paymtref: "",
     paymtamt: "",
     unsubscribe: false,
-    remarks: ""
+    remarks: "",
   });
 
   const [fomData, setFomData] = useState({
@@ -148,7 +153,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     paymtform: "",
     paymtref: "",
     unsubscribe: false,
-    remarks: ""
+    remarks: "",
   });
 
   const [calData, setCalData] = useState({
@@ -160,12 +165,13 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     paymtamt: "",
     paymtform: "",
     paymtdate: "",
-    remarks: ""
+    remarks: "",
   });
 
   const [areas, setAreas] = useState(null);
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
-  const [isEditingCombinedAddress, setIsEditingCombinedAddress] = useState(false);
+  const [isEditingCombinedAddress, setIsEditingCombinedAddress] =
+    useState(false);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -290,28 +296,39 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
   useEffect(() => {
     if (!isEditingCombinedAddress) {
-      const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
+      const formattedAddress = formatAddressLines(
+        addressData,
+        formData.area,
+        areaData
+      );
       setCombinedAddress(formattedAddress);
     }
-  }, [addressData.housestreet, addressData.subdivision, addressData.barangay, areaData.zipcode, formData.area, isEditingCombinedAddress]);
+  }, [
+    addressData.housestreet,
+    addressData.subdivision,
+    addressData.barangay,
+    areaData.zipcode,
+    formData.area,
+    isEditingCombinedAddress,
+  ]);
 
   // Add subscription type indicator styles
   const getSubscriptionTypeStyles = () => {
-          switch (subscriptionType) {
-        case "Promo":
-          return "bg-emerald-600 text-white border-emerald-700";
-        case "Complimentary":
-          return "bg-purple-600 text-white border-purple-700";
-        default: // WMM
-          return "bg-blue-600 text-white border-blue-700";
+    switch (subscriptionType) {
+      case "Promo":
+        return "bg-emerald-600 text-white border-emerald-700";
+      case "Complimentary":
+        return "bg-purple-600 text-white border-purple-700";
+      default: // WMM
+        return "bg-blue-600 text-white border-blue-700";
     }
   };
 
   // Update openModal to include subscription type in form data
   const openModal = () => {
-    setFormData(prevData => ({
+    setFormData((prevData) => ({
       ...prevData,
-      subscriptionType: subscriptionType
+      subscriptionType: subscriptionType,
     }));
     setShowModal(true);
   };
@@ -353,7 +370,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       subscriptionStart: "",
       subscriptionEnd: "",
       subsclass: "",
-      subscriptionType: subscriptionType
+      subscriptionType: subscriptionType,
+      donorid: null,
     });
 
     // Reset address data
@@ -378,7 +396,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       area: "",
       city: "",
       province: "",
-      region: ""
+      region: "",
     });
 
     // Reset role-specific data states
@@ -389,7 +407,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       paymtref: "",
       paymtamt: "",
       unsubscribe: false,
-      remarks: ""
+      remarks: "",
     });
 
     setFomData({
@@ -398,7 +416,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       paymtform: "",
       paymtref: "",
       unsubscribe: false,
-      remarks: ""
+      remarks: "",
     });
 
     setCalData({
@@ -410,7 +428,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       paymtamt: "",
       paymtform: "",
       paymtdate: "",
-      remarks: ""
+      remarks: "",
     });
 
     // Reset potential duplicates
@@ -458,18 +476,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const checkForDuplicates = useCallback(
     debounce(async (checkData, fieldChanged = null) => {
       // Check if any of the specified fields are populated
-      const hasRequiredData = 
-      (checkData.lname && checkData.lname.length >= 2) ||
-      (checkData.fname && checkData.fname.length >= 2) ||
-      (checkData.company && checkData.company.length >= 2) ||
-      (checkData.address && checkData.address.length >= 3) ||
-      (checkData.cellno && checkData.cellno.length >= 5) ||
-      (checkData.contactnos && checkData.contactnos.length >= 5) ||
-      (checkData.bdate && checkData.bdate.length > 0) ||
-      (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
-      (addressData.housestreet && addressData.housestreet.length >= 2) ||
-      (addressData.subdivision && addressData.subdivision.length >= 2) ||
-      (addressData.barangay && addressData.barangay.length >= 2);
+      const hasRequiredData =
+        (checkData.lname && checkData.lname.length >= 2) ||
+        (checkData.fname && checkData.fname.length >= 2) ||
+        (checkData.company && checkData.company.length >= 2) ||
+        (checkData.address && checkData.address.length >= 3) ||
+        (checkData.cellno && checkData.cellno.length >= 5) ||
+        (checkData.contactnos && checkData.contactnos.length >= 5) ||
+        (checkData.bdate && checkData.bdate.length > 0) ||
+        (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
+        (addressData.housestreet && addressData.housestreet.length >= 2) ||
+        (addressData.subdivision && addressData.subdivision.length >= 2) ||
+        (addressData.barangay && addressData.barangay.length >= 2);
 
       if (!hasRequiredData) {
         setPotentialDuplicates([]);
@@ -483,19 +501,23 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         fname: checkData.fname && checkData.fname.length >= 2,
         company: checkData.company && checkData.company.length >= 2,
         address: checkData.address && checkData.address.length >= 3,
-        housestreet: addressData.housestreet && addressData.housestreet.length >= 2,
-        subdivision: addressData.subdivision && addressData.subdivision.length >= 2,
+        housestreet:
+          addressData.housestreet && addressData.housestreet.length >= 2,
+        subdivision:
+          addressData.subdivision && addressData.subdivision.length >= 2,
         barangay: addressData.barangay && addressData.barangay.length >= 2,
         email: checkData.email && checkData.email.includes("@"),
         cellno: checkData.cellno && checkData.cellno.length >= 5,
         contactnos: checkData.contactnos && checkData.contactnos.length >= 5,
         bdate: checkData.bdate && checkData.bdate.length > 0,
         bdateComponents: checkData.bdateMonth && checkData.bdateDay, // Day and month present
-        bdateComplete: checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear, // Complete date
-        acode: checkData.acode && checkData.acode.length >= 3
+        bdateComplete:
+          checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear, // Complete date
+        acode: checkData.acode && checkData.acode.length >= 3,
       };
 
-      const filledFieldsCount = Object.values(availableFields).filter(Boolean).length;
+      const filledFieldsCount =
+        Object.values(availableFields).filter(Boolean).length;
 
       try {
         // Prepare the data for sending to the server, prioritizing lname, address, fname
@@ -528,7 +550,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
             hasPhone: availableFields.cellno || availableFields.contactnos,
             hasCompany: availableFields.company,
             hasBdate: availableFields.bdate,
-            hasAcode: availableFields.acode
+            hasAcode: availableFields.acode,
           },
         };
 
@@ -602,9 +624,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         const yearNum = parseInt(year, 10);
         // If the 2-digit year is <= current year's last 2 digits, use current century
         // Otherwise use previous century
-        const fullYear = yearNum <= (currentYear % 100) 
-          ? currentCentury + yearNum 
-          : (currentCentury - 100) + yearNum;
+        const fullYear =
+          yearNum <= currentYear % 100
+            ? currentCentury + yearNum
+            : currentCentury - 100 + yearNum;
         return fullYear.toString();
       }
       return year;
@@ -622,8 +645,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         if (newData.bdateMonth && newData.bdateDay && newData.bdateYear) {
           const fullYear = normalizeYear(newData.bdateYear);
           // Format as YYYY-MM-DD for consistent database storage and duplicate checking
-          const month = newData.bdateMonth.padStart(2, '0');
-          const day = newData.bdateDay.padStart(2, '0');
+          const month = newData.bdateMonth.padStart(2, "0");
+          const day = newData.bdateDay.padStart(2, "0");
           newData.bdate = `${fullYear}-${month}-${day}`;
         } else {
           newData.bdate = "";
@@ -882,17 +905,17 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
     // Line 1: House/Building Number and Street name
     if (addressData.housestreet) {
-      lines.push(addressData.housestreet.trim() + ',');
+      lines.push(addressData.housestreet.trim() + ",");
     }
 
     // Line 2: Subdivision
     if (addressData.subdivision) {
-      lines.push(addressData.subdivision.trim() + ',');
+      lines.push(addressData.subdivision.trim() + ",");
     }
 
     // Line 3: Barangay
     if (addressData.barangay) {
-      lines.push(addressData.barangay.trim() + ',');
+      lines.push(addressData.barangay.trim() + ",");
     }
 
     // Line 4: Zipcode and City/Municipality
@@ -902,11 +925,13 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     }
     if (area) {
       // Remove 'CITY OF' or 'MUNICIPALITY OF' if present
-      const cleanedArea = area.replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, '').trim();
+      const cleanedArea = area
+        .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, "")
+        .trim();
       line4Parts.push(cleanedArea);
     }
     if (line4Parts.length > 0) {
-      lines.push(line4Parts.join(" ") + (areaData.province ? ',' : ''));
+      lines.push(line4Parts.join(" ") + (areaData.province ? "," : ""));
     }
 
     // Line 5: Province (if exists)
@@ -927,8 +952,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Remove any existing comma if this is a street or barangay field
     // But preserve spaces and only trim the comma at the end
     let cleanedValue = value;
-    if (['housestreet', 'subdivision', 'barangay'].includes(type)) {
-      cleanedValue = value.replace(/,\s*$/, '');
+    if (["housestreet", "subdivision", "barangay"].includes(type)) {
+      cleanedValue = value.replace(/,\s*$/, "");
     }
 
     setAddressData((prev) => {
@@ -936,18 +961,22 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         ...prev,
         [type]: cleanedValue,
       };
-      
+
       // Format address with commas
-      const formattedAddress = formatAddressLines(newAddressData, formData.area, areaData);
+      const formattedAddress = formatAddressLines(
+        newAddressData,
+        formData.area,
+        areaData
+      );
       setCombinedAddress(formattedAddress);
-      
+
       // Update formData with new address
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         address: formattedAddress,
         housestreet: newAddressData.housestreet,
         subdivision: newAddressData.subdivision,
-        barangay: newAddressData.barangay
+        barangay: newAddressData.barangay,
       }));
 
       // Check for duplicates with a delay to allow state updates
@@ -971,9 +1000,12 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           (currentFormData.bdate && currentFormData.bdate.length > 0) ||
           (currentFormData.bdateMonth && currentFormData.bdateDay) || // Trigger if day and month are present
           (currentFormData.cellno && currentFormData.cellno.length > 5) ||
-          (currentFormData.contactnos && currentFormData.contactnos.length > 5) ||
-          (newAddressData.housestreet && newAddressData.housestreet.length > 2) ||
-          (newAddressData.subdivision && newAddressData.subdivision.length > 2) ||
+          (currentFormData.contactnos &&
+            currentFormData.contactnos.length > 5) ||
+          (newAddressData.housestreet &&
+            newAddressData.housestreet.length > 2) ||
+          (newAddressData.subdivision &&
+            newAddressData.subdivision.length > 2) ||
           (newAddressData.barangay && newAddressData.barangay.length > 2)
         ) {
           checkForDuplicates(currentFormData, "address");
@@ -994,29 +1026,33 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     }
 
     handleAreaChange(field, value);
-    
+
     if (field === "city") {
       // Update form data with new city
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        area: value
+        area: value,
       }));
-      
+
       // Update address data and check for duplicates
-      setAddressData(prev => {
+      setAddressData((prev) => {
         const newAddressData = {
           ...prev,
-          city: value
+          city: value,
         };
-        
-        const formattedAddress = formatAddressLines(newAddressData, value, areaData);
+
+        const formattedAddress = formatAddressLines(
+          newAddressData,
+          value,
+          areaData
+        );
         setCombinedAddress(formattedAddress);
 
         // Update form data with new address
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           area: value,
-          address: formattedAddress
+          address: formattedAddress,
         }));
 
         // Check for duplicates with updated address
@@ -1043,7 +1079,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         } else {
           setIsCheckingDuplicates(false);
         }
-        
+
         return newAddressData;
       });
     }
@@ -1095,15 +1131,15 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       }
 
       // If zipcode changes, update addressData
-      if (field === 'zipcode') {
-        setAddressData(prev => ({
+      if (field === "zipcode") {
+        setAddressData((prev) => ({
           ...prev,
-          zipcode: value
+          zipcode: value,
         }));
-        
-        setFormData(prev => ({
+
+        setFormData((prev) => ({
           ...prev,
-          zipcode: value ? parseInt(value) : '' // Convert to number for schema
+          zipcode: value ? parseInt(value) : "", // Convert to number for schema
         }));
       }
 
@@ -1115,10 +1151,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === "checkbox" ? checked : value;
 
-    setRoleSpecificData(prev => {
+    setRoleSpecificData((prev) => {
       const updated = {
         ...prev,
-        [name]: type === "checkbox" ? checked : value.toUpperCase()
+        [name]: type === "checkbox" ? checked : value.toUpperCase(),
       };
 
       // Also update the role-specific state
@@ -1180,8 +1216,14 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   };
 
   const handleSubmit = (e) => {
+    // Skip if this came from DonorAdd
+    if (e.nativeEvent?.donorAddEvent) {
+      return;
+    }
+
     e.preventDefault();
     setShowConfirmation(true);
+
   };
 
   // Add this helper function before handleConfirmedSubmit
@@ -1192,18 +1234,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       if (
         value === undefined ||
         value === null ||
-        (typeof value === 'string' && value.trim() === '')
+        (typeof value === "string" && value.trim() === "")
       ) {
         return;
       }
       // Always include booleans
-      if (typeof value === 'boolean') {
+      if (typeof value === "boolean") {
         cleanObj[key] = value;
         return;
       }
       // For numbers, include if not 0, or if key is 'copies' (allow 0 for copies)
-      if (typeof value === 'number') {
-        if (value !== 0 || key === 'copies') {
+      if (typeof value === "number") {
+        if (value !== 0 || key === "copies") {
           cleanObj[key] = value;
         }
         return;
@@ -1216,7 +1258,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         return;
       }
       // For objects, include if not empty
-      if (typeof value === 'object') {
+      if (typeof value === "object") {
         if (Object.keys(value).length > 0) {
           cleanObj[key] = value;
         }
@@ -1232,8 +1274,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const formatDateForWMM = (date) => {
     const d = new Date(date);
     const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
@@ -1249,7 +1291,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   // Update getSubscriptionSpecificData function
   const getSubscriptionSpecificData = () => {
     const baseData = {
-      subsyear: formData.subscriptionFreq ? parseInt(formData.subscriptionFreq) : 0,
+      subsyear: formData.subscriptionFreq
+        ? parseInt(formData.subscriptionFreq)
+        : 0,
       copies: parseInt(roleSpecificData.copies) || 1,
       remarks: roleSpecificData.remarks || "",
       calendar: roleSpecificData.calendar || false,
@@ -1257,15 +1301,31 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         month: "numeric",
         day: "numeric",
         year: "numeric",
-      })
+      }),
     };
 
     // Format dates based on subscription type
     if (subscriptionType === "Promo") {
       return {
         ...baseData,
-        subsdate: formData.subscriptionStart ? formatDateForPromo(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
-        enddate: formData.subscriptionEnd ? formatDateForPromo(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
+        subsdate: formData.subscriptionStart
+          ? formatDateForPromo(
+              new Date(
+                formData.subStartYear,
+                formData.subStartMonth - 1,
+                formData.subStartDay
+              )
+            )
+          : "",
+        enddate: formData.subscriptionEnd
+          ? formatDateForPromo(
+              new Date(
+                formData.subEndYear,
+                formData.subEndMonth - 1,
+                formData.subEndDay
+              )
+            )
+          : "",
         referralid: formData.referralid || 0,
         adddate: new Date().toLocaleString("en-US", {
           month: "numeric",
@@ -1274,26 +1334,59 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           hour: "numeric",
           minute: "2-digit",
           second: "2-digit",
-          hour12: false
-        })
+          hour12: false,
+        }),
       };
     } else if (subscriptionType === "Complimentary") {
       return {
         ...baseData,
-        subsdate: formData.subscriptionStart ? formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
-        enddate: formData.subscriptionEnd ? formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
-        adddate: formatDateForWMM(new Date())
+        subsdate: formData.subscriptionStart
+          ? formatDateForWMM(
+              new Date(
+                formData.subStartYear,
+                formData.subStartMonth - 1,
+                formData.subStartDay
+              )
+            )
+          : "",
+        enddate: formData.subscriptionEnd
+          ? formatDateForWMM(
+              new Date(
+                formData.subEndYear,
+                formData.subEndMonth - 1,
+                formData.subEndDay
+              )
+            )
+          : "",
+        adddate: formatDateForWMM(new Date()),
       };
-    } else { // WMM
+    } else {
+      // WMM
       return {
         ...baseData,
-        subsdate: formData.subscriptionStart ? formatDateForWMM(new Date(formData.subStartYear, formData.subStartMonth - 1, formData.subStartDay)) : "",
-        enddate: formData.subscriptionEnd ? formatDateForWMM(new Date(formData.subEndYear, formData.subEndMonth - 1, formData.subEndDay)) : "",
+        subsdate: formData.subscriptionStart
+          ? formatDateForWMM(
+              new Date(
+                formData.subStartYear,
+                formData.subStartMonth - 1,
+                formData.subStartDay
+              )
+            )
+          : "",
+        enddate: formData.subscriptionEnd
+          ? formatDateForWMM(
+              new Date(
+                formData.subEndYear,
+                formData.subEndMonth - 1,
+                formData.subEndDay
+              )
+            )
+          : "",
         paymtref: roleSpecificData.paymtref || "",
         paymtamt: roleSpecificData.paymtamt || "",
         paymtmasses: roleSpecificData.paymtmasses || "",
         donorid: roleSpecificData.donorid || "",
-        adddate: formatDateForWMM(new Date())
+        adddate: formatDateForWMM(new Date()),
       };
     }
   };
@@ -1316,8 +1409,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
         const fullYear = normalizeYear(formData.bdateYear);
         // Format as YYYY-MM-DD for consistent database storage and duplicate checking
-        const month = formData.bdateMonth.padStart(2, '0');
-        const day = formData.bdateDay.padStart(2, '0');
+        const month = formData.bdateMonth.padStart(2, "0");
+        const day = formData.bdateDay.padStart(2, "0");
         return `${fullYear}-${month}-${day}`;
       }
       return formData.bdate || "";
@@ -1349,17 +1442,17 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Only add subscription data if user has WMM role
     if (hasRole("WMM")) {
       const subscriptionData = getSubscriptionSpecificData();
-      
+
       // Map subscription types to their model types
       const modelType = {
-        "WMM": "WMM",
-        "Promo": "PROMO",
-        "Complimentary": "COMP"
+        WMM: "WMM",
+        Promo: "PROMO",
+        Complimentary: "COMP",
       }[subscriptionType];
 
       roleSubmissions.push({
         roleType: modelType,
-        roleData: subscriptionData
+        roleData: subscriptionData,
       });
     }
 
@@ -1369,7 +1462,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       if (Object.keys(cleanHrgData).length > 0) {
         roleSubmissions.push({
           roleType: "HRG",
-          roleData: cleanHrgData
+          roleData: cleanHrgData,
         });
       }
     }
@@ -1379,7 +1472,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       if (Object.keys(cleanFomData).length > 0) {
         roleSubmissions.push({
           roleType: "FOM",
-          roleData: cleanFomData
+          roleData: cleanFomData,
         });
       }
     }
@@ -1389,7 +1482,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       if (Object.keys(cleanCalData).length > 0) {
         roleSubmissions.push({
           roleType: "CAL",
-          roleData: cleanCalData
+          roleData: cleanCalData,
         });
       }
     }
@@ -1403,7 +1496,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       roleSubmissions,
       adddate: formatDate(new Date()),
     };
-
 
     try {
       const response = await axios.post(
@@ -1424,10 +1516,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
             calData: response.data.calData || [],
             promoData: response.data.promoData || [],
             complimentaryData: response.data.complimentaryData || [],
-            services: roleSubmissions.map(role => role.roleType)
-          }
+            services: roleSubmissions.map((role) => role.roleType),
+          },
         });
-        
+
         fetchClients();
         closeModal();
       }
@@ -1526,7 +1618,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
             clientData.wmmData = {
               records: [clientData.wmmData].filter(
                 (item) => Object.keys(item).length > 0
-              )
+              ),
             };
           }
         } else {
@@ -1655,6 +1747,51 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     fetchClients(); // Refresh client list
   };
 
+  // Handle new donor added
+  const handleNewDonorAdded = (donorData) => {
+    // Set the form data with the new donor's details
+    setFormData((prev) => ({
+      ...prev,
+      donorid: donorData.id,
+      title: donorData.title || "",
+      fname: donorData.fname || "",
+      mname: donorData.mname || "",
+      lname: donorData.lname || "",
+      sname: donorData.sname || "",
+      company: donorData.company || "",
+      email: donorData.email || "",
+      contactnos: donorData.contactnos || "",
+      cellno: donorData.cellno || "",
+      ofcno: donorData.ofcno || "",
+      type: donorData.type || "",
+      group: donorData.group || "",
+      remarks: donorData.remarks || "",
+    }));
+
+    // Refresh the client list
+    fetchClients();
+
+    // Set address data
+    if (donorData.address) {
+      const addressLines = donorData.address.split("\n");
+      setAddressData({
+        housestreet: addressLines[0]?.replace(/,$/, "") || "",
+        subdivision: addressLines[1]?.replace(/,$/, "") || "",
+        barangay: addressLines[2]?.replace(/,$/, "") || "",
+        city: donorData.area || "",
+        zipcode: donorData.zipcode || "",
+      });
+      setCombinedAddress(donorData.address);
+    }
+
+    // Set area data
+    setAreaData({
+      acode: donorData.acode || "",
+      zipcode: donorData.zipcode || "",
+      city: donorData.area || "",
+    });
+  };
+
   // Handle closing the duplicate view
   const handleCloseDuplicateView = () => {
     setViewingDuplicate(false);
@@ -1696,8 +1833,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                   </h3>
                 ) : (
                   <h3 className="text-gray-800 text-base font-medium">
-                    {potentialDuplicates.length > 0 
-                      ? `${potentialDuplicates.length} Possible ${potentialDuplicates.length === 1 ? "Match" : "Matches"}`
+                    {potentialDuplicates.length > 0
+                      ? `${potentialDuplicates.length} Possible ${
+                          potentialDuplicates.length === 1 ? "Match" : "Matches"
+                        }`
                       : "Potential Matches"}
                   </h3>
                 )}
@@ -1705,7 +1844,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                   {isCheckingDuplicates
                     ? "Searching for possible duplicates..."
                     : potentialDuplicates.length > 0
-                    ? "Similar records found in database" 
+                    ? "Similar records found in database"
                     : "No matches found yet"}
                 </p>
               </div>
@@ -2170,7 +2309,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   // Add a function to load areas data
   const loadAreas = useCallback(async () => {
     if (isLoadingAreas || areas) return; // Don't fetch if already loading or we have data
-    
+
     setIsLoadingAreas(true);
     try {
       const areasData = await fetchAreas();
@@ -2182,34 +2321,39 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     }
   }, [areas, isLoadingAreas]);
 
-  const memoizedOnAreaChange = useCallback((field, value) => {
-    setAreaData(prev => ({ ...prev, [field]: value }));
-    if (field === "city") {
-      setFormData(prev => ({ ...prev, area: value }));
-      setAddressData(prev => ({ ...prev, city: value }));
-    }
-    if (field === "zipcode") {
-      setFormData(prev => ({ ...prev, zipcode: value }));
-    }
-    if (field === "acode") {
-      setFormData(prev => ({ ...prev, acode: value }));
-    }
-  }, [setAreaData, setFormData, setAddressData]);
+  const memoizedOnAreaChange = useCallback(
+    (field, value) => {
+      setAreaData((prev) => ({ ...prev, [field]: value }));
+      if (field === "city") {
+        setFormData((prev) => ({ ...prev, area: value }));
+        setAddressData((prev) => ({ ...prev, city: value }));
+      }
+      if (field === "zipcode") {
+        setFormData((prev) => ({ ...prev, zipcode: value }));
+      }
+      if (field === "acode") {
+        setFormData((prev) => ({ ...prev, acode: value }));
+      }
+    },
+    [setAreaData, setFormData, setAddressData]
+  );
 
   // After all state declarations, before return:
   const initialAreaData = {
     acode: formData.acode || areaData.acode || "",
     zipcode: formData.zipcode || areaData.zipcode || "",
-    city: formData.area || areaData.city || addressData.city || ""
+    city: formData.area || areaData.city || addressData.city || "",
   };
 
   useEffect(() => {
     if (!areas && !isLoadingAreas) {
       setIsLoadingAreas(true);
-      fetchAreas().then((areasData) => {
-        setAreas(areasData);
-        setIsLoadingAreas(false);
-      }).catch(() => setIsLoadingAreas(false));
+      fetchAreas()
+        .then((areasData) => {
+          setAreas(areasData);
+          setIsLoadingAreas(false);
+        })
+        .catch(() => setIsLoadingAreas(false));
     }
   }, [areas, isLoadingAreas]);
 
@@ -2218,57 +2362,60 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     setIsEditingCombinedAddress(true);
     const value = e.target.value;
     setCombinedAddress(value);
-  
+
     // Parse the combined address back into individual fields
-    const lines = value.split('\n').map(line => line.trim().replace(/,\s*$/, '')).filter(line => line);
-    
+    const lines = value
+      .split("\n")
+      .map((line) => line.trim().replace(/,\s*$/, ""))
+      .filter((line) => line);
+
     // Update individual address fields
-    setAddressData(prev => {
-      const lastLine = lines[lines.length - 1] || '';
+    setAddressData((prev) => {
+      const lastLine = lines[lines.length - 1] || "";
       const zipMatch = lastLine.match(/^\d+/);
-      const zipcode = zipMatch ? zipMatch[0] : '';
-  
+      const zipcode = zipMatch ? zipMatch[0] : "";
+
       return {
-        housestreet: lines[0] || '',
-        subdivision: lines[1] || '',
-        barangay: lines[2] || '',
+        housestreet: lines[0] || "",
+        subdivision: lines[1] || "",
+        barangay: lines[2] || "",
         city: prev.city, // Preserve city from area data
-        zipcode: zipcode
+        zipcode: zipcode,
       };
     });
-  
+
     // Update formData
-    setFormData(prev => {
-      const lastLine = lines[lines.length - 1] || '';
+    setFormData((prev) => {
+      const lastLine = lines[lines.length - 1] || "";
       const zipMatch = lastLine.match(/^\d+/);
-      const zipcode = zipMatch ? zipMatch[0] : '';
-      const city = lastLine.replace(zipcode, '').trim();
-  
+      const zipcode = zipMatch ? zipMatch[0] : "";
+      const city = lastLine.replace(zipcode, "").trim();
+
       return {
         ...prev,
         address: value,
-        housestreet: lines[0] || '',
-        subdivision: lines[1] || '',
-        barangay: lines[2] || '',
-        zipcode: zipcode ? parseInt(zipcode) : '',
-        area: city
+        housestreet: lines[0] || "",
+        subdivision: lines[1] || "",
+        barangay: lines[2] || "",
+        zipcode: zipcode ? parseInt(zipcode) : "",
+        area: city,
       };
     });
-  
+
     // Extract zipcode and city from the last line if it exists
     if (lines.length > 0) {
       const lastLine = lines[lines.length - 1];
       const zipMatch = lastLine.match(/^\d+/);
-      const zipcode = zipMatch ? zipMatch[0] : '';
-      const city = lastLine.replace(zipcode, '').trim();
-  
-      setAreaData(prev => ({
+      const zipcode = zipMatch ? zipMatch[0] : "";
+      const city = lastLine.replace(zipcode, "").trim();
+
+      setAreaData((prev) => ({
         ...prev,
         zipcode,
-        city
+        city,
       }));
     }
-  
+
     // Trigger duplicate check
     const checkData = {
       fname: formData.fname,
@@ -2289,8 +2436,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       },
       acode: areaData.acode || "",
     };
-  
-    const hasEnoughData = 
+
+    const hasEnoughData =
       (checkData.lname && checkData.lname.length >= 2) ||
       (checkData.fname && checkData.fname.length >= 2) ||
       (lines[0] && lines[0].length >= 2) || // housestreet
@@ -2301,7 +2448,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       (checkData.bdate && checkData.bdate.length > 0) ||
       (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
       (checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear);
-  
+
     if (hasEnoughData) {
       checkForDuplicates(checkData, "address");
     } else {
@@ -2317,17 +2464,29 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const handleCombinedAddressBlur = () => {
     setIsEditingCombinedAddress(false);
     // Format the address properly when blurring
-    const formattedAddress = formatAddressLines(addressData, formData.area, areaData);
+    const formattedAddress = formatAddressLines(
+      addressData,
+      formData.area,
+      areaData
+    );
     setCombinedAddress(formattedAddress);
   };
 
   return (
     <div className="relative">
-              <Button
-          onClick={openModal}
-          className={`${getSubscriptionTypeStyles()} hover:opacity-90 transition-opacity duration-200`}
-        >
-          <span>Add Client {subscriptionType === "HRG" || subscriptionType === "FOM" || subscriptionType === "CAL" || subscriptionType === "WMM" ? "" : ` ${subscriptionType}`}</span>
+      <Button
+        onClick={openModal}
+        className={`${getSubscriptionTypeStyles()} hover:opacity-90 transition-opacity duration-200`}
+      >
+        <span>
+          Add Client{" "}
+          {subscriptionType === "HRG" ||
+          subscriptionType === "FOM" ||
+          subscriptionType === "CAL" ||
+          subscriptionType === "WMM"
+            ? ""
+            : ` ${subscriptionType}`}
+        </span>
       </Button>
 
       {showModal && (
@@ -2338,7 +2497,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         >
           {/* Confirmation Dialog */}
           <ConfirmationDialog />
-
           {/* Show the View component when viewing a duplicate */}
           {viewingDuplicate && selectedDuplicate && (
             <View
@@ -2347,7 +2505,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
               onEditSuccess={handleDuplicateEditSuccess}
             />
           )}
-
           {/* Only show the form if not viewing a duplicate */}
           {!viewingDuplicate && (
             <>
@@ -2356,12 +2513,21 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
               <div className="flex flex-col lg:flex-row max-h-[100vh] overflow-auto">
                 <form
+                  id="main-client-form"
                   onSubmit={handleSubmit}
                   className="flex-1 p-4 overflow-y-auto lg:max-w-[calc(100%-380px)]"
                 >
                   <div className="mb-2 border-b pb-2">
-                    <h1 className={`${getSubscriptionTypeStyles()} p-2 text-center text-black text-3xl font-bold`}>
-                      Add Client {subscriptionType === "HRG" || subscriptionType === "FOM" || subscriptionType === "CAL" || subscriptionType === "WMM" ? "" : ` ${subscriptionType}`}
+                    <h1
+                      className={`${getSubscriptionTypeStyles()} p-2 text-center text-black text-3xl font-bold`}
+                    >
+                      Add Client{" "}
+                      {subscriptionType === "HRG" ||
+                      subscriptionType === "FOM" ||
+                      subscriptionType === "CAL" ||
+                      subscriptionType === "WMM"
+                        ? ""
+                        : ` ${subscriptionType}`}
                     </h1>
                     <p className="text-gray-500 text-base">
                       Fill in the details to add a new client
@@ -2382,10 +2548,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                               id="spack"
                               name="spack"
                               checked={formData.spack || false}
-                              onChange={(e) => setFormData(prev => ({ ...prev, spack: e.target.checked }))}
+                              onChange={(e) =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  spack: e.target.checked,
+                                }))
+                              }
                               className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                             />
-                            <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
+                            <label
+                              htmlFor="spack"
+                              className="ml-2 text-gray-700 text-base"
+                            >
                               Mark as Special Package
                             </label>
                           </div>
@@ -2481,7 +2655,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 if (/^\d{0,4}$/.test(value)) {
                                   handleChange(e);
                                 }
-                                }}
+                              }}
                               placeholder="YYYY"
                               className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
                               autoComplete="off"
@@ -3022,7 +3196,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
                     {hasRole("WMM") && (
                       <div className="p-4 border rounded-lg shadow-sm">
-                        <h2 className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center`}>
+                        <h2
+                          className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center`}
+                        >
                           {subscriptionType} Subscription
                         </h2>
 
@@ -3038,7 +3214,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                             onChange={handleChange}
                             className="w-full p-2 border rounded-md text-base"
                           >
-                            <option value="">Select Subscription Frequency</option>
+                            <option value="">
+                              Select Subscription Frequency
+                            </option>
                             <option value="6">6 Months</option>
                             <option value="11">1 Year</option>
                             <option value="22">2 Years</option>
@@ -3153,7 +3331,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                             />
                           </div>
                           <div className="flex items-center gap-2">
-                            <label htmlFor="calendar" className="text-lg font-medium">
+                            <label
+                              htmlFor="calendar"
+                              className="text-lg font-medium"
+                            >
                               Calendar Received:
                             </label>
                             <input
@@ -3178,7 +3359,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 onChange={handleChange}
                                 className="w-full p-2 border rounded-md text-base"
                               >
-                                <option value="">Select a classification</option>
+                                <option value="">
+                                  Select a classification
+                                </option>
                                 {subclasses.map((subclass) => (
                                   <option key={subclass.id} value={subclass.id}>
                                     {subclass.name} ({subclass.id})
@@ -3211,14 +3394,24 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 onChange={handleRoleSpecificChange}
                                 className="w-full p-2 border rounded-md text-base"
                               />
-                              <InputField
-                                label="Donor ID:"
-                                id="donorid"
-                                name="donorid"
-                                value={roleSpecificData.donorid}
-                                onChange={handleRoleSpecificChange}
-                                className="w-full p-2 border rounded-md text-base"
-                              />
+                              <div className="mb-4">
+                                <label className="block text-black text-xl mb-1">
+                                  Donor:
+                                </label>
+                                <div className="donor-add-container">
+                                  <DonorAdd
+                                    onDonorSelect={(donor) => {
+                                      handleRoleSpecificChange({
+                                        target: {
+                                          name: "donorid",
+                                          value: donor?.id || "",
+                                        },
+                                      });
+                                    }}
+                                    onNewDonorAdded={handleNewDonorAdded}
+                                  />
+                                </div>
+                              </div>
                             </div>
                           </>
                         )}
