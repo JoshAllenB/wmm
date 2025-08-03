@@ -112,15 +112,20 @@ export const useColumns = () => {
 
         const nameDisplay = nameParts.trim();
         const companyDisplay = row.company ? row.company : "";
-        
+
         // Determine the main display name
         let displayParts = [];
-        
+
         // Add Spack status first - only if true
         if (row.spack) {
           displayParts.push(`Spack: Spack Client`);
         }
-        
+
+        // Add donor status second - only if true
+        if (row.isDonor) {
+          displayParts.push(`Donor: Donor Client`);
+        }
+
         // Add name and/or company
         if (nameDisplay) {
           displayParts.push(`Name: ${nameDisplay}`);
@@ -154,9 +159,7 @@ export const useColumns = () => {
           : "";
 
         // Create array of address parts and filter out empty ones
-        const addressParts = [address]
-          .filter(Boolean)
-          .join(", ");
+        const addressParts = [address].filter(Boolean).join(", ");
 
         return `${addressParts}${acode}`;
       },
@@ -220,20 +223,21 @@ export const useColumns = () => {
               const subscriptionRecords = subscriptionData.records || [];
 
               // Sort records by subsdate in descending order (most recent first)
-              const sortedRecords = [...subscriptionRecords]
-                .sort((a, b) => {
-                  const dateA = new Date(a.subsdate || 0);
-                  const dateB = new Date(b.subsdate || 0);
-                  return dateB - dateA;
-                });
+              const sortedRecords = [...subscriptionRecords].sort((a, b) => {
+                const dateA = new Date(a.subsdate || 0);
+                const dateB = new Date(b.subsdate || 0);
+                return dateB - dateA;
+              });
 
               // Check if we should show all records or just the most recent one
               // Only show most recent record if there are filters applied AND they are not just service filters
               const hasNonServiceFilters = row.hasNonServiceFilters === true;
-              const recordsToProcess = hasNonServiceFilters ? [sortedRecords[0]] : sortedRecords;
+              const recordsToProcess = hasNonServiceFilters
+                ? [sortedRecords[0]]
+                : sortedRecords;
 
               return recordsToProcess
-                .filter(subscription => subscription) // Filter out undefined/null subscriptions
+                .filter((subscription) => subscription) // Filter out undefined/null subscriptions
                 .map((subscription) => {
                   let {
                     subsdate,
@@ -243,46 +247,46 @@ export const useColumns = () => {
                     paymtref,
                     paymtamt,
                     calendar,
-                    referralid
+                    referralid,
                   } = subscription;
 
-                if (subsdate) {
-                  subsdate = `${new Date(subsdate).toLocaleDateString(
-                    "en-US"
-                  )}`;
-                } else {
-                  subsdate = "N/A";
-                }
+                  if (subsdate) {
+                    subsdate = `${new Date(subsdate).toLocaleDateString(
+                      "en-US"
+                    )}`;
+                  } else {
+                    subsdate = "N/A";
+                  }
 
-                if (enddate) {
-                  enddate = `${new Date(enddate).toLocaleDateString(
-                    "en-US"
-                  )}`;
-                } else {
-                  enddate = "N/A";
-                }
+                  if (enddate) {
+                    enddate = `${new Date(enddate).toLocaleDateString(
+                      "en-US"
+                    )}`;
+                  } else {
+                    enddate = "N/A";
+                  }
 
-                // Format payment amount if exists
-                const formattedPayment = paymtamt
-                  ? `₱${parseFloat(paymtamt).toFixed(2)}`
-                  : null;
+                  // Format payment amount if exists
+                  const formattedPayment = paymtamt
+                    ? `₱${parseFloat(paymtamt).toFixed(2)}`
+                    : null;
 
-                // Determine subscription status
-                const status = getSubscriptionStatus(enddate);
+                  // Determine subscription status
+                  const status = getSubscriptionStatus(enddate);
 
-                return {
-                  subsclass,
-                  subsdate,
-                  enddate,
-                  copies: `${copies || "N/A"}`,
-                  paymtref: paymtref || null,
-                  paymtamt: formattedPayment,
-                  status,
-                  calendar: calendar || false,
-                  type: row.subscriptionType, // Add subscription type to display
-                  referralid: referralid || null
-                };
-              });
+                  return {
+                    subsclass,
+                    subsdate,
+                    enddate,
+                    copies: `${copies || "N/A"}`,
+                    paymtref: paymtref || null,
+                    paymtamt: formattedPayment,
+                    status,
+                    calendar: calendar || false,
+                    type: row.subscriptionType, // Add subscription type to display
+                    referralid: referralid || null,
+                  };
+                });
             },
             cell: ({ getValue }) => {
               const subscriptions = getValue();
@@ -304,11 +308,12 @@ export const useColumns = () => {
                         : "";
 
                     // Get subscription type badge color
-                    const typeBadgeColor = sub.type === "Promo" 
-                      ? "bg-emerald-100 text-emerald-800"
-                      : sub.type === "Complimentary"
-                      ? "bg-purple-100 text-purple-800"
-                      : "bg-blue-100 text-blue-800";
+                    const typeBadgeColor =
+                      sub.type === "Promo"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : sub.type === "Complimentary"
+                        ? "bg-purple-100 text-purple-800"
+                        : "bg-blue-100 text-blue-800";
 
                     return (
                       <li key={index} className="mb-1">
@@ -316,25 +321,20 @@ export const useColumns = () => {
                           <div className="flex items-center gap-2">
                             <span className={statusClass}>
                               {statusIndicator}
-                              <strong>{sub.subsclass}</strong>:{" "}
-                              {sub.subsdate} - {sub.enddate}, Cps:{" "}
-                              {sub.copies}
+                              <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
+                              {sub.enddate}, Cps: {sub.copies}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadgeColor}`}>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadgeColor}`}
+                            >
                               {sub.type}
                             </span>
                           </div>
                           {(sub.paymtref || sub.paymtamt) && (
                             <div className="text-xs ml-4 text-gray-600">
-                              {sub.paymtref && (
-                                <span>Ref: {sub.paymtref}</span>
-                              )}
-                              {sub.paymtref && sub.paymtamt && (
-                                <span> • </span>
-                              )}
-                              {sub.paymtamt && (
-                                <span>Amt: {sub.paymtamt}</span>
-                              )}
+                              {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
+                              {sub.paymtref && sub.paymtamt && <span> • </span>}
+                              {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
                             </div>
                           )}
                           {index === 0 && (
@@ -349,9 +349,7 @@ export const useColumns = () => {
                                 </span>
                               )}
                               {sub.referralid && (
-                                <span>
-                                  Referral ID: {sub.referralid}
-                                </span>
+                                <span>Referral ID: {sub.referralid}</span>
                               )}
                             </div>
                           )}
@@ -753,9 +751,7 @@ export const useColumns = () => {
             id: "Added By",
             Header: "Added By",
             accessorFn: (row) =>
-              `By: ${row.adduser || "N/A"}, Date: ${
-                row.adddate || "N/A"
-              }`,
+              `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
             size: 150,
           },
         ]
