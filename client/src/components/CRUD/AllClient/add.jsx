@@ -16,32 +16,7 @@ import { debounce } from "lodash";
 import View from "./view";
 import { webSocketService } from "../../../services/WebSocketService";
 import DonorAdd from "../donorAdd";
-
-// Utility function to normalize address for more consistent duplicate checking
-const normalizeAddress = (address) => {
-  if (!address || typeof address !== "string") return "";
-
-  return (
-    address
-      .toUpperCase()
-      // Standardize common street abbreviations
-      .replace(/\bST\b|\bSTREET\b/gi, "STREET")
-      .replace(/\bAVE\b|\bAVENUE\b/gi, "AVENUE")
-      .replace(/\bRD\b|\bROAD\b/gi, "ROAD")
-      .replace(/\bBLVD\b|\bBOULEVARD\b/gi, "BOULEVARD")
-      .replace(/\bLN\b|\bLANE\b/gi, "LANE")
-      .replace(/\bDR\b|\bDRIVE\b/gi, "DRIVE")
-      // Remove apartment/unit numbers
-      .replace(
-        /\bAPT\b.*\d+|\bUNIT\b.*\d+|\bNO\b\.?\s*\d+|\bSUITE\b.*\d+/gi,
-        ""
-      )
-      // Remove common punctuation and standardize spacing
-      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ")
-      .replace(/\s{2,}/g, " ")
-      .trim()
-  );
-};
+import useDuplicateChecker from "../duplicateChecker/duplicateLogic.jsx";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -130,11 +105,26 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
   const [selectedRole, setSelectedRole] = useState("HRG"); // Default to HRG
-  const [potentialDuplicates, setPotentialDuplicates] = useState([]);
-  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
-  const [showDuplicates, setShowDuplicates] = useState(false);
-  const [selectedDuplicate, setSelectedDuplicate] = useState(null);
-  const [viewingDuplicate, setViewingDuplicate] = useState(false);
+
+  // Initialize duplicate checker hook
+  const {
+    potentialDuplicates,
+    isCheckingDuplicates,
+    showDuplicates,
+    selectedDuplicate,
+    viewingDuplicate,
+    setPotentialDuplicates,
+    setIsCheckingDuplicates,
+    setShowDuplicates,
+    setSelectedDuplicate,
+    setViewingDuplicate,
+    checkForDuplicates,
+    immediatelyClearDuplicates,
+    handleViewDuplicate,
+    handleCloseDuplicateView,
+    DuplicatePanel,
+    normalizeAddress,
+  } = useDuplicateChecker();
 
   // Add these new state variables after other state declarations
   const [hrgData, setHrgData] = useState({
@@ -431,12 +421,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       remarks: "",
     });
 
-    // Reset potential duplicates
-    setPotentialDuplicates([]);
-    setShowDuplicates(false);
+    // Reset duplicate checker state
+    immediatelyClearDuplicates();
     setSelectedDuplicate(null);
     setViewingDuplicate(false);
-    setIsCheckingDuplicates(false);
 
     // Reset renewal type
     setRenewalType("current");
@@ -471,126 +459,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     return endDate;
   };
 
-  // Create a debounced function to check for duplicates
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const checkForDuplicates = useCallback(
-    debounce(async (checkData, fieldChanged = null) => {
-      // Check if any of the specified fields are populated
-      const hasRequiredData =
-        (checkData.lname && checkData.lname.length >= 2) ||
-        (checkData.fname && checkData.fname.length >= 2) ||
-        (checkData.company && checkData.company.length >= 2) ||
-        (checkData.address && checkData.address.length >= 3) ||
-        (checkData.cellno && checkData.cellno.length >= 5) ||
-        (checkData.contactnos && checkData.contactnos.length >= 5) ||
-        (checkData.bdate && checkData.bdate.length > 0) ||
-        (checkData.bdateMonth && checkData.bdateDay) || // Trigger if day and month are present
-        (addressData.housestreet && addressData.housestreet.length >= 2) ||
-        (addressData.subdivision && addressData.subdivision.length >= 2) ||
-        (addressData.barangay && addressData.barangay.length >= 2);
+  // Moved to duplicateLogic.js
 
-      if (!hasRequiredData) {
-        setPotentialDuplicates([]);
-        setShowDuplicates(false);
-        setIsCheckingDuplicates(false);
-        return;
-      }
-      // Calculate search precision based on available fields
-      const availableFields = {
-        lname: checkData.lname && checkData.lname.length >= 2,
-        fname: checkData.fname && checkData.fname.length >= 2,
-        company: checkData.company && checkData.company.length >= 2,
-        address: checkData.address && checkData.address.length >= 3,
-        housestreet:
-          addressData.housestreet && addressData.housestreet.length >= 2,
-        subdivision:
-          addressData.subdivision && addressData.subdivision.length >= 2,
-        barangay: addressData.barangay && addressData.barangay.length >= 2,
-        email: checkData.email && checkData.email.includes("@"),
-        cellno: checkData.cellno && checkData.cellno.length >= 5,
-        contactnos: checkData.contactnos && checkData.contactnos.length >= 5,
-        bdate: checkData.bdate && checkData.bdate.length > 0,
-        bdateComponents: checkData.bdateMonth && checkData.bdateDay, // Day and month present
-        bdateComplete:
-          checkData.bdateMonth && checkData.bdateDay && checkData.bdateYear, // Complete date
-        acode: checkData.acode && checkData.acode.length >= 3,
-      };
-
-      const filledFieldsCount =
-        Object.values(availableFields).filter(Boolean).length;
-
-      try {
-        // Prepare the data for sending to the server, prioritizing lname, address, fname
-        const duplicateCheckData = {
-          ...checkData,
-          // Send both original and standardized address for better matching
-          address: combinedAddress,
-          standardizedAddress: normalizeAddress(combinedAddress),
-          // Break down address components for better matching
-          addressComponents: {
-            housestreet: addressData.housestreet || "",
-            subdivision: addressData.subdivision || "",
-            barangay: addressData.barangay || "",
-          },
-          // Add bdate components for better matching
-          bdateMonth: checkData.bdateMonth || "",
-          bdateDay: checkData.bdateDay || "",
-          bdateYear: checkData.bdateYear || "",
-          // Add precision information for better search results
-          searchPrecision: {
-            filledFieldsCount,
-            availableFields,
-            hasLname: availableFields.lname,
-            hasFname: availableFields.fname,
-            hasAddress: availableFields.address,
-            hasHousestreet: availableFields.housestreet,
-            hasSubdivision: availableFields.subdivision,
-            hasBarangay: availableFields.barangay,
-            hasEmail: availableFields.email,
-            hasPhone: availableFields.cellno || availableFields.contactnos,
-            hasCompany: availableFields.company,
-            hasBdate: availableFields.bdate,
-            hasAcode: availableFields.acode,
-          },
-        };
-
-        const response = await axios.post(
-          `http://${
-            import.meta.env.VITE_IP_ADDRESS
-          }:3001/clients/check-duplicates`,
-          duplicateCheckData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
-
-        if (response.data.matches && response.data.matches.length > 0) {
-          setPotentialDuplicates(response.data.matches);
-          setShowDuplicates(true);
-        } else {
-          setPotentialDuplicates([]);
-          setShowDuplicates(false);
-        }
-      } catch (error) {
-        console.error("Error checking for duplicates:", error);
-        setPotentialDuplicates([]);
-        setShowDuplicates(false);
-      } finally {
-        setIsCheckingDuplicates(false);
-      }
-    }, 300), // 300ms debounce for responsive checking
-    [addressData, combinedAddress, areaData] // Empty dependency array to prevent recreation of the debounced function
-  );
-
-  // Add an immediate clearing function for better UX
-  const immediatelyClearDuplicates = () => {
-    if (potentialDuplicates.length > 0) {
-      setPotentialDuplicates([]);
-      setShowDuplicates(false);
-    }
-  };
+  // Moved to duplicateLogic.js
 
   const handleChange = async (e) => {
     const { name, value } = e.target;
@@ -614,7 +485,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     ];
     if (duplicateRelatedFields.includes(name)) {
       immediatelyClearDuplicates();
-      setIsCheckingDuplicates(true); // Show loading state immediately
     }
 
     const normalizeYear = (year) => {
@@ -654,44 +524,26 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
         // Trigger duplicate check after updating birthdate
         if (duplicateRelatedFields.includes(name)) {
-          setTimeout(() => {
-            // Only check if we have at least one identifying field with enough content
-            if (
-              (newData.fname && newData.fname.length > 1) ||
-              (newData.lname && newData.lname.length > 1) ||
-              (newData.company && newData.company.length > 1) ||
-              (newData.bdate && newData.bdate.length > 0) ||
-              (newData.bdateMonth && newData.bdateDay) || // Trigger if day and month are present
-              (newData.cellno && newData.cellno.length > 5) ||
-              (newData.contactnos && newData.contactnos.length > 5) ||
-              (addressData.housestreet && addressData.housestreet.length > 2) ||
-              (addressData.subdivision && addressData.subdivision.length > 2) ||
-              (addressData.barangay && addressData.barangay.length > 2)
-            ) {
-              const checkData = {
-                fname: newData.fname,
-                lname: newData.lname,
-                bdate: newData.bdate || "",
-                bdateMonth: newData.bdateMonth,
-                bdateDay: newData.bdateDay,
-                bdateYear: newData.bdateYear,
-                company: newData.company,
-                email: newData.email,
-                cellno: newData.cellno,
-                contactnos: newData.contactnos,
-                address: combinedAddress,
-                addressComponents: {
-                  housestreet: addressData.housestreet || "",
-                  subdivision: addressData.subdivision || "",
-                  barangay: addressData.barangay || "",
-                },
-                acode: areaData.acode || "",
-              };
-              checkForDuplicates(checkData, name);
-            } else {
-              setIsCheckingDuplicates(false);
-            }
-          }, 0);
+          const checkData = {
+            fname: newData.fname,
+            lname: newData.lname,
+            bdate: newData.bdate || "",
+            bdateMonth: newData.bdateMonth,
+            bdateDay: newData.bdateDay,
+            bdateYear: newData.bdateYear,
+            company: newData.company,
+            email: newData.email,
+            cellno: newData.cellno,
+            contactnos: newData.contactnos,
+            address: combinedAddress,
+            addressComponents: {
+              housestreet: addressData.housestreet || "",
+              subdivision: addressData.subdivision || "",
+              barangay: addressData.barangay || "",
+            },
+            acode: areaData.acode || "",
+          };
+          checkForDuplicates(checkData, name);
         }
 
         return newData;
@@ -979,42 +831,24 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         barangay: newAddressData.barangay,
       }));
 
-      // Check for duplicates with a delay to allow state updates
-      const checkDuplicatesAfterDelay = () => {
-        const currentFormData = {
-          fname: formData.fname,
-          lname: formData.lname,
-          bdate: formData.bdate,
-          company: formData.company,
-          email: formData.email,
-          cellno: formData.cellno,
-          contactnos: formData.contactnos,
-          address: formattedAddress,
-          acode: areaData.acode || "",
-        };
-
-        // Check for duplicates if any of the key fields are populated
-        if (
-          (currentFormData.fname && currentFormData.fname.length > 1) ||
-          (currentFormData.lname && currentFormData.lname.length > 1) ||
-          (currentFormData.bdate && currentFormData.bdate.length > 0) ||
-          (currentFormData.bdateMonth && currentFormData.bdateDay) || // Trigger if day and month are present
-          (currentFormData.cellno && currentFormData.cellno.length > 5) ||
-          (currentFormData.contactnos &&
-            currentFormData.contactnos.length > 5) ||
-          (newAddressData.housestreet &&
-            newAddressData.housestreet.length > 2) ||
-          (newAddressData.subdivision &&
-            newAddressData.subdivision.length > 2) ||
-          (newAddressData.barangay && newAddressData.barangay.length > 2)
-        ) {
-          checkForDuplicates(currentFormData, "address");
-        } else {
-          setIsCheckingDuplicates(false);
-        }
+      // Check for duplicates with updated address
+      const currentFormData = {
+        fname: formData.fname,
+        lname: formData.lname,
+        bdate: formData.bdate,
+        company: formData.company,
+        email: formData.email,
+        cellno: formData.cellno,
+        contactnos: formData.contactnos,
+        address: formattedAddress,
+        addressComponents: {
+          housestreet: newAddressData.housestreet || "",
+          subdivision: newAddressData.subdivision || "",
+          barangay: newAddressData.barangay || "",
+        },
+        acode: areaData.acode || "",
       };
-
-      setTimeout(checkDuplicatesAfterDelay, 100);
+      checkForDuplicates(currentFormData, "address");
       return newAddressData;
     });
   };
@@ -1068,17 +902,14 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           cellno: formData.cellno,
           contactnos: formData.contactnos,
           address: formattedAddress,
+          addressComponents: {
+            housestreet: newAddressData.housestreet || "",
+            subdivision: newAddressData.subdivision || "",
+            barangay: newAddressData.barangay || "",
+          },
           acode: areaData.acode || "",
         };
-
-        // Always check for duplicates if we have lname (minimum requirement)
-        if (currentFormData.lname && currentFormData.lname.length >= 2) {
-          setTimeout(() => {
-            checkForDuplicates(currentFormData, "city");
-          }, 100);
-        } else {
-          setIsCheckingDuplicates(false);
-        }
+        checkForDuplicates(currentFormData, "city");
 
         return newAddressData;
       });
@@ -1117,17 +948,14 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           cellno: formData.cellno,
           contactnos: formData.contactnos,
           address: combinedAddress,
+          addressComponents: {
+            housestreet: addressData.housestreet || "",
+            subdivision: addressData.subdivision || "",
+            barangay: addressData.barangay || "",
+          },
           acode: value,
         };
-
-        // Always check for duplicates if we have lname (minimum requirement)
-        if (currentFormData.lname && currentFormData.lname.length >= 2) {
-          setTimeout(() => {
-            checkForDuplicates(currentFormData, "acode");
-          }, 100);
-        } else {
-          setIsCheckingDuplicates(false);
-        }
+        checkForDuplicates(currentFormData, "acode");
       }
 
       // If zipcode changes, update addressData
@@ -1223,7 +1051,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
     e.preventDefault();
     setShowConfirmation(true);
-
   };
 
   // Add this helper function before handleConfirmedSubmit
@@ -1553,132 +1380,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     }
   };
 
-  // Function to handle viewing a duplicate client
-  const handleViewDuplicate = async (clientId) => {
-    try {
-      // Fetch full client details
-      const response = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/${clientId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
-      );
-
-      if (response.data) {
-        // Format the role-specific data properly for the View component
-        const clientData = response.data;
-
-        // Critical: Determine which services this client should have based on user roles
-        // This is necessary to control visibility of different role sections
-        if (!clientData.services) {
-          clientData.services = [];
-        }
-
-        // For WMM users, always add WMM to services to ensure it's displayed
-        if (hasRole("WMM") || hasRole("Admin")) {
-          if (!clientData.services.includes("WMM")) {
-            clientData.services.push("WMM");
-          }
-        }
-
-        // Only add other service types if user has those roles
-        if (hasRole("HRG") || hasRole("Admin")) {
-          if (!clientData.services.includes("HRG")) {
-            clientData.services.push("HRG");
-          }
-        }
-
-        if (hasRole("FOM") || hasRole("Admin")) {
-          if (!clientData.services.includes("FOM")) {
-            clientData.services.push("FOM");
-          }
-        }
-
-        if (hasRole("CAL") || hasRole("Admin")) {
-          if (!clientData.services.includes("CAL")) {
-            clientData.services.push("CAL");
-          }
-        }
-
-        // Handle WMM data - keep as array if it already is one
-        if (clientData.wmmData) {
-          if (Array.isArray(clientData.wmmData)) {
-            // If it's already an array, wrap it in records structure for Edit component
-            clientData.wmmData = { records: clientData.wmmData };
-          } else if (
-            clientData.wmmData.records &&
-            Array.isArray(clientData.wmmData.records)
-          ) {
-            // If it already has a records property that's an array, keep this structure
-            // This is the format needed by Edit component
-          } else {
-            // If it's a single object, convert to records array structure
-            clientData.wmmData = {
-              records: [clientData.wmmData].filter(
-                (item) => Object.keys(item).length > 0
-              ),
-            };
-          }
-        } else {
-          clientData.wmmData = { records: [] };
-        }
-
-        // Process other role data in the format expected by View component
-
-        // Format HRG data if present
-        if (clientData.hrgData) {
-          if (Array.isArray(clientData.hrgData)) {
-            clientData.hrgData = { records: clientData.hrgData };
-          } else if (!clientData.hrgData.records) {
-            clientData.hrgData = {
-              records: [clientData.hrgData].filter(
-                (item) => Object.keys(item).length > 0
-              ),
-            };
-          }
-        } else {
-          clientData.hrgData = { records: [] };
-        }
-
-        // Format FOM data if present
-        if (clientData.fomData) {
-          if (Array.isArray(clientData.fomData)) {
-            clientData.fomData = { records: clientData.fomData };
-          } else if (!clientData.fomData.records) {
-            clientData.fomData = {
-              records: [clientData.fomData].filter(
-                (item) => Object.keys(item).length > 0
-              ),
-            };
-          }
-        } else {
-          clientData.fomData = { records: [] };
-        }
-
-        // Format CAL data if present
-        if (clientData.calData) {
-          if (Array.isArray(clientData.calData)) {
-            clientData.calData = { records: clientData.calData };
-          } else if (!clientData.calData.records) {
-            clientData.calData = {
-              records: [clientData.calData].filter(
-                (item) => Object.keys(item).length > 0
-              ),
-            };
-          }
-        } else {
-          clientData.calData = { records: [] };
-        }
-
-        setSelectedDuplicate(clientData);
-        setViewingDuplicate(true);
-      }
-    } catch (error) {
-      console.error("Error fetching client details:", error);
-    }
-  };
+  // Moved to duplicateChecker/duplicateLogic.js
 
   // Handle duplicate edit success
   const handleDuplicateEditSuccess = (updatedData) => {
@@ -1792,491 +1494,13 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     });
   };
 
-  // Handle closing the duplicate view
-  const handleCloseDuplicateView = () => {
-    setViewingDuplicate(false);
-    setSelectedDuplicate(null);
-  };
-
-  // Memoize the DuplicatePanel component to prevent unnecessary re-renders
-  const MemoizedDuplicatePanel = useMemo(() => {
-    // Side panel for displaying potential duplicates
-    const DuplicatePanel = () => {
-      return (
-        <div className="border-l-0 lg:border-l border-gray-200 w-full lg:w-[500px] h-full max-h-[90vh] overflow-hidden bg-white shadow-md flex flex-col mt-0 lg:mt-0">
-          <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 py-3 px-4 border-b border-gray-200 z-10">
-            <div className="flex items-center justify-between">
-              <div>
-                {isCheckingDuplicates ? (
-                  <h3 className="text-gray-800 text-base font-medium flex items-center">
-                    <span className="animate-pulse mr-2">Checking...</span>
-                    <svg
-                      className="animate-spin h-4 w-4 text-blue-500"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      ></circle>
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      ></path>
-                    </svg>
-                  </h3>
-                ) : (
-                  <h3 className="text-gray-800 text-base font-medium">
-                    {potentialDuplicates.length > 0
-                      ? `${potentialDuplicates.length} Possible ${
-                          potentialDuplicates.length === 1 ? "Match" : "Matches"
-                        }`
-                      : "Potential Matches"}
-                  </h3>
-                )}
-                <p className="text-sm text-gray-500 mt-0.5">
-                  {isCheckingDuplicates
-                    ? "Searching for possible duplicates..."
-                    : potentialDuplicates.length > 0
-                    ? "Similar records found in database"
-                    : "No matches found yet"}
-                </p>
-              </div>
-              {potentialDuplicates.length > 0 && (
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-800">
-                  {potentialDuplicates.length}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div
-            className="overflow-y-auto p-3 flex-grow custom-scrollbar"
-            style={{ maxHeight: "calc(90vh - 70px)", overflowY: "auto" }}
-          >
-            {isCheckingDuplicates && potentialDuplicates.length === 0 ? (
-              <div className="flex justify-center items-center h-32 text-gray-400">
-                <p>Searching for matching records...</p>
-              </div>
-            ) : potentialDuplicates.length === 0 ? (
-              <div className="flex justify-center items-center h-32 text-gray-400">
-                <p>Enter client details to find matches</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {potentialDuplicates.map((client) => (
-                  <div
-                    key={client.id}
-                    className="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden hover:border-blue-300 hover:shadow transition-all duration-200"
-                  >
-                    <div className="px-3 py-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                      <div className="flex flex-col">
-                        <div className="font-medium text-gray-800 w-full">
-                          {client.lname || client.fname || client.mname
-                            ? `${client.lname || ""}, ${client.fname || ""} ${
-                                client.mname ? client.mname.charAt(0) + "." : ""
-                              }`
-                            : client.company
-                            ? client.company
-                            : "No Name"}
-                        </div>
-
-                        {/* Match strength indicator */}
-                        {client.totalScore !== undefined && (
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <div
-                              className={`text-xs font-medium px-2 py-1 rounded-md inline-flex items-center gap-1.5 ${
-                                client.totalScore > 40
-                                  ? "bg-red-100 text-red-900 border border-red-200"
-                                  : client.totalScore > 30
-                                  ? "bg-amber-100 text-amber-900 border border-amber-200"
-                                  : client.totalScore > 20
-                                  ? "bg-yellow-100 text-yellow-900 border border-yellow-200"
-                                  : "bg-blue-100 text-blue-900 border border-blue-200"
-                              }`}
-                              title={
-                                client.totalScore > 40
-                                  ? "Multiple strong matches in key fields suggest this is very likely the same client."
-                                  : client.totalScore > 30
-                                  ? "Several matching fields indicate this could be the same client."
-                                  : client.totalScore > 20
-                                  ? "Some matching information suggests a possible duplicate."
-                                  : "A few fields have similar information."
-                              }
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-3.5 w-3.5"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                              >
-                                {client.totalScore > 40 ? (
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                    clipRule="evenodd"
-                                  />
-                                ) : client.totalScore > 30 ? (
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                  />
-                                ) : client.totalScore > 20 ? (
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                    clipRule="evenodd"
-                                  />
-                                ) : (
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 110-12 6 6 0 010 12zm0-9a1 1 0 011 1v4a1 1 0 11-2 0V8a1 1 0 011-1zm0 8a1 1 0 100-2 1 1 0 000 2z"
-                                    clipRule="evenodd"
-                                  />
-                                )}
-                              </svg>
-                              <span>
-                                {client.totalScore > 40
-                                  ? "Very strong match"
-                                  : client.totalScore > 30
-                                  ? "Strong match"
-                                  : client.totalScore > 20
-                                  ? "Likely match"
-                                  : "Possible match"}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="px-3 py-2 text-xs">
-                      {/* Match indicators */}
-                      {(client.fnameMatch > 0 ||
-                        client.lnameMatch > 0 ||
-                        client.addressMatch > 0 ||
-                        client.cellnoMatch > 0 ||
-                        client.contactnosMatch > 0 ||
-                        client.emailMatch > 0 ||
-                        client.bdateMatch > 0 ||
-                        client.companyMatch > 0 ||
-                        client.acodeMatch > 0) && (
-                        <div className="flex flex-wrap gap-1.5 mb-2.5">
-                          {client.lnameMatch > 0 && (
-                            <span className="bg-red-50 text-red-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-red-100 flex items-center">
-                              Last name
-                            </span>
-                          )}
-                          {client.addressMatch > 0 && (
-                            <span className="bg-amber-50 text-amber-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-amber-100 flex items-center">
-                              Address
-                            </span>
-                          )}
-                          {client.fnameMatch > 0 && (
-                            <span className="bg-orange-50 text-orange-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-orange-100 flex items-center">
-                              First Name
-                            </span>
-                          )}
-                          {(client.cellnoMatch > 0 ||
-                            client.contactnosMatch > 0) && (
-                            <span className="bg-green-50 text-green-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-green-100">
-                              Phone
-                            </span>
-                          )}
-                          {client.emailMatch > 0 && (
-                            <span className="bg-blue-50 text-blue-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-blue-100">
-                              Email
-                            </span>
-                          )}
-                          {client.bdateMatch > 0 && (
-                            <span className="bg-purple-50 text-purple-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
-                              Birthdate
-                            </span>
-                          )}
-                          {client.companyMatch > 0 && (
-                            <span className="bg-indigo-50 text-indigo-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-indigo-100">
-                              Company
-                            </span>
-                          )}
-                          {client.acodeMatch > 0 && (
-                            <span className="bg-gray-50 text-purple-600 text-xs font-medium rounded-sm px-1.5 py-0.5 border border-purple-100">
-                              Area Code
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Service tags - Display what services this client has */}
-                      {client.services && client.services.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mb-2">
-                          {client.services.map((service) => {
-                            let bgColor, textColor, borderColor;
-                            switch (service) {
-                              case "WMM":
-                                bgColor = "bg-blue-50";
-                                textColor = "text-blue-600";
-                                borderColor = "border-blue-100";
-                                break;
-                              case "HRG":
-                                bgColor = "bg-yellow-50";
-                                textColor = "text-yellow-600";
-                                borderColor = "border-yellow-100";
-                                break;
-                              case "FOM":
-                                bgColor = "bg-rose-50";
-                                textColor = "text-rose-600";
-                                borderColor = "border-rose-100";
-                                break;
-                              case "CAL":
-                                bgColor = "bg-cyan-50";
-                                textColor = "text-cyan-600";
-                                borderColor = "border-cyan-100";
-                                break;
-                              case "PROMO":
-                                bgColor = "bg-emerald-50";
-                                textColor = "text-emerald-600";
-                                borderColor = "border-emerald-100";
-                                break;
-                              case "COMP":
-                                bgColor = "bg-purple-50";
-                                textColor = "text-purple-600";
-                                borderColor = "border-purple-100";
-                                break;
-                              default:
-                                bgColor = "bg-gray-50";
-                                textColor = "text-gray-600";
-                                borderColor = "border-gray-100";
-                            }
-
-                            return (
-                              <span
-                                key={service}
-                                className={`${bgColor} ${textColor} text-xs font-medium rounded-sm px-1.5 py-0.5 border ${borderColor} flex items-center`}
-                              >
-                                <svg
-                                  className="w-2.5 h-2.5 mr-0.5"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                    clipRule="evenodd"
-                                  ></path>
-                                </svg>
-                                {service}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {/* Show no fields info */}
-                      {!(
-                        client.bdate ||
-                        client.cellno ||
-                        client.contactnos ||
-                        client.email
-                      ) && (
-                        <div className="text-sm text-gray-400 italic mb-1.5">
-                          Only address available
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-1 gap-1.5">
-                        {client.bdate && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                              />
-                            </svg>
-                            <span>Born: {client.bdate}</span>
-                          </div>
-                        )}
-
-                        {(client.cellno || client.contactnos) && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                              />
-                            </svg>
-                            <span>{client.cellno || client.contactnos}</span>
-                          </div>
-                        )}
-
-                        {client.email && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                              />
-                            </svg>
-                            <span className="truncate">{client.email}</span>
-                          </div>
-                        )}
-
-                        {client.company && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                              />
-                            </svg>
-                            <span className="truncate">{client.company}</span>
-                          </div>
-                        )}
-
-                        {client.address && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                            </svg>
-                            <span className="truncate">
-                              {client.address &&
-                                client.address.replace(/\r\n/g, ", ")}
-                            </span>
-                          </div>
-                        )}
-
-                        {client.acode && (
-                          <div className="flex items-center text-gray-600 text-sm">
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3.5 w-3.5 mr-1.5 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <span className="truncate">
-                              Area Code: {client.acode}{" "}
-                              {client.area && `(${client.area})`}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex justify-end">
-                        <button
-                          onClick={() => handleViewDuplicate(client.id)}
-                          className="px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition-colors shadow-sm"
-                        >
-                          View Details
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Style for scrollbar */}
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-            .custom-scrollbar {
-              scrollbar-width: thin;
-              scrollbar-color: #ccc #f1f1f1;
-            }
-            .custom-scrollbar::-webkit-scrollbar {
-              width: 6px;
-              height: 6px;
-            }
-            .custom-scrollbar::-webkit-scrollbar-track {
-              background: #f1f1f1;
-              border-radius: 3px;
-            }
-            .custom-scrollbar::-webkit-scrollbar-thumb {
-              background: #ccc;
-              border-radius: 3px;
-            }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: #999;
-            }
-          `,
-            }}
-          />
-        </div>
-      );
-    };
-
-    return DuplicatePanel;
-  }, [isCheckingDuplicates, potentialDuplicates.length, handleViewDuplicate]);
+  // Moved to duplicateChecker/duplicateLogic.js
 
   // Confirmation Dialog Component
   const ConfirmationDialog = () => {
     if (!showConfirmation) return null;
 
+    console.log("confirmation dialog in add.jsx");
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
@@ -2508,9 +1732,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           {/* Only show the form if not viewing a duplicate */}
           {!viewingDuplicate && (
             <>
-              {/* Remove the mobile toggle for duplicates/form since we always show both */}
-              {/* No need for showDuplicatesOnMobile anymore */}
-
               <div className="flex flex-col lg:flex-row max-h-[100vh] overflow-auto">
                 <form
                   id="main-client-form"
@@ -3470,9 +2691,13 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                   </div>
                 </form>
 
-                {/* Always show the duplicate panel */}
+                {/* Duplicate panel */}
                 <div className="flex-shrink-0 hidden lg:block">
-                  <MemoizedDuplicatePanel />
+                  <DuplicatePanel
+                    potentialDuplicates={potentialDuplicates}
+                    isCheckingDuplicates={isCheckingDuplicates}
+                    handleViewDuplicate={handleViewDuplicate}
+                  />
                 </div>
               </div>
             </>
