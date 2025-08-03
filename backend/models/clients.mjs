@@ -11,6 +11,7 @@ const ClientSchema = new mongoose.Schema(
   {
     id: { type: Number, index: true },
     spack: { type: Boolean, index: true },
+    isDonor: { type: Boolean, default: false, index: true },
     lname: { type: String, index: true },
     fname: { type: String, index: true },
     mname: String,
