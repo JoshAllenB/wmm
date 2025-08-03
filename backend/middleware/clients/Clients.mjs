@@ -330,7 +330,7 @@ router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
 router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
-    const { clientData, roleSubmissions } = req.body;
+    const { clientData, roleSubmissions, isDonor = false } = req.body;
 
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
@@ -354,6 +354,7 @@ router.post("/add", verifyToken, async (req, res) => {
           hour12: true,
         })
         .replace(",", ""),
+      isDonor: isDonor // Add isDonor flag to base client data
     };
 
     // Insert base client data
@@ -362,17 +363,36 @@ router.post("/add", verifyToken, async (req, res) => {
     // Log the client creation
     await logClientCreation(req.userId, newClient.toObject());
 
-    // Handle role-specific data
-    const roleModelMap = {
-      WMM: WmmModel,
-      HRG: HrgModel,
-      FOM: FomModel,
-      CAL: CalModel,
-      PROMO: PromoModel,
-      COMP: ComplimentaryModel
-    };
+    // If this is a donor, skip role-specific data handling
+    if (isDonor) {
+      // Emit the data update event for donor
+      if (io) {
+        io.emit("data-update", {
+          type: "add",
+          data: newClient.toObject(),
+          timestamp: Date.now()
+        });
+      }
 
-    const roleResults = [];
+      return res.json({ 
+        success: true, 
+        clientId: newClientId,
+        client: newClient.toObject()
+      });
+    }
+
+    // Handle role-specific data only if not a donor and roleSubmissions exists
+    if (!isDonor && Array.isArray(roleSubmissions) && roleSubmissions.length > 0) {
+      const roleModelMap = {
+        WMM: WmmModel,
+        HRG: HrgModel,
+        FOM: FomModel,
+        CAL: CalModel,
+        PROMO: PromoModel,
+        COMP: ComplimentaryModel
+      };
+
+      const roleResults = [];
 
     // Process each role submission
     for (const submission of roleSubmissions) {
@@ -472,9 +492,11 @@ router.post("/add", verifyToken, async (req, res) => {
 
     res.json({ 
       success: true, 
+      clientId: newClientId,
       client: completeClientData,
       roleResults
     });
+    }
   } catch (err) {
     console.error("Error adding client:", err);
     res.status(500).json({ error: "Internal Server Error" });

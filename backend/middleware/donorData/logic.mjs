@@ -1,5 +1,35 @@
 import { getModelInstance, ClientModel } from "../apiLogic/services/modelManager.mjs";
 
+export async function getAllDonors() {
+  const WmmModel = await getModelInstance("WmmModel");
+  
+  // Get all unique donor IDs
+  const donorIds = await WmmModel.distinct("donorid", { donorid: { $ne: 0 } });
+  
+  // Get donor details from ClientModel
+  const donors = await ClientModel.find(
+    { id: { $in: donorIds } },
+    {
+      id: 1,
+      clientid: "$id", // Include clientID which is the same as id
+      fname: 1,
+      lname: 1,
+      title: 1,
+      company: 1,
+      address: 1,
+      contactnos: 1,
+      email: 1,
+      _id: 0
+    }
+  ).lean();
+
+  // Format donor names
+  return donors.map(donor => ({
+    ...donor,
+    name: `${donor.fname || ""} ${donor.lname || donor.company || ""}`.trim()
+  }));
+}
+
 export async function getDonorRecipientData({
   page = 1,
   pageSize = 20,
