@@ -17,6 +17,7 @@ import View from "./view";
 import { webSocketService } from "../../../services/WebSocketService";
 import DonorAdd from "../donorAdd";
 import useDuplicateChecker from "../duplicateChecker/duplicateLogic.jsx";
+import ConfirmationSummaryDialog from "../../UI/confirmationSummaryDialog";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -1504,37 +1505,23 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
   // Moved to duplicateChecker/duplicateLogic.js
 
-  // Confirmation Dialog Component
+  // Confirmation Dialog Component - Using ConfirmationSummaryDialog
   const ConfirmationDialog = () => {
     if (!showConfirmation) return null;
 
-    console.log("confirmation dialog in add.jsx");
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-          <h3 className="text-xl font-semibold mb-4">Confirm Submission</h3>
-          <p className="mb-6">
-            Are you sure you want to add this client? This action cannot be
-            undone.
-          </p>
-          <div className="flex justify-end space-x-3">
-            <Button
-              type="button"
-              onClick={() => setShowConfirmation(false)}
-              className="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md text-base"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleConfirmedSubmit}
-              className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
-            >
-              Confirm
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ConfirmationSummaryDialog
+        showConfirmation={showConfirmation}
+        setShowConfirmation={setShowConfirmation}
+        handleConfirmedSubmit={handleConfirmedSubmit}
+        formData={formData}
+        addressData={addressData}
+        areaData={areaData}
+        combinedAddress={combinedAddress}
+        roleSpecificData={roleSpecificData}
+        subscriptionType={subscriptionType}
+        selectedRole={selectedRole}
+      />
     );
   };
 
