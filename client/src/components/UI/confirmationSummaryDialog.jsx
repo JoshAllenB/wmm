@@ -1,8 +1,11 @@
 /* eslint-disable no-unused-vars */
+import { useToast } from "./ShadCN/hooks/use-toast";
+
 const ConfirmationSummaryDialog = ({
   showConfirmation,
   setShowConfirmation,
   handleConfirmedSubmit,
+  closeModal,
   formData,
   addressData,
   areaData,
@@ -11,6 +14,8 @@ const ConfirmationSummaryDialog = ({
   subscriptionType,
   selectedRole,
 }) => {
+  const { toast } = useToast();
+
   if (!showConfirmation) return null;
 
   // Helper function to format date from parts
@@ -54,8 +59,39 @@ const ConfirmationSummaryDialog = ({
     </div>
   );
 
+  // Handle the confirmed submission with toast and modal closing
+  const handleSubmitWithFeedback = async () => {
+    console.log("handleSubmitWithFeedback");
+    try {
+      console.log("About to call handleConfirmedSubmit...");
+      await handleConfirmedSubmit();
+      console.log("Submission successful");
+      // If we reach here, the submission was successful
+      toast({
+        title: "Success",
+        description: "Client added successfully!",
+      });
+      // Close the confirmation dialog after successful submission
+      setShowConfirmation(false);
+      // Also close the main modal after a short delay to ensure smooth transition
+      setTimeout(() => {
+        console.log("Closing main modal");
+        closeModal();
+      }, 100);
+    } catch (error) {
+      console.error("Error in handleSubmitWithFeedback:", error);
+      // Handle error case
+      toast({
+        title: "Error",
+        description: "Failed to add client. Please try again.",
+        variant: "destructive",
+      });
+      // Don't close the dialog on error, let user retry
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-semibold mb-4">Confirm Submission</h3>
         <p className="mb-6 text-gray-600">
@@ -265,7 +301,7 @@ const ConfirmationSummaryDialog = ({
           </button>
           <button
             type="button"
-            onClick={handleConfirmedSubmit}
+            onClick={handleSubmitWithFeedback}
             className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
           >
             Confirm Submission
