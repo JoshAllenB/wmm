@@ -302,28 +302,20 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add exclude CMC clients filter
   if (advancedFilterData.excludeCMCClients) {
     baseFilter.push({
-      group: {
-        $not: {
-          $regexMatch: {
-            input: { $trim: { input: { $toLower: "$group" } } },
-            regex: "cmc",
-          },
-        },
-      },
+      $nor: [
+        { group: "CMC" },
+        { group: { $regex: "CMC", $options: "i" } }
+      ]
     });
   }
 
   // Add exclude DCS clients filter
   if (advancedFilterData.excludeDCSClients) {
     baseFilter.push({
-      group: {
-        $not: {
-          $regexMatch: {
-            input: { $trim: { input: { $toLower: "$group" } } },
-            regex: "dcs",
-          },
-        },
-      },
+      $nor: [
+        { group: "DCS" },
+        { group: { $regex: "DCS", $options: "i" } }
+      ]
     });
   }
 

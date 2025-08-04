@@ -1,11 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-const GroupFilter = ({
-  filterData,
-  handleChange,
-  groups,
-  hasRole,
-}) => {
+const GroupFilter = ({ filterData, handleChange, groups, hasRole }) => {
   // Memoize the groups options to prevent unnecessary re-renders
   const groupOptions = useMemo(() => {
     if (!Array.isArray(groups)) return [];
@@ -43,19 +38,19 @@ const GroupFilter = ({
         <div className="flex items-center mt-2">
           <input
             type="checkbox"
-            id="excludeSPackClients"
-            name="excludeSPackClients"
-            checked={filterData.excludeSPackClients}
+            id="excludeDCSClients"
+            name="excludeDCSClients"
+            checked={filterData.excludeDCSClients}
             onChange={(e) =>
               handleChange({
                 target: {
-                  name: "excludeSPackClients",
+                  name: "excludeDCSClients",
                   value: e.target.checked,
                 },
               })
             }
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            disabled={hasRole("WMM")}
+            disabled={!hasExcludeAccess()}
           />
           <label
             htmlFor="excludeDCSClients"
@@ -102,4 +97,4 @@ const GroupFilter = ({
   );
 };
 
-export default GroupFilter; 
+export default GroupFilter;
