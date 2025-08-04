@@ -330,7 +330,9 @@ router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
 router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
-    const { clientData, roleSubmissions, isDonor = false } = req.body;
+    const { clientData, roleSubmissions } = req.body;
+    const isDonor = req.body.isDonor === true || clientData?.isDonor === true;
+
 
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
@@ -354,7 +356,7 @@ router.post("/add", verifyToken, async (req, res) => {
           hour12: true,
         })
         .replace(",", ""),
-      isDonor: isDonor // Add isDonor flag to base client data
+      isDonor: clientData.isDonor || isDonor // Use clientData.isDonor first, fallback to isDonor flag
     };
 
     // Insert base client data
@@ -374,11 +376,12 @@ router.post("/add", verifyToken, async (req, res) => {
         });
       }
 
-      return res.json({ 
+      const response = { 
         success: true, 
         clientId: newClientId,
         client: newClient.toObject()
-      });
+      };
+      return res.json(response);
     }
 
     // Handle role-specific data only if not a donor and roleSubmissions exists

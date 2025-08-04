@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import { getDonorRecipientData, getAllDonors } from "./logic.mjs";
+import { getDonorRecipientData, getAllDonors, getDonorStatistics } from "./logic.mjs";
 
 dotenv.config();
 
@@ -35,6 +35,16 @@ router.get("/donors", async (req, res) => {
     res.json(donors);
   } catch (error) {
     console.error("Error in /donors:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/statistics", async (req, res) => {
+  try {
+    const statistics = await getDonorStatistics();
+    res.json(statistics);
+  } catch (error) {
+    console.error("Error in /donor-statistics:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

@@ -980,9 +980,17 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     const newValue = type === "checkbox" ? checked : value;
 
     setRoleSpecificData((prev) => {
+      // Don't convert donorid to uppercase, preserve the original value
+      const fieldValue =
+        name === "donorid"
+          ? value
+          : type === "checkbox"
+          ? checked
+          : value.toUpperCase();
+
       const updated = {
         ...prev,
-        [name]: type === "checkbox" ? checked : value.toUpperCase(),
+        [name]: fieldValue,
       };
 
       // Also update the role-specific state
@@ -2621,11 +2629,12 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 </label>
                                 <div className="donor-add-container">
                                   <DonorAdd
-                                    onDonorSelect={(donor) => {
+                                    onDonorSelect={(donorId) => {
+                                      console.log("Donor ID selected:", donorId);
                                       handleRoleSpecificChange({
                                         target: {
                                           name: "donorid",
-                                          value: donor?.id || "",
+                                          value: donorId || "",
                                         },
                                       });
                                     }}

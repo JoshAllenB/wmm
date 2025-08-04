@@ -81,6 +81,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredDonors, setFilteredDonors] = useState([]);
   const [isDonorAddActive, setIsDonorAddActive] = useState(false);
+  const [isRefreshingDonors, setIsRefreshingDonors] = useState(false);
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -113,22 +114,26 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
     { value: "12", name: "December" },
   ];
 
+  const fetchDonors = async () => {
+    try {
+      setIsRefreshingDonors(true);
+      const response = await axios.get(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/donor-data/donors`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+      setDonors(response.data);
+    } catch (error) {
+      console.error("Error fetching donors:", error);
+    } finally {
+      setIsRefreshingDonors(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDonors = async () => {
-      try {
-        const response = await axios.get(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/donor-data/donors`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
-        setDonors(response.data);
-      } catch (error) {
-        console.error("Error fetching donors:", error);
-      }
-    };
     fetchDonors();
   }, []);
 
@@ -633,17 +638,75 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
     resetForm();
   };
 
+  const cleanFormData = (data) => {
+    // Create a new object to store cleaned data
+    const cleanedData = {};
+
+    // Iterate over data and clean each field
+    for (const key in data) {
+      const value = data[key];
+
+      // Skip null and undefined values
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      // Check if the field has meaningful data
+      let shouldInclude = false;
+
+      if (typeof value === "string") {
+        // Include non-empty strings (after trimming)
+        shouldInclude = value.trim() !== "";
+      } else if (typeof value === "number") {
+        // Include valid numbers (not NaN)
+        shouldInclude = !isNaN(value);
+      } else if (typeof value === "boolean") {
+        // Include boolean values (both true and false are meaningful)
+        shouldInclude = true;
+      } else if (Array.isArray(value)) {
+        // Include non-empty arrays
+        shouldInclude = value.length > 0;
+      } else if (typeof value === "object") {
+        // Include non-empty objects
+        shouldInclude = Object.keys(value).length > 0;
+      }
+
+      if (shouldInclude) {
+        // For strings, trim whitespace and check if it's still not empty
+        if (typeof value === "string") {
+          const trimmedValue = value.trim();
+          if (trimmedValue !== "") {
+            cleanedData[key] = trimmedValue;
+          }
+        } else {
+          cleanedData[key] = value;
+        }
+      }
+    }
+
+    return cleanedData;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const clientData = {
+    const rawClientData = {
       ...formData,
       address: combinedAddress,
       ...areaData,
-      donorid: selectedDonor?.id || null,
-      isDonor: true, // Add isDonor flag
+      isDonor: true, // Ensure isDonor is in clientData for database storage
     };
+
+    // Only add donorid if selectedDonor exists and has an id
+    if (selectedDonor?.id) {
+      rawClientData.donorid = selectedDonor.id;
+    }
+
+    const clientData = cleanFormData(rawClientData);
+
+    console.log("Raw client data:", rawClientData);
+    console.log("Cleaned client data:", clientData);
 
     try {
       const response = await axios.post(
@@ -651,6 +714,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
         {
           clientData,
           roleSubmissions: [], // Add empty roleSubmissions array for donors
+          isDonor: true, // Add isDonor flag at the top level
         },
         {
           headers: {
@@ -659,11 +723,15 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
         }
       );
 
+      console.log("Full response:", response);
+      console.log("Response data:", response.data);
+
+      console.log("Checking response.data.success:", response.data.success);
       if (response.data.success) {
         const newClientId = response.data.clientId;
         const clientName =
           formData.company || `${formData.fname} ${formData.lname}`.trim();
-        console.log("response.data.success", response.data.success);
+        console.log("Success! Client ID:", newClientId);
 
         toast({
           title: "Donor Added Successfully",
@@ -676,6 +744,9 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                 </span>
               </p>
               <p>Name: {clientName}</p>
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Donor list updated and auto-selected
+              </p>
             </div>
           ),
           duration: 10000, // Show for 10 seconds to give time to copy
@@ -694,9 +765,30 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
           onNewDonorAdded(newDonorData);
         }
 
+        // Refresh the donors list to include the newly added donor
+        try {
+          await fetchDonors();
+        } catch (error) {
+          console.error("Error refreshing donors list:", error);
+          // Don't show error toast here as the main operation was successful
+        }
+
+        // Auto-select the newly added donor in the dropdown
+        const newDonor = {
+          id: newClientId,
+          name: clientName,
+          ...formData,
+        };
+        setSelectedDonor(newDonor);
+        setSearchTerm(`${newClientId} - ${clientName}`);
+        if (onDonorSelect) {
+          onDonorSelect(newClientId);
+        }
+
         // Close the modal immediately after successful submission
+        console.log("About to close modal in 1 second");
         setTimeout(() => {
-          console.log("closing modal");
+          console.log("closing modal now");
           closeModal();
         }, 1000);
       } else {
@@ -748,8 +840,15 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by ID or name..."
-            className="w-full p-2 pl-3 pr-12 border-2 rounded-md text-xl bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+            placeholder={
+              isRefreshingDonors
+                ? "Refreshing donors..."
+                : "Search by ID or name..."
+            }
+            className={`w-full p-2 pl-3 pr-12 border-2 rounded-md text-xl bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none ${
+              isRefreshingDonors ? "opacity-75" : ""
+            }`}
+            disabled={isRefreshingDonors}
           />
           {searchTerm && (
             <button
@@ -761,6 +860,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                 }
               }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              title="Clear selection"
             >
               ✕
             </button>
@@ -770,6 +870,18 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
               searchTerm && filteredDonors.length > 0 ? "block" : "hidden"
             }`}
           >
+            {isRefreshingDonors && (
+              <div className="p-2 text-sm text-gray-500 text-center">
+                Refreshing donors list...
+              </div>
+            )}
+            {!isRefreshingDonors &&
+              filteredDonors.length === 0 &&
+              searchTerm && (
+                <div className="p-2 text-sm text-gray-500 text-center">
+                  No donors found matching "{searchTerm}"
+                </div>
+              )}
             {filteredDonors.map((donor) => (
               <div
                 key={donor.id}
@@ -777,7 +889,8 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                   setSelectedDonor(donor);
                   setSearchTerm(`${donor.id} - ${donor.name}`);
                   if (onDonorSelect) {
-                    onDonorSelect(donor);
+                    onDonorSelect(donor.id);
+                    console.log("Donor selected:", donor.id);
                   }
                 }}
                 className="p-2 hover:bg-gray-100 cursor-pointer"

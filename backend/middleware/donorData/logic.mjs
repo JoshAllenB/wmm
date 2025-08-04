@@ -1,14 +1,9 @@
 import { getModelInstance, ClientModel } from "../apiLogic/services/modelManager.mjs";
 
 export async function getAllDonors() {
-  const WmmModel = await getModelInstance("WmmModel");
-  
-  // Get all unique donor IDs
-  const donorIds = await WmmModel.distinct("donorid", { donorid: { $ne: 0 } });
-  
-  // Get donor details from ClientModel
+  // Use the isDonor flag directly from ClientModel
   const donors = await ClientModel.find(
-    { id: { $in: donorIds } },
+    { isDonor: true },
     {
       id: 1,
       clientid: "$id", // Include clientID which is the same as id
@@ -39,59 +34,83 @@ export async function getDonorRecipientData({
 } = {}) {
   const WmmModel = await getModelInstance("WmmModel");
 
-  // Build search conditions
+  // Build search conditions - use isDonor flag instead of complex aggregation
   let searchConditions = [
-    { $expr: { $ne: ["$clientid", "$donorid"] } },
     { donorid: { $ne: 0 } },
   ];
 
-  // Add search functionality for ClientID and client name/company
+  // Add search functionality for donor name/company
   if (searchTerm && searchTerm.trim()) {
     const trimmedSearchTerm = searchTerm.trim();
     
-    // Build search conditions for client lookup
-    const clientSearchConditions = [];
+    // Build search conditions for donor lookup
+    const donorSearchConditions = [];
     
     // Check if search term is a number (for ID search)
     const isNumeric = !isNaN(trimmedSearchTerm) && !isNaN(parseFloat(trimmedSearchTerm));
     
     if (isNumeric) {
       // If numeric, search for exact ID match
-      clientSearchConditions.push({ id: parseInt(trimmedSearchTerm) });
+      donorSearchConditions.push({ id: parseInt(trimmedSearchTerm) });
     }
     
     // Always search in string fields (name and company)
-    clientSearchConditions.push(
+    donorSearchConditions.push(
       { fname: { $regex: trimmedSearchTerm, $options: "i" } },
       { lname: { $regex: trimmedSearchTerm, $options: "i" } },
       { company: { $regex: trimmedSearchTerm, $options: "i" } }
     );
     
-    // First, get client IDs that match the search term
-    const matchingClients = await ClientModel.find({
-      $or: clientSearchConditions,
+    // Get donor IDs that match the search term and are donors
+    const matchingDonors = await ClientModel.find({
+      $and: [
+        { isDonor: true },
+        { $or: donorSearchConditions }
+      ]
     }, { id: 1 }).lean();
 
-    const matchingClientIds = matchingClients.map(client => client.id);
+    const matchingDonorIds = matchingDonors.map(donor => donor.id);
     
-    if (matchingClientIds.length > 0) {
-      searchConditions.push({
-        $or: [
-          { donorid: { $in: matchingClientIds } },
-          { clientid: { $in: matchingClientIds } },
-        ],
-      });
+    if (matchingDonorIds.length > 0) {
+      searchConditions.push({ donorid: { $in: matchingDonorIds } });
     } else {
-      // If no matching clients found, return empty result
+      // If no matching donors found, return empty result
       return {
         data: [],
         totalPages: 0,
         totalRecords: 0,
       };
     }
+  } else {
+    // If no search term, get all donor IDs from ClientModel
+    const allDonors = await ClientModel.find(
+      { isDonor: true },
+      { id: 1 }
+    ).lean();
+    
+    const allDonorIds = allDonors.map(donor => donor.id);
+    searchConditions.push({ donorid: { $in: allDonorIds } });
   }
 
-  //1. Get all gift subscriptions from these donors
+  // Get total count of unique donors for pagination
+  const totalRecords = await WmmModel.aggregate([
+    {
+      $match: {
+        $and: searchConditions,
+      },
+    },
+    {
+      $group: {
+        _id: "$donorid",
+      },
+    },
+    { $count: "total" },
+  ]);
+
+  const total = totalRecords[0]?.total || 0;
+  const totalPages = Math.ceil(total / pageSize);
+
+  // Get gift subscriptions with pagination
   const giftSubscriptions = await WmmModel.aggregate([
     {
       $match: {
@@ -116,10 +135,14 @@ export async function getDonorRecipientData({
   ]);
 
   if (giftSubscriptions.length === 0) {
-    return [];
+    return {
+      data: [],
+      totalPages,
+      totalRecords: total,
+    };
   }
 
-  //2. Get unique client IDs (both donors and recipients)
+  // Get unique client IDs (both donors and recipients)
   const allClientsIds = [
     ...new Set([
       ...giftSubscriptions.map((s) => s.donorid),
@@ -127,7 +150,7 @@ export async function getDonorRecipientData({
     ]),
   ];
 
-  //3. Fetch basic client info in one query
+  // Fetch basic client info in one query
   const clients = await ClientModel.find(
     { id: { $in: allClientsIds } },
     {
@@ -141,11 +164,11 @@ export async function getDonorRecipientData({
     }
   ).lean();
 
-  //4. Create client info map
+  // Create client info map
   const clientInfoMap = clients.reduce((map, client) => {
     let contactInfo = "";
 
-    //Safely handle contactnos
+    // Safely handle contactnos
     if (Array.isArray(client.contactnos)) {
       contactInfo = client.contactnos.filter(Boolean).join(", ");
     } else if (client.contactnos) {
@@ -162,11 +185,11 @@ export async function getDonorRecipientData({
     return map;
   }, {});
 
-  //5. Organize data hierarchically
+  // Organize data hierarchically
   const result = [];
   const donorMap = new Map();
 
-  //Group subscriptions by donor
+  // Group subscriptions by donor
   giftSubscriptions.forEach((sub) => {
     if (!donorMap.has(sub.donorid)) {
       donorMap.set(sub.donorid, []);
@@ -174,11 +197,11 @@ export async function getDonorRecipientData({
     donorMap.get(sub.donorid).push(sub);
   });
 
-  //Build the final structure
+  // Build the final structure
   donorMap.forEach((subscriptions, donorIDs) => {
     const recipientMap = new Map();
 
-    //Group susbcriptions by recipient
+    // Group subscriptions by recipient
     subscriptions.forEach((sub) => {
       if (!recipientMap.has(sub.clientid)) {
         recipientMap.set(sub.clientid, []);
@@ -186,7 +209,7 @@ export async function getDonorRecipientData({
       recipientMap.get(sub.clientid).push(sub);
     });
 
-    //Format recipients
+    // Format recipients
     const recipients = [];
     recipientMap.forEach((subs, recipientId) => {
       recipients.push({
@@ -212,27 +235,42 @@ export async function getDonorRecipientData({
     });
   });
 
-  // Get total count of unique donors for pagination
-  const totalRecords = await WmmModel.aggregate([
-    {
-      $match: {
-        $and: searchConditions,
-      },
-    },
-    {
-      $group: {
-        _id: "$donorid",
-      },
-    },
-    { $count: "total" },
-  ]);
-
-  const total = totalRecords[0]?.total || 0;
-  const totalPages = Math.ceil(total / pageSize);
-
   return {
     data: result,
     totalPages,
     totalRecords: total,
+  };
+}
+
+export async function getDonorStatistics() {
+  // Get donor count using isDonor flag
+  const donorCount = await ClientModel.countDocuments({ isDonor: true });
+  
+  // Get active donors (those with gift subscriptions)
+  const WmmModel = await getModelInstance("WmmModel");
+  const activeDonorCount = await WmmModel.distinct("donorid", { 
+    donorid: { $ne: 0 } 
+  }).then(ids => ids.length);
+  
+  // Get total gift subscriptions
+  const totalGiftSubscriptions = await WmmModel.countDocuments({ 
+    donorid: { $ne: 0 } 
+  });
+  
+  // Get recent donors (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const recentDonors = await ClientModel.countDocuments({
+    isDonor: true,
+    adddate: { $gte: thirtyDaysAgo.toISOString() }
+  });
+  
+  return {
+    totalDonors: donorCount,
+    activeDonors: activeDonorCount,
+    totalGiftSubscriptions,
+    recentDonors,
+    inactiveDonors: donorCount - activeDonorCount
   };
 }
