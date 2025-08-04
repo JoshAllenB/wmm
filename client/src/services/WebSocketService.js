@@ -442,9 +442,18 @@ class WebSocketService {
       console.warn("[WebSocket] Socket not connected, attempting to connect first...");
       if (this.sessionData.userId && this.sessionData.username) {
         this.connect({ query: this.sessionData });
-        this.socket.once('connect', () => {
-          this.socket.emit(event, this._formatEventData(event, data));
-        });
+        // Wait for the socket to be created before trying to use it
+        const checkSocket = () => {
+          if (this.socket) {
+            this.socket.once('connect', () => {
+              this.socket.emit(event, this._formatEventData(event, data));
+            });
+          } else {
+            // If socket is still not created, wait a bit more
+            setTimeout(checkSocket, 100);
+          }
+        };
+        checkSocket();
         return;
       } else {
         console.warn("[WebSocket] Cannot emit: No valid user data available for connection");
