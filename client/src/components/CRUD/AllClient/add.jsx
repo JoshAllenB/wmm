@@ -438,6 +438,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const closeModal = () => {
     setShowModal(false);
     resetForm();
+    setShowConfirmation(false);
   };
 
   const formatDateToMonthYear = (date) => {
@@ -1240,6 +1241,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   };
 
   const handleConfirmedSubmit = async () => {
+    console.log("handleConfirmedSubmit - add.jsx");
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -1275,8 +1277,49 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Prepare role submissions
     const roleSubmissions = [];
 
-    // Only add subscription data if user has WMM role
-    if (hasRole("WMM")) {
+    // Helper function to check if subscription data has meaningful content
+    const hasSubscriptionData = () => {
+      // Check if any subscription-related fields have been filled
+      const hasStartDate =
+        formData.subscriptionStart && formData.subscriptionStart.trim() !== "";
+      const hasEndDate =
+        formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "";
+      const hasFrequency =
+        formData.subscriptionFreq && formData.subscriptionFreq !== "";
+      const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
+      const hasPaymentInfo =
+        (roleSpecificData.paymtref &&
+          roleSpecificData.paymtref.trim() !== "") ||
+        (roleSpecificData.paymtamt &&
+          roleSpecificData.paymtamt.trim() !== "") ||
+        (roleSpecificData.paymtmasses &&
+          roleSpecificData.paymtmasses.trim() !== "");
+      const hasDonorId =
+        roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
+      const hasSubsclass =
+        formData.subsclass && formData.subsclass.trim() !== "";
+      const hasReferralId =
+        formData.referralid && formData.referralid.trim() !== "";
+      const hasRemarks =
+        roleSpecificData.remarks && roleSpecificData.remarks.trim() !== "";
+      const hasCalendar = roleSpecificData.calendar === true;
+
+      return (
+        hasStartDate ||
+        hasEndDate ||
+        hasFrequency ||
+        hasCopies ||
+        hasPaymentInfo ||
+        hasDonorId ||
+        hasSubsclass ||
+        hasReferralId ||
+        hasRemarks ||
+        hasCalendar
+      );
+    };
+
+    // Only add subscription data if user has WMM role AND has provided subscription data
+    if (hasRole("WMM") && hasSubscriptionData()) {
       const subscriptionData = getSubscriptionSpecificData();
 
       // Map subscription types to their model types
@@ -1323,46 +1366,55 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       }
     }
 
+    // Determine service type based on actual role submissions, not just user role
+    const getServiceFromRoleSubmissions = () => {
+      if (roleSubmissions.length === 0) {
+        return ""; // No service if no role submissions
+      }
+
+      // Check if any subscription type is in the role submissions
+      const subscriptionTypes = roleSubmissions.map((sub) => sub.roleType);
+      if (subscriptionTypes.includes("WMM")) return "WMM";
+      if (subscriptionTypes.includes("PROMO")) return "PROMO";
+      if (subscriptionTypes.includes("COMP")) return "COMP";
+
+      // If no subscription types, return empty string
+      return "";
+    };
+
     const submissionData = {
       clientData: {
         ...clientData,
-        service: getServiceFromSubscriptionType(),
-        subscriptionType: subscriptionType,
+        service: getServiceFromRoleSubmissions(),
+        subscriptionType: roleSubmissions.length > 0 ? subscriptionType : "",
       },
       roleSubmissions,
       adddate: formatDate(new Date()),
     };
 
     try {
+      console.log("Making axios request to backend...");
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
-        submissionData
-      );
-      if (response.data.success) {
-        // Emit data update event via WebSocket
-        webSocketService.emit("data-update", {
-          type: "add",
-          data: {
-            id: response.data.clientId,
-            ...submissionData.clientData,
-            // Include subscription data from response
-            wmmData: response.data.wmmData || [],
-            hrgData: response.data.hrgData || [],
-            fomData: response.data.fomData || [],
-            calData: response.data.calData || [],
-            promoData: response.data.promoData || [],
-            complimentaryData: response.data.complimentaryData || [],
-            services: roleSubmissions.map((role) => role.roleType),
+        submissionData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
-        });
-
+        }
+      );
+      console.log("Backend response:", response.data);
+      if (response.data.success) {
+        // Backend already emits the WebSocket event, so we don't need to emit it again
+        // Just refresh the client list
         fetchClients();
-        closeModal();
+        // Don't close modal here - let the confirmation dialog handle it
+        // The confirmation dialog will close itself and show success toast
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-    } finally {
-      setShowConfirmation(false);
+      // Don't show toast here - let the confirmation dialog handle it
+      throw error; // Re-throw the error so the dialog can handle it
     }
   };
 
@@ -1514,6 +1566,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         showConfirmation={showConfirmation}
         setShowConfirmation={setShowConfirmation}
         handleConfirmedSubmit={handleConfirmedSubmit}
+        closeModal={closeModal}
         formData={formData}
         addressData={addressData}
         areaData={areaData}
@@ -1714,8 +1767,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           onClose={closeModal}
           className="bg-gray-400 rounded-md bg-clip-padding backdrop-filter backdrop-blur-sm bg-opacity-10 border border-gray-100 max-w-[95vw] w-auto overflow-hidden"
         >
-          {/* Confirmation Dialog */}
-          <ConfirmationDialog />
           {/* Show the View component when viewing a duplicate */}
           {viewingDuplicate && selectedDuplicate && (
             <View
@@ -2707,6 +2758,21 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           )}
         </Modal>
       )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmationSummaryDialog
+        showConfirmation={showConfirmation}
+        setShowConfirmation={setShowConfirmation}
+        handleConfirmedSubmit={handleConfirmedSubmit}
+        closeModal={closeModal}
+        formData={formData}
+        addressData={addressData}
+        areaData={areaData}
+        combinedAddress={combinedAddress}
+        roleSpecificData={roleSpecificData}
+        subscriptionType={subscriptionType}
+        selectedRole={selectedRole}
+      />
     </div>
   );
 };
