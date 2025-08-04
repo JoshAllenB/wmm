@@ -2431,27 +2431,27 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           {subscriptionType} Subscription
                         </h2>
 
-                        {/* Common fields for all subscription types */}
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription Frequency:
-                          </label>
-                          <select
-                            id="subscriptionFreq"
-                            name="subscriptionFreq"
-                            value={formData.subscriptionFreq}
-                            onChange={handleChange}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            <option value="">
-                              Select Subscription Frequency
-                            </option>
-                            <option value="6">6 Months</option>
-                            <option value="11">1 Year</option>
-                            <option value="22">2 Years</option>
-                            <option value="others">Others</option>
-                          </select>
-                        </div>
+                        {subscriptionType === "WMM" && (
+                          <div className="mt-4 mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Subscription Classification:
+                            </label>
+                            <select
+                              id="subsclass"
+                              name="subsclass"
+                              value={formData.subsclass}
+                              onChange={handleChange}
+                              className="w-full p-2 border rounded-md text-base"
+                            >
+                              <option value="">Select a classification</option>
+                              {subclasses.map((subclass) => (
+                                <option key={subclass.id} value={subclass.id}>
+                                  {subclass.name} ({subclass.id})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
 
                         {/* Start Date - Common for all types */}
                         <div className="mb-2">
@@ -2496,6 +2496,28 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                               maxLength="4"
                             />
                           </div>
+                        </div>
+
+                        {/* Common fields for all subscription types */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subscription Duration:
+                          </label>
+                          <select
+                            id="subscriptionFreq"
+                            name="subscriptionFreq"
+                            value={formData.subscriptionFreq}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            <option value="">
+                              Select Subscription Duration
+                            </option>
+                            <option value="6">6 Months</option>
+                            <option value="11">1 Year</option>
+                            <option value="22">2 Years</option>
+                            <option value="others">Others</option>
+                          </select>
                         </div>
 
                         {/* End Date - Common for all types */}
@@ -2546,7 +2568,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {/* Common fields for copies and calendar */}
                         <div className="flex space-x-4 mb-4">
                           <div className="flex flex-row items-center justify-center gap-2">
-                            <label className="block text-lg font-medium leading-6 text-gray-600">
+                            <label className="block text-lg font-medium leading-6 text-black">
                               Copies:
                             </label>
                             <input
@@ -2580,24 +2602,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {/* Subscription Type Specific Fields */}
                         {subscriptionType === "WMM" && (
                           <>
-                            <div className="mt-4">
-                              <select
-                                id="subsclass"
-                                name="subsclass"
-                                value={formData.subsclass}
-                                onChange={handleChange}
-                                className="w-full p-2 border rounded-md text-base"
-                              >
-                                <option value="">
-                                  Select a classification
-                                </option>
-                                {subclasses.map((subclass) => (
-                                  <option key={subclass.id} value={subclass.id}>
-                                    {subclass.name} ({subclass.id})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
                             <div className="mt-4 space-y-4">
                               <InputField
                                 label="Payment Reference:"
@@ -2630,7 +2634,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                 <div className="donor-add-container">
                                   <DonorAdd
                                     onDonorSelect={(donorId) => {
-                                      console.log("Donor ID selected:", donorId);
+                                      console.log(
+                                        "Donor ID selected:",
+                                        donorId
+                                      );
                                       handleRoleSpecificChange({
                                         target: {
                                           name: "donorid",
