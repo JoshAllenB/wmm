@@ -499,6 +499,35 @@ router.post("/add", verifyToken, async (req, res) => {
       client: completeClientData,
       roleResults
     });
+    } else {
+      // Handle case when there are no role submissions
+      const completeClientData = {
+        ...newClient.toObject(),
+        subscriptionType: clientData.subscriptionType,
+        services: [],
+        wmmData: { records: [] },
+        hrgData: { records: [] },
+        fomData: { records: [] },
+        calData: { records: [] },
+        promoData: { records: [] },
+        complimentaryData: { records: [] }
+      };
+
+      // Emit the data update event
+      if (io) {
+        io.emit("data-update", {
+          type: "add",
+          data: completeClientData,
+          timestamp: Date.now()
+        });
+      }
+
+      res.json({ 
+        success: true, 
+        clientId: newClientId,
+        client: completeClientData,
+        roleResults: []
+      });
     }
   } catch (err) {
     console.error("Error adding client:", err);
