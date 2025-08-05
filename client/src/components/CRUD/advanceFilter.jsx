@@ -86,7 +86,12 @@ const formatDateToISO = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType = "WMM" }) => {
+const AdvancedFilter = ({
+  onApplyFilter,
+  groups,
+  selectedGroup,
+  subscriptionType = "WMM",
+}) => {
   const { hasRole, user } = useUser();
   const [showModal, setShowModal] = useState(false);
 
@@ -164,6 +169,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     excludeDCSClients: false,
     userId: "",
     subscriptionStatus: "all",
+    hrgFomSubscriptionStatus: "all", // New field for HRG/FOM subscription status
     dateRangeName: "",
     // CAL Order Received Date components
     calReceivedFromMonth: "",
@@ -315,7 +321,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     // Set initial role if user has only one of HRG, CAL, or FOM
     let initialRole = "";
     const roles = ["HRG", "CAL", "FOM"];
-    const userRoles = roles.filter(role => hasRole(role));
+    const userRoles = roles.filter((role) => hasRole(role));
     if (userRoles.length === 1) {
       initialRole = userRoles[0];
     }
@@ -371,6 +377,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       excludeCMCClients: false,
       userId: "",
       subscriptionStatus: "all",
+      hrgFomSubscriptionStatus: "all", // New field for HRG/FOM subscription status
       dateRangeName: "",
       // CAL Order Received Date components
       calReceivedFromMonth: "",
@@ -420,10 +427,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     const { name, value, type, checked } = e.target;
 
     // Handle checkbox inputs
-    if (type === 'checkbox') {
-      setFilterData(prev => ({
+    if (type === "checkbox") {
+      setFilterData((prev) => ({
         ...prev,
-        [name]: checked
+        [name]: checked,
       }));
       return;
     }
@@ -528,24 +535,24 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
 
     const processExactServices = (services) => {
       if (!services || !services.length) return [];
-      return services.filter(service => service !== "WMM");
+      return services.filter((service) => service !== "WMM");
     };
 
     const processClientIds = (idsString) => {
       if (!idsString || !idsString.trim()) return [];
-      
+
       // First split by commas and/or whitespace and clean up
       const ids = idsString
         .split(/[,\s]+/)
-        .map(id => id.trim())
+        .map((id) => id.trim())
         .filter(Boolean)
-        .map(id => {
+        .map((id) => {
           // Remove any non-numeric characters
-          const cleanId = id.replace(/[^0-9]/g, '');
+          const cleanId = id.replace(/[^0-9]/g, "");
           const num = Number(cleanId);
           return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
         })
-        .filter(id => id !== null);
+        .filter((id) => id !== null);
 
       // Remove duplicates and sort
       return [...new Set(ids)].sort((a, b) => a - b);
@@ -554,19 +561,19 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     // Helper function to process custom copies
     const processCustomCopies = (copiesString) => {
       if (!copiesString || !copiesString.trim()) return [];
-      
+
       // Split by commas and/or whitespace and clean up
       const copies = copiesString
         .split(/[,\s]+/)
-        .map(copy => copy.trim())
+        .map((copy) => copy.trim())
         .filter(Boolean)
-        .map(copy => {
+        .map((copy) => {
           // Remove any non-numeric characters
-          const cleanCopy = copy.replace(/[^0-9]/g, '');
+          const cleanCopy = copy.replace(/[^0-9]/g, "");
           const num = Number(cleanCopy);
           return !isNaN(num) && isFinite(num) && num > 0 ? num : null;
         })
-        .filter(copy => copy !== null);
+        .filter((copy) => copy !== null);
 
       // Remove duplicates and sort
       return [...new Set(copies)].sort((a, b) => a - b);
@@ -578,11 +585,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       for (const key in obj) {
         // Skip empty strings, empty arrays, and false booleans
         if (
-          (typeof obj[key] === 'string' && obj[key] !== '') ||
+          (typeof obj[key] === "string" && obj[key] !== "") ||
           (Array.isArray(obj[key]) && obj[key].length > 0) ||
-          (typeof obj[key] === 'boolean' && obj[key]) ||
-          (typeof obj[key] === 'number') ||
-          (obj[key] !== null && obj[key] !== undefined && typeof obj[key] !== 'string' && !Array.isArray(obj[key]))
+          (typeof obj[key] === "boolean" && obj[key]) ||
+          typeof obj[key] === "number" ||
+          (obj[key] !== null &&
+            obj[key] !== undefined &&
+            typeof obj[key] !== "string" &&
+            !Array.isArray(obj[key]))
         ) {
           result[key] = obj[key];
         }
@@ -594,8 +604,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
     let services = [...(filterData.services || [])];
     if (hasRole("WMM")) {
       // Remove any existing WMM/PROMO/COMP services
-      services = services.filter(service => !["WMM", "PROMO", "COMP"].includes(service));
-      
+      services = services.filter(
+        (service) => !["WMM", "PROMO", "COMP"].includes(service)
+      );
+
       // Add the correct service based on subscription type
       switch (subscriptionType) {
         case "Promo":
@@ -619,7 +631,11 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       ...(filterData.fname && { fname: filterData.fname }),
       ...(filterData.mname && { mname: filterData.mname }),
       ...(filterData.sname && { sname: filterData.sname }),
-      ...(filterData.birthdateMonth && filterData.birthdateDay && filterData.birthdateYear && { birthdate: `${filterData.birthdateMonth}/${filterData.birthdateDay}/${filterData.birthdateYear}` }),
+      ...(filterData.birthdateMonth &&
+        filterData.birthdateDay &&
+        filterData.birthdateYear && {
+          birthdate: `${filterData.birthdateMonth}/${filterData.birthdateDay}/${filterData.birthdateYear}`,
+        }),
 
       // Contact info
       ...(filterData.email && { email: filterData.email }),
@@ -670,11 +686,12 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       ),
 
       // Copies
-      ...(filterData.copiesRange && { 
+      ...(filterData.copiesRange && {
         copiesRange: filterData.copiesRange,
-        ...(filterData.copiesRange === 'custom' && filterData.customCopies && {
-          customCopies: parseInt(filterData.customCopies)
-        })
+        ...(filterData.copiesRange === "custom" &&
+          filterData.customCopies && {
+            customCopies: parseInt(filterData.customCopies),
+          }),
       }),
 
       // Areas and services
@@ -682,19 +699,22 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       ...(filterData.services?.length > 0 && { services: filterData.services }),
 
       // Handle client ID filters with strict validation
-      ...(filterData.clientIdFilterType === 'exclude' && {
-        excludeClientIds: processClientIds(filterData.clientExcludeIds)
+      ...(filterData.clientIdFilterType === "ad" && {
+        excludeClientIds: processClientIds(filterData.clientExcludeIds),
       }),
-      ...(filterData.clientIdFilterType === 'include' && {
-        includeClientIds: processClientIds(filterData.clientIncludeIds)
+      ...(filterData.clientIdFilterType === "include" && {
+        includeClientIds: processClientIds(filterData.clientIncludeIds),
       }),
 
       // Other flags
       ...(filterData.excludeDCSClients && { excludeDCSClients: true }),
       ...(filterData.excludeCMCClients && { excludeCMCClients: true }),
       ...(filterData.userId && { userId: filterData.userId }),
-      ...(filterData.subscriptionStatus !== 'all' && { 
-        subscriptionStatus: filterData.subscriptionStatus 
+      ...(filterData.subscriptionStatus !== "all" && {
+        subscriptionStatus: filterData.subscriptionStatus,
+      }),
+      ...(filterData.hrgFomSubscriptionStatus !== "all" && {
+        hrgFomSubscriptionStatus: filterData.hrgFomSubscriptionStatus,
       }),
 
       // Service matching options
@@ -1038,14 +1058,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
           let toDisplayValue = `${toMonthName} ${toYear}`;
           if (toDay) {
             toDisplayValue = `${toMonthName} ${toDay}, ${toYear}`;
-        }
+          }
 
-        active.push({
+          active.push({
             label: "Active Subscriptions",
             value: `${fromDisplayValue} to ${toDisplayValue}`,
             key: "wmmActiveFromMonth",
-        });
-      } else {
+          });
+        } else {
           active.push({
             label: "Active Subscriptions From",
             value: fromDisplayValue,
@@ -1118,14 +1138,14 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
           let toDisplayValue = `${toMonthName} ${toYear}`;
           if (toDay) {
             toDisplayValue = `${toMonthName} ${toDay}, ${toYear}`;
-        }
+          }
 
-        active.push({
+          active.push({
             label: "Expiring Subscriptions",
             value: `${fromDisplayValue} to ${toDisplayValue}`,
             key: "wmmExpiringFromMonth",
-        });
-      } else {
+          });
+        } else {
           active.push({
             label: "Expiring Subscriptions From",
             value: fromDisplayValue,
@@ -1302,6 +1322,20 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
       });
     }
 
+    // Add HRG/FOM Subscription Status filter as a special case
+    if (
+      filterData.hrgFomSubscriptionStatus &&
+      filterData.hrgFomSubscriptionStatus !== "all"
+    ) {
+      active.push({
+        label: "HRG/FOM Status",
+        value:
+          filterData.hrgFomSubscriptionStatus.charAt(0).toUpperCase() +
+          filterData.hrgFomSubscriptionStatus.slice(1),
+        key: "hrgFomSubscriptionStatus",
+      });
+    }
+
     // Add Areas as a special case - making sure this works properly
     if (filterData.areas && filterData.areas.length > 0) {
       // Create area labels by finding area names in the areas array
@@ -1432,6 +1466,9 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
           break;
         case "subscriptionStatus":
           updates.subscriptionStatus = "all";
+          break;
+        case "hrgFomSubscriptionStatus":
+          updates.hrgFomSubscriptionStatus = "all";
           break;
         default:
           updates[key] = "";
@@ -1617,7 +1654,10 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                               onChange={(e) => {
                                 const value = e.target.value;
                                 // Only allow positive integers
-                                if (value === "" || (/^\d+$/.test(value) && parseInt(value) > 0)) {
+                                if (
+                                  value === "" ||
+                                  (/^\d+$/.test(value) && parseInt(value) > 0)
+                                ) {
                                   handleChange(e);
                                 }
                               }}
@@ -1630,7 +1670,7 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                           </div>
                         )}
                       </div>
-                  </div>
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <CalendarFilter
@@ -1670,11 +1710,66 @@ const AdvancedFilter = ({ onApplyFilter, groups, selectedGroup, subscriptionType
                       handleChange={handleChange}
                       subclasses={subclasses}
                     />
+
+                    {/* HRG/FOM Subscription Status Filter */}
+                    {(hasRole("HRG") || hasRole("FOM") || hasRole("Admin")) && (
+                      <div className="p-4 bg-white rounded-lg shadow-sm border">
+                        <h2 className="text-black text-xl font-medium mb-1">
+                          HRG/FOM Subscription Status
+                        </h2>
+                        <div className="space-y-2">
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              name="hrgFomSubscriptionStatus"
+                              value="all"
+                              checked={
+                                filterData.hrgFomSubscriptionStatus === "all"
+                              }
+                              onChange={handleChange}
+                              className="rounded border-gray-300"
+                            />
+                            <span>All</span>
+                          </label>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              name="hrgFomSubscriptionStatus"
+                              value="subscribed"
+                              checked={
+                                filterData.hrgFomSubscriptionStatus ===
+                                "subscribed"
+                              }
+                              onChange={handleChange}
+                              className="rounded border-gray-300"
+                            />
+                            <span>Subscribed</span>
+                          </label>
+                          <label className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              name="hrgFomSubscriptionStatus"
+                              value="unsubscribed"
+                              checked={
+                                filterData.hrgFomSubscriptionStatus ===
+                                "unsubscribed"
+                              }
+                              onChange={handleChange}
+                              className="rounded border-gray-300"
+                            />
+                            <span>Unsubscribed</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+
                     <ServicesFilter
                       filterData={filterData}
                       handleChange={handleChange}
                       handleServiceChange={handleServiceChange}
-                      handleClientIdFilterTypeChange={handleClientIdFilterTypeChange}
+                      handleClientIdFilterTypeChange={
+                        handleClientIdFilterTypeChange
+                      }
                       hasRole={hasRole}
                       subscriptionType={subscriptionType}
                     />

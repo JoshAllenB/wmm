@@ -321,7 +321,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 
   // Add basic text search filter
   if (filter) {
-    console.log("Filter:", filter);
     // Check if it's a payment reference search
     if (filter.toLowerCase().startsWith("ref:")) {
       const paymentRef = filter.substring(4).trim();
@@ -517,9 +516,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Only apply service filters if this is NOT a search query
   if (!isSearchQuery) {
     await addServiceFilters(baseFilter, advancedFilterData);
-  } else {
-    console.log("Bypassing service role filters for search query:", filter);
-  }
+  } 
 
   // Add personal info field filters
   addPersonalInfoFilters(baseFilter, advancedFilterData);
@@ -702,6 +699,406 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       });
 
       baseFilter.push({ $or: areaQueries });
+    }
+  }
+
+  // Add HRG/FOM subscription status filter
+  if (advancedFilterData.hrgFomSubscriptionStatus && advancedFilterData.hrgFomSubscriptionStatus !== "all") {
+    try {
+      const HrgModel = await getModelInstance("HrgModel");
+      const FomModel = await getModelInstance("FomModel");
+
+      let targetClients = new Set();
+      const services = advancedFilterData.services || [];
+
+      // Determine which services to check based on services filter
+      // If no services are specified, we need to check both and be flexible
+      // If services are specified, we only check those specific services
+      const checkHrg = services.includes("HRG");
+      const checkFom = services.includes("FOM");
+      const noServiceFilter = services.length === 0;
+
+      // Check for date range filters
+      const hasHrgDateRange = advancedFilterData.hrgPaymentFromDate || advancedFilterData.hrgPaymentToDate || 
+                              advancedFilterData.hrgCampaignFromDate || advancedFilterData.hrgCampaignToDate;
+      const hasFomDateRange = advancedFilterData.fomPaymentFromDate || advancedFilterData.fomPaymentToDate;
+
+      // Get clients based on subscription status
+      if (advancedFilterData.hrgFomSubscriptionStatus === "subscribed") {
+        // Get subscribed clients (unsubscribe = false or not set) with most recent data
+        const queries = [];
+        
+        if (noServiceFilter) {
+          // If no service filter, check both HRG and FOM for subscribed clients
+          // This will include clients who are subscribed to either HRG or FOM
+          
+          // Get all HRG clients with their latest subscription status
+          let hrgPipeline = [
+            { $match: {} }  // Get all records first
+          ];
+
+          // Add date range filter for HRG if specified
+          if (hasHrgDateRange) {
+            const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
+                                advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
+            const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
+                              advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+
+            if (hrgEndDate) {
+              hrgEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            hrgPipeline.push(...createDatePipeline("recvdate"));
+            hrgPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(hrgStartDate && { $gte: hrgStartDate }),
+                  ...(hrgEndDate && { $lte: hrgEndDate }),
+                },
+              },
+            });
+          }
+
+                      hrgPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },  // Only subscribed clients (unsubscribe != true)
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+          queries.push(HrgModel.aggregate(hrgPipeline));
+
+          // Get all FOM clients with their latest subscription status
+          let fomPipeline = [
+            { $match: {} }  // Get all records first
+          ];
+
+          // Add date range filter for FOM if specified
+          if (hasFomDateRange) {
+            const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
+            const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+
+            if (fomEndDate) {
+              fomEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            fomPipeline.push(...createDatePipeline("recvdate"));
+            fomPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(fomStartDate && { $gte: fomStartDate }),
+                  ...(fomEndDate && { $lte: fomEndDate }),
+                },
+              },
+            });
+          }
+
+                      fomPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },  // Only subscribed clients (unsubscribe != true)
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+          queries.push(FomModel.aggregate(fomPipeline));
+        } else {
+          // If service filter is applied, only check the specified services
+          if (checkHrg) {
+            let hrgPipeline = [
+              { $match: {} }  // Get all records first
+            ];
+
+            // Add date range filter for HRG if specified
+            if (hasHrgDateRange) {
+              const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
+                                  advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
+              const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
+                                advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+
+              if (hrgEndDate) {
+                hrgEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              hrgPipeline.push(...createDatePipeline("recvdate"));
+              hrgPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(hrgStartDate && { $gte: hrgStartDate }),
+                    ...(hrgEndDate && { $lte: hrgEndDate }),
+                  },
+                },
+              });
+            }
+
+            hrgPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+            queries.push(HrgModel.aggregate(hrgPipeline));
+          }
+          
+          if (checkFom) {
+            let fomPipeline = [
+              { $match: {} }  // Get all records first
+            ];
+
+            // Add date range filter for FOM if specified
+            if (hasFomDateRange) {
+              const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
+              const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+
+              if (fomEndDate) {
+                fomEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              fomPipeline.push(...createDatePipeline("recvdate"));
+              fomPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(fomStartDate && { $gte: fomStartDate }),
+                    ...(fomEndDate && { $lte: fomEndDate }),
+                  },
+                },
+              });
+            }
+
+            fomPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+            queries.push(FomModel.aggregate(fomPipeline));
+          }
+        }
+
+        const results = await Promise.all(queries);
+        
+        results.forEach((result, index) => {
+          result.forEach(client => {
+            targetClients.add(client._id);
+          });
+        });
+        
+      } else if (advancedFilterData.hrgFomSubscriptionStatus === "unsubscribed") {
+        // Get unsubscribed clients (unsubscribe = true) with most recent data
+        const queries = [];
+        
+        if (noServiceFilter) {
+          // If no service filter, check both HRG and FOM for unsubscribed clients
+          // This will include clients who are unsubscribed from either HRG or FOM
+          
+          // Get all HRG clients with their latest subscription status
+          let hrgPipeline = [
+            { $match: {} }  // Get all records first
+          ];
+
+          // Add date range filter for HRG if specified
+          if (hasHrgDateRange) {
+            const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
+                                advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
+            const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
+                              advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+
+            if (hrgEndDate) {
+              hrgEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            hrgPipeline.push(...createDatePipeline("recvdate"));
+            hrgPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(hrgStartDate && { $gte: hrgStartDate }),
+                  ...(hrgEndDate && { $lte: hrgEndDate }),
+                },
+              },
+            });
+          }
+
+          hrgPipeline.push(
+            { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+            { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+            { $match: { "latestRecord.unsubscribe": true } },  // Only unsubscribed clients
+            { $project: { 
+              _id: 1, 
+              unsubscribeValue: "$latestRecord.unsubscribe", 
+              adddateValue: "$latestRecord.adddate" 
+            }}
+          );
+
+          queries.push(HrgModel.aggregate(hrgPipeline));
+
+          // Get all FOM clients with their latest subscription status
+          let fomPipeline = [
+            { $match: {} }  // Get all records first
+          ];
+
+          // Add date range filter for FOM if specified
+          if (hasFomDateRange) {
+            const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
+            const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+
+            if (fomEndDate) {
+              fomEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            fomPipeline.push(...createDatePipeline("recvdate"));
+            fomPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(fomStartDate && { $gte: fomStartDate }),
+                  ...(fomEndDate && { $lte: fomEndDate }),
+                },
+              },
+            });
+          }
+
+          fomPipeline.push(
+            { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+            { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+            { $match: { "latestRecord.unsubscribe": true } },  // Only unsubscribed clients
+            { $project: { 
+              _id: 1, 
+              unsubscribeValue: "$latestRecord.unsubscribe", 
+              adddateValue: "$latestRecord.adddate" 
+            }}
+          );
+
+          queries.push(FomModel.aggregate(fomPipeline));
+        } else {
+          // If service filter is applied, only check the specified services
+          if (checkHrg) {
+            let hrgPipeline = [
+              { $match: {} }  // Get all records first
+            ];
+
+            // Add date range filter for HRG if specified
+            if (hasHrgDateRange) {
+              const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
+                                  advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
+              const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
+                                advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+
+              if (hrgEndDate) {
+                hrgEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              hrgPipeline.push(...createDatePipeline("recvdate"));
+              hrgPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(hrgStartDate && { $gte: hrgStartDate }),
+                    ...(hrgEndDate && { $lte: hrgEndDate }),
+                  },
+                },
+              });
+            }
+
+            hrgPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": true } },
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+            queries.push(HrgModel.aggregate(hrgPipeline));
+          }
+          
+          if (checkFom) {
+            let fomPipeline = [
+              { $match: {} }  // Get all records first
+            ];
+
+            // Add date range filter for FOM if specified
+            if (hasFomDateRange) {
+              const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
+              const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+
+              if (fomEndDate) {
+                fomEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              fomPipeline.push(...createDatePipeline("recvdate"));
+              fomPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(fomStartDate && { $gte: fomStartDate }),
+                    ...(fomEndDate && { $lte: fomEndDate }),
+                  },
+                },
+              });
+            }
+
+            fomPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
+              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
+              { $match: { "latestRecord.unsubscribe": true } },
+              { $project: { 
+                _id: 1, 
+                unsubscribeValue: "$latestRecord.unsubscribe", 
+                adddateValue: "$latestRecord.adddate" 
+              }}
+            );
+
+            queries.push(FomModel.aggregate(fomPipeline));
+          }
+        }
+
+        const results = await Promise.all(queries);
+        
+        
+        results.forEach((result, index) => {
+          result.forEach(client => {
+            targetClients.add(client._id);
+          });
+        });
+      }
+
+      // Convert Set to Array and add to filter
+      const finalClients = [...targetClients]
+        .map(Number)
+        .filter((id) => !isNaN(id));
+
+      if (finalClients.length > 0) {
+        baseFilter.push({ id: { $in: finalClients } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches
+      }
+    } catch (error) {
+      console.error("Error in HRG/FOM subscription status filtering:", error);
+      baseFilter.push({ id: -1 }); // No matches on error
     }
   }
 
