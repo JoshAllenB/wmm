@@ -118,6 +118,11 @@ const AdvancedFilter = ({
     );
   };
 
+  // Helper function to check if user has HRG, FOM, or CAL role
+  const hasHRGFOMCALRole = () => {
+    return hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
+  };
+
   const [filterData, setFilterData] = useState({
     lname: "",
     fname: "",
@@ -1627,60 +1632,66 @@ const AdvancedFilter = ({
                       hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
                       hasRole={hasRole}
                     />
-                    <div className="p-4 bg-white rounded-lg shadow-sm border">
-                      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                        Copies
-                      </h2>
-                      <div className="space-y-2">
-                        <select
-                          name="copiesRange"
-                          value={filterData.copiesRange}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded"
-                        >
-                          <option value="">Select Range</option>
-                          <option value="1">1 Copy</option>
-                          <option value="2">2 Copies</option>
-                          <option value="gt1">More than 1</option>
-                          <option value="custom">Custom Amount</option>
-                        </select>
-                        {filterData.copiesRange === "custom" && (
-                          <div className="mt-2">
-                            <input
-                              type="number"
-                              name="customCopies"
-                              placeholder="Enter number of copies"
-                              value={filterData.customCopies || ""}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                // Only allow positive integers
-                                if (
-                                  value === "" ||
-                                  (/^\d+$/.test(value) && parseInt(value) > 0)
-                                ) {
-                                  handleChange(e);
-                                }
-                              }}
-                              min="1"
-                              className="w-full p-2 border rounded"
-                            />
-                            <p className="text-sm text-gray-500 mt-1">
-                              Enter a specific number of copies
-                            </p>
-                          </div>
-                        )}
+                    {!hasHRGFOMCALRole() && (
+                      <div className="p-4 bg-white rounded-lg shadow-sm border">
+                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                          Copies
+                        </h2>
+                        <div className="space-y-2">
+                          <select
+                            name="copiesRange"
+                            value={filterData.copiesRange}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded"
+                          >
+                            <option value="">Select Range</option>
+                            <option value="1">1 Copy</option>
+                            <option value="2">2 Copies</option>
+                            <option value="gt1">More than 1</option>
+                            <option value="custom">Custom Amount</option>
+                          </select>
+                          {filterData.copiesRange === "custom" && (
+                            <div className="mt-2">
+                              <input
+                                type="number"
+                                name="customCopies"
+                                placeholder="Enter number of copies"
+                                value={filterData.customCopies || ""}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  // Only allow positive integers
+                                  if (
+                                    value === "" ||
+                                    (/^\d+$/.test(value) && parseInt(value) > 0)
+                                  ) {
+                                    handleChange(e);
+                                  }
+                                }}
+                                min="1"
+                                className="w-full p-2 border rounded"
+                              />
+                              <p className="text-sm text-gray-500 mt-1">
+                                Enter a specific number of copies
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   <div className="space-y-4">
-                    <CalendarFilter
-                      filterData={filterData}
-                      handleChange={handleChange}
-                    />
-                    <SpackFilter
-                      filterData={filterData}
-                      handleChange={handleChange}
-                    />
+                    {!hasHRGFOMCALRole() && (
+                      <CalendarFilter
+                        filterData={filterData}
+                        handleChange={handleChange}
+                      />
+                    )}
+                    {!hasHRGFOMCALRole() && (
+                      <SpackFilter
+                        filterData={filterData}
+                        handleChange={handleChange}
+                      />
+                    )}
                     <AreasFilter
                       filterData={filterData}
                       handleAreaChange={handleAreaChange}
@@ -1705,19 +1716,21 @@ const AdvancedFilter = ({
                       handleChange={handleChange}
                       types={types}
                     />
-                    <SubclassFilter
-                      filterData={filterData}
-                      handleChange={handleChange}
-                      subclasses={subclasses}
-                    />
+                    {!hasHRGFOMCALRole() && (
+                      <SubclassFilter
+                        filterData={filterData}
+                        handleChange={handleChange}
+                        subclasses={subclasses}
+                      />
+                    )}
 
                     {/* HRG/FOM Subscription Status Filter */}
-                    {(hasRole("HRG") || hasRole("FOM") || hasRole("Admin")) && (
+                    {hasRole("Admin") && !hasHRGFOMCALRole() && (
                       <div className="p-4 bg-white rounded-lg shadow-sm border">
                         <h2 className="text-black text-xl font-medium mb-1">
-                          HRG/FOM Subscription Status
+                          Subscription Status
                         </h2>
-                        <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
                           <label className="flex items-center space-x-2">
                             <input
                               type="radio"

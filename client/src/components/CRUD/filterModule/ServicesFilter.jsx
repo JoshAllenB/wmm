@@ -6,7 +6,7 @@ const ServicesFilter = ({
   handleServiceChange,
   handleClientIdFilterTypeChange,
   hasRole,
-  subscriptionType = "WMM"
+  subscriptionType = "WMM",
 }) => {
   // Auto-set services based on user roles and subscription type
   useEffect(() => {
@@ -40,7 +40,7 @@ const ServicesFilter = ({
 
       // Update the services in filterData
       if (services.length > 0 && filterData.services.length === 0) {
-        services.forEach(service => handleServiceChange(service));
+        services.forEach((service) => handleServiceChange(service));
       }
     };
 
@@ -48,111 +48,118 @@ const ServicesFilter = ({
   }, [hasRole, subscriptionType]);
 
   return (
-    <div className="p-4 bg-white rounded-lg shadow-sm border">
-      <h2 className="text-black text-xl font-medium mb-1">Services</h2>
-      <div className="space-y-2 flex gap-2">
-        {/* Show services based on role */}
-        {!hasRole("WMM") && hasRole("HRG") && (
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={filterData.services.includes("HRG")}
-              onChange={() => handleServiceChange("HRG")}
-              className="rounded border-gray-300"
-            />
-            <span>HRG</span>
-          </label>
-        )}
-        {!hasRole("WMM") && hasRole("FOM") && (
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={filterData.services.includes("FOM")}
-              onChange={() => handleServiceChange("FOM")}
-              className="rounded border-gray-300"
-            />
-            <span>FOM</span>
-          </label>
-        )}
-        {!hasRole("WMM") && hasRole("CAL") && (
-          <label className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              checked={filterData.services.includes("CAL")}
-              onChange={() => handleServiceChange("CAL")}
-              className="rounded border-gray-300"
-            />
-            <span>CAL</span>
-          </label>
-        )}
-        {/* Show all services for Admin */}
-        {hasRole("Admin") && (
-          <div className="flex gap-2 text-lg">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={filterData.services.includes("WMM")}
-                onChange={() => handleServiceChange("WMM")}
-                className="rounded border-gray-300"
-              />
-              <span>WMM</span>
-            </label>
-            <label className="flex items-center space-x-2">
+    <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+      <h2 className="text-gray-800 text-xl font-semibold mb-4">
+        Filter Options
+      </h2>
+
+      {/* Services Section */}
+      <div className="mb-6">
+        <h3 className="text-gray-700 font-medium mb-3">Services</h3>
+        <div className="flex flex-wrap gap-4 text-base">
+          {/* Show services based on role */}
+          {!hasRole("WMM") && hasRole("HRG") && (
+            <label className="inline-flex items-center">
               <input
                 type="checkbox"
                 checked={filterData.services.includes("HRG")}
                 onChange={() => handleServiceChange("HRG")}
-                className="rounded border-gray-300"
+                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
-              <span>HRG</span>
+              <span className="ml-2 text-black">HRG</span>
             </label>
-            <label className="flex items-center space-x-2">
+          )}
+          {!hasRole("WMM") && hasRole("FOM") && (
+            <label className="inline-flex items-center">
               <input
                 type="checkbox"
                 checked={filterData.services.includes("FOM")}
                 onChange={() => handleServiceChange("FOM")}
-                className="rounded border-gray-300"
+                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
-              <span>FOM</span>
+              <span className="ml-2 text-black">FOM</span>
             </label>
-            <label className="flex items-center space-x-2">
+          )}
+          {!hasRole("WMM") && hasRole("CAL") && (
+            <label className="inline-flex items-center">
               <input
                 type="checkbox"
                 checked={filterData.services.includes("CAL")}
                 onChange={() => handleServiceChange("CAL")}
-                className="rounded border-gray-300"
+                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
-              <span>CAL</span>
+              <span className="ml-2 text-black">CAL</span>
             </label>
-          </div>
-        )}
+          )}
+          {/* Show all services for Admin */}
+          {hasRole("Admin") && (
+            <>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={filterData.services.includes("WMM")}
+                  onChange={() => handleServiceChange("WMM")}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-black">WMM</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={filterData.services.includes("HRG")}
+                  onChange={() => handleServiceChange("HRG")}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-black">HRG</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={filterData.services.includes("FOM")}
+                  onChange={() => handleServiceChange("FOM")}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-black">FOM</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={filterData.services.includes("CAL")}
+                  onChange={() => handleServiceChange("CAL")}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-black">CAL</span>
+              </label>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Client ID Filter Section */}
-      <div className="mt-4 space-y-2">
-        <h3 className="font-medium text-xl border-t">Client ID Filter</h3>
-        <div className="flex gap-2">
-          <label className="flex items-center space-x-2">
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <h3 className="text-gray-700 font-medium mb-3">Client ID Filter</h3>
+        <div className="flex gap-6 mb-4 text-base">
+          <label className="inline-flex items-center">
             <input
               type="radio"
               name="clientIdFilterType"
               value="include"
               checked={filterData.clientIdFilterType === "include"}
               onChange={(e) => handleClientIdFilterTypeChange(e.target.value)}
-              className="rounded border-gray-300"
+              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
-            <span>Include</span>
+            <span className="ml-2 text-black">Include</span>
           </label>
-          <label className="flex items-center space-x-2">
+          <label className="inline-flex items-center">
             <input
               type="radio"
               name="clientIdFilterType"
               value="exclude"
               checked={filterData.clientIdFilterType === "exclude"}
               onChange={(e) => handleClientIdFilterTypeChange(e.target.value)}
-              className="rounded border-gray-300"
+              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
-            <span>Exclude</span>
+            <span className="ml-2 text-black">Exclude</span>
           </label>
         </div>
         {filterData.clientIdFilterType === "include" ? (
@@ -161,7 +168,7 @@ const ServicesFilter = ({
             value={filterData.clientIncludeIds}
             onChange={handleChange}
             placeholder="Enter client IDs to include (comma or space separated)"
-            className="w-full p-2 border rounded"
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             rows="3"
           />
         ) : (
@@ -170,13 +177,16 @@ const ServicesFilter = ({
             value={filterData.clientExcludeIds}
             onChange={handleChange}
             placeholder="Enter client IDs to exclude (comma or space separated)"
-            className="w-full p-2 border rounded"
+            className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             rows="3"
           />
         )}
+        <p className="mt-1 text-sm text-gray-500">
+          Separate multiple IDs with commas or spaces
+        </p>
       </div>
     </div>
   );
 };
 
-export default ServicesFilter; 
+export default ServicesFilter;
