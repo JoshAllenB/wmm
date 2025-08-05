@@ -212,7 +212,7 @@ export const generatePrintHTML = (
             margin: 0;
             padding: 0;
             position: relative;
-            font-family: Arial, sans-serif;
+            font-family: 'LQMATRIX EliteQ LQN', Arial, sans-serif;
             font-size: ${fontSize}pt;
           }
           .page {

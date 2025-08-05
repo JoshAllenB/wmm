@@ -182,7 +182,10 @@ const LabelPreview = ({
             ></div>
           </div>
 
-          <pre className="relative z-10 p-2 text-sm overflow-hidden leading-tight font-mono text-gray-800">
+          <pre
+            className="relative z-10 p-2 text-sm overflow-hidden leading-tight text-gray-800"
+            style={{ fontFamily: "'LQMATRIX EliteQ LQN', monospace" }}
+          >
             {`${displayId}-S-${displayExpDate}-${displayCopies}cps/${displayAcode}
 ${displayName}
 ${displayAddress}
@@ -427,6 +430,7 @@ const LabelItem = ({
     lineHeight: "1.2",
     fontSize: `${fontSize}pt`,
     textAlign: "left", // Ensure consistent left alignment
+    fontFamily: "'LQMATRIX EliteQ LQN', Arial, sans-serif",
   };
 
   return (
