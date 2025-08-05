@@ -1483,19 +1483,19 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
             ...serviceClientsMap.CAL,
           ]);
         }
-        // If both FOM and HRG are selected, they should be mutually exclusive
+        // If both FOM and HRG are selected, include clients with both services, HRG only, or FOM only
         else if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
-          const fomOnlyClients = new Set(
-            [...serviceClientsMap.FOM].filter(
-              (id) => !serviceClientsMap.HRG.has(id) && !dcsClients.includes(id)
+          // Include all clients that have either FOM or HRG (or both), excluding DCS clients
+          const allFomHrgClients = new Set([
+            ...serviceClientsMap.FOM,
+            ...serviceClientsMap.HRG
+          ]);
+          
+          targetClients = new Set(
+            [...allFomHrgClients].filter(
+              (id) => !dcsClients.includes(id)
             )
           );
-          const hrgOnlyClients = new Set(
-            [...serviceClientsMap.HRG].filter(
-              (id) => !serviceClientsMap.FOM.has(id) && !dcsClients.includes(id)
-            )
-          );
-          targetClients = new Set([...fomOnlyClients, ...hrgOnlyClients]);
         }
         // If only FOM is selected, exclude any clients that have HRG or are in DCS group
         else if (serviceClientsMap.FOM) {
