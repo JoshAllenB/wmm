@@ -120,7 +120,7 @@ export const generateLabelContent = (
       ${nameLines
         .map((line) => `<p style="${commonStyle}">${line}</p>`)
         .join("")}
-      ${address ? `<p style="${commonStyle}">${address}</p>` : ""}
+      ${address ? `<p class="multiline" style="${commonStyle}">${address}</p>` : ""}
       ${contact ? `<p style="${commonStyle}">${contact}</p>` : ""}
     </div>
   `;
@@ -132,16 +132,18 @@ export const generatePrintHTML = (
   startPosition,
   rows,
   template,
-  leftPosition,
-  topPosition,
-  columnWidth,
-  horizontalSpacing,
-  rowSpacing,
-  fontSize,
-  labelHeight,
+  leftPosition, // Expected in pixels
+  topPosition, // Expected in pixels
+  columnWidth, // Expected in pixels
+  horizontalSpacing, // Expected in pixels
+  rowSpacing, // Expected in pixels
+  fontSize, // Expected in points (pt)
+  labelHeight, // Expected in pixels
   selectedFields,
   userRole,
-  subscriptionType
+  subscriptionType,
+  rowsPerPage = 3,
+  columnsPerPage = 2
 ) => {
   // Filter rows based on start/end Client IDs only if they are specified
   const filteredRows = rows.filter((row) => {
@@ -192,11 +194,11 @@ export const generatePrintHTML = (
     `;
   }
 
-  // Calculate the number of labels per page
-  const labelsPerPage = 6; // 2 columns × 3 rows
+  // Calculate the number of labels per page using the dynamic configuration
+  const labelsPerPage = rowsPerPage * columnsPerPage;
   const totalPages = Math.ceil(filteredRows.length / labelsPerPage);
 
-  // Create HTML content
+  // Create HTML content with more robust styling
   let html = `
     <html>
       <head>
@@ -210,6 +212,8 @@ export const generatePrintHTML = (
             margin: 0;
             padding: 0;
             position: relative;
+            font-family: Arial, sans-serif;
+            font-size: ${fontSize}pt;
           }
           .page {
             width: 8.5in;
@@ -220,9 +224,34 @@ export const generatePrintHTML = (
           .page:last-child {
             page-break-after: auto;
           }
-          .label {
+          .label-container {
             position: absolute;
             width: ${columnWidth}px;
+            height: ${labelHeight}px;
+            overflow: hidden;
+            box-sizing: border-box;
+          }
+          .label-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+          }
+          .label-content p {
+            margin: 0;
+            padding: 0;
+            line-height: 1.1; /* Tighter line spacing */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex-shrink: 0;
+          }
+          .label-content p.multiline {
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 4; /* Limit address to 4 lines */
+            -webkit-box-orient: vertical;
           }
           @media print {
             body { margin: 0; }
@@ -245,34 +274,36 @@ export const generatePrintHTML = (
       const row = filteredRows[i];
       const data = row.original;
 
-      // Calculate position
+      // Calculate position - now with more precise spacing
       const positionInPage = i % labelsPerPage;
-      const column = positionInPage % 2;
-      const rowInPage = Math.floor(positionInPage / 2);
+      const column = positionInPage % columnsPerPage;
+      const rowInPage = Math.floor(positionInPage / columnsPerPage);
 
-      // Adjust starting position based on user preference
       const startFromRight =
         startPosition === "right" && pageIndex === 0 && i === startIndex;
-      const effectiveColumn = startFromRight ? 1 : column;
+      const effectiveColumn = startFromRight ? columnsPerPage - 1 : column;
 
-      const xPos =
-        leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
-      const yPos = topPosition + rowInPage * rowSpacing;
+      // Calculate positions using pixel values directly
+      const xPos = leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
+      const yPos = topPosition + rowInPage * (labelHeight + rowSpacing);
 
-      // Generate label content with subscription type
+      // Generate label content
+      const content = generateLabelContent(
+        data,
+        selectedFields,
+        userRole,
+        data.subscriptionType || subscriptionType
+      );
+
+      // Wrap content in a container with strict height control
       html += `
-        <div class="label" style="left: ${xPos}px; top: ${yPos}px;">
-          ${generateLabelContent(
-            data,
-            selectedFields,
-            userRole,
-            data.subscriptionType || subscriptionType
-          )}
+        <div class="label-container" style="left: ${xPos}px; top: ${yPos}px;">
+          <div class="label-content">${content}</div>
         </div>
       `;
     }
 
-    html += "</div>"; // Close page div
+    html += "</div>";
   }
 
   html += `

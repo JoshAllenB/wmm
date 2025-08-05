@@ -699,7 +699,9 @@ const Mailing = ({
       mmToPx(labelHeight),
       templateToUse.selectedFields || selectedFields || [],
       userRole,
-      subscriptionType // Add subscription type here
+      subscriptionType, // Add subscription type here
+      rowsPerPage,
+      columnsPerPage
     );
 
     const printWindow = window.open("", "_blank", "height=600,width=800");
