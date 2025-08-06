@@ -1,9 +1,14 @@
 import React, { useState } from "react";
 import { Button } from "../UI/ShadCN/button";
 import { toast } from "react-hot-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../UI/ShadCN/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../UI/ShadCN/dialog";
 
-const CsvExport = ({ 
+const CsvExport = ({
   selectedRows,
   dataSource,
   startClientId,
@@ -19,33 +24,33 @@ const CsvExport = ({
   onClose,
   onRefreshAllData,
   isOpen = false,
-  subscriptionType = "WMM" // Add default subscription type
+  subscriptionType = "WMM", // Add default subscription type
 }) => {
   // State for custom filename
   const [csvFilename, setCsvFilename] = useState("");
   // Fields to include in CSV
   const [csvIncludeFields, setCsvIncludeFields] = useState([
     // Basic fields (All users)
-    "id",           // ClientID
-    "name",         // Name
-    "address",      // Address
-    "contactnos",   // Contact Number
-    "acode",        // AreaCode
-    
+    "id", // ClientID
+    "name", // Name
+    "address", // Address
+    "contactnos", // Contact Number
+    "acode", // AreaCode
+
     // WMM fields
-    "company",      // Company Name
-    "copies",       // Copies
-    "enddate",      // Expiry Date
-    "subsclass",    // Subscription Class
-    "subsdate",     // Subscription Date
-    
+    "company", // Company Name
+    "copies", // Copies
+    "enddate", // Expiry Date
+    "subsclass", // Subscription Class
+    "subsdate", // Subscription Date
+
     // Service-specific fields
-    "hrgData",      // HRG Data
-    "fomData",      // FOM Data
-    "calData",      // CAL Data
+    "hrgData", // HRG Data
+    "fomData", // FOM Data
+    "calData", // CAL Data
 
     // Promo-specific fields
-    "referralid"    // Referral ID
+    "referralid", // Referral ID
   ]);
 
   // Add loading state
@@ -67,13 +72,41 @@ const CsvExport = ({
     setDataSource(source);
   };
 
+  // Enhanced refresh function with progress tracking
+  const handleRefreshAllData = async () => {
+    setIsLoadingAllRecords(true);
+
+    try {
+      const result = await onRefreshAllData?.();
+
+      // Handle the new response format that includes both data and processing info
+      if (result) {
+        // Return the data part for compatibility
+        return result.data || result;
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error fetching all data:", error);
+      toast.error(
+        error.message ||
+          "Failed to fetch all records. Using table data instead."
+      );
+      throw error;
+    } finally {
+      setIsLoadingAllRecords(false);
+    }
+  };
+
   // Get the maximum number of address lines used in the dataset
   const getMaxAddressLines = () => {
     let maxLines = 0;
     selectedRows.forEach((row) => {
-      const addressLines = row?.original?.address?.split('\n') || [];
+      const addressLines = row?.original?.address?.split("\n") || [];
       // Only count non-empty lines
-      const nonEmptyLines = addressLines.filter(line => line.trim().length > 0).length;
+      const nonEmptyLines = addressLines.filter(
+        (line) => line.trim().length > 0
+      ).length;
       maxLines = Math.max(maxLines, nonEmptyLines);
     });
     return maxLines;
@@ -97,11 +130,11 @@ const CsvExport = ({
       subsdate: false,
       subsclass: false,
       email: false,
-      referralid: false,  // Add referralID field
+      referralid: false, // Add referralID field
       // Add service-specific data fields
       hrgData: false,
       fomData: false,
-      calData: false
+      calData: false,
     };
 
     // Track address lines separately
@@ -109,7 +142,7 @@ const CsvExport = ({
 
     selectedRows.forEach((row) => {
       const subscriber = row.original;
-      
+
       // Get the appropriate subscription data based on type
       let subscriptionData;
       switch (subscriptionType) {
@@ -122,23 +155,36 @@ const CsvExport = ({
         default: // WMM
           subscriptionData = subscriber?.wmmData;
       }
-      
+
       const subscription = subscriptionData?.records?.[0] || {};
 
       // Check each field for non-empty values
       if (subscriber.id) fieldsWithData.id = true;
-      if (typeof subscriber.title === 'string' && subscriber.title.trim()) fieldsWithData.title = true;
-      if (typeof subscriber.lname === 'string' && subscriber.lname.trim()) fieldsWithData.lname = true;
-      if (typeof subscriber.fname === 'string' && subscriber.fname.trim()) fieldsWithData.fname = true;
-      if (typeof subscriber.mname === 'string' && subscriber.mname.trim()) fieldsWithData.mname = true;
-      if (typeof subscriber.company === 'string' && subscriber.company.trim()) fieldsWithData.company = true;
-      if (typeof subscriber.cellno === 'string' && subscriber.cellno.trim()) fieldsWithData.cellno = true;
-      if (typeof subscriber.officeno === 'string' && subscriber.officeno.trim()) fieldsWithData.officeno = true;
+      if (typeof subscriber.title === "string" && subscriber.title.trim())
+        fieldsWithData.title = true;
+      if (typeof subscriber.lname === "string" && subscriber.lname.trim())
+        fieldsWithData.lname = true;
+      if (typeof subscriber.fname === "string" && subscriber.fname.trim())
+        fieldsWithData.fname = true;
+      if (typeof subscriber.mname === "string" && subscriber.mname.trim())
+        fieldsWithData.mname = true;
+      if (typeof subscriber.company === "string" && subscriber.company.trim())
+        fieldsWithData.company = true;
+      if (typeof subscriber.cellno === "string" && subscriber.cellno.trim())
+        fieldsWithData.cellno = true;
+      if (typeof subscriber.officeno === "string" && subscriber.officeno.trim())
+        fieldsWithData.officeno = true;
       if (subscription.copies) fieldsWithData.copies = true;
-      if (subscriber.acode !== undefined && subscriber.acode !== null) fieldsWithData.acode = true;
-      if (typeof subscriber.email === 'string' && subscriber.email.trim()) fieldsWithData.email = true;
-      if (typeof subscription.subsclass === 'string' && subscription.subsclass.trim()) fieldsWithData.subsclass = true;
-      if (subscription.referralid) fieldsWithData.referralid = true;  // Check referralID
+      if (subscriber.acode !== undefined && subscriber.acode !== null)
+        fieldsWithData.acode = true;
+      if (typeof subscriber.email === "string" && subscriber.email.trim())
+        fieldsWithData.email = true;
+      if (
+        typeof subscription.subsclass === "string" &&
+        subscription.subsclass.trim()
+      )
+        fieldsWithData.subsclass = true;
+      if (subscription.referralid) fieldsWithData.referralid = true; // Check referralID
 
       // Check dates
       if (subscription.enddate) {
@@ -162,7 +208,10 @@ const CsvExport = ({
       }
 
       // Check address lines
-      const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split('\n') : [];
+      const addressLines =
+        typeof subscriber.address === "string"
+          ? subscriber.address.split("\n")
+          : [];
       addressLines.forEach((line, index) => {
         if (line.trim()) {
           addressLinesUsed.add(index);
@@ -173,7 +222,7 @@ const CsvExport = ({
 
     return {
       fieldsWithData,
-      addressLinesUsed: Array.from(addressLinesUsed).sort((a, b) => a - b)
+      addressLinesUsed: Array.from(addressLinesUsed).sort((a, b) => a - b),
     };
   };
 
@@ -185,7 +234,7 @@ const CsvExport = ({
       if (!clientId) {
         return false;
       }
-      
+
       // Only apply range filtering if dataSource is "range"
       if (dataSource === "range") {
         const trimmedStartId = startClientId?.trim();
@@ -193,27 +242,36 @@ const CsvExport = ({
 
         // Convert to numbers for comparison if they look like numbers
         const numericClientId = parseInt(clientId, 10);
-        const numericStartId = trimmedStartId ? parseInt(trimmedStartId, 10) : null;
+        const numericStartId = trimmedStartId
+          ? parseInt(trimmedStartId, 10)
+          : null;
         const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
 
         // If all IDs are valid numbers, use numeric comparison
-        if (!isNaN(numericClientId) && 
-            (numericStartId === null || !isNaN(numericStartId)) && 
-            (numericEndId === null || !isNaN(numericEndId))) {
-          
-          const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
-          const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
+        if (
+          !isNaN(numericClientId) &&
+          (numericStartId === null || !isNaN(numericStartId)) &&
+          (numericEndId === null || !isNaN(numericEndId))
+        ) {
+          const isAfterStart = numericStartId
+            ? numericClientId >= numericStartId
+            : true;
+          const isBeforeEnd = numericEndId
+            ? numericClientId <= numericEndId
+            : true;
 
           return isAfterStart && isBeforeEnd;
         } else {
           // Fallback to string comparison if any ID is not a valid number
-          const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+          const isAfterStart = trimmedStartId
+            ? clientId >= trimmedStartId
+            : true;
           const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
 
           return isAfterStart && isBeforeEnd;
         }
       }
-      
+
       // If not using range filtering, include all rows
       return true;
     });
@@ -230,7 +288,7 @@ const CsvExport = ({
     const headers = [];
 
     // Add default fields to headers only if they have data
-    if (csvIncludeFields.includes("id") && fieldsWithData.id) 
+    if (csvIncludeFields.includes("id") && fieldsWithData.id)
       headers.push("Client ID");
     if (csvIncludeFields.includes("name")) {
       if (fieldsWithData.title) headers.push("Title");
@@ -241,7 +299,7 @@ const CsvExport = ({
       headers.push("Company");
     if (csvIncludeFields.includes("address") && fieldsWithData.address) {
       // Add address headers based on actual used lines
-      addressLinesUsed.forEach(index => {
+      addressLinesUsed.forEach((index) => {
         headers.push(`Address Line ${index + 1}`);
       });
     }
@@ -291,26 +349,62 @@ const CsvExport = ({
         if (csvIncludeFields.includes("id") && fieldsWithData.id)
           rowData.push(`"${subscriber.id || ""}"`);
         if (csvIncludeFields.includes("name")) {
-          if (fieldsWithData.title) rowData.push(`"${typeof subscriber.title === 'string' ? subscriber.title : ""}"`);
-          if (fieldsWithData.lname) rowData.push(`"${typeof subscriber.lname === 'string' ? subscriber.lname : ""}"`);
-          if (fieldsWithData.fname) rowData.push(`"${typeof subscriber.fname === 'string' ? subscriber.fname : ""}"`);
+          if (fieldsWithData.title)
+            rowData.push(
+              `"${
+                typeof subscriber.title === "string" ? subscriber.title : ""
+              }"`
+            );
+          if (fieldsWithData.lname)
+            rowData.push(
+              `"${
+                typeof subscriber.lname === "string" ? subscriber.lname : ""
+              }"`
+            );
+          if (fieldsWithData.fname)
+            rowData.push(
+              `"${
+                typeof subscriber.fname === "string" ? subscriber.fname : ""
+              }"`
+            );
         }
         if (csvIncludeFields.includes("company") && fieldsWithData.company)
-          rowData.push(`"${typeof subscriber.company === 'string' ? subscriber.company : ""}"`);
+          rowData.push(
+            `"${
+              typeof subscriber.company === "string" ? subscriber.company : ""
+            }"`
+          );
         if (csvIncludeFields.includes("address") && fieldsWithData.address) {
-          const addressLines = typeof subscriber.address === 'string' ? subscriber.address.split("\n") : [];
-          addressLinesUsed.forEach(index => {
+          const addressLines =
+            typeof subscriber.address === "string"
+              ? subscriber.address.split("\n")
+              : [];
+          addressLinesUsed.forEach((index) => {
             rowData.push(`"${(addressLines[index] || "").trim()}"`);
           });
         }
         if (csvIncludeFields.includes("contactnos")) {
-          if (fieldsWithData.cellno) rowData.push(`"${typeof subscriber.cellno === 'string' ? subscriber.cellno : ""}"`);
-          if (fieldsWithData.officeno) rowData.push(`"${typeof subscriber.officeno === 'string' ? subscriber.officeno : ""}"`);
+          if (fieldsWithData.cellno)
+            rowData.push(
+              `"${
+                typeof subscriber.cellno === "string" ? subscriber.cellno : ""
+              }"`
+            );
+          if (fieldsWithData.officeno)
+            rowData.push(
+              `"${
+                typeof subscriber.officeno === "string"
+                  ? subscriber.officeno
+                  : ""
+              }"`
+            );
         }
         if (csvIncludeFields.includes("copies") && fieldsWithData.copies)
           rowData.push(`"${subscription.copies || ""}"`);
         if (csvIncludeFields.includes("acode") && fieldsWithData.acode)
-          rowData.push(`"${subscriber.acode !== undefined ? subscriber.acode : ""}"`);
+          rowData.push(
+            `"${subscriber.acode !== undefined ? subscriber.acode : ""}"`
+          );
 
         // Format and add dates if they exist
         if (csvIncludeFields.includes("enddate") && fieldsWithData.enddate) {
@@ -350,7 +444,7 @@ const CsvExport = ({
             expected: headers.length,
             got: rowData.length,
             rowData,
-            subscriber
+            subscriber,
           });
           skippedRows++;
         }
@@ -390,37 +484,41 @@ const CsvExport = ({
       }
 
       // Generate default filename if custom filename is empty
-      const defaultFilename = `subscribers_export_${new Date().toISOString().slice(0, 10)}`;
+      const defaultFilename = `subscribers_export_${new Date()
+        .toISOString()
+        .slice(0, 10)}`;
       const filename = csvFilename.trim() || defaultFilename;
-      
+
       // Ensure filename ends with .csv
-      const finalFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
+      const finalFilename = filename.endsWith(".csv")
+        ? filename
+        : `${filename}.csv`;
 
       // Create a Blob for better memory management
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
 
       // Create a temporary link element
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", finalFilename);
-      
+
       // Add to body, click, and remove
       document.body.appendChild(link);
-      
+
       // Use a Promise to handle the download completion
       const downloadPromise = new Promise((resolve) => {
         link.onclick = () => {
           // Give browser time to start the download
           setTimeout(resolve, 1000);
         };
-        
+
         link.click();
-        
+
         // Fallback in case click event doesn't fire
         setTimeout(resolve, 2000);
       });
-      
+
       // Wait for download to start before cleanup
       downloadPromise.then(() => {
         // Clean up
@@ -428,21 +526,20 @@ const CsvExport = ({
           document.body.removeChild(link);
         }
         window.URL.revokeObjectURL(url);
-        
+
         // Only update state after cleanup
         setCsvFilename(""); // Reset filename after download
         onClose();
         toast.success("CSV exported successfully");
       });
-
     } catch (error) {
       console.error("Error exporting CSV:", error);
       toast.error("Failed to export CSV. Please try again.");
-      
+
       // Attempt cleanup of any lingering elements
       try {
-        const links = document.querySelectorAll('a[download]');
-        links.forEach(link => {
+        const links = document.querySelectorAll("a[download]");
+        links.forEach((link) => {
           if (link.parentNode === document.body) {
             document.body.removeChild(link);
           }
@@ -470,7 +567,7 @@ const CsvExport = ({
         <Button
           onClick={() => setUseAllData(false)}
           variant={useAllData ? "outline" : "default"}
-          className={`flex-1 ${!useAllData ? 'bg-blue-600 text-white' : ''}`}
+          className={`flex-1 ${!useAllData ? "bg-blue-600 text-white" : ""}`}
         >
           Selected ({selectedRows.length})
         </Button>
@@ -480,20 +577,21 @@ const CsvExport = ({
             setIsLoadingAllRecords(true);
             try {
               // Trigger parent component to fetch new data
-              await onRefreshAllData?.();
+              await handleRefreshAllData();
             } catch (error) {
               console.error("Error fetching all data:", error);
               toast({
                 title: "Error",
-                description: "Failed to fetch all records. Using table data instead.",
-                variant: "destructive"
+                description:
+                  "Failed to fetch all records. Using table data instead.",
+                variant: "destructive",
               });
             } finally {
               setIsLoadingAllRecords(false);
             }
           }}
           variant={useAllData ? "default" : "outline"}
-          className={`flex-1 ${useAllData ? 'bg-blue-600 text-white' : ''}`}
+          className={`flex-1 ${useAllData ? "bg-blue-600 text-white" : ""}`}
         >
           {isLoadingAllRecords ? (
             <div className="flex items-center gap-2">
@@ -538,7 +636,9 @@ const CsvExport = ({
                   type="text"
                   value={csvFilename}
                   onChange={(e) => setCsvFilename(e.target.value)}
-                  placeholder={`subscribers_export_${new Date().toISOString().slice(0, 10)}`}
+                  placeholder={`subscribers_export_${new Date()
+                    .toISOString()
+                    .slice(0, 10)}`}
                   className="border border-gray-300 rounded p-2 w-full"
                 />
                 <span className="text-sm text-gray-500">.csv</span>
@@ -629,11 +729,15 @@ const CsvExport = ({
 
             {/* CSV Fields Selection */}
             <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-              <h3 className="text-sm font-semibold mb-2">Select Fields to Include:</h3>
+              <h3 className="text-sm font-semibold mb-2">
+                Select Fields to Include:
+              </h3>
 
               {/* Basic Fields (All Users) */}
               <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-600 mb-2">Basic Information (All Users):</h4>
+                <h4 className="text-xs font-medium text-gray-600 mb-2">
+                  Basic Information (All Users):
+                </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center">
                     <input
@@ -644,7 +748,9 @@ const CsvExport = ({
                       className="mr-2"
                       disabled
                     />
-                    <label htmlFor="csv-id" className="text-sm">Client ID</label>
+                    <label htmlFor="csv-id" className="text-sm">
+                      Client ID
+                    </label>
                   </div>
                   <div className="flex items-center">
                     <input
@@ -655,7 +761,9 @@ const CsvExport = ({
                       className="mr-2"
                       disabled
                     />
-                    <label htmlFor="csv-name" className="text-sm">Name</label>
+                    <label htmlFor="csv-name" className="text-sm">
+                      Name
+                    </label>
                   </div>
                   <div className="flex items-center">
                     <input
@@ -666,7 +774,9 @@ const CsvExport = ({
                       className="mr-2"
                       disabled
                     />
-                    <label htmlFor="csv-address" className="text-sm">Address</label>
+                    <label htmlFor="csv-address" className="text-sm">
+                      Address
+                    </label>
                   </div>
                   <div className="flex items-center">
                     <input
@@ -677,7 +787,9 @@ const CsvExport = ({
                       className="mr-2"
                       disabled
                     />
-                    <label htmlFor="csv-acode" className="text-sm">Area Code</label>
+                    <label htmlFor="csv-acode" className="text-sm">
+                      Area Code
+                    </label>
                   </div>
                   <div className="flex items-center">
                     <input
@@ -688,14 +800,18 @@ const CsvExport = ({
                       className="mr-2"
                       disabled
                     />
-                    <label htmlFor="csv-contactnos" className="text-sm">Contact Numbers</label>
+                    <label htmlFor="csv-contactnos" className="text-sm">
+                      Contact Numbers
+                    </label>
                   </div>
                 </div>
               </div>
 
               {/* WMM Fields */}
               <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-600 mb-2">WMM Information:</h4>
+                <h4 className="text-xs font-medium text-gray-600 mb-2">
+                  WMM Information:
+                </h4>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center">
                     <input
@@ -762,7 +878,9 @@ const CsvExport = ({
 
               {/* Service-specific Fields */}
               <div>
-                <h4 className="text-xs font-medium text-gray-600 mb-2">Service-specific Information:</h4>
+                <h4 className="text-xs font-medium text-gray-600 mb-2">
+                  Service-specific Information:
+                </h4>
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center">
                     <input
@@ -773,7 +891,10 @@ const CsvExport = ({
                       className="mr-2"
                     />
                     <label htmlFor="csv-hrgData" className="text-sm">
-                      {renderFieldLabel("hrgData", "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)")}
+                      {renderFieldLabel(
+                        "hrgData",
+                        "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)"
+                      )}
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -785,7 +906,10 @@ const CsvExport = ({
                       className="mr-2"
                     />
                     <label htmlFor="csv-fomData" className="text-sm">
-                      {renderFieldLabel("fomData", "FOM Data (Payment Details + Unsubscribe Status)")}
+                      {renderFieldLabel(
+                        "fomData",
+                        "FOM Data (Payment Details + Unsubscribe Status)"
+                      )}
                     </label>
                   </div>
                   <div className="flex items-center">
@@ -797,7 +921,10 @@ const CsvExport = ({
                       className="mr-2"
                     />
                     <label htmlFor="csv-calData" className="text-sm">
-                      {renderFieldLabel("calData", "CAL Data (Type, Quantity, Unit Amount + Payment Details)")}
+                      {renderFieldLabel(
+                        "calData",
+                        "CAL Data (Type, Quantity, Unit Amount + Payment Details)"
+                      )}
                     </label>
                   </div>
                 </div>
@@ -828,4 +955,4 @@ const CsvExport = ({
   );
 };
 
-export default CsvExport; 
+export default CsvExport;
