@@ -2,11 +2,14 @@ import { buildFilterQuery } from './filterBuilder.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 import { calculateStatistics } from './statsCalculator.mjs';
 import { validatePaginationParams, parseDate, adjustModelNamesForSubscription } from './helpers.mjs';
+import performanceMonitor from './performanceMonitor.mjs';
 import ClientModel from "../../../models/clients.mjs";
 
 class DataService {
   constructor() {
     // Initialize any service-wide configurations here
+    this.DEFAULT_BATCH_SIZE = 1000; // Process 1000 clients at a time
+    this.MAX_BATCH_SIZE = 5000; // Maximum batch size to prevent memory issues
   }
 
   async fetchData(params) {
@@ -199,7 +202,8 @@ class DataService {
       filter,
       group,
       clientIds = null,
-      advancedFilterData = {}
+      advancedFilterData = {},
+      batchSize = this.DEFAULT_BATCH_SIZE
     } = params;
 
     try {
@@ -237,28 +241,231 @@ class DataService {
         }
       }
 
-      // Get ALL clients without pagination
-      const clients = await ClientModel.find(filterQuery)
-        .sort({ id: 1 })
-        .lean();
+      // Get total count first
+      const totalCount = await ClientModel.countDocuments(filterQuery);
+      console.log(`Processing ${totalCount} clients in batches of ${batchSize}`);
 
-      // Get all data without pagination
-      const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
+      // If the dataset is small enough, process it normally
+      if (totalCount <= batchSize) {
+        return await this._processAllDataDirectly(filterQuery, validModelNames, advancedFilterData, isSearchQuery);
+      }
 
-      // Calculate statistics for the entire dataset
-      const stats = await calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length);
+      // Process in batches for large datasets
+      return await this._processAllDataInBatches(
+        filterQuery, 
+        validModelNames, 
+        advancedFilterData, 
+        isSearchQuery, 
+        totalCount, 
+        batchSize
+      );
 
-      // Prepare response
-      const response = {
-        stats,
-        combinedData,
-        clientServices: this._buildClientServices(combinedData, advancedFilterData.subscriptionType || 'WMM', isSearchQuery)
-      };
-
-      return response;
     } catch (error) {
       console.error('Error in DataService.fetchAllData:', error);
       throw error;
+    }
+  }
+
+  async _processAllDataDirectly(filterQuery, validModelNames, advancedFilterData, isSearchQuery) {
+    // Get ALL clients without pagination
+    const clients = await ClientModel.find(filterQuery)
+      .sort({ id: 1 })
+      .lean();
+
+    // Get all data without pagination
+    const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
+
+    // Calculate statistics for the entire dataset
+    const stats = await calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length);
+
+    // Prepare response
+    const response = {
+      stats,
+      combinedData,
+      clientServices: this._buildClientServices(combinedData, advancedFilterData.subscriptionType || 'WMM', isSearchQuery)
+    };
+
+    return response;
+  }
+
+  async _processAllDataInBatches(filterQuery, validModelNames, advancedFilterData, isSearchQuery, totalCount, batchSize) {
+    const operationId = `batch_processing_${Date.now()}`;
+    
+    // Start performance monitoring
+    performanceMonitor.startTiming(operationId, {
+      totalCount,
+      batchSize,
+      totalBatches: Math.ceil(totalCount / batchSize),
+      modelNames: validModelNames,
+      subscriptionType: advancedFilterData.subscriptionType || "WMM",
+    });
+
+    const allCombinedData = [];
+    const allClientIds = [];
+    let processedCount = 0;
+    const startTime = Date.now();
+
+    // Validate and adjust batch size
+    const adjustedBatchSize = Math.min(batchSize, this.MAX_BATCH_SIZE);
+    if (adjustedBatchSize !== batchSize) {
+      console.log(`Adjusted batch size from ${batchSize} to ${adjustedBatchSize} for better performance`);
+    }
+
+    // Process clients in batches
+    for (let skip = 0; skip < totalCount; skip += adjustedBatchSize) {
+      const batchStartTime = Date.now();
+      const currentBatch = Math.floor(skip / adjustedBatchSize) + 1;
+      const batchOperationId = `${operationId}_batch_${currentBatch}`;
+      
+      // Start timing for this specific batch
+      performanceMonitor.startTiming(batchOperationId, {
+        batchNumber: currentBatch,
+        totalBatches: Math.ceil(totalCount / adjustedBatchSize),
+        batchSize: adjustedBatchSize,
+        skip
+      });
+      
+      try {
+        // Get batch of clients
+        const clients = await ClientModel.find(filterQuery)
+          .sort({ id: 1 })
+          .skip(skip)
+          .limit(adjustedBatchSize)
+          .lean();
+
+        if (clients.length === 0) break;
+
+        // Process this batch
+        const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
+        
+        // Add to results
+        allCombinedData.push(...combinedData);
+        allClientIds.push(...clients.map(c => c.id));
+        processedCount += clients.length;
+
+        const batchEndTime = Date.now();
+        const batchDuration = batchEndTime - batchStartTime;
+        
+        console.log(`Processed batch ${currentBatch}/${Math.ceil(totalCount / adjustedBatchSize)}: ${clients.length} clients in ${batchDuration}ms (${processedCount}/${totalCount} total)`);
+
+        // Track batch performance
+        performanceMonitor.endTiming(batchOperationId, {
+          processedCount: clients.length,
+          currentBatch,
+          batchDuration,
+          memoryUsage: performanceMonitor.getMemoryUsage(),
+        });
+
+        // Optional: Add a small delay between batches to prevent overwhelming the database
+        if (skip + adjustedBatchSize < totalCount) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        // Memory management: Clear some references to help garbage collection
+        if (allCombinedData.length > 5000) { // Reduced threshold for more frequent GC
+          // Force garbage collection if available (Node.js with --expose-gc flag)
+          if (global.gc) {
+            global.gc();
+          }
+          
+          // Log memory usage after GC
+          const memUsage = performanceMonitor.getMemoryUsage();
+          console.log(`Memory after GC: ${memUsage.heapUsed}MB (heap), ${memUsage.rss}MB (RSS)`);
+        }
+
+        // Check memory usage and warn if high
+        if (performanceMonitor.isMemoryUsageHigh(400)) { // Reduced threshold to 400MB
+          console.warn(`High memory usage detected during batch processing. Consider reducing batch size. Current: ${performanceMonitor.getMemoryUsage().heapUsed}MB`);
+        }
+
+      } catch (error) {
+        console.error(`Error processing batch starting at ${skip}:`, error);
+        
+        // End timing for failed batch
+        performanceMonitor.endTiming(batchOperationId, {
+          processedCount: 0,
+          currentBatch,
+          error: error.message,
+          memoryUsage: performanceMonitor.getMemoryUsage(),
+        });
+        
+        // Continue with next batch instead of failing completely
+        continue;
+      }
+    }
+
+    const totalDuration = Date.now() - startTime;
+    console.log(`Completed processing ${processedCount}/${totalCount} clients in ${totalDuration}ms using batch processing`);
+
+    // Calculate statistics for the entire dataset
+    const stats = await calculateStatistics(filterQuery, allClientIds, 1, processedCount);
+
+    // End performance monitoring for the entire operation
+    const performanceMetrics = performanceMonitor.endTiming(operationId, {
+      processedCount,
+      totalCount,
+      successRate: processedCount / totalCount,
+      totalDuration,
+      memoryUsage: performanceMonitor.getMemoryUsage(),
+    });
+
+    // Get performance summary
+    const performanceSummary = performanceMonitor.getSummary(operationId);
+
+    // Prepare response
+    const response = {
+      stats,
+      combinedData: allCombinedData,
+      clientServices: this._buildClientServices(allCombinedData, advancedFilterData.subscriptionType || "WMM", isSearchQuery),
+      processingInfo: {
+        totalClients: totalCount,
+        processedClients: processedCount,
+        batchSize: adjustedBatchSize,
+        totalBatches: Math.ceil(totalCount / adjustedBatchSize),
+        processingTime: totalDuration,
+        successRate: processedCount / totalCount,
+        performanceMetrics: performanceSummary,
+      },
+    };
+
+    return response;
+  }
+
+  /**
+   * Fetch all data with configurable batch processing
+   * @param {Object} params - Parameters for fetching data
+   * @param {number} params.batchSize - Size of each batch (default: 1000, max: 5000)
+   * @param {boolean} params.enableBatchProcessing - Force batch processing even for small datasets
+   * @param {number} params.maxMemoryUsage - Maximum memory usage in MB before forcing GC
+   * @returns {Object} Processed data with batch processing information
+   */
+  async fetchAllDataWithBatching(params) {
+    const {
+      batchSize = this.DEFAULT_BATCH_SIZE,
+      enableBatchProcessing = false,
+      maxMemoryUsage = 500, // 500MB default
+      ...otherParams
+    } = params;
+
+    // Validate batch size
+    const validatedBatchSize = Math.min(Math.max(batchSize, 100), this.MAX_BATCH_SIZE);
+    
+    // Get total count to decide processing strategy
+    const { modelNames, filter, group, advancedFilterData = {} } = otherParams;
+    let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+    const totalCount = await ClientModel.countDocuments(filterQuery);
+
+    console.log(`Dataset size: ${totalCount} clients, Batch size: ${validatedBatchSize}`);
+
+    // Use batch processing if explicitly enabled or if dataset is large
+    if (enableBatchProcessing || totalCount > validatedBatchSize) {
+      return await this.fetchAllData({
+        ...otherParams,
+        batchSize: validatedBatchSize
+      });
+    } else {
+      // Use direct processing for smaller datasets
+      return await this._processAllDataDirectly(filterQuery, modelNames, advancedFilterData, false);
     }
   }
 }

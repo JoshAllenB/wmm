@@ -185,7 +185,9 @@ router.post(
     const {
       filter = "",
       group = "",
-      advancedFilterData = {}
+      advancedFilterData = {},
+      batchSize = 1000, // Add batch size parameter with default
+      enableBatchProcessing = true // Enable batch processing by default
     } = req.body;
 
     try {
@@ -211,44 +213,32 @@ router.post(
         modelNames = ["WmmModel"]; // Default to WmmModel if no roles match
       }
 
-      // Use the shared fetchClientData function with skipPagination=true
-      const results = await fetchClientData(req, {
-        skipPagination: true,
+      console.log(`Fetching all data with batch processing. Models: ${modelNames.join(', ')}`);
+
+      // Use the optimized DataService with batch processing
+      const results = await dataService.fetchAllDataWithBatching({
+        modelNames,
         filter,
         group,
-        ...advancedFilterData,
-        modelNames // Pass modelNames explicitly
+        advancedFilterData,
+        batchSize,
+        enableBatchProcessing
       });
 
-      // Extract the processed data
-      const { processedData, stats } = results;
-
-      // Add additional data needed for mailing features
-      const enhancedData = await Promise.all(processedData.map(async (client) => {
-        // Get the latest subscription data for each client
-        const [wmmSubscription] = await WmmModel.find({ clientid: client.id })
-          .sort({ subsdate: -1 })
-          .limit(1)
-          .lean();
-
-        return {
-          ...client,
-          wmmData: wmmSubscription ? {
-            ...wmmSubscription,
-            records: [wmmSubscription]
-          } : null
-        };
-      }));
+      // Extract the processed data and stats
+      const { combinedData, stats, processingInfo } = results;
 
       res.json({
-        combinedData: enhancedData,
-        stats
+        combinedData,
+        stats,
+        processingInfo // Include processing information for monitoring
       });
 
       if (io && socketId) {
         io.to(socketId).emit("dataFetched", {
-          message: "All data fetched successfully",
+          message: "All data fetched successfully with batch processing",
           timestamp: new Date(),
+          processingInfo
         });
       }
     } catch (error) {

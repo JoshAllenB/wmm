@@ -1,158 +1,152 @@
-import { getPerformanceStats } from './dbOptimizer.mjs';
-import { getCacheStats, clearCache } from './dataAggregator.mjs';
-
+/**
+ * Performance monitoring utility for batch processing
+ */
 class PerformanceMonitor {
   constructor() {
-    this.startTime = Date.now();
-    this.requestCount = 0;
-    this.errorCount = 0;
-    this.slowRequestCount = 0;
-    this.requestTimes = [];
-    this.maxRequestTimes = 1000; // Keep last 1000 request times
+    this.metrics = new Map();
+    this.startTimes = new Map();
   }
 
-  // Track request performance
-  trackRequest(duration, success = true) {
-    this.requestCount++;
-    
-    if (!success) {
-      this.errorCount++;
-    }
-    
-    if (duration > 2000) { // Requests taking more than 2 seconds
-      this.slowRequestCount++;
-    }
-    
-    // Store request time for averaging
-    this.requestTimes.push(duration);
-    if (this.requestTimes.length > this.maxRequestTimes) {
-      this.requestTimes.shift(); // Remove oldest
-    }
+  /**
+   * Start timing a batch operation
+   * @param {string} operationId - Unique identifier for the operation
+   * @param {Object} metadata - Additional metadata about the operation
+   */
+  startTiming(operationId, metadata = {}) {
+    this.startTimes.set(operationId, {
+      startTime: Date.now(),
+      metadata
+    });
   }
 
-  // Get comprehensive performance report
-  getPerformanceReport() {
-    const uptime = Date.now() - this.startTime;
-    const avgRequestTime = this.requestTimes.length > 0 
-      ? this.requestTimes.reduce((a, b) => a + b, 0) / this.requestTimes.length 
-      : 0;
+  /**
+   * End timing and record metrics for a batch operation
+   * @param {string} operationId - Unique identifier for the operation
+   * @param {Object} results - Results of the operation
+   */
+  endTiming(operationId, results = {}) {
+    const startData = this.startTimes.get(operationId);
+    if (!startData) {
+      console.warn(`No start time found for operation: ${operationId}`);
+      return;
+    }
+
+    const endTime = Date.now();
+    const duration = endTime - startData.startTime;
     
-    const dbStats = getPerformanceStats();
-    const cacheStats = getCacheStats();
-    
-    return {
-      server: {
-        uptime: Math.floor(uptime / 1000), // seconds
-        totalRequests: this.requestCount,
-        errorRate: this.requestCount > 0 ? (this.errorCount / this.requestCount) * 100 : 0,
-        slowRequestRate: this.requestCount > 0 ? (this.slowRequestCount / this.requestCount) * 100 : 0,
-        averageRequestTime: Math.round(avgRequestTime),
-        requestsPerSecond: uptime > 0 ? (this.requestCount / (uptime / 1000)) : 0
-      },
-      database: dbStats,
-      cache: cacheStats,
-      recommendations: this.generateRecommendations(dbStats, cacheStats, avgRequestTime)
+    const metrics = {
+      operationId,
+      duration,
+      startTime: startData.startTime,
+      endTime,
+      metadata: startData.metadata,
+      results,
+      timestamp: new Date().toISOString()
     };
+
+    this.metrics.set(operationId, metrics);
+    this.startTimes.delete(operationId);
+
+    // Log performance metrics
+    this.logMetrics(metrics);
+    
+    return metrics;
   }
 
-  // Generate performance recommendations
-  generateRecommendations(dbStats, cacheStats, avgRequestTime) {
-    const recommendations = [];
+  /**
+   * Log performance metrics
+   * @param {Object} metrics - Performance metrics
+   */
+  logMetrics(metrics) {
+    const { operationId, duration, metadata, results } = metrics;
     
-    // Database recommendations
-    if (dbStats.overall.avgQueryTime > 500) {
-      recommendations.push("Consider adding database indexes for frequently queried fields");
+    console.log(`Performance: ${operationId} completed in ${duration}ms`);
+    
+    if (metadata.batchSize && results.processedCount) {
+      const rate = Math.round((results.processedCount / duration) * 1000);
+      console.log(`  Processing rate: ${rate} records/second`);
     }
     
-    if (dbStats.overall.errorRate > 5) {
-      recommendations.push("High database error rate detected - check connection stability");
+    if (metadata.totalBatches && results.currentBatch) {
+      console.log(`  Batch ${results.currentBatch}/${metadata.totalBatches} completed`);
     }
-    
-    if (dbStats.activeQueries > 40) {
-      recommendations.push("High concurrent query count - consider implementing query batching");
-    }
-    
-    // Cache recommendations
-    if (cacheStats.size > cacheStats.maxSize * 0.8) {
-      recommendations.push("Cache is nearly full - consider increasing cache size or reducing TTL");
-    }
-    
-    if (cacheStats.size < cacheStats.maxSize * 0.1) {
-      recommendations.push("Cache utilization is low - consider reducing cache size to save memory");
-    }
-    
-    // Request performance recommendations
-    if (avgRequestTime > 1000) {
-      recommendations.push("Average request time is high - consider implementing request caching");
-    }
-    
-    if (this.slowRequestCount > this.requestCount * 0.1) {
-      recommendations.push("High number of slow requests - consider optimizing data aggregation");
-    }
-    
-    return recommendations;
   }
 
-  // Get real-time performance metrics
-  getRealTimeMetrics() {
-    const dbStats = getPerformanceStats();
-    const cacheStats = getCacheStats();
+  /**
+   * Get performance summary for batch processing
+   * @param {string} operationId - Operation identifier
+   * @returns {Object} Performance summary
+   */
+  getSummary(operationId) {
+    const metrics = this.metrics.get(operationId);
+    if (!metrics) return null;
+
+    const { duration, metadata, results } = metrics;
     
     return {
-      timestamp: new Date().toISOString(),
-      activeQueries: dbStats.activeQueries,
-      queuedQueries: dbStats.queuedQueries,
-      cacheSize: cacheStats.size,
-      cacheHitRate: this.calculateCacheHitRate(),
+      operationId,
+      totalDuration: duration,
+      averageBatchTime: metadata.totalBatches ? duration / metadata.totalBatches : duration,
+      processingRate: results.processedCount ? Math.round((results.processedCount / duration) * 1000) : 0,
+      successRate: results.processedCount && metadata.totalCount ? 
+        (results.processedCount / metadata.totalCount) * 100 : 100,
       memoryUsage: process.memoryUsage(),
-      cpuUsage: process.cpuUsage()
+      timestamp: metrics.timestamp
     };
   }
 
-  // Calculate cache hit rate (simplified)
-  calculateCacheHitRate() {
-    // This would need to be implemented with actual cache hit tracking
-    // For now, return a placeholder
-    return 0.75; // 75% cache hit rate
+  /**
+   * Get all performance metrics
+   * @returns {Array} Array of all performance metrics
+   */
+  getAllMetrics() {
+    return Array.from(this.metrics.values());
   }
 
-  // Reset performance counters
-  resetCounters() {
-    this.requestCount = 0;
-    this.errorCount = 0;
-    this.slowRequestCount = 0;
-    this.requestTimes = [];
+  /**
+   * Clear old metrics (keep only last 100)
+   */
+  cleanup() {
+    const metricsArray = Array.from(this.metrics.entries());
+    if (metricsArray.length > 100) {
+      // Keep only the most recent 100 metrics
+      const sortedMetrics = metricsArray
+        .sort((a, b) => b[1].timestamp.localeCompare(a[1].timestamp))
+        .slice(0, 100);
+      
+      this.metrics.clear();
+      sortedMetrics.forEach(([key, value]) => {
+        this.metrics.set(key, value);
+      });
+    }
   }
 
-  // Clear all caches
-  clearAllCaches() {
-    clearCache();
-    return { message: "All caches cleared successfully" };
+  /**
+   * Monitor memory usage
+   * @returns {Object} Memory usage statistics
+   */
+  getMemoryUsage() {
+    const memUsage = process.memoryUsage();
+    return {
+      rss: Math.round(memUsage.rss / 1024 / 1024), // MB
+      heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
+      heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
+      external: Math.round(memUsage.external / 1024 / 1024), // MB
+      arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024) // MB
+    };
+  }
+
+  /**
+   * Check if memory usage is high
+   * @param {number} thresholdMB - Memory threshold in MB (default: 500MB)
+   * @returns {boolean} True if memory usage is above threshold
+   */
+  isMemoryUsageHigh(thresholdMB = 500) {
+    const memUsage = this.getMemoryUsage();
+    return memUsage.heapUsed > thresholdMB;
   }
 }
 
-// Create singleton instance
+// Create and export a singleton instance
 const performanceMonitor = new PerformanceMonitor();
-
-// Export monitoring functions
-export function trackRequest(duration, success = true) {
-  return performanceMonitor.trackRequest(duration, success);
-}
-
-export function getPerformanceReport() {
-  return performanceMonitor.getPerformanceReport();
-}
-
-export function getRealTimeMetrics() {
-  return performanceMonitor.getRealTimeMetrics();
-}
-
-export function resetCounters() {
-  return performanceMonitor.resetCounters();
-}
-
-export function clearAllCaches() {
-  return performanceMonitor.clearAllCaches();
-}
-
 export default performanceMonitor; 

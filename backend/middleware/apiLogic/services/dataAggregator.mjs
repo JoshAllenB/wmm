@@ -5,6 +5,17 @@ export async function aggregateClientData(
   modelNames,
   advancedFilterData = {}
 ) {
+  // Validate input
+  if (!clients || clients.length === 0) {
+    return { combinedData: [], modelDataMap: new Map() };
+  }
+
+  // Limit batch size for performance
+  const MAX_BATCH_SIZE = 5000;
+  if (clients.length > MAX_BATCH_SIZE) {
+    console.warn(`Large batch detected: ${clients.length} clients. Consider using smaller batches for better performance.`);
+  }
+
   const modelDataMap = new Map();
 
   // Handle subscription type logic
@@ -27,41 +38,56 @@ export async function aggregateClientData(
     }
   }
 
-  // Process model data in parallel
-  const modelDataArrays = await Promise.all(
-    adjustedModelNames.map(async (modelName) => {
-      const Model = await getModelInstance(modelName);
-      const clientIds = clients.map((c) => c.id);
+  // Extract client IDs once for better performance
+  const clientIds = clients.map((c) => c.id);
+  
+  // Create a Map for O(1) client lookup - use WeakMap for better memory management
+  const clientMap = new Map(clients.map(client => [client.id, client]));
 
+  // Process model data in parallel with error handling and memory optimization
+  const modelDataPromises = adjustedModelNames.map(async (modelName) => {
+    try {
+      const Model = await getModelInstance(modelName);
+      
       // Build aggregation pipeline based on model type
       const pipeline = buildAggregationPipeline(
         Model.modelName,
         clientIds,
         advancedFilterData
       );
-      return Model.aggregate(pipeline);
-    })
-  );
+      
+      const result = await Model.aggregate(pipeline);
+      return { modelName, data: result, success: true };
+    } catch (error) {
+      console.error(`Error aggregating data for model ${modelName}:`, error);
+      return { modelName, data: [], success: false, error };
+    }
+  });
 
-  // Process and map the aggregated data
-  modelDataArrays.forEach((modelData, index) => {
-    modelData.forEach((item) => {
+  const modelDataResults = await Promise.all(modelDataPromises);
+
+  // Process and map the aggregated data with memory optimization
+  modelDataResults.forEach(({ modelName, data, success }) => {
+    if (!success) return; // Skip failed aggregations
+    
+    data.forEach((item) => {
       const clientId = item._id || item.clientid;
       if (!modelDataMap.has(clientId)) {
         modelDataMap.set(clientId, {});
       }
 
+      // Optimize data object creation to reduce memory footprint
       const dataObject = {
         ...item,
         records: filterRecords(
           item.records || [],
           advancedFilterData,
-          adjustedModelNames[index]
+          modelName
         ),
       };
 
       // Map each subscription type to its own data array
-      const modelType = adjustedModelNames[index].toLowerCase();
+      const modelType = modelName.toLowerCase();
       let serviceType;
 
       // Handle subscription types
@@ -72,7 +98,7 @@ export async function aggregateClientData(
       } else if (modelType.includes("complimentary")) {
         serviceType = "compData";
       } else {
-        serviceType = normalizeServiceType(adjustedModelNames[index]);
+        serviceType = normalizeServiceType(modelName);
       }
 
       // Only set the data for the current subscription type
@@ -87,11 +113,15 @@ export async function aggregateClientData(
     });
   });
 
-  // Create combinedData by merging client data with model data
+  // Create combinedData by merging client data with model data - optimize for memory
   const combinedData = clients.map((client) => {
+    // Get model data for this client
+    const modelData = modelDataMap.get(client.id) || {};
+    
+    // Create client data object with minimal memory footprint
     const clientData = {
       ...client,
-      ...modelDataMap.get(client.id),
+      ...modelData,
       subscriptionType, // Add subscription type at root level
     };
 
@@ -110,9 +140,12 @@ export async function aggregateClientData(
     return clientData;
   });
 
+  // Clear the model data map to free memory
+  modelDataMap.clear();
+
   return {
     combinedData,
-    modelDataMap,
+    modelDataMap: new Map(), // Return empty map since we've processed the data
   };
 }
 
