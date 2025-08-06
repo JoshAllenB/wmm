@@ -715,6 +715,62 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Helper function to calculate and update end date based on start date and duration
+  const calculateAndUpdateEndDate = (
+    startDate,
+    duration,
+    updateRoleSpecific = true
+  ) => {
+    if (!startDate || !duration) return null;
+
+    const monthsToAdd = parseInt(duration);
+
+    // Check if the duration is a valid number (not NaN)
+    if (isNaN(monthsToAdd)) {
+      // If duration is "others" or invalid, clear the end date fields
+      if (updateRoleSpecific) {
+        setTimeout(() => {
+          setRoleSpecificData((prev) => ({
+            ...prev,
+            enddate: "",
+          }));
+        }, 0);
+      }
+
+      return {
+        subEndMonth: "",
+        subEndDay: "",
+        subEndYear: "",
+        subscriptionEnd: "",
+      };
+    }
+
+    const endDate = calculateEndMonth(startDate, monthsToAdd);
+
+    // Format end date parts
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
+    const endDay = String(endDate.getDate()).padStart(2, "0");
+    const endYear = String(endDate.getFullYear());
+
+    const endDateString = `${endMonth}/${endDay}/${endYear}`;
+
+    if (updateRoleSpecific) {
+      setTimeout(() => {
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          enddate: formatDateToMonthYear(endDate),
+        }));
+      }, 0);
+    }
+
+    return {
+      subEndMonth: endMonth,
+      subEndDay: endDay,
+      subEndYear: endYear,
+      subscriptionEnd: endDateString,
+    };
+  };
+
   // Update handleChange to ensure values are never undefined
   const handleChange = async (e) => {
     const { name, value } = e.target;
@@ -794,32 +850,59 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     // Handle subscription frequency change
     if (name === "subscriptionFreq") {
-      const monthsToAdd = parseInt(value);
-      const today = new Date();
+      setFormData((prevData) => {
+        const newData = { ...prevData, subscriptionFreq: value };
 
-      // Calculate end date
-      const endDate = calculateEndMonth(today, monthsToAdd);
-      const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
-      const endDay = String(endDate.getDate()).padStart(2, "0");
-      const endYear = String(endDate.getFullYear());
-      const formattedEndDate = `${endMonth}/${endDay}/${endYear}`;
+        // Check if we have a valid start date already set by the user
+        let subscriptionStart;
 
-      // Update form state
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: value,
-        subscriptionEnd: formattedEndDate,
-        subEndMonth: endMonth,
-        subEndDay: endDay,
-        subEndYear: endYear,
-      }));
+        if (
+          newData.subStartMonth &&
+          newData.subStartDay &&
+          newData.subStartYear
+        ) {
+          // Use the existing start date that user has set
+          subscriptionStart = new Date(
+            parseInt(newData.subStartYear),
+            parseInt(newData.subStartMonth) - 1,
+            parseInt(newData.subStartDay)
+          );
+        } else {
+          // No start date set, use today's date as default
+          subscriptionStart = new Date();
 
-      // Update role-specific data
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        enddate: formattedEndDate,
-        subsyear: monthsToAdd === 12 ? 1 : monthsToAdd === 24 ? 2 : 0.5,
-      }));
+          // Update the start date fields with today's date
+          const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
+            2,
+            "0"
+          );
+          const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
+          const startYear = String(subscriptionStart.getFullYear());
+
+          newData.subStartMonth = startMonth;
+          newData.subStartDay = startDay;
+          newData.subStartYear = startYear;
+          newData.subscriptionStart = `${startMonth}/${startDay}/${startYear}`;
+        }
+
+        // Calculate end date based on the start date and duration
+        const endDateData = calculateAndUpdateEndDate(subscriptionStart, value);
+        if (endDateData) {
+          Object.assign(newData, endDateData);
+        }
+
+        // Update roleSpecificData with the start date
+        setTimeout(() => {
+          setRoleSpecificData((prev) => ({
+            ...prev,
+            subsdate: formatDateToMonthYear(subscriptionStart),
+            copies: prev.copies || 1,
+          }));
+        }, 0);
+
+        return newData;
+      });
+
       return;
     }
 
@@ -1358,6 +1441,30 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const freq = e.target.value;
     setSubscriptionFreq(freq);
 
+    // Handle "others" case by clearing end date fields
+    if (freq === "others") {
+      // Clear end date fields when "others" is selected
+      setRoleSpecificData((prev) => ({
+        ...prev,
+        enddate: "",
+        endDateMonth: "",
+        endDateDay: "",
+        endDateYear: "",
+        subsyear: 0,
+      }));
+
+      setFormData((prev) => ({
+        ...prev,
+        subscriptionFreq: freq,
+        subscriptionEnd: "",
+        subEndMonth: "",
+        subEndDay: "",
+        subEndYear: "",
+      }));
+
+      return;
+    }
+
     // Get months to add based on frequency
     let monthsToAdd;
     if (freq === "5") monthsToAdd = 6;
@@ -1581,9 +1688,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // Get subscription specific data based on subscription type
       const getSubscriptionSpecificData = () => {
         const baseData = {
-          subsyear: formData.subscriptionFreq
-            ? parseInt(formData.subscriptionFreq)
-            : 0,
+          subsyear:
+            formData.subscriptionFreq && formData.subscriptionFreq !== "others"
+              ? parseInt(formData.subscriptionFreq)
+              : 0,
           copies: parseInt(roleSpecificData.copies) || 1,
           remarks: roleSpecificData.remarks || "",
           calendar: roleSpecificData.calendar || false,

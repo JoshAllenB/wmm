@@ -470,6 +470,27 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     if (!startDate || !duration) return null;
 
     const monthsToAdd = parseInt(duration);
+
+    // Check if the duration is a valid number (not NaN)
+    if (isNaN(monthsToAdd)) {
+      // If duration is "others" or invalid, clear the end date fields
+      if (updateRoleSpecific) {
+        setTimeout(() => {
+          setRoleSpecificData((prev) => ({
+            ...prev,
+            enddate: "",
+          }));
+        }, 0);
+      }
+
+      return {
+        subEndMonth: "",
+        subEndDay: "",
+        subEndYear: "",
+        subscriptionEnd: "",
+      };
+    }
+
     const endDate = calculateEndMonth(startDate, monthsToAdd);
 
     // Format end date parts
@@ -1173,9 +1194,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   // Update getSubscriptionSpecificData function
   const getSubscriptionSpecificData = () => {
     const baseData = {
-      subsyear: formData.subscriptionFreq
-        ? parseInt(formData.subscriptionFreq)
-        : 0,
+      subsyear:
+        formData.subscriptionFreq && formData.subscriptionFreq !== "others"
+          ? parseInt(formData.subscriptionFreq)
+          : 0,
       copies: parseInt(roleSpecificData.copies) || 1,
       remarks: roleSpecificData.remarks || "",
       calendar: roleSpecificData.calendar || false,
