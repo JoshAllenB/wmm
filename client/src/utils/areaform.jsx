@@ -469,13 +469,13 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="area-search-container relative">
-          <label className="block text-black text-xl mb-1">Area Code</label>
           <InputField
+            label="Area Code"
             type="text"
             name="acode"
             value={acode}
             onChange={handleAreaInputChange}
-            className="text-base"
+            className="text-base w-full"
             autoComplete="off"
             uppercase={true}
             required={true}
@@ -515,8 +515,8 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
           )}
         </div>
         <div className="zipcode-search-container relative">
-          <label className="block text-black text-xl mb-1">Zip Code</label>
           <InputField
+            label="Zip Code"
             type="text"
             name="zipcode"
             value={zipcode}
