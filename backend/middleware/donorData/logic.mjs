@@ -1,9 +1,9 @@
 import { getModelInstance, ClientModel } from "../apiLogic/services/modelManager.mjs";
 
 export async function getAllDonors() {
-  // Use the isDonor flag directly from ClientModel
+  // Use the type field to find clients with type "DONOR"
   const donors = await ClientModel.find(
-    { isDonor: true },
+    { type: "DONOR" },
     {
       id: 1,
       clientid: "$id", // Include clientID which is the same as id
@@ -64,7 +64,7 @@ export async function getDonorRecipientData({
     // Get donor IDs that match the search term and are donors
     const matchingDonors = await ClientModel.find({
       $and: [
-        { isDonor: true },
+        { type: "DONOR" },
         { $or: donorSearchConditions }
       ]
     }, { id: 1 }).lean();
@@ -84,7 +84,7 @@ export async function getDonorRecipientData({
   } else {
     // If no search term, get all donor IDs from ClientModel
     const allDonors = await ClientModel.find(
-      { isDonor: true },
+      { type: "DONOR" },
       { id: 1 }
     ).lean();
     
@@ -243,8 +243,8 @@ export async function getDonorRecipientData({
 }
 
 export async function getDonorStatistics() {
-  // Get donor count using isDonor flag
-  const donorCount = await ClientModel.countDocuments({ isDonor: true });
+  // Get donor count using type field
+  const donorCount = await ClientModel.countDocuments({ type: "DONOR" });
   
   // Get active donors (those with gift subscriptions)
   const WmmModel = await getModelInstance("WmmModel");
@@ -262,7 +262,7 @@ export async function getDonorStatistics() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   
   const recentDonors = await ClientModel.countDocuments({
-    isDonor: true,
+    type: "DONOR",
     adddate: { $gte: thirtyDaysAgo.toISOString() }
   });
   
