@@ -804,17 +804,17 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
     // Line 1: House/Building Number and Street name
     if (addressData.housestreet) {
-      lines.push(addressData.housestreet.trim() + ",");
+      lines.push(addressData.housestreet.trim());
     }
 
     // Line 2: Subdivision
     if (addressData.subdivision) {
-      lines.push(addressData.subdivision.trim() + ",");
+      lines.push(addressData.subdivision.trim());
     }
 
     // Line 3: Barangay
     if (addressData.barangay) {
-      lines.push(addressData.barangay.trim() + ",");
+      lines.push(addressData.barangay.trim());
     }
 
     // Line 4: Zipcode and City/Municipality
@@ -830,7 +830,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       line4Parts.push(cleanedArea);
     }
     if (line4Parts.length > 0) {
-      lines.push(line4Parts.join(" ") + (areaData.province ? "," : ""));
+      lines.push(line4Parts.join(" "));
     }
 
     // Line 5: Province (if exists)
