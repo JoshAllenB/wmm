@@ -1,84 +1,49 @@
 import { getModelInstance } from "./modelManager.mjs";
-import { getSubscriptionModelName, adjustModelNamesForSubscription } from "./helpers.mjs";
-
-// In-memory cache for frequently accessed data
-const dataCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-const MAX_CACHE_SIZE = 1000; // Maximum cache entries
-
-// Cache cleanup function
-function cleanupCache() {
-  const now = Date.now();
-  for (const [key, value] of dataCache.entries()) {
-    if (now - value.timestamp > CACHE_TTL) {
-      dataCache.delete(key);
-    }
-  }
-  
-  // If cache is still too large, remove oldest entries
-  if (dataCache.size > MAX_CACHE_SIZE) {
-    const entries = Array.from(dataCache.entries());
-    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toRemove = entries.slice(0, Math.floor(MAX_CACHE_SIZE * 0.2)); // Remove 20% of oldest entries
-    toRemove.forEach(([key]) => dataCache.delete(key));
-  }
-}
-
-// Generate cache key
-function generateCacheKey(clients, modelNames, advancedFilterData) {
-  const clientIds = clients.map(c => c.id).sort((a, b) => a - b);
-  return JSON.stringify({
-    clientIds: clientIds.slice(0, 10), // Only use first 10 IDs for cache key
-    modelNames: modelNames.sort(),
-    subscriptionType: advancedFilterData.subscriptionType || "WMM",
-    usernameFilter: advancedFilterData.usernameFilter,
-    showActiveOnly: advancedFilterData.showActiveOnly,
-    subscriptionStatus: advancedFilterData.subscriptionStatus
-  });
-}
 
 export async function aggregateClientData(
   clients,
   modelNames,
   advancedFilterData = {}
 ) {
-  // Clean up cache periodically
-  if (Math.random() < 0.1) { // 10% chance to cleanup on each request
-    cleanupCache();
-  }
-
-  // Check cache first
-  const cacheKey = generateCacheKey(clients, modelNames, advancedFilterData);
-  const cachedResult = dataCache.get(cacheKey);
-  if (cachedResult && Date.now() - cachedResult.timestamp < CACHE_TTL) {
-    return cachedResult.data;
-  }
-
   const modelDataMap = new Map();
 
-  // Handle subscription type logic - use helper function
+  // Handle subscription type logic
   const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-  const adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
+  let adjustedModelNames = [...modelNames];
 
-  // Batch process model data with optimized queries
+  // Replace WmmModel with appropriate subscription model
+  if (modelNames.includes("WmmModel")) {
+    adjustedModelNames = modelNames.filter((name) => name !== "WmmModel");
+
+    switch (subscriptionType) {
+      case "Promo":
+        adjustedModelNames.push("PromoModel");
+        break;
+      case "Complimentary":
+        adjustedModelNames.push("ComplimentaryModel");
+        break;
+      default: // WMM
+        adjustedModelNames.push("WmmModel");
+    }
+  }
+
+  // Process model data in parallel
   const modelDataArrays = await Promise.all(
     adjustedModelNames.map(async (modelName) => {
       const Model = await getModelInstance(modelName);
       const clientIds = clients.map((c) => c.id);
 
-      // Use optimized aggregation pipeline
-      const pipeline = buildOptimizedAggregationPipeline(
+      // Build aggregation pipeline based on model type
+      const pipeline = buildAggregationPipeline(
         Model.modelName,
         clientIds,
-        advancedFilterData,
-        subscriptionType
+        advancedFilterData
       );
-      
-      return Model.aggregate(pipeline).allowDiskUse(true); // Allow disk use for large datasets
+      return Model.aggregate(pipeline);
     })
   );
 
-  // Process and map the aggregated data efficiently
+  // Process and map the aggregated data
   modelDataArrays.forEach((modelData, index) => {
     modelData.forEach((item) => {
       const clientId = item._id || item.clientid;
@@ -88,68 +53,75 @@ export async function aggregateClientData(
 
       const dataObject = {
         ...item,
-        records: filterRecordsOptimized(
+        records: filterRecords(
           item.records || [],
           advancedFilterData,
           adjustedModelNames[index]
         ),
       };
 
-      // Map service type efficiently
-      const serviceType = getServiceType(adjustedModelNames[index], subscriptionType);
+      // Map each subscription type to its own data array
+      const modelType = adjustedModelNames[index].toLowerCase();
+      let serviceType;
 
-      // Only set data for relevant subscription type
-      if (shouldIncludeServiceType(serviceType, subscriptionType)) {
+      // Handle subscription types
+      if (modelType.includes("wmm")) {
+        serviceType = "wmmData";
+      } else if (modelType.includes("promo")) {
+        serviceType = "promoData";
+      } else if (modelType.includes("complimentary")) {
+        serviceType = "compData";
+      } else {
+        serviceType = normalizeServiceType(adjustedModelNames[index]);
+      }
+
+      // Only set the data for the current subscription type
+      if (
+        (subscriptionType === "WMM" && serviceType === "wmmData") ||
+        (subscriptionType === "Promo" && serviceType === "promoData") ||
+        (subscriptionType === "Complimentary" && serviceType === "compData") ||
+        !["wmmData", "promoData", "compData"].includes(serviceType)
+      ) {
         modelDataMap.get(clientId)[serviceType] = dataObject;
       }
     });
   });
 
-  // Create combinedData efficiently
+  // Create combinedData by merging client data with model data
   const combinedData = clients.map((client) => {
     const clientData = {
       ...client,
       ...modelDataMap.get(client.id),
-      subscriptionType,
+      subscriptionType, // Add subscription type at root level
     };
 
-    // Add group-based services efficiently
-    addGroupServices(clientData, client.group);
+    // Add DCS and MCCJ services if they match the client's group
+    if (client.group) {
+      const group = client.group.toUpperCase();
+      if (group === "DCS") {
+        clientData.dcsData = { isService: true, group: "DCS" };
+      } else if (group === "MCCJ-ASIA") {
+        clientData.mccjAsiaData = { isService: true, group: "MCCJ-ASIA" };
+      } else if (group === "MCCJ") {
+        clientData.mccjData = { isService: true, group: "MCCJ" };
+      }
+    }
 
     return clientData;
   });
 
-  const result = {
+  return {
     combinedData,
     modelDataMap,
   };
-
-  // Cache the result
-  dataCache.set(cacheKey, {
-    data: result,
-    timestamp: Date.now()
-  });
-
-  return result;
 }
 
-function buildOptimizedAggregationPipeline(modelName, clientIds, advancedFilterData, subscriptionType) {
+function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
   const baseMatch = {
     clientid: { $in: clientIds.map((id) => parseInt(id)) },
   };
 
-  // Add filters to base match to reduce data processing
-  if (advancedFilterData.usernameFilter) {
-    baseMatch.adduser = { $regex: advancedFilterData.usernameFilter, $options: 'i' };
-  }
-
-  if (advancedFilterData.showActiveOnly && (modelName.toLowerCase().includes('hrg') || modelName.toLowerCase().includes('fom'))) {
-    baseMatch.unsubscribe = { $ne: 1 };
-  } else if (advancedFilterData.subscriptionStatus === 'unsubscribed' && (modelName.toLowerCase().includes('hrg') || modelName.toLowerCase().includes('fom'))) {
-    baseMatch.unsubscribe = 1;
-  }
-
-  // Optimized pipeline for subscription models
+  // Use same pipeline for all subscription models (WMM, Promo, Complimentary)
   if (modelName.toLowerCase().match(/wmm|promo|complimentary/)) {
     const isPromo = modelName.toLowerCase().includes("promo");
     const isWmm = modelName.toLowerCase().includes("wmm");
@@ -157,6 +129,11 @@ function buildOptimizedAggregationPipeline(modelName, clientIds, advancedFilterD
     return [
       { $match: baseMatch },
       { $sort: { clientid: 1, subsdate: -1 } },
+      {
+        $addFields: {
+          modelType: modelName.replace(/model/i, "").toUpperCase(),
+        },
+      },
       {
         $group: {
           _id: "$clientid",
@@ -170,13 +147,13 @@ function buildOptimizedAggregationPipeline(modelName, clientIds, advancedFilterD
           calendar: { $first: "$calendar" },
           adddate: { $first: "$adddate" },
           adduser: { $first: "$adduser" },
-          // Conditional fields based on model type
+          // WMM specific fields
           paymtref: { $first: { $cond: [isWmm, "$paymtref", null] } },
           paymtamt: { $first: { $cond: [isWmm, "$paymtamt", null] } },
           paymtmasses: { $first: { $cond: [isWmm, "$paymtmasses", null] } },
           donorid: { $first: { $cond: [isWmm, "$donorid", null] } },
+          // Promo specific fields
           referralid: { $first: { $cond: [isPromo, "$referralid", null] } },
-          // Limit records to reduce memory usage
           records: {
             $push: {
               $mergeObjects: [
@@ -204,91 +181,84 @@ function buildOptimizedAggregationPipeline(modelName, clientIds, advancedFilterD
           calendar: 1,
           adddate: 1,
           adduser: 1,
+          // WMM specific fields
           paymtref: 1,
           paymtamt: 1,
           paymtmasses: 1,
           donorid: 1,
+          // Promo specific fields
           referralid: 1,
-          records: { $slice: ["$records", 50] }, // Limit to 50 records per client
+          records: 1,
         },
       },
     ];
   }
 
-  // Optimized pipeline for CAL model
-  if (modelName.toLowerCase() === "cal") {
-    return [
-      { $match: baseMatch },
-      {
-        $addFields: {
-          numericCalQty: { $toInt: "$calqty" },
-          numericCalAmt: { $toDouble: "$calamt" },
-          lineTotal: {
-            $multiply: [
-              { $toInt: { $ifNull: ["$calqty", 0] } },
-              { $toDouble: { $ifNull: ["$calamt", 0] } },
-            ],
+  // Handle other models
+  switch (modelName.toLowerCase()) {
+    case "cal":
+      return [
+        { $match: baseMatch },
+        {
+          $addFields: {
+            modelType: "CAL",
+            numericCalQty: { $toInt: "$calqty" },
+            numericCalAmt: { $toDouble: "$calamt" },
+            lineTotal: {
+              $multiply: [
+                { $toInt: { $ifNull: ["$calqty", 0] } },
+                { $toDouble: { $ifNull: ["$calamt", 0] } },
+              ],
+            },
           },
         },
-      },
-      {
-        $group: {
-          _id: "$clientid",
-          totalCalQty: { $sum: "$numericCalQty" },
-          totalCalAmt: { $sum: "$lineTotal" },
-          records: { $push: "$$ROOT" },
+        {
+          $group: {
+            _id: "$clientid",
+            totalCalQty: { $sum: "$numericCalQty" },
+            totalCalAmt: { $sum: "$lineTotal" },
+            records: { $push: "$$ROOT" },
+          },
         },
-      },
-      {
-        $project: {
-          _id: 0,
-          clientid: "$_id",
-          totalCalQty: 1,
-          totalCalAmt: 1,
-          records: { $slice: ["$records", 50] }, // Limit to 50 records per client
-        },
-      },
-    ];
-  }
+      ];
 
-  // Optimized pipeline for other models (HRG, FOM)
-  const modelType = modelName.replace(/model/i, "").toUpperCase();
-  return [
-    { $match: baseMatch },
-    { $sort: { clientid: 1, recvdate: -1 } },
-    {
-      $group: {
-        _id: "$clientid",
-        records: { $push: "$$ROOT" },
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        clientid: "$_id",
-        records: { $slice: ["$records", 50] }, // Limit to 50 records per client
-      },
-    },
-  ];
+    default:
+      const modelType = modelName.replace(/model/i, "").toUpperCase();
+      return [
+        { $match: baseMatch },
+        { $sort: { clientid: 1, recvdate: -1 } },
+        {
+          $addFields: {
+            modelType: modelType,
+          },
+        },
+        {
+          $group: {
+            _id: "$clientid",
+            records: { $push: "$$ROOT" },
+          },
+        },
+      ];
+  }
 }
 
-function filterRecordsOptimized(records, advancedFilterData, modelName) {
+function filterRecords(records, advancedFilterData, modelName) {
   if (!records.length) return records;
 
-  // Apply filters more efficiently
-  let filteredRecords = records;
+  let filteredRecords = [...records];
 
   // Apply username filter if present
   if (advancedFilterData.usernameFilter) {
-    const username = advancedFilterData.usernameFilter.toLowerCase();
+    const username = advancedFilterData.usernameFilter;
     filteredRecords = filteredRecords.filter(
       (record) =>
-        record.adduser &&
-        record.adduser.toLowerCase() === username
+        record.adduser === username ||
+        (typeof record.adduser === "string" &&
+          record.adduser.toLowerCase() === username.toLowerCase())
     );
   }
 
-  // Apply subscription status filter for HRG and FOM
+  // Apply active/unsubscribed filter for HRG and FOM
   const modelType = modelName.toLowerCase();
   if (modelType.includes("hrg") || modelType.includes("fom")) {
     if (advancedFilterData.showActiveOnly) {
@@ -305,7 +275,7 @@ function filterRecordsOptimized(records, advancedFilterData, modelName) {
   return filteredRecords;
 }
 
-function getServiceType(modelName, subscriptionType) {
+function normalizeServiceType(modelName) {
   const modelNameLower = modelName.toLowerCase();
 
   // Handle subscription types
@@ -317,50 +287,9 @@ function getServiceType(modelName, subscriptionType) {
   if (modelNameLower.includes("hrg")) return "hrgData";
   if (modelNameLower.includes("fom")) return "fomData";
   if (modelNameLower.includes("cal")) return "calData";
+  if (modelNameLower.includes("dcs")) return "dcsData";
+  if (modelNameLower.includes("mccj-asia")) return "mccjAsiaData";
+  if (modelNameLower.includes("mccj")) return "mccjData";
 
   return modelNameLower.replace("model", "") + "Data";
-}
-
-function shouldIncludeServiceType(serviceType, subscriptionType) {
-  // Always include non-subscription services
-  if (!["wmmData", "promoData", "compData"].includes(serviceType)) {
-    return true;
-  }
-
-  // Only include relevant subscription service
-  return (
-    (subscriptionType === "WMM" && serviceType === "wmmData") ||
-    (subscriptionType === "Promo" && serviceType === "promoData") ||
-    (subscriptionType === "Complimentary" && serviceType === "compData")
-  );
-}
-
-function addGroupServices(clientData, group) {
-  if (!group) return;
-
-  const groupUpper = group.toUpperCase();
-  switch (groupUpper) {
-    case "DCS":
-      clientData.dcsData = { isService: true, group: "DCS" };
-      break;
-    case "MCCJ-ASIA":
-      clientData.mccjAsiaData = { isService: true, group: "MCCJ-ASIA" };
-      break;
-    case "MCCJ":
-      clientData.mccjData = { isService: true, group: "MCCJ" };
-      break;
-  }
-}
-
-// Export cache management functions for external use
-export function clearCache() {
-  dataCache.clear();
-}
-
-export function getCacheStats() {
-  return {
-    size: dataCache.size,
-    maxSize: MAX_CACHE_SIZE,
-    ttl: CACHE_TTL
-  };
 }

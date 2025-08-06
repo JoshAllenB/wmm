@@ -2,8 +2,6 @@ import { buildFilterQuery } from './filterBuilder.mjs';
 import { aggregateClientData } from './dataAggregator.mjs';
 import { calculateStatistics } from './statsCalculator.mjs';
 import { validatePaginationParams, parseDate, adjustModelNamesForSubscription } from './helpers.mjs';
-import { optimizedQuery, queuedQuery } from './dbOptimizer.mjs';
-import { trackRequest } from './performanceMonitor.mjs';
 import ClientModel from "../../../models/clients.mjs";
 
 class DataService {
@@ -12,7 +10,6 @@ class DataService {
   }
 
   async fetchData(params) {
-    const startTime = Date.now();
     const {
       modelNames,
       filter,
@@ -52,23 +49,16 @@ class DataService {
         subscriptionType
       });
 
-      // Get filtered clients with pagination for display using optimized queries
-      const clients = await optimizedQuery('getFilteredClients', () => 
-        this._getFilteredClients(filterQuery, skip, validLimit)
-      );
+      // Get filtered clients with pagination for display
+      const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
       const pageClientIds = clients.map(client => client.id);
-      
-      const totalCount = await optimizedQuery('countDocuments', () => 
-        ClientModel.countDocuments(filterQuery)
-      );
+      const totalCount = await ClientModel.countDocuments(filterQuery);
 
-      // Get all filtered client IDs using queued query for better concurrency
-      const allFilteredClientIds = await queuedQuery(() => 
-        ClientModel.find(filterQuery)
-          .select('id')
-          .lean()
-          .exec()
-      );
+      // Get all filtered client IDs
+      const allFilteredClientIds = await ClientModel.find(filterQuery)
+        .select('id')
+        .lean()
+        .exec();
       const filteredIds = allFilteredClientIds.map(client => client.id);
 
       // For search queries, use ALL models regardless of user roles
@@ -82,13 +72,11 @@ class DataService {
         adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
       }
 
-      // Get paginated data for display with subscription type using optimized aggregation
-      const { combinedData } = await optimizedQuery('aggregateClientData', () => 
-        aggregateClientData(clients, adjustedModelNames, {
-          ...advancedFilterData,
-          subscriptionType
-        })
-      );
+      // Get paginated data for display with subscription type
+      const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
+        ...advancedFilterData,
+        subscriptionType
+      });
 
       // Add hasNonServiceFilters flag and subscription type to each client in combinedData
       const enrichedData = combinedData.map(client => {
@@ -125,10 +113,8 @@ class DataService {
         return enrichedClient;
       });
 
-      // Calculate statistics using filter query and current page info with optimization
-      const stats = await optimizedQuery('calculateStatistics', () => 
-        calculateStatistics(filterQuery, pageClientIds, validPage, validLimit)
-      );
+      // Calculate statistics using filter query and current page info
+      const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
 
       // Build client services based on subscription type
       const clientServices = this._buildClientServices(enrichedData, subscriptionType, isSearchQuery);
@@ -144,12 +130,8 @@ class DataService {
         subscriptionType // Include subscription type in response
       };
 
-      const duration = Date.now() - startTime;
-      trackRequest(duration, true);
       return response;
     } catch (error) {
-      const duration = Date.now() - startTime;
-      trackRequest(duration, false);
       console.error('Error in DataService.fetchData:', error);
       throw error;
     }
@@ -212,7 +194,6 @@ class DataService {
   }
 
   async fetchAllData(params) {
-    const startTime = Date.now();
     const {
       modelNames,
       filter,
@@ -256,22 +237,16 @@ class DataService {
         }
       }
 
-      // Get ALL clients without pagination using optimized query
-      const clients = await optimizedQuery('getAllClients', () => 
-        ClientModel.find(filterQuery)
-          .sort({ id: 1 })
-          .lean()
-      );
+      // Get ALL clients without pagination
+      const clients = await ClientModel.find(filterQuery)
+        .sort({ id: 1 })
+        .lean();
 
-      // Get all data without pagination using optimized aggregation
-      const { combinedData } = await optimizedQuery('aggregateAllData', () => 
-        aggregateClientData(clients, validModelNames, advancedFilterData)
-      );
+      // Get all data without pagination
+      const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
 
-      // Calculate statistics for the entire dataset with optimization
-      const stats = await optimizedQuery('calculateAllStatistics', () => 
-        calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length)
-      );
+      // Calculate statistics for the entire dataset
+      const stats = await calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length);
 
       // Prepare response
       const response = {
@@ -280,12 +255,8 @@ class DataService {
         clientServices: this._buildClientServices(combinedData, advancedFilterData.subscriptionType || 'WMM', isSearchQuery)
       };
 
-      const duration = Date.now() - startTime;
-      trackRequest(duration, true);
       return response;
     } catch (error) {
-      const duration = Date.now() - startTime;
-      trackRequest(duration, false);
       console.error('Error in DataService.fetchAllData:', error);
       throw error;
     }
