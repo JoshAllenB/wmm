@@ -1725,7 +1725,7 @@ const AdvancedFilter = ({
                     )}
 
                     {/* HRG/FOM Subscription Status Filter */}
-                    {hasRole("Admin") && !hasHRGFOMCALRole() && (
+                    {hasHRGFOMCALRole() && (
                       <div className="p-4 bg-white rounded-lg shadow-sm border">
                         <h2 className="text-black text-xl font-medium mb-1">
                           Subscription Status
