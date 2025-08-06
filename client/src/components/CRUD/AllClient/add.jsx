@@ -461,6 +461,41 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     return endDate;
   };
 
+  // Helper function to calculate and update end date based on start date and duration
+  const calculateAndUpdateEndDate = (
+    startDate,
+    duration,
+    updateRoleSpecific = true
+  ) => {
+    if (!startDate || !duration) return null;
+
+    const monthsToAdd = parseInt(duration);
+    const endDate = calculateEndMonth(startDate, monthsToAdd);
+
+    // Format end date parts
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
+    const endDay = String(endDate.getDate()).padStart(2, "0");
+    const endYear = String(endDate.getFullYear());
+
+    const endDateString = `${endMonth}/${endDay}/${endYear}`;
+
+    if (updateRoleSpecific) {
+      setTimeout(() => {
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          enddate: formatDateToMonthYear(endDate),
+        }));
+      }, 0);
+    }
+
+    return {
+      subEndMonth: endMonth,
+      subEndDay: endDay,
+      subEndYear: endYear,
+      subscriptionEnd: endDateString,
+    };
+  };
+
   // Moved to duplicateLogic.js
 
   // Moved to duplicateLogic.js
@@ -582,29 +617,29 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
               parseInt(newData.subStartDay)
             );
 
-            const monthsToAdd = parseInt(newData.subscriptionFreq);
-            const endDate = calculateEndMonth(startDate, monthsToAdd);
-
-            // Format end date parts
-            newData.subEndMonth = String(endDate.getMonth() + 1).padStart(
-              2,
-              "0"
+            const endDateData = calculateAndUpdateEndDate(
+              startDate,
+              newData.subscriptionFreq
             );
-            newData.subEndDay = String(endDate.getDate()).padStart(2, "0");
-            newData.subEndYear = String(endDate.getFullYear());
-            newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
+            if (endDateData) {
+              Object.assign(newData, endDateData);
+            }
 
-            // Also update roleSpecificData
+            // Also update roleSpecificData with start date
             setTimeout(() => {
               setRoleSpecificData((prev) => ({
                 ...prev,
                 subsdate: newData.subscriptionStart,
-                enddate: newData.subscriptionEnd,
               }));
             }, 0);
           }
         } else {
           newData.subscriptionStart = "";
+          // Clear end date if start date is incomplete
+          newData.subEndMonth = "";
+          newData.subEndDay = "";
+          newData.subEndYear = "";
+          newData.subscriptionEnd = "";
         }
 
         return newData;
@@ -639,49 +674,59 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     }
 
     if (name === "subscriptionFreq") {
-      const monthsToAdd = parseInt(value);
-      // Use current date as the start date
-      const today = new Date();
+      setFormData((prevData) => {
+        const newData = { ...prevData, subscriptionFreq: value };
 
-      // Set start date to today (keeping day of month)
-      const subscriptionStart = new Date(today);
+        // Check if we have a valid start date already set by the user
+        let subscriptionStart;
 
-      // Calculate end date by adding months
-      const subscriptionEnd = calculateEndMonth(subscriptionStart, monthsToAdd);
+        if (
+          newData.subStartMonth &&
+          newData.subStartDay &&
+          newData.subStartYear
+        ) {
+          // Use the existing start date that user has set
+          subscriptionStart = new Date(
+            parseInt(newData.subStartYear),
+            parseInt(newData.subStartMonth) - 1,
+            parseInt(newData.subStartDay)
+          );
+        } else {
+          // No start date set, use today's date as default
+          subscriptionStart = new Date();
 
-      // Format date parts for start date
-      const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
-        2,
-        "0"
-      );
-      const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
-      const startYear = String(subscriptionStart.getFullYear());
+          // Update the start date fields with today's date
+          const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
+            2,
+            "0"
+          );
+          const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
+          const startYear = String(subscriptionStart.getFullYear());
 
-      // Format date parts for end date
-      const endMonth = String(subscriptionEnd.getMonth() + 1).padStart(2, "0");
-      const endDay = String(subscriptionEnd.getDate()).padStart(2, "0");
-      const endYear = String(subscriptionEnd.getFullYear());
+          newData.subStartMonth = startMonth;
+          newData.subStartDay = startDay;
+          newData.subStartYear = startYear;
+          newData.subscriptionStart = `${startMonth}/${startDay}/${startYear}`;
+        }
 
-      // Update `formData` and `roleSpecificData` states for dates
-      setFormData({
-        ...formData,
-        subscriptionFreq: value,
-        subscriptionStart: formatDateToMonthYear(subscriptionStart),
-        subscriptionEnd: formatDateToMonthYear(subscriptionEnd),
-        subStartMonth: startMonth,
-        subStartDay: startDay,
-        subStartYear: startYear,
-        subEndMonth: endMonth,
-        subEndDay: endDay,
-        subEndYear: endYear,
+        // Calculate end date based on the start date and duration
+        const endDateData = calculateAndUpdateEndDate(subscriptionStart, value);
+        if (endDateData) {
+          Object.assign(newData, endDateData);
+        }
+
+        // Update roleSpecificData with the start date
+        setTimeout(() => {
+          setRoleSpecificData((prev) => ({
+            ...prev,
+            subsdate: formatDateToMonthYear(subscriptionStart),
+            copies: prev.copies || 1,
+          }));
+        }, 0);
+
+        return newData;
       });
 
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        subsdate: formatDateToMonthYear(subscriptionStart),
-        enddate: formatDateToMonthYear(subscriptionEnd),
-        copies: prev.copies || 1,
-      }));
       return;
     }
 
@@ -1863,7 +1908,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           uppercase={true}
                           className="text-base"
                           autoComplete="off"
-                          />
+                        />
                         <InputField
                           label="Last Name:"
                           id="lname"
