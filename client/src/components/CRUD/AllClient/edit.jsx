@@ -12,6 +12,7 @@ import {
   fetchAreas,
 } from "../../Table/Data/utilData";
 import { webSocketService } from "../../../services/WebSocketService";
+import DonorAdd from "../donorAdd";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -285,6 +286,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         .catch(() => setIsLoadingAreas(false));
     }
   }, [areas, isLoadingAreas]);
+
+  // Debug subscription type changes
+  useEffect(() => {
+    console.log("Subscription type changed to:", formData.subscriptionType);
+  }, [formData.subscriptionType]);
 
   useEffect(() => {
     if (rowData) {
@@ -1614,6 +1620,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Update handleSubmit to use the new date formatting functions
   const handleSubmit = async (e) => {
+    // Skip if this came from DonorAdd
+    if (e.nativeEvent?.donorAddEvent) {
+      return;
+    }
+
     e.preventDefault();
 
     // Format birth date if all parts are present
@@ -1865,6 +1876,48 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     } catch (error) {
       console.error("Error updating client:", error);
     }
+  };
+
+  // Handle new donor added
+  const handleNewDonorAdded = (donorData) => {
+    // Set the form data with the new donor's details
+    setFormData((prev) => ({
+      ...prev,
+      donorid: donorData.id,
+      title: donorData.title || "",
+      fname: donorData.fname || "",
+      mname: donorData.mname || "",
+      lname: donorData.lname || "",
+      sname: donorData.sname || "",
+      company: donorData.company || "",
+      email: donorData.email || "",
+      contactnos: donorData.contactnos || "",
+      cellno: donorData.cellno || "",
+      ofcno: donorData.ofcno || "",
+      type: donorData.type || "",
+      group: donorData.group || "",
+      remarks: donorData.remarks || "",
+    }));
+
+    // Set address data
+    if (donorData.address) {
+      const addressLines = donorData.address.split("\n");
+      setAddressData({
+        housestreet: addressLines[0]?.replace(/,$/, "") || "",
+        subdivision: addressLines[1]?.replace(/,$/, "") || "",
+        barangay: addressLines[2]?.replace(/,$/, "") || "",
+        city: donorData.area || "",
+        zipcode: donorData.zipcode || "",
+      });
+      setCombinedAddress(donorData.address);
+    }
+
+    // Set area data
+    setAreaData({
+      acode: donorData.acode || "",
+      zipcode: donorData.zipcode || "",
+      city: donorData.area || "",
+    });
   };
 
   return (
@@ -2428,6 +2481,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {/* Subscription Type Specific Fields */}
                     {formData.subscriptionType === "WMM" && (
                       <>
+                        {console.log(
+                          "Rendering WMM subscription fields, subscriptionType:",
+                          formData.subscriptionType
+                        )}
                         <div className="mt-4 space-y-4">
                           <InputField
                             label="Payment Reference:"
@@ -2458,13 +2515,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               Donor:
                             </label>
                             <div className="donor-add-container">
-                              <input
-                                type="text"
-                                name="donorid"
-                                value={roleSpecificData.donorid}
-                                onChange={handleRoleSpecificChange}
-                                className="w-full p-2 border rounded-md text-base"
-                                placeholder="Enter donor ID"
+                              <DonorAdd
+                                key={`donor-add-${formData.subscriptionType}`}
+                                onDonorSelect={(donorId) => {
+                                  console.log("Donor ID selected:", donorId);
+                                  handleRoleSpecificChange({
+                                    target: {
+                                      name: "donorid",
+                                      value: donorId || "",
+                                    },
+                                  });
+                                }}
+                                onNewDonorAdded={handleNewDonorAdded}
                               />
                             </div>
                           </div>
