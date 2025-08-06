@@ -10,6 +10,7 @@ const InputField = ({
   uppercase = false,
   className = "",
   autoComplete = "off", // Default to "off"
+  required = false, // Add required prop
 }) => {
   // Use React refs to handle cursor position
   const inputRef = React.useRef(null);
@@ -48,6 +49,7 @@ const InputField = ({
     <div className="mb-2">
       <label htmlFor={name} className="block text-black text-xl mb-1">
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       {type === "textarea" ? (
         <textarea

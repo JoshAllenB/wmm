@@ -12,9 +12,9 @@ import {
 // Trie implementation
 const buildTrie = (locations) => {
   const trie = {};
-  locations.forEach(location => {
+  locations.forEach((location) => {
     let node = trie;
-    const name = location.name?.toLowerCase() || '';
+    const name = location.name?.toLowerCase() || "";
     for (const char of name) {
       if (!node[char]) node[char] = {};
       node = node[char];
@@ -38,7 +38,7 @@ const collectResults = (node) => {
   let results = [];
   if (node.results) results = [...node.results];
   for (const key in node) {
-    if (key !== 'results') {
+    if (key !== "results") {
       results.push(...collectResults(node[key]));
     }
   }
@@ -69,10 +69,10 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   // Create a memoized trie structure for city search
   const cityTrie = useMemo(() => {
     if (!areas) return {};
-    const allLocations = areas.flatMap(area => 
-      area.locations.map(location => ({
+    const allLocations = areas.flatMap((area) =>
+      area.locations.map((location) => ({
         ...location,
-        _id: area._id
+        _id: area._id,
       }))
     );
     return buildTrie(allLocations);
@@ -80,21 +80,23 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
 
   const areaTrie = useMemo(() => {
     if (!areas) return {};
-    return buildTrie(areas.map(area => ({
-      name: area._id,
-      _id: area._id
-    })));
+    return buildTrie(
+      areas.map((area) => ({
+        name: area._id,
+        _id: area._id,
+      }))
+    );
   }, [areas]);
 
   const zipcodeTrie = useMemo(() => {
     if (!areas) return {};
-    const allZipcodes = areas.flatMap(area =>
+    const allZipcodes = areas.flatMap((area) =>
       area.locations
-        .filter(loc => loc.zipcode)
-        .map(loc => ({
+        .filter((loc) => loc.zipcode)
+        .map((loc) => ({
           name: String(loc.zipcode),
           _id: area._id,
-          city: loc.name
+          city: loc.name,
         }))
     );
     return buildTrie(allZipcodes);
@@ -103,7 +105,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   // Update initial area code effect to use areas prop
   useEffect(() => {
     if (!areas || !initialAreaData?.acode) return;
-    
+
     const matchingArea = areas.find(
       (area) => area._id === initialAreaData.acode
     );
@@ -165,16 +167,16 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   const handleCityInputChange = (e) => {
     const value = e.target.value.toUpperCase();
     setCity(value);
-    
+
     // Always trigger the city change first
     onAreaChange("city", value);
 
     if (value.length >= 2) {
       const results = searchTrie(cityTrie, value);
-      const formattedResults = results.map(location => ({
+      const formattedResults = results.map((location) => ({
         name: location.name.toUpperCase(),
         _id: location._id,
-        zipcode: location.zipcode
+        zipcode: location.zipcode,
       }));
       setCitySearchResults(formattedResults);
       setShowCityResults(true);
@@ -196,20 +198,20 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   // Handle city selection
   const handleCitySelect = (cityName, areaCode, cityZipcode) => {
     const upperCityName = cityName.toUpperCase();
-    
+
     // First update the city to trigger the address update
     onAreaChange("city", upperCityName);
-    
+
     // Then update area code and zipcode
     setCity(upperCityName);
     setAcode(areaCode);
-    
+
     // Find the matching area and location
-    const selectedArea = areas.find(area => area._id === areaCode);
-    const selectedLocation = selectedArea?.locations.find(loc => 
-      loc.name.toUpperCase() === upperCityName
+    const selectedArea = areas.find((area) => area._id === areaCode);
+    const selectedLocation = selectedArea?.locations.find(
+      (loc) => loc.name.toUpperCase() === upperCityName
     );
-    
+
     // Get the zipcode either from the selected location or passed zipcode
     const newZipcode = selectedLocation?.zipcode || cityZipcode || "";
     setZipcode(String(newZipcode));
@@ -217,12 +219,12 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     // Update parent component with all changes in sequence
     onAreaChange("acode", areaCode);
     onAreaChange("zipcode", String(newZipcode));
-    
+
     // Force another city update to ensure the combined address updates
     setTimeout(() => {
       onAreaChange("city", upperCityName);
     }, 0);
-    
+
     setShowCityResults(false);
 
     // Update available zipcodes for the selected area
@@ -292,7 +294,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
   const handleZipcodeSelect = (zipcodeData) => {
     setZipcode(zipcodeData.name);
     onAreaChange("zipcode", zipcodeData.name);
-    
+
     // Update area code and city if they're from a different area
     if (zipcodeData._id !== acode) {
       setAcode(zipcodeData._id);
@@ -302,7 +304,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
         onAreaChange("city", zipcodeData.city);
       }
     }
-    
+
     setShowZipcodeResults(false);
   };
 
@@ -360,38 +362,57 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [showAreaResults, areaSearchResults, highlightedAreaIndex, showZipcodeResults, zipcodeSearchResults, highlightedZipcodeIndex]);
+  }, [
+    showAreaResults,
+    areaSearchResults,
+    highlightedAreaIndex,
+    showZipcodeResults,
+    zipcodeSearchResults,
+    highlightedZipcodeIndex,
+  ]);
 
   // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('.area-search-container')) {
+      if (!event.target.closest(".area-search-container")) {
         setShowAreaResults(false);
       }
-      if (!event.target.closest('.zipcode-search-container')) {
+      if (!event.target.closest(".zipcode-search-container")) {
         setShowZipcodeResults(false);
       }
-      if (!event.target.closest('.city-search-container')) {
+      if (!event.target.closest(".city-search-container")) {
         setShowCityResults(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   useEffect(() => {
     if (initialAreaData) {
       // Only update if the values are different and not explicitly cleared by user
-      if (initialAreaData.acode !== undefined && initialAreaData.acode !== acode && !acode.trim() === "") {
+      if (
+        initialAreaData.acode !== undefined &&
+        initialAreaData.acode !== acode &&
+        !acode.trim() === ""
+      ) {
         setAcode(initialAreaData.acode);
       }
-      if (initialAreaData.zipcode !== undefined && String(initialAreaData.zipcode) !== zipcode && !zipcode.trim() === "") {
+      if (
+        initialAreaData.zipcode !== undefined &&
+        String(initialAreaData.zipcode) !== zipcode &&
+        !zipcode.trim() === ""
+      ) {
         setZipcode(String(initialAreaData.zipcode));
       }
-      if (initialAreaData.city !== undefined && initialAreaData.city !== city && !city.trim() === "") {
+      if (
+        initialAreaData.city !== undefined &&
+        initialAreaData.city !== city &&
+        !city.trim() === ""
+      ) {
         setCity(initialAreaData.city);
       }
     }
@@ -419,7 +440,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
           }
         />
         {showCityResults && citySearchResults.length > 0 && (
-          <div 
+          <div
             id="city-search-results"
             role="listbox"
             aria-label="City search results"
@@ -432,9 +453,13 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
                 role="option"
                 aria-selected={index === highlightedIndex}
                 className={`px-4 py-2 cursor-pointer text-sm ${
-                  index === highlightedIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                  index === highlightedIndex
+                    ? "bg-gray-200"
+                    : "hover:bg-gray-100"
                 }`}
-                onClick={() => handleCitySelect(result.name, result._id, result.zipcode)}
+                onClick={() =>
+                  handleCitySelect(result.name, result._id, result.zipcode)
+                }
               >
                 {result.name}
               </div>
@@ -453,6 +478,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
             className="text-base"
             autoComplete="off"
             uppercase={true}
+            required={true}
             aria-expanded={showAreaResults}
             aria-haspopup="listbox"
             aria-controls="area-search-results"
@@ -463,7 +489,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
             }
           />
           {showAreaResults && areaSearchResults.length > 0 && (
-            <div 
+            <div
               id="area-search-results"
               role="listbox"
               aria-label="Area code search results"
@@ -476,7 +502,9 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
                   role="option"
                   aria-selected={index === highlightedAreaIndex}
                   className={`px-4 py-2 cursor-pointer text-sm ${
-                    index === highlightedAreaIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                    index === highlightedAreaIndex
+                      ? "bg-gray-200"
+                      : "hover:bg-gray-100"
                   }`}
                   onClick={() => handleAreaSelect(result.name)}
                 >
@@ -505,7 +533,7 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
             }
           />
           {showZipcodeResults && zipcodeSearchResults.length > 0 && (
-            <div 
+            <div
               id="zipcode-search-results"
               role="listbox"
               aria-label="Zipcode search results"
@@ -518,7 +546,9 @@ const AreaForm = ({ onAreaChange, initialAreaData, areas }) => {
                   role="option"
                   aria-selected={index === highlightedZipcodeIndex}
                   className={`px-4 py-2 cursor-pointer text-sm ${
-                    index === highlightedZipcodeIndex ? 'bg-gray-200' : 'hover:bg-gray-100'
+                    index === highlightedZipcodeIndex
+                      ? "bg-gray-200"
+                      : "hover:bg-gray-100"
                   }`}
                   onClick={() => handleZipcodeSelect(result)}
                 >

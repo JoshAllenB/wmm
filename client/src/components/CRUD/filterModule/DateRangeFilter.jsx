@@ -976,8 +976,8 @@ const DateRangeFilter = ({
         {!hasOnlyNonWMMRoles() && (
           <>
             {activeSubscriptionsSection}
-            {copiesSection}
             {expiringSubscriptionsSection}
+            {copiesSection}
           </>
         )}
 

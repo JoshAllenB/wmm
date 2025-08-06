@@ -1574,6 +1574,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         roleSpecificData={roleSpecificData}
         subscriptionType={subscriptionType}
         selectedRole={selectedRole}
+        hrgData={hrgData}
+        fomData={fomData}
+        calData={calData}
       />
     );
   };
@@ -1849,6 +1852,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           uppercase={true}
                           className="text-base"
                           autoComplete="off"
+                          required={true}
                         />
                         <InputField
                           label="Middle Name:"
@@ -1859,7 +1863,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           uppercase={true}
                           className="text-base"
                           autoComplete="off"
-                        />
+                          />
                         <InputField
                           label="Last Name:"
                           id="lname"
@@ -1869,6 +1873,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           uppercase={true}
                           className="text-base"
                           autoComplete="off"
+                          required={true}
                         />
                         <InputField
                           label="Suffix:"
@@ -2222,6 +2227,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.recvdate}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Campaign Date:"
@@ -2230,6 +2236,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.campaigndate}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Payment Reference:"
@@ -2238,6 +2245,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.paymtref}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Payment Amount:"
@@ -2246,6 +2254,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.paymtamt}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <div className="mb-2">
                                     <label
@@ -2298,6 +2307,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.recvdate}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Payment Reference:"
@@ -2306,6 +2316,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.paymtref}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Payment Amount:"
@@ -2314,6 +2325,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.paymtamt}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <InputField
                                     label="Payment Form:"
@@ -2322,6 +2334,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     value={roleSpecificData.paymtform}
                                     onChange={handleRoleSpecificChange}
                                     className="text-base w-full"
+                                    required={true}
                                   />
                                   <div className="mb-2">
                                     <label
@@ -2376,6 +2389,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.recvdate}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Calendar Type:"
@@ -2384,6 +2398,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.caltype}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Calendar Quantity:"
@@ -2392,6 +2407,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.calqty}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Calendar Amount:"
@@ -2400,6 +2416,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.calamt}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                     </div>
                                     <div className="w-full">
@@ -2410,6 +2427,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.paymtref}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Payment Amount:"
@@ -2418,6 +2436,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.paymtamt}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Payment Form:"
@@ -2426,6 +2445,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.paymtform}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                       <InputField
                                         label="Payment Date:"
@@ -2434,6 +2454,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         value={roleSpecificData.paymtdate}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
+                                        required={true}
                                       />
                                     </div>
                                   </div>
@@ -2464,7 +2485,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                     {hasRole("WMM") && (
                       <div className="p-4 border rounded-lg shadow-sm">
                         <h2
-                          className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center`}
+                          className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center text-black`}
                         >
                           {subscriptionType} Subscription
                         </h2>
@@ -2472,7 +2493,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {subscriptionType === "WMM" && (
                           <div className="mt-4 mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Subscription Classification:
+                              Subscription Classification:{" "}
+                              <span className="text-red-500 ml-1">*</span>
                             </label>
                             <select
                               id="subsclass"
@@ -2494,7 +2516,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {/* Start Date - Common for all types */}
                         <div className="mb-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription Start:
+                            Subscription Start:{" "}
+                            <span className="text-red-500 ml-1">*</span>
                           </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
@@ -2539,7 +2562,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {/* Common fields for all subscription types */}
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription Duration:
+                            Subscription Duration:{" "}
+                            <span className="text-red-500 ml-1">*</span>
                           </label>
                           <select
                             id="subscriptionFreq"
@@ -2561,7 +2585,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         {/* End Date - Common for all types */}
                         <div className="mb-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription End:
+                            Subscription End:{" "}
+                            <span className="text-red-500 ml-1">*</span>
                           </label>
                           <div className="grid grid-cols-3 gap-2">
                             <div className="relative">
@@ -2607,7 +2632,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                         <div className="flex space-x-4 mb-4">
                           <div className="flex flex-row items-center justify-center gap-2">
                             <label className="block text-lg font-medium leading-6 text-black">
-                              Copies:
+                              Copies:{" "}
+                              <span className="text-red-500 ml-1">*</span>
                             </label>
                             <input
                               id="copies"
@@ -2772,6 +2798,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         roleSpecificData={roleSpecificData}
         subscriptionType={subscriptionType}
         selectedRole={selectedRole}
+        hrgData={hrgData}
+        fomData={fomData}
+        calData={calData}
       />
     </div>
   );

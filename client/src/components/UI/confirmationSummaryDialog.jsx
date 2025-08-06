@@ -13,6 +13,9 @@ const ConfirmationSummaryDialog = ({
   roleSpecificData,
   subscriptionType,
   selectedRole,
+  hrgData,
+  fomData,
+  calData,
 }) => {
   const { toast } = useToast();
 
@@ -42,11 +45,13 @@ const ConfirmationSummaryDialog = ({
   );
 
   // Helper component for displaying field values
-  const FieldDisplay = ({ label, value, className = "" }) => {
+  const FieldDisplay = ({ label, value, className = "", required = false }) => {
     if (!value) return null;
     return (
       <div className={`flex ${className}`}>
-        <span className="font-semibold min-w-[120px]">{label}:</span>
+        <span className="font-semibold min-w-[120px]">
+          {label}:{required && <span className="text-red-500 ml-1">*</span>}
+        </span>
         <span className="flex-1">{value}</span>
       </div>
     );
@@ -154,9 +159,14 @@ const ConfirmationSummaryDialog = ({
               <FieldDisplay
                 label="Subscription Class"
                 value={formData.subsclass}
+                required={subscriptionType === "WMM"}
               />
-              <FieldDisplay label="Start Date" value={startDate} />
-              <FieldDisplay label="End Date" value={endDate} />
+              <FieldDisplay
+                label="Start Date"
+                value={startDate}
+                required={true}
+              />
+              <FieldDisplay label="End Date" value={endDate} required={true} />
               <FieldDisplay
                 label="Duration"
                 value={
@@ -164,8 +174,13 @@ const ConfirmationSummaryDialog = ({
                     ? `${formData.subscriptionFreq} months`
                     : ""
                 }
+                required={true}
               />
-              <FieldDisplay label="Copies" value={roleSpecificData.copies} />
+              <FieldDisplay
+                label="Copies"
+                value={roleSpecificData.copies}
+                required={true}
+              />
 
               {/* WMM Specific Fields */}
               {subscriptionType === "WMM" && (
@@ -173,10 +188,12 @@ const ConfirmationSummaryDialog = ({
                   <FieldDisplay
                     label="Payment Reference"
                     value={roleSpecificData.paymtref}
+                    required={true}
                   />
                   <FieldDisplay
                     label="Payment Amount"
                     value={roleSpecificData.paymtamt}
+                    required={true}
                   />
                   <FieldDisplay
                     label="Payment Masses"
@@ -191,102 +208,127 @@ const ConfirmationSummaryDialog = ({
 
               {/* Promo Specific Field */}
               {subscriptionType === "Promo" && (
-                <FieldDisplay label="Referral ID" value={formData.referralid} />
+                <FieldDisplay
+                  label="Referral ID"
+                  value={formData.referralid}
+                  required={true}
+                />
               )}
 
               <FieldDisplay label="Remarks" value={roleSpecificData.remarks} />
             </>
           )}
 
-          {/* Role Specific Information */}
-          {selectedRole && (
+          {/* Role Specific Information - Show all roles that have data */}
+          {/* HRG Information */}
+          {hrgData && Object.values(hrgData).some((value) => value) && (
             <>
-              <SectionHeader title={`${selectedRole} Information`} />
-              {selectedRole === "HRG" && (
-                <>
-                  <FieldDisplay
-                    label="Received Date"
-                    value={roleSpecificData.recvdate}
-                  />
-                  <FieldDisplay
-                    label="Campaign Date"
-                    value={roleSpecificData.campaigndate}
-                  />
-                  <FieldDisplay
-                    label="Payment Reference"
-                    value={roleSpecificData.paymtref}
-                  />
-                  <FieldDisplay
-                    label="Payment Amount"
-                    value={roleSpecificData.paymtamt}
-                  />
-                  <FieldDisplay
-                    label="Unsubscribe"
-                    value={roleSpecificData.unsubscribe ? "Yes" : "No"}
-                  />
-                </>
-              )}
-              {selectedRole === "FOM" && (
-                <>
-                  <FieldDisplay
-                    label="Received Date"
-                    value={roleSpecificData.recvdate}
-                  />
-                  <FieldDisplay
-                    label="Payment Reference"
-                    value={roleSpecificData.paymtref}
-                  />
-                  <FieldDisplay
-                    label="Payment Amount"
-                    value={roleSpecificData.paymtamt}
-                  />
-                  <FieldDisplay
-                    label="Payment Form"
-                    value={roleSpecificData.paymtform}
-                  />
-                  <FieldDisplay
-                    label="Unsubscribe"
-                    value={roleSpecificData.unsubscribe ? "Yes" : "No"}
-                  />
-                </>
-              )}
-              {selectedRole === "CAL" && (
-                <>
-                  <FieldDisplay
-                    label="Received Date"
-                    value={roleSpecificData.recvdate}
-                  />
-                  <FieldDisplay
-                    label="Calendar Type"
-                    value={roleSpecificData.caltype}
-                  />
-                  <FieldDisplay
-                    label="Calendar Quantity"
-                    value={roleSpecificData.calqty}
-                  />
-                  <FieldDisplay
-                    label="Calendar Amount"
-                    value={roleSpecificData.calamt}
-                  />
-                  <FieldDisplay
-                    label="Payment Reference"
-                    value={roleSpecificData.paymtref}
-                  />
-                  <FieldDisplay
-                    label="Payment Amount"
-                    value={roleSpecificData.paymtamt}
-                  />
-                  <FieldDisplay
-                    label="Payment Form"
-                    value={roleSpecificData.paymtform}
-                  />
-                  <FieldDisplay
-                    label="Payment Date"
-                    value={roleSpecificData.paymtdate}
-                  />
-                </>
-              )}
-              <FieldDisplay label="Remarks" value={roleSpecificData.remarks} />
+              <SectionHeader title="HRG Information" />
+              <FieldDisplay
+                label="Received Date"
+                value={hrgData.recvdate}
+                required={true}
+              />
+              <FieldDisplay
+                label="Campaign Date"
+                value={hrgData.campaigndate}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Reference"
+                value={hrgData.paymtref}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Amount"
+                value={hrgData.paymtamt}
+                required={true}
+              />
+              <FieldDisplay
+                label="Unsubscribe"
+                value={hrgData.unsubscribe ? "Yes" : "No"}
+              />
+              <FieldDisplay label="Remarks" value={hrgData.remarks} />
+            </>
+          )}
+
+          {/* FOM Information */}
+          {fomData && Object.values(fomData).some((value) => value) && (
+            <>
+              <SectionHeader title="FOM Information" />
+              <FieldDisplay
+                label="Received Date"
+                value={fomData.recvdate}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Reference"
+                value={fomData.paymtref}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Amount"
+                value={fomData.paymtamt}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Form"
+                value={fomData.paymtform}
+                required={true}
+              />
+              <FieldDisplay
+                label="Unsubscribe"
+                value={fomData.unsubscribe ? "Yes" : "No"}
+              />
+              <FieldDisplay label="Remarks" value={fomData.remarks} />
+            </>
+          )}
+
+          {/* CAL Information */}
+          {calData && Object.values(calData).some((value) => value) && (
+            <>
+              <SectionHeader title="CAL Information" />
+              <FieldDisplay
+                label="Received Date"
+                value={calData.recvdate}
+                required={true}
+              />
+              <FieldDisplay
+                label="Calendar Type"
+                value={calData.caltype}
+                required={true}
+              />
+              <FieldDisplay
+                label="Calendar Quantity"
+                value={calData.calqty}
+                required={true}
+              />
+              <FieldDisplay
+                label="Calendar Amount"
+                value={calData.calamt}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Reference"
+                value={calData.paymtref}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Amount"
+                value={calData.paymtamt}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Form"
+                value={calData.paymtform}
+                required={true}
+              />
+              <FieldDisplay
+                label="Payment Date"
+                value={calData.paymtdate}
+                required={true}
+              />
+              <FieldDisplay label="Remarks" value={calData.remarks} />
             </>
           )}
         </div>
