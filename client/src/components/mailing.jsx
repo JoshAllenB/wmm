@@ -399,20 +399,24 @@ const Mailing = ({
     }
   }, [filtering, selectedGroup, advancedFilterData, useAllData]);
 
-  // New function to fetch all data
+  // New function to fetch all data with optimized batch processing
   const fetchAllData = async () => {
     try {
+
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall`,
         {
           filter: filtering,
           group: selectedGroup,
           advancedFilterData,
+          batchSize: 1000, // Use optimized batch size
+          enableBatchProcessing: true, // Enable batch processing
         },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
           },
+          timeout: 300000, // 5 minute timeout for large datasets
         }
       );
 
@@ -422,7 +426,21 @@ const Mailing = ({
       return [];
     } catch (error) {
       console.error("Error fetching all data:", error);
-      return [];
+
+      // Provide more specific error messages
+      if (error.code === "ECONNABORTED") {
+        throw new Error(
+          "Request timed out. The dataset may be too large. Try reducing the filter criteria."
+        );
+      } else if (error.response?.status === 500) {
+        throw new Error(
+          "Server error occurred while fetching data. Please try again."
+        );
+      } else if (error.response?.status === 401) {
+        throw new Error("Authentication failed. Please log in again.");
+      } else {
+        throw new Error(`Failed to fetch data: ${error.message}`);
+      }
     }
   };
 
@@ -903,21 +921,78 @@ const Mailing = ({
     }
   };
 
-  // Add refresh function
+  // Add refresh function with processing info
   const refreshAllData = async () => {
     try {
-      const data = await fetchAllData();
-      setAllData(data);
+      const response = await axios.post(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall`,
+        {
+          filter: filtering,
+          group: selectedGroup,
+          advancedFilterData,
+          batchSize: 1000, // Use optimized batch size
+          enableBatchProcessing: true, // Enable batch processing
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+          timeout: 300000, // 5 minute timeout for large datasets
+        }
+      );
+
+      if (response.data && response.data.combinedData) {
+        console.log(
+          `Successfully fetched ${response.data.combinedData.length} records with batch processing`
+        );
+
+        // Log processing information if available
+        if (response.data.processingInfo) {
+          console.log("Processing info:", response.data.processingInfo);
+        }
+
+        const data = response.data.combinedData;
+        setAllData(data);
+        setRecordCounts({
+          total: data.length,
+          filtered: data.length,
+        });
+
+        // Return both data and processing info
+        return {
+          data,
+          processingInfo: response.data.processingInfo,
+        };
+      }
+
+      const emptyData = [];
+      setAllData(emptyData);
       setRecordCounts({
-        total: data.length,
-        filtered: data.length,
+        total: 0,
+        filtered: 0,
       });
-      return data;
+      return { data: emptyData, processingInfo: null };
     } catch (error) {
       console.error("Error fetching all data:", error);
+
+      // Provide more specific error messages
+      let errorMessage =
+        "Failed to fetch all records. Using table data instead.";
+      if (error.code === "ECONNABORTED") {
+        errorMessage =
+          "Request timed out. The dataset may be too large. Try reducing the filter criteria.";
+      } else if (error.response?.status === 500) {
+        errorMessage =
+          "Server error occurred while fetching data. Please try again.";
+      } else if (error.response?.status === 401) {
+        errorMessage = "Authentication failed. Please log in again.";
+      } else {
+        errorMessage = `Failed to fetch data: ${error.message}`;
+      }
+
       toast({
         title: "Error",
-        description: "Failed to fetch all records. Using table data instead.",
+        description: errorMessage,
         variant: "destructive",
       });
       throw error;
