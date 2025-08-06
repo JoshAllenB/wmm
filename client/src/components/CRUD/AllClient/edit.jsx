@@ -287,11 +287,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   }, [areas, isLoadingAreas]);
 
-  // Debug subscription type changes
-  useEffect(() => {
-    console.log("Subscription type changed to:", formData.subscriptionType);
-  }, [formData.subscriptionType]);
-
   useEffect(() => {
     if (rowData) {
       // Parse birth date into components if it exists
@@ -2481,10 +2476,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {/* Subscription Type Specific Fields */}
                     {formData.subscriptionType === "WMM" && (
                       <>
-                        {console.log(
-                          "Rendering WMM subscription fields, subscriptionType:",
-                          formData.subscriptionType
-                        )}
                         <div className="mt-4 space-y-4">
                           <InputField
                             label="Payment Reference:"
@@ -2518,7 +2509,6 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               <DonorAdd
                                 key={`donor-add-${formData.subscriptionType}`}
                                 onDonorSelect={(donorId) => {
-                                  console.log("Donor ID selected:", donorId);
                                   handleRoleSpecificChange({
                                     target: {
                                       name: "donorid",
