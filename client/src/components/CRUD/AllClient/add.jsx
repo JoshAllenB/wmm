@@ -521,6 +521,23 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
   // Moved to duplicateLogic.js
 
+  // Utility function to normalize year (2-digit to 4-digit)
+  const normalizeYear = (year) => {
+    if (year.length === 2) {
+      const currentYear = new Date().getFullYear();
+      const currentCentury = Math.floor(currentYear / 100) * 100;
+      const yearNum = parseInt(year, 10);
+      // If the 2-digit year is <= current year's last 2 digits, use current century
+      // Otherwise use previous century
+      const fullYear =
+        yearNum <= currentYear % 100
+          ? currentCentury + yearNum
+          : currentCentury - 100 + yearNum;
+      return fullYear.toString();
+    }
+    return year;
+  };
+
   const handleChange = async (e) => {
     const { name, value } = e.target;
 
@@ -544,22 +561,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     if (duplicateRelatedFields.includes(name)) {
       immediatelyClearDuplicates();
     }
-
-    const normalizeYear = (year) => {
-      if (year.length === 2) {
-        const currentYear = new Date().getFullYear();
-        const currentCentury = Math.floor(currentYear / 100) * 100;
-        const yearNum = parseInt(year, 10);
-        // If the 2-digit year is <= current year's last 2 digits, use current century
-        // Otherwise use previous century
-        const fullYear =
-          yearNum <= currentYear % 100
-            ? currentCentury + yearNum
-            : currentCentury - 100 + yearNum;
-        return fullYear.toString();
-      }
-      return year;
-    };
 
     // Handle bdate parts
     if (name === "bdateMonth" || name === "bdateDay" || name === "bdateYear") {
