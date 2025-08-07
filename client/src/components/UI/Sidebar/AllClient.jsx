@@ -13,7 +13,15 @@ import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
 import { ColumnToggle } from "../../Table/ColumnToggle";
-import { ArrowDown, Calendar, Package, Mail, Settings2, FileText, FileSpreadsheet } from "lucide-react";
+import {
+  ArrowDown,
+  Calendar,
+  Package,
+  Mail,
+  Settings2,
+  FileText,
+  FileSpreadsheet,
+} from "lucide-react";
 import { toast } from "../ShadCN/hooks/use-toast";
 import {
   Dialog,
@@ -48,9 +56,9 @@ const AllClient = () => {
   const [stats, setStats] = useState({
     clientCount: {
       total: 0,
-      page: 0
+      page: 0,
     },
-    metrics: []
+    metrics: [],
   });
   const columns = useColumns();
   const { hasRole } = useUser();
@@ -412,7 +420,8 @@ const AllClient = () => {
           delete filtersToUse.adddate_regex;
         }
 
-        const currentSubscriptionType = overrideSubscriptionType || subscriptionType;
+        const currentSubscriptionType =
+          overrideSubscriptionType || subscriptionType;
 
         // Check if request was cancelled before making the API call
         if (currentRequestRef.current?.cancel) {
@@ -429,7 +438,10 @@ const AllClient = () => {
         );
 
         // Check if request was cancelled during the API call
-        if (currentRequestRef.current?.cancel || currentRequestRef.current?.id !== requestId) {
+        if (
+          currentRequestRef.current?.cancel ||
+          currentRequestRef.current?.id !== requestId
+        ) {
           setIsLoading(false);
           return null;
         }
@@ -442,13 +454,15 @@ const AllClient = () => {
 
         setClientData(response.data);
         setTotalPages(response.totalPages || 0);
-        setStats(response.stats || {
-          clientCount: {
-            total: response.totalClients || 0,
-            page: response.data?.length || 0
-          },
-          metrics: []
-        });
+        setStats(
+          response.stats || {
+            clientCount: {
+              total: response.totalClients || 0,
+              page: response.data?.length || 0,
+            },
+            metrics: [],
+          }
+        );
 
         // Always remove loading state when done
         setIsLoading(false);
@@ -621,7 +635,7 @@ const AllClient = () => {
   // Update handleSearchChange function
   const handleSearchChange = (e) => {
     const value = e.target.value;
-    
+
     // Only update if the value actually changed
     if (value !== filtering) {
       setFiltering(value);
@@ -888,30 +902,52 @@ const AllClient = () => {
       );
 
     // Handle Active Subscriptions From/To dates
-    if (advancedFilterData.wmmActiveFromDate || advancedFilterData.wmmActiveToDate) {
+    if (
+      advancedFilterData.wmmActiveFromDate ||
+      advancedFilterData.wmmActiveToDate
+    ) {
       const fromDate = advancedFilterData.wmmActiveFromDate;
       const toDate = advancedFilterData.wmmActiveToDate;
-      
+
       if (fromDate && toDate) {
-        filters.push(`Active Subscriptions: ${formatDateWithMonthName(fromDate)} to ${formatDateWithMonthName(toDate)}`);
+        filters.push(
+          `Active Subscriptions: ${formatDateWithMonthName(
+            fromDate
+          )} to ${formatDateWithMonthName(toDate)}`
+        );
       } else if (fromDate) {
-        filters.push(`Active Subscriptions From: ${formatDateWithMonthName(fromDate)}`);
+        filters.push(
+          `Active Subscriptions From: ${formatDateWithMonthName(fromDate)}`
+        );
       } else if (toDate) {
-        filters.push(`Active Subscriptions To: ${formatDateWithMonthName(toDate)}`);
+        filters.push(
+          `Active Subscriptions To: ${formatDateWithMonthName(toDate)}`
+        );
       }
     }
 
     // Handle Expiring Subscriptions From/To dates
-    if (advancedFilterData.wmmExpiringFromDate || advancedFilterData.wmmExpiringToDate) {
+    if (
+      advancedFilterData.wmmExpiringFromDate ||
+      advancedFilterData.wmmExpiringToDate
+    ) {
       const fromDate = advancedFilterData.wmmExpiringFromDate;
       const toDate = advancedFilterData.wmmExpiringToDate;
-      
+
       if (fromDate && toDate) {
-        filters.push(`Expiring Subscriptions: ${formatDateWithMonthName(fromDate)} to ${formatDateWithMonthName(toDate)}`);
+        filters.push(
+          `Expiring Subscriptions: ${formatDateWithMonthName(
+            fromDate
+          )} to ${formatDateWithMonthName(toDate)}`
+        );
       } else if (fromDate) {
-        filters.push(`Expiring Subscriptions From: ${formatDateWithMonthName(fromDate)}`);
+        filters.push(
+          `Expiring Subscriptions From: ${formatDateWithMonthName(fromDate)}`
+        );
       } else if (toDate) {
-        filters.push(`Expiring Subscriptions To: ${formatDateWithMonthName(toDate)}`);
+        filters.push(
+          `Expiring Subscriptions To: ${formatDateWithMonthName(toDate)}`
+        );
       }
     }
 
@@ -1112,7 +1148,7 @@ const AllClient = () => {
   const [showMailingModal, setShowMailingModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showSpackModal, setShowSpackModal] = useState(false);
-  const [mailingAction, setMailingAction] = useState('label'); // 'label', 'document', or 'csv'
+  const [mailingAction, setMailingAction] = useState("label"); // 'label', 'document', or 'csv'
 
   const handleMailingAction = (action) => {
     setMailingAction(action);
@@ -1139,10 +1175,10 @@ const AllClient = () => {
       }
 
       // Update advancedFilterData with new services
-      setAdvancedFilterData(prev => ({
+      setAdvancedFilterData((prev) => ({
         ...prev,
         services: newServices,
-        subscriptionType: type
+        subscriptionType: type,
       }));
     }
 
@@ -1162,20 +1198,33 @@ const AllClient = () => {
     const updatedAdvancedFilterData = {
       ...advancedFilterData,
       subscriptionType: type,
-      services: hasRole("WMM") ? (type === "Promo" ? ["PROMO"] : type === "Complimentary" ? ["COMP"] : ["WMM"]) : advancedFilterData.services
+      services: hasRole("WMM")
+        ? type === "Promo"
+          ? ["PROMO"]
+          : type === "Complimentary"
+          ? ["COMP"]
+          : ["WMM"]
+        : advancedFilterData.services,
     };
 
-    fetchData(1, pageSize, debouncedFiltering, selectedGroup, updatedAdvancedFilterData, type);
+    fetchData(
+      1,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      updatedAdvancedFilterData,
+      type
+    );
   };
 
   return (
     <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex justify-between items-center mb-4">
-        <Add 
-          fetchClients={() => fetchClients(setClientData)} 
+        <Add
+          fetchClients={() => fetchClients(setClientData)}
           subscriptionType={subscriptionType}
         />
-        
+
         {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
         {(hasRole("WMM") || hasRole("Admin")) && (
           <div className="flex items-center gap-2">
@@ -1228,15 +1277,17 @@ const AllClient = () => {
                 Mailing Options
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem onSelect={() => handleMailingAction('label')}>
+                <DropdownMenuItem onSelect={() => handleMailingAction("label")}>
                   <Mail className="h-4 w-4 mr-2" />
                   Print Mailing Label
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleMailingAction('document')}>
+                <DropdownMenuItem
+                  onSelect={() => handleMailingAction("document")}
+                >
                   <FileText className="h-4 w-4 mr-2" />
                   Print Documents
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleMailingAction('csv')}>
+                <DropdownMenuItem onSelect={() => handleMailingAction("csv")}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   Export CSV
                 </DropdownMenuItem>
@@ -1255,20 +1306,20 @@ const AllClient = () => {
       </div>
 
       {/* Render modals */}
-      <Mailing 
-        table={tableInstance} 
+      <Mailing
+        table={tableInstance}
         advancedFilterData={advancedFilterData}
         selectedGroup={selectedGroup}
         filtering={filtering}
         isOpen={showMailingModal}
         onClose={() => {
           setShowMailingModal(false);
-          setMailingAction('label'); // Reset to default
+          setMailingAction("label"); // Reset to default
         }}
         initialAction={mailingAction}
         subscriptionType={subscriptionType} // Add subscription type here
       />
-      
+
       <CalendarUpdate
         filtering={filtering}
         selectedGroup={selectedGroup}
@@ -1280,9 +1331,9 @@ const AllClient = () => {
         table={tableInstance}
         isOpen={showCalendarModal}
         onClose={() => setShowCalendarModal(false)}
-        subscriptionType={subscriptionType}  // Add this line
+        subscriptionType={subscriptionType} // Add this line
       />
-      
+
       <SpackUpdate
         filtering={filtering}
         selectedGroup={selectedGroup}
