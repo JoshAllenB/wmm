@@ -149,8 +149,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [selectedCity, setSelectedCity] = useState("");
   const [roleSpecificData, setRoleSpecificData] = useState({
     recvdate: rowData?.recvdate || "",
-    renewdate: rowData?.renewdate || "",
+    recvdateMonth: "",
+    recvdateDay: "",
+    recvdateYear: "",
     campaigndate: rowData?.campaigndate || "",
+    campaigndateMonth: "",
+    campaigndateDay: "",
+    campaigndateYear: "",
     paymtref: rowData?.paymtref || "",
     paymtamt: rowData?.paymtamt || 0,
     unsubscribe: rowData?.unsubscribe || false,
@@ -238,19 +243,38 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [hrgRecords, setHrgRecords] = useState([]);
   const [fomRecords, setFomRecords] = useState([]);
   const [calRecords, setCalRecords] = useState([]);
+  const [wmmRecords, setWmmRecords] = useState([]);
+  const [promoRecords, setPromoRecords] = useState([]);
+  const [complimentaryRecords, setComplimentaryRecords] = useState([]);
   const [selectedHrgRecord, setSelectedHrgRecord] = useState(null);
   const [selectedFomRecord, setSelectedFomRecord] = useState(null);
   const [selectedCalRecord, setSelectedCalRecord] = useState(null);
+  const [selectedWmmRecord, setSelectedWmmRecord] = useState(null);
+  const [selectedPromoRecord, setSelectedPromoRecord] = useState(null);
+  const [selectedComplimentaryRecord, setSelectedComplimentaryRecord] =
+    useState(null);
   const [roleRecordMode, setRoleRecordMode] = useState("edit"); // "edit" or "add"
   const [newRoleData, setNewRoleData] = useState({
     // HRG default fields
     recvdate: formatDateToMMDDYY(new Date()),
-    renewdate: "",
+    recvdateMonth: "",
+    recvdateDay: "",
+    recvdateYear: "",
     campaigndate: "",
+    campaigndateMonth: "",
+    campaigndateDay: "",
+    campaigndateYear: "",
     paymtref: "",
     paymtamt: 0,
     unsubscribe: false,
     remarks: "",
+    // FOM fields
+    paymtform: "",
+    // CAL fields
+    caltype: "",
+    calqty: 0,
+    calamt: 0,
+    paymtdate: "",
   });
 
   const [areas, setAreas] = useState(null);
@@ -300,6 +324,103 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           bdateMonth = dateParts[0].padStart(2, "0");
           bdateDay = dateParts[1].padStart(2, "0");
           bdateYear = dateParts[2];
+        }
+      }
+
+      if (rowData.hrgData) {
+        if (rowData.hrgData.records && Array.isArray(rowData.hrgData.records)) {
+          setHrgRecords(rowData.hrgData.records);
+        } else if (Array.isArray(rowData.hrgData)) {
+          setHrgRecords(rowData.hrgData);
+        } else if (typeof rowData.hrgData === "object") {
+          const filteredRecords = [rowData.hrgData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setHrgRecords(filteredRecords);
+        }
+      }
+      if (rowData.fomData) {
+        if (rowData.fomData.records && Array.isArray(rowData.fomData.records)) {
+          setFomRecords(rowData.fomData.records);
+        } else if (Array.isArray(rowData.fomData)) {
+          setFomRecords(rowData.fomData);
+        } else if (typeof rowData.fomData === "object") {
+          const filteredRecords = [rowData.fomData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setFomRecords(filteredRecords);
+        }
+      }
+      if (rowData.calData) {
+        if (rowData.calData.records && Array.isArray(rowData.calData.records)) {
+          setCalRecords(rowData.calData.records);
+        } else if (Array.isArray(rowData.calData)) {
+          setCalRecords(rowData.calData);
+        } else if (typeof rowData.calData === "object") {
+          const filteredRecords = [rowData.calData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setCalRecords(filteredRecords);
+        }
+      }
+
+      // Load WMM data records
+      if (rowData.wmmData) {
+        if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records)) {
+          setWmmRecords(rowData.wmmData.records);
+          // Auto-select WMM role if WMM data is available and user has WMM role
+          if (hasRole("WMM") && selectedRole === "HRG") {
+            setSelectedRole("WMM");
+          }
+        } else if (Array.isArray(rowData.wmmData)) {
+          setWmmRecords(rowData.wmmData);
+          // Auto-select WMM role if WMM data is available and user has WMM role
+          if (hasRole("WMM") && selectedRole === "HRG") {
+            setSelectedRole("WMM");
+          }
+        } else if (typeof rowData.wmmData === "object") {
+          const filteredRecords = [rowData.wmmData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setWmmRecords(filteredRecords);
+          // Auto-select WMM role if WMM data is available and user has WMM role
+          if (hasRole("WMM") && selectedRole === "HRG") {
+            setSelectedRole("WMM");
+          }
+        }
+      }
+
+      // Load Promo data records
+      if (rowData.promoData) {
+        if (
+          rowData.promoData.records &&
+          Array.isArray(rowData.promoData.records)
+        ) {
+          setPromoRecords(rowData.promoData.records);
+        } else if (Array.isArray(rowData.promoData)) {
+          setPromoRecords(rowData.promoData);
+        } else if (typeof rowData.promoData === "object") {
+          const filteredRecords = [rowData.promoData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setPromoRecords(filteredRecords);
+        }
+      }
+
+      // Load Complimentary data records
+      if (rowData.complimentaryData) {
+        if (
+          rowData.complimentaryData.records &&
+          Array.isArray(rowData.complimentaryData.records)
+        ) {
+          setComplimentaryRecords(rowData.complimentaryData.records);
+        } else if (Array.isArray(rowData.complimentaryData)) {
+          setComplimentaryRecords(rowData.complimentaryData);
+        } else if (typeof rowData.complimentaryData === "object") {
+          const filteredRecords = [rowData.complimentaryData].filter(
+            (item) => Object.keys(item).length > 0
+          );
+          setComplimentaryRecords(filteredRecords);
         }
       }
 
@@ -928,10 +1049,43 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           ? checked
           : safeValue.toUpperCase();
 
-      return {
+      const newData = {
         ...prev,
         [name]: fieldValue,
       };
+
+      // Handle date component changes
+      if (
+        name === "recvdateMonth" ||
+        name === "recvdateDay" ||
+        name === "recvdateYear"
+      ) {
+        if (
+          newData.recvdateMonth &&
+          newData.recvdateDay &&
+          newData.recvdateYear
+        ) {
+          // Format as YYYY-MM-DD for database consistency
+          newData.recvdate = `${newData.recvdateYear}-${newData.recvdateMonth}-${newData.recvdateDay}`;
+        }
+      }
+
+      if (
+        name === "campaigndateMonth" ||
+        name === "campaigndateDay" ||
+        name === "campaigndateYear"
+      ) {
+        if (
+          newData.campaigndateMonth &&
+          newData.campaigndateDay &&
+          newData.campaigndateYear
+        ) {
+          // Format as YYYY-MM-DD for database consistency
+          newData.campaigndate = `${newData.campaigndateYear}-${newData.campaigndateMonth}-${newData.campaigndateDay}`;
+        }
+      }
+
+      return newData;
     });
   };
 
@@ -1169,12 +1323,51 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     handleAddressChange("city", cityname);
   };
 
-  const handleRenewDateToday = () => {
-    const today = new Date();
-    setRoleSpecificData((prev) => ({
-      ...prev,
-      renewdate: formatDateToInput(today),
-    }));
+  // Update the parseDateToComponents function to be more robust
+  const parseDateToComponents = (dateString) => {
+    if (!dateString) {
+      return { month: "", day: "", year: "" };
+    }
+
+    // Handle YYYY-MM-DD format (from database)
+    if (dateString.includes("-")) {
+      const parts = dateString.split("-");
+      if (parts.length === 3) {
+        return {
+          month: parts[1].padStart(2, "0"),
+          day: parts[2].padStart(2, "0"),
+          year: parts[0],
+        };
+      }
+    }
+
+    // Handle MM/DD/YYYY format
+    if (dateString.includes("/")) {
+      const parts = dateString.split("/");
+      if (parts.length === 3) {
+        return {
+          month: parts[0].padStart(2, "0"),
+          day: parts[1].padStart(2, "0"),
+          year: parts[2],
+        };
+      }
+    }
+
+    // Fallback for other formats
+    try {
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        return {
+          month: String(date.getMonth() + 1).padStart(2, "0"),
+          day: String(date.getDate()).padStart(2, "0"),
+          year: String(date.getFullYear()),
+        };
+      }
+    } catch (e) {
+      console.error("Error parsing date:", e);
+    }
+
+    return { month: "", day: "", year: "" };
   };
 
   const handleRoleToggle = (role) => {
@@ -1183,16 +1376,55 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     // Reset role-specific data based on selected role and available records
     if (role === "HRG") {
-      if (hrgRecords.length > 0 && selectedHrgRecord) {
-        setRoleSpecificData({
-          ...selectedHrgRecord,
-        });
+      if (hrgRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedHrgRecord) {
+          const firstRecord = hrgRecords[0];
+          setSelectedHrgRecord(firstRecord);
+          const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+          const campaigndateParts = parseDateToComponents(
+            firstRecord.campaigndate
+          );
+          const roleData = {
+            ...firstRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+            campaigndateMonth: campaigndateParts.month,
+            campaigndateDay: campaigndateParts.day,
+            campaigndateYear: campaigndateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const recvdateParts = parseDateToComponents(
+            selectedHrgRecord.recvdate
+          );
+          const campaigndateParts = parseDateToComponents(
+            selectedHrgRecord.campaigndate
+          );
+          setRoleSpecificData({
+            ...selectedHrgRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+            campaigndateMonth: campaigndateParts.month,
+            campaigndateDay: campaigndateParts.day,
+            campaigndateYear: campaigndateParts.year,
+          });
+        }
       } else {
         // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
         setRoleSpecificData({
-          recvdate: formatDateToMMDDYY(new Date()),
-          renewdate: "",
+          recvdate: formatDateToMMDDYY(today),
+          recvdateMonth: todayParts.month,
+          recvdateDay: todayParts.day,
+          recvdateYear: todayParts.year,
           campaigndate: "",
+          campaigndateMonth: "",
+          campaigndateDay: "",
+          campaigndateYear: "",
           paymtref: "",
           paymtamt: 0,
           unsubscribe: false,
@@ -1200,14 +1432,39 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         });
       }
     } else if (role === "FOM") {
-      if (fomRecords.length > 0 && selectedFomRecord) {
-        setRoleSpecificData({
-          ...selectedFomRecord,
-        });
+      if (fomRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedFomRecord) {
+          const firstRecord = fomRecords[0];
+          setSelectedFomRecord(firstRecord);
+          const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+          const roleData = {
+            ...firstRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const recvdateParts = parseDateToComponents(
+            selectedFomRecord.recvdate
+          );
+          setRoleSpecificData({
+            ...selectedFomRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+          });
+        }
       } else {
         // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
         setRoleSpecificData({
-          recvdate: formatDateToMMDDYY(new Date()),
+          recvdate: formatDateToMMDDYY(today),
+          recvdateMonth: todayParts.month,
+          recvdateDay: todayParts.day,
+          recvdateYear: todayParts.year,
           paymtamt: 0,
           paymtform: "",
           paymtref: "",
@@ -1216,14 +1473,39 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         });
       }
     } else if (role === "CAL") {
-      if (calRecords.length > 0 && selectedCalRecord) {
-        setRoleSpecificData({
-          ...selectedCalRecord,
-        });
+      if (calRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedCalRecord) {
+          const firstRecord = calRecords[0];
+          setSelectedCalRecord(firstRecord);
+          const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+          const roleData = {
+            ...firstRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const recvdateParts = parseDateToComponents(
+            selectedCalRecord.recvdate
+          );
+          setRoleSpecificData({
+            ...selectedCalRecord,
+            recvdateMonth: recvdateParts.month,
+            recvdateDay: recvdateParts.day,
+            recvdateYear: recvdateParts.year,
+          });
+        }
       } else {
         // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
         setRoleSpecificData({
-          recvdate: formatDateToMMDDYY(new Date()),
+          recvdate: formatDateToMMDDYY(today),
+          recvdateMonth: todayParts.month,
+          recvdateDay: todayParts.day,
+          recvdateYear: todayParts.year,
           caltype: "",
           calqty: 0,
           calamt: 0,
@@ -1234,8 +1516,348 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           remarks: "",
         });
       }
+    } else if (role === "WMM") {
+      if (wmmRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedWmmRecord) {
+          const firstRecord = wmmRecords[0];
+          setSelectedWmmRecord(firstRecord);
+          const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+          const enddateParts = parseDateToComponents(firstRecord.enddate);
+          const roleData = {
+            ...firstRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const subsdateParts = parseDateToComponents(
+            selectedWmmRecord.subsdate
+          );
+          const enddateParts = parseDateToComponents(selectedWmmRecord.enddate);
+          setRoleSpecificData({
+            ...selectedWmmRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          });
+        }
+      } else {
+        // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
+        setRoleSpecificData({
+          subsdate: formatDateToMMDDYY(today),
+          subsdateMonth: todayParts.month,
+          subsdateDay: todayParts.day,
+          subsdateYear: todayParts.year,
+          enddate: "",
+          enddateMonth: "",
+          enddateDay: "",
+          enddateYear: "",
+          subsyear: 0,
+          copies: 1,
+          paymtamt: "",
+          paymtmasses: "",
+          calendar: false,
+          subsclass: "",
+          donorid: "",
+          paymtref: "",
+          remarks: "",
+        });
+      }
+    } else if (role === "Promo") {
+      if (promoRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedPromoRecord) {
+          const firstRecord = promoRecords[0];
+          setSelectedPromoRecord(firstRecord);
+          const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+          const enddateParts = parseDateToComponents(firstRecord.enddate);
+          const roleData = {
+            ...firstRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const subsdateParts = parseDateToComponents(
+            selectedPromoRecord.subsdate
+          );
+          const enddateParts = parseDateToComponents(
+            selectedPromoRecord.enddate
+          );
+          setRoleSpecificData({
+            ...selectedPromoRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          });
+        }
+      } else {
+        // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
+        setRoleSpecificData({
+          subsdate: formatDateToMMDDYY(today),
+          subsdateMonth: todayParts.month,
+          subsdateDay: todayParts.day,
+          subsdateYear: todayParts.year,
+          enddate: "",
+          enddateMonth: "",
+          enddateDay: "",
+          enddateYear: "",
+          subsyear: 0,
+          copies: 1,
+          paymtamt: "",
+          paymtmasses: "",
+          calendar: false,
+          subsclass: "",
+          donorid: "",
+          paymtref: "",
+          remarks: "",
+          referralid: "",
+        });
+      }
+    } else if (role === "Complimentary") {
+      if (complimentaryRecords.length > 0) {
+        // If there are records but no selected record, select the first one
+        if (!selectedComplimentaryRecord) {
+          const firstRecord = complimentaryRecords[0];
+          setSelectedComplimentaryRecord(firstRecord);
+          const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+          const enddateParts = parseDateToComponents(firstRecord.enddate);
+          const roleData = {
+            ...firstRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          };
+          setRoleSpecificData(roleData);
+        } else {
+          const subsdateParts = parseDateToComponents(
+            selectedComplimentaryRecord.subsdate
+          );
+          const enddateParts = parseDateToComponents(
+            selectedComplimentaryRecord.enddate
+          );
+          setRoleSpecificData({
+            ...selectedComplimentaryRecord,
+            subsdateMonth: subsdateParts.month,
+            subsdateDay: subsdateParts.day,
+            subsdateYear: subsdateParts.year,
+            enddateMonth: enddateParts.month,
+            enddateDay: enddateParts.day,
+            enddateYear: enddateParts.year,
+          });
+        }
+      } else {
+        // No records available, set up empty form
+        const today = new Date();
+        const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
+        setRoleSpecificData({
+          subsdate: formatDateToMMDDYY(today),
+          subsdateMonth: todayParts.month,
+          subsdateDay: todayParts.day,
+          subsdateYear: todayParts.year,
+          enddate: "",
+          enddateMonth: "",
+          enddateDay: "",
+          enddateYear: "",
+          subsyear: 0,
+          copies: 1,
+          paymtamt: "",
+          paymtmasses: "",
+          calendar: false,
+          subsclass: "",
+          donorid: "",
+          paymtref: "",
+          remarks: "",
+        });
+      }
     }
   };
+
+  // Auto-select first record when records are loaded
+  useEffect(() => {
+    if (selectedRole === "HRG" && hrgRecords.length > 0 && !selectedHrgRecord) {
+      const firstRecord = hrgRecords[0];
+      setSelectedHrgRecord(firstRecord);
+      const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+      const campaigndateParts = parseDateToComponents(firstRecord.campaigndate);
+      setRoleSpecificData({
+        ...firstRecord,
+        recvdateMonth: recvdateParts.month,
+        recvdateDay: recvdateParts.day,
+        recvdateYear: recvdateParts.year,
+        campaigndateMonth: campaigndateParts.month,
+        campaigndateDay: campaigndateParts.day,
+        campaigndateYear: campaigndateParts.year,
+      });
+    }
+  }, [hrgRecords, selectedRole, selectedHrgRecord]);
+
+  useEffect(() => {
+    if (selectedRole === "FOM" && fomRecords.length > 0 && !selectedFomRecord) {
+      const firstRecord = fomRecords[0];
+      setSelectedFomRecord(firstRecord);
+      const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+      setRoleSpecificData({
+        ...firstRecord,
+        recvdateMonth: recvdateParts.month,
+        recvdateDay: recvdateParts.day,
+        recvdateYear: recvdateParts.year,
+      });
+    }
+  }, [fomRecords, selectedRole, selectedFomRecord]);
+
+  useEffect(() => {
+    if (selectedRole === "CAL" && calRecords.length > 0 && !selectedCalRecord) {
+      const firstRecord = calRecords[0];
+      setSelectedCalRecord(firstRecord);
+      const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+      setRoleSpecificData({
+        ...firstRecord,
+        recvdateMonth: recvdateParts.month,
+        recvdateDay: recvdateParts.day,
+        recvdateYear: recvdateParts.year,
+      });
+    }
+  }, [calRecords, selectedRole, selectedCalRecord]);
+
+  // Update the useEffect that loads WMM data
+  useEffect(() => {
+    if (selectedRole === "WMM" && wmmRecords.length > 0) {
+      // Select the first record by default if none selected
+      if (!selectedWmmRecord) {
+        const firstRecord = wmmRecords[0];
+        setSelectedWmmRecord(firstRecord);
+
+        const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+        const enddateParts = parseDateToComponents(firstRecord.enddate);
+
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          ...firstRecord,
+          subsdateMonth: subsdateParts.month,
+          subsdateDay: subsdateParts.day,
+          subsdateYear: subsdateParts.year,
+          enddateMonth: enddateParts.month,
+          enddateDay: enddateParts.day,
+          enddateYear: enddateParts.year,
+        }));
+
+        // Also update formData for consistency
+        setFormData((prev) => ({
+          ...prev,
+          subscriptionStart: firstRecord.subsdate
+            ? `${subsdateParts.month}/${subsdateParts.day}/${subsdateParts.year}`
+            : "",
+          subscriptionEnd: firstRecord.enddate
+            ? `${enddateParts.month}/${enddateParts.day}/${enddateParts.year}`
+            : "",
+          subStartMonth: subsdateParts.month,
+          subStartDay: subsdateParts.day,
+          subStartYear: subsdateParts.year,
+          subEndMonth: enddateParts.month,
+          subEndDay: enddateParts.day,
+          subEndYear: enddateParts.year,
+          subsclass: firstRecord.subsclass || "",
+        }));
+
+        // Set the selected subscription to the first (most recent) record
+        setSelectedSubscription(firstRecord);
+      }
+    }
+  }, [wmmRecords, selectedRole, selectedWmmRecord]);
+
+  // Additional useEffect to handle role change to WMM
+  useEffect(() => {
+    if (selectedRole === "WMM" && wmmRecords.length > 0) {
+      // Ensure we're in edit mode
+      if (roleRecordMode !== "edit") {
+        setRoleRecordMode("edit");
+      }
+
+      const firstRecord = wmmRecords[0];
+      setSelectedWmmRecord(firstRecord);
+      const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+      const enddateParts = parseDateToComponents(firstRecord.enddate);
+
+      const roleData = {
+        ...firstRecord,
+        subsdateMonth: subsdateParts.month,
+        subsdateDay: subsdateParts.day,
+        subsdateYear: subsdateParts.year,
+        enddateMonth: enddateParts.month,
+        enddateDay: enddateParts.day,
+        enddateYear: enddateParts.year,
+      };
+
+      setRoleSpecificData(roleData);
+    }
+  }, [selectedRole, wmmRecords, roleRecordMode]);
+
+  useEffect(() => {
+    if (
+      selectedRole === "Promo" &&
+      promoRecords.length > 0 &&
+      !selectedPromoRecord
+    ) {
+      const firstRecord = promoRecords[0];
+      setSelectedPromoRecord(firstRecord);
+      const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+      const enddateParts = parseDateToComponents(firstRecord.enddate);
+      setRoleSpecificData({
+        ...firstRecord,
+        subsdateMonth: subsdateParts.month,
+        subsdateDay: subsdateParts.day,
+        subsdateYear: subsdateParts.year,
+        enddateMonth: enddateParts.month,
+        enddateDay: enddateParts.day,
+        enddateYear: enddateParts.year,
+      });
+    }
+  }, [promoRecords, selectedRole, selectedPromoRecord]);
+
+  useEffect(() => {
+    if (
+      selectedRole === "Complimentary" &&
+      complimentaryRecords.length > 0 &&
+      !selectedComplimentaryRecord
+    ) {
+      const firstRecord = complimentaryRecords[0];
+      setSelectedComplimentaryRecord(firstRecord);
+      const subsdateParts = parseDateToComponents(firstRecord.subsdate);
+      const enddateParts = parseDateToComponents(firstRecord.enddate);
+      setRoleSpecificData({
+        ...firstRecord,
+        subsdateMonth: subsdateParts.month,
+        subsdateDay: subsdateParts.day,
+        subsdateYear: subsdateParts.year,
+        enddateMonth: enddateParts.month,
+        enddateDay: enddateParts.day,
+        enddateYear: enddateParts.year,
+      });
+    }
+  }, [complimentaryRecords, selectedRole, selectedComplimentaryRecord]);
 
   const handleSubscriptionModeChange = (mode) => {
     setSubscriptionMode(mode);
@@ -1331,101 +1953,66 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return String(subId) === String(selectedId);
   };
 
-  // Update the helper function to handle _id instead of id
   const selectSubscription = (subscription) => {
-    if (!subscription) return;
+    if (!subscription) {
+      return;
+    }
 
-    // Get the subscription ID (could be either _id or id field)
-    const subscriptionId = subscription._id || subscription.id;
+    // Set the selected subscription first
+    setSelectedSubscription(subscription);
 
-    // Find the subscription in the array by ID
-    const selectedSub = availableSubscriptions.find(
-      (sub) => (sub._id || sub.id) === subscriptionId
-    );
+    // Parse dates using the improved function
+    const subsdateParts = parseDateToComponents(subscription.subsdate);
+    const enddateParts = parseDateToComponents(subscription.enddate);
 
-    if (selectedSub) {
-      setSelectedSubscription(selectedSub);
+    // Update roleSpecificData with all subscription fields
+    setRoleSpecificData((prev) => ({
+      ...prev,
+      ...subscription,
+      subsdateMonth: subsdateParts.month,
+      subsdateDay: subsdateParts.day,
+      subsdateYear: subsdateParts.year,
+      enddateMonth: enddateParts.month,
+      enddateDay: enddateParts.day,
+      enddateYear: enddateParts.year,
+    }));
 
-      // Parse start and end dates
-      let subsdate = parseDate(selectedSub.subsdate);
-      let enddate = parseDate(selectedSub.enddate);
+    // Update formData for consistency
+    setFormData((prev) => ({
+      ...prev,
+      subscriptionStart: subscription.subsdate
+        ? `${subsdateParts.month}/${subsdateParts.day}/${subsdateParts.year}`
+        : "",
+      subscriptionEnd: subscription.enddate
+        ? `${enddateParts.month}/${enddateParts.day}/${enddateParts.year}`
+        : "",
+      subStartMonth: subsdateParts.month,
+      subStartDay: subsdateParts.day,
+      subStartYear: subsdateParts.year,
+      subEndMonth: enddateParts.month,
+      subEndDay: enddateParts.day,
+      subEndYear: enddateParts.year,
+      subsclass: subscription.subsclass || "",
+      referralid:
+        formData.subscriptionType === "Promo"
+          ? subscription.referralid || ""
+          : "",
+    }));
 
-      // Extract month, day, year for start date
-      const subsDateMonth = subsdate
-        ? String(subsdate.getMonth() + 1).padStart(2, "0")
-        : "";
-      const subsDateDay = subsdate
-        ? String(subsdate.getDate()).padStart(2, "0")
-        : "";
-      const subsDateYear = subsdate ? String(subsdate.getFullYear()) : "";
+    // Calculate and set subscription frequency if dates are valid
+    if (subscription.subsdate && subscription.enddate) {
+      const startDate = parseDate(subscription.subsdate);
+      const endDate = parseDate(subscription.enddate);
 
-      // Extract month, day, year for end date
-      const endDateMonth = enddate
-        ? String(enddate.getMonth() + 1).padStart(2, "0")
-        : "";
-      const endDateDay = enddate
-        ? String(enddate.getDate()).padStart(2, "0")
-        : "";
-      const endDateYear = enddate ? String(enddate.getFullYear()) : "";
-
-      // Format for display in the subscription form
-      const formattedSubsDate = subsdate ? formatDateToMMDDYY(subsdate) : "";
-      const formattedEndDate = enddate ? formatDateToMMDDYY(enddate) : "";
-
-      // Set all values to roleSpecificData
-      setRoleSpecificData({
-        ...selectedSub,
-        // Add the individual date components
-        subsDateMonth,
-        subsDateDay,
-        subsDateYear,
-        endDateMonth,
-        endDateDay,
-        endDateYear,
-        // Add subscription type specific fields
-        referralid:
-          formData.subscriptionType === "Promo"
-            ? selectedSub.referralid || ""
-            : undefined,
-      });
-
-      // Also update the formData for consistency
-      setFormData((prevFormData) => ({
-        ...prevFormData,
-        subscriptionStart: formattedSubsDate,
-        subscriptionEnd: formattedEndDate,
-        subStartMonth: subsDateMonth,
-        subStartDay: subsDateDay,
-        subStartYear: subsDateYear,
-        subEndMonth: endDateMonth,
-        subEndDay: endDateDay,
-        subEndYear: endDateYear,
-        subsclass: selectedSub.subsclass || "",
-        referralid:
-          formData.subscriptionType === "Promo"
-            ? selectedSub.referralid || ""
-            : "",
-      }));
-
-      // Determine subscription frequency based on the subscription period
-      if (subsdate && enddate) {
-        const startDate = new Date(subsdate);
-        const endDate = new Date(enddate);
-
-        // Calculate the difference in months
+      if (startDate && endDate) {
         const diffMonths =
           (endDate.getFullYear() - startDate.getFullYear()) * 12 +
           (endDate.getMonth() - startDate.getMonth());
 
-        // Set subscription frequency based on month difference
         let frequency = "";
-        if (diffMonths >= 22 && diffMonths <= 26) {
-          frequency = "22"; // 2 years
-        } else if (diffMonths >= 10 && diffMonths <= 14) {
-          frequency = "11"; // 1 year
-        } else if (diffMonths >= 5 && diffMonths <= 7) {
-          frequency = "5"; // 6 months
-        }
+        if (diffMonths >= 22 && diffMonths <= 26) frequency = "22";
+        else if (diffMonths >= 10 && diffMonths <= 14) frequency = "11";
+        else if (diffMonths >= 5 && diffMonths <= 7) frequency = "5";
 
         if (frequency) {
           setSubscriptionFreq(frequency);
@@ -1811,6 +2398,100 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
 
+    // Add HRG role submission if user has HRG role and has HRG data
+    if (hasRole("HRG") && roleSpecificData.recvdate) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Format as YYYY-MM-DD for database consistency
+          return `${year}-${month}-${day}`;
+        }
+        return "";
+      };
+
+      const hrgData = {
+        recvdate: formatDate(
+          roleSpecificData.recvdateMonth,
+          roleSpecificData.recvdateDay,
+          roleSpecificData.recvdateYear
+        ),
+        campaigndate: formatDate(
+          roleSpecificData.campaigndateMonth,
+          roleSpecificData.campaigndateDay,
+          roleSpecificData.campaigndateYear
+        ),
+        paymtref: roleSpecificData.paymtref || "",
+        paymtamt: roleSpecificData.paymtamt || 0,
+        unsubscribe: roleSpecificData.unsubscribe || false,
+        remarks: roleSpecificData.remarks || "",
+      };
+
+      roleSubmissions.push({
+        roleType: "HRG",
+        roleData: hrgData,
+      });
+    }
+
+    // Add FOM role submission if user has FOM role and has FOM data
+    if (hasRole("FOM") && roleSpecificData.recvdate) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Format as YYYY-MM-DD for database consistency
+          return `${year}-${month}-${day}`;
+        }
+        return "";
+      };
+
+      const fomData = {
+        recvdate: formatDate(
+          roleSpecificData.recvdateMonth,
+          roleSpecificData.recvdateDay,
+          roleSpecificData.recvdateYear
+        ),
+        paymtref: roleSpecificData.paymtref || "",
+        paymtamt: roleSpecificData.paymtamt || 0,
+        paymtform: roleSpecificData.paymtform || "",
+        unsubscribe: roleSpecificData.unsubscribe || false,
+        remarks: roleSpecificData.remarks || "",
+      };
+
+      roleSubmissions.push({
+        roleType: "FOM",
+        roleData: fomData,
+      });
+    }
+
+    // Add CAL role submission if user has CAL role and has CAL data
+    if (hasRole("CAL") && roleSpecificData.recvdate) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Format as YYYY-MM-DD for database consistency
+          return `${year}-${month}-${day}`;
+        }
+        return "";
+      };
+
+      const calData = {
+        recvdate: formatDate(
+          roleSpecificData.recvdateMonth,
+          roleSpecificData.recvdateDay,
+          roleSpecificData.recvdateYear
+        ),
+        caltype: roleSpecificData.caltype || "",
+        calqty: roleSpecificData.calqty || 0,
+        calamt: roleSpecificData.calamt || 0,
+        paymtref: roleSpecificData.paymtref || "",
+        paymtamt: roleSpecificData.paymtamt || 0,
+        paymtform: roleSpecificData.paymtform || "",
+        paymtdate: roleSpecificData.paymtdate || "",
+        remarks: roleSpecificData.remarks || "",
+      };
+
+      roleSubmissions.push({
+        roleType: "CAL",
+        roleData: calData,
+      });
+    }
+
     // Determine service type based on actual role submissions, not just user role
     const getServiceFromRoleSubmissions = () => {
       if (roleSubmissions.length === 0) {
@@ -1822,6 +2503,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       if (subscriptionTypes.includes("WMM")) return "WMM";
       if (subscriptionTypes.includes("PROMO")) return "PROMO";
       if (subscriptionTypes.includes("COMP")) return "COMP";
+      if (subscriptionTypes.includes("HRG")) return "HRG";
+      if (subscriptionTypes.includes("FOM")) return "FOM";
+      if (subscriptionTypes.includes("CAL")) return "CAL";
 
       // If no subscription types, return empty string
       return "";
@@ -2276,9 +2960,26 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                 selectedSubscription._id
                               : ""
                           }
-                          onChange={handleSelectedSubscriptionChange}
+                          onChange={(e) => {
+                            const selectedSub = availableSubscriptions.find(
+                              (sub) => {
+                                const subId = sub.id || sub._id;
+                                const targetValue = e.target.value;
+                                return String(subId) === String(targetValue);
+                              }
+                            );
+                            if (selectedSub) {
+                              selectSubscription(selectedSub);
+                            } else {
+                              console.error(
+                                "No subscription found for value:",
+                                e.target.value
+                              );
+                            }
+                          }}
                           className="w-full p-2 border rounded-md text-base"
                         >
+                          <option value="">Select a subscription</option>
                           {availableSubscriptions.map((sub) => (
                             <option
                               key={sub.id || sub._id}
@@ -2563,7 +3264,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 </h2>
 
                 {/* Role toggle buttons */}
-                {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
+                {(hasRole("HRG") ||
+                  hasRole("FOM") ||
+                  hasRole("CAL") ||
+                  hasRole("WMM")) && (
                   <div className="flex mb-4 mt-2">
                     <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
                       {hasRole("HRG") && (
@@ -2603,6 +3307,45 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           onClick={() => handleRoleToggle("CAL")}
                         >
                           CAL
+                        </button>
+                      )}
+                      {hasRole("WMM") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "WMM"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("WMM")}
+                        >
+                          WMM
+                        </button>
+                      )}
+                      {hasRole("WMM") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "Promo"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("Promo")}
+                        >
+                          Promo
+                        </button>
+                      )}
+                      {hasRole("WMM") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "Complimentary"
+                              ? "bg-blue-600 text-white shadow-md"
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("Complimentary")}
+                        >
+                          Complimentary
                         </button>
                       )}
                     </div>
@@ -2658,8 +3401,21 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               );
                               if (record) {
                                 setSelectedHrgRecord(record);
+                                const recvdateParts = parseDateToComponents(
+                                  record.recvdate
+                                );
+                                const campaigndateParts = parseDateToComponents(
+                                  record.campaigndate
+                                );
+
                                 setRoleSpecificData({
                                   ...record,
+                                  recvdateMonth: recvdateParts.month,
+                                  recvdateDay: recvdateParts.day,
+                                  recvdateYear: recvdateParts.year,
+                                  campaigndateMonth: campaigndateParts.month,
+                                  campaigndateDay: campaigndateParts.day,
+                                  campaigndateYear: campaigndateParts.year,
                                 });
                               }
                             }}
@@ -2703,8 +3459,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               );
                               if (record) {
                                 setSelectedFomRecord(record);
+                                const recvdateParts = parseDateToComponents(
+                                  record.recvdate
+                                );
                                 setRoleSpecificData({
                                   ...record,
+                                  recvdateMonth: recvdateParts.month,
+                                  recvdateDay: recvdateParts.day,
+                                  recvdateYear: recvdateParts.year,
                                 });
                               }
                             }}
@@ -2748,8 +3510,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                               );
                               if (record) {
                                 setSelectedCalRecord(record);
+                                const recvdateParts = parseDateToComponents(
+                                  record.recvdate
+                                );
                                 setRoleSpecificData({
                                   ...record,
+                                  recvdateMonth: recvdateParts.month,
+                                  recvdateDay: recvdateParts.day,
+                                  recvdateYear: recvdateParts.year,
                                 });
                               }
                             }}
@@ -2771,6 +3539,182 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           </select>
                         </div>
                       )}
+
+                      {selectedRole === "WMM" && wmmRecords.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select WMM Record:
+                          </label>
+                          <select
+                            value={
+                              selectedWmmRecord
+                                ? selectedWmmRecord.id ||
+                                  selectedWmmRecord._id ||
+                                  ""
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const record = wmmRecords.find(
+                                (r) => String(r.id || r._id) === e.target.value
+                              );
+                              if (record) {
+                                setSelectedWmmRecord(record);
+                                const subsdateParts = parseDateToComponents(
+                                  record.subsdate
+                                );
+                                const enddateParts = parseDateToComponents(
+                                  record.enddate
+                                );
+                                setRoleSpecificData({
+                                  ...record,
+                                  subsdateMonth: subsdateParts.month,
+                                  subsdateDay: subsdateParts.day,
+                                  subsdateYear: subsdateParts.year,
+                                  enddateMonth: enddateParts.month,
+                                  enddateDay: enddateParts.day,
+                                  enddateYear: enddateParts.year,
+                                });
+                              }
+                            }}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            {wmmRecords.map((record) => (
+                              <option
+                                key={record.id || record._id}
+                                value={record.id || record._id}
+                              >
+                                {record.subsdate
+                                  ? formatDateToMonthYear(
+                                      parseDate(record.subsdate)
+                                    )
+                                  : "Unknown"}
+                                {record.paymtamt
+                                  ? ` - Php ${record.paymtamt}`
+                                  : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {selectedRole === "Promo" && promoRecords.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Promo Record:
+                          </label>
+                          <select
+                            value={
+                              selectedPromoRecord
+                                ? selectedPromoRecord.id ||
+                                  selectedPromoRecord._id ||
+                                  ""
+                                : ""
+                            }
+                            onChange={(e) => {
+                              const record = promoRecords.find(
+                                (r) => String(r.id || r._id) === e.target.value
+                              );
+                              if (record) {
+                                setSelectedPromoRecord(record);
+                                const subsdateParts = parseDateToComponents(
+                                  record.subsdate
+                                );
+                                const enddateParts = parseDateToComponents(
+                                  record.enddate
+                                );
+                                setRoleSpecificData({
+                                  ...record,
+                                  subsdateMonth: subsdateParts.month,
+                                  subsdateDay: subsdateParts.day,
+                                  subsdateYear: subsdateParts.year,
+                                  enddateMonth: enddateParts.month,
+                                  enddateDay: enddateParts.day,
+                                  enddateYear: enddateParts.year,
+                                });
+                              }
+                            }}
+                            className="w-full p-2 border rounded-md text-base"
+                          >
+                            {promoRecords.map((record) => (
+                              <option
+                                key={record.id || record._id}
+                                value={record.id || record._id}
+                              >
+                                {record.subsdate
+                                  ? formatDateToMonthYear(
+                                      parseDate(record.subsdate)
+                                    )
+                                  : "Unknown"}
+                                {record.paymtamt
+                                  ? ` - Php ${record.paymtamt}`
+                                  : ""}
+                                {record.referralid
+                                  ? ` - Ref: ${record.referralid}`
+                                  : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {selectedRole === "Complimentary" &&
+                        complimentaryRecords.length > 0 && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Select Complimentary Record:
+                            </label>
+                            <select
+                              value={
+                                selectedComplimentaryRecord
+                                  ? selectedComplimentaryRecord.id ||
+                                    selectedComplimentaryRecord._id ||
+                                    ""
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const record = complimentaryRecords.find(
+                                  (r) =>
+                                    String(r.id || r._id) === e.target.value
+                                );
+                                if (record) {
+                                  setSelectedComplimentaryRecord(record);
+                                  const subsdateParts = parseDateToComponents(
+                                    record.subsdate
+                                  );
+                                  const enddateParts = parseDateToComponents(
+                                    record.enddate
+                                  );
+                                  setRoleSpecificData({
+                                    ...record,
+                                    subsdateMonth: subsdateParts.month,
+                                    subsdateDay: subsdateParts.day,
+                                    subsdateYear: subsdateParts.year,
+                                    enddateMonth: enddateParts.month,
+                                    enddateDay: enddateParts.day,
+                                    enddateYear: enddateParts.year,
+                                  });
+                                }
+                              }}
+                              className="w-full p-2 border rounded-md text-base"
+                            >
+                              {complimentaryRecords.map((record) => (
+                                <option
+                                  key={record.id || record._id}
+                                  value={record.id || record._id}
+                                >
+                                  {record.subsdate
+                                    ? formatDateToMonthYear(
+                                        parseDate(record.subsdate)
+                                      )
+                                    : "Unknown"}
+                                  {record.paymtamt
+                                    ? ` - Php ${record.paymtamt}`
+                                    : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                     </div>
                   )}
                 </div>
@@ -2779,78 +3723,165 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 {selectedRole === "HRG" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <InputField
-                        label="Received Date:"
-                        id="recvdate"
-                        name="recvdate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.recvdate || ""
-                            : newRoleData.recvdate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  recvdate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
-
-                      <InputField
-                        label="Renewal Date:"
-                        id="renewdate"
-                        name="renewdate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.renewdate || ""
-                            : newRoleData.renewdate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  renewdate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
-
-                      <div className="flex items-center mt-2 mb-2">
-                        <Button
-                          className="bg-blue-500 text-white text-xs py-1 px-2 rounded"
-                          type="button"
-                          onClick={handleRenewDateToday}
-                        >
-                          Set Renewal to Today
-                        </Button>
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Received Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="recvdateMonth"
+                              name="recvdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.recvdateMonth || ""
+                                  : newRoleData.recvdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        recvdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="recvdateDay"
+                            name="recvdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateDay || ""
+                                : newRoleData.recvdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="recvdateYear"
+                            name="recvdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateYear || ""
+                                : newRoleData.recvdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
                       </div>
 
-                      <InputField
-                        label="Campaign Date:"
-                        id="campaigndate"
-                        name="campaigndate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.campaigndate || ""
-                            : newRoleData.campaigndate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  campaigndate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Campaign Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="campaigndateMonth"
+                              name="campaigndateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.campaigndateMonth || ""
+                                  : newRoleData.campaigndateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        campaigndateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="campaigndateDay"
+                            name="campaigndateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.campaigndateDay || ""
+                                : newRoleData.campaigndateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      campaigndateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="campaigndateYear"
+                            name="campaigndateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.campaigndateYear || ""
+                                : newRoleData.campaigndateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      campaigndateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div>
@@ -2956,26 +3987,85 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 {selectedRole === "FOM" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <InputField
-                        label="Received Date:"
-                        id="recvdate"
-                        name="recvdate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.recvdate || ""
-                            : newRoleData.recvdate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  recvdate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Received Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="recvdateMonth"
+                              name="recvdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.recvdateMonth || ""
+                                  : newRoleData.recvdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        recvdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="recvdateDay"
+                            name="recvdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateDay || ""
+                                : newRoleData.recvdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="recvdateYear"
+                            name="recvdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateYear || ""
+                                : newRoleData.recvdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
 
                       <InputField
                         label="Payment Reference:"
@@ -3102,26 +4192,85 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 {selectedRole === "CAL" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <InputField
-                        label="Received Date:"
-                        id="recvdate"
-                        name="recvdate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.recvdate || ""
-                            : newRoleData.recvdate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  recvdate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Received Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="recvdateMonth"
+                              name="recvdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.recvdateMonth || ""
+                                  : newRoleData.recvdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        recvdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="recvdateDay"
+                            name="recvdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateDay || ""
+                                : newRoleData.recvdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="recvdateYear"
+                            name="recvdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.recvdateYear || ""
+                                : newRoleData.recvdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      recvdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
 
                       <InputField
                         label="Calendar Type:"
@@ -3267,6 +4416,1134 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                 setNewRoleData({
                                   ...newRoleData,
                                   paymtdate: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) =>
+                                  setNewRoleData({
+                                    ...newRoleData,
+                                    remarks: e.target.value,
+                                  })
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRole === "WMM" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription Start Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="subsdateMonth"
+                              name="subsdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.subsdateMonth || ""
+                                  : newRoleData.subsdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        subsdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="subsdateDay"
+                            name="subsdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateDay || ""
+                                : newRoleData.subsdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="subsdateYear"
+                            name="subsdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateYear || ""
+                                : newRoleData.subsdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription End Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="enddateMonth"
+                              name="enddateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.enddateMonth || ""
+                                  : newRoleData.enddateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        enddateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="enddateDay"
+                            name="enddateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateDay || ""
+                                : newRoleData.enddateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="enddateYear"
+                            name="enddateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateYear || ""
+                                : newRoleData.enddateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <InputField
+                        label="Subscription Year:"
+                        id="subsyear"
+                        name="subsyear"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsyear || ""
+                            : newRoleData.subsyear || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsyear: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Copies:"
+                        id="copies"
+                        name="copies"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.copies || ""
+                            : newRoleData.copies || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  copies: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+                    </div>
+
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtamt: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Masses:"
+                        id="paymtmasses"
+                        name="paymtmasses"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtmasses || ""
+                            : newRoleData.paymtmasses || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtmasses: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="calendar"
+                            name="calendar"
+                            checked={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.calendar || false
+                                : newRoleData.calendar || false
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      calendar: e.target.checked,
+                                    })
+                            }
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Calendar
+                          </span>
+                        </label>
+                      </div>
+
+                      <InputField
+                        label="Subscription Class:"
+                        id="subsclass"
+                        name="subsclass"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsclass || ""
+                            : newRoleData.subsclass || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsclass: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Donor ID:"
+                        id="donorid"
+                        name="donorid"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.donorid || ""
+                            : newRoleData.donorid || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  donorid: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtref: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) =>
+                                  setNewRoleData({
+                                    ...newRoleData,
+                                    remarks: e.target.value,
+                                  })
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRole === "Promo" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription Start Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="subsdateMonth"
+                              name="subsdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.subsdateMonth || ""
+                                  : newRoleData.subsdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        subsdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="subsdateDay"
+                            name="subsdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateDay || ""
+                                : newRoleData.subsdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="subsdateYear"
+                            name="subsdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateYear || ""
+                                : newRoleData.subsdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription End Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="enddateMonth"
+                              name="enddateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.enddateMonth || ""
+                                  : newRoleData.enddateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        enddateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="enddateDay"
+                            name="enddateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateDay || ""
+                                : newRoleData.enddateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="enddateYear"
+                            name="enddateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateYear || ""
+                                : newRoleData.enddateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <InputField
+                        label="Subscription Year:"
+                        id="subsyear"
+                        name="subsyear"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsyear || ""
+                            : newRoleData.subsyear || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsyear: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Copies:"
+                        id="copies"
+                        name="copies"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.copies || ""
+                            : newRoleData.copies || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  copies: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Referral ID:"
+                        id="referralid"
+                        name="referralid"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.referralid || ""
+                            : newRoleData.referralid || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  referralid: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+                    </div>
+
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtamt: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Masses:"
+                        id="paymtmasses"
+                        name="paymtmasses"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtmasses || ""
+                            : newRoleData.paymtmasses || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtmasses: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="calendar"
+                            name="calendar"
+                            checked={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.calendar || false
+                                : newRoleData.calendar || false
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      calendar: e.target.checked,
+                                    })
+                            }
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Calendar
+                          </span>
+                        </label>
+                      </div>
+
+                      <InputField
+                        label="Subscription Class:"
+                        id="subsclass"
+                        name="subsclass"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsclass || ""
+                            : newRoleData.subsclass || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsclass: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Donor ID:"
+                        id="donorid"
+                        name="donorid"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.donorid || ""
+                            : newRoleData.donorid || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  donorid: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtref: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Remarks:
+                        </label>
+                        <textarea
+                          id="remarks"
+                          name="remarks"
+                          value={
+                            roleRecordMode === "edit"
+                              ? roleSpecificData.remarks || ""
+                              : newRoleData.remarks || ""
+                          }
+                          onChange={
+                            roleRecordMode === "edit"
+                              ? handleRoleSpecificChange
+                              : (e) =>
+                                  setNewRoleData({
+                                    ...newRoleData,
+                                    remarks: e.target.value,
+                                  })
+                          }
+                          className="w-full p-2 border rounded-md text-base"
+                          rows="3"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRole === "Complimentary" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription Start Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="subsdateMonth"
+                              name="subsdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.subsdateMonth || ""
+                                  : newRoleData.subsdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        subsdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="subsdateDay"
+                            name="subsdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateDay || ""
+                                : newRoleData.subsdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="subsdateYear"
+                            name="subsdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.subsdateYear || ""
+                                : newRoleData.subsdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      subsdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Subscription End Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="enddateMonth"
+                              name="enddateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.enddateMonth || ""
+                                  : newRoleData.enddateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        enddateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="enddateDay"
+                            name="enddateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateDay || ""
+                                : newRoleData.enddateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="enddateYear"
+                            name="enddateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.enddateYear || ""
+                                : newRoleData.enddateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      enddateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
+
+                      <InputField
+                        label="Subscription Year:"
+                        id="subsyear"
+                        name="subsyear"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsyear || ""
+                            : newRoleData.subsyear || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsyear: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Copies:"
+                        id="copies"
+                        name="copies"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.copies || ""
+                            : newRoleData.copies || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  copies: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+                    </div>
+
+                    <div>
+                      <InputField
+                        label="Payment Amount:"
+                        id="paymtamt"
+                        name="paymtamt"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtamt || ""
+                            : newRoleData.paymtamt || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtamt: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Masses:"
+                        id="paymtmasses"
+                        name="paymtmasses"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtmasses || ""
+                            : newRoleData.paymtmasses || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtmasses: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <div className="mb-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="calendar"
+                            name="calendar"
+                            checked={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.calendar || false
+                                : newRoleData.calendar || false
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      calendar: e.target.checked,
+                                    })
+                            }
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Calendar
+                          </span>
+                        </label>
+                      </div>
+
+                      <InputField
+                        label="Subscription Class:"
+                        id="subsclass"
+                        name="subsclass"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.subsclass || ""
+                            : newRoleData.subsclass || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  subsclass: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Donor ID:"
+                        id="donorid"
+                        name="donorid"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.donorid || ""
+                            : newRoleData.donorid || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  donorid: e.target.value,
+                                })
+                        }
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Payment Reference:"
+                        id="paymtref"
+                        name="paymtref"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtref || ""
+                            : newRoleData.paymtref || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtref: e.target.value,
                                 })
                         }
                         className="text-base"
