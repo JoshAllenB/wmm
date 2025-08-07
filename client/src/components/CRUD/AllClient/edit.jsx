@@ -13,6 +13,7 @@ import {
 } from "../../Table/Data/utilData";
 import { webSocketService } from "../../../services/WebSocketService";
 import DonorAdd from "../donorAdd";
+import { useToast } from "../../UI/ShadCN/hooks/use-toast";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -78,6 +79,7 @@ const parseDate = (dateString) => {
 
 const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const { user, hasRole } = useUser();
+  const { toast } = useToast();
 
   // Add months array at the top of the component
   const months = [
@@ -275,6 +277,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     calqty: 0,
     calamt: 0,
     paymtdate: "",
+    paymtdateMonth: "",
+    paymtdateDay: "",
+    paymtdateYear: "",
   });
 
   const [areas, setAreas] = useState(null);
@@ -1085,6 +1090,21 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         }
       }
 
+      if (
+        name === "paymtdateMonth" ||
+        name === "paymtdateDay" ||
+        name === "paymtdateYear"
+      ) {
+        if (
+          newData.paymtdateMonth &&
+          newData.paymtdateDay &&
+          newData.paymtdateYear
+        ) {
+          // Format as YYYY-MM-DD for database consistency
+          newData.paymtdate = `${newData.paymtdateYear}-${newData.paymtdateMonth}-${newData.paymtdateDay}`;
+        }
+      }
+
       return newData;
     });
   };
@@ -1385,6 +1405,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const campaigndateParts = parseDateToComponents(
             firstRecord.campaigndate
           );
+          const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
             ...firstRecord,
             recvdateMonth: recvdateParts.month,
@@ -1393,6 +1414,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             campaigndateMonth: campaigndateParts.month,
             campaigndateDay: campaigndateParts.day,
             campaigndateYear: campaigndateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           };
           setRoleSpecificData(roleData);
         } else {
@@ -1402,6 +1426,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const campaigndateParts = parseDateToComponents(
             selectedHrgRecord.campaigndate
           );
+          const paymtdateParts = parseDateToComponents(
+            selectedHrgRecord.paymtdate
+          );
           setRoleSpecificData({
             ...selectedHrgRecord,
             recvdateMonth: recvdateParts.month,
@@ -1410,6 +1437,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             campaigndateMonth: campaigndateParts.month,
             campaigndateDay: campaigndateParts.day,
             campaigndateYear: campaigndateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           });
         }
       } else {
@@ -1425,6 +1455,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           campaigndateMonth: "",
           campaigndateDay: "",
           campaigndateYear: "",
+          paymtdate: "",
+          paymtdateMonth: "",
+          paymtdateDay: "",
+          paymtdateYear: "",
           paymtref: "",
           paymtamt: 0,
           unsubscribe: false,
@@ -1438,22 +1472,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const firstRecord = fomRecords[0];
           setSelectedFomRecord(firstRecord);
           const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+          const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
             ...firstRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           };
           setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedFomRecord.recvdate
           );
+          const paymtdateParts = parseDateToComponents(
+            selectedFomRecord.paymtdate
+          );
           setRoleSpecificData({
             ...selectedFomRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           });
         }
       } else {
@@ -1465,6 +1509,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           recvdateMonth: todayParts.month,
           recvdateDay: todayParts.day,
           recvdateYear: todayParts.year,
+          paymtdate: "",
+          paymtdateMonth: "",
+          paymtdateDay: "",
+          paymtdateYear: "",
           paymtamt: 0,
           paymtform: "",
           paymtref: "",
@@ -1479,22 +1527,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const firstRecord = calRecords[0];
           setSelectedCalRecord(firstRecord);
           const recvdateParts = parseDateToComponents(firstRecord.recvdate);
+          const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
             ...firstRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           };
           setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedCalRecord.recvdate
           );
+          const paymtdateParts = parseDateToComponents(
+            selectedCalRecord.paymtdate
+          );
           setRoleSpecificData({
             ...selectedCalRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
+            paymtdateMonth: paymtdateParts.month,
+            paymtdateDay: paymtdateParts.day,
+            paymtdateYear: paymtdateParts.year,
           });
         }
       } else {
@@ -1513,6 +1571,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           paymtamt: 0,
           paymtform: "",
           paymtdate: "",
+          paymtdateMonth: "",
+          paymtdateDay: "",
+          paymtdateYear: "",
           remarks: "",
         });
       }
@@ -2209,6 +2270,13 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     e.preventDefault();
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -2276,8 +2344,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       );
     };
 
-    // Only add subscription data if user has WMM role AND has provided subscription data
-    if (hasRole("WMM") && hasSubscriptionData()) {
+    // Only create WMM submission if user has WMM role AND is currently in WMM mode
+    if (hasRole("WMM") && selectedRole === "WMM" && hasSubscriptionData()) {
       // Get subscription specific data based on subscription type
       const getSubscriptionSpecificData = () => {
         const baseData = {
@@ -2398,8 +2466,30 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
 
-    // Add HRG role submission if user has HRG role and has HRG data
-    if (hasRole("HRG") && roleSpecificData.recvdate) {
+    // Use the appropriate data source based on mode
+    const dataSource =
+      roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+
+    // Check if we have valid date components for HRG
+    const hasHrgDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other HRG data
+    const hasHrgPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasHrgRemarks = dataSource.remarks;
+    const hasHrgCampaign =
+      dataSource.campaigndateMonth &&
+      dataSource.campaigndateDay &&
+      dataSource.campaigndateYear;
+
+    // Only create HRG submission if user has HRG role AND is currently in HRG mode
+    if (
+      hasRole("HRG") &&
+      selectedRole === "HRG" &&
+      (hasHrgDate || hasHrgPayment || hasHrgRemarks || hasHrgCampaign)
+    ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
           // Format as YYYY-MM-DD for database consistency
@@ -2410,19 +2500,19 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       const hrgData = {
         recvdate: formatDate(
-          roleSpecificData.recvdateMonth,
-          roleSpecificData.recvdateDay,
-          roleSpecificData.recvdateYear
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
         ),
         campaigndate: formatDate(
-          roleSpecificData.campaigndateMonth,
-          roleSpecificData.campaigndateDay,
-          roleSpecificData.campaigndateYear
+          dataSource.campaigndateMonth,
+          dataSource.campaigndateDay,
+          dataSource.campaigndateYear
         ),
-        paymtref: roleSpecificData.paymtref || "",
-        paymtamt: roleSpecificData.paymtamt || 0,
-        unsubscribe: roleSpecificData.unsubscribe || false,
-        remarks: roleSpecificData.remarks || "",
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        unsubscribe: dataSource.unsubscribe || false,
+        remarks: dataSource.remarks || "",
       };
 
       roleSubmissions.push({
@@ -2431,8 +2521,31 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
 
-    // Add FOM role submission if user has FOM role and has FOM data
-    if (hasRole("FOM") && roleSpecificData.recvdate) {
+    // Check if we have valid date components for FOM
+    const hasFomDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other FOM data
+    const hasFomPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasFomPaymentDate =
+      dataSource.paymtdateMonth &&
+      dataSource.paymtdateDay &&
+      dataSource.paymtdateYear;
+    const hasFomRemarks = dataSource.remarks;
+    const hasFomForm = dataSource.paymtform;
+
+    // Only create FOM submission if user has FOM role AND is currently in FOM mode
+    if (
+      hasRole("FOM") &&
+      selectedRole === "FOM" &&
+      (hasFomDate ||
+        hasFomPayment ||
+        hasFomPaymentDate ||
+        hasFomRemarks ||
+        hasFomForm)
+    ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
           // Format as YYYY-MM-DD for database consistency
@@ -2443,15 +2556,20 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       const fomData = {
         recvdate: formatDate(
-          roleSpecificData.recvdateMonth,
-          roleSpecificData.recvdateDay,
-          roleSpecificData.recvdateYear
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
         ),
-        paymtref: roleSpecificData.paymtref || "",
-        paymtamt: roleSpecificData.paymtamt || 0,
-        paymtform: roleSpecificData.paymtform || "",
-        unsubscribe: roleSpecificData.unsubscribe || false,
-        remarks: roleSpecificData.remarks || "",
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
+        paymtdate: formatDate(
+          dataSource.paymtdateMonth,
+          dataSource.paymtdateDay,
+          dataSource.paymtdateYear
+        ),
+        unsubscribe: dataSource.unsubscribe || false,
+        remarks: dataSource.remarks || "",
       };
 
       roleSubmissions.push({
@@ -2460,8 +2578,35 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       });
     }
 
-    // Add CAL role submission if user has CAL role and has CAL data
-    if (hasRole("CAL") && roleSpecificData.recvdate) {
+    // Check if we have valid date components for CAL
+    const hasCalDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other CAL data
+    const hasCalPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasCalPaymentDate =
+      dataSource.paymtdateMonth &&
+      dataSource.paymtdateDay &&
+      dataSource.paymtdateYear;
+    const hasCalRemarks = dataSource.remarks;
+    const hasCalType = dataSource.caltype;
+    const hasCalQty = dataSource.calqty;
+    const hasCalAmt = dataSource.calamt;
+
+    // Only create CAL submission if user has CAL role AND is currently in CAL mode
+    if (
+      hasRole("CAL") &&
+      selectedRole === "CAL" &&
+      (hasCalDate ||
+        hasCalPayment ||
+        hasCalPaymentDate ||
+        hasCalRemarks ||
+        hasCalType ||
+        hasCalQty ||
+        hasCalAmt)
+    ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
           // Format as YYYY-MM-DD for database consistency
@@ -2472,18 +2617,22 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       const calData = {
         recvdate: formatDate(
-          roleSpecificData.recvdateMonth,
-          roleSpecificData.recvdateDay,
-          roleSpecificData.recvdateYear
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
         ),
-        caltype: roleSpecificData.caltype || "",
-        calqty: roleSpecificData.calqty || 0,
-        calamt: roleSpecificData.calamt || 0,
-        paymtref: roleSpecificData.paymtref || "",
-        paymtamt: roleSpecificData.paymtamt || 0,
-        paymtform: roleSpecificData.paymtform || "",
-        paymtdate: roleSpecificData.paymtdate || "",
-        remarks: roleSpecificData.remarks || "",
+        caltype: dataSource.caltype || "",
+        calqty: dataSource.calqty || 0,
+        calamt: dataSource.calamt || 0,
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
+        paymtdate: formatDate(
+          dataSource.paymtdateMonth,
+          dataSource.paymtdateDay,
+          dataSource.paymtdateYear
+        ),
+        remarks: dataSource.remarks || "",
       };
 
       roleSubmissions.push({
@@ -2527,14 +2676,53 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     };
 
     try {
+      // Check if authentication token exists
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await axios.put(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
           rowData.id
         }`,
-        submissionData
+        submissionData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
       );
 
-      if (response.data) {
+      if (response.data && response.data.success) {
+        // Show success toast
+        toast({
+          title: "Client Updated Successfully",
+          description: (
+            <div>
+              <p>
+                Client ID:{" "}
+                <span className="font-mono bg-gray-100 px-1 rounded">
+                  {rowData.id}
+                </span>
+              </p>
+              <p>
+                Name: {clientData.fname} {clientData.lname}
+                {clientData.company}
+              </p>
+              <p className="text-sm text-green-600 mt-1">
+                ✓ All role data saved successfully
+              </p>
+            </div>
+          ),
+          duration: 5000,
+        });
+
         // Backend already emits the WebSocket event, so we don't need to emit it again
         if (onEditSuccess) {
           onEditSuccess({
@@ -2551,9 +2739,49 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           });
         }
         onClose();
+      } else {
+        // Handle case where API returns success: false
+        toast({
+          title: "Update Failed",
+          description:
+            response.data?.message ||
+            "Failed to update client. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error updating client:", error);
+
+      // Show detailed error toast
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "Failed to update client. Please check your connection and try again.";
+
+      toast({
+        title: "Error Updating Client",
+        description: (
+          <div>
+            <p className="font-semibold">{errorMessage}</p>
+            {error.response?.status && (
+              <p className="text-sm text-gray-600 mt-1">
+                Status: {error.response.status}
+              </p>
+            )}
+            {process.env.NODE_ENV === "development" &&
+              error.response?.data?.details && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Details: {error.response.data.details}
+                </p>
+              )}
+          </div>
+        ),
+        variant: "destructive",
+        duration: 8000,
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -4400,26 +4628,85 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         className="text-base"
                       />
 
-                      <InputField
-                        label="Payment Date:"
-                        id="paymtdate"
-                        name="paymtdate"
-                        value={
-                          roleRecordMode === "edit"
-                            ? roleSpecificData.paymtdate || ""
-                            : newRoleData.paymtdate || ""
-                        }
-                        onChange={
-                          roleRecordMode === "edit"
-                            ? handleRoleSpecificChange
-                            : (e) =>
-                                setNewRoleData({
-                                  ...newRoleData,
-                                  paymtdate: e.target.value,
-                                })
-                        }
-                        className="text-base"
-                      />
+                      <div className="mb-2">
+                        <label className="block text-black text-base mb-1">
+                          Payment Date:
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="relative">
+                            <select
+                              id="paymtdateMonth"
+                              name="paymtdateMonth"
+                              value={
+                                roleRecordMode === "edit"
+                                  ? roleSpecificData.paymtdateMonth || ""
+                                  : newRoleData.paymtdateMonth || ""
+                              }
+                              onChange={
+                                roleRecordMode === "edit"
+                                  ? handleRoleSpecificChange
+                                  : (e) =>
+                                      setNewRoleData({
+                                        ...newRoleData,
+                                        paymtdateMonth: e.target.value,
+                                      })
+                              }
+                              className="w-full p-2 text-base border rounded-md border-gray-300"
+                            >
+                              <option value="">Month</option>
+                              {months.map((month) => (
+                                <option key={month.value} value={month.value}>
+                                  {month.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            id="paymtdateDay"
+                            name="paymtdateDay"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.paymtdateDay || ""
+                                : newRoleData.paymtdateDay || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      paymtdateDay: e.target.value,
+                                    })
+                            }
+                            placeholder="DD"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="paymtdateYear"
+                            name="paymtdateYear"
+                            value={
+                              roleRecordMode === "edit"
+                                ? roleSpecificData.paymtdateYear || ""
+                                : newRoleData.paymtdateYear || ""
+                            }
+                            onChange={
+                              roleRecordMode === "edit"
+                                ? handleRoleSpecificChange
+                                : (e) =>
+                                    setNewRoleData({
+                                      ...newRoleData,
+                                      paymtdateYear: e.target.value,
+                                    })
+                            }
+                            placeholder="YYYY"
+                            className="w-full p-2 text-base border rounded-md border-gray-300"
+                            maxLength="4"
+                          />
+                        </div>
+                      </div>
 
                       <div className="mb-4">
                         <label className="block text-sm font-medium text-gray-700 mb-1">

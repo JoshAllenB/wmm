@@ -221,7 +221,6 @@ router.post(
         modelNames = ["WmmModel"]; // Default to WmmModel if no roles match
       }
 
-      console.log(`Fetching all data with batch processing. Models: ${modelNames.join(', ')}`);
 
       // Use the optimized DataService with batch processing
       const results = await dataService.fetchAllDataWithBatching({
@@ -542,7 +541,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     }
 
     const { id } = req.params;
-    const { clientData, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
+    const { clientData, roleSubmissions, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
     
     // Get the old client data before update
     const oldClientData = await ClientModel.findOne({ id }).lean();
@@ -581,150 +580,30 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ error: "Client not found" });
     }
 
-    // Handle role-specific data update
-    let updatedRoleSpecificClient = null;
+    // Handle role-specific data updates
     const roleModelMap = {
       WMM: WmmModel,
+      PROMO: PromoModel,
+      COMP: ComplimentaryModel,
       HRG: HrgModel,
       FOM: FomModel,
       CAL: CalModel
     };
 
-    if (roleType === "WMM") {
-      
-      if (roleData.isNewSubscription) {
-        // Generate new ID for the role-specific model
-        const highestIdRoleSpecific = await WmmModel.findOne().sort({ id: -1 });
-        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
-        
-        const newRoleSpecificData = {
-          id: newRoleSpecificId,
-          clientid: id,
-          ...roleData,
-          adduser: user.username,
-          adddate: roleData.adddate || new Date()
-            .toLocaleString("en-US", {
-              month: "numeric",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true,
-            })
-            .replace(",", ""),
-        };
-        
-        // Create new role-specific record
-        updatedRoleSpecificClient = await WmmModel.create(newRoleSpecificData);
-      } else if (roleData.id) {
-        
-        // Check if roleData.id is an ObjectId (string with 24 hex chars) or a numeric id
-        const isObjectId = /^[0-9a-fA-F]{24}$/.test(roleData.id);
-        
-        let query;
-        if (isObjectId) {
-          query = { _id: roleData.id };
-        } else {
-          query = { id: Number(roleData.id) };
-        }
-        
-        // Create a clean update object without the id field
-        const { id: removedId, _id, ...cleanRoleData } = roleData;
-        
-        const updatedRoleData = {
-          ...cleanRoleData,
-          editdate: new Date(),
-          edituser: user.username,
-        };
-        
-        updatedRoleSpecificClient = await WmmModel.findOneAndUpdate(
-          query,
-          updatedRoleData,
-          { new: true }
-        );
-      }
-    } else if (roleType && roleModelMap[roleType]) {
-      const RoleModel = roleModelMap[roleType];
+    const roleResults = [];
 
-      if (isNewRecord || isNewRoleData) {
-        // If this is a new record, create it
-        
-        // Generate new ID for the role-specific model
-        const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
-        
-        const newRoleSpecificData = {
-          id: newRoleSpecificId,
-          clientid: id,
-          ...roleData,
-          adduser: user.username,
-          adddate: roleData.adddate || new Date()
-            .toLocaleString("en-US", {
-              month: "numeric",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true,
-            })
-            .replace(",", ""),
-        };
-        
-        // Create new role-specific record
-        updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
-      } else if (recordId) {
-        // If we have a recordId, find and update that specific record
-        const updatedRoleData = {
-          ...roleData,
-          editdate: new Date(),
-          edituser: user.username,
-        };
-        
-        // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
-        // ObjectIds look like: "6818b6211563c24249e1e027"
-        const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
-        
-        let query;
-        if (isObjectId) {
-          // If it's an ObjectId string, only query by _id
-          query = { _id: recordId };
-        } else {
-          // If it's a numeric id, convert to number and query by id
-          query = { id: Number(recordId) };
-        }
-        
-        updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
-          query,
-          updatedRoleData,
-          { new: true }
-        );
-      } else {
-        // Find existing role-specific data by client ID (legacy behavior)
-        const existingRoleData = await RoleModel.findOne({ clientid: id });
+    // Process roleSubmissions if provided (new approach)
+    if (Array.isArray(roleSubmissions) && roleSubmissions.length > 0) {
+      for (const submission of roleSubmissions) {
+        const { roleType, roleData } = submission;
 
-        if (existingRoleData) {
-          // Update only changed fields
-          const updatedRoleData = {};
-          for (const [key, value] of Object.entries(roleData)) {
-            if (existingRoleData[key] !== value) {
-              updatedRoleData[key] = value;
-            }
-          }
+        if (roleType && roleModelMap[roleType]) {
+          const RoleModel = roleModelMap[roleType];
 
-          // Add metadata for the update
-          updatedRoleData.editdate = new Date();
-          updatedRoleData.edituser = user.username;
+          // Generate new ID for the role-specific model
+          const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+          const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
-          // Update role-specific data
-          updatedRoleSpecificClient = await RoleModel.findOneAndUpdate(
-            { clientid: id },
-            updatedRoleData,
-            { new: true }
-          );
-        } else {
-          // If role-specific data doesn't exist, create it
           // Format adddate based on subscription type
           let formattedAddDate;
           if (roleType === "COMP") {
@@ -746,18 +625,164 @@ router.put("/update/:id", verifyToken, async (req, res) => {
               .replace(",", "");
           }
 
-          const newRoleSpecificData = {
-            clientid: id,
+          const roleSpecificData = {
+            id: newRoleSpecificId,
+            clientid: parseInt(id),
             ...roleData,
             adduser: user.username,
             adddate: formattedAddDate,
           };
-          updatedRoleSpecificClient = await RoleModel.create(newRoleSpecificData);
+
+          // Insert role-specific data
+          const roleSpecificClient = await RoleModel.create(roleSpecificData);
+          roleResults.push({
+            roleType,
+            success: true,
+            data: roleSpecificClient
+          });
+        }
+      }
+    } else if (roleType && roleData) {
+      // Legacy single role handling (for backward compatibility)
+      if (roleModelMap[roleType]) {
+        const RoleModel = roleModelMap[roleType];
+
+        if (isNewRecord || isNewRoleData) {
+          // Generate new ID for the role-specific model
+          const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+          const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+          
+          const newRoleSpecificData = {
+            id: newRoleSpecificId,
+            clientid: parseInt(id),
+            ...roleData,
+            adduser: user.username,
+            adddate: roleData.adddate || new Date()
+              .toLocaleString("en-US", {
+                month: "numeric",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+              })
+              .replace(",", ""),
+          };
+          
+          // Create new role-specific record
+          const roleSpecificClient = await RoleModel.create(newRoleSpecificData);
+          roleResults.push({
+            roleType,
+            success: true,
+            data: roleSpecificClient
+          });
+        } else if (recordId) {
+          // If we have a recordId, find and update that specific record
+          const updatedRoleData = {
+            ...roleData,
+            editdate: new Date(),
+            edituser: user.username,
+          };
+          
+          // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
+          const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
+          
+          let query;
+          if (isObjectId) {
+            query = { _id: recordId };
+          } else {
+            query = { id: Number(recordId) };
+          }
+          
+          const roleSpecificClient = await RoleModel.findOneAndUpdate(
+            query,
+            updatedRoleData,
+            { new: true }
+          );
+          roleResults.push({
+            roleType,
+            success: true,
+            data: roleSpecificClient
+          });
+        } else {
+          // Find existing role-specific data by client ID (legacy behavior)
+          const existingRoleData = await RoleModel.findOne({ clientid: parseInt(id) });
+
+          if (existingRoleData) {
+            // Update only changed fields
+            const updatedRoleData = {};
+            for (const [key, value] of Object.entries(roleData)) {
+              if (existingRoleData[key] !== value) {
+                updatedRoleData[key] = value;
+              }
+            }
+
+            // Add metadata for the update
+            updatedRoleData.editdate = new Date();
+            updatedRoleData.edituser = user.username;
+
+            // Update role-specific data
+            const roleSpecificClient = await RoleModel.findOneAndUpdate(
+              { clientid: parseInt(id) },
+              updatedRoleData,
+              { new: true }
+            );
+            roleResults.push({
+              roleType,
+              success: true,
+              data: roleSpecificClient
+            });
+          } else {
+            // If role-specific data doesn't exist, create it
+            let formattedAddDate;
+            if (roleType === "COMP") {
+              const now = new Date();
+              formattedAddDate = now.toISOString().split('T')[0];
+            } else {
+              formattedAddDate = new Date()
+                .toLocaleString("en-US", {
+                  month: "numeric",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })
+                .replace(",", "");
+            }
+
+            const newRoleSpecificData = {
+              clientid: parseInt(id),
+              ...roleData,
+              adduser: user.username,
+              adddate: formattedAddDate,
+            };
+            const roleSpecificClient = await RoleModel.create(newRoleSpecificData);
+            roleResults.push({
+              roleType,
+              success: true,
+              data: roleSpecificClient
+            });
+          }
         }
       }
     }
 
-          // Gather all role-specific data after update
+    // Gather all role-specific data after update
+    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
+      WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+      HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
+      PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
+      ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
+    ]);
+    
+    // WebSocket updates
+    if (req.io) {
+      // Get all subscription data for this client
       const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
         WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
         HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
@@ -766,34 +791,24 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
         ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
       ]);
-      
-      // WebSocket updates
-      if (req.io) {
-        
-        // Get all subscription data for this client
-        const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
-          WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-          HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-          FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-          CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-          PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-          ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
-        ]);
 
-        // Emit the updated client data with all subscription data
-        req.io.emit("data-update", [{
-          type: "update",
-          data: {
-            ...updatedClient.toObject(),
-            services: [roleType],
-            wmmData: wmmData || [],
-            hrgData: hrgData || [],
-            fomData: fomData || [],
-            calData: calData || [],
-            promoData: promoData || [],
-            complimentaryData: complimentaryData || []
-          }
-        }]);
+      // Get services from roleResults
+      const services = roleResults.map(result => result.roleType);
+
+      // Emit the updated client data with all subscription data
+      req.io.emit("data-update", [{
+        type: "update",
+        data: {
+          ...updatedClient.toObject(),
+          services: services,
+          wmmData: wmmData || [],
+          hrgData: hrgData || [],
+          fomData: fomData || [],
+          calData: calData || [],
+          promoData: promoData || [],
+          complimentaryData: complimentaryData || []
+        }
+      }]);
 
       // Then fetch and emit the filtered data
       const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
@@ -837,12 +852,13 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     const responseData = {
       success: true,
       client: updatedClient,
-      wmmData: await WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-      hrgData: await HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      fomData: await FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      calData: await CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      promoData: await PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-      complimentaryData: await ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
+      roleResults: roleResults,
+      wmmData: wmmData,
+      hrgData: hrgData,
+      fomData: fomData,
+      calData: calData,
+      promoData: promoData,
+      complimentaryData: complimentaryData
     };
 
     res.json(responseData);
