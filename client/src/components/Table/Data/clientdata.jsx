@@ -11,7 +11,6 @@ export const fetchClients = async (
   subscriptionType = "WMM"
 ) => {
   try {
-
     // Normalize filter parameters
     const normalizedParams = {
       page: Number(page) || 1,
@@ -63,7 +62,7 @@ export const fetchClients = async (
     const response = await axios.get(`${baseUrl}?${queryParams.toString()}`, {
       headers: {
         Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      }
+      },
     });
 
     // Extract all relevant values from the response
@@ -74,6 +73,7 @@ export const fetchClients = async (
       stats,
       totalCount,
       noData,
+      processingInfo,
     } = response.data;
 
     // Use either combinedData or data, whichever is available
@@ -85,9 +85,10 @@ export const fetchClients = async (
         totalPages: 0,
         stats: {
           clientCount: { total: 0, page: 0 },
-          metrics: []
+          metrics: [],
         },
         noData: true,
+        processingInfo: null,
       };
     }
 
@@ -100,9 +101,10 @@ export const fetchClients = async (
         totalPages: 0,
         stats: {
           clientCount: { total: 0, page: 0 },
-          metrics: []
+          metrics: [],
         },
         noData: true,
+        processingInfo: null,
       };
     }
 
@@ -116,6 +118,7 @@ export const fetchClients = async (
       totalPages,
       stats,
       noData: false,
+      processingInfo, // Include processing info if available (from automatic batch processing)
     };
   } catch (e) {
     console.error("Error fetching client data:", e);

@@ -86,7 +86,7 @@ const fetchClientData = async (req, options = {}) => {
       });
 
   // Process and merge client services data
-  const { combinedData, clientServices, stats, totalPages, currentPage } = results;
+  const { combinedData, clientServices, stats, totalPages, currentPage, processingInfo } = results;
   const processedData = combinedData.map((client) => {
     const clientService = clientServices.find(
       (service) => service.clientId === client.id
@@ -103,7 +103,8 @@ const fetchClientData = async (req, options = {}) => {
     stats,
     totalPages,
     currentPage,
-    subscriptionType // Add subscription type to return object
+    subscriptionType, // Add subscription type to return object
+    processingInfo // Include processing info if available
   };
 };
 
@@ -139,7 +140,7 @@ router.get(
         normalizedSubscriptionType = "WMM";
       }
 
-      const { processedData, stats, totalPages, currentPage } = await fetchClientData(req, {
+      const { processedData, stats, totalPages, currentPage, processingInfo } = await fetchClientData(req, {
         page: validPage,
         pageSize: validPageSize,
         filter,
@@ -150,13 +151,20 @@ router.get(
 
       const actualPage = Math.min(currentPage, totalPages || 1);
 
-      res.json({
+      const responseData = {
         combinedData: processedData,
         page: actualPage,
         totalPages: totalPages || 1,
         stats,
         subscriptionType: normalizedSubscriptionType
-      });
+      };
+
+      // Include processing info if available (from automatic batch processing)
+      if (processingInfo) {
+        responseData.processingInfo = processingInfo;
+      }
+
+      res.json(responseData);
 
       if (io && socketId) {
         io.to(socketId).emit("dataFetched", {
