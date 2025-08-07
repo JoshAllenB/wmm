@@ -169,7 +169,7 @@ const AdvancedFilter = ({
     services: [],
     clientIncludeIds: "",
     clientExcludeIds: "",
-    clientIdFilterType: "include",
+    clientIdFilterType: "none",
     excludeCMCClients: false,
     excludeDCSClients: false,
     userId: "",
@@ -377,7 +377,7 @@ const AdvancedFilter = ({
       services: [],
       clientIncludeIds: "",
       clientExcludeIds: "",
-      clientIdFilterType: "include",
+      clientIdFilterType: "none",
       excludeDCSClients: false,
       excludeCMCClients: false,
       userId: "",
@@ -704,11 +704,15 @@ const AdvancedFilter = ({
       ...(filterData.services?.length > 0 && { services: filterData.services }),
 
       // Handle client ID filters with strict validation
-      ...(filterData.clientIdFilterType === "ad" && {
+      ...(filterData.clientIdFilterType === "exclude" && {
         excludeClientIds: processClientIds(filterData.clientExcludeIds),
       }),
       ...(filterData.clientIdFilterType === "include" && {
         includeClientIds: processClientIds(filterData.clientIncludeIds),
+      }),
+      ...(filterData.clientIdFilterType === "both" && {
+        includeClientIds: processClientIds(filterData.clientIncludeIds),
+        excludeClientIds: processClientIds(filterData.clientExcludeIds),
       }),
 
       // Other flags
@@ -1221,7 +1225,8 @@ const AdvancedFilter = ({
 
     // Handle client ID filters as a special case
     if (
-      filterData.clientIdFilterType === "include" &&
+      (filterData.clientIdFilterType === "include" ||
+        filterData.clientIdFilterType === "both") &&
       filterData.clientIncludeIds.trim()
     ) {
       const idsList = filterData.clientIncludeIds
@@ -1245,7 +1250,8 @@ const AdvancedFilter = ({
     }
 
     if (
-      filterData.clientIdFilterType === "exclude" &&
+      (filterData.clientIdFilterType === "exclude" ||
+        filterData.clientIdFilterType === "both") &&
       filterData.clientExcludeIds.trim()
     ) {
       const idsList = filterData.clientExcludeIds
@@ -1459,9 +1465,21 @@ const AdvancedFilter = ({
           break;
         case "clientIncludeIds":
           updates.clientIncludeIds = "";
+          // If we're in "both" mode and removing include, switch to "exclude" only
+          if (filterData.clientIdFilterType === "both") {
+            updates.clientIdFilterType = "exclude";
+          } else {
+            updates.clientIdFilterType = "none";
+          }
           break;
         case "clientExcludeIds":
           updates.clientExcludeIds = "";
+          // If we're in "both" mode and removing exclude, switch to "include" only
+          if (filterData.clientIdFilterType === "both") {
+            updates.clientIdFilterType = "include";
+          } else {
+            updates.clientIdFilterType = "none";
+          }
           break;
         case "excludeDCSClients":
           updates.excludeDCSClients = false;

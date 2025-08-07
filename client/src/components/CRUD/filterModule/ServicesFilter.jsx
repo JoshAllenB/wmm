@@ -138,51 +138,96 @@ const ServicesFilter = ({
       {/* Client ID Filter Section */}
       <div className="mt-6 pt-6 border-t border-gray-200">
         <h3 className="text-gray-700 font-medium mb-3">Client ID Filter</h3>
-        <div className="flex gap-6 mb-4 text-base">
-          <label className="inline-flex items-center">
+
+        {/* Include Client IDs */}
+        <div className="mb-4">
+          <label className="inline-flex items-center mb-2">
             <input
-              type="radio"
-              name="clientIdFilterType"
-              value="include"
-              checked={filterData.clientIdFilterType === "include"}
-              onChange={(e) => handleClientIdFilterTypeChange(e.target.value)}
+              type="checkbox"
+              checked={
+                filterData.clientIdFilterType === "include" ||
+                filterData.clientIdFilterType === "both"
+              }
+              onChange={(e) => {
+                if (e.target.checked) {
+                  handleClientIdFilterTypeChange(
+                    filterData.clientIdFilterType === "exclude"
+                      ? "both"
+                      : "include"
+                  );
+                } else {
+                  handleClientIdFilterTypeChange(
+                    filterData.clientIdFilterType === "both"
+                      ? "exclude"
+                      : "none"
+                  );
+                }
+              }}
               className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
             />
-            <span className="ml-2 text-black">Include</span>
+            <span className="ml-2 text-black font-medium">
+              Include Client IDs
+            </span>
           </label>
-          <label className="inline-flex items-center">
-            <input
-              type="radio"
-              name="clientIdFilterType"
-              value="exclude"
-              checked={filterData.clientIdFilterType === "exclude"}
-              onChange={(e) => handleClientIdFilterTypeChange(e.target.value)}
-              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+          {(filterData.clientIdFilterType === "include" ||
+            filterData.clientIdFilterType === "both") && (
+            <textarea
+              name="clientIncludeIds"
+              value={filterData.clientIncludeIds}
+              onChange={handleChange}
+              placeholder="Enter client IDs to include (comma or space separated)"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              rows="3"
             />
-            <span className="ml-2 text-black">Exclude</span>
-          </label>
+          )}
         </div>
-        {filterData.clientIdFilterType === "include" ? (
-          <textarea
-            name="clientIncludeIds"
-            value={filterData.clientIncludeIds}
-            onChange={handleChange}
-            placeholder="Enter client IDs to include (comma or space separated)"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            rows="3"
-          />
-        ) : (
-          <textarea
-            name="clientExcludeIds"
-            value={filterData.clientExcludeIds}
-            onChange={handleChange}
-            placeholder="Enter client IDs to exclude (comma or space separated)"
-            className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            rows="3"
-          />
-        )}
+
+        {/* Exclude Client IDs */}
+        <div className="mb-4">
+          <label className="inline-flex items-center mb-2">
+            <input
+              type="checkbox"
+              checked={
+                filterData.clientIdFilterType === "exclude" ||
+                filterData.clientIdFilterType === "both"
+              }
+              onChange={(e) => {
+                if (e.target.checked) {
+                  handleClientIdFilterTypeChange(
+                    filterData.clientIdFilterType === "include"
+                      ? "both"
+                      : "exclude"
+                  );
+                } else {
+                  handleClientIdFilterTypeChange(
+                    filterData.clientIdFilterType === "both"
+                      ? "include"
+                      : "none"
+                  );
+                }
+              }}
+              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-black font-medium">
+              Exclude Client IDs
+            </span>
+          </label>
+          {(filterData.clientIdFilterType === "exclude" ||
+            filterData.clientIdFilterType === "both") && (
+            <textarea
+              name="clientExcludeIds"
+              value={filterData.clientExcludeIds}
+              onChange={handleChange}
+              placeholder="Enter client IDs to exclude (comma or space separated)"
+              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              rows="3"
+            />
+          )}
+        </div>
+
         <p className="mt-1 text-sm text-gray-500">
-          Separate multiple IDs with commas or spaces
+          You can use both include and exclude filters simultaneously. Separate
+          multiple IDs with commas or spaces.
         </p>
       </div>
     </div>

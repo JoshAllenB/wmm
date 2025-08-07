@@ -28,6 +28,49 @@ const extractPaymentRefNumber = (input) => {
   return null;
 };
 
+// Helper function to apply clientID filtering to a list of client IDs
+const applyClientIdFiltering = (clientIds, advancedFilterData) => {
+  if (!advancedFilterData.includeClientIds && !advancedFilterData.excludeClientIds) {
+    return clientIds; // No filtering needed
+  }
+
+  let filteredClients = clientIds;
+  
+  // Apply include filter
+  if (advancedFilterData.includeClientIds) {
+    const includeIds = Array.isArray(advancedFilterData.includeClientIds)
+      ? advancedFilterData.includeClientIds
+      : [advancedFilterData.includeClientIds];
+    
+    const validIncludeIds = includeIds
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && isFinite(id));
+    
+    if (validIncludeIds.length > 0) {
+      // Only include clients that are both in the original list AND in the include list
+      filteredClients = filteredClients.filter(id => validIncludeIds.includes(id));
+    }
+  }
+  
+  // Apply exclude filter
+  if (advancedFilterData.excludeClientIds) {
+    const excludeIds = Array.isArray(advancedFilterData.excludeClientIds)
+      ? advancedFilterData.excludeClientIds
+      : [advancedFilterData.excludeClientIds];
+    
+    const validExcludeIds = excludeIds
+      .map((id) => Number(id))
+      .filter((id) => !isNaN(id) && isFinite(id));
+    
+    if (validExcludeIds.length > 0) {
+      // Remove clients that are in the exclude list
+      filteredClients = filteredClients.filter(id => !validExcludeIds.includes(id));
+    }
+  }
+  
+  return filteredClients;
+};
+
 // Helper to get first and last day of a month from a date string
 function getMonthRange(dateString) {
   const d = new Date(dateString);
@@ -226,7 +269,12 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
   const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
-  // Handle client ID inclusion first
+  // Check if services are explicitly selected
+  const hasExplicitServices = advancedFilterData.services && 
+    Array.isArray(advancedFilterData.services) && 
+    advancedFilterData.services.length > 0;
+
+  // Handle client ID inclusion first (but defer processing if services are selected)
   if (advancedFilterData.includeClientIds) {
     // Convert to array if it's a single value
     const includeIds = Array.isArray(advancedFilterData.includeClientIds)
@@ -244,20 +292,20 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     }
   }
 
-  // Handle client ID exclusion
+  // Handle client ID exclusion (defer processing to check if there are other filters)
   if (advancedFilterData.excludeClientIds) {
     // Convert to array if it's a single value
     const excludeIds = Array.isArray(advancedFilterData.excludeClientIds)
       ? advancedFilterData.excludeClientIds
       : [advancedFilterData.excludeClientIds];
 
-    const validIds = excludeIds
+    const validExcludeIds = excludeIds
       .map((id) => Number(id))
       .filter((id) => !isNaN(id) && isFinite(id));
 
-    if (validIds.length > 0) {
-      // Add the exclusion filter as a top-level condition
-      baseFilter.push({ id: { $nin: validIds } });
+    // Store exclude IDs for later processing
+    if (validExcludeIds.length > 0) {
+      // Don't add to baseFilter yet - we'll handle it at the end based on other filters
     }
   }
 
@@ -1091,8 +1139,16 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         .map(Number)
         .filter((id) => !isNaN(id));
 
+      // Handle clientID filtering when HRG/FOM subscription status is selected
       if (finalClients.length > 0) {
-        baseFilter.push({ id: { $in: finalClients } });
+        // Apply clientID filtering to HRG/FOM subscription status results
+        const filteredClients = applyClientIdFiltering(finalClients, advancedFilterData);
+        
+        if (filteredClients.length > 0) {
+          baseFilter.push({ id: { $in: filteredClients } });
+        } else {
+          baseFilter.push({ id: -1 }); // No matches after clientID filtering
+        }
       } else {
         baseFilter.push({ id: -1 }); // No matches
       }
@@ -1126,28 +1182,137 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       .map((id) => parseInt(id))
       .filter((id) => !isNaN(id));
 
+    // Handle clientID filtering when HRG/FOM active subscription is selected
     if (activeClientIds.length > 0) {
-      baseFilter.push({ id: { $in: activeClientIds } });
+      // Apply clientID filtering to HRG/FOM active subscription results
+      const filteredClients = applyClientIdFiltering(activeClientIds, advancedFilterData);
+      
+      if (filteredClients.length > 0) {
+        baseFilter.push({ id: { $in: filteredClients } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches after clientID filtering
+      }
     } else {
       baseFilter.push({ id: -1 });
     }
   }
 
   // At the end, before returning the query:
-  if (hasIncludedIds) {
-    // If we have included IDs, create an $or condition that will match either:
-    // 1. The specifically included IDs
-    // 2. All other filter conditions (if any)
-    const conditions = [{ id: { $in: includedIds } }];
+  // Check if there are other filters besides include/exclude
+  const hasOtherFilters = baseFilter.length > 0 || 
+                         (filter && filter.trim() !== "") ||
+                         (advancedFilterData.group || group) ||
+                         hasExplicitServices ||
+                         Object.keys(advancedFilterData).some(key => 
+                           key !== "includeClientIds" && 
+                           key !== "excludeClientIds" && 
+                           key !== "clientId" &&
+                           advancedFilterData[key] !== undefined && 
+                           advancedFilterData[key] !== null && 
+                           advancedFilterData[key] !== ""
+                         );
 
-    if (baseFilter.length > 0) {
-      conditions.push({ $and: baseFilter });
+  // Get exclude IDs if present
+  const excludeIds = advancedFilterData.excludeClientIds ? 
+    (Array.isArray(advancedFilterData.excludeClientIds) ? advancedFilterData.excludeClientIds : [advancedFilterData.excludeClientIds]) : [];
+  const validExcludeIds = excludeIds
+    .map((id) => Number(id))
+    .filter((id) => !isNaN(id) && isFinite(id));
+
+  if (hasIncludedIds && !hasExplicitServices) {
+    // Handle include logic
+    if (validExcludeIds.length > 0) {
+      // Apply exclude to included IDs
+      const filteredIncludedIds = includedIds.filter(id => !validExcludeIds.includes(id));
+      
+      if (filteredIncludedIds.length > 0) {
+        if (hasOtherFilters) {
+          // Include + Exclude + Other filters: filtered included IDs OR other filters
+          const conditions = [{ id: { $in: filteredIncludedIds } }];
+          if (baseFilter.length > 0) {
+            conditions.push({ $and: baseFilter });
+          }
+          filterQuery = { $or: conditions };
+        } else {
+          // Include + Exclude only: just the filtered included IDs
+          filterQuery = { id: { $in: filteredIncludedIds } };
+        }
+      } else {
+        // All included IDs were excluded
+        if (hasOtherFilters) {
+          // Only other filters
+          filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
+        } else {
+          // No results
+          filterQuery = { id: -1 };
+        }
+      }
+    } else {
+      // Only include, no exclude
+      if (hasOtherFilters) {
+        // Include + Other filters: included IDs OR other filters
+        const conditions = [{ id: { $in: includedIds } }];
+        if (baseFilter.length > 0) {
+          conditions.push({ $and: baseFilter });
+        }
+        filterQuery = { $or: conditions };
+      } else {
+        // Include only: just the included IDs
+        filterQuery = { id: { $in: includedIds } };
+      }
     }
-
-    filterQuery = { $or: conditions };
+  } else if (!hasIncludedIds && validExcludeIds.length > 0 && !hasExplicitServices) {
+    // Only exclude logic
+    if (hasOtherFilters) {
+      // Exclude + Other filters: apply other filters first, then exclude
+      // We'll handle this by adding exclude to the baseFilter
+      baseFilter.push({ id: { $nin: validExcludeIds } });
+      filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
+    } else {
+      // Exclude only: global exclude
+      filterQuery = { id: { $nin: validExcludeIds } };
+    }
   } else {
-    // If no included IDs, use the regular filter
-    filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
+    // No include/exclude OR services are selected (clientID filtering is handled within service filtering)
+    if (validExcludeIds.length > 0 && !hasExplicitServices) {
+      if (hasOtherFilters) {
+        // Other filters + exclude: we need to use aggregation to apply filters first, then exclude
+        // This requires a different approach - we'll need to modify the query to use aggregation
+        // For now, let's create a special case for this scenario
+        try {
+          const ClientModel = await getModelInstance("ClientModel");
+          
+          // First, apply the other filters to get the matching client IDs
+          const otherFilters = baseFilter.filter(filter => !filter.id || !filter.id.$nin);
+          const matchQuery = otherFilters.length > 0 ? { $and: otherFilters } : {};
+          
+          // Get all clients that match the other filters
+          const matchingClients = await ClientModel.find(matchQuery).distinct("id");
+          const matchingClientIds = matchingClients
+            .map((id) => Number(id))
+            .filter((id) => !isNaN(id));
+          
+          // Then exclude the specified IDs from the results
+          const finalClientIds = matchingClientIds.filter(id => !validExcludeIds.includes(id));
+          
+          if (finalClientIds.length > 0) {
+            filterQuery = { id: { $in: finalClientIds } };
+          } else {
+            filterQuery = { id: -1 }; // No matches after exclusion
+          }
+        } catch (error) {
+          console.error("Error in exclude filtering with other filters:", error);
+          // Fallback to simple $and approach
+          baseFilter.push({ id: { $nin: validExcludeIds } });
+          filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
+        }
+      } else {
+        // Exclude only: global exclude
+        filterQuery = { id: { $nin: validExcludeIds } };
+      }
+    } else {
+      filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
+    }
   }
 
   // Create a simplified version of the query for logging
@@ -1552,8 +1717,16 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         .map(Number)
         .filter((id) => !isNaN(id));
 
+      // Handle clientID filtering when services are selected
       if (finalClients.length > 0) {
-        baseFilter.push({ id: { $in: finalClients } });
+        // Apply clientID filtering to service results
+        const filteredClients = applyClientIdFiltering(finalClients, advancedFilterData);
+        
+        if (filteredClients.length > 0) {
+          baseFilter.push({ id: { $in: filteredClients } });
+        } else {
+          baseFilter.push({ id: -1 }); // No matches after clientID filtering
+        }
       } else if (services.length > 0) {
         baseFilter.push({ id: -1 }); // No matches if services were selected but no clients found
       }
