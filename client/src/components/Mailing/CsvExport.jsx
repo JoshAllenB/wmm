@@ -7,6 +7,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../UI/ShadCN/dialog";
+import { Checkbox } from "../UI/ShadCN/checkbox";
+import { Label } from "../UI/ShadCN/label";
+import { Input } from "../UI/ShadCN/input";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "../UI/ShadCN/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 const CsvExport = ({
   selectedRows,
@@ -55,6 +64,21 @@ const CsvExport = ({
 
   // Add loading state
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
+
+  // Add state for collapsible sections
+  const [openSections, setOpenSections] = useState({
+    basicInfo: true,
+    wmmInfo: true,
+    serviceInfo: true,
+  });
+
+  // Function to toggle collapsible sections
+  const toggleSection = (sectionName) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [sectionName]: !prev[sectionName],
+    }));
+  };
 
   // Get data source label
   const getDataSourceLabel = () => {
@@ -320,6 +344,37 @@ const CsvExport = ({
     if (subscriptionType === "Promo" && fieldsWithData.referralid)
       headers.push("Referral ID");
 
+    // Add service-specific headers
+    if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
+      headers.push(
+        "HRG Campaign Date",
+        "HRG Payment Amount",
+        "HRG Payment Reference",
+        "HRG Received Date",
+        "HRG Form"
+      );
+    }
+    if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
+      headers.push(
+        "FOM Payment Amount",
+        "FOM Payment Reference",
+        "FOM Payment Form",
+        "FOM Received Date",
+        "FOM Unsubscribe Status"
+      );
+    }
+    if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
+      headers.push(
+        "CAL Type",
+        "CAL Quantity",
+        "CAL Unit Amount",
+        "CAL Payment Reference",
+        "CAL Payment Amount",
+        "CAL Payment Form",
+        "CAL Payment Date"
+      );
+    }
+
     // Create CSV content
     let csvContent = headers.join(",") + "\n";
     let processedRows = 0;
@@ -435,6 +490,51 @@ const CsvExport = ({
         // Add referral ID for promo subscriptions
         if (subscriptionType === "Promo" && fieldsWithData.referralid)
           rowData.push(`"${subscription.referralid || ""}"`);
+
+        // Add service-specific data
+        if (csvIncludeFields.includes("hrgData") && fieldsWithData.hrgData) {
+          const hrgRecord = subscriber.hrgData?.records?.[0] || {};
+
+          // Format campaign date to show only date without time
+          let formattedCampaignDate = "";
+          if (hrgRecord.campaigndate) {
+            const date = new Date(hrgRecord.campaigndate);
+            if (!isNaN(date.getTime())) {
+              // Keep YYYY-MM-DD format, remove time
+              formattedCampaignDate = date.toISOString().split("T")[0];
+            }
+          }
+
+          rowData.push(
+            `"${formattedCampaignDate}"`,
+            `"${hrgRecord.paymtamt || ""}"`,
+            `"${hrgRecord.paymtref || ""}"`,
+            `"${hrgRecord.recvdate || ""}"`,
+            `"${hrgRecord.paymtform || ""}"`
+          );
+        }
+        if (csvIncludeFields.includes("fomData") && fieldsWithData.fomData) {
+          const fomRecord = subscriber.fomData?.records?.[0] || {};
+          rowData.push(
+            `"${fomRecord.paymtamt || ""}"`,
+            `"${fomRecord.paymtref || ""}"`,
+            `"${fomRecord.paymtform || ""}"`,
+            `"${fomRecord.recvdate || ""}"`,
+            `"${fomRecord.unsubscribe ? "Unsubscribed" : "Active"}"`
+          );
+        }
+        if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
+          const calRecord = subscriber.calData?.records?.[0] || {};
+          rowData.push(
+            `"${calRecord.caltype || ""}"`,
+            `"${calRecord.calqty || ""}"`,
+            `"${calRecord.calamt || ""}"`,
+            `"${calRecord.paymtref || ""}"`,
+            `"${calRecord.paymtamt || ""}"`,
+            `"${calRecord.paymtform || ""}"`,
+            `"${calRecord.paymtdate || ""}"`
+          );
+        }
 
         if (rowData.length === headers.length) {
           csvContent += rowData.join(",") + "\n";
@@ -611,343 +711,387 @@ const CsvExport = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[30vw]">
+      <DialogContent className="max-w-[32rem] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Export CSV</DialogTitle>
+          <DialogTitle className="text-center">
+            Export Subscriber Data
+          </DialogTitle>
         </DialogHeader>
-        <div className="w-full">
-          <h2 className="flex justify-center text-xl font-bold text-black mb-2">
-            Export Subscriber Data to CSV
-          </h2>
 
-          <p className="text-center text-sm text-gray-500 mb-4">
-            {getRowCount()} {getRowCount() === 1 ? "subscriber" : "subscribers"}{" "}
-            {getDataSourceLabel()}
-          </p>
-
-          <div className="flex flex-col items-center">
-            <DataSourceToggle />
-
-            {/* Filename Input */}
-            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-              <h3 className="text-sm font-semibold mb-2">File Name:</h3>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={csvFilename}
-                  onChange={(e) => setCsvFilename(e.target.value)}
-                  placeholder={`subscribers_export_${new Date()
-                    .toISOString()
-                    .slice(0, 10)}`}
-                  className="border border-gray-300 rounded p-2 w-full"
-                />
-                <span className="text-sm text-gray-500">.csv</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Leave blank to use default filename
+        <div className="space-y-4">
+          {/* Data source selection */}
+          <div className="space-y-2">
+            <Label>Data Source</Label>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setUseAllData(false)}
+                variant={useAllData ? "outline" : "default"}
+                className={`flex-1 ${
+                  !useAllData
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "border-blue-600 text-blue-600 hover:bg-blue-50"
+                }`}
+              >
+                Selected ({selectedRows.length})
+              </Button>
+              <Button
+                onClick={async () => {
+                  setUseAllData(true);
+                  setIsLoadingAllRecords(true);
+                  try {
+                    await handleRefreshAllData();
+                  } catch (error) {
+                    console.error("Error fetching all data:", error);
+                    toast.error(
+                      "Failed to fetch all records. Using table data instead."
+                    );
+                  } finally {
+                    setIsLoadingAllRecords(false);
+                  }
+                }}
+                variant={useAllData ? "default" : "outline"}
+                className={`flex-1 ${
+                  useAllData
+                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                    : "border-blue-600 text-blue-600 hover:bg-blue-50"
+                }`}
+              >
+                {isLoadingAllRecords ? (
+                  <span className="flex items-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Loading...
+                  </span>
+                ) : (
+                  `All Records (${allData?.length || 0})`
+                )}
+              </Button>
+            </div>
+            {isLoadingAllRecords && (
+              <p className="text-xs text-muted-foreground">
+                Fetching all records...
               </p>
-            </div>
-
-            {/* Data Range Selection */}
-            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-              <h3 className="text-sm font-semibold mb-2">Select Data Range:</h3>
-              <div className="flex flex-wrap gap-2 mb-2">
-                <Button
-                  onClick={() => handleDataSourceChange("all")}
-                  variant={dataSource === "all" ? "default" : "outline"}
-                  className="flex-1"
-                >
-                  All Records
-                </Button>
-                <Button
-                  onClick={() => handleDataSourceChange("selected")}
-                  variant={dataSource === "selected" ? "default" : "outline"}
-                  className="flex-1"
-                  disabled={table.getSelectedRowModel().rows.length === 0}
-                >
-                  Selected Only
-                </Button>
-                <Button
-                  onClick={() => handleDataSourceChange("range")}
-                  variant={dataSource === "range" ? "default" : "outline"}
-                  className="flex-1"
-                >
-                  ID Range
-                </Button>
-              </div>
-            </div>
-
-            {/* Client ID Range Input - if range is selected */}
-            {dataSource === "range" && (
-              <div className="flex flex-col items-center p-4 border rounded mb-4 w-full max-w-lg bg-gray-50">
-                <h3 className="text-lg font-semibold mb-2">Export Range</h3>
-
-                <div className="bg-blue-50 p-2 rounded mb-3 w-full text-xs text-blue-700">
-                  Specify which subscribers to include using Client IDs.
-                </div>
-
-                <div className="flex items-center space-x-2 w-full mb-2">
-                  <label
-                    htmlFor="startId"
-                    className="text-sm w-28 text-right font-medium text-gray-600"
-                  >
-                    Start Client ID:
-                  </label>
-                  <input
-                    type="text"
-                    id="startId"
-                    value={startClientId}
-                    onChange={(e) => setStartClientId(e.target.value)}
-                    placeholder={`First: ${
-                      table.getFilteredRowModel().rows[0]?.original?.id || "N/A"
-                    }`}
-                    className="border border-gray-300 rounded p-2 w-full"
-                  />
-                </div>
-                <div className="flex items-center space-x-2 w-full mb-3">
-                  <label
-                    htmlFor="endId"
-                    className="text-sm w-28 text-right font-medium text-gray-600"
-                  >
-                    End Client ID:
-                  </label>
-                  <input
-                    type="text"
-                    id="endId"
-                    value={endClientId}
-                    onChange={(e) => setEndClientId(e.target.value)}
-                    placeholder={`Last: ${
-                      table.getFilteredRowModel().rows[
-                        table.getFilteredRowModel().rows.length - 1
-                      ]?.original?.id || "N/A"
-                    }`}
-                    className="border border-gray-300 rounded p-2 w-full"
-                  />
-                </div>
-              </div>
             )}
+          </div>
 
-            {/* CSV Fields Selection */}
-            <div className="w-full max-w-lg p-3 mb-4 bg-gray-50 rounded border">
-              <h3 className="text-sm font-semibold mb-2">
-                Select Fields to Include:
-              </h3>
+          {/* File name input */}
+          <div className="space-y-2">
+            <Label>File Name</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="text"
+                value={csvFilename}
+                onChange={(e) => setCsvFilename(e.target.value)}
+                placeholder={`subscribers_export_${new Date()
+                  .toISOString()
+                  .slice(0, 10)}`}
+              />
+              <span className="text-sm text-muted-foreground">.csv</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Leave blank to use default filename
+            </p>
+          </div>
 
-              {/* Basic Fields (All Users) */}
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-600 mb-2">
-                  Basic Information (All Users):
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+          {/* Data range selection */}
+          <div className="space-y-2">
+            <Label>Data Range</Label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => handleDataSourceChange("all")}
+                variant={dataSource === "all" ? "default" : "outline"}
+                className="flex-1 min-w-[100px]"
+              >
+                All Records
+              </Button>
+              <Button
+                onClick={() => handleDataSourceChange("selected")}
+                variant={dataSource === "selected" ? "default" : "outline"}
+                className="flex-1 min-w-[100px]"
+                disabled={table.getSelectedRowModel().rows.length === 0}
+              >
+                Selected Only
+              </Button>
+              <Button
+                onClick={() => handleDataSourceChange("range")}
+                variant={dataSource === "range" ? "default" : "outline"}
+                className="flex-1 min-w-[100px]"
+              >
+                ID Range
+              </Button>
+            </div>
+          </div>
+
+          {/* Client ID range inputs */}
+          {dataSource === "range" && (
+            <div className="space-y-3 p-4 bg-muted rounded-lg">
+              <h4 className="font-medium">Export Range</h4>
+              <p className="text-sm text-muted-foreground">
+                Specify which subscribers to include using Client IDs
+              </p>
+
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="startId">Start Client ID</Label>
+                    <Input
+                      type="text"
+                      id="startId"
+                      value={startClientId}
+                      onChange={(e) => setStartClientId(e.target.value)}
+                      placeholder={`First: ${
+                        table.getFilteredRowModel().rows[0]?.original?.id ||
+                        "N/A"
+                      }`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="endId">End Client ID</Label>
+                    <Input
+                      type="text"
+                      id="endId"
+                      value={endClientId}
+                      onChange={(e) => setEndClientId(e.target.value)}
+                      placeholder={`Last: ${
+                        table.getFilteredRowModel().rows[
+                          table.getFilteredRowModel().rows.length - 1
+                        ]?.original?.id || "N/A"
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fields selection */}
+          <div className="space-y-4">
+            <h3 className="font-medium">Fields to Include</h3>
+
+            {/* Basic Information */}
+            <Collapsible
+              open={openSections.basicInfo}
+              onOpenChange={() => toggleSection("basicInfo")}
+              className="space-y-2"
+            >
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded hover:bg-muted">
+                <span className="font-medium">Basic Information</span>
+                {openSections.basicInfo ? (
+                  <ChevronUp size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 pl-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-id"
                       checked={csvIncludeFields.includes("id")}
-                      onChange={() => toggleCsvField("id")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("id")}
                       disabled
                     />
-                    <label htmlFor="csv-id" className="text-sm">
+                    <Label htmlFor="csv-id" className="font-normal">
                       Client ID
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-name"
                       checked={csvIncludeFields.includes("name")}
-                      onChange={() => toggleCsvField("name")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("name")}
                       disabled
                     />
-                    <label htmlFor="csv-name" className="text-sm">
+                    <Label htmlFor="csv-name" className="font-normal">
                       Name
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-address"
                       checked={csvIncludeFields.includes("address")}
-                      onChange={() => toggleCsvField("address")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("address")}
                       disabled
                     />
-                    <label htmlFor="csv-address" className="text-sm">
+                    <Label htmlFor="csv-address" className="font-normal">
                       Address
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="csv-acode"
-                      checked={csvIncludeFields.includes("acode")}
-                      onChange={() => toggleCsvField("acode")}
-                      className="mr-2"
-                      disabled
-                    />
-                    <label htmlFor="csv-acode" className="text-sm">
-                      Area Code
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-contactnos"
                       checked={csvIncludeFields.includes("contactnos")}
-                      onChange={() => toggleCsvField("contactnos")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("contactnos")}
                       disabled
                     />
-                    <label htmlFor="csv-contactnos" className="text-sm">
+                    <Label htmlFor="csv-contactnos" className="font-normal">
                       Contact Numbers
-                    </label>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="csv-acode"
+                      checked={csvIncludeFields.includes("acode")}
+                      onCheckedChange={() => toggleCsvField("acode")}
+                      disabled
+                    />
+                    <Label htmlFor="csv-acode" className="font-normal">
+                      Area Code
+                    </Label>
                   </div>
                 </div>
-              </div>
+              </CollapsibleContent>
+            </Collapsible>
 
-              {/* WMM Fields */}
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-600 mb-2">
-                  WMM Information:
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+            {/* WMM Information */}
+            <Collapsible
+              open={openSections.wmmInfo}
+              onOpenChange={() => toggleSection("wmmInfo")}
+              className="space-y-2"
+            >
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded hover:bg-muted">
+                <span className="font-medium">WMM Information</span>
+                {openSections.wmmInfo ? (
+                  <ChevronUp size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 pl-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-company"
                       checked={csvIncludeFields.includes("company")}
-                      onChange={() => toggleCsvField("company")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("company")}
                     />
-                    <label htmlFor="csv-company" className="text-sm">
+                    <Label htmlFor="csv-company" className="font-normal">
                       {renderFieldLabel("company", "Company")}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-copies"
                       checked={csvIncludeFields.includes("copies")}
-                      onChange={() => toggleCsvField("copies")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("copies")}
                     />
-                    <label htmlFor="csv-copies" className="text-sm">
+                    <Label htmlFor="csv-copies" className="font-normal">
                       {renderFieldLabel("copies", "Copies")}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-enddate"
                       checked={csvIncludeFields.includes("enddate")}
-                      onChange={() => toggleCsvField("enddate")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("enddate")}
                     />
-                    <label htmlFor="csv-enddate" className="text-sm">
+                    <Label htmlFor="csv-enddate" className="font-normal">
                       {renderFieldLabel("enddate", "Expiry Date")}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-subsclass"
                       checked={csvIncludeFields.includes("subsclass")}
-                      onChange={() => toggleCsvField("subsclass")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("subsclass")}
                     />
-                    <label htmlFor="csv-subsclass" className="text-sm">
+                    <Label htmlFor="csv-subsclass" className="font-normal">
                       {renderFieldLabel("subsclass", "Subscription Class")}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-subsdate"
                       checked={csvIncludeFields.includes("subsdate")}
-                      onChange={() => toggleCsvField("subsdate")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("subsdate")}
                     />
-                    <label htmlFor="csv-subsdate" className="text-sm">
+                    <Label htmlFor="csv-subsdate" className="font-normal">
                       {renderFieldLabel("subsdate", "Subscription Date")}
-                    </label>
+                    </Label>
                   </div>
                 </div>
-              </div>
+              </CollapsibleContent>
+            </Collapsible>
 
-              {/* Service-specific Fields */}
-              <div>
-                <h4 className="text-xs font-medium text-gray-600 mb-2">
-                  Service-specific Information:
-                </h4>
-                <div className="grid grid-cols-1 gap-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+            {/* Service Information */}
+            <Collapsible
+              open={openSections.serviceInfo}
+              onOpenChange={() => toggleSection("serviceInfo")}
+              className="space-y-2"
+            >
+              <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded hover:bg-muted">
+                <span className="font-medium">Service Information</span>
+                {openSections.serviceInfo ? (
+                  <ChevronUp size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 pl-2">
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-hrgData"
                       checked={csvIncludeFields.includes("hrgData")}
-                      onChange={() => toggleCsvField("hrgData")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("hrgData")}
                     />
-                    <label htmlFor="csv-hrgData" className="text-sm">
+                    <Label htmlFor="csv-hrgData" className="font-normal">
                       {renderFieldLabel(
                         "hrgData",
-                        "HRG Data (Campaign Date, Payment Amount, Reference, Date, Form)"
+                        "HRG Data (Campaign Date, Payment Details)"
                       )}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-fomData"
                       checked={csvIncludeFields.includes("fomData")}
-                      onChange={() => toggleCsvField("fomData")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("fomData")}
                     />
-                    <label htmlFor="csv-fomData" className="text-sm">
+                    <Label htmlFor="csv-fomData" className="font-normal">
                       {renderFieldLabel(
                         "fomData",
-                        "FOM Data (Payment Details + Unsubscribe Status)"
+                        "FOM Data (Payment Details + Status)"
                       )}
-                    </label>
+                    </Label>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
                       id="csv-calData"
                       checked={csvIncludeFields.includes("calData")}
-                      onChange={() => toggleCsvField("calData")}
-                      className="mr-2"
+                      onCheckedChange={() => toggleCsvField("calData")}
                     />
-                    <label htmlFor="csv-calData" className="text-sm">
+                    <Label htmlFor="csv-calData" className="font-normal">
                       {renderFieldLabel(
                         "calData",
-                        "CAL Data (Type, Quantity, Unit Amount + Payment Details)"
+                        "CAL Data (Type, Quantity + Payment Details)"
                       )}
-                    </label>
+                    </Label>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-center space-x-4 w-full max-w-lg">
-              <Button
-                onClick={handleExportCSV}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex-grow"
-                disabled={!hasData || csvIncludeFields.length === 0}
-              >
-                Export CSV
-              </Button>
-              <Button
-                onClick={onClose}
-                variant="secondary"
-                className="flex-grow"
-              >
-                Cancel
-              </Button>
-            </div>
+          {/* Action buttons */}
+          <div className="flex gap-3 pt-4">
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExportCSV}
+              className={`flex-1 ${
+                !hasData || csvIncludeFields.length === 0
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }`}
+              disabled={!hasData || csvIncludeFields.length === 0}
+            >
+              Export CSV
+            </Button>
           </div>
         </div>
       </DialogContent>
