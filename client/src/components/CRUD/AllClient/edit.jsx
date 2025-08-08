@@ -202,6 +202,42 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     paymtref: "",
   });
   const [availableSubscriptions, setAvailableSubscriptions] = useState([]);
+
+  // Function to check if the most recent subscription is within 3 months
+  const isRecentSubscription = () => {
+    if (!availableSubscriptions || availableSubscriptions.length === 0) {
+      return false;
+    }
+
+    // Get the most recent subscription (last in the array)
+    const latestSubscription =
+      availableSubscriptions[availableSubscriptions.length - 1];
+
+    if (!latestSubscription.enddate) {
+      return false;
+    }
+
+    // Parse the end date
+    const endDate = parseDate(latestSubscription.enddate);
+    if (!endDate) {
+      return false;
+    }
+
+    // Current date (August 8, 2025 as specified)
+    const currentDate = new Date(2025, 7, 8); // Month is 0-indexed, so 7 = August
+
+    // Calculate the difference in months
+    const diffMonths =
+      (currentDate.getFullYear() - endDate.getFullYear()) * 12 +
+      (currentDate.getMonth() - endDate.getMonth());
+
+    // Return true if the subscription is within 3 months of expiring (past or future)
+    // diffMonths >= -3 means the subscription expires within the next 3 months
+    // diffMonths <= 3 means it expired within the last 3 months
+    const isRecent = diffMonths >= -3 && diffMonths <= 3;
+    return isRecent;
+  };
+
   const [newSubscription, setNewSubscription] = useState({
     subsdate: "",
     enddate: "",
@@ -3226,7 +3262,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           : "bg-gray-200 text-gray-700"
                       }`}
                     >
-                      Renew
+                      {isRecentSubscription() ? "Renew" : "Add New"}
                     </button>
                   </div>
 
