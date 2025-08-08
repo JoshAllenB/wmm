@@ -595,51 +595,82 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     // Process roleSubmissions if provided (new approach)
     if (Array.isArray(roleSubmissions) && roleSubmissions.length > 0) {
       for (const submission of roleSubmissions) {
-        const { roleType, roleData } = submission;
+        const { roleType, roleData, recordId } = submission;
 
         if (roleType && roleModelMap[roleType]) {
           const RoleModel = roleModelMap[roleType];
 
-          // Generate new ID for the role-specific model
-          const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-          const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
-
-          // Format adddate based on subscription type
-          let formattedAddDate;
-          if (roleType === "COMP") {
-            // For complimentary subscriptions, format as YYYY-MM-DD
-            const now = new Date();
-            formattedAddDate = now.toISOString().split('T')[0];
+          if (recordId) {
+            // If we have a recordId, find and update that specific record
+            const updatedRoleData = {
+              ...roleData,
+              editdate: new Date(),
+              edituser: user.username,
+            };
+            
+            // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
+            const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
+            
+            let query;
+            if (isObjectId) {
+              query = { _id: recordId };
+            } else {
+              query = { id: Number(recordId) };
+            }
+            
+            const roleSpecificClient = await RoleModel.findOneAndUpdate(
+              query,
+              updatedRoleData,
+              { new: true }
+            );
+            roleResults.push({
+              roleType,
+              success: true,
+              data: roleSpecificClient
+            });
           } else {
-            // For other types, use the existing format
-            formattedAddDate = new Date()
-              .toLocaleString("en-US", {
-                month: "numeric",
-                day: "numeric",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              })
-              .replace(",", "");
+            // Create new record if no recordId provided
+            // Generate new ID for the role-specific model
+            const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
+            const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+
+            // Format adddate based on subscription type
+            let formattedAddDate;
+            if (roleType === "COMP") {
+              // For complimentary subscriptions, format as YYYY-MM-DD
+              const now = new Date();
+              formattedAddDate = now.toISOString().split('T')[0];
+            } else {
+              // For other types, use the existing format
+              formattedAddDate = new Date()
+                .toLocaleString("en-US", {
+                  month: "numeric",
+                  day: "numeric",
+                  year: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })
+                .replace(",", "");
+            }
+
+            const roleSpecificData = {
+              id: newRoleSpecificId,
+              clientid: parseInt(id),
+              ...roleData,
+              adduser: user.username,
+              adddate: formattedAddDate,
+            };
+
+            // Insert role-specific data
+            const roleSpecificClient = await RoleModel.create(roleSpecificData);
+            roleResults.push({
+              roleType,
+              success: true,
+              data: roleSpecificClient
+            });
           }
-
-          const roleSpecificData = {
-            id: newRoleSpecificId,
-            clientid: parseInt(id),
-            ...roleData,
-            adduser: user.username,
-            adddate: formattedAddDate,
-          };
-
-          // Insert role-specific data
-          const roleSpecificClient = await RoleModel.create(roleSpecificData);
-          roleResults.push({
-            roleType,
-            success: true,
-            data: roleSpecificClient
-          });
         }
       }
     } else if (roleType && roleData) {
