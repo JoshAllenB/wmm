@@ -22,19 +22,27 @@ export async function aggregateClientData(
   const subscriptionType = advancedFilterData.subscriptionType || "WMM";
   let adjustedModelNames = [...modelNames];
 
-  // Replace WmmModel with appropriate subscription model
-  if (modelNames.includes("WmmModel")) {
-    adjustedModelNames = modelNames.filter((name) => name !== "WmmModel");
-
-    switch (subscriptionType) {
-      case "Promo":
-        adjustedModelNames.push("PromoModel");
-        break;
-      case "Complimentary":
-        adjustedModelNames.push("ComplimentaryModel");
-        break;
-      default: // WMM
-        adjustedModelNames.push("WmmModel");
+  // Replace WmmModel (case-insensitive) with appropriate subscription model
+  const wmmIndex = modelNames.findIndex((name) => String(name).toLowerCase() === "wmmmodel");
+  if (wmmIndex !== -1) {
+    adjustedModelNames = [...modelNames];
+    const replacement =
+      subscriptionType === "Promo"
+        ? "PromoModel"
+        : subscriptionType === "Complimentary"
+        ? "ComplimentaryModel"
+        : "WmmModel";
+    adjustedModelNames.splice(wmmIndex, 1, replacement);
+  } else {
+    // If no WmmModel placeholder exists, ensure correct subscription model is present
+    const desired =
+      subscriptionType === "Promo"
+        ? "PromoModel"
+        : subscriptionType === "Complimentary"
+        ? "ComplimentaryModel"
+        : "WmmModel";
+    if (!modelNames.some((name) => String(name).toLowerCase() === desired.toLowerCase())) {
+      adjustedModelNames = [...modelNames, desired];
     }
   }
 
