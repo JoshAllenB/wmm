@@ -1866,137 +1866,7 @@ function addPersonalInfoFilters(baseFilter, advancedFilterData) {
 }
 
 async function addDateFilters(baseFilter, advancedFilterData) {
-  // Handle adddate_regex filter
-  if (advancedFilterData.adddate_regex) {
-    try {
-      const WmmModel = await getModelInstance("WmmModel");
-      const FomModel = await getModelInstance("FomModel");
-      const HrgModel = await getModelInstance("HrgModel");
-      const CalModel = await getModelInstance("CalModel");
-      const PromoModel = await getModelInstance("PromoModel");
-      const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
-
-      // Create pipeline for regex date filtering
-      const createRegexPipeline = [
-        {
-          $match: {
-            adddate: {
-              $regex: advancedFilterData.adddate_regex,
-              $options: "i",
-            },
-          },
-        },
-        {
-          $group: {
-            _id: "$clientid",
-          },
-        },
-      ];
-
-      // Execute aggregation for each model in parallel
-      const [
-        wmmClients,
-        fomClients,
-        hrgClients,
-        calClients,
-        promoClients,
-        complimentaryClients,
-      ] = await Promise.all([
-        WmmModel.aggregate(createRegexPipeline),
-        FomModel.aggregate(createRegexPipeline),
-        HrgModel.aggregate(createRegexPipeline),
-        CalModel.aggregate(createRegexPipeline),
-        PromoModel.aggregate(createRegexPipeline),
-        ComplimentaryModel.aggregate(createRegexPipeline),
-      ]);
-
-      // Combine all client IDs
-      const matchingClientIds = [
-        ...new Set([
-          ...wmmClients.map((c) => Number(c._id)),
-          ...fomClients.map((c) => Number(c._id)),
-          ...hrgClients.map((c) => Number(c._id)),
-          ...calClients.map((c) => Number(c._id)),
-          ...promoClients.map((c) => Number(c._id)),
-          ...complimentaryClients.map((c) => Number(c._id)),
-        ]),
-      ].filter((id) => !isNaN(id));
-
-      if (matchingClientIds.length > 0) {
-        baseFilter.push({ id: { $in: matchingClientIds } });
-      } else {
-        baseFilter.push({ id: -1 }); // No matches
-      }
-    } catch (error) {
-      console.error("Error in adddate regex filtering:", error);
-      baseFilter.push({ id: -1 });
-    }
-  }
-
-  // Handle WMM Date Encoded Filter (adddate)
-  if (advancedFilterData.startDate || advancedFilterData.endDate) {
-    try {
-      const WmmModel = await getModelInstance("WmmModel");
-      const FomModel = await getModelInstance("FomModel");
-      const HrgModel = await getModelInstance("HrgModel");
-      const CalModel = await getModelInstance("CalModel");
-
-      // Convert dates to proper format for comparison
-      const startDate = advancedFilterData.startDate
-        ? parseDate(advancedFilterData.startDate)
-        : null;
-      const endDate = advancedFilterData.endDate
-        ? parseDate(advancedFilterData.endDate)
-        : null;
-
-      // Set end date to end of day for inclusive comparison
-      if (endDate) {
-        endDate.setHours(23, 59, 59, 999);
-      }
-
-      // Execute aggregation for each model in parallel
-      const [
-        wmmClients,
-        fomClients,
-        hrgClients,
-        calClients,
-        promoClients,
-        complimentaryClients,
-      ] = await Promise.all([
-        WmmModel.aggregate(createDatePipeline("adddate", "WMM")),
-        FomModel.aggregate(createDatePipeline("adddate")),
-        HrgModel.aggregate(createDatePipeline("adddate")),
-        CalModel.aggregate(createDatePipeline("adddate")),
-        PromoModel.aggregate(createDatePipeline("adddate", "Promo")),
-        ComplimentaryModel.aggregate(
-          createDatePipeline("adddate", "Complimentary")
-        ),
-      ]);
-
-      // Combine all client IDs
-      const matchingClientIds = [
-        ...new Set([
-          ...wmmClients.map((c) => Number(c._id)),
-          ...fomClients.map((c) => Number(c._id)),
-          ...hrgClients.map((c) => Number(c._id)),
-          ...calClients.map((c) => Number(c._id)),
-          ...promoClients.map((c) => Number(c._id)),
-          ...complimentaryClients.map((c) => Number(c._id)),
-        ]),
-      ].filter((id) => !isNaN(id));
-
-      if (matchingClientIds.length > 0) {
-        baseFilter.push({ id: { $in: matchingClientIds } });
-      } else {
-        baseFilter.push({ id: -1 }); // No matches
-      }
-    } catch (error) {
-      console.error("Error in date filtering:", error);
-      baseFilter.push({ id: -1 });
-    }
-  }
-
-  // Update the createDatePipeline function
+  // Define createDatePipeline function at the beginning to avoid temporal dead zone
   const createDatePipeline = (dateField, subscriptionType = "WMM") => [
     {
       $match: {
@@ -2155,6 +2025,195 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     },
   ];
 
+  // Handle adddate_regex filter
+  if (advancedFilterData.adddate_regex) {
+    try {
+      const WmmModel = await getModelInstance("WmmModel");
+      const FomModel = await getModelInstance("FomModel");
+      const HrgModel = await getModelInstance("HrgModel");
+      const CalModel = await getModelInstance("CalModel");
+      const PromoModel = await getModelInstance("PromoModel");
+      const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+
+      // Create pipeline for regex date filtering
+      const createRegexPipeline = [
+        {
+          $match: {
+            adddate: {
+              $regex: advancedFilterData.adddate_regex,
+              $options: "i",
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$clientid",
+          },
+        },
+      ];
+
+      // Execute aggregation for each model in parallel
+      const [
+        wmmClients,
+        fomClients,
+        hrgClients,
+        calClients,
+        promoClients,
+        complimentaryClients,
+      ] = await Promise.all([
+        WmmModel.aggregate(createRegexPipeline),
+        FomModel.aggregate(createRegexPipeline),
+        HrgModel.aggregate(createRegexPipeline),
+        CalModel.aggregate(createRegexPipeline),
+        PromoModel.aggregate(createRegexPipeline),
+        ComplimentaryModel.aggregate(createRegexPipeline),
+      ]);
+
+      // Combine all client IDs
+      const matchingClientIds = [
+        ...new Set([
+          ...wmmClients.map((c) => Number(c._id)),
+          ...fomClients.map((c) => Number(c._id)),
+          ...hrgClients.map((c) => Number(c._id)),
+          ...calClients.map((c) => Number(c._id)),
+          ...promoClients.map((c) => Number(c._id)),
+          ...complimentaryClients.map((c) => Number(c._id)),
+        ]),
+      ].filter((id) => !isNaN(id));
+
+      if (matchingClientIds.length > 0) {
+        baseFilter.push({ id: { $in: matchingClientIds } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches
+      }
+    } catch (error) {
+      console.error("Error in adddate regex filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+// Handle WMM Date Encoded Filter (adddate)
+if (advancedFilterData.startDate || advancedFilterData.endDate) {
+  try {
+         // Determine which models to query based on subscription type
+     const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+     
+     let modelsToQuery = [];
+     
+     if (subscriptionType === "WMM") {
+       const WmmModel = await getModelInstance("WmmModel");
+       modelsToQuery = [{ name: "WMM", model: WmmModel, type: "WMM" }];
+     } else if (subscriptionType === "Promo") {
+       const PromoModel = await getModelInstance("PromoModel");
+       modelsToQuery = [{ name: "Promo", model: PromoModel, type: "Promo" }];
+     } else if (subscriptionType === "Complimentary") {
+       const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+       modelsToQuery = [{ name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }];
+     } else {
+       // Default: query all models (for backward compatibility)
+       const [WmmModel, FomModel, HrgModel, CalModel, PromoModel, ComplimentaryModel] = await Promise.all([
+         getModelInstance("WmmModel"),
+         getModelInstance("FomModel"),
+         getModelInstance("HrgModel"),
+         getModelInstance("CalModel"),
+         getModelInstance("PromoModel"),
+         getModelInstance("ComplimentaryModel")
+       ]);
+       modelsToQuery = [
+         { name: "WMM", model: WmmModel, type: "WMM" },
+         { name: "FOM", model: FomModel, type: "WMM" },
+         { name: "HRG", model: HrgModel, type: "WMM" },
+         { name: "CAL", model: CalModel, type: "WMM" },
+         { name: "Promo", model: PromoModel, type: "Promo" },
+         { name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }
+       ];
+     }
+
+         // Prepare date range
+     const dateRange = {
+       startDate: advancedFilterData.startDate ? parseDate(advancedFilterData.startDate) : null,
+       endDate: advancedFilterData.endDate ? parseDate(advancedFilterData.endDate) : null
+     };
+
+     // Adjust end date to end of day if it exists
+     if (dateRange.endDate) {
+       dateRange.endDate.setHours(23, 59, 59, 999);
+     }
+
+         // Create pipelines for all models with date range filtering
+     const createDateRangePipeline = (dateField, subscriptionType = "WMM") => {
+       const basePipeline = createDatePipeline(dateField, subscriptionType);
+       
+       // Add date range filtering
+       const dateConditions = [];
+       if (dateRange.startDate && dateRange.endDate) {
+         dateConditions.push({
+           $expr: {
+             $and: [
+               { $gte: ["$normalizedDate", dateRange.startDate] },
+               { $lte: ["$normalizedDate", dateRange.endDate] }
+             ]
+           }
+         });
+       } else if (dateRange.startDate) {
+         dateConditions.push({
+           $expr: {
+             $gte: ["$normalizedDate", dateRange.startDate]
+           }
+         });
+       } else if (dateRange.endDate) {
+         dateConditions.push({
+           $expr: {
+             $lte: ["$normalizedDate", dateRange.endDate]
+           }
+         });
+       }
+
+       if (dateConditions.length > 0) {
+         basePipeline.push({ $match: { $or: dateConditions } });
+       }
+
+       // Add grouping to get client IDs and original adddate for debugging
+       basePipeline.push({
+         $group: {
+           _id: "$clientid",
+           originalAddDate: { $first: `$${dateField}` },
+           normalizedDate: { $first: "$normalizedDate" }
+         }
+       });
+
+       return basePipeline;
+     };
+
+     const pipelines = modelsToQuery.map(({ model, type }) => ({
+       model,
+       pipeline: createDateRangePipeline("adddate", type)
+     }));
+
+    // Execute all aggregations in parallel
+     const aggregationResults = await Promise.all(
+       pipelines.map(({ model, pipeline }) => 
+         model.aggregate(pipeline)
+       )
+     );
+
+     // Combine and deduplicate client IDs
+     const matchingClientIds = aggregationResults
+       .flatMap(clients => clients.map(c => Number(c._id)))
+       .filter(id => !isNaN(id))
+       .filter((id, index, self) => self.indexOf(id) === index); // Deduplicate
+
+     
+     if (matchingClientIds.length > 0) {
+       baseFilter.push({ id: { $in: matchingClientIds } });
+     } else {
+       baseFilter.push({ id: -1 }); // No matches
+     }
+  } catch (error) {
+    console.error("Error in date filtering:", error);
+    baseFilter.push({ id: -1 });
+  }
+}
   // Handle WMM Active Subscription Filter
   if (
     advancedFilterData.wmmActiveFromDate ||
