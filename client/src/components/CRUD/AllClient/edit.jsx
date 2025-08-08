@@ -280,6 +280,22 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     paymtdateMonth: "",
     paymtdateDay: "",
     paymtdateYear: "",
+    // WMM/Promo/Complimentary fields
+    subsdate: "",
+    subsdateMonth: "",
+    subsdateDay: "",
+    subsdateYear: "",
+    enddate: "",
+    enddateMonth: "",
+    enddateDay: "",
+    enddateYear: "",
+    subsyear: 0,
+    copies: 1,
+    paymtmasses: "",
+    calendar: false,
+    subsclass: "",
+    donorid: "",
+    referralid: "",
   });
 
   const [areas, setAreas] = useState(null);
@@ -2321,7 +2337,8 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         (roleSpecificData.paymtmasses &&
           roleSpecificData.paymtmasses.trim() !== "");
       const hasDonorId =
-        roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
+        roleSpecificData.donorid &&
+        String(roleSpecificData.donorid).trim() !== "";
       const hasSubsclass =
         formData.subsclass && formData.subsclass.trim() !== "";
       const hasReferralId =
@@ -2460,10 +2477,19 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         Complimentary: "COMP",
       }[formData.subscriptionType];
 
-      roleSubmissions.push({
+      // Include recordId if we're editing an existing subscription
+      const submission = {
         roleType: modelType,
         roleData: subscriptionData,
-      });
+      };
+
+      // If we're in edit mode and have a selected subscription, include the recordId
+      if (subscriptionMode === "edit" && selectedSubscription) {
+        submission.recordId =
+          selectedSubscription.id || selectedSubscription._id;
+      }
+
+      roleSubmissions.push(submission);
     }
 
     // Use the appropriate data source based on mode
@@ -2515,10 +2541,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         remarks: dataSource.remarks || "",
       };
 
-      roleSubmissions.push({
+      // Include recordId if we're editing an existing HRG record
+      const hrgSubmission = {
         roleType: "HRG",
         roleData: hrgData,
-      });
+      };
+
+      // If we're in edit mode and have a selected HRG record, include the recordId
+      if (roleRecordMode === "edit" && selectedHrgRecord) {
+        hrgSubmission.recordId = selectedHrgRecord.id || selectedHrgRecord._id;
+      }
+
+      roleSubmissions.push(hrgSubmission);
     }
 
     // Check if we have valid date components for FOM
@@ -2572,10 +2606,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         remarks: dataSource.remarks || "",
       };
 
-      roleSubmissions.push({
+      // Include recordId if we're editing an existing FOM record
+      const fomSubmission = {
         roleType: "FOM",
         roleData: fomData,
-      });
+      };
+
+      // If we're in edit mode and have a selected FOM record, include the recordId
+      if (roleRecordMode === "edit" && selectedFomRecord) {
+        fomSubmission.recordId = selectedFomRecord.id || selectedFomRecord._id;
+      }
+
+      roleSubmissions.push(fomSubmission);
     }
 
     // Check if we have valid date components for CAL
@@ -2635,10 +2677,18 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         remarks: dataSource.remarks || "",
       };
 
-      roleSubmissions.push({
+      // Include recordId if we're editing an existing CAL record
+      const calSubmission = {
         roleType: "CAL",
         roleData: calData,
-      });
+      };
+
+      // If we're in edit mode and have a selected CAL record, include the recordId
+      if (roleRecordMode === "edit" && selectedCalRecord) {
+        calSubmission.recordId = selectedCalRecord.id || selectedCalRecord._id;
+      }
+
+      roleSubmissions.push(calSubmission);
     }
 
     // Determine service type based on actual role submissions, not just user role
@@ -3051,6 +3101,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   name="contactnos"
                   value={formData.contactnos || ""}
                   onChange={handleChange}
+                  uppercase={true}
                   className="text-base"
                 />
                 <InputField
@@ -3059,6 +3110,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   name="cellno"
                   value={formData.cellno || ""}
                   onChange={handleChange}
+                  uppercase={true}
                   className="text-base"
                 />
                 <InputField
@@ -3067,6 +3119,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   name="ofcno"
                   value={formData.ofcno || ""}
                   onChange={handleChange}
+                  uppercase={true}
                   className="text-base"
                 />
                 <InputField
@@ -3134,6 +3187,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   value={formData.remarks}
                   onChange={handleChange}
                   type="textarea"
+                  uppercase={true}
                   className="w-full p-2 border rounded-md text-base"
                 />
               </div>
@@ -3412,6 +3466,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             name="paymtref"
                             value={roleSpecificData.paymtref}
                             onChange={handleRoleSpecificChange}
+                            uppercase={true}
                             className="w-full p-2 border rounded-md text-base"
                           />
                           <InputField
@@ -3420,6 +3475,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             name="paymtamt"
                             value={roleSpecificData.paymtamt}
                             onChange={handleRoleSpecificChange}
+                            uppercase={true}
                             className="w-full p-2 border rounded-md text-base"
                           />
                           <InputField
@@ -3428,6 +3484,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                             name="paymtmasses"
                             value={roleSpecificData.paymtmasses}
                             onChange={handleRoleSpecificChange}
+                            uppercase={true}
                             className="w-full p-2 border rounded-md text-base"
                           />
                           <div className="mb-4">
@@ -3461,6 +3518,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           name="referralid"
                           value={formData.referralid}
                           onChange={handleChange}
+                          uppercase={true}
                           className="w-full p-2 border rounded-md text-base"
                           placeholder="Enter referral ID"
                         />
@@ -3476,6 +3534,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         value={roleSpecificData.remarks}
                         onChange={handleRoleSpecificChange}
                         type="textarea"
+                        uppercase={true}
                         className="w-full p-2 border rounded-md text-base"
                       />
                     </div>
@@ -4131,6 +4190,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtref: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4152,6 +4212,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtamt: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4313,6 +4374,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtref: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
                     </div>
@@ -4336,6 +4398,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtamt: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4357,6 +4420,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtform: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4518,6 +4582,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   caltype: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4539,6 +4604,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   calqty: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4560,6 +4626,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   calamt: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
                     </div>
@@ -4583,6 +4650,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtref: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
@@ -4604,6 +4672,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                                   paymtamt: e.target.value,
                                 })
                         }
+                        uppercase={true}
                         className="text-base"
                       />
 
