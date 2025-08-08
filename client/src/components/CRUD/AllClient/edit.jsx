@@ -1194,7 +1194,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         formData.area || "",
         areaData
       );
-      setCombinedAddress(formattedAddress);
+      setCombinedAddress(formattedAddress || "");
 
       setFormData((prev) => ({
         ...prev,
@@ -1242,7 +1242,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           ...newAreaData,
           zipcode: addressData.zipcode || newAreaData.zipcode,
         });
-        setCombinedAddress(formattedAddress);
+        setCombinedAddress(formattedAddress || "");
         setFormData((prev) => ({
           ...prev,
           area: upperValue,
@@ -1271,7 +1271,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           }
         );
 
-        setCombinedAddress(formattedAddress);
+        setCombinedAddress(formattedAddress || "");
         setFormData((prev) => ({
           ...prev,
           address: formattedAddress,
@@ -1351,7 +1351,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       formData.area || "",
       areaData
     );
-    setCombinedAddress(formattedAddress);
+    setCombinedAddress(formattedAddress || "");
   };
 
   const handleCitySelect = (cityname) => {
@@ -2866,7 +2866,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         city: donorData.area || "",
         zipcode: donorData.zipcode || "",
       });
-      setCombinedAddress(donorData.address);
+      setCombinedAddress(donorData.address || "");
     }
 
     // Set area data
@@ -3083,6 +3083,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     onChange={handleCombinedAddressChange}
                     onFocus={handleCombinedAddressFocus}
                     onBlur={handleCombinedAddressBlur}
+                    uppercase={true}
                     className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
                   />
                 </div>
