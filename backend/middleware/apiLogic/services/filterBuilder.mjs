@@ -575,6 +575,71 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add area and type filters
   addAreaAndTypeFilters(baseFilter, advancedFilterData);
 
+  // Add subsclass filter (only for WMM model)
+  if (advancedFilterData.subsclass) {
+    const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+    
+    // Only apply subsclass filter for WMM subscription type
+    if (subscriptionType === "WMM") {
+      try {
+        const WmmModel = await getModelInstance("WmmModel");
+        
+        // Use aggregation to get the most recent record for each client based on adddate
+        const pipeline = [
+          // Convert adddate string to Date for proper sorting
+          {
+            $addFields: {
+              addDateObj: {
+                $dateFromString: {
+                  dateString: "$adddate",
+                  format: "%Y-%m-%d",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            },
+          },
+          
+          // Only include records with valid dates
+          { $match: { addDateObj: { $ne: null } } },
+          
+          // Sort by client ID and adddate (newest first)
+          { $sort: { clientid: 1, addDateObj: -1 } },
+          
+          // Group by client ID to get the most recent record
+          {
+            $group: {
+              _id: "$clientid",
+              latestSubsclass: { $first: "$subsclass" },
+              latestAddDate: { $first: "$adddate" },
+            },
+          },
+          
+          // Only include clients where the most recent subsclass exactly matches the filter
+          { $match: { latestSubsclass: advancedFilterData.subsclass } },
+          
+          // Project only the client ID
+          { $project: { _id: 1 } },
+        ];
+        
+        const clientsWithSubsclass = await WmmModel.aggregate(pipeline);
+        
+        const validClientIds = clientsWithSubsclass
+          .map((c) => parseInt(c._id))
+          .filter((id) => !isNaN(id));
+        
+        if (validClientIds.length > 0) {
+          baseFilter.push({ id: { $in: validClientIds } });
+        } else {
+          baseFilter.push({ id: -1 }); // No matches
+        }
+      } catch (error) {
+        console.error("Error in subsclass filtering:", error);
+        baseFilter.push({ id: -1 }); // No matches on error
+      }
+    }
+  }
+
   // Add copies filter
   if (advancedFilterData.copiesRange) {
     const subscriptionType = advancedFilterData.subscriptionType || "WMM";

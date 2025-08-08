@@ -1,16 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-const SubclassFilter = ({
-  filterData,
-  handleChange,
-  subclasses,
-}) => {
+const SubclassFilter = ({ filterData, handleChange, subclasses }) => {
   // Memoize the subclasses options
   const subclassOptions = useMemo(() => {
     if (!Array.isArray(subclasses)) return [];
     return subclasses.map((subclass) => (
       <option key={subclass._id} value={subclass.id}>
-        {subclass.id} - {subclass.name}
+        {subclass.name} - {subclass.id}
       </option>
     ));
   }, [subclasses]);
@@ -37,4 +33,4 @@ const SubclassFilter = ({
   );
 };
 
-export default SubclassFilter; 
+export default SubclassFilter;
