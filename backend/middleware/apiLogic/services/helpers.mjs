@@ -157,11 +157,24 @@ export const getSubscriptionModelName = (subscriptionType) => {
 
 // Helper to adjust model names based on subscription type
 export const adjustModelNamesForSubscription = (modelNames, subscriptionType) => {
-  if (!modelNames.includes('WmmModel')) {
-    return modelNames;
+  const targetLower = 'wmmmodel';
+  const replacement = getSubscriptionModelName(subscriptionType);
+
+  // Find case-insensitive index of WmmModel placeholder
+  const index = modelNames.findIndex((name) => String(name).toLowerCase() === targetLower);
+
+  if (index !== -1) {
+    // Replace the placeholder with the appropriate subscription model
+    const namesCopy = [...modelNames];
+    namesCopy.splice(index, 1, replacement);
+    return namesCopy;
   }
 
-  // Remove WmmModel and add appropriate subscription model
-  const filteredNames = modelNames.filter(name => name !== 'WmmModel');
-  return [...filteredNames, getSubscriptionModelName(subscriptionType)];
-}; 
+  // If no placeholder present, ensure the appropriate subscription model is included
+  const hasReplacement = modelNames.some((name) => String(name).toLowerCase() === replacement.toLowerCase());
+  if (!hasReplacement) {
+    return [...modelNames, replacement];
+  }
+
+  return modelNames;
+};
