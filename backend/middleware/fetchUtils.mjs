@@ -239,24 +239,55 @@ router.post("/areas-add", verifyToken, async (req, res) => {
 router.put("/areas/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { locations } = req.body;
+    const { _id: newAreaCode, locations } = req.body;
 
     // Validate that each location has a name
     if (!locations.every((location) => location.name)) {
       return res.status(400).json({ error: "Each location must have a name" });
     }
 
-    const updatedArea = await AreaModel.findOneAndUpdate(
-      { _id: id },
-      { locations, updatedAt: new Date() },
-      { new: true }
-    );
+    // Check if area code is being changed
+    if (newAreaCode && newAreaCode !== id) {
+      // Check if the new area code already exists
+      const existingArea = await AreaModel.findOne({ _id: newAreaCode });
+      if (existingArea) {
+        return res.status(400).json({ error: "Area code already exists" });
+      }
 
-    if (!updatedArea) {
-      return res.status(404).json({ error: "Area not found" });
+      // Update the area with new code and locations
+      const updatedArea = await AreaModel.findOneAndUpdate(
+        { _id: id },
+        { _id: newAreaCode, locations, updatedAt: new Date() },
+        { new: true }
+      );
+
+      if (!updatedArea) {
+        return res.status(404).json({ error: "Area not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        data: updatedArea,
+        message: "Area code and locations updated successfully"
+      });
+    } else {
+      // Just update locations if area code didn't change
+      const updatedArea = await AreaModel.findOneAndUpdate(
+        { _id: id },
+        { locations, updatedAt: new Date() },
+        { new: true }
+      );
+
+      if (!updatedArea) {
+        return res.status(404).json({ error: "Area not found" });
+      }
+
+      res.json({ 
+        success: true, 
+        data: updatedArea,
+        message: "Locations updated successfully"
+      });
     }
-
-    res.json({ success: true, data: updatedArea });
   } catch (err) {
     console.error("Error updating area:", err);
     res.status(500).json({ error: "Internal Server Error" });
