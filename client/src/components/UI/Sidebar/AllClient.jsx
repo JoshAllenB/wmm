@@ -141,6 +141,12 @@ const AllClient = () => {
   };
 
   const handleAddedTodayClick = () => {
+    // Prevent rapid clicking
+    if (isAddedTodayLoading) {
+      return;
+    }
+
+    setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
     setPage(1); // Reset to first page when toggling filter
     // Do NOT call fetchData here!
@@ -197,6 +203,7 @@ const AllClient = () => {
   };
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isAddedTodayLoading, setIsAddedTodayLoading] = useState(false);
   const initialLoadComplete = useRef(false);
   const lastFilterRef = useRef(null);
   const currentRequestRef = useRef(null); // Add this to track current request
@@ -316,13 +323,14 @@ const AllClient = () => {
         const requestId = Date.now();
         currentRequestRef.current = { id: requestId, cancel: false };
 
-        // Show loading state if it will take time
-        if (Object.keys(advancedFilterData).length > 2) {
-          setIsLoading(true);
-        }
-
+        // Show loading state for all requests to provide better UX
+        setIsLoading(true);
         // Clone the filter object to avoid mutations
         let filtersToUse = { ...advancedFilterData };
+
+        // Determine subscription type early
+        const currentSubscriptionType =
+          overrideSubscriptionType || subscriptionType;
 
         // Parse the filter for tagged search
         if (filter) {
@@ -420,9 +428,6 @@ const AllClient = () => {
           delete filtersToUse.adddate_regex;
         }
 
-        const currentSubscriptionType =
-          overrideSubscriptionType || subscriptionType;
-
         // Check if request was cancelled before making the API call
         if (currentRequestRef.current?.cancel) {
           return null;
@@ -466,12 +471,43 @@ const AllClient = () => {
 
         // Always remove loading state when done
         setIsLoading(false);
+        setIsAddedTodayLoading(false);
 
         return response;
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
+
+        // Show specific error messages to user
+        if (error.message === "Request timeout") {
+          toast({
+            title: "Request Timeout",
+            description:
+              "The request took too long to complete. Please try again or reduce your filter criteria.",
+            variant: "destructive",
+          });
+        } else if (error.response?.status === 500) {
+          toast({
+            title: "Server Error",
+            description: "An error occurred on the server. Please try again.",
+            variant: "destructive",
+          });
+        } else if (error.response?.status === 401) {
+          toast({
+            title: "Authentication Error",
+            description: "Please log in again to continue.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to fetch data. Please try again.",
+            variant: "destructive",
+          });
+        }
+
         // Ensure loading state is cleared even on error
         setIsLoading(false);
+        setIsAddedTodayLoading(false);
         return null;
       }
     },
@@ -593,6 +629,8 @@ const AllClient = () => {
     lastFilterRef.current = currentFilterSnapshot;
 
     // Use a single fetch call with a slight delay to avoid race conditions
+    // Add extra delay for addedToday filter to prevent rapid toggling
+    const delay = addedToday ? 200 : 100;
     const fetchTimer = setTimeout(() => {
       fetchData(
         page,
@@ -601,7 +639,7 @@ const AllClient = () => {
         selectedGroup,
         advancedFilterData
       );
-    }, 100); // Increased delay to better debounce multiple sequential state updates
+    }, delay);
 
     // Clean up timeout if component unmounts or dependencies change
     return () => clearTimeout(fetchTimer);
@@ -1374,13 +1412,23 @@ const AllClient = () => {
         />
         <Button
           onClick={handleAddedTodayClick}
+          disabled={isAddedTodayLoading}
           className={`${
             addedToday
               ? "bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
               : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
-          } transition-colors duration-200 font-medium`}
+          } transition-colors duration-200 font-medium ${
+            isAddedTodayLoading ? "opacity-50 cursor-not-allowed" : ""
+          }`}
         >
-          Added/Updated Today
+          {isAddedTodayLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+              Loading...
+            </>
+          ) : (
+            "Added/Updated Today"
+          )}
         </Button>
         <Button
           onClick={handleClearAllFilters}
@@ -1452,6 +1500,7 @@ const AllClient = () => {
         selectedGroup={selectedGroup}
         columnVisibility={columnVisibility}
         setColumnVisibility={setColumnVisibility}
+        isLoading={isLoading}
       />
       {showViewModal && (
         <View
