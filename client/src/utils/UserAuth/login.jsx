@@ -17,6 +17,7 @@ import { useApiResponseToast } from "../../components/UI/apiResponse";
 import { useUser } from "../Hooks/userProvider";
 import { webSocketService } from "../../services/WebSocketService";
 import { v4 as uuidv4 } from "uuid";
+import errorHandler from "../../services/errorHandler";
 
 const LoginPage = ({ setIsLoggedIn }) => {
   const [username, setUsername] = useState("");
@@ -165,6 +166,9 @@ const LoginPage = ({ setIsLoggedIn }) => {
           "An unexpected error occurred. Please try again later."
         );
       }
+
+      // Use centralized error handler for login errors (but don't logout)
+      errorHandler.handleAxiosError(error, { shouldLogout: false, shouldClearCache: true });
     }
   };
 

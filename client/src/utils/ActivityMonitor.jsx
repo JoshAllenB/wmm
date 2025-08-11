@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, createContext } from "react";
 import { getAccessToken, removeTokens } from "./Token/tokenStorage";
 import InactivityWarning from "../components/UI/InactivityWarning";
 import validateToken from "./Token/validateToken";
+import errorHandler from "../services/errorHandler";
 
 const WARNING_DURATION = 30_000; // 30 seconds warning before logout
 
@@ -9,26 +10,8 @@ export const ActivityContext = createContext();
 
 // Function to handle redirect to login (can be shared across components)
 export const redirectToLogin = () => {
-  // First clear any existing error messages
-  localStorage.removeItem("errorMessage");
-  localStorage.removeItem("sessionExpired");
-  
-  // Set a small delay to ensure cleanup happens before setting new message
-  setTimeout(() => {
-    // Store error message for login page
-    localStorage.setItem(
-      "errorMessage",
-      "Your session has expired. Please log in again."
-    );
-    
-    // Set the session expired flag
-    localStorage.setItem("sessionExpired", "true");
-    
-    // If not already on the login page, redirect
-    if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
-      window.location.href = '/';
-    }
-  }, 50);
+  // Use centralized error handler for session expiration
+  errorHandler.triggerLogout("Your session has expired. Please log in again.");
 };
 
 const ActivityMonitor = ({
@@ -84,7 +67,7 @@ const ActivityMonitor = ({
     const activityCheck = setInterval(() => {
       const currentTime = Date.now();
       const timeSinceLastActivity = currentTime - lastActivity;
-      const timeUntilInactive = (inactivityTimeout * 1000) - WARNING_DURATION;
+      const timeUntilInactive = inactivityTimeout * 1000 - WARNING_DURATION;
 
       // Show warning when approaching timeout
       if (timeSinceLastActivity > timeUntilInactive && !showWarning) {
@@ -104,7 +87,7 @@ const ActivityMonitor = ({
       const countdownInterval = setInterval(() => {
         setRemainingTime((prev) => {
           const newTime = prev - 1000;
-          
+
           if (newTime <= 0) {
             clearInterval(countdownInterval);
             setIsLoggedIn(false);
@@ -112,7 +95,7 @@ const ActivityMonitor = ({
             redirectToLogin();
             return 0;
           }
-          
+
           return newTime;
         });
       }, 1000);

@@ -8,6 +8,7 @@ import {
   setTokens,
 } from "./tokenStorage";
 import { redirectToLogin } from "../ActivityMonitor";
+import errorHandler from "../../services/errorHandler";
 
 const decodeToken = (token) => {
   try {
@@ -48,7 +49,11 @@ const refreshAndValidate = async () => {
     return response.data.valid ? response.data.user : false;
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
-    removeTokens();
+    // Use centralized error handler for token refresh errors
+    errorHandler.handleAxiosError(refreshError, {
+      shouldLogout: true,
+      shouldClearCache: true,
+    });
     return false;
   }
 };
@@ -86,10 +91,19 @@ const validateToken = async () => {
     if (error.response && error.response.status === 401) {
       const refreshResult = await refreshAndValidate();
       if (!refreshResult) {
-        removeTokens();
+        // Use centralized error handler for token validation errors
+        errorHandler.handleAxiosError(error, {
+          shouldLogout: true,
+          shouldClearCache: true,
+        });
       }
       return refreshResult;
     }
+    // Use centralized error handler for other token validation errors
+    errorHandler.handleAxiosError(error, {
+      shouldLogout: false,
+      shouldClearCache: true,
+    });
     return false;
   }
 };

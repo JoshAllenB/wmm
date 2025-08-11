@@ -1,4 +1,5 @@
 import axios from "axios";
+import errorHandler from './errorHandler';
 
 const API_URL = `http://${import.meta.env.VITE_IP_ADDRESS}:3001`;
 
@@ -34,41 +35,30 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh token (need to implement refresh token endpoint)
+        // Attempt to refresh token
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) throw new Error("No refresh token available");
 
-        const response = await axios.post(`${API_URL}/auth/refresh-token`, {
-          refreshToken,
+        const response = await axios.post(`${API_URL}/auth/refreshToken`, {
+          token: refreshToken,
         });
 
-        const { accessToken } = response.data;
-        localStorage.setItem("accessToken", accessToken);
+        const { token, refreshToken: newRefreshToken } = response.data;
+        localStorage.setItem("accessToken", token);
+        localStorage.setItem("refreshToken", newRefreshToken);
 
         // Retry original request with new token
-        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // If refresh fails, redirect to login
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("refreshToken");
-        
-        // First clear any existing messages
-        localStorage.removeItem("errorMessage");
-        localStorage.removeItem("sessionExpired");
-        
-        // Set a small delay before setting new message
-        setTimeout(() => {
-          // Set session expired flag and message
-          localStorage.setItem("errorMessage", "Your session has expired. Please log in again.");
-          localStorage.setItem("sessionExpired", "true");
-          window.location.href = "/login";
-        }, 50);
-        
+        // If refresh fails, use centralized error handler
+        errorHandler.handleAxiosError(refreshError, { shouldLogout: true, shouldClearCache: true });
         return Promise.reject(refreshError);
       }
     }
 
+    // For all other errors, use centralized error handler
+    errorHandler.handleAxiosError(error, { shouldLogout: false, shouldClearCache: true });
     return Promise.reject(error);
   }
 );

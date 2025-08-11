@@ -8,6 +8,7 @@ import {
 } from "../../components/UI/ShadCN/dropdown-menu";
 import { removeTokens } from "../Token/tokenStorage";
 import { redirectToLogin } from "../ActivityMonitor";
+import errorHandler from "../../services/errorHandler";
 
 export default function Logout({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -39,9 +40,13 @@ export default function Logout({ setIsLoggedIn }) {
         console.log("Logout response:", response.data);
       } catch (error) {
         console.error("Error during logout API call:", error);
-        // Continue with cleanup even if the API call fails
+        // Use centralized error handler for logout errors
+        errorHandler.handleAxiosError(error, {
+          shouldLogout: false,
+          shouldClearCache: true,
+        });
       }
-      
+
       // Always perform cleanup regardless of API success
       performLogoutCleanup();
     } catch (err) {
@@ -52,34 +57,21 @@ export default function Logout({ setIsLoggedIn }) {
   };
 
   const performLogoutCleanup = () => {
-    // Clear all tokens and session data
-    localStorage.removeItem("accessToken");
-    sessionStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    sessionStorage.removeItem("refreshToken");
-    localStorage.removeItem("sessionId");
-    
-    // Clear session expired flags and any existing error messages
-    localStorage.removeItem("errorMessage");
-    localStorage.removeItem("sessionExpired");
-    sessionStorage.removeItem("errorMessage");
-    sessionStorage.removeItem("sessionExpired");
-    
-    // Clear auth headers
-    removeTokens();
-    setAuthToken(null);
-    
+    // Use centralized error handler for logout cleanup
+    errorHandler.clearCache();
+
     // Update app state
     setIsLoggedIn(false);
-    
-    // Use a different approach for logout message - set it AFTER clearing previous messages
-    // with a small delay to ensure the state is properly cleared first
+
+    // Set logout success message
     setTimeout(() => {
-      localStorage.setItem("errorMessage", "You have been logged out successfully.");
-      // Make sure session expired flag stays removed
+      localStorage.setItem(
+        "errorMessage",
+        "You have been logged out successfully."
+      );
       localStorage.removeItem("sessionExpired");
     }, 100);
-    
+
     navigate("/");
   };
 

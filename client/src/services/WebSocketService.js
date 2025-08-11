@@ -1,4 +1,5 @@
 import { io } from "socket.io-client";
+import errorHandler from './errorHandler';
 
 class WebSocketService {
   constructor(url) {
@@ -213,8 +214,11 @@ class WebSocketService {
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error("[WebSocket] Max reconnection attempts reached");
-        // Clear session data if we can't reconnect
-        this.clearSession();
+        // Use centralized error handler for max reconnection attempts
+        errorHandler.handleWebSocketError('max_reconnect_attempts', error);
+      } else {
+        // Handle connection error but don't logout yet
+        errorHandler.handleWebSocketError('connection_error', error);
       }
       
       this.isConnecting = false;
@@ -246,6 +250,18 @@ class WebSocketService {
     this.socket.on("data-sync-error", (error) => {
       console.error("[WebSocket] Data sync error:", error);
       this.pendingDataSync = false;
+      // Handle data sync error with centralized error handler
+      errorHandler.handleWebSocketError('data_sync_error', error);
+    });
+
+    // Handle websocket-specific errors from server
+    this.socket.on("websocket-error", (error) => {
+      console.error("[WebSocket] Server websocket error:", error);
+      if (error.type === 'invalid_session_data') {
+        errorHandler.handleNoWebSocketForUser();
+      } else {
+        errorHandler.handleWebSocketError('server_error', error);
+      }
     });
 
     // Add data update handler
@@ -371,6 +387,13 @@ class WebSocketService {
       sessionId: null,
       socketId: null,
     };
+  }
+
+  /**
+   * Handle "No websocket for this user" error
+   */
+  handleNoWebSocketForUser() {
+    errorHandler.handleNoWebSocketForUser();
   }
 
   reconnect() {

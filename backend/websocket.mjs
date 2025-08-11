@@ -72,6 +72,11 @@ const initWebSocket = (io) => {
         userId,
         username: username || 'none'
       });
+      // Emit specific error for invalid session data
+      socket.emit('websocket-error', {
+        type: 'invalid_session_data',
+        message: 'No websocket for this user - invalid session data'
+      });
       socket.disconnect();
       return;
     }
