@@ -63,13 +63,15 @@ export default function Logout({ setIsLoggedIn }) {
     // Update app state
     setIsLoggedIn(false);
 
+    // Clear session expired flag since this is a manual logout
+    localStorage.removeItem("sessionExpired");
+
     // Set logout success message
     setTimeout(() => {
       localStorage.setItem(
         "errorMessage",
         "You have been logged out successfully."
       );
-      localStorage.removeItem("sessionExpired");
     }, 100);
 
     navigate("/");

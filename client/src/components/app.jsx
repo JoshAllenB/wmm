@@ -47,9 +47,15 @@ const App = () => {
 
   useEffect(() => {
     const storedErrorMessage = localStorage.getItem("errorMessage");
+    const isSessionExpired = localStorage.getItem("sessionExpired");
+
     if (storedErrorMessage) {
-      setErrorMessage(storedErrorMessage);
-      localStorage.removeItem("errorMessage");
+      // Only show error messages that are not related to inactivity timeout
+      // Inactivity timeout messages should be handled by the login page
+      if (!isSessionExpired || !storedErrorMessage.includes("inactivity")) {
+        setErrorMessage(storedErrorMessage);
+        localStorage.removeItem("errorMessage");
+      }
     }
   }, []);
 

@@ -11,7 +11,9 @@ export const ActivityContext = createContext();
 // Function to handle redirect to login (can be shared across components)
 export const redirectToLogin = () => {
   // Use centralized error handler for session expiration
-  errorHandler.triggerLogout("Your session has expired. Please log in again.");
+  errorHandler.triggerLogout(
+    "Your session has expired due to inactivity. Please log in again."
+  );
 };
 
 const ActivityMonitor = ({
@@ -49,9 +51,20 @@ const ActivityMonitor = ({
           return;
         }
 
-        // Clear any stale session expired messages
-        localStorage.removeItem("sessionExpired");
-        localStorage.removeItem("errorMessage");
+        // Clear any stale session expired messages only if user is actually logged in
+        // Don't clear if user was actually logged out due to inactivity
+        const sessionExpired = localStorage.getItem("sessionExpired");
+        const errorMessage = localStorage.getItem("errorMessage");
+
+        // Only clear if the error message is not related to inactivity timeout
+        if (
+          sessionExpired &&
+          errorMessage &&
+          !errorMessage.includes("inactivity")
+        ) {
+          localStorage.removeItem("sessionExpired");
+          localStorage.removeItem("errorMessage");
+        }
       }
     };
 
@@ -90,8 +103,14 @@ const ActivityMonitor = ({
 
           if (newTime <= 0) {
             clearInterval(countdownInterval);
+            // Close the warning dialog immediately
+            setShowWarning(false);
+            setIsInactive(false);
+            // Perform logout
             setIsLoggedIn(false);
             removeTokens();
+            // Set session expired flag to prevent incorrect messages on reload
+            localStorage.setItem("sessionExpired", "true");
             redirectToLogin();
             return 0;
           }

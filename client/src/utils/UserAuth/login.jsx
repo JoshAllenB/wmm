@@ -47,27 +47,14 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   // Check for stored error messages (e.g. from 401 redirects)
   useEffect(() => {
-    // Clear any session expiration messages on initial page load
-    const isFirstLoad = sessionStorage.getItem("initialLoginLoad") !== "true";
-    if (isFirstLoad) {
-      localStorage.removeItem("errorMessage");
-      localStorage.removeItem("sessionExpired");
-      sessionStorage.setItem("initialLoginLoad", "true");
-      return;
-    }
-    
     const storedErrorMessage = localStorage.getItem("errorMessage");
     const isSessionExpired = localStorage.getItem("sessionExpired");
-    
+
     if (storedErrorMessage) {
-      // Only show the session expired message if the flag is set
-      if (isSessionExpired === "true") {
-        setErrorMessage("Your session has expired. Please log in again.");
-      } else {
-        setErrorMessage(storedErrorMessage);
-      }
-      
-      // Clean up storage
+      // Show the stored error message
+      setErrorMessage(storedErrorMessage);
+
+      // Clean up storage after displaying the message
       localStorage.removeItem("errorMessage");
       localStorage.removeItem("sessionExpired");
     }
@@ -110,7 +97,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
       if (!localStorage.getItem("sessionId")) {
         localStorage.setItem("sessionId", uuidv4());
       }
-      
+
       // Store user information for WebSocket reconnection
       localStorage.setItem("userId", user.id);
       localStorage.setItem("username", user.username);
@@ -126,10 +113,10 @@ const LoginPage = ({ setIsLoggedIn }) => {
         query: {
           userId: user.id,
           username: user.username,
-          sessionId: localStorage.getItem("sessionId")
-        }
+          sessionId: localStorage.getItem("sessionId"),
+        },
       });
-      
+
       navigate("/all-client");
     } catch (error) {
       console.error("Error in login request:", error);
@@ -168,7 +155,10 @@ const LoginPage = ({ setIsLoggedIn }) => {
       }
 
       // Use centralized error handler for login errors (but don't logout)
-      errorHandler.handleAxiosError(error, { shouldLogout: false, shouldClearCache: true });
+      errorHandler.handleAxiosError(error, {
+        shouldLogout: false,
+        shouldClearCache: true,
+      });
     }
   };
 
