@@ -35,48 +35,6 @@ import {
 } from "./Mailing/PrintGenerator";
 
 // Helper functions
-const convertLegacyLabelToTemplate = (label) => {
-  // Handle initialization command field which could be "init" or "initCommand"
-  const initValue = label.init || label.initCommand || "";
-
-  // Handle format field which could be "format" or "formatStr"
-  const formatValue = label.format || label.formatStr || "";
-
-  // Handle reset field which could be "reset" or "resetCommand"
-  const resetValue = label.reset || label.resetCommand || "";
-
-  return {
-    id: label.id || `label-${Math.random().toString(36).substr(2, 9)}`,
-    name: label.description || label.id || "Unnamed Label",
-    description: label.description || `${label.id || "Legacy"} Label Template`,
-    layout: {
-      left: label.left || 1,
-      width: label.width || 43,
-      height: label.height || 22,
-      columns: label.columns || 2,
-      fontSize: 12,
-      leftPosition: label.left || 1,
-      topPosition: 10,
-      columnWidth: (label.width || 43) * 6, // Converting character width to pixels (approx)
-      labelHeight: (label.height || 22) * 12, // Converting character height to pixels (approx)
-      horizontalSpacing: 20,
-    },
-    // Determine if this legacy label includes cell number based on content
-    selectedFields:
-      formatValue &&
-      (String(formatValue).includes("Cell#") ||
-        String(formatValue).includes("cellno"))
-        ? ["contactnos"]
-        : [],
-    isLegacy: true,
-    printer: label.printer || "Dot Matrix Printer",
-    // Use original field names for better compatibility
-    init: initValue,
-    format: formatValue,
-    reset: resetValue,
-    type: label.type || "LEGACY",
-  };
-};
 
 // Conversion functions
 const mmToPx = (mm) => Math.round((mm * 96) / 25.4);
@@ -136,11 +94,8 @@ const Mailing = ({
   const [rowSpacing, setRowSpacing] = useState(90); // 63.5mm (about 2.5 inches)
   const [selectedFields, setSelectedFields] = useState(["cellno"]); // Initialize with default contact field
   const [showInputs, setShowInputs] = useState(false);
-  const [templateName, setTemplateName] = useState("");
   const [savedTemplates, setSavedTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
-  const [useLegacyFormat, setUseLegacyFormat] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [startClientId, setStartClientId] = useState("");
   const [endClientId, setEndClientId] = useState("");
@@ -418,7 +373,6 @@ const Mailing = ({
   // New function to fetch all data with optimized batch processing
   const fetchAllData = async () => {
     try {
-
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/fetchall`,
         {
@@ -460,13 +414,15 @@ const Mailing = ({
     }
   };
 
-  // Fetch templates and legacy labels
+  // Fetch templates by department
   const fetchAllTemplates = async () => {
     setIsLoading(true);
     try {
-      // Fetch modern templates
+      // Fetch templates filtered by user's department
       const templatesResponse = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates`,
+        `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/util/templates?department=${userRole}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -475,52 +431,8 @@ const Mailing = ({
       );
       const templatesData = templatesResponse.data;
 
-      // Fetch legacy labels
-      let legacyLabelsData = [];
-      try {
-        const labelsResponse = await axios.get(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/labels`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
-        legacyLabelsData = labelsResponse.data;
-      } catch (labelError) {
-        console.error("Error fetching legacy labels:", labelError);
-        legacyLabelsData = [];
-      }
-
-      // Convert legacy labels to template format
-      let legacyTemplates = [];
-
-      if (legacyLabelsData && legacyLabelsData.length > 0) {
-        // Convert all labels to templates
-        legacyTemplates = legacyLabelsData
-          .map((label) => {
-            try {
-              const template = convertLegacyLabelToTemplate(label);
-              return template;
-            } catch (conversionError) {
-              console.error(
-                `Error converting label ${label?.id || "unknown"}:`,
-                conversionError
-              );
-              return null;
-            }
-          })
-          .filter(Boolean); // Remove any null entries
-      }
-
       // Add the templates to state
-      const validLegacyTemplates = Array.isArray(legacyTemplates)
-        ? legacyTemplates
-        : [];
-      const validModernTemplates = Array.isArray(templatesData)
-        ? templatesData
-        : [];
-      const allTemplates = [...validModernTemplates, ...validLegacyTemplates];
+      const validTemplates = Array.isArray(templatesData) ? templatesData : [];
 
       // If no templates were found, add a default template
       if (validTemplates.length === 0) {
@@ -593,55 +505,32 @@ const Mailing = ({
     );
 
     if (selected) {
-      if (selected.isLegacy) {
-        setUseLegacyFormat(true);
+      // Set all layout settings from template
+      setFontSize(selected.layout.fontSize || 12);
+      setLeftPosition(selected.layout.leftPosition || 10);
+      setTopPosition(selected.layout.topPosition || 10);
+      setColumnWidth(selected.layout.columnWidth || 300);
+      setLabelHeight(selected.layout.labelHeight || 100);
+      setHorizontalSpacing(selected.layout.horizontalSpacing || 20);
+      setRowSpacing(selected.layout.rowSpacing || 63.5);
+      setSelectedFields(selected.selectedFields || []);
 
-        // Set the layout settings (convert dimensions to mm, keep font size in pt)
-        setFontSize(selected.layout.fontSize); // Font size stays in pt
-        setLeftPosition(pxToMm(selected.layout.leftPosition));
-        setTopPosition(pxToMm(selected.layout.topPosition));
-        setColumnWidth(pxToMm(selected.layout.columnWidth));
-        setLabelHeight(pxToMm(selected.layout.labelHeight));
-        setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing));
-        setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
-        setSelectedFields(selected.selectedFields);
+      // Set paper size
+      setPaperWidth(selected.layout.paperWidth || 215.9);
+      setPaperHeight(selected.layout.paperHeight || 279.4);
 
-        // Set paper size if defined in template
-        if (selected.layout.paperWidth)
-          setPaperWidth(selected.layout.paperWidth);
-        if (selected.layout.paperHeight)
-          setPaperHeight(selected.layout.paperHeight);
+      // Set page layout
+      setRowsPerPage(selected.layout.rowsPerPage || 3);
+      setColumnsPerPage(selected.layout.columnsPerPage || 2);
 
-        // Set page layout if defined in template
-        if (selected.layout.rowsPerPage)
-          setRowsPerPage(selected.layout.rowsPerPage);
-        if (selected.layout.columnsPerPage)
-          setColumnsPerPage(selected.layout.columnsPerPage);
-      } else {
-        setUseLegacyFormat(false);
+      // Set raw printer controls
+      setLabelAdjustments({
+        labelWidthIn: selected.layout.labelWidthIn || 3.5,
+        topMargin: selected.layout.topMargin || 4,
+        rowSpacing: selected.layout.rowSpacingLines || 14,
+        col2X: selected.layout.col2X || 255,
+      });
 
-        // Regular template settings
-        setFontSize(selected.layout.fontSize); // Font size stays in pt
-        setLeftPosition(pxToMm(selected.layout.leftPosition));
-        setTopPosition(pxToMm(selected.layout.topPosition));
-        setColumnWidth(pxToMm(selected.layout.columnWidth));
-        setLabelHeight(pxToMm(selected.layout.labelHeight || 100));
-        setHorizontalSpacing(pxToMm(selected.layout.horizontalSpacing || 20));
-        setRowSpacing(selected.layout.rowSpacing || 63.5); // Default to 63.5mm if not set
-        setSelectedFields(selected.selectedFields);
-
-        // Set paper size if defined in template
-        if (selected.layout.paperWidth)
-          setPaperWidth(selected.layout.paperWidth);
-        if (selected.layout.paperHeight)
-          setPaperHeight(selected.layout.paperHeight);
-
-        // Set page layout if defined in template
-        if (selected.layout.rowsPerPage)
-          setRowsPerPage(selected.layout.rowsPerPage);
-        if (selected.layout.columnsPerPage)
-          setColumnsPerPage(selected.layout.columnsPerPage);
-      }
       setSelectedTemplate(selected);
     }
   };
@@ -696,7 +585,6 @@ const Mailing = ({
           horizontalSpacing: mmToPx(horizontalSpacing),
         },
         selectedFields: selectedFields || [],
-        isLegacy: useLegacyFormat,
       };
     }
 
@@ -716,7 +604,7 @@ const Mailing = ({
         });
       }
     }
-    // For non-legacy templates, show print preview
+    // Generate print preview
     const htmlContent = generatePrintHTML(
       startClientId,
       endClientId,
@@ -1090,15 +978,6 @@ const Mailing = ({
       );
 
       if (response.data && response.data.combinedData) {
-        console.log(
-          `Successfully fetched ${response.data.combinedData.length} records with batch processing`
-        );
-
-        // Log processing information if available
-        if (response.data.processingInfo) {
-          console.log("Processing info:", response.data.processingInfo);
-        }
-
         const data = response.data.combinedData;
         setAllData(data);
         setRecordCounts({
@@ -1294,7 +1173,13 @@ const Mailing = ({
                   {/* Configuration Toggle and Checklist Button */}
                   <div className="flex justify-center gap-2 mb-4">
                     <Button onClick={toggleShowInputs} variant="outline">
-                      {showInputs ? "Hide Configuration" : "Show Configuration"}
+                      {showInputs
+                        ? currentAction === "label"
+                          ? "Hide Raw Printer Config"
+                          : "Hide Configuration"
+                        : currentAction === "label"
+                        ? "Show Raw Printer Config"
+                        : "Show Configuration"}
                     </Button>
                     <Button
                       onClick={handlePrintChecklist}
@@ -1305,45 +1190,85 @@ const Mailing = ({
                     </Button>
                   </div>
 
-                  {/* Configuration Panel */}
+                  {/* Configuration Panel - Show different configs based on action */}
                   {showInputs && (
                     <div className="mb-6">
-                      <ConfigurationPanel
-                        fontSize={fontSize}
-                        setFontSize={setFontSize}
-                        columnWidth={columnWidth}
-                        setColumnWidth={setColumnWidth}
-                        leftPosition={leftPosition}
-                        setLeftPosition={setLeftPosition}
-                        topPosition={topPosition}
-                        setTopPosition={setTopPosition}
-                        labelHeight={labelHeight}
-                        setLabelHeight={setLabelHeight}
-                        horizontalSpacing={horizontalSpacing}
-                        setHorizontalSpacing={setHorizontalSpacing}
-                        rowSpacing={rowSpacing}
-                        setRowSpacing={setRowSpacing}
-                        selectedFields={selectedFields}
-                        setSelectedFields={setSelectedFields}
-                        templateName={templateName}
-                        setTemplateName={setTemplateName}
-                        showTemplateNameInput={showTemplateNameInput}
-                        setShowTemplateNameInput={setShowTemplateNameInput}
-                        saveTemplate={saveTemplate}
-                        paperWidth={paperWidth}
-                        setPaperWidth={setPaperWidth}
-                        paperHeight={paperHeight}
-                        setPaperHeight={setPaperHeight}
-                        rowsPerPage={rowsPerPage}
-                        setRowsPerPage={setRowsPerPage}
-                        columnsPerPage={columnsPerPage}
-                        setColumnsPerPage={setColumnsPerPage}
-                      />
+                      {currentAction === "label" ? (
+                        // For label mode: Show RawPrinterControls configuration
+                        <div>
+                          <h4 className="font-medium mb-3 text-gray-800">
+                            Raw Printer Configuration
+                          </h4>
+                          <RawPrinterControls
+                            startClientId={startClientId}
+                            endClientId={endClientId}
+                            startPosition={startPosition}
+                            rows={availableRows}
+                            selectedFields={selectedFields}
+                            userRole={userRole}
+                            subscriptionType={subscriptionType}
+                            rowsPerPage={rowsPerPage}
+                            columnsPerPage={columnsPerPage}
+                            labelAdjustments={labelAdjustments}
+                            setLabelAdjustments={setLabelAdjustments}
+                            onPositionChange={setLabelAdjustments}
+                          />
+                        </div>
+                      ) : (
+                        // For document mode: Show existing ConfigurationPanel
+                        <ConfigurationPanel
+                          fontSize={fontSize}
+                          setFontSize={setFontSize}
+                          columnWidth={columnWidth}
+                          setColumnWidth={setColumnWidth}
+                          leftPosition={leftPosition}
+                          setLeftPosition={setLeftPosition}
+                          topPosition={topPosition}
+                          setTopPosition={setTopPosition}
+                          labelHeight={labelHeight}
+                          setLabelHeight={setLabelHeight}
+                          horizontalSpacing={horizontalSpacing}
+                          setHorizontalSpacing={setHorizontalSpacing}
+                          rowSpacing={rowSpacing}
+                          setRowSpacing={setRowSpacing}
+                          selectedFields={selectedFields}
+                          setSelectedFields={setSelectedFields}
+                          paperWidth={paperWidth}
+                          setPaperWidth={setPaperWidth}
+                          paperHeight={paperHeight}
+                          setPaperHeight={setPaperHeight}
+                          rowsPerPage={rowsPerPage}
+                          setRowsPerPage={setRowsPerPage}
+                          columnsPerPage={columnsPerPage}
+                          setColumnsPerPage={setColumnsPerPage}
+                        />
+                      )}
                     </div>
                   )}
 
-                  {/* Configuration Panel with Thank You Letter options */}
-                  {showInputs && (
+                  {/* Template Saver */}
+                  <div className="mb-6">
+                    <TemplateSaver
+                      fontSize={fontSize}
+                      columnWidth={columnWidth}
+                      leftPosition={leftPosition}
+                      topPosition={topPosition}
+                      labelHeight={labelHeight}
+                      horizontalSpacing={horizontalSpacing}
+                      rowSpacing={rowSpacing}
+                      selectedFields={selectedFields}
+                      paperWidth={paperWidth}
+                      paperHeight={paperHeight}
+                      rowsPerPage={rowsPerPage}
+                      columnsPerPage={columnsPerPage}
+                      labelAdjustments={labelAdjustments}
+                      userRole={userRole}
+                      onTemplateSaved={handleTemplateSaved}
+                    />
+                  </div>
+
+                  {/* Configuration Panel with Thank You Letter options - Only for document mode */}
+                  {showInputs && currentAction !== "label" && (
                     <div className="mb-6 border rounded p-3 bg-blue-50">
                       <h4 className="font-medium mb-2">Form Integration</h4>
                       <div className="flex gap-2 flex-wrap">
@@ -1426,7 +1351,6 @@ const Mailing = ({
                       selectedTemplate={selectedTemplate}
                       hasAvailableRows={hasAvailableRows}
                       availableRows={availableRows}
-                      useLegacyFormat={useLegacyFormat}
                       fontSize={fontSize}
                       columnWidth={columnWidth}
                       horizontalSpacing={horizontalSpacing}
@@ -1446,14 +1370,8 @@ const Mailing = ({
                     <div className="text-sm text-gray-600 mt-4 text-center">
                       <p>Real-time preview of how labels will print</p>
                       <p className="text-xs">
-                        {useLegacyFormat && selectedTemplate?.isLegacy
-                          ? `Legacy format: optimized for ${
-                              selectedTemplate.printer || "dot matrix printers"
-                            }`
-                          : `Layout dimensions: ${Math.max(
-                              columnWidth * 2,
-                              200
-                            )}px × ${Math.max(labelHeight * 2, 100)}px`}
+                        Layout dimensions: {Math.max(columnWidth * 2, 200)}px ×{" "}
+                        {Math.max(labelHeight * 2, 100)}px
                       </p>
                     </div>
 
