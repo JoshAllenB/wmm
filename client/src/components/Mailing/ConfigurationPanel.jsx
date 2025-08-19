@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "../UI/ShadCN/button";
 
-const ConfigurationPanel = ({ 
+const ConfigurationPanel = ({
   fontSize,
   setFontSize,
   columnWidth,
@@ -18,11 +18,6 @@ const ConfigurationPanel = ({
   setRowSpacing,
   selectedFields,
   setSelectedFields,
-  templateName,
-  setTemplateName,
-  showTemplateNameInput,
-  setShowTemplateNameInput,
-  saveTemplate,
   paperWidth,
   setPaperWidth,
   paperHeight,
@@ -30,7 +25,7 @@ const ConfigurationPanel = ({
   rowsPerPage,
   setRowsPerPage,
   columnsPerPage,
-  setColumnsPerPage
+  setColumnsPerPage,
 }) => {
   // State for input values
   const [inputValues, setInputValues] = useState({
@@ -44,7 +39,7 @@ const ConfigurationPanel = ({
     paperWidth,
     paperHeight,
     rowsPerPage,
-    columnsPerPage
+    columnsPerPage,
   });
 
   // Update input values when props change
@@ -60,9 +55,21 @@ const ConfigurationPanel = ({
       paperWidth,
       paperHeight,
       rowsPerPage,
-      columnsPerPage
+      columnsPerPage,
     });
-  }, [topPosition, leftPosition, fontSize, columnWidth, labelHeight, horizontalSpacing, rowSpacing, paperWidth, paperHeight, rowsPerPage, columnsPerPage]);
+  }, [
+    topPosition,
+    leftPosition,
+    fontSize,
+    columnWidth,
+    labelHeight,
+    horizontalSpacing,
+    rowSpacing,
+    paperWidth,
+    paperHeight,
+    rowsPerPage,
+    columnsPerPage,
+  ]);
 
   const fields = [{ label: "Contact Numbers", value: "contactnos" }];
 
@@ -72,25 +79,17 @@ const ConfigurationPanel = ({
     );
   };
 
-  const handleSaveClick = () => {
-    setShowTemplateNameInput(true);
-  };
-
-  const handleTemplateNameChange = (event) => {
-    setTemplateName(event.target.value);
-  };
-
   // Handle input change
   const handleInputChange = (field, value, setter) => {
     // Allow empty string or valid numbers with optional decimal point
-    if (value === '' || /^[0-9]*\.?[0-9]*$/.test(value)) {
-      setInputValues(prev => ({
+    if (value === "" || /^[0-9]*\.?[0-9]*$/.test(value)) {
+      setInputValues((prev) => ({
         ...prev,
-        [field]: value
+        [field]: value,
       }));
 
       // Only update parent state if it's a valid number
-      if (value !== '' && !isNaN(value)) {
+      if (value !== "" && !isNaN(value)) {
         setter(parseFloat(value));
       }
     }
@@ -99,22 +98,22 @@ const ConfigurationPanel = ({
   // Handle blur event to clean up invalid values
   const handleBlur = (field, value, setter) => {
     let finalValue = value;
-    
-    if (value === '' || isNaN(value)) {
-      finalValue = '0';
+
+    if (value === "" || isNaN(value)) {
+      finalValue = "0";
     } else {
       // Format the number to 2 decimal places if it has more
       const numValue = parseFloat(value);
       finalValue = numValue.toFixed(2);
       // Remove trailing .00 if it's a whole number
-      if (finalValue.endsWith('.00')) {
-        finalValue = finalValue.split('.')[0];
+      if (finalValue.endsWith(".00")) {
+        finalValue = finalValue.split(".")[0];
       }
     }
-    
-    setInputValues(prev => ({
+
+    setInputValues((prev) => ({
       ...prev,
-      [field]: finalValue
+      [field]: finalValue,
     }));
     setter(parseFloat(finalValue));
   };
@@ -122,7 +121,7 @@ const ConfigurationPanel = ({
   return (
     <div className="flex flex-col p-4 border rounded mb-4 w-full bg-gray-50">
       <h3 className="text-lg font-semibold mb-3">Configuration</h3>
-      
+
       {/* Paper Size Settings */}
       <div className="mb-4">
         <h4 className="text-sm font-medium mb-2">Paper Size</h4>
@@ -133,8 +132,12 @@ const ConfigurationPanel = ({
               type="text"
               value={inputValues.paperWidth}
               className="border border-gray-300 rounded p-1 text-center w-full"
-              onChange={(e) => handleInputChange('paperWidth', e.target.value, setPaperWidth)}
-              onBlur={(e) => handleBlur('paperWidth', e.target.value, setPaperWidth)}
+              onChange={(e) =>
+                handleInputChange("paperWidth", e.target.value, setPaperWidth)
+              }
+              onBlur={(e) =>
+                handleBlur("paperWidth", e.target.value, setPaperWidth)
+              }
             />
             <span className="text-xs text-gray-500 mt-1">
               ({(inputValues.paperWidth / 25.4).toFixed(1)}")
@@ -146,8 +149,12 @@ const ConfigurationPanel = ({
               type="text"
               value={inputValues.paperHeight}
               className="border border-gray-300 rounded p-1 text-center w-full"
-              onChange={(e) => handleInputChange('paperHeight', e.target.value, setPaperHeight)}
-              onBlur={(e) => handleBlur('paperHeight', e.target.value, setPaperHeight)}
+              onChange={(e) =>
+                handleInputChange("paperHeight", e.target.value, setPaperHeight)
+              }
+              onBlur={(e) =>
+                handleBlur("paperHeight", e.target.value, setPaperHeight)
+              }
             />
             <span className="text-xs text-gray-500 mt-1">
               ({(inputValues.paperHeight / 25.4).toFixed(1)}")
@@ -155,7 +162,7 @@ const ConfigurationPanel = ({
           </div>
         </div>
       </div>
-      
+
       {/* Page Layout Settings */}
       <div className="mb-4">
         <h4 className="text-sm font-medium mb-2">Page Layout</h4>
@@ -169,12 +176,18 @@ const ConfigurationPanel = ({
               value={inputValues.rowsPerPage}
               className="border border-gray-300 rounded p-1 text-center w-full"
               onChange={(e) => {
-                const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
-                handleInputChange('rowsPerPage', value, setRowsPerPage);
+                const value = Math.max(
+                  1,
+                  Math.min(10, parseInt(e.target.value) || 1)
+                );
+                handleInputChange("rowsPerPage", value, setRowsPerPage);
               }}
               onBlur={(e) => {
-                const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
-                handleBlur('rowsPerPage', value, setRowsPerPage);
+                const value = Math.max(
+                  1,
+                  Math.min(10, parseInt(e.target.value) || 1)
+                );
+                handleBlur("rowsPerPage", value, setRowsPerPage);
               }}
             />
           </div>
@@ -187,18 +200,25 @@ const ConfigurationPanel = ({
               value={inputValues.columnsPerPage}
               className="border border-gray-300 rounded p-1 text-center w-full"
               onChange={(e) => {
-                const value = Math.max(1, Math.min(4, parseInt(e.target.value) || 1));
-                handleInputChange('columnsPerPage', value, setColumnsPerPage);
+                const value = Math.max(
+                  1,
+                  Math.min(4, parseInt(e.target.value) || 1)
+                );
+                handleInputChange("columnsPerPage", value, setColumnsPerPage);
               }}
               onBlur={(e) => {
-                const value = Math.max(1, Math.min(4, parseInt(e.target.value) || 1));
-                handleBlur('columnsPerPage', value, setColumnsPerPage);
+                const value = Math.max(
+                  1,
+                  Math.min(4, parseInt(e.target.value) || 1)
+                );
+                handleBlur("columnsPerPage", value, setColumnsPerPage);
               }}
             />
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Labels per page: {inputValues.rowsPerPage * inputValues.columnsPerPage}
+          Labels per page:{" "}
+          {inputValues.rowsPerPage * inputValues.columnsPerPage}
         </p>
       </div>
 
@@ -212,8 +232,12 @@ const ConfigurationPanel = ({
               type="text"
               value={inputValues.topPosition}
               className="border border-gray-300 rounded p-1 text-center w-full"
-              onChange={(e) => handleInputChange('topPosition', e.target.value, setTopPosition)}
-              onBlur={(e) => handleBlur('topPosition', e.target.value, setTopPosition)}
+              onChange={(e) =>
+                handleInputChange("topPosition", e.target.value, setTopPosition)
+              }
+              onBlur={(e) =>
+                handleBlur("topPosition", e.target.value, setTopPosition)
+              }
             />
           </div>
           <div className="flex flex-col">
@@ -222,13 +246,21 @@ const ConfigurationPanel = ({
               type="text"
               value={inputValues.leftPosition}
               className="border border-gray-300 rounded p-1 text-center w-full"
-              onChange={(e) => handleInputChange('leftPosition', e.target.value, setLeftPosition)}
-              onBlur={(e) => handleBlur('leftPosition', e.target.value, setLeftPosition)}
+              onChange={(e) =>
+                handleInputChange(
+                  "leftPosition",
+                  e.target.value,
+                  setLeftPosition
+                )
+              }
+              onBlur={(e) =>
+                handleBlur("leftPosition", e.target.value, setLeftPosition)
+              }
             />
           </div>
         </div>
       </div>
-      
+
       {/* Layout Settings */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-3 w-full">
         <div className="flex flex-col">
@@ -237,22 +269,24 @@ const ConfigurationPanel = ({
             type="text"
             value={inputValues.fontSize}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('fontSize', e.target.value, setFontSize)}
+            onChange={(e) =>
+              handleInputChange("fontSize", e.target.value, setFontSize)
+            }
             onBlur={(e) => {
               // Special handling for font size - keep as whole numbers
               const value = e.target.value;
               let finalValue = value;
-              
-              if (value === '' || isNaN(value)) {
-                finalValue = '12'; // Default font size
+
+              if (value === "" || isNaN(value)) {
+                finalValue = "12"; // Default font size
               } else {
                 // Round to nearest whole number for font size
                 finalValue = Math.round(parseFloat(value)).toString();
               }
-              
-              setInputValues(prev => ({
+
+              setInputValues((prev) => ({
                 ...prev,
-                fontSize: finalValue
+                fontSize: finalValue,
               }));
               setFontSize(parseInt(finalValue, 10));
             }}
@@ -264,8 +298,12 @@ const ConfigurationPanel = ({
             type="text"
             value={inputValues.columnWidth}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('columnWidth', e.target.value, setColumnWidth)}
-            onBlur={(e) => handleBlur('columnWidth', e.target.value, setColumnWidth)}
+            onChange={(e) =>
+              handleInputChange("columnWidth", e.target.value, setColumnWidth)
+            }
+            onBlur={(e) =>
+              handleBlur("columnWidth", e.target.value, setColumnWidth)
+            }
           />
         </div>
         <div className="flex flex-col">
@@ -274,8 +312,12 @@ const ConfigurationPanel = ({
             type="text"
             value={inputValues.labelHeight}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('labelHeight', e.target.value, setLabelHeight)}
-            onBlur={(e) => handleBlur('labelHeight', e.target.value, setLabelHeight)}
+            onChange={(e) =>
+              handleInputChange("labelHeight", e.target.value, setLabelHeight)
+            }
+            onBlur={(e) =>
+              handleBlur("labelHeight", e.target.value, setLabelHeight)
+            }
           />
         </div>
         <div className="flex flex-col">
@@ -284,8 +326,20 @@ const ConfigurationPanel = ({
             type="text"
             value={inputValues.horizontalSpacing}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('horizontalSpacing', e.target.value, setHorizontalSpacing)}
-            onBlur={(e) => handleBlur('horizontalSpacing', e.target.value, setHorizontalSpacing)}
+            onChange={(e) =>
+              handleInputChange(
+                "horizontalSpacing",
+                e.target.value,
+                setHorizontalSpacing
+              )
+            }
+            onBlur={(e) =>
+              handleBlur(
+                "horizontalSpacing",
+                e.target.value,
+                setHorizontalSpacing
+              )
+            }
           />
         </div>
         <div className="flex flex-col col-span-2">
@@ -294,15 +348,20 @@ const ConfigurationPanel = ({
             type="text"
             value={inputValues.rowSpacing}
             className="border border-gray-300 rounded p-1 text-center w-full"
-            onChange={(e) => handleInputChange('rowSpacing', e.target.value, setRowSpacing)}
-            onBlur={(e) => handleBlur('rowSpacing', e.target.value, setRowSpacing)}
+            onChange={(e) =>
+              handleInputChange("rowSpacing", e.target.value, setRowSpacing)
+            }
+            onBlur={(e) =>
+              handleBlur("rowSpacing", e.target.value, setRowSpacing)
+            }
           />
           <p className="text-xs text-gray-500 mt-1">
-            This is the vertical gap between each row of labels (consistent spacing between all rows)
+            This is the vertical gap between each row of labels (consistent
+            spacing between all rows)
           </p>
         </div>
       </div>
-      
+
       {/* Field Selection */}
       <div className="flex gap-4 justify-center mb-4 w-full">
         {fields.map((field) => (
@@ -317,36 +376,17 @@ const ConfigurationPanel = ({
               onChange={() => handleFieldChange(field.value)}
               className="text-black border-gray-300 h-4 w-4"
             />
-            <label htmlFor={`field-${field.value}`}>
-              {field.label}
-            </label>
+            <label htmlFor={`field-${field.value}`}>{field.label}</label>
           </div>
         ))}
       </div>
-      
-      {/* Template Saving */}
-      <div className="w-full">
-        <Button
-          onClick={handleSaveClick}
-          variant="secondary"
-          className="w-full mb-2"
-        >
-          Save Current Settings as Template
-        </Button>
-        {showTemplateNameInput && (
-          <div className="flex flex-col items-center mt-1">
-            <input
-              type="text"
-              value={templateName}
-              onChange={handleTemplateNameChange}
-              placeholder="Enter template name"
-              className="border border-gray-300 rounded p-1 text-center mb-1 w-full"
-            />
-            <Button onClick={saveTemplate} className="w-full">
-              Confirm Save
-            </Button>
-          </div>
-        )}
+
+      {/* Note about template saving */}
+      <div className="w-full p-3 bg-blue-50 rounded-md">
+        <p className="text-xs text-blue-700 text-center">
+          Use the "Save Current Settings as Template" button in the main
+          interface to save these settings as a template.
+        </p>
       </div>
     </div>
   );

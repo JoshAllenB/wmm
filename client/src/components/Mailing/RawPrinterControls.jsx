@@ -390,18 +390,16 @@ const RawPrinterControls = ({
   subscriptionType,
   rowsPerPage = 3,
   columnsPerPage = 2,
+  labelAdjustments,
+  setLabelAdjustments,
   onPositionChange, // Callback to notify parent of position changes
 }) => {
   const [selectedPrinter, setSelectedPrinter] = useState("");
 
-  // Use the label adjustments hook
-  const { labelAdjustments, setLabelAdjustments, getAdjustments } =
-    useLabelAdjustments();
-
   // Notify parent component when adjustments change
   useEffect(() => {
     if (onPositionChange) {
-      onPositionChange(getAdjustments());
+      onPositionChange(labelAdjustments);
     }
   }, [labelAdjustments, onPositionChange]);
 

@@ -14,6 +14,7 @@ import { toast } from "react-hot-toast";
 
 // Import components
 import TemplateSelector from "./Mailing/TemplateSelector";
+import TemplateSaver from "./Mailing/TemplateSaver";
 import LabelPreview from "./Mailing/LabelPreview";
 import RangeSelector from "./Mailing/RangeSelector";
 import ConfigurationPanel from "./Mailing/ConfigurationPanel";
@@ -507,52 +508,62 @@ const Mailing = ({
       const allTemplates = [...validModernTemplates, ...validLegacyTemplates];
 
       // If no templates were found, add a default template
-      if (allTemplates.length === 0) {
-        allTemplates.push({
-          id: "DEFAULT",
+      if (validTemplates.length === 0) {
+        validTemplates.push({
+          _id: "DEFAULT",
           name: "Default Template",
           description: "Default Mailing Label Template",
+          department: userRole,
           layout: {
-            left: 1,
-            width: 43,
-            height: 22,
-            columns: 2,
             fontSize: 12,
             leftPosition: 10,
             topPosition: 10,
             columnWidth: 300,
             labelHeight: 100,
             horizontalSpacing: 20,
+            rowSpacing: 63.5,
+            paperWidth: 215.9,
+            paperHeight: 279.4,
+            rowsPerPage: 3,
+            columnsPerPage: 2,
+            labelWidthIn: 3.5,
+            topMargin: 4,
+            rowSpacingLines: 14,
+            col2X: 255,
           },
           selectedFields: ["cellno"],
-          isLegacy: false,
         });
       }
 
-      setSavedTemplates(allTemplates);
+      setSavedTemplates(validTemplates);
     } catch (error) {
       console.error("Error in fetchAllTemplates:", error);
 
       // Add only a default template
       setSavedTemplates([
         {
-          id: "DEFAULT",
+          _id: "DEFAULT",
           name: "Default Template",
           description: "Default Mailing Label Template",
+          department: userRole,
           layout: {
-            left: 1,
-            width: 43,
-            height: 22,
-            columns: 2,
             fontSize: 12,
             leftPosition: 10,
             topPosition: 10,
             columnWidth: 300,
             labelHeight: 100,
             horizontalSpacing: 20,
+            rowSpacing: 63.5,
+            paperWidth: 215.9,
+            paperHeight: 279.4,
+            rowsPerPage: 3,
+            columnsPerPage: 2,
+            labelWidthIn: 3.5,
+            topMargin: 4,
+            rowSpacingLines: 14,
+            col2X: 255,
           },
           selectedFields: ["cellno"],
-          isLegacy: false,
         },
       ]);
     } finally {
