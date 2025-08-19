@@ -140,9 +140,41 @@ export const getFullName = (data) => {
     .join(" ");
 };
 
+// Helper function to clean phone numbers - extract only numeric parts
+const cleanPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return "";
+  
+  // Convert to string first to handle number inputs
+  const phoneStr = String(phoneNumber);
+  
+  // Find the first sequence of digits, dashes, spaces, plus signs, and periods
+  // This will capture phone numbers like: 0922-9625905, +63 922 962 5905, etc.
+  const phoneMatch = phoneStr.match(/^[\d\s\-\+\.]+/);
+  
+  if (phoneMatch) {
+    // Clean up the matched phone number
+    let cleaned = phoneMatch[0]
+      // Remove extra spaces
+      .replace(/\s+/g, ' ')
+      // Remove multiple dashes
+      .replace(/-+/g, '-')
+      // Remove multiple periods
+      .replace(/\.+/g, '.')
+      // Trim whitespace
+      .trim();
+    
+    // Remove trailing dashes, periods, or spaces
+    cleaned = cleaned.replace(/[\-\s\.]+$/, '');
+    
+    return cleaned;
+  }
+  
+  return "";
+};
+
 export const getContactNumber = (data) => {
-  const cellno = data.cellno || "";
-  const officeno = data.officeno || "";
+  const cellno = cleanPhoneNumber(data.cellno);
+  const officeno = cleanPhoneNumber(data.officeno);
 
   if (cellno || officeno) {
     return [cellno, officeno].filter((num) => num).join(" / ");
@@ -348,8 +380,8 @@ const generateLabelTextContent = (
         .filter(line => line.length > 0) // Keep only non-empty lines
     : [];
 
-  // Contact info - always include contact information for raw printing
-  const contact = getContactNumber(data);
+  // Contact info - only include if cellno is selected
+  const contact = selectedFields.includes("cellno") ? getContactNumber(data) : "";
 
   // Build content with clear line breaks according to specified format
   let content = "";

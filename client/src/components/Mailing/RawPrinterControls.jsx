@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "../UI/ShadCN/button";
+import { Checkbox } from "../UI/ShadCN/checkbox";
 import { toast } from "react-hot-toast";
 
 // Custom hook for managing label adjustments
@@ -393,6 +394,7 @@ const RawPrinterControls = ({
   labelAdjustments,
   setLabelAdjustments,
   onPositionChange, // Callback to notify parent of position changes
+  setSelectedFields, // Callback to update selectedFields in parent
 }) => {
   const [selectedPrinter, setSelectedPrinter] = useState("");
 
@@ -604,6 +606,35 @@ const RawPrinterControls = ({
         <h5 className="text-sm font-medium text-gray-700 mb-2">
           Label Adjustments
         </h5>
+
+        {/* Cell Number Toggle */}
+        <div className="mb-3 p-3 bg-white rounded border">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="cellno-toggle"
+              checked={selectedFields.includes("cellno")}
+              onCheckedChange={(checked) => {
+                const newSelectedFields = checked
+                  ? [...selectedFields.filter((f) => f !== "cellno"), "cellno"]
+                  : selectedFields.filter((f) => f !== "cellno");
+                // Update selectedFields in parent component
+                if (setSelectedFields) {
+                  setSelectedFields(newSelectedFields);
+                }
+              }}
+            />
+            <label
+              htmlFor="cellno-toggle"
+              className="text-sm font-medium text-gray-700"
+            >
+              Include Cell Numbers
+            </label>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            When checked, contact information (cell and office numbers) will be
+            included in the printed labels.
+          </p>
+        </div>
 
         {/* Adjustment Controls */}
         <div className="grid grid-cols-2 gap-3">

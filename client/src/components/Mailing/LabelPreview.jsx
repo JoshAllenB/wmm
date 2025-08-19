@@ -19,17 +19,33 @@ const getContactNumber = (row) => {
   // Function to clean phone numbers
   const cleanPhoneNumber = (number) => {
     if (!number) return "";
+
     // Convert to string first to handle number inputs
     const numberStr = String(number);
-    // Remove any text descriptions (e.g., "Cell:", "Phone:", etc.)
-    const withoutLabels = numberStr.replace(
-      /(?:cell|phone|tel|office|contact|#|number|:|\(|\))/gi,
-      ""
-    );
-    // Keep only digits, spaces, dashes, plus signs, and periods
-    const cleaned = withoutLabels.replace(/[^0-9\s\-\+\.]/g, "").trim();
-    // Remove multiple spaces/dashes
-    return cleaned.replace(/[\s-]+/g, "-");
+
+    // Find the first sequence of digits, dashes, spaces, plus signs, and periods
+    // This will capture phone numbers like: 0922-9625905, +63 922 962 5905, etc.
+    const phoneMatch = numberStr.match(/^[\d\s\-\+\.]+/);
+
+    if (phoneMatch) {
+      // Clean up the matched phone number
+      let cleaned = phoneMatch[0]
+        // Remove extra spaces
+        .replace(/\s+/g, " ")
+        // Remove multiple dashes
+        .replace(/-+/g, "-")
+        // Remove multiple periods
+        .replace(/\.+/g, ".")
+        // Trim whitespace
+        .trim();
+
+      // Remove trailing dashes, periods, or spaces
+      cleaned = cleaned.replace(/[\-\s\.]+$/, "");
+
+      return cleaned;
+    }
+
+    return "";
   };
 
   // Try cell number first

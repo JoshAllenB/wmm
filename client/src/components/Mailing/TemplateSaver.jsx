@@ -198,9 +198,6 @@ const TemplateSaver = ({
         >
           Save Current Settings as Template
         </Button>
-        <p className="text-xs text-gray-500 mt-1">
-          Debug: Button should be visible
-        </p>
       </div>
     );
   }

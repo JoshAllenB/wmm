@@ -156,6 +156,11 @@ const Mailing = ({
     col2X: 255,
   });
 
+  // Callback to handle changes from RawPrinterControls
+  const handleRawPrinterControlsChange = (changes) => {
+    setLabelAdjustments(changes);
+  };
+
   // Function to handle skipped data updates
   const handleSkippedDataUpdate = (skippedRecords) => {
     setSkippedData(skippedRecords);
@@ -1211,7 +1216,8 @@ const Mailing = ({
                             columnsPerPage={columnsPerPage}
                             labelAdjustments={labelAdjustments}
                             setLabelAdjustments={setLabelAdjustments}
-                            onPositionChange={setLabelAdjustments}
+                            onPositionChange={handleRawPrinterControlsChange}
+                            setSelectedFields={setSelectedFields}
                           />
                         </div>
                       ) : (

@@ -162,7 +162,7 @@ export const fetchLegacyLabels = async () => {
           labelHeight: (label.height || 22) * 12,
           horizontalSpacing: 20,
         },
-        selectedFields: label.format?.includes("cellno") ? ["contactnos"] : [],
+        selectedFields: label.format?.includes("cellno") ? ["cellno"] : [],
         type: label.type || "LEGACY",
         printer: label.printer || "Dot Matrix Printer",
         init: label.init || "",

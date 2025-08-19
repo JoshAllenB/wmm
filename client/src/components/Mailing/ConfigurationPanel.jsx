@@ -71,7 +71,7 @@ const ConfigurationPanel = ({
     columnsPerPage,
   ]);
 
-  const fields = [{ label: "Contact Numbers", value: "contactnos" }];
+  const fields = [{ label: "Cell Numbers", value: "cellno" }];
 
   const handleFieldChange = (field) => {
     setSelectedFields((prev) =>
