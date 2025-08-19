@@ -107,12 +107,16 @@ export const fetchPrintTemplates = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching print templates:", error);
-    
+
     // Check for specific error types
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
-      console.error("Response error:", error.response.status, error.response.data);
+      console.error(
+        "Response error:",
+        error.response.status,
+        error.response.data
+      );
     } else if (error.request) {
       // The request was made but no response was received
       console.error("No response received:", error.request);
@@ -120,7 +124,7 @@ export const fetchPrintTemplates = async () => {
       // Something happened in setting up the request that triggered an Error
       console.error("Request setup error:", error.message);
     }
-    
+
     // Return empty array to prevent further errors
     return [];
   }
@@ -130,21 +134,19 @@ export const fetchLegacyLabels = async () => {
   try {
     const url = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/labels`;
     const token = localStorage.getItem("accessToken");
-    
-    console.group('Fetching Legacy Labels');
-    console.log('Requesting from:', url);
-    
+
+    console.group("Fetching Legacy Labels");
+    console.log("Requesting from:", url);
+
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    
-    console.log('Raw response data count:', response.data?.length || 0);
-    
+
     if (response.data?.length > 0) {
       // Convert each label to a template format
-      const convertedTemplates = response.data.map(label => ({
+      const convertedTemplates = response.data.map((label) => ({
         id: label.id,
         name: label.description || label.id,
         description: label.description,
@@ -160,55 +162,46 @@ export const fetchLegacyLabels = async () => {
           labelHeight: (label.height || 22) * 12,
           horizontalSpacing: 20,
         },
-        selectedFields: label.format?.includes('cellno') ? ['contactnos'] : [],
-        isLegacy: true,
-        type: label.type || 'LEGACY',
-        printer: label.printer || 'Dot Matrix Printer',
-        init: label.init || '',
-        format: label.format || '',
-        reset: label.reset || ''
+        selectedFields: label.format?.includes("cellno") ? ["contactnos"] : [],
+        type: label.type || "LEGACY",
+        printer: label.printer || "Dot Matrix Printer",
+        init: label.init || "",
+        format: label.format || "",
+        reset: label.reset || "",
       }));
-
-      console.log('Converted templates count:', convertedTemplates.length);
-      
       // Group by type for analysis
       const typeGroups = convertedTemplates.reduce((acc, template) => {
-        const type = template.type || 'Unspecified';
+        const type = template.type || "Unspecified";
         if (!acc[type]) acc[type] = [];
         acc[type].push({
           id: template.id,
           name: template.name,
-          type: template.type
+          type: template.type,
         });
         return acc;
       }, {});
-      
-      console.log('Templates by type:', typeGroups);
-      console.log('Sample converted template:', convertedTemplates[0]);
+
       console.groupEnd();
-      
+
       return convertedTemplates;
     } else {
       console.warn("No labels found in response");
-      console.log('Response data:', response.data);
       console.groupEnd();
       return [];
     }
   } catch (error) {
-    console.group('Legacy Labels Error');
+    console.group("Legacy Labels Error");
     console.error("Error fetching legacy labels:", error);
-    
+
     if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response headers:', error.response.headers);
-      console.error('Response data:', error.response.data);
+      console.error("Response status:", error.response.status);
+      console.error("Response headers:", error.response.headers);
+      console.error("Response data:", error.response.data);
     }
-    
+
     if (error.config) {
-      console.log('Request URL:', error.config.url);
-      console.log('Request headers:', error.config.headers);
     }
-    
+
     console.groupEnd();
     return [];
   }

@@ -4,35 +4,20 @@ const MailingActions = ({
   isLoading,
   hasAvailableRows,
   selectedTemplate,
-  useLegacyFormat,
   onPrintPreview,
-  onDirectPrint
+  onDirectPrint,
 }) => {
   return (
     <div className="flex flex-col gap-3">
-      {/* Modern Template Print Preview Button */}
-      {!useLegacyFormat && (
-        <Button
-          onClick={onPrintPreview}
-          disabled={!hasAvailableRows || isLoading}
-          className="w-full"
-          variant="default"
-        >
-          Print Preview
-        </Button>
-      )}
-
-      {/* Legacy Template Direct Print Button */}
-      {useLegacyFormat && selectedTemplate?.isLegacy && (
-        <Button
-          onClick={onDirectPrint}
-          disabled={!hasAvailableRows || isLoading}
-          className="w-full"
-          variant="default"
-        >
-          Print to Dot Matrix
-        </Button>
-      )}
+      {/* Print Preview Button */}
+      <Button
+        onClick={onPrintPreview}
+        disabled={!hasAvailableRows || isLoading}
+        className="w-full"
+        variant="default"
+      >
+        Print Preview
+      </Button>
 
       {/* Show message if no rows available */}
       {!hasAvailableRows && (
@@ -44,4 +29,4 @@ const MailingActions = ({
   );
 };
 
-export default MailingActions; 
+export default MailingActions;

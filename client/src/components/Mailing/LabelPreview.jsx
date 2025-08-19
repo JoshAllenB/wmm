@@ -47,28 +47,11 @@ const getContactNumber = (row) => {
   return "";
 };
 
-const formatDateLegacy = (dateString) => {
-  if (!dateString) return "N/A";
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) return "N/A";
-
-  const month = (date.getMonth() + 1).toString().padStart(2, "0");
-  const day = date.getDate().toString().padStart(2, "0");
-  const year = date.getFullYear().toString().slice(2);
-  return `${month}/${day}/${year}`;
-};
-
-const formatIdLegacy = (id) => {
-  if (!id) return "";
-  return id.toString().padStart(6, "0");
-};
-
 const LabelPreview = ({
   isLoading,
   selectedTemplate,
   hasAvailableRows,
   availableRows,
-  useLegacyFormat,
   fontSize, // Now in points (pt)
   columnWidth, // In mm
   horizontalSpacing, // In mm
@@ -102,111 +85,6 @@ const LabelPreview = ({
         <p className="text-sm text-gray-500">
           Select rows and a template to see a preview
         </p>
-      </div>
-    );
-  }
-
-  if (useLegacyFormat && selectedTemplate?.isLegacy) {
-    // Legacy template preview
-    // Use real data from available rows if possible
-    const previewRow =
-      availableRows.length > 0 ? availableRows[0].original : null;
-    const wmmData = previewRow?.wmmData;
-    const subscription = wmmData?.records?.[0] || wmmData || {};
-    const displayCopies = previewRow ? subscription.copies || "1" : "1";
-    const displayAcode = previewRow?.acode || "WM001";
-
-    // Get the expiration date if available
-    let displayExpDate = "N/A";
-    if (subscription.enddate) {
-      displayExpDate = formatDateLegacy(subscription.enddate);
-    } else {
-      displayExpDate = formatDateLegacy(new Date());
-    }
-
-    // Format the ID properly
-    const displayId = previewRow ? formatIdLegacy(previewRow.id) : "000001";
-
-    // Get proper name
-    const displayName = previewRow
-      ? getFullName(previewRow)
-      : getFullName({ title: "", fname: "John", lname: "Doe", mname: "" });
-
-    // Get proper address
-    const displayAddress =
-      previewRow?.address || "123 Main Street, Anytown, USA";
-
-    // Get proper contact number if needed
-    const displayContact = previewRow
-      ? getContactNumber(previewRow)
-      : "555-123-4567";
-
-    return (
-      <div
-        className="mailing-label-preview border border-dashed border-gray-400 relative bg-white shadow-md overflow-hidden font-mono h-full"
-        style={{
-          width: `${Math.max(selectedTemplate.layout.width * 8, 200)}px`,
-          margin: "0 auto",
-          padding: "10px",
-          fontSize: `${fontSize}pt`, // Now using points
-        }}
-      >
-        {/* Show sample of legacy format */}
-        <div className="absolute top-0 right-0 left-0 bg-amber-50 text-amber-800 text-xs px-2 py-1">
-          Legacy Dot Matrix Format ({selectedTemplate.printer || "Dot Matrix"})
-          {previewRow ? " - Real Data" : " - Sample Data"}
-        </div>
-
-        {/* Add a paper feed visuals at the top */}
-        <div className="absolute top-2 left-0 right-0 flex justify-center">
-          <div className="flex space-x-1">
-            {Array(Math.ceil(selectedTemplate.layout.width / 5))
-              .fill()
-              .map((_, i) => (
-                <div key={i} className="w-1 h-1 bg-gray-300 rounded-full"></div>
-              ))}
-          </div>
-        </div>
-
-        {/* Sample content */}
-        <div className="mt-6 pt-2 relative">
-          {/* Guidelines */}
-          <div className="absolute inset-0 pointer-events-none">
-            <div
-              className="h-full w-full border border-dashed border-gray-200"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to right, rgba(220,220,220,0.2) 1px, transparent 1px), linear-gradient(to bottom, rgba(220,220,220,0.2) 1px, transparent 1px)",
-                backgroundSize: "10px 12px",
-              }}
-            ></div>
-          </div>
-
-          <pre
-            className="relative z-10 p-2 text-sm overflow-hidden leading-tight text-gray-800"
-            style={{ fontFamily: "'LQMATRIX EliteQ LQN', monospace" }}
-          >
-            {`${displayId}-S-${displayExpDate}-${displayCopies}cps/${displayAcode}
-${displayName}
-${displayAddress}
-${
-  selectedTemplate.selectedFields.includes("cellno")
-    ? `Cell# ${displayContact}`
-    : ""
-}`}
-          </pre>
-        </div>
-
-        {/* Format string tooltip */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-100 text-gray-600 text-xs px-2 py-1 overflow-hidden">
-          <details>
-            <summary className="cursor-pointer">Show Format String</summary>
-            <div className="mt-1 p-1 bg-white text-[9px] max-h-12 overflow-auto break-all">
-              {selectedTemplate.format?.substring(0, 100) || "No format string"}
-              {selectedTemplate.format?.length > 100 ? "..." : ""}
-            </div>
-          </details>
-        </div>
       </div>
     );
   }
