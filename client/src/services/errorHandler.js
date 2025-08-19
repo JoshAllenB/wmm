@@ -178,7 +178,13 @@ class ErrorHandler {
     // Set error message for login page
     setTimeout(() => {
       localStorage.setItem('errorMessage', message);
-      localStorage.removeItem('sessionExpired'); // Ensure this is not set
+      
+      // Set session expired flag if it's an inactivity timeout
+      if (message.includes('inactivity')) {
+        localStorage.setItem('sessionExpired', 'true');
+      } else {
+        localStorage.removeItem('sessionExpired'); // Ensure this is not set for other logout reasons
+      }
       
       // Redirect to login page
       if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
