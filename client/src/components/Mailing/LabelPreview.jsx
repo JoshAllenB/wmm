@@ -190,7 +190,7 @@ const LabelPreview = ({
 ${displayName}
 ${displayAddress}
 ${
-  selectedTemplate.selectedFields.includes("contactnos")
+  selectedTemplate.selectedFields.includes("cellno")
     ? `Cell# ${displayContact}`
     : ""
 }`}
@@ -471,7 +471,7 @@ const LabelItem = ({
           </React.Fragment>
         ))}
       </p>
-      {selectedFields.includes("contactnos") && (
+      {selectedFields.includes("cellno") && (
         <p style={commonParagraphStyle}>Cell# {getContactNumber(rowData)}</p>
       )}
     </div>

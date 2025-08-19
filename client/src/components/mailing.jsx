@@ -129,7 +129,7 @@ const Mailing = ({
   const [labelHeight, setLabelHeight] = useState(35); // 130px in mm
   const [horizontalSpacing, setHorizontalSpacing] = useState(13); // 60px in mm
   const [rowSpacing, setRowSpacing] = useState(90); // 63.5mm (about 2.5 inches)
-  const [selectedFields, setSelectedFields] = useState(["contactnos"]); // Initialize with default contact field
+  const [selectedFields, setSelectedFields] = useState(["cellno"]); // Initialize with default contact field
   const [showInputs, setShowInputs] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [savedTemplates, setSavedTemplates] = useState([]);
@@ -524,7 +524,7 @@ const Mailing = ({
             labelHeight: 100,
             horizontalSpacing: 20,
           },
-          selectedFields: ["contactnos"],
+          selectedFields: ["cellno"],
           isLegacy: false,
         });
       }
@@ -551,7 +551,7 @@ const Mailing = ({
             labelHeight: 100,
             horizontalSpacing: 20,
           },
-          selectedFields: ["contactnos"],
+          selectedFields: ["cellno"],
           isLegacy: false,
         },
       ]);
