@@ -314,7 +314,11 @@ router.delete("/areas/:id", verifyToken, async (req, res) => {
 
 router.get("/templates", verifyToken, async (req, res) => {
   try {
-    const templates = await PrintLabelModel.find();
+    const { department } = req.query;
+    
+    // If department is specified, filter by it
+    const query = department ? { department } : {};
+    const templates = await PrintLabelModel.find(query).sort({ createdAt: -1 });
     res.json(templates);
   } catch (err) {
     console.error("Error fetching templates:", err);
@@ -324,20 +328,90 @@ router.get("/templates", verifyToken, async (req, res) => {
 
 router.post("/templates-add", verifyToken, async (req, res) => {
   try {
-    const { name, layout, selectedFields, previewType } = req.body;
+    const { name, description, department, layout, selectedFields, previewType } = req.body;
+
+    // Validate required fields
+    if (!name || !department) {
+      return res.status(400).json({ error: "Name and department are required" });
+    }
 
     const newTemplate = new PrintLabelModel({
       name,
+      description: description || "",
+      department,
       layout,
       selectedFields,
-      previewType,
+      previewType: previewType || "standard",
     });
 
     await newTemplate.save();
     res.status(201).json(newTemplate);
   } catch (error) {
     console.error("Error saving template:", error);
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        error: "A template with this name already exists in this department" 
+      });
+    }
+    
     res.status(500).json({ error: "Failed to save template." });
+  }
+});
+
+router.put("/templates/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, department, layout, selectedFields, previewType } = req.body;
+
+    const updatedTemplate = await PrintLabelModel.findByIdAndUpdate(
+      id,
+      {
+        name,
+        description: description || "",
+        department,
+        layout,
+        selectedFields,
+        previewType: previewType || "standard",
+        updatedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!updatedTemplate) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+
+    res.json(updatedTemplate);
+  } catch (error) {
+    console.error("Error updating template:", error);
+    
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        error: "A template with this name already exists in this department" 
+      });
+    }
+    
+    res.status(500).json({ error: "Failed to update template." });
+  }
+});
+
+router.delete("/templates/:id", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedTemplate = await PrintLabelModel.findByIdAndDelete(id);
+
+    if (!deletedTemplate) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+
+    res.json({ message: "Template deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting template:", error);
+    res.status(500).json({ error: "Failed to delete template." });
   }
 });
 

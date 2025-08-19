@@ -15,6 +15,13 @@ const layoutSchema = new mongoose.Schema({
   columnWidth: { type: Number, required: true, default: 300 },
   labelHeight: { type: Number, default: 100 },
   horizontalSpacing: { type: Number, default: 20 },
+  rowSpacing: { type: Number, default: 63.5 },
+  
+  // Paper settings
+  paperWidth: { type: Number, default: 215.9 },
+  paperHeight: { type: Number, default: 279.4 },
+  rowsPerPage: { type: Number, default: 3 },
+  columnsPerPage: { type: Number, default: 2 },
   
   // Data spacing controls
   dataVerticalSpacing: { type: Number, default: 4 },
@@ -32,6 +39,12 @@ const layoutSchema = new mongoose.Schema({
   fixedLabelWidth: { type: Number, default: 192 },
   fixedLabelHeight: { type: Number, default: 96 },
   showFixedLabels: { type: Boolean, default: true },
+
+  // Raw printer controls (from RawPrinterControls)
+  labelWidthIn: { type: Number, default: 3.5 },
+  topMargin: { type: Number, default: 4 },
+  rowSpacingLines: { type: Number, default: 14 },
+  col2X: { type: Number, default: 255 },
 
   // Renewal notice settings
   renewalFontSize: { type: Number, default: 14 },
@@ -57,7 +70,9 @@ const layoutSchema = new mongoose.Schema({
 });
 
 const printLabelSchema = new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
+  name: { type: String, required: true },
+  description: { type: String, default: "" },
+  department: { type: String, required: true }, // Department = role
   layout: { type: layoutSchema, required: true },
   selectedFields: [{ type: String, required: true }],
   previewType: {
@@ -66,7 +81,11 @@ const printLabelSchema = new mongoose.Schema({
     default: "standard",
   },
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
 });
+
+// Create compound index for name and department to allow same name in different departments
+printLabelSchema.index({ name: 1, department: 1 }, { unique: true });
 
 const PrintLabelModel = printConnection.model("printlabel", printLabelSchema);
 
