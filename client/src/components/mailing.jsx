@@ -23,11 +23,15 @@ import MailingActions from "./Mailing/MailingActions";
 import RenewalNoticeDataOverlay from "./Mailing/RenewalNotice";
 import ThankYouLetterDataOverlay from "./Mailing/ThankYouLetter";
 import DocumentGenerator from "./Mailing/DocumentGenerator";
+import RawPrinterControls from "./Mailing/RawPrinterControls";
 
 // Import utility functions
 import {
   generatePrintHTML,
   generateChecklistHTML,
+  generateCp850RawPrintContent,
+  printWithJsPrintManager,
+  diagnosePrinterIssues,
 } from "./Mailing/PrintGenerator";
 
 // Helper functions
@@ -185,6 +189,17 @@ const Mailing = ({
   // Add new state for loading indicators
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
   const [recordCounts, setRecordCounts] = useState(null);
+
+  // Add state for raw printer controls
+  const [showRawPrinterControls, setShowRawPrinterControls] = useState(false);
+
+  // Add state for label adjustments from RawPrinterControls
+  const [labelAdjustments, setLabelAdjustments] = useState({
+    labelWidthIn: 3.5,
+    topMargin: 4,
+    rowSpacing: 14,
+    col2X: 255,
+  });
 
   // Function to handle skipped data updates
   const handleSkippedDataUpdate = (skippedRecords) => {
@@ -631,50 +646,39 @@ const Mailing = ({
     }
   };
 
-  // Save template to server
-  const saveTemplate = async () => {
-    if (!templateName.trim()) {
-      alert("Please enter a template name.");
-      return;
-    }
+  // Handle template saved callback
+  const handleTemplateSaved = (newTemplate) => {
+    setSavedTemplates([...savedTemplates, newTemplate]);
+  };
 
-    try {
-      const newTemplate = {
-        name: templateName.trim(),
-        layout: {
-          fontSize, // Font size stays in pt
-          leftPosition: mmToPx(leftPosition),
-          topPosition: mmToPx(topPosition),
-          columnWidth: mmToPx(columnWidth),
-          labelHeight: mmToPx(labelHeight),
-          horizontalSpacing: mmToPx(horizontalSpacing),
-          rowSpacing, // Store in mm
-          paperWidth, // Store paper dimensions in mm
-          paperHeight,
-          rowsPerPage,
-          columnsPerPage,
-        },
-        selectedFields,
-      };
-
-      await axios.post(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
-        newTemplate,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
-      );
-
-      alert("Template saved successfully!");
-      setSavedTemplates([...savedTemplates, newTemplate]);
-      setShowTemplateNameInput(false);
-      setTemplateName("");
-    } catch (error) {
-      console.error("Error saving template:", error);
-      alert("Error saving template. Please try again.");
-    }
+  // Check if data contains special characters that need CP850 encoding
+  const checkForSpecialCharacters = (rows) => {
+    const specialChars = [
+      "Ñ",
+      "ñ",
+      "Á",
+      "á",
+      "É",
+      "é",
+      "Í",
+      "í",
+      "Ó",
+      "ó",
+      "Ú",
+      "ú",
+      "Ü",
+      "ü",
+      "¡",
+      "¿",
+    ];
+    return rows.some((row) => {
+      const data = row.original;
+      const fullName = data.fname + " " + data.lname;
+      const company = data.company || "";
+      const address = data.address || "";
+      const allText = fullName + company + address;
+      return specialChars.some((char) => allText.includes(char));
+    });
   };
 
   // Handle print with range
@@ -755,6 +759,139 @@ const Mailing = ({
       alert(
         "Could not open print window. Please check your pop-up blocker settings."
       );
+    }
+  };
+
+  // Handle CP850-aware printing with JSPrintManager
+  const handleCp850PrintWithRange = async () => {
+    let templateToUse = selectedTemplate;
+    if (!templateToUse) {
+      templateToUse = {
+        name: "Default Template",
+        layout: {
+          fontSize,
+          leftPosition: mmToPx(leftPosition),
+          topPosition: mmToPx(topPosition),
+          columnWidth: mmToPx(columnWidth),
+          labelHeight: mmToPx(labelHeight),
+          horizontalSpacing: mmToPx(horizontalSpacing),
+        },
+        selectedFields: selectedFields || [],
+      };
+    }
+
+    // Determine which data to use
+    let rowsToUse = availableRows;
+    if (useAllData) {
+      try {
+        const allData = await fetchAllData();
+        rowsToUse = allData.map((item) => ({ original: item }));
+      } catch (error) {
+        console.error("Error fetching all data:", error);
+        toast({
+          title: "Error",
+          description:
+            "Failed to fetch all records. Using available rows instead.",
+          variant: "destructive",
+        });
+      }
+    }
+
+    // Check if we need CP850 encoding
+    const needsCp850 = checkForSpecialCharacters(rowsToUse);
+
+    if (needsCp850) {
+      // Use CP850-aware printing
+      try {
+        const rawCommands = generateCp850RawPrintContent(
+          startClientId,
+          endClientId,
+          startPosition,
+          rowsToUse,
+          templateToUse,
+          templateToUse.selectedFields || selectedFields || [],
+          userRole,
+          subscriptionType,
+          rowsPerPage,
+          2, // Always use 2 columns
+          false, // isPrintJobResumed
+          true, // useCp850Encoding
+          savedPrinterJobData?.labelAdjustments || null // Pass label adjustments
+        );
+
+        // Check if JSPrintManager is available
+        if (window.JSPM && window.JSPM.JSPrintManager) {
+          // Use JSPrintManager for raw printing
+          await printWithJsPrintManager(
+            rawCommands,
+            "", // Use default printer
+            true, // useDefaultPrinter
+            {
+              setStatus: (status) => {
+                if (status.includes("Error:")) {
+                  toast({
+                    title: "Print Error",
+                    description: status,
+                    variant: "destructive",
+                  });
+                }
+              },
+              setPrintJobStatus: (status) => {
+                if (status === "failed" || status === "error") {
+                  toast({
+                    title: "Print Job Failed",
+                    description: "Check console for detailed error information",
+                    variant: "destructive",
+                  });
+                }
+              },
+              addPrinterEvent: (event, data) => {
+                if (data.error) {
+                  console.error("Printer error details:", data);
+                }
+              },
+            }
+          );
+
+          // Check if we should show success message
+          toast({
+            title: "Print Job Completed",
+            description: "Raw printing completed successfully!",
+            variant: "default",
+          });
+        } else {
+          // Fallback to HTML printing if JSPrintManager not available
+          toast({
+            title: "JSPrintManager Not Available",
+            description: "Falling back to HTML printing.",
+            variant: "destructive",
+          });
+          handlePrintWithRange();
+        }
+      } catch (error) {
+        console.error("CP850 print error:", error);
+
+        // Provide more specific error information
+        let errorMessage = error.message;
+        if (error.message.includes("timeout")) {
+          errorMessage =
+            "Print job timed out. This is likely a driver issue. Check:\n" +
+            "1. Printer is online and ready\n" +
+            "2. No stuck print jobs in Windows queue\n" +
+            "3. Printer driver is working properly";
+        }
+
+        toast({
+          title: "Print Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+
+        handlePrintWithRange();
+      }
+    } else {
+      // Use regular HTML printing
+      handlePrintWithRange();
     }
   };
 
@@ -1326,8 +1463,7 @@ const Mailing = ({
                         isLoading={isLoading}
                         hasAvailableRows={hasAvailableRows}
                         selectedTemplate={selectedTemplate}
-                        useLegacyFormat={useLegacyFormat}
-                        onPrintPreview={handlePrintWithRange}
+                        onPrintPreview={handleCp850PrintWithRange}
                       />
                     </div>
                   </div>
