@@ -141,11 +141,9 @@ export const getFullName = (data) => {
 };
 
 export const getContactNumber = (data) => {
-  const contactnos = data.contactnos || "";
   const cellno = data.cellno || "";
   const officeno = data.officeno || "";
 
-  if (contactnos) return contactnos;
   if (cellno || officeno) {
     return [cellno, officeno].filter((num) => num).join(" / ");
   }
@@ -271,7 +269,7 @@ export const generateLabelContent = (
         .filter((line) => line.length > 0)
         .join("<br />")
     : "";
-  const contact = fields.includes("contactnos") ? getContactNumber(data) : "";
+  const contact = fields.includes("cellno") ? getContactNumber(data) : "";
 
   // Build content with consistent spacing
   const commonStyle = "margin: 0; padding: 0;";
