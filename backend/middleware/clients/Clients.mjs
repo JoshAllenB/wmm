@@ -342,17 +342,7 @@ router.post("/add", verifyToken, async (req, res) => {
       id: newClientId,
       ...clientData,
       adduser: user.username,
-      adddate: new Date()
-        .toLocaleString("en-US", {
-          month: "numeric",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })
-        .replace(",", ""),
+      adddate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
       isDonor: clientData.isDonor || isDonor // Use clientData.isDonor first, fallback to isDonor flag
     };
 
@@ -421,26 +411,15 @@ router.post("/add", verifyToken, async (req, res) => {
         const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
         const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
-        // Format adddate based on subscription type
-        let formattedAddDate;
-        if (roleType === "COMP") {
-          // For complimentary subscriptions, format as YYYY-MM-DD
-          const now = new Date();
-          formattedAddDate = now.toISOString().split('T')[0];
-        } else {
-          // For other types, use the existing format
-          formattedAddDate = new Date()
-            .toLocaleString("en-US", {
-              month: "numeric",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: true,
-            })
-            .replace(",", "");
-        }
+        // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
         const roleSpecificData = {
           id: newRoleSpecificId,
@@ -634,26 +613,15 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
             const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
-            // Format adddate based on subscription type
-            let formattedAddDate;
-            if (roleType === "COMP") {
-              // For complimentary subscriptions, format as YYYY-MM-DD
-              const now = new Date();
-              formattedAddDate = now.toISOString().split('T')[0];
-            } else {
-              // For other types, use the existing format
-              formattedAddDate = new Date()
-                .toLocaleString("en-US", {
-                  month: "numeric",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  second: "2-digit",
-                  hour12: true,
-                })
-                .replace(",", "");
-            }
+            // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const roleSpecificData = {
               id: newRoleSpecificId,
@@ -683,22 +651,22 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
           const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
           
+          // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const hours = String(now.getHours()).padStart(2, '0');
+          const minutes = String(now.getMinutes()).padStart(2, '0');
+          const seconds = String(now.getSeconds()).padStart(2, '0');
+          const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+          
           const newRoleSpecificData = {
             id: newRoleSpecificId,
             clientid: parseInt(id),
             ...roleData,
             adduser: user.username,
-            adddate: roleData.adddate || new Date()
-              .toLocaleString("en-US", {
-                month: "numeric",
-                day: "numeric",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              })
-              .replace(",", ""),
+            adddate: roleData.adddate || formattedAddDate,
           };
           
           // Create new role-specific record
@@ -766,23 +734,15 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             });
           } else {
             // If role-specific data doesn't exist, create it
-            let formattedAddDate;
-            if (roleType === "COMP") {
-              const now = new Date();
-              formattedAddDate = now.toISOString().split('T')[0];
-            } else {
-              formattedAddDate = new Date()
-                .toLocaleString("en-US", {
-                  month: "numeric",
-                  day: "numeric",
-                  year: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                  second: "2-digit",
-                  hour12: true,
-                })
-                .replace(",", "");
-            }
+            // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const newRoleSpecificData = {
               clientid: parseInt(id),
