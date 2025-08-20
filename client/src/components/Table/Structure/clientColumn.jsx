@@ -368,10 +368,57 @@ export const useColumns = () => {
                 {
                   id: "Added Info",
                   Header: "Added Info",
-                  accessorFn: (row) =>
-                    `By: ${row.adduser || "N/A"}, Date: ${
-                      row.adddate || "N/A"
-                    }`,
+                  accessorFn: (row) => {
+                    // Get the appropriate subscription data based on type
+                    let subscriptionData;
+                    switch (row.subscriptionType) {
+                      case "Promo":
+                        subscriptionData = row.promoData;
+                        break;
+                      case "Complimentary":
+                        subscriptionData = row.compData;
+                        break;
+                      default: // WMM
+                        subscriptionData = row.wmmData;
+                    }
+
+                    // Check if subscription data exists and has records
+                    if (
+                      !subscriptionData ||
+                      !subscriptionData.records ||
+                      subscriptionData.records.length === 0
+                    ) {
+                      // Fallback to client adddate/adduser if no subscription data
+                      return `By: ${row.adduser || "N/A"}, Date: ${
+                        row.adddate || "N/A"
+                      }`;
+                    }
+
+                    // Sort records by adddate in descending order (most recent first)
+                    const sortedRecords = [...subscriptionData.records].sort(
+                      (a, b) => {
+                        const dateA = new Date(a.adddate || 0);
+                        const dateB = new Date(b.adddate || 0);
+                        return dateB - dateA;
+                      }
+                    );
+
+                    // Get the most recent subscription record
+                    const mostRecentRecord = sortedRecords[0];
+
+                    if (
+                      mostRecentRecord &&
+                      mostRecentRecord.adddate &&
+                      mostRecentRecord.adduser
+                    ) {
+                      return `By: ${mostRecentRecord.adduser}, Date: ${mostRecentRecord.adddate}`;
+                    } else {
+                      // Fallback to client adddate/adduser if subscription record doesn't have the fields
+                      return `By: ${row.adduser || "N/A"}, Date: ${
+                        row.adddate || "N/A"
+                      }`;
+                    }
+                  },
                   size: 150,
                 },
               ]
@@ -750,8 +797,57 @@ export const useColumns = () => {
           {
             id: "Added By",
             Header: "Added By",
-            accessorFn: (row) =>
-              `By: ${row.adduser || "N/A"}, Date: ${row.adddate || "N/A"}`,
+            accessorFn: (row) => {
+              // Get the appropriate subscription data based on type
+              let subscriptionData;
+              switch (row.subscriptionType) {
+                case "Promo":
+                  subscriptionData = row.promoData;
+                  break;
+                case "Complimentary":
+                  subscriptionData = row.compData;
+                  break;
+                default: // WMM
+                  subscriptionData = row.wmmData;
+              }
+
+              // Check if subscription data exists and has records
+              if (
+                !subscriptionData ||
+                !subscriptionData.records ||
+                subscriptionData.records.length === 0
+              ) {
+                // Fallback to client adddate/adduser if no subscription data
+                return `By: ${row.adduser || "N/A"}, Date: ${
+                  row.adddate || "N/A"
+                }`;
+              }
+
+              // Sort records by adddate in descending order (most recent first)
+              const sortedRecords = [...subscriptionData.records].sort(
+                (a, b) => {
+                  const dateA = new Date(a.adddate || 0);
+                  const dateB = new Date(b.adddate || 0);
+                  return dateB - dateA;
+                }
+              );
+
+              // Get the most recent subscription record
+              const mostRecentRecord = sortedRecords[0];
+
+              if (
+                mostRecentRecord &&
+                mostRecentRecord.adddate &&
+                mostRecentRecord.adduser
+              ) {
+                return `By: ${mostRecentRecord.adduser}, Date: ${mostRecentRecord.adddate}`;
+              } else {
+                // Fallback to client adddate/adduser if subscription record doesn't have the fields
+                return `By: ${row.adduser || "N/A"}, Date: ${
+                  row.adddate || "N/A"
+                }`;
+              }
+            },
             size: 150,
           },
         ]
