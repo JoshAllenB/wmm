@@ -138,11 +138,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   });
 
   const [addressData, setAddressData] = useState({
-    housestreet: rowData?.housestreet || "",
-    subdivision: rowData?.subdivision || "",
-    barangay: rowData?.barangay || "",
-    city: rowData?.area || "",
-    zipcode: rowData?.zipcode || "",
+    housestreet: "",
+    subdivision: "",
+    barangay: "",
+    city: "",
+    zipcode: "",
   });
 
   const [combinedAddress, setCombinedAddress] = useState(rowData.address || "");
@@ -383,6 +383,45 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         bdateYear = bdateParts.year;
       }
 
+      // Parse address into components if it exists
+      let housestreet = rowData.housestreet || "";
+      let subdivision = rowData.subdivision || "";
+      let barangay = rowData.barangay || "";
+      let city = rowData.area || "";
+      let zipcode = rowData.zipcode || "";
+
+      // If we have a combined address but no individual components, parse it
+      if (
+        rowData.address &&
+        (!rowData.housestreet || !rowData.subdivision || !rowData.barangay)
+      ) {
+        const addressLines = rowData.address
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter((line) => line);
+
+        if (addressLines.length >= 1) {
+          housestreet = addressLines[0];
+        }
+        if (addressLines.length >= 2) {
+          subdivision = addressLines[1];
+        }
+        if (addressLines.length >= 3) {
+          barangay = addressLines[2];
+        }
+        if (addressLines.length >= 4) {
+          // The last line typically contains zipcode and city
+          const lastLine = addressLines[3];
+          const zipMatch = lastLine.match(/^(\d+)/);
+          if (zipMatch) {
+            zipcode = zipMatch[1];
+            city = lastLine.replace(zipMatch[1], "").trim();
+          } else {
+            city = lastLine;
+          }
+        }
+      }
+
       if (rowData.hrgData) {
         if (rowData.hrgData.records && Array.isArray(rowData.hrgData.records)) {
           setHrgRecords(rowData.hrgData.records);
@@ -493,11 +532,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         bdateYear: bdateYear || "",
         company: rowData.company || "",
         address: rowData.address || "",
-        housestreet: rowData.housestreet || "",
-        subdivision: rowData.subdivision || "",
-        barangay: rowData.barangay || "",
-        zipcode: rowData.zipcode || "",
-        area: rowData.area || "",
+        housestreet: housestreet || "",
+        subdivision: subdivision || "",
+        barangay: barangay || "",
+        zipcode: zipcode || "",
+        area: city || "",
         acode: rowData.acode || "",
         contactnos: rowData.contactnos || "",
         cellno: rowData.cellno || "",
@@ -516,6 +555,23 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subEndDay: "",
         subEndYear: "",
         subsclass: rowData.subsclass || "",
+      });
+
+      // Update addressData state with parsed address components
+      setAddressData({
+        housestreet: housestreet || "",
+        subdivision: subdivision || "",
+        barangay: barangay || "",
+        city: city || "",
+        zipcode: zipcode || "",
+      });
+
+      // Update areaData state with parsed area information
+      setAreaData({
+        acode: rowData.acode || "",
+        zipcode: zipcode || "",
+        area: city || "",
+        city: city || "",
       });
 
       // Initialize role-specific data
