@@ -63,7 +63,9 @@ const useDuplicateChecker = () => {
 
       try {
         const response = await axios.post(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/check-duplicates`,
+          `http://${
+            import.meta.env.VITE_IP_ADDRESS
+          }:3001/clients/check-duplicates`,
           checkData,
           {
             headers: {
@@ -73,7 +75,7 @@ const useDuplicateChecker = () => {
         );
 
         if (response.data.matches && response.data.matches.length > 0) {
-          setPotentialDuplicates(response.data.matches);
+          setPotentialDuplicates(response.data);
           setShowDuplicates(true);
         } else {
           setPotentialDuplicates([]);
@@ -130,9 +132,9 @@ const useDuplicateChecker = () => {
   const MemoizedDuplicatePanel = useMemo(() => {
     return () => (
       <DuplicatePanel
-      potentialDuplicates={potentialDuplicates}
-      isCheckingDuplicates={isCheckingDuplicates}
-      handleViewDuplicate={handleViewDuplicate}
+        potentialDuplicates={potentialDuplicates}
+        isCheckingDuplicates={isCheckingDuplicates}
+        handleViewDuplicate={handleViewDuplicate}
       />
     );
   }, [isCheckingDuplicates, potentialDuplicates.length, handleViewDuplicate]);

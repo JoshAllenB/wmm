@@ -811,5 +811,69 @@ export async function checkDuplicates({
     }
   }
 
-  return { matches: clientsWithServices };
+  // Filter and categorize results for better UX
+  const categorizeResults = (clients) => {
+    if (clients.length === 0) return { matches: [], categories: {} };
+
+    // Define match quality thresholds
+    const HIGH_MATCH_THRESHOLD = 35; // Multiple strong field matches
+    const MEDIUM_MATCH_THRESHOLD = 25; // Several field matches
+    const LOW_MATCH_THRESHOLD = 15; // Few field matches
+
+    // Categorize clients by match quality
+    const highMatches = clients.filter(client => client.totalScore >= HIGH_MATCH_THRESHOLD);
+    const mediumMatches = clients.filter(client => 
+      client.totalScore >= MEDIUM_MATCH_THRESHOLD && client.totalScore < HIGH_MATCH_THRESHOLD
+    );
+    const lowMatches = clients.filter(client => 
+      client.totalScore >= LOW_MATCH_THRESHOLD && client.totalScore < MEDIUM_MATCH_THRESHOLD
+    );
+
+    // Determine which results to show based on available data and match quality
+    let finalMatches = [];
+    let showLowMatches = false;
+
+    // If we have high-quality matches, show only those
+    if (highMatches.length > 0) {
+      finalMatches = highMatches;
+    }
+    // If we have medium matches but no high matches, show medium + some low
+    else if (mediumMatches.length > 0) {
+      finalMatches = [...mediumMatches];
+      // Add up to 2 low matches if they exist
+      if (lowMatches.length > 0) {
+        finalMatches.push(...lowMatches.slice(0, 2));
+        showLowMatches = true;
+      }
+    }
+    // If we only have low matches, show them but limit the number
+    else if (lowMatches.length > 0) {
+      finalMatches = lowMatches.slice(0, 5); // Limit to 5 low-quality matches
+      showLowMatches = true;
+    }
+
+    // Add metadata about the categorization
+    const categories = {
+      highMatches: highMatches.length,
+      mediumMatches: mediumMatches.length,
+      lowMatches: lowMatches.length,
+      showLowMatches,
+      totalFound: clients.length,
+      threshold: {
+        high: HIGH_MATCH_THRESHOLD,
+        medium: MEDIUM_MATCH_THRESHOLD,
+        low: LOW_MATCH_THRESHOLD
+      }
+    };
+
+    return { 
+      matches: finalMatches, 
+      categories,
+      // Include all matches for debugging/advanced view if needed
+      allMatches: clients 
+    };
+  };
+
+  const categorizedResults = categorizeResults(clientsWithServices);
+  return categorizedResults;
 };

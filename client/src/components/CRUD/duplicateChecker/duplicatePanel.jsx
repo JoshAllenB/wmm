@@ -6,6 +6,21 @@ const DuplicatePanel = ({
   isCheckingDuplicates,
   handleViewDuplicate,
 }) => {
+  // Extract matches and categories from the response
+  const matches = potentialDuplicates.matches || potentialDuplicates;
+  const categories = potentialDuplicates.categories || {};
+
+  // Check if we have categorized results
+  const hasCategories = categories.highMatches !== undefined;
+
+  // State to track if we're showing all matches
+  const [showAllMatches, setShowAllMatches] = React.useState(false);
+
+  // Determine which matches to display
+  const displayMatches =
+    showAllMatches && potentialDuplicates.allMatches
+      ? potentialDuplicates.allMatches
+      : matches;
   return (
     <div className="border-l-0 lg:border-l border-gray-200 w-full lg:w-[500px] h-full max-h-[90vh] overflow-hidden bg-white shadow-md flex flex-col mt-0 lg:mt-0">
       <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 py-3 px-4 border-b border-gray-200 z-10">
@@ -37,9 +52,9 @@ const DuplicatePanel = ({
               </h3>
             ) : (
               <h3 className="text-gray-800 text-base font-medium">
-                {potentialDuplicates.length > 0
-                  ? `${potentialDuplicates.length} Possible ${
-                      potentialDuplicates.length === 1 ? "Match" : "Matches"
+                {displayMatches.length > 0
+                  ? `${displayMatches.length} Possible ${
+                      displayMatches.length === 1 ? "Match" : "Matches"
                     }`
                   : "Potential Matches"}
               </h3>
@@ -47,14 +62,35 @@ const DuplicatePanel = ({
             <p className="text-sm text-gray-500 mt-0.5">
               {isCheckingDuplicates
                 ? "Searching for possible duplicates..."
-                : potentialDuplicates.length > 0
-                ? "Similar records found in database"
+                : matches.length > 0
+                ? hasCategories
+                  ? `${
+                      categories.highMatches > 0
+                        ? `${categories.highMatches} strong`
+                        : ""
+                    }${
+                      categories.mediumMatches > 0
+                        ? `${categories.highMatches > 0 ? ", " : ""}${
+                            categories.mediumMatches
+                          } medium`
+                        : ""
+                    }${
+                      categories.lowMatches > 0 && categories.showLowMatches
+                        ? `${
+                            categories.highMatches > 0 ||
+                            categories.mediumMatches > 0
+                              ? ", "
+                              : ""
+                          }${categories.lowMatches} weak`
+                        : ""
+                    } matches found`
+                  : "Similar records found in database"
                 : "No matches found yet"}
             </p>
           </div>
-          {potentialDuplicates.length > 0 && (
+          {displayMatches.length > 0 && (
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-sm font-medium text-blue-800">
-              {potentialDuplicates.length}
+              {displayMatches.length}
             </span>
           )}
         </div>
@@ -64,31 +100,99 @@ const DuplicatePanel = ({
         className="overflow-y-auto p-3 flex-grow custom-scrollbar"
         style={{ maxHeight: "calc(90vh - 70px)", overflowY: "auto" }}
       >
-        {isCheckingDuplicates && potentialDuplicates.length === 0 ? (
+        {isCheckingDuplicates && displayMatches.length === 0 ? (
           <div className="flex justify-center items-center h-32 text-gray-400">
             <p>Searching for matching records...</p>
           </div>
-        ) : potentialDuplicates.length === 0 ? (
+        ) : displayMatches.length === 0 ? (
           <div className="flex justify-center items-center h-32 text-gray-400">
             <p>Enter client details to find matches</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {potentialDuplicates.map((client) => (
+            {/* Show match quality summary if we have categorized results */}
+            {hasCategories &&
+              categories.totalFound > matches.length &&
+              !showAllMatches && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-blue-800">
+                      <span className="font-medium">
+                        Showing {matches.length} of {categories.totalFound}{" "}
+                        matches
+                      </span>
+                      <div className="text-xs text-blue-600 mt-1">
+                        {categories.highMatches > 0 && (
+                          <span className="inline-block mr-3">
+                            <span className="inline-block w-2 h-2 bg-red-400 rounded-full mr-1"></span>
+                            {categories.highMatches} strong matches
+                          </span>
+                        )}
+                        {categories.mediumMatches > 0 && (
+                          <span className="inline-block mr-3">
+                            <span className="inline-block w-2 h-2 bg-yellow-400 rounded-full mr-1"></span>
+                            {categories.mediumMatches} medium matches
+                          </span>
+                        )}
+                        {categories.lowMatches > 0 && (
+                          <span className="inline-block">
+                            <span className="inline-block w-2 h-2 bg-gray-400 rounded-full mr-1"></span>
+                            {categories.lowMatches} weak matches
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {categories.totalFound > matches.length && (
+                      <button
+                        className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        onClick={() => setShowAllMatches(true)}
+                      >
+                        Show all
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {/* Show "Show filtered" button when showing all matches */}
+            {hasCategories && showAllMatches && (
+              <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-green-800">
+                    <span className="font-medium">
+                      Showing all {categories.totalFound} matches
+                    </span>
+                  </div>
+                  <button
+                    className="text-xs text-green-600 hover:text-green-800 underline"
+                    onClick={() => setShowAllMatches(false)}
+                  >
+                    Show filtered
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {displayMatches.map((client) => (
               <div
                 key={client.id}
                 className="bg-white border border-gray-200 rounded-md shadow-sm overflow-hidden hover:border-blue-300 hover:shadow transition-all duration-200"
               >
                 <div className="px-3 py-2 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
                   <div className="flex flex-col">
-                    <div className="font-medium text-gray-800 w-full">
-                      {client.lname || client.fname || client.mname
-                        ? `${client.lname || ""}, ${client.fname || ""} ${
-                            client.mname ? client.mname.charAt(0) + "." : ""
-                          }`
-                        : client.company
-                        ? client.company
-                        : "No Name"}
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-gray-800">
+                        {client.lname || client.fname || client.mname
+                          ? `${client.lname || ""}, ${client.fname || ""} ${
+                              client.mname ? client.mname.charAt(0) + "." : ""
+                            }`
+                          : client.company
+                          ? client.company
+                          : "No Name"}
+                      </div>
+                      <div className="text-base text-blue-700 bg-blue-100 px-2 py-1 rounded-md font-bold">
+                        ID: {client.id}
+                      </div>
                     </div>
 
                     {/* Match strength indicator */}
@@ -96,20 +200,20 @@ const DuplicatePanel = ({
                       <div className="mt-1.5 flex items-center gap-2">
                         <div
                           className={`text-xs font-medium px-2 py-1 rounded-md inline-flex items-center gap-1.5 ${
-                            client.totalScore > 40
+                            client.totalScore >= 35
                               ? "bg-red-100 text-red-900 border border-red-200"
-                              : client.totalScore > 30
+                              : client.totalScore >= 25
                               ? "bg-amber-100 text-amber-900 border border-amber-200"
-                              : client.totalScore > 20
+                              : client.totalScore >= 15
                               ? "bg-yellow-100 text-yellow-900 border border-yellow-200"
                               : "bg-blue-100 text-blue-900 border border-blue-200"
                           }`}
                           title={
-                            client.totalScore > 40
+                            client.totalScore >= 35
                               ? "Multiple strong matches in key fields suggest this is very likely the same client."
-                              : client.totalScore > 30
+                              : client.totalScore >= 25
                               ? "Several matching fields indicate this could be the same client."
-                              : client.totalScore > 20
+                              : client.totalScore >= 15
                               ? "Some matching information suggests a possible duplicate."
                               : "A few fields have similar information."
                           }
@@ -120,19 +224,19 @@ const DuplicatePanel = ({
                             viewBox="0 0 20 20"
                             fill="currentColor"
                           >
-                            {client.totalScore > 40 ? (
+                            {client.totalScore >= 35 ? (
                               <path
                                 fillRule="evenodd"
                                 d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                                 clipRule="evenodd"
                               />
-                            ) : client.totalScore > 30 ? (
+                            ) : client.totalScore >= 25 ? (
                               <path
                                 fillRule="evenodd"
                                 d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                                 clipRule="evenodd"
                               />
-                            ) : client.totalScore > 20 ? (
+                            ) : client.totalScore >= 15 ? (
                               <path
                                 fillRule="evenodd"
                                 d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
@@ -147,11 +251,11 @@ const DuplicatePanel = ({
                             )}
                           </svg>
                           <span>
-                            {client.totalScore > 40
+                            {client.totalScore >= 35
                               ? "Very strong match"
-                              : client.totalScore > 30
+                              : client.totalScore >= 25
                               ? "Strong match"
-                              : client.totalScore > 20
+                              : client.totalScore >= 15
                               ? "Likely match"
                               : "Possible match"}
                           </span>
