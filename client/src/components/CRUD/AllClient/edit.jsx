@@ -345,6 +345,40 @@ const Edit = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Helper function to check if subscription data exists
+  const hasSubscriptionData = (data, type) => {
+    if (!data) return false;
+
+    switch (type) {
+      case "WMM":
+        return (
+          data.wmmData &&
+          (data.wmmData.records?.length > 0 ||
+            Array.isArray(data.wmmData) ||
+            (typeof data.wmmData === "object" &&
+              Object.keys(data.wmmData).length > 0))
+        );
+      case "Promo":
+        return (
+          data.promoData &&
+          (data.promoData.records?.length > 0 ||
+            Array.isArray(data.promoData) ||
+            (typeof data.promoData === "object" &&
+              Object.keys(data.promoData).length > 0))
+        );
+      case "Complimentary":
+        return (
+          data.complimentaryData &&
+          (data.complimentaryData.records?.length > 0 ||
+            Array.isArray(data.complimentaryData) ||
+            (typeof data.complimentaryData === "object" &&
+              Object.keys(data.complimentaryData).length > 0))
+        );
+      default:
+        return false;
+    }
+  };
+
   useEffect(() => {
     // Fetch areas data
     const loadAreas = async () => {
@@ -430,6 +464,45 @@ const Edit = ({
         }
       }
 
+      // Determine subscription type from existing data
+      let subscriptionType = "WMM"; // Default
+      if (rowData.subscriptionType) {
+        // Verify that the subscription type from rowData actually has data
+        const hasWmmData = hasSubscriptionData(rowData, "WMM");
+        const hasPromoData = hasSubscriptionData(rowData, "Promo");
+        const hasComplimentaryData = hasSubscriptionData(
+          rowData,
+          "Complimentary"
+        );
+
+        // Only use rowData.subscriptionType if it has actual data
+        if (
+          (rowData.subscriptionType === "WMM" && hasWmmData) ||
+          (rowData.subscriptionType === "Promo" && hasPromoData) ||
+          (rowData.subscriptionType === "Complimentary" && hasComplimentaryData)
+        ) {
+          subscriptionType = rowData.subscriptionType;
+        } else {
+          // Fallback to determining from available data
+          if (hasPromoData) {
+            subscriptionType = "Promo";
+          } else if (hasComplimentaryData) {
+            subscriptionType = "Complimentary";
+          } else if (hasWmmData) {
+            subscriptionType = "WMM";
+          }
+        }
+      } else {
+        // Determine from available data
+        if (hasSubscriptionData(rowData, "Promo")) {
+          subscriptionType = "Promo";
+        } else if (hasSubscriptionData(rowData, "Complimentary")) {
+          subscriptionType = "Complimentary";
+        } else if (hasSubscriptionData(rowData, "WMM")) {
+          subscriptionType = "WMM";
+        }
+      }
+
       // Initialize client information fields with values from rowData
       setFormData((prev) => ({
         ...prev,
@@ -457,6 +530,7 @@ const Edit = ({
         type: rowData.type || "",
         group: rowData.group || "",
         remarks: rowData.remarks || "",
+        subscriptionType: subscriptionType, // Set the determined subscription type
       }));
 
       // Update addressData state with parsed address components
@@ -678,13 +752,13 @@ const Edit = ({
         donorid: "",
       });
     }
-  }, [rowData, mode, subscriptionMode]); // Add subscriptionMode to dependency array
+  }, [rowData, mode, subscriptionMode, formData.subscriptionType]); // Add subscriptionType to dependency array
 
   // Also update the WMM subscription data useEffect
   useEffect(() => {
     if (mode === "edit" && rowData && subscriptionMode === "edit") {
-      // Get subscription type from rowData or default to WMM
-      const subscriptionType = rowData.subscriptionType || "WMM";
+      // Get subscription type from formData (which is now properly set)
+      const subscriptionType = formData.subscriptionType || "WMM";
 
       // Get the appropriate subscription data based on type
       let subscriptionData;
@@ -724,7 +798,7 @@ const Edit = ({
         paymtref: "",
       });
     }
-  }, [rowData, mode, subscriptionMode]); // Add subscriptionMode to dependency array
+  }, [rowData, mode, subscriptionMode, formData.subscriptionType]); // Add subscriptionType to dependency array
 
   // Add another useEffect to handle mode changes specifically
   useEffect(() => {
@@ -742,6 +816,46 @@ const Edit = ({
       setSubscriptionMode("add");
     }
   }, [mode]);
+
+  // Add useEffect to handle subscription type changes
+  useEffect(() => {
+    if (mode === "edit" && rowData && subscriptionMode === "edit") {
+      // Get the appropriate subscription data based on current subscription type
+      let subscriptionData;
+      if (formData.subscriptionType === "Promo") {
+        subscriptionData = rowData.promoData?.records || [];
+      } else if (formData.subscriptionType === "Complimentary") {
+        subscriptionData = rowData.complimentaryData?.records || [];
+      } else {
+        subscriptionData = rowData.wmmData?.records || [];
+      }
+
+      // Set available subscriptions
+      setAvailableSubscriptions(subscriptionData);
+
+      // If there are subscriptions, select the latest one
+      if (subscriptionData.length > 0) {
+        const latestSubscription =
+          subscriptionData[subscriptionData.length - 1];
+        setSelectedSubscription(latestSubscription);
+      } else {
+        // Clear selected subscription if no data for this type
+        setSelectedSubscription({
+          subsdate: "",
+          enddate: "",
+          renewdate: "",
+          subsyear: "",
+          copies: "1",
+          paymtamt: "",
+          paymtmasses: "",
+          calendar: false,
+          subsclass: "",
+          donorid: "",
+          paymtref: "",
+        });
+      }
+    }
+  }, [formData.subscriptionType, mode, rowData, subscriptionMode]);
 
   // Convert subsclass names to IDs after subclasses are loaded
   useEffect(() => {
@@ -823,7 +937,7 @@ const Edit = ({
         donorid: "",
         paymtref: "",
         remarks: "",
-        referralid: formData.subscriptionType === "Promo" ? "" : undefined,
+        referralid: formData.subscriptionType === "Promo" ? "" : "",
       }));
 
       // Initialize with today's date for the new subscription
@@ -2100,7 +2214,7 @@ const Edit = ({
         referralid:
           formData.subscriptionType === "Promo"
             ? selectedSubscription.referralid || ""
-            : undefined,
+            : "",
       });
     } else if (mode === "add") {
       // Clear subscription-related fields in formData
@@ -2116,7 +2230,7 @@ const Edit = ({
         subEndDay: "",
         subEndYear: "",
         subsclass: "",
-        referralid: formData.subscriptionType === "Promo" ? "" : undefined,
+        referralid: formData.subscriptionType === "Promo" ? "" : "",
       }));
 
       // Clear subscription data in roleSpecificData
@@ -2134,7 +2248,7 @@ const Edit = ({
         donorid: "",
         paymtref: "",
         remarks: "",
-        referralid: formData.subscriptionType === "Promo" ? "" : undefined,
+        referralid: formData.subscriptionType === "Promo" ? "" : "",
       }));
 
       // Only set today's date if we're in edit mode (editing an existing client)
@@ -3367,6 +3481,77 @@ const Edit = ({
             {/* WMM Subscription Information - Only show if user has WMM role */}
             {hasRole("WMM") && (
               <div className="p-4 border rounded-lg shadow-sm col-span-2">
+                {/* Subscription Type Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Subscription Type:
+                  </label>
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    {/* Only show WMM button if WMM data exists or we're in add mode */}
+                    {(mode === "add" ||
+                      hasSubscriptionData(rowData, "WMM")) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            subscriptionType: "WMM",
+                          }))
+                        }
+                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                          formData.subscriptionType === "WMM"
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                        }`}
+                      >
+                        WMM
+                      </button>
+                    )}
+
+                    {/* Only show Promo button if Promo data exists or we're in add mode */}
+                    {(mode === "add" ||
+                      hasSubscriptionData(rowData, "Promo")) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            subscriptionType: "Promo",
+                          }))
+                        }
+                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                          formData.subscriptionType === "Promo"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                        }`}
+                      >
+                        Promo
+                      </button>
+                    )}
+
+                    {/* Only show Complimentary button if Complimentary data exists or we're in add mode */}
+                    {(mode === "add" ||
+                      hasSubscriptionData(rowData, "Complimentary")) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            subscriptionType: "Complimentary",
+                          }))
+                        }
+                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
+                          formData.subscriptionType === "Complimentary"
+                            ? "bg-purple-600 text-white shadow-sm"
+                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
+                        }`}
+                      >
+                        Complimentary
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <h2
                   className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center mb-2`}
                 >
