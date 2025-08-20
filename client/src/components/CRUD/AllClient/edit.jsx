@@ -105,9 +105,9 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     sname: rowData?.sname || "",
     title: rowData?.title || "",
     bdate: rowData?.bdate || "",
-    bdateMonth: rowData?.bdate ? rowData.bdate.split("/")[0] : "",
-    bdateDay: rowData?.bdate ? rowData.bdate.split("/")[1] : "",
-    bdateYear: rowData?.bdate ? rowData.bdate.split("/")[2] : "",
+    bdateMonth: "",
+    bdateDay: "",
+    bdateYear: "",
     company: rowData?.company || "",
     address: rowData?.address || "",
     housestreet: rowData?.housestreet || "",
@@ -376,12 +376,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       let bdateYear = "";
 
       if (rowData.bdate) {
-        const dateParts = rowData.bdate.split("/");
-        if (dateParts.length === 3) {
-          bdateMonth = dateParts[0].padStart(2, "0");
-          bdateDay = dateParts[1].padStart(2, "0");
-          bdateYear = dateParts[2];
-        }
+        // Use the robust parseDateToComponents function to handle multiple date formats
+        const bdateParts = parseDateToComponents(rowData.bdate);
+        bdateMonth = bdateParts.month;
+        bdateDay = bdateParts.day;
+        bdateYear = bdateParts.year;
       }
 
       if (rowData.hrgData) {
