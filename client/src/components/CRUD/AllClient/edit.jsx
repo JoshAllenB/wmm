@@ -77,7 +77,13 @@ const parseDate = (dateString) => {
   return date;
 };
 
-const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
+const Edit = ({
+  rowData,
+  onDeleteSuccess,
+  onClose,
+  onEditSuccess,
+  mode = "edit",
+}) => {
   const { user, hasRole } = useUser();
   const { toast } = useToast();
 
@@ -97,44 +103,44 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     { value: "12", name: "December" },
   ];
 
-  // Update initial state to ensure all values are defined
+  // Update initial state to ensure all values are defined - start with empty values
   const [formData, setFormData] = useState({
-    lname: rowData?.lname || "",
-    fname: rowData?.fname || "",
-    mname: rowData?.mname || "",
-    sname: rowData?.sname || "",
-    title: rowData?.title || "",
-    bdate: rowData?.bdate || "",
+    lname: "",
+    fname: "",
+    mname: "",
+    sname: "",
+    title: "",
+    bdate: "",
     bdateMonth: "",
     bdateDay: "",
     bdateYear: "",
-    company: rowData?.company || "",
-    address: rowData?.address || "",
-    housestreet: rowData?.housestreet || "",
-    subdivision: rowData?.subdivision || "",
-    barangay: rowData?.barangay || "",
-    zipcode: rowData?.zipcode || "",
-    area: rowData?.area || "",
-    acode: rowData?.acode || "",
-    contactnos: rowData?.contactnos || "",
-    cellno: rowData?.cellno || "",
-    ofcno: rowData?.ofcno || "",
-    email: rowData?.email || "",
-    type: rowData?.type || "",
-    group: rowData?.group || "",
-    remarks: rowData?.remarks || "",
-    subscriptionType: rowData?.subscriptionType || "WMM", // Add subscription type
-    referralid: rowData?.referralid || "", // Add referral ID for Promo subscriptions
-    subscriptionFreq: rowData?.subscriptionFreq || "",
-    subscriptionStart: rowData?.subscriptionStart || "",
-    subscriptionEnd: rowData?.subscriptionEnd || "",
-    subStartMonth: rowData?.subStartMonth || "",
-    subStartDay: rowData?.subStartDay || "",
-    subStartYear: rowData?.subStartYear || "",
-    subEndMonth: rowData?.subEndMonth || "",
-    subEndDay: rowData?.subEndDay || "",
-    subEndYear: rowData?.subEndYear || "",
-    subsclass: rowData?.subsclass || "",
+    company: "",
+    address: "",
+    housestreet: "",
+    subdivision: "",
+    barangay: "",
+    zipcode: "",
+    area: "",
+    acode: "",
+    contactnos: "",
+    cellno: "",
+    ofcno: "",
+    email: "",
+    type: "",
+    group: "",
+    remarks: "",
+    subscriptionType: "WMM",
+    referralid: "",
+    subscriptionFreq: "",
+    subscriptionStart: "",
+    subscriptionEnd: "",
+    subStartMonth: "",
+    subStartDay: "",
+    subStartYear: "",
+    subEndMonth: "",
+    subEndDay: "",
+    subEndYear: "",
+    subsclass: "",
   });
 
   const [addressData, setAddressData] = useState({
@@ -145,37 +151,37 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     zipcode: "",
   });
 
-  const [combinedAddress, setCombinedAddress] = useState(rowData.address || "");
+  const [combinedAddress, setCombinedAddress] = useState("");
   const [isEditingCombinedAddress, setIsEditingCombinedAddress] =
     useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [roleSpecificData, setRoleSpecificData] = useState({
-    recvdate: rowData?.recvdate || "",
+    recvdate: "",
     recvdateMonth: "",
     recvdateDay: "",
     recvdateYear: "",
-    campaigndate: rowData?.campaigndate || "",
+    campaigndate: "",
     campaigndateMonth: "",
     campaigndateDay: "",
     campaigndateYear: "",
-    paymtref: rowData?.paymtref || "",
-    paymtamt: rowData?.paymtamt || 0,
-    unsubscribe: rowData?.unsubscribe || false,
-    remarks: rowData?.remarks || "",
-    subsdate: rowData?.subdate || "",
-    enddate: rowData?.enddate || "",
-    subsyear: rowData?.subsyear || 0,
-    copies: rowData?.copies || "1",
-    paymtmasses: rowData?.paymtmasses || 0,
-    calendar: rowData?.calendar || false,
-    subsclass: rowData?.subsclass || "",
-    donorid: rowData?.donorid || "",
+    paymtref: "",
+    paymtamt: 0,
+    unsubscribe: false,
+    remarks: "",
+    subsdate: "",
+    enddate: "",
+    subsyear: 0,
+    copies: "1",
+    paymtmasses: 0,
+    calendar: false,
+    subsclass: "",
+    donorid: "",
   });
   const [areaData, setAreaData] = useState({
-    acode: rowData?.acode || "",
-    zipcode: rowData?.zipcode || "",
-    area: rowData?.area || "",
-    city: rowData?.area || "",
+    acode: "",
+    zipcode: "",
+    area: "",
+    city: "",
   });
   const [showModal, setShowModal] = useState(false);
   const [renewalType, setRenewalType] = useState("current");
@@ -368,8 +374,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   }, [areas, isLoadingAreas]);
 
+  // Update the main useEffect that initializes form data
   useEffect(() => {
-    if (rowData) {
+    // Only populate data if we're in edit mode and have rowData
+    if (rowData && mode === "edit") {
       // Parse birth date into components if it exists
       let bdateMonth = "";
       let bdateDay = "";
@@ -422,6 +430,56 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         }
       }
 
+      // Initialize client information fields with values from rowData
+      setFormData((prev) => ({
+        ...prev,
+        lname: rowData.lname || "",
+        fname: rowData.fname || "",
+        mname: rowData.mname || "",
+        sname: rowData.sname || "",
+        title: rowData.title || "",
+        bdate: rowData.bdate || "",
+        bdateMonth: bdateMonth || "",
+        bdateDay: bdateDay || "",
+        bdateYear: bdateYear || "",
+        company: rowData.company || "",
+        address: rowData.address || "",
+        housestreet: housestreet || "",
+        subdivision: subdivision || "",
+        barangay: barangay || "",
+        zipcode: zipcode || "",
+        area: city || "",
+        acode: rowData.acode || "",
+        contactnos: rowData.contactnos || "",
+        cellno: rowData.cellno || "",
+        ofcno: rowData.ofcno || "",
+        email: rowData.email || "",
+        type: rowData.type || "",
+        group: rowData.group || "",
+        remarks: rowData.remarks || "",
+      }));
+
+      // Update addressData state with parsed address components
+      setAddressData({
+        housestreet: housestreet || "",
+        subdivision: subdivision || "",
+        barangay: barangay || "",
+        city: city || "",
+        zipcode: zipcode || "",
+      });
+
+      // Update areaData state with parsed area information
+      setAreaData({
+        acode: rowData.acode || "",
+        zipcode: zipcode || "",
+        area: city || "",
+        city: city || "",
+      });
+
+      // Update combined address
+      setCombinedAddress(rowData.address || "");
+
+      // Load role-specific records
       if (rowData.hrgData) {
         if (rowData.hrgData.records && Array.isArray(rowData.hrgData.records)) {
           setHrgRecords(rowData.hrgData.records);
@@ -519,78 +577,112 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         }
       }
 
-      // Initialize all form fields with default values
-      setFormData({
-        lname: rowData.lname || "",
-        fname: rowData.fname || "",
-        mname: rowData.mname || "",
-        sname: rowData.sname || "",
-        title: rowData.title || "",
-        bdate: rowData.bdate || "",
-        bdateMonth: bdateMonth || "",
-        bdateDay: bdateDay || "",
-        bdateYear: bdateYear || "",
-        company: rowData.company || "",
-        address: rowData.address || "",
-        housestreet: housestreet || "",
-        subdivision: subdivision || "",
-        barangay: barangay || "",
-        zipcode: zipcode || "",
-        area: city || "",
-        acode: rowData.acode || "",
-        contactnos: rowData.contactnos || "",
-        cellno: rowData.cellno || "",
-        ofcno: rowData.ofcno || "",
-        email: rowData.email || "",
-        type: rowData.type || "",
-        group: rowData.group || "",
-        remarks: rowData.remarks || "",
-        subscriptionFreq: rowData.subscriptionFreq || "",
-        subscriptionStart: rowData.subscriptionStart || "",
-        subscriptionEnd: rowData.subscriptionEnd || "",
+      // Only populate subscription data if subscriptionMode is "edit"
+      if (subscriptionMode === "edit") {
+        // Initialize subscription fields with values from rowData
+        setFormData((prev) => ({
+          ...prev,
+          subscriptionFreq: rowData.subscriptionFreq || "",
+          subscriptionStart: rowData.subscriptionStart || "",
+          subscriptionEnd: rowData.subscriptionEnd || "",
+          subsclass: rowData.subsclass || "",
+        }));
+
+        // Initialize role-specific data
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          recvdate: rowData.recvdate || "",
+          renewdate: rowData.renewdate || "",
+          campaigndate: rowData.campaigndate || "",
+          paymtref: rowData.paymtref || "",
+          paymtamt: rowData.paymtamt || "",
+          unsubscribe: rowData.unsubscribe || false,
+          remarks: rowData.remarks || "",
+        }));
+      }
+    } else if (mode === "add") {
+      // In add mode, ensure all fields are empty (don't populate from rowData)
+      setSubscriptionMode("add");
+      setSelectedSubscription({
+        subsdate: "",
+        enddate: "",
+        renewdate: "",
+        subsyear: "",
+        copies: "1",
+        paymtamt: "",
+        paymtmasses: "",
+        calendar: false,
+        subsclass: "",
+        donorid: "",
+        paymtref: "",
+      });
+
+      setAvailableSubscriptions([]);
+
+      // Reset role-specific records
+      setHrgRecords([]);
+      setFomRecords([]);
+      setCalRecords([]);
+      setWmmRecords([]);
+      setPromoRecords([]);
+      setComplimentaryRecords([]);
+
+      setSelectedHrgRecord(null);
+      setSelectedFomRecord(null);
+      setSelectedCalRecord(null);
+      setSelectedWmmRecord(null);
+      setSelectedPromoRecord(null);
+      setSelectedComplimentaryRecord(null);
+
+      setRoleRecordMode("edit");
+      setSelectedRole("HRG");
+
+      // Reset subscription fields to empty/default values
+      setFormData((prev) => ({
+        ...prev,
+        subscriptionType: "WMM",
+        subscriptionFreq: "",
+        subscriptionStart: "",
+        subscriptionEnd: "",
         subStartMonth: "",
         subStartDay: "",
         subStartYear: "",
         subEndMonth: "",
         subEndDay: "",
         subEndYear: "",
-        subsclass: rowData.subsclass || "",
-      });
-
-      // Update addressData state with parsed address components
-      setAddressData({
-        housestreet: housestreet || "",
-        subdivision: subdivision || "",
-        barangay: barangay || "",
-        city: city || "",
-        zipcode: zipcode || "",
-      });
-
-      // Update areaData state with parsed area information
-      setAreaData({
-        acode: rowData.acode || "",
-        zipcode: zipcode || "",
-        area: city || "",
-        city: city || "",
-      });
-
-      // Initialize role-specific data
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        recvdate: rowData.recvdate || "",
-        renewdate: rowData.renewdate || "",
-        campaigndate: rowData.campaigndate || "",
-        paymtref: rowData.paymtref || "",
-        paymtamt: rowData.paymtamt || "",
-        unsubscribe: rowData.unsubscribe || false,
-        remarks: rowData.remarks || "",
+        subsclass: "",
+        referralid: "",
       }));
-    }
-  }, [rowData]);
 
-  // Initialize WMM subscription data
+      // Reset role-specific data to empty/default values
+      setRoleSpecificData({
+        recvdate: "",
+        recvdateMonth: "",
+        recvdateDay: "",
+        recvdateYear: "",
+        campaigndate: "",
+        campaigndateMonth: "",
+        campaigndateDay: "",
+        campaigndateYear: "",
+        paymtref: "",
+        paymtamt: 0,
+        unsubscribe: false,
+        remarks: "",
+        subsdate: "",
+        enddate: "",
+        subsyear: 0,
+        copies: "1",
+        paymtmasses: 0,
+        calendar: false,
+        subsclass: "",
+        donorid: "",
+      });
+    }
+  }, [rowData, mode, subscriptionMode]); // Add subscriptionMode to dependency array
+
+  // Also update the WMM subscription data useEffect
   useEffect(() => {
-    if (rowData) {
+    if (mode === "edit" && rowData && subscriptionMode === "edit") {
       // Get subscription type from rowData or default to WMM
       const subscriptionType = rowData.subscriptionType || "WMM";
 
@@ -614,98 +706,42 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
         // Select the latest subscription
         setSelectedSubscription(latestSubscription);
-
-        // Initialize subscription mode to add (renew) by default
-        setSubscriptionMode("add");
-
-        // Parse dates
-        const subsdate = parseDate(latestSubscription.subsdate);
-        const enddate = parseDate(latestSubscription.enddate);
-
-        if (subsdate && enddate) {
-          // Calculate the difference in months
-          const diffMonths =
-            (enddate.getFullYear() - subsdate.getFullYear()) * 12 +
-            (enddate.getMonth() - subsdate.getMonth());
-
-          // Set subscription frequency based on month difference
-          let frequency = "";
-          if (diffMonths >= 22 && diffMonths <= 26) {
-            frequency = "22"; // 2 years
-          } else if (diffMonths >= 10 && diffMonths <= 14) {
-            frequency = "11"; // 1 year
-          } else if (diffMonths >= 5 && diffMonths <= 7) {
-            frequency = "5"; // 6 months
-          }
-
-          setSubscriptionFreq(frequency);
-
-          // Extract month, day, year for start date
-          const subStartMonth = String(subsdate.getMonth() + 1).padStart(
-            2,
-            "0"
-          );
-          const subStartDay = String(subsdate.getDate()).padStart(2, "0");
-          const subStartYear = String(subsdate.getFullYear());
-
-          // Extract month, day, year for end date
-          const subEndMonth = String(enddate.getMonth() + 1).padStart(2, "0");
-          const subEndDay = String(enddate.getDate()).padStart(2, "0");
-          const subEndYear = String(enddate.getFullYear());
-
-          // Format dates for display
-          const formattedStartDate = `${subStartMonth}/${subStartDay}/${subStartYear}`;
-          const formattedEndDate = `${subEndMonth}/${subEndDay}/${subEndYear}`;
-
-          // Update formData with subscription details (without subsclass conversion for now)
-          setFormData((prev) => ({
-            ...prev,
-            subscriptionType,
-            subscriptionFreq: frequency,
-            subscriptionStart: formattedStartDate,
-            subscriptionEnd: formattedEndDate,
-            subStartMonth,
-            subStartDay,
-            subStartYear,
-            subEndMonth,
-            subEndDay,
-            subEndYear,
-            subsclass: latestSubscription.subsclass || "",
-            referralid:
-              subscriptionType === "Promo"
-                ? latestSubscription.referralid || ""
-                : "",
-          }));
-
-          // Update roleSpecificData with subscription details (without subsclass conversion for now)
-          setRoleSpecificData((prev) => ({
-            ...prev,
-            subsdate: formattedStartDate,
-            enddate: formattedEndDate,
-            subsDateMonth: subStartMonth,
-            subsDateDay: subStartDay,
-            subsDateYear: subStartYear,
-            endDateMonth: subEndMonth,
-            endDateDay: subEndDay,
-            endDateYear: subEndYear,
-            subsyear: latestSubscription.subsyear || 0,
-            copies: latestSubscription.copies || 1,
-            paymtamt: latestSubscription.paymtamt || "",
-            paymtmasses: latestSubscription.paymtmasses || "",
-            calendar: latestSubscription.calendar || false,
-            subsclass: latestSubscription.subsclass || "",
-            donorid: latestSubscription.donorid || "",
-            paymtref: latestSubscription.paymtref || "",
-            remarks: latestSubscription.remarks || "",
-            referralid:
-              subscriptionType === "Promo"
-                ? latestSubscription.referralid || ""
-                : undefined,
-          }));
-        }
       }
+    } else if (mode === "add" || subscriptionMode === "add") {
+      // Clear subscription data for add mode
+      setAvailableSubscriptions([]);
+      setSelectedSubscription({
+        subsdate: "",
+        enddate: "",
+        renewdate: "",
+        subsyear: "",
+        copies: "1",
+        paymtamt: "",
+        paymtmasses: "",
+        calendar: false,
+        subsclass: "",
+        donorid: "",
+        paymtref: "",
+      });
     }
-  }, [rowData]);
+  }, [rowData, mode, subscriptionMode]); // Add subscriptionMode to dependency array
+
+  // Add another useEffect to handle mode changes specifically
+  useEffect(() => {
+    if (mode === "add") {
+      // Ensure all fields are cleared when mode changes to add
+      setFormData((prev) => ({
+        ...prev,
+        // Reset subscription type to default
+        subscriptionType: "WMM",
+        // Clear any remaining fields that might not be reset above
+        referralid: "",
+      }));
+
+      // Reset subscription mode to add
+      setSubscriptionMode("add");
+    }
+  }, [mode]);
 
   // Convert subsclass names to IDs after subclasses are loaded
   useEffect(() => {
@@ -755,7 +791,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Clear subscription fields when component loads with default "add" mode
   useEffect(() => {
-    if (subscriptionMode === "add" && rowData) {
+    if (subscriptionMode === "add" && rowData && mode === "edit") {
       // Clear subscription-related fields in formData
       setFormData((prev) => ({
         ...prev,
@@ -812,7 +848,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         subsdate: formattedStartDate,
       }));
     }
-  }, [subscriptionMode, rowData]);
+  }, [subscriptionMode, rowData, mode]);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -1912,7 +1948,11 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   // Update the useEffect that loads WMM data
   useEffect(() => {
-    if (selectedRole === "WMM" && wmmRecords.length > 0) {
+    if (
+      selectedRole === "WMM" &&
+      wmmRecords.length > 0 &&
+      subscriptionMode === "edit"
+    ) {
       // Select the first record by default if none selected
       if (!selectedWmmRecord) {
         const firstRecord = wmmRecords[0];
@@ -1954,11 +1994,15 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         setSelectedSubscription(firstRecord);
       }
     }
-  }, [wmmRecords, selectedRole, selectedWmmRecord]);
+  }, [wmmRecords, selectedRole, selectedWmmRecord, subscriptionMode]);
 
   // Additional useEffect to handle role change to WMM
   useEffect(() => {
-    if (selectedRole === "WMM" && wmmRecords.length > 0) {
+    if (
+      selectedRole === "WMM" &&
+      wmmRecords.length > 0 &&
+      subscriptionMode === "edit"
+    ) {
       // Ensure we're in edit mode
       if (roleRecordMode !== "edit") {
         setRoleRecordMode("edit");
@@ -1981,13 +2025,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       setRoleSpecificData(roleData);
     }
-  }, [selectedRole, wmmRecords, roleRecordMode]);
+  }, [selectedRole, wmmRecords, roleRecordMode, subscriptionMode]);
 
   useEffect(() => {
     if (
       selectedRole === "Promo" &&
       promoRecords.length > 0 &&
-      !selectedPromoRecord
+      !selectedPromoRecord &&
+      subscriptionMode === "edit"
     ) {
       const firstRecord = promoRecords[0];
       setSelectedPromoRecord(firstRecord);
@@ -2003,13 +2048,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         enddateYear: enddateParts.year,
       });
     }
-  }, [promoRecords, selectedRole, selectedPromoRecord]);
+  }, [promoRecords, selectedRole, selectedPromoRecord, subscriptionMode]);
 
   useEffect(() => {
     if (
       selectedRole === "Complimentary" &&
       complimentaryRecords.length > 0 &&
-      !selectedComplimentaryRecord
+      !selectedComplimentaryRecord &&
+      subscriptionMode === "edit"
     ) {
       const firstRecord = complimentaryRecords[0];
       setSelectedComplimentaryRecord(firstRecord);
@@ -2025,7 +2071,12 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         enddateYear: enddateParts.year,
       });
     }
-  }, [complimentaryRecords, selectedRole, selectedComplimentaryRecord]);
+  }, [
+    complimentaryRecords,
+    selectedRole,
+    selectedComplimentaryRecord,
+    subscriptionMode,
+  ]);
 
   const handleSubscriptionModeChange = (mode) => {
     setSubscriptionMode(mode);
@@ -2086,27 +2137,31 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         referralid: formData.subscriptionType === "Promo" ? "" : undefined,
       }));
 
-      // Initialize with today's date for the new subscription
-      const today = new Date();
-      const startMonth = String(today.getMonth() + 1).padStart(2, "0");
-      const startDay = String(today.getDate()).padStart(2, "0");
-      const startYear = String(today.getFullYear());
-      const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
+      // Only set today's date if we're in edit mode (editing an existing client)
+      // In add mode (new client), keep fields empty
+      if (rowData) {
+        // Initialize with today's date for the new subscription
+        const today = new Date();
+        const startMonth = String(today.getMonth() + 1).padStart(2, "0");
+        const startDay = String(today.getDate()).padStart(2, "0");
+        const startYear = String(today.getFullYear());
+        const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
 
-      // Update formData with today's date as the start date
-      setFormData((prev) => ({
-        ...prev,
-        subStartMonth: startMonth,
-        subStartDay: startDay,
-        subStartYear: startYear,
-        subscriptionStart: formattedStartDate,
-      }));
+        // Update formData with today's date as the start date
+        setFormData((prev) => ({
+          ...prev,
+          subStartMonth: startMonth,
+          subStartDay: startDay,
+          subStartYear: startYear,
+          subscriptionStart: formattedStartDate,
+        }));
 
-      // Also update roleSpecificData
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        subsdate: formattedStartDate,
-      }));
+        // Also update roleSpecificData
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          subsdate: formattedStartDate,
+        }));
+      }
     }
   };
 
@@ -2368,7 +2423,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     return `${month}/${day}/${year}`;
   };
 
-  // Update handleSubmit to use the new date formatting functions
+  // Update the handleSubmit function to handle both edit and add modes
   const handleSubmit = async (e) => {
     // Skip if this came from DonorAdd
     if (e.nativeEvent?.donorAddEvent) {
@@ -2402,6 +2457,16 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
     // Clean the client data by removing empty fields
     const clientData = removeEmptyFields(baseClientData);
+
+    // Determine the API endpoint based on mode
+    const endpoint =
+      mode === "edit"
+        ? `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
+            rowData.id
+          }`
+        : `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`;
+
+    const method = mode === "edit" ? "put" : "post";
 
     // Determine role type based on subscription type
     let roleType = "";
@@ -2828,30 +2893,29 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         return;
       }
 
-      const response = await axios.put(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
-          rowData.id
-        }`,
-        submissionData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
-      );
+      const response = await axios[method](endpoint, submissionData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
 
       if (response.data && response.data.success) {
-        // Show success toast
+        // Show success toast with appropriate message
         toast({
-          title: "Client Updated Successfully",
+          title:
+            mode === "edit"
+              ? "Client Updated Successfully"
+              : "Client Added Successfully",
           description: (
             <div>
-              <p>
-                Client ID:{" "}
-                <span className="font-mono bg-gray-100 px-1 rounded">
-                  {rowData.id}
-                </span>
-              </p>
+              {mode === "edit" && (
+                <p>
+                  Client ID:{" "}
+                  <span className="font-mono bg-gray-100 px-1 rounded">
+                    {rowData.id}
+                  </span>
+                </p>
+              )}
               <p>
                 Name: {clientData.fname} {clientData.lname}
                 {clientData.company}
@@ -2867,7 +2931,7 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         // Backend already emits the WebSocket event, so we don't need to emit it again
         if (onEditSuccess) {
           onEditSuccess({
-            id: rowData.id,
+            id: mode === "edit" ? rowData.id : response.data.id,
             ...clientData,
             services: [getServiceFromRoleSubmissions()],
             subscriptionType: formData.subscriptionType,
@@ -2883,25 +2947,32 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       } else {
         // Handle case where API returns success: false
         toast({
-          title: "Update Failed",
+          title: mode === "edit" ? "Update Failed" : "Add Failed",
           description:
             response.data?.message ||
-            "Failed to update client. Please try again.",
+            (mode === "edit"
+              ? "Failed to update client. Please try again."
+              : "Failed to add client. Please try again."),
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Error updating client:", error);
+      console.error(
+        `Error ${mode === "edit" ? "updating" : "adding"} client:`,
+        error
+      );
 
       // Show detailed error toast
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.error ||
         error.message ||
-        "Failed to update client. Please check your connection and try again.";
+        `Failed to ${
+          mode === "edit" ? "update" : "add"
+        } client. Please check your connection and try again.`;
 
       toast({
-        title: "Error Updating Client",
+        title: `Error ${mode === "edit" ? "Updating" : "Adding"} Client`,
         description: (
           <div>
             <p className="font-semibold">{errorMessage}</p>
@@ -2973,6 +3044,14 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       {onClose && onEditSuccess ? (
         // When rendered inside View component, just render the form without a modal
         <form onSubmit={handleSubmit} className="w-full">
+          {/* Form Title */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-black">
+              {mode === "edit"
+                ? `Edit Client - ID: ${rowData?.id}`
+                : "Add New Client"}
+            </h2>
+          </div>
           {/* Add form content here (fields, sections, etc.) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
             {/* Personal Information */}
@@ -6071,15 +6150,21 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   </svg>
                   Saving...
                 </>
-              ) : (
+              ) : mode === "edit" ? (
                 "Save Changes"
+              ) : (
+                "Add Client"
               )}
             </Button>
           </div>
         </form>
       ) : (
         // When rendered as a standalone component, use a modal
-        <Modal isOpen={showModal} onClose={closeModal} title="Edit Client">
+        <Modal
+          isOpen={showModal}
+          onClose={closeModal}
+          title={mode === "edit" ? "Edit Client" : "Add Client"}
+        >
           <form onSubmit={handleSubmit}>
             {/* Rest of the component content */}
             <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
@@ -6124,8 +6209,10 @@ const Edit = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     </svg>
                     Saving...
                   </>
-                ) : (
+                ) : mode === "edit" ? (
                   "Save Changes"
+                ) : (
+                  "Add Client"
                 )}
               </Button>
             </div>
