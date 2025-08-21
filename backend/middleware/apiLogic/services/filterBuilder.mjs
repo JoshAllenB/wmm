@@ -2091,11 +2091,6 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   ];
 
   // Handle adddate_regex filter (optimized for subscription type)
-  // This filter finds clients whose most recent subscription data (adddate) matches the regex pattern
-  // It respects subscription types for faster lookup and handles different date formats properly
-  // For WMM/Complimentary: YYYY-MM-DD format
-  // For Promo: M/D/YYYY HH:mm:ss format
-  // For HRG/FOM/CAL: Uses the appropriate date format based on subscription type
   if (advancedFilterData.adddate_regex) {
     try {
       // Determine which models to query based on subscription type
@@ -2105,13 +2100,13 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       
       if (subscriptionType === "WMM") {
         const WmmModel = await getModelInstance("WmmModel");
-        modelsToQuery = [{ name: "WMM", model: WmmModel, type: "WMM" }];
+        modelsToQuery = [{ name: "WMM", model: WmmModel }];
       } else if (subscriptionType === "Promo") {
         const PromoModel = await getModelInstance("PromoModel");
-        modelsToQuery = [{ name: "Promo", model: PromoModel, type: "Promo" }];
+        modelsToQuery = [{ name: "Promo", model: PromoModel }];
       } else if (subscriptionType === "Complimentary") {
         const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
-        modelsToQuery = [{ name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }];
+        modelsToQuery = [{ name: "Complimentary", model: ComplimentaryModel }];
       } else {
         // Default: query all models (for backward compatibility)
         const [WmmModel, FomModel, HrgModel, CalModel, PromoModel, ComplimentaryModel] = await Promise.all([
@@ -2123,234 +2118,37 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           getModelInstance("ComplimentaryModel")
         ]);
         modelsToQuery = [
-          { name: "WMM", model: WmmModel, type: "WMM" },
-          { name: "FOM", model: FomModel, type: "WMM" },
-          { name: "HRG", model: HrgModel, type: "WMM" },
-          { name: "CAL", model: CalModel, type: "WMM" },
-          { name: "Promo", model: PromoModel, type: "Promo" },
-          { name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }
+          { name: "WMM", model: WmmModel },
+          { name: "FOM", model: FomModel },
+          { name: "HRG", model: HrgModel },
+          { name: "CAL", model: CalModel },
+          { name: "Promo", model: PromoModel },
+          { name: "Complimentary", model: ComplimentaryModel }
         ];
       }
 
-      // Create pipeline for filtering based on most recent adddate
-      const createMostRecentAdddatePipeline = (subscriptionType = "WMM") => {
-        const pipeline = [
-          // First stage: Match only records with valid adddate
-          {
-            $match: {
-              adddate: { $exists: true, $ne: null },
-            },
-          },
-        ];
-
-        // Add date conversion based on subscription type
-        if (subscriptionType === "Promo") {
-          // Handle Promo date format (M/D/YYYY HH:mm:ss)
-          pipeline.push({
-            $addFields: {
-              normalizedAddDate: {
-                $let: {
-                  vars: {
-                    // First get just the date part if there's a space
-                    datePart: {
-                      $cond: {
-                        if: { $regexMatch: { input: "$adddate", regex: " " } },
-                        then: {
-                          $arrayElemAt: [{ $split: ["$adddate", " "] }, 0],
-                        },
-                        else: "$adddate",
-                      },
-                    },
-                  },
-                  in: {
-                    $cond: {
-                      if: { $regexMatch: { input: "$$datePart", regex: "/" } },
-                      then: {
-                        $let: {
-                          vars: {
-                            parts: { $split: ["$$datePart", "/"] },
-                            year: {
-                              $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2],
-                            },
-                            month: {
-                              $toString: {
-                                $cond: {
-                                  if: {
-                                    $lt: [
-                                      {
-                                        $strLenBytes: {
-                                          $arrayElemAt: [
-                                            { $split: ["$$datePart", "/"] },
-                                            0,
-                                          ],
-                                        },
-                                      },
-                                      2,
-                                    ],
-                                  },
-                                  then: {
-                                    $concat: [
-                                      "0",
-                                      {
-                                        $arrayElemAt: [
-                                          { $split: ["$$datePart", "/"] },
-                                          0,
-                                        ],
-                                      },
-                                    ],
-                                  },
-                                  else: {
-                                    $arrayElemAt: [
-                                      { $split: ["$$datePart", "/"] },
-                                      0,
-                                    ],
-                                  },
-                                },
-                              },
-                            },
-                            day: {
-                              $toString: {
-                                $cond: {
-                                  if: {
-                                    $lt: [
-                                      {
-                                        $strLenBytes: {
-                                          $arrayElemAt: [
-                                            { $split: ["$$datePart", "/"] },
-                                            1,
-                                          ],
-                                        },
-                                      },
-                                      2,
-                                    ],
-                                  },
-                                  then: {
-                                    $concat: [
-                                      "0",
-                                      {
-                                        $arrayElemAt: [
-                                          { $split: ["$$datePart", "/"] },
-                                          1,
-                                        ],
-                                      },
-                                    ],
-                                  },
-                                  else: {
-                                    $arrayElemAt: [
-                                      { $split: ["$$datePart", "/"] },
-                                      1,
-                                    ],
-                                  },
-                                },
-                              },
-                            },
-                          },
-                          in: {
-                            $dateFromString: {
-                              dateString: {
-                                $concat: ["$$year", "-", "$$month", "-", "$$day"],
-                              },
-                              format: "%Y-%m-%d",
-                              timezone: "UTC",
-                              onError: null,
-                              onNull: null,
-                            },
-                          },
-                        },
-                      },
-                      else: {
-                        $dateFromString: {
-                          dateString: "$$datePart",
-                          format: "%Y-%m-%d",
-                          timezone: "UTC",
-                          onError: null,
-                          onNull: null,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          });
-        } else {
-          // Handle WMM and Complimentary date format (YYYY-MM-DD HH:mm:ss)
-          pipeline.push({
-            $addFields: {
-              normalizedAddDate: {
-                $let: {
-                  vars: {
-                    // First get just the date part if there's a space (for YYYY-MM-DD HH:mm:ss format)
-                    datePart: {
-                      $cond: {
-                        if: { $regexMatch: { input: "$adddate", regex: " " } },
-                        then: {
-                          $arrayElemAt: [{ $split: ["$adddate", " "] }, 0],
-                        },
-                        else: "$adddate",
-                      },
-                    },
-                  },
-                  in: {
-                    $dateFromString: {
-                      dateString: "$$datePart",
-                      format: "%Y-%m-%d",
-                      timezone: "UTC",
-                      onError: null,
-                      onNull: null,
-                    },
-                  },
-                },
-              },
-            },
-          });
-        }
-
-        // Filter out invalid dates
-        pipeline.push({
+      // Create pipeline for regex date filtering
+      const createRegexPipeline = [
+        {
           $match: {
-            normalizedAddDate: { $ne: null },
-          },
-        });
-
-        // Sort by client ID and normalized adddate (newest first)
-        pipeline.push({
-          $sort: { clientid: 1, normalizedAddDate: -1 },
-        });
-
-        // Group by client ID to get the most recent record
-        pipeline.push({
-          $group: {
-            _id: "$clientid",
-            latestAddDate: { $first: "$adddate" },
-            latestNormalizedAddDate: { $first: "$normalizedAddDate" },
-          },
-        });
-
-        // Apply the regex filter to the most recent adddate
-        pipeline.push({
-          $match: {
-            latestAddDate: {
+            adddate: {
               $regex: advancedFilterData.adddate_regex,
               $options: "i",
             },
           },
-        });
-
-        // Project only the client ID
-        pipeline.push({
-          $project: { _id: 1 },
-        });
-
-        return pipeline;
-      };
+        },
+        {
+          $group: {
+            _id: "$clientid",
+          },
+        },
+      ];
 
       // Execute aggregation for relevant models only
       const modelResults = await Promise.all(
-        modelsToQuery.map(async ({ model, type }) => {
+        modelsToQuery.map(async ({ model }) => {
           try {
-            const pipeline = createMostRecentAdddatePipeline(type);
-            return await model.aggregate(pipeline);
+            return await model.aggregate(createRegexPipeline);
           } catch (error) {
             console.error(`Error aggregating model:`, error);
             return [];

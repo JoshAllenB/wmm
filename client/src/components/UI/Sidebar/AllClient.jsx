@@ -412,17 +412,9 @@ const AllClient = () => {
             // Ensure all parts are valid numbers to prevent regex errors
             if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
               // We want to match the date part regardless of the time part
-              // The database stores dates in different formats:
-              // - WMM/Complimentary: "YYYY-MM-DD HH:mm:ss" (e.g., "2025-08-20 17:03:07")
-              // - Promo: "M/D/YYYY HH:mm:ss" (e.g., "8/20/2025 17:03:07")
-              // Create regex patterns for both formats
-              const wmmFormat = `${year}-${month
-                .toString()
-                .padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
-              const promoFormat = `${month}\\/${day}\\/${year}`;
-
-              // Use OR pattern to match either format
-              filtersToUse.adddate_regex = `^(${wmmFormat}|${promoFormat})`;
+              // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
+              // Passing a regex as a string since MongoDB will interpret it
+              filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
             } else {
               console.error("Invalid date components for addedToday filter");
               delete filtersToUse.adddate_regex;
@@ -575,15 +567,7 @@ const AllClient = () => {
         const month = today.getMonth() + 1;
         const day = today.getDate();
         const year = today.getFullYear();
-
-        // Create regex patterns for both date formats
-        const wmmFormat = `${year}-${month.toString().padStart(2, "0")}-${day
-          .toString()
-          .padStart(2, "0")}`;
-        const promoFormat = `${month}\\/${day}\\/${year}`;
-
-        // Use OR pattern to match either format
-        initialFilter.adddate_regex = `^(${wmmFormat}|${promoFormat})`;
+        initialFilter.adddate_regex = `^${month}\\/${day}\\/${year}`;
       }
 
       // Save as last filter to prevent bouncing
