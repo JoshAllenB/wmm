@@ -64,7 +64,7 @@ const initWebSocket = (io) => {
   io.engine.pingInterval = 25000;
 
   io.on("connection", (socket) => {
-    const { userId, username, sessionId } = socket.handshake.query;
+    const { userId, username, sessionId, connectionId, reconnectAttempt } = socket.handshake.query;
 
     // Validate connection data
     if (!sessionId || !userId || !username || userId === "null" || username === "null" || sessionId === "null") {
@@ -81,6 +81,15 @@ const initWebSocket = (io) => {
       return;
     }
 
+    console.log("[Socket] New connection attempt:", {
+      userId,
+      username,
+      sessionId,
+      connectionId,
+      reconnectAttempt: reconnectAttempt || 0,
+      socketId: socket.id
+    });
+
     // Clear any pending reconnection attempts for this user
     if (pendingReconnects.has(userId)) {
       clearTimeout(pendingReconnects.get(userId));
@@ -94,25 +103,49 @@ const initWebSocket = (io) => {
 
       // If there's an existing socket with a different ID, handle the transition
       if (oldSocketId && oldSocketId !== socket.id) {
-        // Keep the old socket alive briefly to ensure smooth transition
-        setTimeout(() => {
-          if (io.sockets.sockets.has(oldSocketId)) {
-            const oldSocket = io.sockets.sockets.get(oldSocketId);
-            oldSocket.emit('session-transferred', formatDataEvent('session-transferred'));
-            oldSocket.disconnect(true);
-            console.log("[Socket] Transferred session from old socket:", {
-              oldSocketId,
-              newSocketId: socket.id,
-              userId
-            });
-          }
-        }, 1000);
+        // Check if this is a reconnection attempt with the same connectionId
+        if (connectionId && existingSession.connectionId === connectionId) {
+          console.log("[Socket] Reconnection with same connectionId:", {
+            oldSocketId,
+            newSocketId: socket.id,
+            userId,
+            connectionId
+          });
+          
+          // Gracefully transfer the session
+          setTimeout(() => {
+            if (io.sockets.sockets.has(oldSocketId)) {
+              const oldSocket = io.sockets.sockets.get(oldSocketId);
+              oldSocket.emit('session-transferred', formatDataEvent('session-transferred', {
+                newSocketId: socket.id,
+                connectionId
+              }));
+              oldSocket.disconnect(true);
+            }
+          }, 500);
+        } else {
+          // Different connection, handle as session transfer
+          setTimeout(() => {
+            if (io.sockets.sockets.has(oldSocketId)) {
+              const oldSocket = io.sockets.sockets.get(oldSocketId);
+              oldSocket.emit('session-transferred', formatDataEvent('session-transferred'));
+              oldSocket.disconnect(true);
+              console.log("[Socket] Transferred session from old socket:", {
+                oldSocketId,
+                newSocketId: socket.id,
+                userId
+              });
+            }
+          }, 1000);
+        }
       }
 
       // Update the session with new socket info
       existingSession.socketId = socket.id;
       existingSession.lastPing = Date.now();
       existingSession.reconnectAttempts = 0;
+      existingSession.connectionId = connectionId;
+      existingSession.lastConnected = Date.now();
       global.socketIdMap.set(userId, socket.id);
       sessions.set(sessionId, existingSession);
 
@@ -120,6 +153,7 @@ const initWebSocket = (io) => {
         user: username,
         userId,
         socketId: socket.id,
+        connectionId,
         totalSessions: sessions.size
       });
     } else {
@@ -129,8 +163,10 @@ const initWebSocket = (io) => {
         userId,
         username,
         socketId: socket.id,
+        connectionId,
         connectionTime: new Date(),
         lastPing: Date.now(),
+        lastConnected: Date.now(),
         reconnectAttempts: 0
       });
 
@@ -138,6 +174,7 @@ const initWebSocket = (io) => {
         user: username,
         userId,
         socketId: socket.id,
+        connectionId,
         totalSessions: sessions.size
       });
     }
@@ -147,7 +184,8 @@ const initWebSocket = (io) => {
       userId,
       username,
       sessionId,
-      socketId: socket.id
+      socketId: socket.id,
+      connectionId
     }));
 
     // Handle ping messages
@@ -204,6 +242,23 @@ const initWebSocket = (io) => {
 
     socket.on("export-error", (data) => {
       io.to(`export:${userId}`).emit(`export-error-${userId}`, formatDataEvent('export-error', data));
+    });
+
+    // Handle page unloading event
+    socket.on("page-unloading", (data) => {
+      console.log("[Socket] Page unloading:", {
+        userId,
+        connectionId: data.connectionId,
+        timestamp: data.timestamp
+      });
+      
+      // Mark session as potentially reconnecting
+      const session = sessions.get(sessionId);
+      if (session) {
+        session.lastPing = Date.now();
+        session.reconnectAttempts = 0; // Reset reconnect attempts for page refresh
+        sessions.set(sessionId, session);
+      }
     });
 
     socket.on("data-update", async (data) => {
@@ -645,33 +700,35 @@ const initWebSocket = (io) => {
         user: username,
         userId,
         reason,
-        socketId: socket.id
+        socketId: socket.id,
+        connectionId
       });
 
       const session = sessions.get(sessionId);
       if (session && session.socketId === socket.id) {
-        // Set up reconnection window
+        // Set up reconnection window with longer timeout for better resilience
         const reconnectTimeout = setTimeout(() => {
           const session = sessions.get(sessionId);
           if (session) {
             session.reconnectAttempts += 1;
             
             // If too many failed reconnects, clean up the session
-            if (session.reconnectAttempts > 5) {
+            if (session.reconnectAttempts > 10) { // Increased from 5 to 10
               global.socketIdMap.delete(userId);
               sessions.delete(sessionId);
               socket.leave(`user:${userId}`);
               socket.leave(`export:${userId}`);
               console.log("[Socket] Session expired after max reconnect attempts:", {
                 user: username,
-                userId
+                userId,
+                connectionId
               });
             } else {
               sessions.set(sessionId, session);
             }
           }
           pendingReconnects.delete(userId);
-        }, 30000); // 30 second reconnection window
+        }, 60000); // Increased from 30 to 60 seconds
 
         pendingReconnects.set(userId, reconnectTimeout);
       }
@@ -682,13 +739,14 @@ const initWebSocket = (io) => {
   setInterval(() => {
     const now = Date.now();
     sessions.forEach((session, sessionId) => {
-      // Consider a session stale if no ping for 2 minutes and has exceeded max reconnect attempts
-      if (now - session.lastPing > 120000 && session.reconnectAttempts > 5) {
+      // Consider a session stale if no ping for 3 minutes and has exceeded max reconnect attempts
+      if (now - session.lastPing > 180000 && session.reconnectAttempts > 10) {
         sessions.delete(sessionId);
         global.socketIdMap.delete(session.userId);
         console.log("[Socket] Cleaned up stale session:", {
           user: session.username,
-          userId: session.userId
+          userId: session.userId,
+          connectionId: session.connectionId
         });
       }
     });

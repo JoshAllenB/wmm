@@ -7,7 +7,7 @@ class WebSocketService {
     this.socket = null;
     this.eventHandlers = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 10; // Increased for better resilience
     this.isConnecting = false;
     this.connectionQueue = [];
     this.connectionEstablished = false;
@@ -16,25 +16,171 @@ class WebSocketService {
     this.pingInterval = null;
     this.connectionTimeout = null;
     this.directEventHandlers = new Map();
+    this.connectionState = 'disconnected'; // 'connecting', 'connected', 'disconnected', 'reconnecting'
+    this.lastConnectionAttempt = 0;
+    this.connectionRetryDelay = 1000; // Start with 1 second
+    this.maxConnectionRetryDelay = 30000; // Max 30 seconds
+    this.beforeUnloadHandler = null;
+    this.visibilityChangeHandler = null;
+    this.onlineHandler = null;
+    this.offlineHandler = null;
 
     this.sessionData = {
       userId: null,
       username: null,
       sessionId: null,
       socketId: null,
+      lastConnected: null,
+      connectionId: null, // Unique connection identifier
     };
 
     // Restore session data from localStorage if available
     this.restoreSession();
+    this.setupConnectionPersistence();
+    this.setupBrowserEventHandlers();
 
     // Add debug flag
     this.debug = true;
+  }
+
+  setupConnectionPersistence() {
+    // Generate a unique connection ID for this browser session
+    if (!this.sessionData.connectionId) {
+      this.sessionData.connectionId = `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      localStorage.setItem("connectionId", this.sessionData.connectionId);
+    }
+
+    // Store connection state in sessionStorage for page refresh recovery
+    this.saveConnectionState();
+  }
+
+  setupBrowserEventHandlers() {
+    // Handle page visibility changes (tab switching, minimizing)
+    this.visibilityChangeHandler = () => {
+      if (document.visibilityState === 'visible') {
+        this.handlePageVisible();
+      } else {
+        this.handlePageHidden();
+      }
+    };
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler);
+
+    // Handle online/offline status
+    this.onlineHandler = () => {
+      this.handleOnline();
+    };
+    window.addEventListener('online', this.onlineHandler);
+
+    this.offlineHandler = () => {
+      this.handleOffline();
+    };
+    window.addEventListener('offline', this.offlineHandler);
+
+    // Handle beforeunload (page refresh/close)
+    this.beforeUnloadHandler = () => {
+      this.handleBeforeUnload();
+    };
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+
+    // Handle page load (recovery from refresh)
+    window.addEventListener('load', () => {
+      this.handlePageLoad();
+    });
+  }
+
+  handlePageVisible() {
+    if (this.connectionState === 'disconnected' || this.connectionState === 'reconnecting') {
+      this.attemptReconnection();
+    } else if (this.socket && !this.socket.connected) {
+      this.reconnect();
+    }
+  }
+
+  handlePageHidden() {
+    console.log("[WebSocket] Page hidden, maintaining connection...");
+    // Keep connection alive but don't actively reconnect
+  }
+
+  handleOnline() {
+    if (this.connectionState === 'disconnected') {
+      this.attemptReconnection();
+    }
+  }
+
+  handleOffline() {
+    this.connectionState = 'disconnected';
+    this.saveConnectionState();
+  }
+
+  handleBeforeUnload() {
+    // Save current connection state before page unloads
+    this.saveConnectionState();
+    
+    // Send a quick disconnect signal if possible
+    if (this.socket && this.socket.connected) {
+      try {
+        this.socket.emit('page-unloading', {
+          connectionId: this.sessionData.connectionId,
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        // Ignore errors during page unload
+      }
+    }
+  }
+
+  handlePageLoad() {
+    this.restoreConnectionState();
+    
+    // Attempt to reconnect if we have valid session data
+    if (this.sessionData.userId && this.sessionData.username && this.sessionData.sessionId) {
+      setTimeout(() => {
+        this.attemptReconnection();
+      }, 1000); // Small delay to ensure page is fully loaded
+    }
+  }
+
+  saveConnectionState() {
+    const state = {
+      connectionState: this.connectionState,
+      sessionData: this.sessionData,
+      lastConnected: this.sessionData.lastConnected,
+      reconnectAttempts: this.reconnectAttempts,
+      timestamp: Date.now()
+    };
+    
+    try {
+      sessionStorage.setItem('websocketState', JSON.stringify(state));
+    } catch (e) {
+      console.warn("[WebSocket] Could not save connection state:", e);
+    }
+  }
+
+  restoreConnectionState() {
+    try {
+      const savedState = sessionStorage.getItem('websocketState');
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        this.connectionState = state.connectionState || 'disconnected';
+        this.reconnectAttempts = state.reconnectAttempts || 0;
+        
+        // Only restore session data if it's not already set
+        if (!this.sessionData.userId && state.sessionData) {
+          this.sessionData = { ...this.sessionData, ...state.sessionData };
+        }
+        
+        console.log("[WebSocket] Restored connection state:", this.connectionState);
+      }
+    } catch (e) {
+      console.warn("[WebSocket] Could not restore connection state:", e);
+    }
   }
 
   restoreSession() {
     const sessionId = localStorage.getItem("sessionId");
     const userId = localStorage.getItem("userId");
     const username = localStorage.getItem("username");
+    const connectionId = localStorage.getItem("connectionId");
 
     if (sessionId && userId && username) {
       this.sessionData = {
@@ -42,6 +188,8 @@ class WebSocketService {
         userId,
         username,
         socketId: null,
+        lastConnected: null,
+        connectionId: connectionId || this.sessionData.connectionId,
       };
     }
   }
@@ -93,6 +241,8 @@ class WebSocketService {
     }
 
     this.isConnecting = true;
+    this.connectionState = 'connecting';
+    this.saveConnectionState();
 
     const sessionId = 
       options.query?.sessionId || 
@@ -105,6 +255,8 @@ class WebSocketService {
     if (!sessionId || !userId || !username || userId === "null" || username === "null" || sessionId === "null") {
       console.warn("[WebSocket] Cannot connect without valid user data");
       this.isConnecting = false;
+      this.connectionState = 'disconnected';
+      this.saveConnectionState();
       return;
     }
 
@@ -130,16 +282,18 @@ class WebSocketService {
     }
 
     this.socket = io(this.url, {
-      query: this.sessionData,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: this.maxReconnectAttempts,
+      query: {
+        ...this.sessionData,
+        connectionId: this.sessionData.connectionId,
+        reconnectAttempt: this.reconnectAttempts
+      },
+      reconnection: false, // We'll handle reconnection manually
       autoConnect: true,
-      forceNew: true, // Force new connection to prevent duplicate connections
+      forceNew: true,
       timeout: 20000,
       pingTimeout: 30000,
       pingInterval: 25000,
+      transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling
     });
 
     // Setup ping interval to keep connection alive
@@ -157,9 +311,9 @@ class WebSocketService {
     this.connectionTimeout = setTimeout(() => {
       if (!this.connectionEstablished) {
         console.warn("[WebSocket] Connection timeout, attempting reconnect...");
-        this.reconnect();
+        this.handleConnectionTimeout();
       }
-    }, 10000);
+    }, 15000); // Increased timeout
 
     // Reattach direct event handlers
     this.directEventHandlers.forEach((handlers, event) => {
@@ -171,13 +325,24 @@ class WebSocketService {
     this.socket.on("connect", () => {
       this.reconnectAttempts = 0;
       this.sessionData.socketId = this.socket.id;
+      this.sessionData.lastConnected = Date.now();
       this.isConnecting = false;
       this.connectionEstablished = true;
+      this.connectionState = 'connected';
+      this.connectionRetryDelay = 1000; // Reset retry delay on successful connection
+      
+      this.saveConnectionState();
       
       if (this.connectionTimeout) {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
       }
+      
+      console.log("[WebSocket] Connected successfully:", {
+        socketId: this.socket.id,
+        connectionId: this.sessionData.connectionId,
+        reconnectAttempts: this.reconnectAttempts
+      });
       
       // Request data sync after connection
       this.requestDataSync();
@@ -192,6 +357,14 @@ class WebSocketService {
 
     this.socket.on("disconnect", (reason) => {
       this.connectionEstablished = false;
+      this.connectionState = 'disconnected';
+      this.saveConnectionState();
+      
+      console.log("[WebSocket] Disconnected:", {
+        reason,
+        connectionId: this.sessionData.connectionId,
+        reconnectAttempts: this.reconnectAttempts
+      });
       
       // Clear ping interval on disconnect
       if (this.pingInterval) {
@@ -202,7 +375,7 @@ class WebSocketService {
       if (reason === "io server disconnect" || reason === "client namespace disconnect") {
         // Set a timer to reconnect
         this.reconnectTimer = setTimeout(() => {
-          this.reconnect();
+          this.attemptReconnection();
         }, 2000);
       }
       this.isConnecting = false;
@@ -211,26 +384,40 @@ class WebSocketService {
     this.socket.on("connect_error", (error) => {
       console.error("[WebSocket] Connection error:", error.message);
       this.reconnectAttempts++;
+      this.connectionState = 'disconnected';
+      this.saveConnectionState();
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error("[WebSocket] Max reconnection attempts reached");
-        // Use centralized error handler for max reconnection attempts
         errorHandler.handleWebSocketError('max_reconnect_attempts', error);
       } else {
-        // Handle connection error but don't logout yet
         errorHandler.handleWebSocketError('connection_error', error);
+        // Exponential backoff for reconnection attempts
+        this.connectionRetryDelay = Math.min(
+          this.connectionRetryDelay * 1.5,
+          this.maxConnectionRetryDelay
+        );
+        
+        setTimeout(() => {
+          this.attemptReconnection();
+        }, this.connectionRetryDelay);
       }
       
       this.isConnecting = false;
     });
 
     this.socket.on("session-transferred", () => {
+      console.log("[WebSocket] Session transferred, reconnecting...");
       this.socket.disconnect();
+      setTimeout(() => {
+        this.attemptReconnection();
+      }, 1000);
     });
 
     this.socket.on("pong", () => {
       // Reset reconnect attempts on successful pong
       this.reconnectAttempts = 0;
+      this.connectionRetryDelay = 1000;
     });
 
     // Add data sync event handlers
@@ -250,7 +437,6 @@ class WebSocketService {
     this.socket.on("data-sync-error", (error) => {
       console.error("[WebSocket] Data sync error:", error);
       this.pendingDataSync = false;
-      // Handle data sync error with centralized error handler
       errorHandler.handleWebSocketError('data_sync_error', error);
     });
 
@@ -377,15 +563,60 @@ class WebSocketService {
     });
   }
 
+  handleConnectionTimeout() {
+    console.warn("[WebSocket] Connection timeout occurred");
+    this.connectionState = 'disconnected';
+    this.saveConnectionState();
+    
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.attemptReconnection();
+    } else {
+      errorHandler.handleWebSocketError('connection_timeout', new Error('Connection timeout'));
+    }
+  }
+
+  attemptReconnection() {
+    const now = Date.now();
+    const timeSinceLastAttempt = now - this.lastConnectionAttempt;
+    
+    // Prevent too frequent reconnection attempts
+    if (timeSinceLastAttempt < 1000) {
+      setTimeout(() => this.attemptReconnection(), 1000 - timeSinceLastAttempt);
+      return;
+    }
+    
+    this.lastConnectionAttempt = now;
+    
+    if (this.connectionState === 'connected' || this.isConnecting) {
+      return; // Already connected or connecting
+    }
+    
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("[WebSocket] Max reconnection attempts reached");
+      return;
+    }
+    
+    
+    this.connectionState = 'reconnecting';
+    this.saveConnectionState();
+    
+    this.connect({ query: this.sessionData });
+  }
+
   clearSession() {
     localStorage.removeItem("sessionId");
     localStorage.removeItem("userId");
     localStorage.removeItem("username");
+    localStorage.removeItem("connectionId");
+    sessionStorage.removeItem('websocketState');
+    
     this.sessionData = {
       userId: null,
       username: null,
       sessionId: null,
       socketId: null,
+      lastConnected: null,
+      connectionId: null,
     };
   }
 
@@ -399,7 +630,7 @@ class WebSocketService {
   reconnect() {
     // Only try to reconnect if we have valid session data
     if (this.sessionData.userId && this.sessionData.username && this.sessionData.sessionId) {
-      this.connect({ query: this.sessionData });
+      this.attemptReconnection();
     } else {
       console.warn("[WebSocket] Cannot reconnect: No valid session data");
     }
@@ -455,7 +686,8 @@ class WebSocketService {
   requestDataSync() {
     if (!this.pendingDataSync && this.socket?.connected) {
       this.socket.emit("request-data-sync", {
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        connectionId: this.sessionData.connectionId
       });
     }
   }
@@ -565,6 +797,20 @@ class WebSocketService {
   }
 
   disconnect() {
+    // Remove browser event handlers
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler);
+    }
+    if (this.onlineHandler) {
+      window.removeEventListener('online', this.onlineHandler);
+    }
+    if (this.offlineHandler) {
+      window.removeEventListener('offline', this.offlineHandler);
+    }
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+    }
+
     if (this.socket) {
       // Clear all intervals and timers
       if (this.pingInterval) {
@@ -585,7 +831,21 @@ class WebSocketService {
       this.eventHandlers.clear();
       this.connectionEstablished = false;
       this.reconnectAttempts = 0;
+      this.connectionState = 'disconnected';
+      this.saveConnectionState();
     }
+  }
+
+  // Get connection status
+  getConnectionStatus() {
+    return {
+      connected: this.socket?.connected || false,
+      connectionState: this.connectionState,
+      reconnectAttempts: this.reconnectAttempts,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      sessionData: this.sessionData,
+      lastConnected: this.sessionData.lastConnected
+    };
   }
 }
 
