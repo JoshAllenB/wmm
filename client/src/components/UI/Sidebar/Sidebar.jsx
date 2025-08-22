@@ -36,6 +36,7 @@ import {
 import { DropdownMenuGroup } from "@radix-ui/react-dropdown-menu";
 import { CircleUser, LogOut, Timer } from "lucide-react";
 import Logout from "../../../utils/UserAuth/logout";
+import ConnectionStatus from "../ConnectionStatus";
 
 export default function MenuSidebar({
   setIsLoggedIn,
@@ -261,6 +262,11 @@ export default function MenuSidebar({
         </Menu>
 
         <div className="border-t border-gray-200">
+          {/* Connection Status */}
+          <div className="px-3 py-2">
+            <ConnectionStatus showDetails={!isCollapsed} />
+          </div>
+
           <Menu menuItemStyles={menuItemStyles}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
