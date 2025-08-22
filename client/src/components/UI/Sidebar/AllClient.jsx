@@ -412,9 +412,11 @@ const AllClient = () => {
             // Ensure all parts are valid numbers to prevent regex errors
             if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
               // We want to match the date part regardless of the time part
-              // The database stores dates like "M/D/YYYY h:mm:ss AM/PM"
-              // Passing a regex as a string since MongoDB will interpret it
-              filtersToUse.adddate_regex = `^${month}\\/${day}\\/${year}`;
+              // The database stores dates in YYYY-MM-DD format (e.g., "2025-08-22" or "2025-08-22 14:43:50")
+              // Create regex pattern to match YYYY-MM-DD format
+              const paddedMonth = month.toString().padStart(2, "0");
+              const paddedDay = day.toString().padStart(2, "0");
+              filtersToUse.adddate_regex = `^${year}-${paddedMonth}-${paddedDay}`;
             } else {
               console.error("Invalid date components for addedToday filter");
               delete filtersToUse.adddate_regex;
@@ -567,7 +569,10 @@ const AllClient = () => {
         const month = today.getMonth() + 1;
         const day = today.getDate();
         const year = today.getFullYear();
-        initialFilter.adddate_regex = `^${month}\\/${day}\\/${year}`;
+        // Create regex pattern to match YYYY-MM-DD format
+        const paddedMonth = month.toString().padStart(2, "0");
+        const paddedDay = day.toString().padStart(2, "0");
+        initialFilter.adddate_regex = `^${year}-${paddedMonth}-${paddedDay}`;
       }
 
       // Save as last filter to prevent bouncing

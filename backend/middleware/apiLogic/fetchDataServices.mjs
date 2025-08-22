@@ -770,35 +770,42 @@ async function fetchDataServices(
 
         // Import all service models to check for services added/updated today if not already cached
         const WmmModelInstance = await getModel("WmmModel");
+        const PromoModelInstance = await getModel("PromoModel");
+        const ComplimentaryModelInstance = await getModel("ComplimentaryModel");
         const FomModelInstance = await getModel("FomModel");
         const HrgModelInstance = await getModel("HrgModel");
         const CalModelInstance = await getModel("CalModel");
 
         // Define all date fields to check for each model
         const serviceDateFields = {
-          WmmModel: ["adddate", "subsdate", "updatedate"],
-          FomModel: ["adddate", "recvdate", "updatedate"],
-          HrgModel: ["adddate", "recvdate", "updatedate"],
-          CalModel: ["adddate", "recvdate", "caldate", "updatedate"],
+          WmmModel: ["adddate"],
+          PromoModel: ["adddate"],
+          ComplimentaryModel: ["adddate"],
+          FomModel: ["adddate"],
+          HrgModel: ["adddate"],
+          CalModel: ["adddate"],
         };
 
-        // First, find clients with the matching client adddate
-        const clientsWithTodaysDate = await ClientModel.find({
-          adddate: { $regex: todayPattern, $options: "i" },
-        })
-          .select("id")
-          .lean();
-
         // Create a set of client IDs that match the filter
-        const clientIdsSet = new Set(
-          clientsWithTodaysDate.map((client) => client.id)
-        );
+        const clientIdsSet = new Set();
 
         // For each model, find clients with ANY date field matching today
         const modelQueriesPromises = [
           // WMM model date fields
           ...serviceDateFields.WmmModel.map((field) =>
             WmmModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
+          ),
+          // PROMO model date fields
+          ...serviceDateFields.PromoModel.map((field) =>
+            PromoModelInstance.find({
+              [field]: { $regex: todayPattern, $options: "i" },
+            }).distinct("clientid")
+          ),
+          // COMPLIMENTARY model date fields
+          ...serviceDateFields.ComplimentaryModel.map((field) =>
+            ComplimentaryModelInstance.find({
               [field]: { $regex: todayPattern, $options: "i" },
             }).distinct("clientid")
           ),
@@ -849,10 +856,8 @@ async function fetchDataServices(
           "Error processing Added Today filter for services:",
           error
         );
-        // Fall back to the original client-only filter
-        baseFilter.push({
-          adddate: { $regex: advancedFilterData.adddate_regex, $options: "i" },
-        });
+        // Fall back to no results if there's an error
+        baseFilter.push({ id: -1 });
       }
     }
 
