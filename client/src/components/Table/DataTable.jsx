@@ -55,6 +55,13 @@ export default function DataTable({
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [localLoading, setLocalLoading] = useState(true);
+  const tableStateRef = useRef({
+    page: initialPage,
+    pageSize: initialPageSize,
+    totalPages: initialTotalPages,
+    filters: {},
+  });
+  const isWebSocketRefetchRef = useRef(false);
 
   // Helper function to check if a client matches current filter criteria
   const checkClientVisibility = useCallback(
@@ -293,7 +300,7 @@ export default function DataTable({
   };
 
   const fetchData = useCallback(
-    async (isSync = false) => {
+    async (isSync = false, preservePage = null, preservePageSize = null) => {
       if (!fetchFunction) return;
 
       // Cancel previous request if it exists
@@ -309,10 +316,15 @@ export default function DataTable({
         setLocalLoading(true);
       }
 
+      // Use preserved pagination if provided, otherwise use current state
+      const currentPage = preservePage !== null ? preservePage : page;
+      const currentPageSize =
+        preservePageSize !== null ? preservePageSize : pageSize;
+
       try {
         const result = await fetchFunction(
-          page,
-          pageSize,
+          currentPage,
+          currentPageSize,
           searchTerm,
           selectedGroup,
           advancedFilterData
@@ -361,9 +373,15 @@ export default function DataTable({
         if (pagesToSet !== totalPages) {
           setTotalPages(pagesToSet);
         }
-        if (pageToSet !== page) {
+
+        // Only update page if we're not preserving pagination
+        if (preservePage === null && pageToSet !== page) {
           setPage(pageToSet);
+        } else if (preservePage !== null) {
+          // If we're preserving pagination, ensure the page state matches
+          setPage(preservePage);
         }
+
         setLocalData(dataToSet);
 
         // Add a small delay before completing the transition
@@ -403,6 +421,11 @@ export default function DataTable({
 
   // Initial data load
   useEffect(() => {
+    // Skip automatic refetch if we're doing a WebSocket-triggered refetch
+    if (isWebSocketRefetchRef.current) {
+      return;
+    }
+
     fetchData(false);
 
     return () => {
@@ -425,6 +448,27 @@ export default function DataTable({
       setTotalPages(initialTotalPages);
     }
   }, [initialTotalPages]);
+
+  // Update table state ref whenever state changes
+  useEffect(() => {
+    tableStateRef.current = {
+      page,
+      pageSize,
+      totalPages,
+      filters: {
+        searchTerm,
+        selectedGroup,
+        advancedFilterData,
+      },
+    };
+  }, [
+    page,
+    pageSize,
+    totalPages,
+    searchTerm,
+    selectedGroup,
+    advancedFilterData,
+  ]);
 
   // Optimize data sync
   useEffect(() => {
@@ -456,18 +500,16 @@ export default function DataTable({
     setTableInstance(updatedTable);
   }, [table, setTableInstance, rowSelection, localData]);
 
-  // Handle WebSocket updates with simple data replacement
+  // Handle WebSocket updates with filter preservation
   useEffect(() => {
     if (!socketData) return;
 
-    // Debug: Log the entire socketData to understand its structure
-    console.log("[DataTable] Full socketData received:", socketData);
-    console.log("[DataTable] Current filter state:", {
-      advancedFilterData,
+    // Store current filter state before processing WebSocket update
+    const currentFilters = {
       searchTerm,
       selectedGroup,
-      localDataLength: localData.length,
-    });
+      advancedFilterData,
+    };
 
     // Handle array-like objects (socketData with numeric keys like {0: {...}})
     let processedSocketData = socketData;
@@ -481,10 +523,6 @@ export default function DataTable({
       if (keys.length === 1 && !isNaN(keys[0])) {
         // Extract the actual data from the array-like object
         processedSocketData = socketData[keys[0]];
-        console.log(
-          "[DataTable] Extracted data from array-like object:",
-          processedSocketData
-        );
       }
     }
 
@@ -501,19 +539,11 @@ export default function DataTable({
         "filter-update",
       ].includes(processedSocketData.type)
     ) {
-      console.log(
-        "[DataTable] Skipping non-client update type:",
-        processedSocketData.type
-      );
       return;
     }
 
     // Check if this is a valid data update
     if (!processedSocketData.data && !processedSocketData.type) {
-      console.log(
-        "[DataTable] Skipping invalid socketData:",
-        processedSocketData
-      );
       return;
     }
 
@@ -529,165 +559,93 @@ export default function DataTable({
 
     // If still no data, skip this update
     if (!updateData) {
-      console.log("[DataTable] No valid data found in socketData");
       return;
     }
 
     // Additional check: ensure we have a client ID
     const clientId = updateData.id || updateData.clientid;
     if (!clientId && updateType !== "filter-update") {
-      console.log("[DataTable] No client ID found, skipping update");
       return;
     }
 
     // Prevent updates if we don't have proper filter context yet
     if (localData.length === 0 && updateType !== "filter-update") {
-      console.log(
-        "[DataTable] No local data yet, skipping individual client update"
-      );
       return;
     }
 
-    console.log("[DataTable] Processing client update:", {
-      type: updateType,
-      clientId: clientId,
-      hasWmmData: updateData.wmmData?.records?.length > 0,
-      hasHrgData: updateData.hrgData?.records?.length > 0,
-      wmmRecordsCount: updateData.wmmData?.records?.length || 0,
-      hrgRecordsCount: updateData.hrgData?.records?.length || 0,
-      currentFilterState: {
-        addedToday: advancedFilterData?.addedToday,
-        searchTerm,
-        selectedGroup,
-        advancedFilters: Object.keys(advancedFilterData || {}).filter(
-          (key) => advancedFilterData[key]
-        ),
-      },
-    });
 
-    setLocalData((prevData) => {
-      switch (updateType) {
-        case "add":
-          // Add new client if not already present
-          if (!prevData.some((item) => item.id === clientId)) {
-            console.log("[DataTable] Adding new client:", clientId);
-            return [updateData, ...prevData];
-          }
-          return prevData;
+    // For individual client updates (add, update, delete), trigger a refetch with current filters
+    if (["add", "update", "delete"].includes(updateType)) {
 
-        case "update":
-          // Update client while maintaining filter state
-          console.log("[DataTable] Updating client:", clientId);
+      // Store current pagination state
+      const currentPage = page;
+      const currentPageSize = pageSize;
 
-          // Check if the client exists in current filtered data
-          const existingClientIndex = prevData.findIndex(
-            (item) => item.id === clientId
-          );
 
-          if (existingClientIndex !== -1) {
-            // Client exists in filtered view, update it
-            const updatedData = [...prevData];
-            updatedData[existingClientIndex] = updateData;
+      // Set flag to prevent automatic refetch from useEffect
+      isWebSocketRefetchRef.current = true;
 
-            // Check if the updated client should still be visible with current filters
-            const shouldKeepClient = checkClientVisibility(updateData);
-            if (!shouldKeepClient) {
-              console.log(
-                "[DataTable] Updated client no longer matches current filters, removing from view"
-              );
-              return updatedData.filter((item) => item.id !== clientId);
-            }
+      // Trigger a refetch with the current filter state and pagination
+      // This will maintain the current filters and pagination
+      setTimeout(() => {
+        // Call fetchData with the preserved pagination
+        fetchData(false, currentPage, currentPageSize);
 
-            return updatedData;
-          } else {
-            // Client not in current filtered view, check if it should be added
-            const shouldAddClient = checkClientVisibility(updateData);
-            if (shouldAddClient) {
-              console.log(
-                "[DataTable] Updated client now matches current filters, adding to view"
-              );
-              return [updateData, ...prevData];
-            } else {
-              console.log(
-                "[DataTable] Updated client doesn't match current filters, keeping current data"
-              );
-              return prevData;
-            }
-          }
+        // Reset the flag after a short delay
+        setTimeout(() => {
+          isWebSocketRefetchRef.current = false;
+        }, 200);
+      }, 100); // Small delay to ensure the backend has processed the update
 
-        case "delete":
-          // Remove deleted client
-          console.log("[DataTable] Deleting client:", clientId);
-          return prevData.filter((item) => item.id !== clientId);
+      return;
+    }
 
-        case "filter-update":
-          // Handle filter updates (bulk data replacement)
-          console.log("[DataTable] Filter update received");
+    // For filter-update, handle it differently
+    if (updateType === "filter-update") {
 
-          // Check if this is a legitimate filter update or just noise from client updates
-          // If we have active filters and this filter-update doesn't contain filtered data,
-          // it's likely an unnecessary update triggered by a client update
-          const hasActiveFilters =
-            advancedFilterData &&
-            (advancedFilterData.addedToday ||
-              searchTerm ||
-              selectedGroup ||
-              Object.keys(advancedFilterData).some(
-                (key) => advancedFilterData[key] && key !== "services"
-              ));
+      // Check if this is a legitimate filter update or just noise from client updates
+      const hasActiveFilters =
+        advancedFilterData &&
+        (advancedFilterData.addedToday ||
+          searchTerm ||
+          selectedGroup ||
+          Object.keys(advancedFilterData).some(
+            (key) => advancedFilterData[key] && key !== "services"
+          ));
 
-          // If we have active filters and the update doesn't contain the expected filtered data,
-          // skip it to maintain the current filtered view
-          if (hasActiveFilters && prevData.length > 0) {
-            // Check if the update data actually contains filtered results
-            const updateDataArray = Array.isArray(updateData)
-              ? updateData
-              : updateData.combinedData &&
-                Array.isArray(updateData.combinedData)
-              ? updateData.combinedData
-              : null;
+      // If we have active filters and this filter-update doesn't contain filtered data,
+      // skip it to maintain the current filtered view
+      if (hasActiveFilters && localData.length > 0) {
+        // Check if the update data actually contains filtered results
+        const updateDataArray = Array.isArray(updateData)
+          ? updateData
+          : updateData.combinedData && Array.isArray(updateData.combinedData)
+          ? updateData.combinedData
+          : null;
 
-            if (!updateDataArray || updateDataArray.length === 0) {
-              console.log(
-                "[DataTable] Skipping filter-update - maintaining current filtered view (no valid filtered data)"
-              );
-              return prevData;
-            }
+        if (!updateDataArray || updateDataArray.length === 0) {
+          return;
+        }
 
-            // If the update contains all data instead of filtered data, skip it
-            if (updateDataArray.length > prevData.length * 2) {
-              console.log(
-                "[DataTable] Skipping filter-update - appears to be full data instead of filtered data"
-              );
-              return prevData;
-            }
-          }
-
-          // Only update if we have valid combinedData
-          if (Array.isArray(updateData)) {
-            return updateData;
-          } else if (
-            updateData.combinedData &&
-            Array.isArray(updateData.combinedData)
-          ) {
-            return updateData.combinedData;
-          }
-          // If no valid data, keep current data
-          console.log(
-            "[DataTable] No valid combinedData in filter-update, keeping current data"
-          );
-          return prevData;
-
-        default:
-          console.log(
-            "[DataTable] Unknown update type:",
-            updateType,
-            "Data:",
-            updateData
-          );
-          return prevData;
+        // If the update contains all data instead of filtered data, skip it
+        if (updateDataArray.length > localData.length * 2) {
+          return;
+        }
       }
-    });
+
+      // If we reach here, it's a legitimate filter update
+      setLocalData((prevData) => {
+        if (Array.isArray(updateData)) {
+          return updateData;
+        } else if (
+          updateData.combinedData &&
+          Array.isArray(updateData.combinedData)
+        ) {
+          return updateData.combinedData;
+        }
+        return prevData;
+      });
+    }
   }, [socketData]);
 
   if (isLoading || localLoading) {
