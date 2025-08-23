@@ -97,8 +97,7 @@ class WebSocketService {
   }
 
   handlePageHidden() {
-    console.log("[WebSocket] Page hidden, maintaining connection...");
-    // Keep connection alive but don't actively reconnect
+  // Intentionally left blank: Keep connection alive but no action required
   }
 
   handleOnline() {
@@ -168,8 +167,6 @@ class WebSocketService {
         if (!this.sessionData.userId && state.sessionData) {
           this.sessionData = { ...this.sessionData, ...state.sessionData };
         }
-        
-        console.log("[WebSocket] Restored connection state:", this.connectionState);
       }
     } catch (e) {
       console.warn("[WebSocket] Could not restore connection state:", e);
@@ -337,13 +334,7 @@ class WebSocketService {
         clearTimeout(this.connectionTimeout);
         this.connectionTimeout = null;
       }
-      
-      console.log("[WebSocket] Connected successfully:", {
-        socketId: this.socket.id,
-        connectionId: this.sessionData.connectionId,
-        reconnectAttempts: this.reconnectAttempts
-      });
-      
+            
       // Request data sync after connection
       this.requestDataSync();
       
@@ -359,12 +350,6 @@ class WebSocketService {
       this.connectionEstablished = false;
       this.connectionState = 'disconnected';
       this.saveConnectionState();
-      
-      console.log("[WebSocket] Disconnected:", {
-        reason,
-        connectionId: this.sessionData.connectionId,
-        reconnectAttempts: this.reconnectAttempts
-      });
       
       // Clear ping interval on disconnect
       if (this.pingInterval) {
@@ -407,7 +392,6 @@ class WebSocketService {
     });
 
     this.socket.on("session-transferred", () => {
-      console.log("[WebSocket] Session transferred, reconnecting...");
       this.socket.disconnect();
       setTimeout(() => {
         this.attemptReconnection();

@@ -24,11 +24,6 @@ export const SocketProvider = ({ children }) => {
     // Only try to connect if we have valid user data
     if (userData && userData.id && userData.username) {
       const sessionId = localStorage.getItem("sessionId");
-      console.log("SocketProvider: Connecting with user data", {
-        userId: userData.id,
-        username: userData.username,
-        sessionId,
-      });
 
       // Set up connection status monitoring
       const checkConnectionStatus = () => {

@@ -123,7 +123,6 @@ class ErrorHandler {
    * Clear all cached data and session information
    */
   clearCache() {
-    console.log('[ErrorHandler] Clearing cache...');
     
     // Clear localStorage
     const keysToRemove = [
@@ -170,7 +169,6 @@ class ErrorHandler {
     }
 
     this.isHandlingError = true;
-    console.log('[ErrorHandler] Triggering logout:', message);
 
     // Clear cache first
     this.clearCache();
