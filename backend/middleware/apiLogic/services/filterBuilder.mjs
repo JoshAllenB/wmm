@@ -2093,6 +2093,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   // Handle adddate_regex filter (optimized for subscription type)
   if (advancedFilterData.adddate_regex) {
     try {
+      
       // Determine which models to query based on subscription type
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
       
@@ -2146,11 +2147,12 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
       // Execute aggregation for relevant models only
       const modelResults = await Promise.all(
-        modelsToQuery.map(async ({ model }) => {
+        modelsToQuery.map(async ({ name, model }) => {
           try {
-            return await model.aggregate(createRegexPipeline);
+            const results = await model.aggregate(createRegexPipeline);
+            return results;
           } catch (error) {
-            console.error(`Error aggregating model:`, error);
+            console.error(`Error aggregating ${name} model:`, error);
             return [];
           }
         })
