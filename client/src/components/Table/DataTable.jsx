@@ -573,14 +573,11 @@ export default function DataTable({
       return;
     }
 
-
     // For individual client updates (add, update, delete), trigger a refetch with current filters
     if (["add", "update", "delete"].includes(updateType)) {
-
       // Store current pagination state
       const currentPage = page;
       const currentPageSize = pageSize;
-
 
       // Set flag to prevent automatic refetch from useEffect
       isWebSocketRefetchRef.current = true;
@@ -602,7 +599,6 @@ export default function DataTable({
 
     // For filter-update, handle it differently
     if (updateType === "filter-update") {
-
       // Check if this is a legitimate filter update or just noise from client updates
       const hasActiveFilters =
         advancedFilterData &&
