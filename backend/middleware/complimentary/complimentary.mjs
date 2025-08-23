@@ -1,10 +1,11 @@
 import express from "express";
-import WmmModel from "../../models/wmm.mjs";
+import ComplimentaryModel from "../../models/complimentary.mjs";
 import UserModel from "../../models/userControl/users.mjs";
 import { verifyToken } from "../../userAuth/verifyToken.mjs";
 
 const router = express.Router();
 
+// Get all Complimentary subscription records
 router.get("/", async (req, res) => {
   const io = req.io;
   try {
@@ -12,26 +13,26 @@ router.get("/", async (req, res) => {
 
     const startIndex = (page - 1) * limit;
 
-    const totalSub = await WmmModel.find().countDocuments();
+    const totalSub = await ComplimentaryModel.find().countDocuments();
     const totalPages = Math.ceil(totalSub / limit);
 
-    const wmm = await WmmModel.find()
+    const complimentary = await ComplimentaryModel.find()
       .select(
-        "id clientid subsdate enddate renewdate subsyear copies remarks paymtamt paymtmasses calender subsclass donorid adddate adduser"
+        "id clientid subsdate enddate subsyear copies remarks calendar adddate adduser"
       )
       .sort({ id: -1 })
       .limit(limit)
       .skip(startIndex);
 
-    io.emit("wmm-update", { type: "init", data: wmm });
-    res.json(wmm);
+    io.emit("complimentary-update", { type: "init", data: complimentary });
+    res.json(complimentary);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// Add a new WMM subscription entry
+// Add a new Complimentary subscription entry
 router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
@@ -42,13 +43,13 @@ router.post("/add", verifyToken, async (req, res) => {
       return res.status(401).json({ error: "User not found" });
     }
     
-    // Generate new ID for the WMM entry
-    const highestIdWmm = await WmmModel.findOne().sort({ id: -1 });
-    const newWmmId = (highestIdWmm ? highestIdWmm.id : 0) + 1;
+    // Generate new ID for the Complimentary entry
+    const highestIdComplimentary = await ComplimentaryModel.findOne().sort({ id: -1 });
+    const newComplimentaryId = (highestIdComplimentary ? highestIdComplimentary.id : 0) + 1;
     
-    // Create the new WMM entry data
-    const newWmmData = {
-      id: newWmmId,
+    // Create the new Complimentary entry data
+    const newComplimentaryData = {
+      id: newComplimentaryId,
       ...req.body,
       // Override or add user and date information
       adduser: user.username,
@@ -66,27 +67,27 @@ router.post("/add", verifyToken, async (req, res) => {
     };
     
     // Ensure client ID is present
-    if (!newWmmData.clientid) {
+    if (!newComplimentaryData.clientid) {
       return res.status(400).json({ 
         error: "Bad Request", 
         message: "Client ID is required"
       });
     }
     
-    // Create the new WMM entry
-    const newWmmEntry = await WmmModel.create(newWmmData);
+    // Create the new Complimentary entry
+    const newComplimentaryEntry = await ComplimentaryModel.create(newComplimentaryData);
     
     // Emit socket event for real-time updates
     if (io) {
-      io.emit("wmm-update", {
+      io.emit("complimentary-update", {
         type: "add",
-        data: newWmmEntry,
+        data: newComplimentaryEntry,
       });
     }
     
-    res.status(201).json(newWmmEntry);
+    res.status(201).json(newComplimentaryEntry);
   } catch (err) {
-    console.error("Error adding WMM subscription:", err);
+    console.error("Error adding Complimentary subscription:", err);
     res.status(500).json({ 
       error: "Internal Server Error",
       message: err.message
@@ -94,28 +95,28 @@ router.post("/add", verifyToken, async (req, res) => {
   }
 });
 
-// Delete a specific WMM subscription record
+// Delete a specific Complimentary subscription record
 router.delete("/delete/:id", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const { id } = req.params;
 
     // Find the record before deletion for logging
-    const recordToDelete = await WmmModel.findOne({ id: parseInt(id) });
+    const recordToDelete = await ComplimentaryModel.findOne({ id: parseInt(id) });
     
     if (!recordToDelete) {
       return res.status(404).json({ 
         error: "Record not found",
-        message: `No WMM subscription record found with ID ${id}`
+        message: `No Complimentary subscription record found with ID ${id}`
       });
     }
 
     // Delete the record
-    const deletedRecord = await WmmModel.findOneAndDelete({ id: parseInt(id) });
+    const deletedRecord = await ComplimentaryModel.findOneAndDelete({ id: parseInt(id) });
 
     // Emit socket event for real-time updates
     if (io) {
-      io.emit("wmm-update", {
+      io.emit("complimentary-update", {
         type: "delete",
         data: { 
           id: deletedRecord.id,
@@ -126,7 +127,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
     res.json({ 
       success: true,
-      message: "WMM subscription record deleted successfully",
+      message: "Complimentary subscription record deleted successfully",
       deletedRecord: {
         id: deletedRecord.id,
         clientid: deletedRecord.clientid,
@@ -135,7 +136,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       }
     });
   } catch (err) {
-    console.error("Error deleting WMM subscription record:", err);
+    console.error("Error deleting Complimentary subscription record:", err);
     res.status(500).json({ 
       error: "Internal Server Error",
       message: err.message
@@ -143,4 +144,4 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
   }
 });
 
-export default router;
+export default router; 

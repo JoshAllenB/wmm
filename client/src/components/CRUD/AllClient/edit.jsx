@@ -3112,6 +3112,332 @@ const Edit = ({
   };
 
   // Handle new donor added
+  const handleDeleteRoleRecord = async (record, roleType) => {
+    if (!record || (!record.id && !record._id)) {
+      toast({
+        title: "Error",
+        description: "Invalid record data for deletion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use the id field (integer) for deletion, fallback to _id if needed
+    const recordId = record.id || record._id;
+
+    // Determine the API endpoint based on role type
+    let endpoint;
+    switch (roleType) {
+      case "HRG":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/hrg/delete/${recordId}`;
+        break;
+      case "FOM":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/fom/delete/${recordId}`;
+        break;
+      case "CAL":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/cal/delete/${recordId}`;
+        break;
+      default:
+        toast({
+          title: "Error",
+          description: "Unknown role type.",
+          variant: "destructive",
+        });
+        return;
+    }
+
+    try {
+      const response = await axios.delete(endpoint, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+
+      if (response.status === 200) {
+        // Remove the deleted record from the appropriate records array
+        switch (roleType) {
+          case "HRG":
+            setHrgRecords((prev) =>
+              prev.filter((r) => {
+                const rId = r.id || r._id;
+                return String(rId) !== String(recordId);
+              })
+            );
+            if (
+              selectedHrgRecord &&
+              (selectedHrgRecord.id === recordId ||
+                selectedHrgRecord._id === recordId)
+            ) {
+              setSelectedHrgRecord(null);
+              // Reset role-specific data
+              const today = new Date();
+              const todayParts = parseDateToComponents(
+                formatDateToMMDDYY(today)
+              );
+              setRoleSpecificData({
+                recvdate: formatDateToMMDDYY(today),
+                recvdateMonth: todayParts.month,
+                recvdateDay: todayParts.day,
+                recvdateYear: todayParts.year,
+                campaigndate: "",
+                campaigndateMonth: "",
+                campaigndateDay: "",
+                campaigndateYear: "",
+                paymtref: "",
+                paymtamt: 0,
+                unsubscribe: false,
+                remarks: "",
+              });
+            }
+            break;
+          case "FOM":
+            setFomRecords((prev) =>
+              prev.filter((r) => {
+                const rId = r.id || r._id;
+                return String(rId) !== String(recordId);
+              })
+            );
+            if (
+              selectedFomRecord &&
+              (selectedFomRecord.id === recordId ||
+                selectedFomRecord._id === recordId)
+            ) {
+              setSelectedFomRecord(null);
+              // Reset role-specific data
+              const today = new Date();
+              const todayParts = parseDateToComponents(
+                formatDateToMMDDYY(today)
+              );
+              setRoleSpecificData({
+                recvdate: formatDateToMMDDYY(today),
+                recvdateMonth: todayParts.month,
+                recvdateDay: todayParts.day,
+                recvdateYear: todayParts.year,
+                paymtref: "",
+                paymtamt: 0,
+                paymtform: "",
+                unsubscribe: false,
+                remarks: "",
+              });
+            }
+            break;
+          case "CAL":
+            setCalRecords((prev) =>
+              prev.filter((r) => {
+                const rId = r.id || r._id;
+                return String(rId) !== String(recordId);
+              })
+            );
+            if (
+              selectedCalRecord &&
+              (selectedCalRecord.id === recordId ||
+                selectedCalRecord._id === recordId)
+            ) {
+              setSelectedCalRecord(null);
+              // Reset role-specific data
+              const today = new Date();
+              const todayParts = parseDateToComponents(
+                formatDateToMMDDYY(today)
+              );
+              setRoleSpecificData({
+                recvdate: formatDateToMMDDYY(today),
+                recvdateMonth: todayParts.month,
+                recvdateDay: todayParts.day,
+                recvdateYear: todayParts.year,
+                caltype: "",
+                calqty: 0,
+                calamt: 0,
+                paymtref: "",
+                paymtamt: 0,
+                paymtform: "",
+                remarks: "",
+              });
+            }
+            break;
+        }
+
+        toast({
+          title: "Record Deleted",
+          description: `${roleType} record deleted successfully.`,
+          duration: 3000,
+        });
+
+        // If no more records available, switch to add mode
+        const recordsArray =
+          roleType === "HRG"
+            ? hrgRecords
+            : roleType === "FOM"
+            ? fomRecords
+            : calRecords;
+        if (recordsArray.length <= 1) {
+          setRoleRecordMode("add");
+        }
+      } else {
+        toast({
+          title: "Delete Failed",
+          description: "Failed to delete record.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting record:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "An error occurred while deleting the record.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSubscription = async (subscription) => {
+    if (!subscription || (!subscription.id && !subscription._id)) {
+      toast({
+        title: "Error",
+        description: "Invalid subscription data for deletion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Use the id field (integer) for deletion, fallback to _id if needed
+    const subscriptionId = subscription.id || subscription._id;
+    const subscriptionType = formData.subscriptionType;
+
+    // Determine the API endpoint based on subscription type
+    let endpoint;
+    switch (subscriptionType) {
+      case "WMM":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/wmm/delete/${subscriptionId}`;
+        break;
+      case "Promo":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/promo/delete/${subscriptionId}`;
+        break;
+      case "Complimentary":
+        endpoint = `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/complimentary/delete/${subscriptionId}`;
+        break;
+      default:
+        toast({
+          title: "Error",
+          description: "Unknown subscription type.",
+          variant: "destructive",
+        });
+        return;
+    }
+
+    try {
+      const response = await axios.delete(endpoint, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+
+      if (response.data && response.data.success) {
+        // Remove the deleted subscription from the available subscriptions
+        setAvailableSubscriptions((prev) =>
+          prev.filter((sub) => {
+            const subId = sub.id || sub._id;
+            return String(subId) !== String(subscriptionId);
+          })
+        );
+
+        // Clear the selected subscription if it was the deleted one
+        if (
+          selectedSubscription &&
+          (selectedSubscription.id === subscriptionId ||
+            selectedSubscription._id === subscriptionId)
+        ) {
+          setSelectedSubscription({
+            subsdate: "",
+            enddate: "",
+            renewdate: "",
+            subsyear: "",
+            copies: "1",
+            paymtamt: "",
+            paymtmasses: "",
+            calendar: false,
+            subsclass: "",
+            donorid: "",
+            paymtref: "",
+          });
+
+          // Clear form data
+          setFormData((prev) => ({
+            ...prev,
+            subscriptionStart: "",
+            subscriptionEnd: "",
+            subStartMonth: "",
+            subStartDay: "",
+            subStartYear: "",
+            subEndMonth: "",
+            subEndDay: "",
+            subEndYear: "",
+            subsclass: "",
+            referralid: formData.subscriptionType === "Promo" ? "" : "",
+          }));
+
+          // Clear role-specific data
+          setRoleSpecificData((prev) => ({
+            ...prev,
+            subsdate: "",
+            enddate: "",
+            renewdate: "",
+            subsyear: 0,
+            copies: 1,
+            paymtamt: "",
+            paymtmasses: "",
+            calendar: false,
+            subsclass: "",
+            donorid: "",
+            paymtref: "",
+            remarks: "",
+            referralid: formData.subscriptionType === "Promo" ? "" : "",
+          }));
+        }
+
+        toast({
+          title: "Subscription Deleted",
+          description: `${subscriptionType} subscription deleted successfully.`,
+          duration: 3000,
+        });
+
+        // If no more subscriptions available, switch to add mode
+        if (availableSubscriptions.length <= 1) {
+          setSubscriptionMode("add");
+        }
+      } else {
+        toast({
+          title: "Delete Failed",
+          description:
+            response.data?.message || "Failed to delete subscription.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting subscription:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message ||
+          "An error occurred while deleting the subscription.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleNewDonorAdded = (donorData) => {
     // Set the form data with the new donor's details
     setFormData((prev) => ({
@@ -3591,49 +3917,77 @@ const Edit = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Select Subscription:
                         </label>
-                        <select
-                          value={
-                            selectedSubscription
-                              ? selectedSubscription.id ||
-                                selectedSubscription._id
-                              : ""
-                          }
-                          onChange={(e) => {
-                            const selectedSub = availableSubscriptions.find(
-                              (sub) => {
-                                const subId = sub.id || sub._id;
-                                const targetValue = e.target.value;
-                                return String(subId) === String(targetValue);
-                              }
-                            );
-                            if (selectedSub) {
-                              selectSubscription(selectedSub);
-                            } else {
-                              console.error(
-                                "No subscription found for value:",
-                                e.target.value
-                              );
+                        <div className="flex gap-2">
+                          <select
+                            value={
+                              selectedSubscription
+                                ? selectedSubscription.id ||
+                                  selectedSubscription._id
+                                : ""
                             }
-                          }}
-                          className="w-full p-2 border rounded-md text-base"
-                        >
-                          <option value="">Select a subscription</option>
-                          {availableSubscriptions.map((sub) => (
-                            <option
-                              key={sub.id || sub._id}
-                              value={sub.id || sub._id}
+                            onChange={(e) => {
+                              const selectedSub = availableSubscriptions.find(
+                                (sub) => {
+                                  const subId = sub.id || sub._id;
+                                  const targetValue = e.target.value;
+                                  return String(subId) === String(targetValue);
+                                }
+                              );
+                              if (selectedSub) {
+                                selectSubscription(selectedSub);
+                              } else {
+                                console.error(
+                                  "No subscription found for value:",
+                                  e.target.value
+                                );
+                              }
+                            }}
+                            className="flex-1 p-2 border rounded-md text-base"
+                          >
+                            <option value="">Select a subscription</option>
+                            {availableSubscriptions.map((sub) => (
+                              <option
+                                key={sub.id || sub._id}
+                                value={sub.id || sub._id}
+                              >
+                                {sub.subsdate
+                                  ? formatDateToMonthYear(
+                                      parseDate(sub.subsdate)
+                                    )
+                                  : "Unknown"}{" "}
+                                to{" "}
+                                {sub.enddate
+                                  ? formatDateToMonthYear(
+                                      parseDate(sub.enddate)
+                                    )
+                                  : "Unknown"}{" "}
+                                - {sub.subsclass || "No Class"}
+                                {sub.paymtamt && ` (₱${sub.paymtamt})`}
+                              </option>
+                            ))}
+                          </select>
+                          {selectedSubscription && (
+                            <Button
+                              type="button"
+                              onClick={() =>
+                                handleDeleteSubscription(selectedSubscription)
+                              }
+                              className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
                             >
-                              {sub.subsdate
-                                ? formatDateToMonthYear(parseDate(sub.subsdate))
-                                : "Unknown"}{" "}
-                              to{" "}
-                              {sub.enddate
-                                ? formatDateToMonthYear(parseDate(sub.enddate))
-                                : "Unknown"}{" "}
-                              - {sub.subsclass || "No Class"}
-                            </option>
-                          ))}
-                        </select>
+                              <svg
+                                className="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                 </div>
@@ -4030,56 +4384,86 @@ const Edit = ({
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Select HRG Record:
                           </label>
-                          <select
-                            value={
-                              selectedHrgRecord
-                                ? selectedHrgRecord.id ||
-                                  selectedHrgRecord._id ||
-                                  ""
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const record = hrgRecords.find(
-                                (r) => String(r.id || r._id) === e.target.value
-                              );
-                              if (record) {
-                                setSelectedHrgRecord(record);
-                                const recvdateParts = parseDateToComponents(
-                                  record.recvdate
-                                );
-                                const campaigndateParts = parseDateToComponents(
-                                  record.campaigndate
-                                );
-
-                                setRoleSpecificData({
-                                  ...record,
-                                  recvdateMonth: recvdateParts.month,
-                                  recvdateDay: recvdateParts.day,
-                                  recvdateYear: recvdateParts.year,
-                                  campaigndateMonth: campaigndateParts.month,
-                                  campaigndateDay: campaigndateParts.day,
-                                  campaigndateYear: campaigndateParts.year,
-                                });
+                          <div className="flex gap-2">
+                            <select
+                              value={
+                                selectedHrgRecord
+                                  ? selectedHrgRecord.id ||
+                                    selectedHrgRecord._id ||
+                                    ""
+                                  : ""
                               }
-                            }}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            {hrgRecords.map((record) => (
-                              <option
-                                key={record.id || record._id}
-                                value={record.id || record._id}
+                              onChange={(e) => {
+                                const record = hrgRecords.find(
+                                  (r) =>
+                                    String(r.id || r._id) === e.target.value
+                                );
+                                if (record) {
+                                  setSelectedHrgRecord(record);
+                                  const recvdateParts = parseDateToComponents(
+                                    record.recvdate
+                                  );
+                                  const campaigndateParts =
+                                    parseDateToComponents(record.campaigndate);
+
+                                  setRoleSpecificData({
+                                    ...record,
+                                    recvdateMonth: recvdateParts.month,
+                                    recvdateDay: recvdateParts.day,
+                                    recvdateYear: recvdateParts.year,
+                                    campaigndateMonth: campaigndateParts.month,
+                                    campaigndateDay: campaigndateParts.day,
+                                    campaigndateYear: campaigndateParts.year,
+                                  });
+                                }
+                              }}
+                              className="flex-1 p-2 border rounded-md text-base"
+                            >
+                              <option value="">Select HRG record</option>
+                              {hrgRecords.map((record) => (
+                                <option
+                                  key={record.id || record._id}
+                                  value={record.id || record._id}
+                                >
+                                  {record.recvdate
+                                    ? formatDateToMonthYear(
+                                        parseDate(record.recvdate)
+                                      )
+                                    : "Unknown"}
+                                  {record.paymtamt
+                                    ? ` - ₱${record.paymtamt}`
+                                    : ""}
+                                  {record.paymtref
+                                    ? ` (${record.paymtref})`
+                                    : ""}
+                                </option>
+                              ))}
+                            </select>
+                            {selectedHrgRecord && (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteRoleRecord(
+                                    selectedHrgRecord,
+                                    "HRG"
+                                  )
+                                }
+                                className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
                               >
-                                {record.recvdate
-                                  ? formatDateToMonthYear(
-                                      parseDate(record.recvdate)
-                                    )
-                                  : "Unknown"}
-                                {record.paymtamt
-                                  ? ` - Php ${record.paymtamt}`
-                                  : ""}
-                              </option>
-                            ))}
-                          </select>
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -4088,49 +4472,80 @@ const Edit = ({
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Select FOM Record:
                           </label>
-                          <select
-                            value={
-                              selectedFomRecord
-                                ? selectedFomRecord.id ||
-                                  selectedFomRecord._id ||
-                                  ""
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const record = fomRecords.find(
-                                (r) => String(r.id || r._id) === e.target.value
-                              );
-                              if (record) {
-                                setSelectedFomRecord(record);
-                                const recvdateParts = parseDateToComponents(
-                                  record.recvdate
-                                );
-                                setRoleSpecificData({
-                                  ...record,
-                                  recvdateMonth: recvdateParts.month,
-                                  recvdateDay: recvdateParts.day,
-                                  recvdateYear: recvdateParts.year,
-                                });
+                          <div className="flex gap-2">
+                            <select
+                              value={
+                                selectedFomRecord
+                                  ? selectedFomRecord.id ||
+                                    selectedFomRecord._id ||
+                                    ""
+                                  : ""
                               }
-                            }}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            {fomRecords.map((record) => (
-                              <option
-                                key={record.id || record._id}
-                                value={record.id || record._id}
+                              onChange={(e) => {
+                                const record = fomRecords.find(
+                                  (r) =>
+                                    String(r.id || r._id) === e.target.value
+                                );
+                                if (record) {
+                                  setSelectedFomRecord(record);
+                                  const recvdateParts = parseDateToComponents(
+                                    record.recvdate
+                                  );
+                                  setRoleSpecificData({
+                                    ...record,
+                                    recvdateMonth: recvdateParts.month,
+                                    recvdateDay: recvdateParts.day,
+                                    recvdateYear: recvdateParts.year,
+                                  });
+                                }
+                              }}
+                              className="flex-1 p-2 border rounded-md text-base"
+                            >
+                              <option value="">Select FOM record</option>
+                              {fomRecords.map((record) => (
+                                <option
+                                  key={record.id || record._id}
+                                  value={record.id || record._id}
+                                >
+                                  {record.recvdate
+                                    ? formatDateToMonthYear(
+                                        parseDate(record.recvdate)
+                                      )
+                                    : "Unknown"}
+                                  {record.paymtamt
+                                    ? ` - ₱${record.paymtamt}`
+                                    : ""}
+                                  {record.paymtref
+                                    ? ` (${record.paymtref})`
+                                    : ""}
+                                </option>
+                              ))}
+                            </select>
+                            {selectedFomRecord && (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteRoleRecord(
+                                    selectedFomRecord,
+                                    "FOM"
+                                  )
+                                }
+                                className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
                               >
-                                {record.recvdate
-                                  ? formatDateToMonthYear(
-                                      parseDate(record.recvdate)
-                                    )
-                                  : "Unknown"}
-                                {record.paymtamt
-                                  ? ` - Php ${record.paymtamt}`
-                                  : ""}
-                              </option>
-                            ))}
-                          </select>
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -4139,47 +4554,77 @@ const Edit = ({
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Select CAL Record:
                           </label>
-                          <select
-                            value={
-                              selectedCalRecord
-                                ? selectedCalRecord.id ||
-                                  selectedCalRecord._id ||
-                                  ""
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const record = calRecords.find(
-                                (r) => String(r.id || r._id) === e.target.value
-                              );
-                              if (record) {
-                                setSelectedCalRecord(record);
-                                const recvdateParts = parseDateToComponents(
-                                  record.recvdate
-                                );
-                                setRoleSpecificData({
-                                  ...record,
-                                  recvdateMonth: recvdateParts.month,
-                                  recvdateDay: recvdateParts.day,
-                                  recvdateYear: recvdateParts.year,
-                                });
+                          <div className="flex gap-2">
+                            <select
+                              value={
+                                selectedCalRecord
+                                  ? selectedCalRecord.id ||
+                                    selectedCalRecord._id ||
+                                    ""
+                                  : ""
                               }
-                            }}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            {calRecords.map((record) => (
-                              <option
-                                key={record.id || record._id}
-                                value={record.id || record._id}
+                              onChange={(e) => {
+                                const record = calRecords.find(
+                                  (r) =>
+                                    String(r.id || r._id) === e.target.value
+                                );
+                                if (record) {
+                                  setSelectedCalRecord(record);
+                                  const recvdateParts = parseDateToComponents(
+                                    record.recvdate
+                                  );
+                                  setRoleSpecificData({
+                                    ...record,
+                                    recvdateMonth: recvdateParts.month,
+                                    recvdateDay: recvdateParts.day,
+                                    recvdateYear: recvdateParts.year,
+                                  });
+                                }
+                              }}
+                              className="flex-1 p-2 border rounded-md text-base"
+                            >
+                              <option value="">Select CAL record</option>
+                              {calRecords.map((record) => (
+                                <option
+                                  key={record.id || record._id}
+                                  value={record.id || record._id}
+                                >
+                                  {record.recvdate
+                                    ? formatDateToMonthYear(
+                                        parseDate(record.recvdate)
+                                      )
+                                    : "Unknown"}
+                                  {record.caltype ? ` - ${record.caltype}` : ""}
+                                  {record.calqty ? ` (${record.calqty})` : ""}
+                                  {record.calamt ? ` - ₱${record.calamt}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                            {selectedCalRecord && (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  handleDeleteRoleRecord(
+                                    selectedCalRecord,
+                                    "CAL"
+                                  )
+                                }
+                                className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
                               >
-                                {record.recvdate
-                                  ? formatDateToMonthYear(
-                                      parseDate(record.recvdate)
-                                    )
-                                  : "Unknown"}
-                                {record.caltype ? ` - ${record.caltype}` : ""}
-                              </option>
-                            ))}
-                          </select>
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       )}
 
@@ -4221,6 +4666,7 @@ const Edit = ({
                             }}
                             className="w-full p-2 border rounded-md text-base"
                           >
+                            <option value="">Select WMM record</option>
                             {wmmRecords.map((record) => (
                               <option
                                 key={record.id || record._id}
@@ -4232,7 +4678,10 @@ const Edit = ({
                                     )
                                   : "Unknown"}
                                 {record.paymtamt
-                                  ? ` - Php ${record.paymtamt}`
+                                  ? ` - ₱${record.paymtamt}`
+                                  : ""}
+                                {record.subsclass
+                                  ? ` (${record.subsclass})`
                                   : ""}
                               </option>
                             ))}
@@ -4278,6 +4727,7 @@ const Edit = ({
                             }}
                             className="w-full p-2 border rounded-md text-base"
                           >
+                            <option value="">Select Promo record</option>
                             {promoRecords.map((record) => (
                               <option
                                 key={record.id || record._id}
@@ -4289,10 +4739,10 @@ const Edit = ({
                                     )
                                   : "Unknown"}
                                 {record.paymtamt
-                                  ? ` - Php ${record.paymtamt}`
+                                  ? ` - ₱${record.paymtamt}`
                                   : ""}
                                 {record.referralid
-                                  ? ` - Ref: ${record.referralid}`
+                                  ? ` (${record.referralid})`
                                   : ""}
                               </option>
                             ))}
@@ -4340,6 +4790,9 @@ const Edit = ({
                               }}
                               className="w-full p-2 border rounded-md text-base"
                             >
+                              <option value="">
+                                Select Complimentary record
+                              </option>
                               {complimentaryRecords.map((record) => (
                                 <option
                                   key={record.id || record._id}
@@ -4351,7 +4804,7 @@ const Edit = ({
                                       )
                                     : "Unknown"}
                                   {record.paymtamt
-                                    ? ` - Php ${record.paymtamt}`
+                                    ? ` - ₱${record.paymtamt}`
                                     : ""}
                                 </option>
                               ))}
