@@ -24,6 +24,14 @@ const formatDateToInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Utility function to clean trailing spaces from date input values
+const cleanDateInput = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  return value;
+};
+
 // Utility function to format date to "MM/DD/YY"
 const formatDateToMMDDYY = (date) => {
   if (!date) return "";
@@ -1165,7 +1173,7 @@ const Edit = ({
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: safeValue,
+          [name]: cleanDateInput(safeValue),
         };
 
         // Combine the date parts into bdate if all are present
@@ -1189,7 +1197,7 @@ const Edit = ({
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: safeValue,
+          [name]: cleanDateInput(safeValue),
         };
 
         // Combine the date parts into subscriptionStart if all are present
@@ -1217,7 +1225,7 @@ const Edit = ({
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: safeValue,
+          [name]: cleanDateInput(safeValue),
         };
 
         // Combine the date parts into subscriptionEnd if all are present
@@ -1303,13 +1311,22 @@ const Edit = ({
     const safeValue = type === "checkbox" ? checked : value ?? "";
 
     setRoleSpecificData((prev) => {
-      // Don't convert donorid to uppercase, preserve the original value
-      const fieldValue =
-        name === "donorid"
-          ? value
-          : type === "checkbox"
-          ? checked
-          : safeValue.toUpperCase();
+      // Clean trailing spaces from date input fields
+      let fieldValue;
+      if (name === "donorid") {
+        fieldValue = value;
+      } else if (type === "checkbox") {
+        fieldValue = checked;
+      } else if (
+        name.includes("Month") ||
+        name.includes("Day") ||
+        name.includes("Year")
+      ) {
+        // Clean trailing spaces for date components
+        fieldValue = cleanDateInput(safeValue).toUpperCase();
+      } else {
+        fieldValue = safeValue.toUpperCase();
+      }
 
       const newData = {
         ...prev,
@@ -1374,6 +1391,14 @@ const Edit = ({
     setSelectedSubscription((prev) => ({
       ...prev,
       [name]: safeValue,
+    }));
+  };
+
+  // Helper function to handle newRoleData changes with trailing space cleaning
+  const handleNewRoleDataChange = (field, value) => {
+    setNewRoleData((prev) => ({
+      ...prev,
+      [field]: cleanDateInput(value),
     }));
   };
 
@@ -2556,7 +2581,11 @@ const Edit = ({
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
-        return `${formData.bdateMonth}/${formData.bdateDay}/${formData.bdateYear}`;
+        // Clean trailing spaces before formatting
+        const month = cleanDateInput(formData.bdateMonth);
+        const day = cleanDateInput(formData.bdateDay);
+        const year = cleanDateInput(formData.bdateYear);
+        return `${month}/${day}/${year}`;
       }
       return formData.bdate || "";
     };
@@ -2657,18 +2686,18 @@ const Edit = ({
             subsdate: formData.subscriptionStart
               ? formatDateForPromo(
                   new Date(
-                    formData.subStartYear,
-                    formData.subStartMonth - 1,
-                    formData.subStartDay
+                    cleanDateInput(formData.subStartYear),
+                    cleanDateInput(formData.subStartMonth) - 1,
+                    cleanDateInput(formData.subStartDay)
                   )
                 )
               : "",
             enddate: formData.subscriptionEnd
               ? formatDateForPromo(
                   new Date(
-                    formData.subEndYear,
-                    formData.subEndMonth - 1,
-                    formData.subEndDay
+                    cleanDateInput(formData.subEndYear),
+                    cleanDateInput(formData.subEndMonth) - 1,
+                    cleanDateInput(formData.subEndDay)
                   )
                 )
               : "",
@@ -2689,18 +2718,18 @@ const Edit = ({
             subsdate: formData.subscriptionStart
               ? formatDateForWMM(
                   new Date(
-                    formData.subStartYear,
-                    formData.subStartMonth - 1,
-                    formData.subStartDay
+                    cleanDateInput(formData.subStartYear),
+                    cleanDateInput(formData.subStartMonth) - 1,
+                    cleanDateInput(formData.subStartDay)
                   )
                 )
               : "",
             enddate: formData.subscriptionEnd
               ? formatDateForWMM(
                   new Date(
-                    formData.subEndYear,
-                    formData.subEndMonth - 1,
-                    formData.subEndDay
+                    cleanDateInput(formData.subEndYear),
+                    cleanDateInput(formData.subEndMonth) - 1,
+                    cleanDateInput(formData.subEndDay)
                   )
                 )
               : "",
@@ -2713,18 +2742,18 @@ const Edit = ({
             subsdate: formData.subscriptionStart
               ? formatDateForWMM(
                   new Date(
-                    formData.subStartYear,
-                    formData.subStartMonth - 1,
-                    formData.subStartDay
+                    cleanDateInput(formData.subStartYear),
+                    cleanDateInput(formData.subStartMonth) - 1,
+                    cleanDateInput(formData.subStartDay)
                   )
                 )
               : "",
             enddate: formData.subscriptionEnd
               ? formatDateForWMM(
                   new Date(
-                    formData.subEndYear,
-                    formData.subEndMonth - 1,
-                    formData.subEndDay
+                    cleanDateInput(formData.subEndYear),
+                    cleanDateInput(formData.subEndMonth) - 1,
+                    cleanDateInput(formData.subEndDay)
                   )
                 )
               : "",
@@ -2788,8 +2817,11 @@ const Edit = ({
     ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
-          // Format as YYYY-MM-DD for database consistency
-          return `${year}-${month}-${day}`;
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
         }
         return "";
       };
@@ -2852,8 +2884,11 @@ const Edit = ({
     ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
-          // Format as YYYY-MM-DD for database consistency
-          return `${year}-${month}-${day}`;
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
         }
         return "";
       };
@@ -2921,8 +2956,11 @@ const Edit = ({
     ) {
       const formatDate = (month, day, year) => {
         if (month && day && year) {
-          // Format as YYYY-MM-DD for database consistency
-          return `${year}-${month}-${day}`;
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
         }
         return "";
       };
@@ -4837,10 +4875,10 @@ const Edit = ({
                                 roleRecordMode === "edit"
                                   ? handleRoleSpecificChange
                                   : (e) =>
-                                      setNewRoleData({
-                                        ...newRoleData,
-                                        recvdateMonth: e.target.value,
-                                      })
+                                      handleNewRoleDataChange(
+                                        "recvdateMonth",
+                                        e.target.value
+                                      )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
                             >
@@ -4865,10 +4903,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      recvdateDay: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "recvdateDay",
+                                      e.target.value
+                                    )
                             }
                             placeholder="DD"
                             className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -4887,10 +4925,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      recvdateYear: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "recvdateYear",
+                                      e.target.value
+                                    )
                             }
                             placeholder="YYYY"
                             className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -4917,10 +4955,10 @@ const Edit = ({
                                 roleRecordMode === "edit"
                                   ? handleRoleSpecificChange
                                   : (e) =>
-                                      setNewRoleData({
-                                        ...newRoleData,
-                                        campaigndateMonth: e.target.value,
-                                      })
+                                      handleNewRoleDataChange(
+                                        "campaigndateMonth",
+                                        e.target.value
+                                      )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
                             >
@@ -4945,10 +4983,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      campaigndateDay: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "campaigndateDay",
+                                      e.target.value
+                                    )
                             }
                             placeholder="DD"
                             className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -4967,10 +5005,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      campaigndateYear: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "campaigndateYear",
+                                      e.target.value
+                                    )
                             }
                             placeholder="YYYY"
                             className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -5103,10 +5141,10 @@ const Edit = ({
                                 roleRecordMode === "edit"
                                   ? handleRoleSpecificChange
                                   : (e) =>
-                                      setNewRoleData({
-                                        ...newRoleData,
-                                        recvdateMonth: e.target.value,
-                                      })
+                                      handleNewRoleDataChange(
+                                        "recvdateMonth",
+                                        e.target.value
+                                      )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
                             >
@@ -5131,10 +5169,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      recvdateDay: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "recvdateDay",
+                                      e.target.value
+                                    )
                             }
                             placeholder="DD"
                             className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -5153,10 +5191,10 @@ const Edit = ({
                               roleRecordMode === "edit"
                                 ? handleRoleSpecificChange
                                 : (e) =>
-                                    setNewRoleData({
-                                      ...newRoleData,
-                                      recvdateYear: e.target.value,
-                                    })
+                                    handleNewRoleDataChange(
+                                      "recvdateYear",
+                                      e.target.value
+                                    )
                             }
                             placeholder="YYYY"
                             className="w-full p-2 text-base border rounded-md border-gray-300"

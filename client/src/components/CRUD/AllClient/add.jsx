@@ -28,6 +28,14 @@ const formatDateToInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Utility function to clean trailing spaces from date input values
+const cleanDateInput = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  return value;
+};
+
 const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
 
@@ -567,7 +575,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: cleanDateInput(value),
         };
 
         // Combine the date parts into bdate if all are present
@@ -620,7 +628,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: cleanDateInput(value),
         };
 
         // Combine the date parts into subscriptionStart if all are present
@@ -634,9 +642,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           // If frequency is selected, recalculate end date based on the new start date
           if (newData.subscriptionFreq) {
             const startDate = new Date(
-              parseInt(newData.subStartYear),
-              parseInt(newData.subStartMonth) - 1,
-              parseInt(newData.subStartDay)
+              parseInt(cleanDateInput(newData.subStartYear)),
+              parseInt(cleanDateInput(newData.subStartMonth)) - 1,
+              parseInt(cleanDateInput(newData.subStartDay))
             );
 
             const endDateData = calculateAndUpdateEndDate(
@@ -679,7 +687,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       setFormData((prevData) => {
         const newData = {
           ...prevData,
-          [name]: value,
+          [name]: cleanDateInput(value),
         };
 
         // Combine the date parts into subscriptionEnd if all are present
@@ -709,9 +717,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         ) {
           // Use the existing start date that user has set
           subscriptionStart = new Date(
-            parseInt(newData.subStartYear),
-            parseInt(newData.subStartMonth) - 1,
-            parseInt(newData.subStartDay)
+            parseInt(cleanDateInput(newData.subStartYear)),
+            parseInt(cleanDateInput(newData.subStartMonth)) - 1,
+            parseInt(cleanDateInput(newData.subStartDay))
           );
         } else {
           // No start date set, use today's date as default
@@ -1049,13 +1057,22 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     const newValue = type === "checkbox" ? checked : value;
 
     setRoleSpecificData((prev) => {
-      // Don't convert donorid to uppercase, preserve the original value
-      const fieldValue =
-        name === "donorid"
-          ? value
-          : type === "checkbox"
-          ? checked
-          : value.toUpperCase();
+      // Clean trailing spaces from date input fields
+      let fieldValue;
+      if (name === "donorid") {
+        fieldValue = value;
+      } else if (type === "checkbox") {
+        fieldValue = checked;
+      } else if (
+        name.includes("Month") ||
+        name.includes("Day") ||
+        name.includes("Year")
+      ) {
+        // Clean trailing spaces for date components
+        fieldValue = cleanDateInput(value).toUpperCase();
+      } else {
+        fieldValue = value.toUpperCase();
+      }
 
       const updated = {
         ...prev,
@@ -1216,18 +1233,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         subsdate: formData.subscriptionStart
           ? formatDateForPromo(
               new Date(
-                formData.subStartYear,
-                formData.subStartMonth - 1,
-                formData.subStartDay
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
               )
             )
           : "",
         enddate: formData.subscriptionEnd
           ? formatDateForPromo(
               new Date(
-                formData.subEndYear,
-                formData.subEndMonth - 1,
-                formData.subEndDay
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
               )
             )
           : "",
@@ -1248,18 +1265,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         subsdate: formData.subscriptionStart
           ? formatDateForWMM(
               new Date(
-                formData.subStartYear,
-                formData.subStartMonth - 1,
-                formData.subStartDay
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
               )
             )
           : "",
         enddate: formData.subscriptionEnd
           ? formatDateForWMM(
               new Date(
-                formData.subEndYear,
-                formData.subEndMonth - 1,
-                formData.subEndDay
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
               )
             )
           : "",
@@ -1272,18 +1289,18 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         subsdate: formData.subscriptionStart
           ? formatDateForWMM(
               new Date(
-                formData.subStartYear,
-                formData.subStartMonth - 1,
-                formData.subStartDay
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
               )
             )
           : "",
         enddate: formData.subscriptionEnd
           ? formatDateForWMM(
               new Date(
-                formData.subEndYear,
-                formData.subEndMonth - 1,
-                formData.subEndDay
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
               )
             )
           : "",
@@ -1313,10 +1330,10 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
-        const fullYear = normalizeYear(formData.bdateYear);
+        const fullYear = normalizeYear(cleanDateInput(formData.bdateYear));
         // Format as YYYY-MM-DD for consistent database storage and duplicate checking
-        const month = formData.bdateMonth.padStart(2, "0");
-        const day = formData.bdateDay.padStart(2, "0");
+        const month = cleanDateInput(formData.bdateMonth).padStart(2, "0");
+        const day = cleanDateInput(formData.bdateDay).padStart(2, "0");
         return `${fullYear}-${month}-${day}`;
       }
       return formData.bdate || "";
