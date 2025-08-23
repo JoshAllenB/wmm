@@ -792,12 +792,12 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         data: {
           ...updatedClient.toObject(),
           services: services,
-          wmmData: wmmData || [],
-          hrgData: hrgData || [],
-          fomData: fomData || [],
-          calData: calData || [],
-          promoData: promoData || [],
-          complimentaryData: complimentaryData || []
+          wmmData: { records: wmmData || [] },
+          hrgData: { records: hrgData || [] },
+          fomData: { records: fomData || [] },
+          calData: { records: calData || [] },
+          promoData: { records: promoData || [] },
+          complimentaryData: { records: complimentaryData || [] }
         }
       }]);
 

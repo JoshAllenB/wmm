@@ -52,11 +52,124 @@ export default function DataTable({
   const [tableHeight, setTableHeight] = useState("700px");
   const [tableWidth, setTableWidth] = useState(0);
   const containerRef = useRef(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const lastSyncRef = useRef(Date.now());
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [localLoading, setLocalLoading] = useState(true);
+
+  // Helper function to check if a client matches current filter criteria
+  const checkClientVisibility = useCallback(
+    (client) => {
+      // If no advanced filter data, client is visible
+      if (!advancedFilterData || Object.keys(advancedFilterData).length === 0) {
+        return true;
+      }
+
+      // Check "Added/Updated Today" filter
+      if (advancedFilterData.addedToday) {
+        const today = new Date();
+        const clientDate = new Date(
+          client.adddate || client.addedAt || client.updatedAt
+        );
+        const isToday = clientDate.toDateString() === today.toDateString();
+        if (!isToday) {
+          return false;
+        }
+      }
+
+      // Check search term filter
+      if (searchTerm && searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase();
+        const clientText = [
+          client.fname || "",
+          client.lname || "",
+          client.mname || "",
+          client.address || "",
+          client.email || "",
+          client.cellno || "",
+          client.officeno || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        if (!clientText.includes(searchLower)) {
+          return false;
+        }
+      }
+
+      // Check group filter
+      if (selectedGroup && client.group !== selectedGroup) {
+        return false;
+      }
+
+      // Check advanced filters
+      if (
+        advancedFilterData.lname &&
+        !client.lname
+          ?.toLowerCase()
+          .includes(advancedFilterData.lname.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        advancedFilterData.fname &&
+        !client.fname
+          ?.toLowerCase()
+          .includes(advancedFilterData.fname.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        advancedFilterData.mname &&
+        !client.mname
+          ?.toLowerCase()
+          .includes(advancedFilterData.mname.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        advancedFilterData.email &&
+        !client.email
+          ?.toLowerCase()
+          .includes(advancedFilterData.email.toLowerCase())
+      ) {
+        return false;
+      }
+      if (
+        advancedFilterData.cellno &&
+        !client.cellno?.includes(advancedFilterData.cellno)
+      ) {
+        return false;
+      }
+      if (
+        advancedFilterData.ofcno &&
+        !client.officeno?.includes(advancedFilterData.ofcno)
+      ) {
+        return false;
+      }
+
+      // Check date range filters
+      if (advancedFilterData.startDate || advancedFilterData.endDate) {
+        const clientDate = new Date(
+          client.adddate || client.addedAt || client.updatedAt
+        );
+        if (
+          advancedFilterData.startDate &&
+          clientDate < new Date(advancedFilterData.startDate)
+        ) {
+          return false;
+        }
+        if (
+          advancedFilterData.endDate &&
+          clientDate > new Date(advancedFilterData.endDate)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    },
+    [advancedFilterData, searchTerm, selectedGroup]
+  );
 
   // Enhanced responsive height adjustment based on viewport and container width
   useEffect(() => {
@@ -343,106 +456,239 @@ export default function DataTable({
     setTableInstance(updatedTable);
   }, [table, setTableInstance, rowSelection, localData]);
 
-  // Handle socket updates with improved sync logic
+  // Handle WebSocket updates with simple data replacement
   useEffect(() => {
     if (!socketData) return;
 
-    // Handle sync events
-    if (socketData.type === "sync-complete") {
-      setIsSyncing(false);
-      lastSyncRef.current = Date.now();
-      fetchData(true);
-      return;
-    }
-
-    if (socketData.type === "sync-start") {
-      setIsSyncing(true);
-      return;
-    }
-
-    // Skip updates during sync
-    if (isSyncing) {
-      return;
-    }
-
-    // For normal updates, apply them to the local data
-    setLocalData((prevData) => {
-      // Skip updates that are older than our last sync
-      if (socketData.timestamp && socketData.timestamp < lastSyncRef.current) {
-        return prevData;
-      }
-
-      // Don't update if we don't have any data yet
-      if (!currentDataRef.current) {
-        socket.emit("request-data-sync", {
-          timestamp: Date.now(),
-        });
-        return prevData;
-      }
-
-      const updatedData = (() => {
-        switch (socketData.type) {
-          case "add":
-            if (!prevData.some((item) => item.id === socketData.data.id)) {
-              return [
-                {
-                  ...socketData.data,
-                  wmmData: socketData.data.wmmData || [],
-                  hrgData: socketData.data.hrgData || [],
-                  fomData: socketData.data.fomData || [],
-                  calData: socketData.data.calData || [],
-                  services: socketData.data.services || [],
-                },
-                ...prevData,
-              ];
-            }
-            return prevData;
-          case "update":
-            return prevData.map((item) => {
-              if (item.id === socketData.data.id) {
-                // Deep merge subscription arrays
-                const updatedItem = {
-                  ...item,
-                  ...socketData.data,
-                  // Only override subscription data if the new data has items
-                  wmmData:
-                    socketData.data.wmmData?.length > 0
-                      ? socketData.data.wmmData
-                      : item.wmmData || [],
-                  hrgData:
-                    socketData.data.hrgData?.length > 0
-                      ? socketData.data.hrgData
-                      : item.hrgData || [],
-                  fomData:
-                    socketData.data.fomData?.length > 0
-                      ? socketData.data.fomData
-                      : item.fomData || [],
-                  calData:
-                    socketData.data.calData?.length > 0
-                      ? socketData.data.calData
-                      : item.calData || [],
-                  // Merge services arrays without duplicates
-                  services: Array.from(
-                    new Set([
-                      ...(item.services || []),
-                      ...(socketData.data.services || []),
-                    ])
-                  ),
-                };
-                return updatedItem;
-              }
-              return item;
-            });
-          case "delete":
-            return prevData.filter((item) => item.id !== socketData.data.id);
-          default:
-            return prevData;
-        }
-      })();
-
-      return updatedData;
+    // Debug: Log the entire socketData to understand its structure
+    console.log("[DataTable] Full socketData received:", socketData);
+    console.log("[DataTable] Current filter state:", {
+      advancedFilterData,
+      searchTerm,
+      selectedGroup,
+      localDataLength: localData.length,
     });
-  }, [socketData, socket, fetchData]);
+
+    // Handle array-like objects (socketData with numeric keys like {0: {...}})
+    let processedSocketData = socketData;
+    if (
+      socketData &&
+      typeof socketData === "object" &&
+      !Array.isArray(socketData)
+    ) {
+      // Check if it's an array-like object with numeric keys
+      const keys = Object.keys(socketData);
+      if (keys.length === 1 && !isNaN(keys[0])) {
+        // Extract the actual data from the array-like object
+        processedSocketData = socketData[keys[0]];
+        console.log(
+          "[DataTable] Extracted data from array-like object:",
+          processedSocketData
+        );
+      }
+    }
+
+    // Only process client-related updates (data-update, hrg-update)
+    // Skip user-update, accounting-update, payment-update
+    if (
+      processedSocketData.type &&
+      ![
+        "data-update",
+        "hrg-update",
+        "add",
+        "update",
+        "delete",
+        "filter-update",
+      ].includes(processedSocketData.type)
+    ) {
+      console.log(
+        "[DataTable] Skipping non-client update type:",
+        processedSocketData.type
+      );
+      return;
+    }
+
+    // Check if this is a valid data update
+    if (!processedSocketData.data && !processedSocketData.type) {
+      console.log(
+        "[DataTable] Skipping invalid socketData:",
+        processedSocketData
+      );
+      return;
+    }
+
+    // Handle different data structures
+    let updateType = processedSocketData.type;
+    let updateData = processedSocketData.data;
+
+    // If data is nested differently, try to extract it
+    if (!updateData && processedSocketData.combinedData) {
+      updateData = processedSocketData.combinedData;
+      updateType = updateType || "filter-update";
+    }
+
+    // If still no data, skip this update
+    if (!updateData) {
+      console.log("[DataTable] No valid data found in socketData");
+      return;
+    }
+
+    // Additional check: ensure we have a client ID
+    const clientId = updateData.id || updateData.clientid;
+    if (!clientId && updateType !== "filter-update") {
+      console.log("[DataTable] No client ID found, skipping update");
+      return;
+    }
+
+    // Prevent updates if we don't have proper filter context yet
+    if (localData.length === 0 && updateType !== "filter-update") {
+      console.log(
+        "[DataTable] No local data yet, skipping individual client update"
+      );
+      return;
+    }
+
+    console.log("[DataTable] Processing client update:", {
+      type: updateType,
+      clientId: clientId,
+      hasWmmData: updateData.wmmData?.records?.length > 0,
+      hasHrgData: updateData.hrgData?.records?.length > 0,
+      wmmRecordsCount: updateData.wmmData?.records?.length || 0,
+      hrgRecordsCount: updateData.hrgData?.records?.length || 0,
+      currentFilterState: {
+        addedToday: advancedFilterData?.addedToday,
+        searchTerm,
+        selectedGroup,
+        advancedFilters: Object.keys(advancedFilterData || {}).filter(
+          (key) => advancedFilterData[key]
+        ),
+      },
+    });
+
+    setLocalData((prevData) => {
+      switch (updateType) {
+        case "add":
+          // Add new client if not already present
+          if (!prevData.some((item) => item.id === clientId)) {
+            console.log("[DataTable] Adding new client:", clientId);
+            return [updateData, ...prevData];
+          }
+          return prevData;
+
+        case "update":
+          // Update client while maintaining filter state
+          console.log("[DataTable] Updating client:", clientId);
+
+          // Check if the client exists in current filtered data
+          const existingClientIndex = prevData.findIndex(
+            (item) => item.id === clientId
+          );
+
+          if (existingClientIndex !== -1) {
+            // Client exists in filtered view, update it
+            const updatedData = [...prevData];
+            updatedData[existingClientIndex] = updateData;
+
+            // Check if the updated client should still be visible with current filters
+            const shouldKeepClient = checkClientVisibility(updateData);
+            if (!shouldKeepClient) {
+              console.log(
+                "[DataTable] Updated client no longer matches current filters, removing from view"
+              );
+              return updatedData.filter((item) => item.id !== clientId);
+            }
+
+            return updatedData;
+          } else {
+            // Client not in current filtered view, check if it should be added
+            const shouldAddClient = checkClientVisibility(updateData);
+            if (shouldAddClient) {
+              console.log(
+                "[DataTable] Updated client now matches current filters, adding to view"
+              );
+              return [updateData, ...prevData];
+            } else {
+              console.log(
+                "[DataTable] Updated client doesn't match current filters, keeping current data"
+              );
+              return prevData;
+            }
+          }
+
+        case "delete":
+          // Remove deleted client
+          console.log("[DataTable] Deleting client:", clientId);
+          return prevData.filter((item) => item.id !== clientId);
+
+        case "filter-update":
+          // Handle filter updates (bulk data replacement)
+          console.log("[DataTable] Filter update received");
+
+          // Check if this is a legitimate filter update or just noise from client updates
+          // If we have active filters and this filter-update doesn't contain filtered data,
+          // it's likely an unnecessary update triggered by a client update
+          const hasActiveFilters =
+            advancedFilterData &&
+            (advancedFilterData.addedToday ||
+              searchTerm ||
+              selectedGroup ||
+              Object.keys(advancedFilterData).some(
+                (key) => advancedFilterData[key] && key !== "services"
+              ));
+
+          // If we have active filters and the update doesn't contain the expected filtered data,
+          // skip it to maintain the current filtered view
+          if (hasActiveFilters && prevData.length > 0) {
+            // Check if the update data actually contains filtered results
+            const updateDataArray = Array.isArray(updateData)
+              ? updateData
+              : updateData.combinedData &&
+                Array.isArray(updateData.combinedData)
+              ? updateData.combinedData
+              : null;
+
+            if (!updateDataArray || updateDataArray.length === 0) {
+              console.log(
+                "[DataTable] Skipping filter-update - maintaining current filtered view (no valid filtered data)"
+              );
+              return prevData;
+            }
+
+            // If the update contains all data instead of filtered data, skip it
+            if (updateDataArray.length > prevData.length * 2) {
+              console.log(
+                "[DataTable] Skipping filter-update - appears to be full data instead of filtered data"
+              );
+              return prevData;
+            }
+          }
+
+          // Only update if we have valid combinedData
+          if (Array.isArray(updateData)) {
+            return updateData;
+          } else if (
+            updateData.combinedData &&
+            Array.isArray(updateData.combinedData)
+          ) {
+            return updateData.combinedData;
+          }
+          // If no valid data, keep current data
+          console.log(
+            "[DataTable] No valid combinedData in filter-update, keeping current data"
+          );
+          return prevData;
+
+        default:
+          console.log(
+            "[DataTable] Unknown update type:",
+            updateType,
+            "Data:",
+            updateData
+          );
+          return prevData;
+      }
+    });
+  }, [socketData]);
 
   if (isLoading || localLoading) {
     return (

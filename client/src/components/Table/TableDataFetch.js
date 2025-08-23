@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useSocket } from "../../utils/Websocket/useSocket";
 
 export function useDataFetching(fetchFunction, page, pageSize) {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { socket } = useSocket();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,7 +46,7 @@ export function useDataFetching(fetchFunction, page, pageSize) {
       });
     };
 
-    const socket = webSocketService;
+    // Subscribe to WebSocket events using the context
     socket.subscribe("data-update", handleDataUpdate);
     socket.subscribe("hrg-update", handleDataUpdate);
     socket.subscribe("user-update", handleDataUpdate);
@@ -54,7 +56,7 @@ export function useDataFetching(fetchFunction, page, pageSize) {
       socket.unsubscribe("hrg-update", handleDataUpdate);
       socket.unsubscribe("user-update", handleDataUpdate);
     };
-  }, []);
+  }, [socket]);
 
   return { data, setData, error, loading };
 }

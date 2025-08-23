@@ -462,104 +462,15 @@ class WebSocketService {
         data = data[0];
       }
 
-      // Preserve filter state for updates
-      const preserveFilters = data.type === "update" || data.type === "add" || data.type === "delete";
-
-        // Ensure data has the correct structure
+      // Ensure data has the correct structure
       if (!data || typeof data !== 'object') {
         console.warn("[WebSocket] Invalid data update format:", data);
         return;
       }
 
-      const rawData = data.data || data;
-
-      // Standardize the data structure
-      const standardizedData = {
-        type: data.type || 'update',
-        data: {
-          // Ensure all required arrays exist with records structure
-          wmmData: {
-            records: Array.isArray(data.data.wmmData?.records) 
-              ? data.data.wmmData.records 
-              : Array.isArray(data.data.wmmData) 
-                ? data.data.wmmData 
-                : []
-          },
-          hrgData: {
-            records: Array.isArray(data.data.hrgData?.records) 
-              ? data.data.hrgData.records 
-              : Array.isArray(data.data.hrgData) 
-                ? data.data.hrgData 
-                : []
-          },
-          fomData: {
-            records: Array.isArray(data.data.fomData?.records) 
-              ? data.data.fomData.records 
-              : Array.isArray(data.data.fomData) 
-                ? data.data.fomData 
-                : []
-          },
-          calData: {
-            records: Array.isArray(data.data.calData?.records) 
-              ? data.data.calData.records 
-              : Array.isArray(data.data.calData) 
-                ? data.data.calData 
-                : []
-          },
-          // Add Promo and Complimentary data
-          promoData: {
-            records: Array.isArray(data.data.promoData?.records) 
-              ? data.data.promoData.records 
-              : Array.isArray(data.data.promoData) 
-                ? data.data.promoData 
-                : []
-          },
-          compData: {
-            records: Array.isArray(data.data.compData?.records) 
-              ? data.data.compData.records 
-              : Array.isArray(data.data.compData) 
-                ? data.data.compData 
-                : []
-          },
-          // Ensure services array is properly built
-          services: Array.from(new Set([
-            ...(Array.isArray(data.data.services) ? data.data.services : []),
-            // Add service types based on data presence
-            ...(data.data.wmmData?.records?.length > 0 || data.data.wmmData?.length > 0 ? ['WMM'] : []),
-            ...(data.data.hrgData?.records?.length > 0 || data.data.hrgData?.length > 0 ? ['HRG'] : []),
-            ...(data.data.fomData?.records?.length > 0 || data.data.fomData?.length > 0 ? ['FOM'] : []),
-            ...(data.data.calData?.records?.length > 0 || data.data.calData?.length > 0 ? ['CAL'] : []),
-            ...(data.data.promoData?.records?.length > 0 || data.data.promoData?.length > 0 ? ['PROMO'] : []),
-            ...(data.data.compData?.records?.length > 0 || data.data.compData?.length > 0 ? ['COMP'] : []),
-            // Add group-based services
-            ...(data.data.group === 'DCS' ? ['DCS'] : []),
-            ...(data.data.group === 'MCCJ-ASIA' ? ['MCCJ-ASIA'] : []),
-            ...(data.data.group === 'MCCJ' ? ['MCCJ'] : [])
-          ])),
-          // Ensure other required fields exist
-          id: data.data.id,
-          title: data.data.title || "",
-          fname: data.data.fname || "",
-          mname: data.data.mname || "",
-          lname: data.data.lname || "",
-          address: data.data.address || "",
-          cellno: data.data.cellno || "",
-          officeno: data.data.officeno || "",
-          email: data.data.email || "",
-          acode: data.data.acode || "",
-          adduser: data.data.adduser || "",
-          adddate: data.data.adddate || "",
-          editedBy: data.data.editedBy || "",
-          editedAt: data.data.editedAt || "",
-          group: data.data.group || ""
-        },
-        timestamp: data.timestamp || Date.now(),
-        sourceUserId: data.sourceUserId
-      };
-
-      // Notify subscribers
+      // Pass the data through directly to subscribers
       const handlers = this.eventHandlers.get("data-update") || new Set();
-      handlers.forEach(handler => handler(standardizedData));
+      handlers.forEach(handler => handler(data));
     });
   }
 

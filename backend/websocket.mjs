@@ -281,6 +281,31 @@ const initWebSocket = (io) => {
             return;
           }
 
+          // Check if this is a CRUD operation with complete data structure
+          // If the data already has the proper structure (wmmData.records, etc.), 
+          // it's likely from a CRUD operation and should be passed through directly
+          const hasCompleteStructure = clientData.wmmData?.records !== undefined ||
+                                     clientData.hrgData?.records !== undefined ||
+                                     clientData.fomData?.records !== undefined ||
+                                     clientData.calData?.records !== undefined ||
+                                     clientData.promoData?.records !== undefined ||
+                                     clientData.compData?.records !== undefined;
+
+          if (hasCompleteStructure) {
+            console.log("[Socket] Detected CRUD operation with complete data structure, passing through directly");
+            // Pass through the data directly without re-processing
+            const emitData = {
+              type: updateData.type || 'update',
+              data: clientData,
+              timestamp: Date.now(),
+              sourceUserId: userId
+            };
+            io.emit("data-update", emitData);
+            return;
+          }
+
+          // Only re-fetch data for manual websocket events that don't have complete structure
+          console.log("[Socket] Processing manual websocket event, fetching fresh data");
           await new Promise(resolve => setTimeout(resolve, 100));
 
           // Use DataService to fetch complete client data
@@ -384,13 +409,13 @@ const initWebSocket = (io) => {
             ...(processedData.group === 'MCCJ' ? ['MCCJ'] : [])
           ]));
 
-            // Emit the standardized data update - MODIFY THIS SECTION
-            const emitData = {
-              type: updateData.type || 'update',
-              data: processedData, // This is the properly formatted data
-              timestamp: Date.now(),
-              sourceUserId: userId
-            };
+          // Emit the standardized data update
+          const emitData = {
+            type: updateData.type || 'update',
+            data: processedData, // This is the properly formatted data
+            timestamp: Date.now(),
+            sourceUserId: userId
+          };
   
           // Emit the standardized data update
           io.emit("data-update", emitData);
