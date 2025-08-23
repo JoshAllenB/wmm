@@ -149,7 +149,9 @@ const AllClient = () => {
     setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
     setPage(1); // Reset to first page when toggling filter
-    // Do NOT call fetchData here!
+
+    // The data fetch will be triggered by the useEffect that watches currentFilterSnapshot
+    // We don't need to call fetchData here as it will be handled automatically
   };
 
   const handleClearAllFilters = () => {
@@ -522,87 +524,79 @@ const AllClient = () => {
       return; // Only run once on initial load
     }
 
-    // Load groups first to have them available
-    const loadGroups = async () => {
-      try {
-        const groupsData = await fetchGroups();
-        setGroups(groupsData);
-      } catch (error) {
-        console.error("Error loading groups:", error);
-      }
-    };
-    loadGroups();
+    const initializeComponent = async () => {
 
-    // Load users for filter display
-    const loadUsers = async () => {
       try {
-        const userData = await fetchUsers();
+        // Load groups and users in parallel
+        const [groupsData, userData] = await Promise.all([
+          fetchGroups().catch((error) => {
+            console.error("Error loading groups:", error);
+            return [];
+          }),
+          fetchUsers().catch((error) => {
+            console.error("Error loading users:", error);
+            return { users: [] };
+          }),
+        ]);
+
+        setGroups(groupsData);
         if (userData && userData.users) {
           setUsers(userData.users);
         }
+
+        // Initialize services based on user roles
+        const roleBasedServices = [];
+
+        // Check each role and add corresponding service
+        if (hasRole("WMM")) roleBasedServices.push("WMM");
+        if (hasRole("FOM")) roleBasedServices.push("FOM");
+        if (hasRole("HRG")) roleBasedServices.push("HRG");
+        if (hasRole("CAL")) roleBasedServices.push("CAL");
+
+        // Only update if we found matching roles
+        if (roleBasedServices.length > 0) {
+          // Create initial filter with role-based services
+          const initialFilter = {
+            ...advancedFilterData,
+            services: roleBasedServices,
+          };
+
+          // Add addedToday filter since it's on by default
+          if (addedToday) {
+            const today = new Date();
+            const month = today.getMonth() + 1;
+            const day = today.getDate();
+            const year = today.getFullYear();
+            // Create regex pattern to match YYYY-MM-DD format
+            const paddedMonth = month.toString().padStart(2, "0");
+            const paddedDay = day.toString().padStart(2, "0");
+            initialFilter.adddate_regex = `^${year}-${paddedMonth}-${paddedDay}`;
+          }
+
+          // Set the filter state first
+          setAdvancedFilterData(initialFilter);
+
+          // Don't set lastFilterRef here - let the main data loading effect handle it
+          // This ensures the filter snapshot is calculated correctly
+        }
+
+        // Mark initial load as complete
+        initialLoadComplete.current = true;
+
+        // Set loading to false to trigger the main data loading effect
+        setIsLoading(false);
+        setIsAddedTodayLoading(false); // Ensure this is also reset
       } catch (error) {
-        console.error("Error loading users:", error);
+        console.error("Error during component initialization:", error);
+        // Even if there's an error, we should still allow the component to function
+        initialLoadComplete.current = true;
+        setIsLoading(false);
+        setIsAddedTodayLoading(false);
       }
     };
-    loadUsers();
 
-    // Initialize services based on user roles
-    const roleBasedServices = [];
-
-    // Check each role and add corresponding service
-    if (hasRole("WMM")) roleBasedServices.push("WMM");
-    if (hasRole("FOM")) roleBasedServices.push("FOM");
-    if (hasRole("HRG")) roleBasedServices.push("HRG");
-    if (hasRole("CAL")) roleBasedServices.push("CAL");
-
-    // Only update if we found matching roles
-    if (roleBasedServices.length > 0) {
-      // Create initial filter with role-based services
-      const initialFilter = {
-        ...advancedFilterData,
-        services: roleBasedServices,
-      };
-
-      // Add addedToday filter since it's on by default
-      if (addedToday) {
-        const today = new Date();
-        const month = today.getMonth() + 1;
-        const day = today.getDate();
-        const year = today.getFullYear();
-        // Create regex pattern to match YYYY-MM-DD format
-        const paddedMonth = month.toString().padStart(2, "0");
-        const paddedDay = day.toString().padStart(2, "0");
-        initialFilter.adddate_regex = `^${year}-${paddedMonth}-${paddedDay}`;
-      }
-
-      // Save as last filter to prevent bouncing
-      lastFilterRef.current = JSON.stringify({
-        services: roleBasedServices,
-        page,
-        filtering: debouncedFiltering,
-        group: selectedGroup,
-        addedToday,
-      });
-
-      // Set the filter state
-      setAdvancedFilterData(initialFilter);
-    }
-
-    // Mark initial load as complete
-    initialLoadComplete.current = true;
-
-    // Continue to data loading after a short delay
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 100);
-  }, [
-    hasRole,
-    JSON.stringify(advancedFilterData), // Since we're spreading this, we need it as a dependency
-    page,
-    debouncedFiltering,
-    selectedGroup,
-    addedToday,
-  ]);
+    initializeComponent();
+  }, [hasRole, addedToday]); // Simplified dependencies to prevent infinite loops
 
   // Cleanup effect to cancel pending requests on unmount
   useEffect(() => {
@@ -615,6 +609,7 @@ const AllClient = () => {
 
   // Main data loading effect (runs AFTER role-based services are set)
   useEffect(() => {
+
     // Skip this effect during initial load when services are being set up
     if (isLoading) {
       return;
@@ -626,7 +621,11 @@ const AllClient = () => {
     }
 
     // If this is the same as our last filter, skip to prevent bouncing
-    if (lastFilterRef.current === currentFilterSnapshot) {
+    // BUT allow initial load when lastFilterRef.current is null
+    if (
+      lastFilterRef.current === currentFilterSnapshot &&
+      lastFilterRef.current !== null
+    ) {
       return;
     }
 
