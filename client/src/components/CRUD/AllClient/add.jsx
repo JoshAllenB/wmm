@@ -15,9 +15,20 @@ import {
 import { debounce } from "lodash";
 import View from "./view";
 import { webSocketService } from "../../../services/WebSocketService";
-import DonorAdd from "../donorAdd";
 import useDuplicateChecker from "../duplicateChecker/duplicateLogic.jsx";
 import ConfirmationSummaryDialog from "../../UI/confirmationSummaryDialog";
+import {
+  WMMModule,
+  PromoModule,
+  ComplimentaryModule,
+  HRGModule,
+  FOMModule,
+  CALModule,
+  CommonSubscriptionFields,
+  getSubscriptionSpecificData as getSubscriptionData,
+  getServiceFromSubscriptionType as getServiceType,
+  hasSubscriptionData as checkSubscriptionData,
+} from "./modules";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -1209,138 +1220,13 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     return cleanObj;
   };
 
-  // Add this function before getSubscriptionSpecificData
-  const formatDateForWMM = (date) => {
-    const d = new Date(date);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  // Add this function before getSubscriptionSpecificData
-  const formatDateForPromo = (date) => {
-    const d = new Date(date);
-    const month = d.getMonth() + 1;
-    const day = d.getDate();
-    const year = d.getFullYear();
-    return `${month}/${day}/${year}`;
-  };
-
-  // Update getSubscriptionSpecificData function
+  // Use modular subscription logic
   const getSubscriptionSpecificData = () => {
-    const baseData = {
-      subsyear:
-        formData.subscriptionFreq && formData.subscriptionFreq !== "others"
-          ? parseInt(formData.subscriptionFreq)
-          : 0,
-      copies: parseInt(roleSpecificData.copies) || 1,
-      remarks: roleSpecificData.remarks || "",
-      calendar: roleSpecificData.calendar || false,
-      adddate: new Date().toLocaleDateString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-      }),
-    };
-
-    // Format dates based on subscription type
-    if (subscriptionType === "Promo") {
-      return {
-        ...baseData,
-        subsdate: formData.subscriptionStart
-          ? formatDateForPromo(
-              new Date(
-                cleanDateInput(formData.subStartYear),
-                cleanDateInput(formData.subStartMonth) - 1,
-                cleanDateInput(formData.subStartDay)
-              )
-            )
-          : "",
-        enddate: formData.subscriptionEnd
-          ? formatDateForPromo(
-              new Date(
-                cleanDateInput(formData.subEndYear),
-                cleanDateInput(formData.subEndMonth) - 1,
-                cleanDateInput(formData.subEndDay)
-              )
-            )
-          : "",
-        referralid: formData.referralid || 0,
-        adddate: new Date().toLocaleString("en-US", {
-          month: "numeric",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        }),
-      };
-    } else if (subscriptionType === "Complimentary") {
-      return {
-        ...baseData,
-        subsdate: formData.subscriptionStart
-          ? formatDateForWMM(
-              new Date(
-                cleanDateInput(formData.subStartYear),
-                cleanDateInput(formData.subStartMonth) - 1,
-                cleanDateInput(formData.subStartDay)
-              )
-            )
-          : "",
-        enddate: formData.subscriptionEnd
-          ? formatDateForWMM(
-              new Date(
-                cleanDateInput(formData.subEndYear),
-                cleanDateInput(formData.subEndMonth) - 1,
-                cleanDateInput(formData.subEndDay)
-              )
-            )
-          : "",
-        adddate: formatDateForWMM(new Date()),
-      };
-    } else {
-      // WMM
-      return {
-        ...baseData,
-        subsdate: formData.subscriptionStart
-          ? formatDateForWMM(
-              new Date(
-                cleanDateInput(formData.subStartYear),
-                cleanDateInput(formData.subStartMonth) - 1,
-                cleanDateInput(formData.subStartDay)
-              )
-            )
-          : "",
-        enddate: formData.subscriptionEnd
-          ? formatDateForWMM(
-              new Date(
-                cleanDateInput(formData.subEndYear),
-                cleanDateInput(formData.subEndMonth) - 1,
-                cleanDateInput(formData.subEndDay)
-              )
-            )
-          : "",
-        paymtref: roleSpecificData.paymtref || "",
-        paymtamt: roleSpecificData.paymtamt || "",
-        paymtmasses: roleSpecificData.paymtmasses || "",
-        donorid: roleSpecificData.donorid || "",
-        adddate: formatDateForWMM(new Date()),
-      };
-    }
+    return getSubscriptionData(subscriptionType, formData, roleSpecificData);
   };
 
-  // Add this function before handleConfirmedSubmit
   const getServiceFromSubscriptionType = () => {
-    switch (subscriptionType) {
-      case "Promo":
-        return "PROMO";
-      case "Complimentary":
-        return "COMP";
-      default:
-        return "WMM";
-    }
+    return getServiceType(subscriptionType);
   };
 
   const handleConfirmedSubmit = async () => {
@@ -1380,45 +1266,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     // Prepare role submissions
     const roleSubmissions = [];
 
-    // Helper function to check if subscription data has meaningful content
+    // Use modular subscription data check
     const hasSubscriptionData = () => {
-      // Check if any subscription-related fields have been filled
-      const hasStartDate =
-        formData.subscriptionStart && formData.subscriptionStart.trim() !== "";
-      const hasEndDate =
-        formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "";
-      const hasFrequency =
-        formData.subscriptionFreq && formData.subscriptionFreq !== "";
-      const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
-      const hasPaymentInfo =
-        (roleSpecificData.paymtref &&
-          roleSpecificData.paymtref.trim() !== "") ||
-        (roleSpecificData.paymtamt &&
-          roleSpecificData.paymtamt.trim() !== "") ||
-        (roleSpecificData.paymtmasses &&
-          roleSpecificData.paymtmasses.trim() !== "");
-      const hasDonorId =
-        roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
-      const hasSubsclass =
-        formData.subsclass && formData.subsclass.trim() !== "";
-      const hasReferralId =
-        formData.referralid && formData.referralid.trim() !== "";
-      const hasRemarks =
-        roleSpecificData.remarks && roleSpecificData.remarks.trim() !== "";
-      const hasCalendar = roleSpecificData.calendar === true;
-
-      return (
-        hasStartDate ||
-        hasEndDate ||
-        hasFrequency ||
-        hasCopies ||
-        hasPaymentInfo ||
-        hasDonorId ||
-        hasSubsclass ||
-        hasReferralId ||
-        hasRemarks ||
-        hasCalendar
-      );
+      return checkSubscriptionData(formData, roleSpecificData);
     };
 
     // Only add subscription data if user has WMM role AND has provided subscription data
@@ -2612,260 +2462,64 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                           {subscriptionType} Subscription
                         </h2>
 
-                        {subscriptionType === "WMM" && (
-                          <div className="mt-4 mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Subscription Classification:{" "}
-                              <span className="text-red-500 ml-1">*</span>
-                            </label>
-                            <select
-                              id="subsclass"
-                              name="subsclass"
-                              value={formData.subsclass}
-                              onChange={handleChange}
-                              className="w-full p-2 border rounded-md text-base"
-                            >
-                              <option value="">Select a classification</option>
-                              {subclasses.map((subclass) => (
-                                <option key={subclass.id} value={subclass.id}>
-                                  {subclass.name} ({subclass.id})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        {/* Start Date - Common for all types */}
-                        <div className="mb-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription Start:{" "}
-                            <span className="text-red-500 ml-1">*</span>
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="relative">
-                              <select
-                                id="subStartMonth"
-                                name="subStartMonth"
-                                value={formData.subStartMonth || ""}
-                                onChange={handleChange}
-                                className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              >
-                                <option value="">Month</option>
-                                {months.map((month) => (
-                                  <option key={month.value} value={month.value}>
-                                    {month.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <input
-                              type="text"
-                              id="subStartDay"
-                              name="subStartDay"
-                              value={formData.subStartDay || ""}
-                              onChange={handleChange}
-                              placeholder="DD"
-                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              maxLength="2"
-                            />
-                            <input
-                              type="text"
-                              id="subStartYear"
-                              name="subStartYear"
-                              value={formData.subStartYear || ""}
-                              onChange={handleChange}
-                              placeholder="YYYY"
-                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              maxLength="4"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Common fields for all subscription types */}
-                        <div className="mb-4">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription Duration:{" "}
-                            <span className="text-red-500 ml-1">*</span>
-                          </label>
-                          <select
-                            id="subscriptionFreq"
-                            name="subscriptionFreq"
-                            value={formData.subscriptionFreq}
-                            onChange={handleChange}
-                            className="w-full p-2 border rounded-md text-base"
-                          >
-                            <option value="">
-                              Select Subscription Duration
-                            </option>
-                            <option value="6">6 Months</option>
-                            <option value="11">1 Year</option>
-                            <option value="22">2 Years</option>
-                            <option value="others">Others</option>
-                          </select>
-                        </div>
-
-                        {/* End Date - Common for all types */}
-                        <div className="mb-2">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Subscription End:{" "}
-                            <span className="text-red-500 ml-1">*</span>
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="relative">
-                              <select
-                                id="subEndMonth"
-                                name="subEndMonth"
-                                value={formData.subEndMonth || ""}
-                                onChange={handleChange}
-                                className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              >
-                                <option value="">Month</option>
-                                {months.map((month) => (
-                                  <option key={month.value} value={month.value}>
-                                    {month.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <input
-                              type="text"
-                              id="subEndDay"
-                              name="subEndDay"
-                              value={formData.subEndDay || ""}
-                              onChange={handleChange}
-                              placeholder="DD"
-                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              maxLength="2"
-                            />
-                            <input
-                              type="text"
-                              id="subEndYear"
-                              name="subEndYear"
-                              value={formData.subEndYear || ""}
-                              onChange={handleChange}
-                              placeholder="YYYY"
-                              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                              maxLength="4"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Common fields for copies and calendar */}
-                        <div className="flex space-x-4 mb-4">
-                          <div className="flex flex-row items-center justify-center gap-2">
-                            <label className="block text-lg font-medium leading-6 text-black">
-                              Copies:{" "}
-                              <span className="text-red-500 ml-1">*</span>
-                            </label>
-                            <input
-                              id="copies"
-                              name="copies"
-                              value={roleSpecificData.copies}
-                              onChange={handleRoleSpecificChange}
-                              type="number"
-                              min="1"
-                              className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label
-                              htmlFor="calendar"
-                              className="text-lg font-medium"
-                            >
-                              Calendar Received:
-                            </label>
-                            <input
-                              type="checkbox"
-                              id="calendar"
-                              name="calendar"
-                              checked={roleSpecificData.calendar || false}
-                              onChange={handleRoleSpecificChange}
-                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
+                        {/* Common subscription fields */}
+                        <CommonSubscriptionFields
+                          formData={formData}
+                          roleSpecificData={roleSpecificData}
+                          handleChange={handleChange}
+                          handleRoleSpecificChange={handleRoleSpecificChange}
+                          months={months}
+                        />
 
                         {/* Subscription Type Specific Fields */}
                         {subscriptionType === "WMM" && (
-                          <>
-                            <div className="mt-4 space-y-4">
-                              <InputField
-                                label="Payment Reference:"
-                                id="paymtref"
-                                name="paymtref"
-                                value={roleSpecificData.paymtref}
-                                onChange={handleRoleSpecificChange}
-                                className="w-full p-2 border rounded-md text-base"
-                              />
-                              <InputField
-                                label="Payment Amount:"
-                                id="paymtamt"
-                                name="paymtamt"
-                                value={roleSpecificData.paymtamt}
-                                onChange={handleRoleSpecificChange}
-                                className="w-full p-2 border rounded-md text-base"
-                              />
-                              <InputField
-                                label="Payment Masses:"
-                                id="paymtmasses"
-                                name="paymtmasses"
-                                value={roleSpecificData.paymtmasses}
-                                onChange={handleRoleSpecificChange}
-                                className="w-full p-2 border rounded-md text-base"
-                              />
-                              <div className="mb-4">
-                                <label className="block text-black text-xl mb-1">
-                                  Donor:
-                                </label>
-                                <div className="donor-add-container">
-                                  <DonorAdd
-                                    onDonorSelect={(donorId) => {
-                                      console.log(
-                                        "Donor ID selected:",
-                                        donorId
-                                      );
-                                      handleRoleSpecificChange({
-                                        target: {
-                                          name: "donorid",
-                                          value: donorId || "",
-                                        },
-                                      });
-                                    }}
-                                    onNewDonorAdded={handleNewDonorAdded}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </>
+                          <WMMModule
+                            formData={formData}
+                            roleSpecificData={roleSpecificData}
+                            handleChange={handleChange}
+                            handleRoleSpecificChange={handleRoleSpecificChange}
+                            handleNewDonorAdded={handleNewDonorAdded}
+                            subclasses={subclasses}
+                            months={months}
+                            subscriptionType={subscriptionType}
+                          />
                         )}
 
                         {subscriptionType === "Promo" && (
-                          <div className="mt-4">
-                            <InputField
-                              label="Referral ID:"
-                              id="referralid"
-                              name="referralid"
-                              value={formData.referralid}
-                              onChange={handleChange}
-                              className="w-full p-2 border rounded-md text-base"
-                              placeholder="Enter referral ID"
-                            />
-                          </div>
+                          <PromoModule
+                            formData={formData}
+                            handleChange={handleChange}
+                          />
                         )}
 
-                        {/* Remarks field - Common for all types */}
-                        <div className="mt-4">
-                          <InputField
-                            label="Remarks:"
-                            id="remarks"
-                            name="remarks"
-                            value={roleSpecificData.remarks}
-                            onChange={handleRoleSpecificChange}
-                            type="textarea"
-                            className="w-full p-2 border rounded-md text-base"
-                          />
-                        </div>
+                        {subscriptionType === "Complimentary" && (
+                          <ComplimentaryModule />
+                        )}
                       </div>
+                    )}
+
+                    {/* HRG Module */}
+                    {hasRole("HRG") && (
+                      <HRGModule
+                        hrgData={hrgData}
+                        handleHrgChange={handleHrgChange}
+                      />
+                    )}
+
+                    {/* FOM Module */}
+                    {hasRole("FOM") && (
+                      <FOMModule
+                        fomData={fomData}
+                        handleFomChange={handleFomChange}
+                      />
+                    )}
+
+                    {/* CAL Module */}
+                    {hasRole("CAL") && (
+                      <CALModule
+                        calData={calData}
+                        handleCalChange={handleCalChange}
+                      />
                     )}
                   </div>
 

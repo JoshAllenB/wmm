@@ -12,8 +12,25 @@ import {
   fetchAreas,
 } from "../../Table/Data/utilData";
 import { webSocketService } from "../../../services/WebSocketService";
-import DonorAdd from "../donorAdd";
 import { useToast } from "../../UI/ShadCN/hooks/use-toast";
+import {
+  WMMModule,
+  PromoModule,
+  ComplimentaryModule,
+  HRGModule,
+  FOMModule,
+  CALModule,
+  CommonSubscriptionFields,
+  PersonalInfoModule,
+  AddressModule,
+  ContactInfoModule,
+  GroupInfoModule,
+  SubscriptionTypeSelector,
+  RoleToggleModule,
+  getSubscriptionSpecificData as getSubscriptionData,
+  getServiceFromSubscriptionType as getServiceType,
+  hasSubscriptionData as checkSubscriptionData,
+} from "./modules";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -2566,7 +2583,7 @@ const Edit = ({
     }
   };
 
-  // Add date formatting functions
+  // Use modular date formatting functions
   const formatDateForWMM = (date) => {
     const d = new Date(date);
     const year = d.getFullYear();
@@ -2639,153 +2656,20 @@ const Edit = ({
     // Prepare role submissions
     const roleSubmissions = [];
 
-    // Helper function to check if subscription data has meaningful content
+    // Use modular subscription data check
     const hasSubscriptionData = () => {
-      // Check if any subscription-related fields have been filled
-      const hasStartDate =
-        formData.subscriptionStart && formData.subscriptionStart.trim() !== "";
-      const hasEndDate =
-        formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "";
-      const hasFrequency =
-        formData.subscriptionFreq && formData.subscriptionFreq !== "";
-      const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
-      const hasPaymentInfo =
-        (roleSpecificData.paymtref &&
-          roleSpecificData.paymtref.trim() !== "") ||
-        (roleSpecificData.paymtamt &&
-          roleSpecificData.paymtamt.trim() !== "") ||
-        (roleSpecificData.paymtmasses &&
-          roleSpecificData.paymtmasses.trim() !== "");
-      const hasDonorId =
-        roleSpecificData.donorid &&
-        String(roleSpecificData.donorid).trim() !== "";
-      const hasSubsclass =
-        formData.subsclass && formData.subsclass.trim() !== "";
-      const hasReferralId =
-        formData.referralid && formData.referralid.trim() !== "";
-      const hasRemarks =
-        roleSpecificData.remarks && roleSpecificData.remarks.trim() !== "";
-      const hasCalendar = roleSpecificData.calendar === true;
-
-      return (
-        hasStartDate ||
-        hasEndDate ||
-        hasFrequency ||
-        hasCopies ||
-        hasPaymentInfo ||
-        hasDonorId ||
-        hasSubsclass ||
-        hasReferralId ||
-        hasRemarks ||
-        hasCalendar
-      );
+      return checkSubscriptionData(formData, roleSpecificData);
     };
 
     // Only create WMM submission if user has WMM role AND is currently in WMM mode
     if (hasRole("WMM") && selectedRole === "WMM" && hasSubscriptionData()) {
-      // Get subscription specific data based on subscription type
+      // Use modular subscription-specific data function
       const getSubscriptionSpecificData = () => {
-        const baseData = {
-          subsyear:
-            formData.subscriptionFreq && formData.subscriptionFreq !== "others"
-              ? parseInt(formData.subscriptionFreq)
-              : 0,
-          copies: parseInt(roleSpecificData.copies) || 1,
-          remarks: roleSpecificData.remarks || "",
-          calendar: roleSpecificData.calendar || false,
-          adddate: new Date().toLocaleDateString("en-US", {
-            month: "numeric",
-            day: "numeric",
-            year: "numeric",
-          }),
-        };
-
-        // Format dates based on subscription type
-        if (formData.subscriptionType === "Promo") {
-          return {
-            ...baseData,
-            subsdate: formData.subscriptionStart
-              ? formatDateForPromo(
-                  new Date(
-                    cleanDateInput(formData.subStartYear),
-                    cleanDateInput(formData.subStartMonth) - 1,
-                    cleanDateInput(formData.subStartDay)
-                  )
-                )
-              : "",
-            enddate: formData.subscriptionEnd
-              ? formatDateForPromo(
-                  new Date(
-                    cleanDateInput(formData.subEndYear),
-                    cleanDateInput(formData.subEndMonth) - 1,
-                    cleanDateInput(formData.subEndDay)
-                  )
-                )
-              : "",
-            referralid: formData.referralid || 0,
-            adddate: new Date().toLocaleString("en-US", {
-              month: "numeric",
-              day: "numeric",
-              year: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-              second: "2-digit",
-              hour12: false,
-            }),
-          };
-        } else if (formData.subscriptionType === "Complimentary") {
-          return {
-            ...baseData,
-            subsdate: formData.subscriptionStart
-              ? formatDateForWMM(
-                  new Date(
-                    cleanDateInput(formData.subStartYear),
-                    cleanDateInput(formData.subStartMonth) - 1,
-                    cleanDateInput(formData.subStartDay)
-                  )
-                )
-              : "",
-            enddate: formData.subscriptionEnd
-              ? formatDateForWMM(
-                  new Date(
-                    cleanDateInput(formData.subEndYear),
-                    cleanDateInput(formData.subEndMonth) - 1,
-                    cleanDateInput(formData.subEndDay)
-                  )
-                )
-              : "",
-            adddate: formatDateForWMM(new Date()),
-          };
-        } else {
-          // WMM
-          return {
-            ...baseData,
-            subsdate: formData.subscriptionStart
-              ? formatDateForWMM(
-                  new Date(
-                    cleanDateInput(formData.subStartYear),
-                    cleanDateInput(formData.subStartMonth) - 1,
-                    cleanDateInput(formData.subStartDay)
-                  )
-                )
-              : "",
-            enddate: formData.subscriptionEnd
-              ? formatDateForWMM(
-                  new Date(
-                    cleanDateInput(formData.subEndYear),
-                    cleanDateInput(formData.subEndMonth) - 1,
-                    cleanDateInput(formData.subEndDay)
-                  )
-                )
-              : "",
-            paymtref: roleSpecificData.paymtref || "",
-            paymtamt: roleSpecificData.paymtamt || "",
-            paymtmasses: roleSpecificData.paymtmasses || "",
-            donorid: roleSpecificData.donorid || "",
-            subsclass: formData.subsclass || "",
-            adddate: formatDateForWMM(new Date()),
-          };
-        }
+        return getSubscriptionData(
+          formData.subscriptionType,
+          formData,
+          roleSpecificData
+        );
       };
 
       const subscriptionData = getSubscriptionSpecificData();
@@ -3559,388 +3443,54 @@ const Edit = ({
           {/* Add form content here (fields, sections, etc.) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
             {/* Personal Information */}
-            <div className="p-4 border rounded-lg shadow-sm">
-              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                Personal Information
-              </h2>
-              <div className="space-y-3">
-                <div className="mb-4">
-                  <label className="block text-black text-xl mb-1">
-                    Special Package:
-                  </label>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="spack"
-                      name="spack"
-                      checked={formData.spack || false}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          spack: e.target.checked,
-                        }))
-                      }
-                      className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                    />
-                    <label
-                      htmlFor="spack"
-                      className="ml-2 text-gray-700 text-base"
-                    >
-                      Mark as Special Package
-                    </label>
-                  </div>
-                </div>
-                <InputField
-                  label="Title:"
-                  id="title"
-                  name="title"
-                  value={formData.title || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="First Name:"
-                  id="fname"
-                  name="fname"
-                  value={formData.fname || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Middle Name:"
-                  id="mname"
-                  name="mname"
-                  value={formData.mname || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Last Name:"
-                  id="lname"
-                  name="lname"
-                  value={formData.lname || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Suffix:"
-                  id="sname"
-                  name="sname"
-                  value={formData.sname}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <div className="mb-2">
-                  <label className="block text-black text-base mb-1">
-                    Birth Date:
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="relative">
-                      <select
-                        id="bdateMonth"
-                        name="bdateMonth"
-                        value={formData.bdateMonth}
-                        onChange={handleChange}
-                        className="w-full p-2 text-base border rounded-md border-gray-300"
-                      >
-                        <option value="">Month</option>
-                        {months.map((month) => (
-                          <option key={month.value} value={month.value}>
-                            {month.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <input
-                      type="text"
-                      id="bdateDay"
-                      name="bdateDay"
-                      value={formData.bdateDay}
-                      onChange={handleChange}
-                      placeholder="DD"
-                      className="w-full p-2 text-base border rounded-md border-gray-300"
-                      maxLength="2"
-                    />
-                    <input
-                      type="text"
-                      id="bdateYear"
-                      name="bdateYear"
-                      value={formData.bdateYear}
-                      onChange={handleChange}
-                      placeholder="YYYY"
-                      className="w-full p-2 text-base border rounded-md border-gray-300"
-                      maxLength="4"
-                    />
-                  </div>
-                </div>
-                <InputField
-                  label="Company:"
-                  id="company"
-                  name="company"
-                  value={formData.company || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-              </div>
-            </div>
+            <PersonalInfoModule
+              formData={formData}
+              handleChange={handleChange}
+              months={months}
+              types={types}
+              groups={groups}
+            />
 
             {/* Address Information */}
-            <div className="p-4 border rounded-lg shadow-sm">
-              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                Address Information
-              </h2>
-              <div className="space-y-3">
-                <InputField
-                  label="House/Building Number & Street Name:"
-                  id="housestreet"
-                  name="housestreet"
-                  value={addressData.housestreet}
-                  onChange={(e) =>
-                    handleAddressChange("housestreet", e.target.value)
-                  }
-                  uppercase={true}
-                  className="text-base"
-                  autoComplete="off"
-                />
-                <InputField
-                  label="Subdivision/Compound Name:"
-                  id="subdivision"
-                  name="subdivision"
-                  value={addressData.subdivision}
-                  onChange={(e) =>
-                    handleAddressChange("subdivision", e.target.value)
-                  }
-                  uppercase={true}
-                  className="text-base"
-                  autoComplete="off"
-                />
-                <InputField
-                  label="Barangay:"
-                  id="barangay"
-                  name="barangay"
-                  value={addressData.barangay}
-                  onChange={(e) =>
-                    handleAddressChange("barangay", e.target.value)
-                  }
-                  uppercase={true}
-                  className="text-base"
-                  autoComplete="off"
-                />
-                {areas && (
-                  <AreaForm
-                    onAreaChange={handleAreaChange}
-                    initialAreaData={{
-                      acode: formData.acode || areaData.acode || "",
-                      zipcode: formData.zipcode || areaData.zipcode || "",
-                      city:
-                        formData.area ||
-                        areaData.city ||
-                        addressData.city ||
-                        "",
-                    }}
-                    areas={areas}
-                  />
-                )}
-                <div className="mt-4">
-                  <InputField
-                    label="Address Preview:"
-                    id="combinedAddress"
-                    name="combinedAddress"
-                    value={combinedAddress}
-                    type="textarea"
-                    onChange={handleCombinedAddressChange}
-                    onFocus={handleCombinedAddressFocus}
-                    onBlur={handleCombinedAddressBlur}
-                    uppercase={true}
-                    className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
-                  />
-                </div>
-              </div>
-            </div>
+            <AddressModule
+              addressData={addressData}
+              handleAddressChange={handleAddressChange}
+              handleAreaChange={handleAreaChange}
+              areas={areas}
+              formData={formData}
+              areaData={areaData}
+              combinedAddress={combinedAddress}
+              handleCombinedAddressChange={handleCombinedAddressChange}
+              handleCombinedAddressFocus={handleCombinedAddressFocus}
+              handleCombinedAddressBlur={handleCombinedAddressBlur}
+              isEditingCombinedAddress={isEditingCombinedAddress}
+            />
 
             {/* Contact Information */}
-            <div className="p-4 border rounded-lg shadow-sm">
-              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                Contact Information
-              </h2>
-              <div className="space-y-3">
-                <InputField
-                  label="Contact Numbers:"
-                  id="contactnos"
-                  name="contactnos"
-                  value={formData.contactnos || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Cell Number:"
-                  id="cellno"
-                  name="cellno"
-                  value={formData.cellno || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Office Number:"
-                  id="ofcno"
-                  name="ofcno"
-                  value={formData.ofcno || ""}
-                  onChange={handleChange}
-                  uppercase={true}
-                  className="text-base"
-                />
-                <InputField
-                  label="Email:"
-                  id="email"
-                  name="email"
-                  value={formData.email || ""}
-                  onChange={handleChange}
-                  type="email"
-                  className="text-base"
-                />
-              </div>
-            </div>
+            <ContactInfoModule
+              formData={formData}
+              handleChange={handleChange}
+            />
 
             {/* Group Information */}
-            <div className="p-4 border rounded-lg shadow-sm">
-              <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                Group Information
-              </h2>
-              <div className="space-y-3">
-                <div className="relative w-full">
-                  <label className="block text-black text-base mb-1">
-                    Type:
-                  </label>
-                  <select
-                    id="type"
-                    name="type"
-                    value={formData.type || ""}
-                    onChange={handleChange}
-                    className="w-full p-2 text-base border rounded-md border-gray-300"
-                  >
-                    <option value="">Select a type</option>
-                    {types.map((type) => (
-                      <option key={type.id} value={type.id}>
-                        {type.id} - {type.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="relative w-full">
-                  <label className="block text-black text-base mb-1">
-                    Group:
-                  </label>
-                  <select
-                    id="group"
-                    name="group"
-                    value={formData.group || ""}
-                    onChange={handleChange}
-                    className="w-full p-2 text-base border rounded-md border-gray-300"
-                  >
-                    <option value="">Select a group</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.id} - {group.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <InputField
-                  label="Remarks:"
-                  id="remarks"
-                  name="remarks"
-                  value={formData.remarks}
-                  onChange={handleChange}
-                  type="textarea"
-                  uppercase={true}
-                  className="w-full p-2 border rounded-md text-base"
-                />
-              </div>
-            </div>
+            <GroupInfoModule
+              formData={formData}
+              handleChange={handleChange}
+              types={types}
+              groups={groups}
+            />
 
             {/* WMM Subscription Information - Only show if user has WMM role */}
             {hasRole("WMM") && (
               <div className="p-4 border rounded-lg shadow-sm col-span-2">
                 {/* Subscription Type Selector */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subscription Type:
-                  </label>
-                  <div className="flex bg-gray-100 rounded-lg p-1">
-                    {/* Only show WMM button if WMM data exists or we're in add mode */}
-                    {(mode === "add" ||
-                      hasSubscriptionData(rowData, "WMM")) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            subscriptionType: "WMM",
-                          }))
-                        }
-                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-                          formData.subscriptionType === "WMM"
-                            ? "bg-blue-600 text-white shadow-sm"
-                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-                        }`}
-                      >
-                        WMM
-                      </button>
-                    )}
-
-                    {/* Only show Promo button if Promo data exists or we're in add mode */}
-                    {(mode === "add" ||
-                      hasSubscriptionData(rowData, "Promo")) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            subscriptionType: "Promo",
-                          }))
-                        }
-                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-                          formData.subscriptionType === "Promo"
-                            ? "bg-emerald-600 text-white shadow-sm"
-                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-                        }`}
-                      >
-                        Promo
-                      </button>
-                    )}
-
-                    {/* Only show Complimentary button if Complimentary data exists or we're in add mode */}
-                    {(mode === "add" ||
-                      hasSubscriptionData(rowData, "Complimentary")) && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            subscriptionType: "Complimentary",
-                          }))
-                        }
-                        className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-                          formData.subscriptionType === "Complimentary"
-                            ? "bg-purple-600 text-white shadow-sm"
-                            : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-                        }`}
-                      >
-                        Complimentary
-                      </button>
-                    )}
-                  </div>
-                </div>
+                <SubscriptionTypeSelector
+                  subscriptionType={formData.subscriptionType}
+                  setSubscriptionType={setFormData}
+                  mode={mode}
+                  hasSubscriptionData={hasSubscriptionData}
+                  rowData={rowData}
+                />
 
                 <h2
                   className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center mb-2`}
@@ -4056,264 +3606,39 @@ const Edit = ({
                     )}
                 </div>
 
-                {/* Subscription Form Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Left Column */}
-                  <div>
-                    {/* Subscription Classification - Only for WMM - FIRST */}
-                    {formData.subscriptionType === "WMM" && (
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Subscription Classification:
-                        </label>
-                        <select
-                          id="subsclass"
-                          name="subsclass"
-                          value={formData.subsclass}
-                          onChange={handleChange}
-                          className="w-full p-2 border rounded-md text-base"
-                        >
-                          <option value="">Select a classification</option>
-                          {subclasses.map((subclass) => (
-                            <option key={subclass.id} value={subclass.id}>
-                              {subclass.name} ({subclass.id})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                {/* Common subscription fields */}
+                <CommonSubscriptionFields
+                  formData={formData}
+                  roleSpecificData={roleSpecificData}
+                  handleChange={handleChange}
+                  handleRoleSpecificChange={handleRoleSpecificChange}
+                  months={months}
+                />
 
-                    {/* Start Date Fields - SECOND */}
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Start:
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="relative">
-                          <select
-                            id="subStartMonth"
-                            name="subStartMonth"
-                            value={formData.subStartMonth || ""}
-                            onChange={handleChange}
-                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="">Month</option>
-                            {months.map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <input
-                          type="text"
-                          id="subStartDay"
-                          name="subStartDay"
-                          value={formData.subStartDay || ""}
-                          onChange={handleChange}
-                          placeholder="DD"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="2"
-                        />
-                        <input
-                          type="text"
-                          id="subStartYear"
-                          name="subStartYear"
-                          value={formData.subStartYear || ""}
-                          onChange={handleChange}
-                          placeholder="YYYY"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="4"
-                        />
-                      </div>
-                    </div>
+                {/* Subscription Type Specific Fields */}
+                {formData.subscriptionType === "WMM" && (
+                  <WMMModule
+                    formData={formData}
+                    roleSpecificData={roleSpecificData}
+                    handleChange={handleChange}
+                    handleRoleSpecificChange={handleRoleSpecificChange}
+                    handleNewDonorAdded={handleNewDonorAdded}
+                    subclasses={subclasses}
+                    months={months}
+                    subscriptionType={formData.subscriptionType}
+                  />
+                )}
 
-                    {/* Subscription Duration - THIRD */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription Duration:
-                      </label>
-                      <select
-                        id="subscriptionFreq"
-                        name="subscriptionFreq"
-                        value={formData.subscriptionFreq}
-                        onChange={handleChange}
-                        className="w-full p-2 border rounded-md text-base"
-                      >
-                        <option value="">Select Subscription Duration</option>
-                        <option value="6">6 Months</option>
-                        <option value="11">1 Year</option>
-                        <option value="22">2 Years</option>
-                        <option value="others">Others</option>
-                      </select>
-                    </div>
+                {formData.subscriptionType === "Promo" && (
+                  <PromoModule
+                    formData={formData}
+                    handleChange={handleChange}
+                  />
+                )}
 
-                    {/* End Date - FOURTH */}
-                    <div className="mb-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Subscription End:
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="relative">
-                          <select
-                            id="subEndMonth"
-                            name="subEndMonth"
-                            value={formData.subEndMonth || ""}
-                            onChange={handleChange}
-                            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="">Month</option>
-                            {months.map((month) => (
-                              <option key={month.value} value={month.value}>
-                                {month.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <input
-                          type="text"
-                          id="subEndDay"
-                          name="subEndDay"
-                          value={formData.subEndDay || ""}
-                          onChange={handleChange}
-                          placeholder="DD"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="2"
-                        />
-                        <input
-                          type="text"
-                          id="subEndYear"
-                          name="subEndYear"
-                          value={formData.subEndYear || ""}
-                          onChange={handleChange}
-                          placeholder="YYYY"
-                          className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          maxLength="4"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div>
-                    {/* Common fields for copies and calendar */}
-                    <div className="flex space-x-4 mb-4">
-                      <div className="flex flex-row items-center justify-center gap-2">
-                        <label className="block text-lg font-medium leading-6 text-black">
-                          Copies:
-                        </label>
-                        <input
-                          id="copies"
-                          name="copies"
-                          value={roleSpecificData.copies}
-                          onChange={handleRoleSpecificChange}
-                          type="number"
-                          min="1"
-                          className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label
-                          htmlFor="calendar"
-                          className="text-lg font-medium"
-                        >
-                          Calendar Received:
-                        </label>
-                        <input
-                          type="checkbox"
-                          id="calendar"
-                          name="calendar"
-                          checked={roleSpecificData.calendar || false}
-                          onChange={handleRoleSpecificChange}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Subscription Type Specific Fields */}
-                    {formData.subscriptionType === "WMM" && (
-                      <>
-                        <div className="mt-4 space-y-4">
-                          <InputField
-                            label="Payment Reference:"
-                            id="paymtref"
-                            name="paymtref"
-                            value={roleSpecificData.paymtref}
-                            onChange={handleRoleSpecificChange}
-                            uppercase={true}
-                            className="w-full p-2 border rounded-md text-base"
-                          />
-                          <InputField
-                            label="Payment Amount:"
-                            id="paymtamt"
-                            name="paymtamt"
-                            value={roleSpecificData.paymtamt}
-                            onChange={handleRoleSpecificChange}
-                            uppercase={true}
-                            className="w-full p-2 border rounded-md text-base"
-                          />
-                          <InputField
-                            label="Payment Masses:"
-                            id="paymtmasses"
-                            name="paymtmasses"
-                            value={roleSpecificData.paymtmasses}
-                            onChange={handleRoleSpecificChange}
-                            uppercase={true}
-                            className="w-full p-2 border rounded-md text-base"
-                          />
-                          <div className="mb-4">
-                            <label className="block text-black text-xl mb-1">
-                              Donor:
-                            </label>
-                            <div className="donor-add-container">
-                              <DonorAdd
-                                key={`donor-add-${formData.subscriptionType}`}
-                                onDonorSelect={(donorId) => {
-                                  handleRoleSpecificChange({
-                                    target: {
-                                      name: "donorid",
-                                      value: donorId || "",
-                                    },
-                                  });
-                                }}
-                                onNewDonorAdded={handleNewDonorAdded}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {formData.subscriptionType === "Promo" && (
-                      <div className="mt-4">
-                        <InputField
-                          label="Referral ID:"
-                          id="referralid"
-                          name="referralid"
-                          value={formData.referralid}
-                          onChange={handleChange}
-                          uppercase={true}
-                          className="w-full p-2 border rounded-md text-base"
-                          placeholder="Enter referral ID"
-                        />
-                      </div>
-                    )}
-
-                    {/* Remarks field - Common for all types */}
-                    <div className="mt-4">
-                      <InputField
-                        label="Remarks:"
-                        id="remarks"
-                        name="remarks"
-                        value={roleSpecificData.remarks}
-                        onChange={handleRoleSpecificChange}
-                        type="textarea"
-                        uppercase={true}
-                        className="w-full p-2 border rounded-md text-base"
-                      />
-                    </div>
-                  </div>
-                </div>
+                {formData.subscriptionType === "Complimentary" && (
+                  <ComplimentaryModule />
+                )}
               </div>
             )}
 
@@ -4329,88 +3654,33 @@ const Edit = ({
                   hasRole("FOM") ||
                   hasRole("CAL") ||
                   hasRole("WMM")) && (
-                  <div className="flex mb-4 mt-2">
-                    <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
-                      {hasRole("HRG") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "HRG"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("HRG")}
-                        >
-                          HRG
-                        </button>
-                      )}
-                      {hasRole("FOM") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "FOM"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("FOM")}
-                        >
-                          FOM
-                        </button>
-                      )}
-                      {hasRole("CAL") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "CAL"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("CAL")}
-                        >
-                          CAL
-                        </button>
-                      )}
-                      {hasRole("WMM") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "WMM"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("WMM")}
-                        >
-                          WMM
-                        </button>
-                      )}
-                      {hasRole("WMM") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "Promo"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("Promo")}
-                        >
-                          Promo
-                        </button>
-                      )}
-                      {hasRole("WMM") && (
-                        <button
-                          type="button"
-                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                            selectedRole === "Complimentary"
-                              ? "bg-blue-600 text-white shadow-md"
-                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          } transition-colors`}
-                          onClick={() => handleRoleToggle("Complimentary")}
-                        >
-                          Complimentary
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <RoleToggleModule
+                    hasRole={hasRole}
+                    selectedRole={selectedRole}
+                    handleRoleToggle={handleRoleToggle}
+                  />
+                )}
+
+                {/* Role-specific modules */}
+                {selectedRole === "HRG" && (
+                  <HRGModule
+                    hrgData={roleSpecificData}
+                    handleHrgChange={handleRoleSpecificChange}
+                  />
+                )}
+
+                {selectedRole === "FOM" && (
+                  <FOMModule
+                    fomData={roleSpecificData}
+                    handleFomChange={handleRoleSpecificChange}
+                  />
+                )}
+
+                {selectedRole === "CAL" && (
+                  <CALModule
+                    calData={roleSpecificData}
+                    handleCalChange={handleRoleSpecificChange}
+                  />
                 )}
 
                 {/* Mode toggle - Edit existing or Add new */}

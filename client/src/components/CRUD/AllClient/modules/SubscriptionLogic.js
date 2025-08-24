@@ -1,0 +1,170 @@
+// Utility function to clean trailing spaces from date input values
+const cleanDateInput = (value) => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+  return value;
+};
+
+// Format date for WMM
+const formatDateForWMM = (date) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Format date for Promo
+const formatDateForPromo = (date) => {
+  const d = new Date(date);
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const year = d.getFullYear();
+  return `${month}/${day}/${year}`;
+};
+
+// Get subscription-specific data based on subscription type
+export const getSubscriptionSpecificData = (subscriptionType, formData, roleSpecificData) => {
+  const baseData = {
+    subsyear:
+      formData.subscriptionFreq && formData.subscriptionFreq !== "others"
+        ? parseInt(formData.subscriptionFreq)
+        : 0,
+    copies: parseInt(roleSpecificData.copies) || 1,
+    remarks: roleSpecificData.remarks || "",
+    calendar: roleSpecificData.calendar || false,
+    adddate: new Date().toLocaleDateString("en-US", {
+      month: "numeric",
+      day: "numeric",
+      year: "numeric",
+    }),
+  };
+
+  // Format dates based on subscription type
+  if (subscriptionType === "Promo") {
+    return {
+      ...baseData,
+      subsdate: formData.subscriptionStart
+        ? formatDateForPromo(
+            new Date(
+              cleanDateInput(formData.subStartYear),
+              cleanDateInput(formData.subStartMonth) - 1,
+              cleanDateInput(formData.subStartDay)
+            )
+          )
+        : "",
+      enddate: formData.subscriptionEnd
+        ? formatDateForPromo(
+            new Date(
+              cleanDateInput(formData.subEndYear),
+              cleanDateInput(formData.subEndMonth) - 1,
+              cleanDateInput(formData.subEndDay)
+            )
+          )
+        : "",
+      referralid: formData.referralid || 0,
+      adddate: new Date().toLocaleString("en-US", {
+        month: "numeric",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      }),
+    };
+  } else if (subscriptionType === "Complimentary") {
+    return {
+      ...baseData,
+      subsdate: formData.subscriptionStart
+        ? formatDateForWMM(
+            new Date(
+              cleanDateInput(formData.subStartYear),
+              cleanDateInput(formData.subStartMonth) - 1,
+              cleanDateInput(formData.subStartDay)
+            )
+          )
+        : "",
+      enddate: formData.subscriptionEnd
+        ? formatDateForWMM(
+            new Date(
+              cleanDateInput(formData.subEndYear),
+              cleanDateInput(formData.subEndMonth) - 1,
+              cleanDateInput(formData.subEndDay)
+            )
+          )
+        : "",
+      adddate: formatDateForWMM(new Date()),
+    };
+  } else {
+    // WMM
+    return {
+      ...baseData,
+      subsdate: formData.subscriptionStart
+        ? formatDateForWMM(
+            new Date(
+              cleanDateInput(formData.subStartYear),
+              cleanDateInput(formData.subStartMonth) - 1,
+              cleanDateInput(formData.subStartDay)
+            )
+          )
+        : "",
+      enddate: formData.subscriptionEnd
+        ? formatDateForWMM(
+            new Date(
+              cleanDateInput(formData.subEndYear),
+              cleanDateInput(formData.subEndMonth) - 1,
+              cleanDateInput(formData.subEndDay)
+            )
+          )
+        : "",
+      paymtref: roleSpecificData.paymtref || "",
+      paymtamt: roleSpecificData.paymtamt || "",
+      paymtmasses: roleSpecificData.paymtmasses || "",
+      donorid: roleSpecificData.donorid || "",
+      adddate: formatDateForWMM(new Date()),
+    };
+  }
+};
+
+// Get service from subscription type
+export const getServiceFromSubscriptionType = (subscriptionType) => {
+  switch (subscriptionType) {
+    case "Promo":
+      return "PROMO";
+    case "Complimentary":
+      return "COMP";
+    default:
+      return "WMM";
+  }
+};
+
+// Check if subscription data has meaningful content
+export const hasSubscriptionData = (formData, roleSpecificData) => {
+  const hasStartDate =
+    formData.subscriptionStart && formData.subscriptionStart.trim() !== "";
+  const hasEndDate =
+    formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "";
+  const hasFrequency =
+    formData.subscriptionFreq && formData.subscriptionFreq !== "";
+  const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
+  const hasPaymentInfo =
+    (roleSpecificData.paymtref && roleSpecificData.paymtref.trim() !== "") ||
+    (roleSpecificData.paymtamt && roleSpecificData.paymtamt.trim() !== "") ||
+    (roleSpecificData.paymtmasses && roleSpecificData.paymtmasses.trim() !== "");
+  const hasDonorId =
+    roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
+  const hasReferralId =
+    formData.referralid && formData.referralid.trim() !== "";
+
+  return (
+    hasStartDate ||
+    hasEndDate ||
+    hasFrequency ||
+    hasCopies ||
+    hasPaymentInfo ||
+    hasDonorId ||
+    hasReferralId
+  );
+}; 
