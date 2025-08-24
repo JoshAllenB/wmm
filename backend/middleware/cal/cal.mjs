@@ -17,7 +17,7 @@ router.get("/", async (req, res) => {
 
     const cals = await CalModel.find()
       .select(
-        "id clientid recvdate caltype calqty calamt paymtref paymtamt paymtform paymtdate remarks adddate adduser"
+        "id clientid recvdate caltype calqty calunit calamt paymtref paymtamt paymtform paymtdate remarks adddate adduser"
       )
       .sort({ id: -1 })
       .limit(limit)

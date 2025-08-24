@@ -2958,16 +2958,16 @@ async function fetchDataServices(
               calQtyTotal += calQty;
               validCalQtyEntries++;
 
-              // Calculate total amount by multiplying quantity by amount per unit
-              if (cal.calamt) {
-                const calAmt =
-                  typeof cal.calamt === "string"
-                    ? parseFloat(cal.calamt.replace(/[^\d.-]/g, ""))
-                    : cal.calamt;
+              // Calculate total amount by multiplying quantity by unit price
+              if (cal.calunit) {
+                const calUnit =
+                  typeof cal.calunit === "string"
+                    ? parseFloat(cal.calunit.replace(/[^\d.-]/g, ""))
+                    : cal.calunit;
 
                 // Only add if it's a valid number
-                if (!isNaN(calAmt) && calAmt > 0) {
-                  calAmtTotal += calQty * calAmt;
+                if (!isNaN(calUnit) && calUnit > 0) {
+                  calAmtTotal += calQty * calUnit;
                   validCalAmtEntries++;
                 }
               }

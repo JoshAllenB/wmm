@@ -11,6 +11,7 @@ const Add = ({ fetchHrg }) => {
     recvdate: "",
     renewdate: "",
     paymtamt: "",
+    paymtform: "",
     unsubscribe: "",
     adddate: "",
     adduser: "",
@@ -49,6 +50,7 @@ const Add = ({ fetchHrg }) => {
         recvdate: "",
         renewdate: "",
         paymtamt: "",
+        paymtform: "",
         unsubscribe: "",
         adddate: "",
         adduser: "",
@@ -101,6 +103,12 @@ const Add = ({ fetchHrg }) => {
                   label="Payment Amount"
                   name="paymtamt"
                   value={formData.paymtamt}
+                  onChange={handleChange}
+                />
+                <InputField
+                  label="Payment Form"
+                  name="paymtform"
+                  value={formData.paymtform}
                   onChange={handleChange}
                 />
                 <InputField

@@ -13,6 +13,7 @@ const CalSchema = new mongoose.Schema({
   recvdate: String,
   caltype: String,
   calqty: Number,
+  calunit: Number,
   calamt: Number,
   paymtref: String,
   paymtamt: Number,

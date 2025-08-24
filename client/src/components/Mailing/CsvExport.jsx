@@ -528,6 +528,7 @@ const CsvExport = ({
           rowData.push(
             `"${calRecord.caltype || ""}"`,
             `"${calRecord.calqty || ""}"`,
+            `"${calRecord.calunit || ""}"`,
             `"${calRecord.calamt || ""}"`,
             `"${calRecord.paymtref || ""}"`,
             `"${calRecord.paymtamt || ""}"`,

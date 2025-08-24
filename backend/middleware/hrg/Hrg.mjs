@@ -16,7 +16,7 @@ router.get("/", async (req, res) => {
 
     const hrgs = await HrgModel.find()
       .select(
-        "id clientid recvdate renewdate paymtamt unsubscribe adddate adduser"
+        "id clientid recvdate renewdate paymtamt paymtform unsubscribe adddate adduser"
       )
       .sort({ id: -1 })
       .limit(limit)

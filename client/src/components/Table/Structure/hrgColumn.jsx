@@ -46,6 +46,11 @@ export const columns = [
     accessorFn: (row) => row.paymtamt,
   },
   {
+    id: "PaymtForm",
+    header: "Paymt Form",
+    accessorFn: (row) => row.paymtform,
+  },
+  {
     id: "Unsubscribe",
     header: "Unsubscribe",
     accessorFn: (row) => row.unsubscribe,

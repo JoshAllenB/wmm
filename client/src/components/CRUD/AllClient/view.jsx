@@ -26,16 +26,18 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       // Get services array
       const clientServices = rowData.services || [];
-      
+
       // Handle WMM data if present
       if (rowData.wmmData) {
         if (rowData.wmmData.records && Array.isArray(rowData.wmmData.records)) {
           setWmmData(rowData.wmmData);
         } else if (Array.isArray(rowData.wmmData)) {
           setWmmData({ records: rowData.wmmData });
-        } else if (typeof rowData.wmmData === 'object') {
+        } else if (typeof rowData.wmmData === "object") {
           setWmmData({
-            records: [rowData.wmmData].filter(item => Object.keys(item).length > 0)
+            records: [rowData.wmmData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
           });
         } else {
           setWmmData({ records: [] });
@@ -46,13 +48,18 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       // Handle Promo data if present
       if (rowData.promoData) {
-        if (rowData.promoData.records && Array.isArray(rowData.promoData.records)) {
+        if (
+          rowData.promoData.records &&
+          Array.isArray(rowData.promoData.records)
+        ) {
           setPromoData(rowData.promoData);
         } else if (Array.isArray(rowData.promoData)) {
           setPromoData({ records: rowData.promoData });
-        } else if (typeof rowData.promoData === 'object') {
+        } else if (typeof rowData.promoData === "object") {
           setPromoData({
-            records: [rowData.promoData].filter(item => Object.keys(item).length > 0)
+            records: [rowData.promoData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
           });
         } else {
           setPromoData({ records: [] });
@@ -63,13 +70,18 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
       // Handle Complimentary data if present
       if (rowData.compData) {
-        if (rowData.compData.records && Array.isArray(rowData.compData.records)) {
+        if (
+          rowData.compData.records &&
+          Array.isArray(rowData.compData.records)
+        ) {
           setCompData(rowData.compData);
         } else if (Array.isArray(rowData.compData)) {
           setCompData({ records: rowData.compData });
-        } else if (typeof rowData.compData === 'object') {
+        } else if (typeof rowData.compData === "object") {
           setCompData({
-            records: [rowData.compData].filter(item => Object.keys(item).length > 0)
+            records: [rowData.compData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
           });
         } else {
           setCompData({ records: [] });
@@ -77,7 +89,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       } else {
         setCompData({ records: [] });
       }
-      
+
       // Handle HRG data properly
       if (rowData.hrgData && clientServices.includes("HRG")) {
         if (Array.isArray(rowData.hrgData)) {
@@ -85,12 +97,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         } else if (rowData.hrgData.records) {
           setHrgData(rowData.hrgData);
         } else {
-          setHrgData({ records: [rowData.hrgData].filter(item => Object.keys(item).length > 0) });
+          setHrgData({
+            records: [rowData.hrgData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
+          });
         }
       } else {
         setHrgData({ records: [] });
       }
-      
+
       // Handle FOM data properly
       if (rowData.fomData && clientServices.includes("FOM")) {
         if (Array.isArray(rowData.fomData)) {
@@ -98,12 +114,16 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         } else if (rowData.fomData.records) {
           setFomData(rowData.fomData);
         } else {
-          setFomData({ records: [rowData.fomData].filter(item => Object.keys(item).length > 0) });
+          setFomData({
+            records: [rowData.fomData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
+          });
         }
       } else {
         setFomData({ records: [] });
       }
-      
+
       // Handle CAL data properly
       if (rowData.calData && clientServices.includes("CAL")) {
         if (Array.isArray(rowData.calData)) {
@@ -111,7 +131,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         } else if (rowData.calData.records) {
           setCalData(rowData.calData);
         } else {
-          setCalData({ records: [rowData.calData].filter(item => Object.keys(item).length > 0) });
+          setCalData({
+            records: [rowData.calData].filter(
+              (item) => Object.keys(item).length > 0
+            ),
+          });
         }
       } else {
         setCalData({ records: [] });
@@ -133,7 +157,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       complimentaryData: compData,
       hrgData: hrgData,
       fomData: fomData,
-      calData: calData
+      calData: calData,
     };
     setFormData(editData);
     setIsEditing(true);
@@ -146,79 +170,103 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const handleEditSuccess = (updatedData) => {
     // Update formData with the base client data
     setFormData(updatedData);
-    
+
     // Determine which services this client actually has
     const clientServices = updatedData.services || [];
-    
+
     // Handle subscription data properly
     if (updatedData.wmmData && clientServices.includes("WMM")) {
       // Ensure wmmData is properly formatted
       if (Array.isArray(updatedData.wmmData)) {
         setWmmData(updatedData.wmmData);
-      } else if (updatedData.wmmData.records && Array.isArray(updatedData.wmmData.records)) {
+      } else if (
+        updatedData.wmmData.records &&
+        Array.isArray(updatedData.wmmData.records)
+      ) {
         setWmmData(updatedData.wmmData.records);
       } else {
         // Handle case where wmmData is a single object
-        setWmmData([updatedData.wmmData].filter(item => Object.keys(item).length > 0));
+        setWmmData(
+          [updatedData.wmmData].filter((item) => Object.keys(item).length > 0)
+        );
       }
     } else {
       setWmmData([]);
     }
-    
+
     // Update HRG data if present and client has HRG service
     if (updatedData.hrgData && clientServices.includes("HRG")) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.hrgData)) {
         setHrgData({ records: updatedData.hrgData });
-      } else if (updatedData.hrgData.records && Array.isArray(updatedData.hrgData.records)) {
+      } else if (
+        updatedData.hrgData.records &&
+        Array.isArray(updatedData.hrgData.records)
+      ) {
         setHrgData(updatedData.hrgData);
       } else {
         // Handle case where hrgData is a single object
-        setHrgData({ 
-          records: [updatedData.hrgData].filter(item => Object.keys(item).length > 0) 
+        setHrgData({
+          records: [updatedData.hrgData].filter(
+            (item) => Object.keys(item).length > 0
+          ),
         });
       }
     } else {
       setHrgData({ records: [] });
     }
-    
+
     // Update FOM data if present and client has FOM service OR if there's valid FOM data
-    if ((updatedData.fomData && clientServices.includes("FOM")) ||
-        (updatedData.fomData && updatedData.fomData.records && updatedData.fomData.records.length > 0)) {
+    if (
+      (updatedData.fomData && clientServices.includes("FOM")) ||
+      (updatedData.fomData &&
+        updatedData.fomData.records &&
+        updatedData.fomData.records.length > 0)
+    ) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.fomData)) {
         setFomData({ records: updatedData.fomData });
-      } else if (updatedData.fomData.records && Array.isArray(updatedData.fomData.records)) {
+      } else if (
+        updatedData.fomData.records &&
+        Array.isArray(updatedData.fomData.records)
+      ) {
         setFomData(updatedData.fomData);
       } else {
         // Handle case where fomData is a single object
-        setFomData({ 
-          records: [updatedData.fomData].filter(item => Object.keys(item).length > 0) 
+        setFomData({
+          records: [updatedData.fomData].filter(
+            (item) => Object.keys(item).length > 0
+          ),
         });
       }
     } else {
       setFomData({ records: [] });
     }
-    
+
     // Update CAL data if present and client has CAL service
     if (updatedData.calData && clientServices.includes("CAL")) {
       // Handle different possible formats consistently
       if (Array.isArray(updatedData.calData)) {
         setCalData({ records: updatedData.calData });
-      } else if (updatedData.calData.records && Array.isArray(updatedData.calData.records)) {
+      } else if (
+        updatedData.calData.records &&
+        Array.isArray(updatedData.calData.records)
+      ) {
         setCalData(updatedData.calData);
       } else {
         // Handle case where calData is a single object
-        setCalData({ 
-          records: [updatedData.calData].filter(item => Object.keys(item).length > 0) 
+        setCalData({
+          records: [updatedData.calData].filter(
+            (item) => Object.keys(item).length > 0
+          ),
         });
       }
     } else {
       setCalData({ records: [] });
     }
-    
+
     setIsEditing(false);
-    
+
     // Pass the updated data to any parent component that needs it
     if (onEditSuccess) {
       onEditSuccess(updatedData);
@@ -231,11 +279,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return (
         <div className="mb-2">
           <span className="text-black text-lg font-bold">{label}:</span>{" "}
-          <span className="text-black text-lg whitespace-pre-line">{value}</span>
+          <span className="text-black text-lg whitespace-pre-line">
+            {value}
+          </span>
         </div>
       );
     }
-    
+
     // Default rendering for other fields
     return (
       <div className="mb-2">
@@ -255,8 +305,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   );
 
   const formatDate = (date) => {
-    if (!date) return 'N/A';
-    
+    if (!date) return "N/A";
+
     try {
       const dateObj = new Date(date);
       if (isNaN(dateObj.getTime())) {
@@ -327,15 +377,15 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     switch (type) {
       case "Promo":
         return {
-          headerClass: "bg-emerald-500 text-white"
+          headerClass: "bg-emerald-500 text-white",
         };
       case "Complimentary":
         return {
-          headerClass: "bg-purple-500 text-white"
+          headerClass: "bg-purple-500 text-white",
         };
       default: // WMM
         return {
-          headerClass: "bg-blue-500 text-white"
+          headerClass: "bg-blue-500 text-white",
         };
     }
   };
@@ -347,7 +397,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (!subscriptionData || subscriptionData.length === 0) {
       return (
         <div className="p-4">
-          <p className="text-center">No {type.toLowerCase()} subscription data available</p>
+          <p className="text-center">
+            No {type.toLowerCase()} subscription data available
+          </p>
         </div>
       );
     }
@@ -356,23 +408,27 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     const sortedData = [...subscriptionData].sort((a, b) => {
       if (!a.subsdate) return 1;
       if (!b.subsdate) return -1;
-      
+
       const dateA = new Date(a.subsdate);
       const dateB = new Date(b.subsdate);
-      
+
       if (isNaN(dateA.getTime())) return 1;
       if (isNaN(dateB.getTime())) return -1;
-      
+
       return dateB - dateA;
     });
 
     return (
       <div className="flex flex-col space-y-2 overflow-auto h-[250px] w-full">
         {sortedData.map((subscription, index) => {
-          if (!subscription || typeof subscription !== 'object' || Object.keys(subscription).length === 0) {
+          if (
+            !subscription ||
+            typeof subscription !== "object" ||
+            Object.keys(subscription).length === 0
+          ) {
             return null;
           }
-          
+
           const status = getSubscriptionStatus(subscription.enddate);
           const statusClass = getStatusColorClass(status);
           const statusIndicator = getStatusIndicator(status);
@@ -384,10 +440,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   <span className={statusClass}>
                     {statusIndicator}
                     <span className="font-bold">
-                      {subscription.subsclass || ''}
-                    </span>: {formatDate(subscription.subsdate || new Date())} -{" "}
+                      {subscription.subsclass || ""}
+                    </span>
+                    : {formatDate(subscription.subsdate || new Date())} -{" "}
                     {formatDate(subscription.enddate || new Date())} Cps:{" "}
-                    {subscription.copies || '1'}
+                    {subscription.copies || "1"}
                   </span>
                 </div>
 
@@ -407,56 +464,42 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 )}
 
                 {/* Payment details - Only show for WMM type */}
-                {formData.subscriptionType === "WMM" && subscription.paymtref && (
-                  <div className="mt-1 pl-4 text-sm">
-                    <div className="grid grid-cols-2 gap-x-4">
-                      <div>
-                        <span className="font-semibold">
-                          Payment Ref:
-                        </span>{" "}
-                        <span>
-                          {subscription.paymtref}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-semibold">
-                          Amount:
-                        </span>{" "}
-                        <span>
-                          {subscription.paymtamt || '0'}
-                        </span>
-                      </div>
-                      {subscription.paymtmasses && (
+                {formData.subscriptionType === "WMM" &&
+                  subscription.paymtref && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <div className="grid grid-cols-2 gap-x-4">
                         <div>
-                          <span className="font-semibold">
-                            Masses:
-                          </span>{" "}
-                          <span>
-                            {subscription.paymtmasses}
-                          </span>
+                          <span className="font-semibold">Payment Ref:</span>{" "}
+                          <span>{subscription.paymtref}</span>
                         </div>
-                      )}
-                      {subscription.donorid && (
                         <div>
-                          <span className="font-semibold">
-                            Donor ID:
-                          </span>{" "}
-                          <span>
-                            {subscription.donorid}
-                          </span>
+                          <span className="font-semibold">Amount:</span>{" "}
+                          <span>{subscription.paymtamt || "0"}</span>
                         </div>
-                      )}
+                        {subscription.paymtmasses && (
+                          <div>
+                            <span className="font-semibold">Masses:</span>{" "}
+                            <span>{subscription.paymtmasses}</span>
+                          </div>
+                        )}
+                        {subscription.donorid && (
+                          <div>
+                            <span className="font-semibold">Donor ID:</span>{" "}
+                            <span>{subscription.donorid}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* Referral ID - Only show for Promo type */}
-                {formData.subscriptionType === "Promo" && subscription.referralid && (
-                  <div className="mt-1 pl-4 text-sm">
-                    <span className="font-semibold">Referral ID:</span>{" "}
-                    <span>{subscription.referralid}</span>
-                  </div>
-                )}
+                {formData.subscriptionType === "Promo" &&
+                  subscription.referralid && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Referral ID:</span>{" "}
+                      <span>{subscription.referralid}</span>
+                    </div>
+                  )}
 
                 {subscription.adddate && (
                   <div className="mt-1 pl-4 text-sm">
@@ -480,32 +523,45 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // Handle missing recvdate values
       if (!a.recvdate) return 1;
       if (!b.recvdate) return -1;
-      
+
       const dateA = new Date(a.recvdate || 0);
       const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
-    
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedHrgData.map((record, index) => {
             // Skip rendering if record is empty or not an object
-            if (!record || typeof record !== 'object') {
+            if (!record || typeof record !== "object") {
               return null;
             }
-            
+
             return (
-              <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-                <div className="font-medium">Campaign Date: {record.campaigndate ? formatDate(record.campaigndate) : 'N/A'} </div>
-                <div className="font-medium">Receive Date: {record.recvdate ? formatDate(record.recvdate) : 'N/A'} </div>
+              <div
+                key={index}
+                className="mb-1 text-base border-b border-gray-300 pb-2"
+              >
                 <div className="font-medium">
-                  {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'} 
-                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+                  Campaign Date:{" "}
+                  {record.campaigndate
+                    ? formatDate(record.campaigndate)
+                    : "N/A"}{" "}
+                </div>
+                <div className="font-medium">
+                  Receive Date:{" "}
+                  {record.recvdate ? formatDate(record.recvdate) : "N/A"}{" "}
+                </div>
+                <div className="font-medium">
+                  {record.paymtamt ? `Php ${record.paymtamt}` : "No amount"}
+                  {record.paymtform ? ` - Form: ${record.paymtform}` : ""}
+                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ""}
                 </div>
                 {record.remarks && (
                   <div className="mt-1 text-sm text-gray-600">
-                    <span className="font-semibold">Remarks:</span> {record.remarks}
+                    <span className="font-semibold">Remarks:</span>{" "}
+                    {record.remarks}
                   </div>
                 )}
               </div>
@@ -524,32 +580,39 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // Handle missing recvdate values
       if (!a.recvdate) return 1;
       if (!b.recvdate) return -1;
-      
+
       const dateA = new Date(a.recvdate || 0);
       const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
-    
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedFomData.map((record, index) => {
             // Skip rendering if record is empty or not an object
-            if (!record || typeof record !== 'object') {
+            if (!record || typeof record !== "object") {
               return null;
             }
-            
+
             return (
-              <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-                <div className="font-medium">Receive Date: {record.recvdate ? formatDate(record.recvdate) : 'N/A'} </div>
+              <div
+                key={index}
+                className="mb-1 text-base border-b border-gray-300 pb-2"
+              >
                 <div className="font-medium">
-                  {record.paymtamt ? `Php ${record.paymtamt}` : 'No amount'}
-                  {record.paymtform ? ` - Form: ${record.paymtform}` : ''}
-                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+                  Receive Date:{" "}
+                  {record.recvdate ? formatDate(record.recvdate) : "N/A"}{" "}
+                </div>
+                <div className="font-medium">
+                  {record.paymtamt ? `Php ${record.paymtamt}` : "No amount"}
+                  {record.paymtform ? ` - Form: ${record.paymtform}` : ""}
+                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ""}
                 </div>
                 {record.remarks && (
                   <div className="mt-1 text-sm text-gray-600">
-                    <span className="font-semibold">Remarks:</span> {record.remarks}
+                    <span className="font-semibold">Remarks:</span>{" "}
+                    {record.remarks}
                   </div>
                 )}
               </div>
@@ -568,41 +631,45 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       // Handle missing recvdate values
       if (!a.recvdate) return 1;
       if (!b.recvdate) return -1;
-      
+
       const dateA = new Date(a.recvdate || 0);
       const dateB = new Date(b.recvdate || 0);
       return dateB - dateA;
     });
-    
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
           {sortedCalData.map((record, index) => {
             // Skip rendering if record is empty or not an object
-            if (!record || typeof record !== 'object') {
+            if (!record || typeof record !== "object") {
               return null;
             }
-            
-            // Safely convert calamt to string if it's not already
-            const calAmtString = typeof record.calamt === 'string' 
-              ? record.calamt 
-              : String(record.calamt || '0');
-            
-            // Safely calculate total by handling missing or invalid values
+
+            // Safely calculate total using calunit and calqty
             const calQty = parseFloat(record.calqty || 0);
-            const calAmt = parseFloat(calAmtString.replace ? calAmtString.replace(/,/g, '') : calAmtString);
-            const totalAmount = isNaN(calQty) || isNaN(calAmt) ? 0 : calQty * calAmt;
-            
+            const calUnit = parseFloat(record.calunit || 0);
+            const totalAmount =
+              isNaN(calQty) || isNaN(calUnit) ? 0 : calQty * calUnit;
+
             return (
-              <div key={index} className="mb-1 text-base border-b border-gray-300 pb-2">
-                <div className="font-medium">{record.recvdate ? formatDate(record.recvdate) : 'N/A'} | {record.caltype || 'N/A'} </div>
+              <div
+                key={index}
+                className="mb-1 text-base border-b border-gray-300 pb-2"
+              >
                 <div className="font-medium">
-                  Qty: {record.calqty || '0'} - Cost: {record.calamt || '0'} = Php {totalAmount.toFixed(2)}
-                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ''}
+                  {record.recvdate ? formatDate(record.recvdate) : "N/A"} |{" "}
+                  {record.caltype || "N/A"}{" "}
+                </div>
+                <div className="font-medium">
+                  Qty: {record.calqty || "0"} - Unit: {record.calunit || "0"} =
+                  Php {totalAmount.toFixed(2)}
+                  {record.paymtref ? ` - Ref: #${record.paymtref}` : ""}
                 </div>
                 {record.remarks && (
                   <div className="mt-1 text-sm text-gray-600">
-                    <span className="font-semibold">Remarks:</span> {record.remarks}
+                    <span className="font-semibold">Remarks:</span>{" "}
+                    {record.remarks}
                   </div>
                 )}
               </div>
@@ -649,7 +716,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Company", name: "company" },
                   ])}
                 </div>
-  
+
                 {/* Address Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -659,7 +726,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Address", name: "address" },
                   ])}
                 </div>
-  
+
                 {/* Contact Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -672,7 +739,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Email", name: "email" },
                   ])}
                 </div>
-  
+
                 {/* Group Information Card */}
                 <div className="p-4 border rounded-lg shadow-sm">
                   <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
@@ -684,40 +751,60 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     { label: "Remarks", name: "remarks" },
                   ])}
                 </div>
-  
+
                 {/* Subscription & Payment History Cards */}
                 {/* WMM Data */}
                 {wmmData.records?.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("WMM").headerClass}`}>
-                      <h2 className="text-lg font-bold">Subscription & Payment History</h2>
+                    <div
+                      className={`flex justify-between items-center mb-4 p-2 rounded-lg ${
+                        getSubscriptionTypeStyles("WMM").headerClass
+                      }`}
+                    >
+                      <h2 className="text-lg font-bold">
+                        Subscription & Payment History
+                      </h2>
                     </div>
                     {renderSubscriptionData(wmmData, "WMM")}
                   </div>
                 )}
-                
+
                 {/* Promo Data */}
                 {promoData.records?.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("Promo").headerClass}`}>
-                      <h2 className="text-lg font-bold">Promo Subscription History</h2>
+                    <div
+                      className={`flex justify-between items-center mb-4 p-2 rounded-lg ${
+                        getSubscriptionTypeStyles("Promo").headerClass
+                      }`}
+                    >
+                      <h2 className="text-lg font-bold">
+                        Promo Subscription History
+                      </h2>
                     </div>
                     {renderSubscriptionData(promoData, "Promo")}
                   </div>
                 )}
-                
+
                 {/* Complimentary Data */}
                 {compData.records?.length > 0 && (
                   <div className="p-4 border rounded-lg shadow-sm col-span-1 sm:col-span-2">
-                    <div className={`flex justify-between items-center mb-4 p-2 rounded-lg ${getSubscriptionTypeStyles("Complimentary").headerClass}`}>
-                      <h2 className="text-lg font-bold">Complimentary Subscription History</h2>
+                    <div
+                      className={`flex justify-between items-center mb-4 p-2 rounded-lg ${
+                        getSubscriptionTypeStyles("Complimentary").headerClass
+                      }`}
+                    >
+                      <h2 className="text-lg font-bold">
+                        Complimentary Subscription History
+                      </h2>
                     </div>
                     {renderSubscriptionData(compData, "Complimentary")}
                   </div>
                 )}
-  
+
                 {/* Always render HRG, FOM, and CAL data at the bottom */}
-                {(hrgData.records?.length > 0 || fomData.records?.length > 0 || calData.records?.length > 0) && (
+                {(hrgData.records?.length > 0 ||
+                  fomData.records?.length > 0 ||
+                  calData.records?.length > 0) && (
                   <div className="border border-gray-300 rounded-lg shadow-sm p-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 col-span-3">
                     {/* HRG Data Card */}
                     {hrgData.records?.length > 0 && (

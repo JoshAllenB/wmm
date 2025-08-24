@@ -1341,11 +1341,12 @@ export const TableComponent = function TableComponent({
                                         {cal.recvdate} - {cal.caltype}
                                       </span>
                                       <span className="mr-1">
-                                        Qty: {cal.calqty} - Cost: {cal.calamt} ={" "}
+                                        Qty: {cal.calqty} - Unit: {cal.calunit}{" "}
+                                        ={" "}
                                         {(
                                           parseInt(cal.calqty || 0) *
                                           parseFloat(
-                                            cal.calamt?.replace(
+                                            cal.calunit?.replace(
                                               /[^\d.-]/g,
                                               ""
                                             ) || 0

@@ -142,6 +142,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     campaigndate: "",
     paymtref: "",
     paymtamt: "",
+    paymtform: "",
     unsubscribe: false,
     remarks: "",
   });
@@ -159,6 +160,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     recvdate: "",
     caltype: "",
     calqty: "",
+    calunit: "",
     calamt: "",
     paymtref: "",
     paymtamt: "",
@@ -207,6 +209,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         campaigndate: "",
         paymtref: "",
         paymtamt: "",
+        paymtform: "",
         unsubscribe: false,
         remarks: "",
       });
@@ -224,6 +227,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         recvdate: "",
         caltype: "",
         calqty: "",
+        calunit: "",
         calamt: "",
         paymtref: "",
         paymtamt: "",
@@ -405,6 +409,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       campaigndate: "",
       paymtref: "",
       paymtamt: "",
+      paymtform: "",
       unsubscribe: false,
       remarks: "",
     });
@@ -422,6 +427,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       recvdate: "",
       caltype: "",
       calqty: "",
+      calunit: "",
       calamt: "",
       paymtref: "",
       paymtamt: "",
@@ -1079,6 +1085,16 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         [name]: fieldValue,
       };
 
+      // Calculate CAL total amount when quantity or unit price changes
+      if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
+        const calqty =
+          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        const calamt = calqty * calunit;
+        updated.calamt = calamt.toString();
+      }
+
       // Also update the role-specific state
       if (selectedRole === "HRG") {
         setHrgData(updated);
@@ -1116,6 +1132,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       data.recvdate ||
       data.caltype ||
       data.calqty ||
+      data.calunit ||
       data.calamt ||
       data.paymtref ||
       data.paymtamt ||
@@ -1132,6 +1149,7 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       data.campaigndate ||
       data.paymtref ||
       data.paymtamt ||
+      data.paymtform ||
       data.unsubscribe ||
       data.remarks
     );
@@ -2341,6 +2359,15 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     className="text-base w-full"
                                     required={true}
                                   />
+                                  <InputField
+                                    label="Payment Form:"
+                                    id="paymtform"
+                                    name="paymtform"
+                                    value={roleSpecificData.paymtform}
+                                    onChange={handleRoleSpecificChange}
+                                    className="text-base w-full"
+                                    required={true}
+                                  />
                                   <div className="mb-2">
                                     <label
                                       htmlFor="unsubscribe"
@@ -2495,13 +2522,23 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         required={true}
                                       />
                                       <InputField
-                                        label="Calendar Amount:"
+                                        label="Calendar Unit Price:"
+                                        id="calunit"
+                                        name="calunit"
+                                        value={roleSpecificData.calunit}
+                                        onChange={handleRoleSpecificChange}
+                                        className="text-base w-full"
+                                        required={true}
+                                      />
+                                      <InputField
+                                        label="Calendar Total Amount:"
                                         id="calamt"
                                         name="calamt"
                                         value={roleSpecificData.calamt}
                                         onChange={handleRoleSpecificChange}
                                         className="text-base w-full"
                                         required={true}
+                                        readOnly={true}
                                       />
                                     </div>
                                     <div className="w-full">

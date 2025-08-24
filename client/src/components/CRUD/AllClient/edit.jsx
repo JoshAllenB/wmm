@@ -174,6 +174,7 @@ const Edit = ({
     campaigndateYear: "",
     paymtref: "",
     paymtamt: 0,
+    paymtform: "",
     unsubscribe: false,
     remarks: "",
     subsdate: "",
@@ -184,6 +185,14 @@ const Edit = ({
     calendar: false,
     subsclass: "",
     donorid: "",
+    caltype: "",
+    calqty: "",
+    calunit: "",
+    calamt: "",
+    paymtdate: "",
+    paymtdateMonth: "",
+    paymtdateDay: "",
+    paymtdateYear: "",
   });
   const [areaData, setAreaData] = useState({
     acode: "",
@@ -318,6 +327,7 @@ const Edit = ({
     campaigndateYear: "",
     paymtref: "",
     paymtamt: 0,
+    paymtform: "",
     unsubscribe: false,
     remarks: "",
     // FOM fields
@@ -325,6 +335,7 @@ const Edit = ({
     // CAL fields
     caltype: "",
     calqty: 0,
+    calunit: 0,
     calamt: 0,
     paymtdate: "",
     paymtdateMonth: "",
@@ -1377,6 +1388,16 @@ const Edit = ({
           // Format as YYYY-MM-DD for database consistency
           newData.paymtdate = `${newData.paymtdateYear}-${newData.paymtdateMonth}-${newData.paymtdateDay}`;
         }
+      }
+
+      // Calculate CAL total amount when quantity or unit price changes
+      if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
+        const calqty =
+          parseFloat(name === "calqty" ? value : newData.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : newData.calunit) || 0;
+        const calamt = calqty * calunit;
+        newData.calamt = calamt.toString();
       }
 
       return newData;
@@ -2802,7 +2823,8 @@ const Edit = ({
       dataSource.recvdateYear;
 
     // Check for other HRG data
-    const hasHrgPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasHrgPayment =
+      dataSource.paymtref || dataSource.paymtamt || dataSource.paymtform;
     const hasHrgRemarks = dataSource.remarks;
     const hasHrgCampaign =
       dataSource.campaigndateMonth &&
@@ -2839,6 +2861,7 @@ const Edit = ({
         ),
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
       };
@@ -2940,6 +2963,7 @@ const Edit = ({
     const hasCalRemarks = dataSource.remarks;
     const hasCalType = dataSource.caltype;
     const hasCalQty = dataSource.calqty;
+    const hasCalUnit = dataSource.calunit;
     const hasCalAmt = dataSource.calamt;
 
     // Only create CAL submission if user has CAL role AND is currently in CAL mode
@@ -2952,6 +2976,7 @@ const Edit = ({
         hasCalRemarks ||
         hasCalType ||
         hasCalQty ||
+        hasCalUnit ||
         hasCalAmt)
     ) {
       const formatDate = (month, day, year) => {
@@ -2973,6 +2998,7 @@ const Edit = ({
         ),
         caltype: dataSource.caltype || "",
         calqty: dataSource.calqty || 0,
+        calunit: dataSource.calunit || 0,
         calamt: dataSource.calamt || 0,
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
@@ -5063,6 +5089,28 @@ const Edit = ({
                         className="text-base"
                       />
 
+                      <InputField
+                        label="Payment Form:"
+                        id="paymtform"
+                        name="paymtform"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.paymtform || ""
+                            : newRoleData.paymtform || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  paymtform: e.target.value,
+                                })
+                        }
+                        uppercase={true}
+                        className="text-base"
+                      />
+
                       <div className="mb-4">
                         <label className="flex items-center">
                           <input
@@ -5456,7 +5504,29 @@ const Edit = ({
                       />
 
                       <InputField
-                        label="Calendar Amount:"
+                        label="Calendar Unit Price:"
+                        id="calunit"
+                        name="calunit"
+                        value={
+                          roleRecordMode === "edit"
+                            ? roleSpecificData.calunit || ""
+                            : newRoleData.calunit || ""
+                        }
+                        onChange={
+                          roleRecordMode === "edit"
+                            ? handleRoleSpecificChange
+                            : (e) =>
+                                setNewRoleData({
+                                  ...newRoleData,
+                                  calunit: e.target.value,
+                                })
+                        }
+                        uppercase={true}
+                        className="text-base"
+                      />
+
+                      <InputField
+                        label="Calendar Total Amount:"
                         id="calamt"
                         name="calamt"
                         value={
@@ -5475,6 +5545,7 @@ const Edit = ({
                         }
                         uppercase={true}
                         className="text-base"
+                        readOnly={true}
                       />
                     </div>
 

@@ -245,6 +245,11 @@ const ConfirmationSummaryDialog = ({
                 required={true}
               />
               <FieldDisplay
+                label="Payment Form"
+                value={hrgData.paymtform}
+                required={true}
+              />
+              <FieldDisplay
                 label="Unsubscribe"
                 value={hrgData.unsubscribe ? "Yes" : "No"}
               />
@@ -304,7 +309,12 @@ const ConfirmationSummaryDialog = ({
                 required={true}
               />
               <FieldDisplay
-                label="Calendar Amount"
+                label="Calendar Unit Price"
+                value={calData.calunit}
+                required={true}
+              />
+              <FieldDisplay
+                label="Calendar Total Amount"
                 value={calData.calamt}
                 required={true}
               />

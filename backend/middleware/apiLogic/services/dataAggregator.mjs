@@ -244,11 +244,12 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
           $addFields: {
             modelType: "CAL",
             numericCalQty: { $toInt: "$calqty" },
+            numericCalUnit: { $toDouble: "$calunit" },
             numericCalAmt: { $toDouble: "$calamt" },
             lineTotal: {
               $multiply: [
                 { $toInt: { $ifNull: ["$calqty", 0] } },
-                { $toDouble: { $ifNull: ["$calamt", 0] } },
+                { $toDouble: { $ifNull: ["$calunit", 0] } },
               ],
             },
           },
