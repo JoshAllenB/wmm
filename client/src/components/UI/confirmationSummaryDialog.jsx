@@ -16,6 +16,9 @@ const ConfirmationSummaryDialog = ({
   hrgData,
   fomData,
   calData,
+  isEditMode = false,
+  onUpdateTypeChange,
+  updateType = "all", // "all" or "clientOnly"
 }) => {
   const { toast } = useToast();
 
@@ -44,9 +47,20 @@ const ConfirmationSummaryDialog = ({
     formData.bdateYear
   );
 
+  // Helper function to check if a role has meaningful data
+  const hasRoleData = (roleData) => {
+    if (!roleData) return false;
+    return Object.values(roleData).some((value) => {
+      if (typeof value === "boolean") return value !== undefined;
+      if (typeof value === "string") return value.trim() !== "";
+      if (typeof value === "number") return value !== 0;
+      return value !== null && value !== undefined;
+    });
+  };
+
   // Helper component for displaying field values
   const FieldDisplay = ({ label, value, className = "", required = false }) => {
-    if (!value) return null;
+    if (!value && value !== 0) return null;
     return (
       <div className={`flex ${className}`}>
         <span className="font-semibold min-w-[120px]">
@@ -74,21 +88,23 @@ const ConfirmationSummaryDialog = ({
       // If we reach here, the submission was successful
       toast({
         title: "Success",
-        description: "Client added successfully!",
+        description: isEditMode
+          ? "Client updated successfully!"
+          : "Client added successfully!",
       });
       // Close the confirmation dialog after successful submission
       setShowConfirmation(false);
-      // Also close the main modal after a short delay to ensure smooth transition
-      setTimeout(() => {
-        console.log("Closing main modal");
-        closeModal();
-      }, 100);
+      // Immediately close the parent modal so it reliably disappears on success
+      // (parent components already reset their own state on close)
+      closeModal();
     } catch (error) {
       console.error("Error in handleSubmitWithFeedback:", error);
       // Handle error case
       toast({
         title: "Error",
-        description: "Failed to add client. Please try again.",
+        description: isEditMode
+          ? "Failed to update client. Please try again."
+          : "Failed to add client. Please try again.",
         variant: "destructive",
       });
       // Don't close the dialog on error, let user retry
@@ -98,10 +114,53 @@ const ConfirmationSummaryDialog = ({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h3 className="text-xl font-semibold mb-4">Confirm Submission</h3>
+        <h3 className="text-xl font-semibold mb-4">
+          {isEditMode ? "Confirm Update" : "Confirm Submission"}
+        </h3>
         <p className="mb-6 text-gray-600">
-          Please review the information below before submitting.
+          {isEditMode
+            ? "Please review the information below and select what to update."
+            : "Please review the information below before submitting."}
         </p>
+
+        {/* Update Type Selection for Edit Mode */}
+        {isEditMode && (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="text-lg font-semibold text-blue-800 mb-3">
+              What would you like to update?
+            </h4>
+            <div className="space-y-3">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="updateType"
+                  value="all"
+                  checked={updateType === "all"}
+                  onChange={(e) => onUpdateTypeChange(e.target.value)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-blue-700">
+                  <strong>Update Everything</strong> - Client information,
+                  subscription data, and role data
+                </span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="updateType"
+                  value="clientOnly"
+                  checked={updateType === "clientOnly"}
+                  onChange={(e) => onUpdateTypeChange(e.target.value)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-blue-700">
+                  <strong>Update Client Information Only</strong> - Name,
+                  address, contact details, etc.
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Personal Information */}
@@ -152,8 +211,8 @@ const ConfirmationSummaryDialog = ({
             </div>
           )}
 
-          {/* Subscription Information */}
-          {subscriptionType && (
+          {/* Subscription Information - Only show if subscriptionType exists and has data */}
+          {subscriptionType && updateType === "all" && (
             <>
               <SectionHeader title={`${subscriptionType} Subscription`} />
               <FieldDisplay
@@ -182,8 +241,8 @@ const ConfirmationSummaryDialog = ({
                 required={true}
               />
 
-              {/* WMM Specific Fields */}
-              {subscriptionType === "WMM" && (
+              {/* WMM Specific Fields - Only show if WMM subscription type and has data */}
+              {subscriptionType === "WMM" && hasRoleData(roleSpecificData) && (
                 <>
                   <FieldDisplay
                     label="Payment Reference"
@@ -203,6 +262,10 @@ const ConfirmationSummaryDialog = ({
                     label="Donor ID"
                     value={roleSpecificData.donorid}
                   />
+                  <FieldDisplay
+                    label="Remarks"
+                    value={roleSpecificData.remarks}
+                  />
                 </>
               )}
 
@@ -214,14 +277,12 @@ const ConfirmationSummaryDialog = ({
                   required={true}
                 />
               )}
-
-              <FieldDisplay label="Remarks" value={roleSpecificData.remarks} />
             </>
           )}
 
-          {/* Role Specific Information - Show all roles that have data */}
-          {/* HRG Information */}
-          {hrgData && Object.values(hrgData).some((value) => value) && (
+          {/* Role Specific Information - Show only roles that actually have data */}
+          {/* HRG Information - Only show if hrgData has meaningful data and updateType is "all" */}
+          {hasRoleData(hrgData) && updateType === "all" && (
             <>
               <SectionHeader title="HRG Information" />
               <FieldDisplay
@@ -257,8 +318,8 @@ const ConfirmationSummaryDialog = ({
             </>
           )}
 
-          {/* FOM Information */}
-          {fomData && Object.values(fomData).some((value) => value) && (
+          {/* FOM Information - Only show if fomData has meaningful data and updateType is "all" */}
+          {hasRoleData(fomData) && updateType === "all" && (
             <>
               <SectionHeader title="FOM Information" />
               <FieldDisplay
@@ -289,8 +350,8 @@ const ConfirmationSummaryDialog = ({
             </>
           )}
 
-          {/* CAL Information */}
-          {calData && Object.values(calData).some((value) => value) && (
+          {/* CAL Information - Only show if calData has meaningful data and updateType is "all" */}
+          {hasRoleData(calData) && updateType === "all" && (
             <>
               <SectionHeader title="CAL Information" />
               <FieldDisplay
@@ -356,7 +417,7 @@ const ConfirmationSummaryDialog = ({
             onClick={handleSubmitWithFeedback}
             className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
           >
-            Confirm Submission
+            {isEditMode ? "Confirm Update" : "Confirm Submission"}
           </button>
         </div>
       </div>

@@ -25,7 +25,11 @@ const formatDateForPromo = (date) => {
 };
 
 // Get subscription-specific data based on subscription type
-export const getSubscriptionSpecificData = (subscriptionType, formData, roleSpecificData) => {
+export const getSubscriptionSpecificData = (
+  subscriptionType,
+  formData,
+  roleSpecificData
+) => {
   const baseData = {
     subsyear:
       formData.subscriptionFreq && formData.subscriptionFreq !== "others"
@@ -34,6 +38,7 @@ export const getSubscriptionSpecificData = (subscriptionType, formData, roleSpec
     copies: parseInt(roleSpecificData.copies) || 1,
     remarks: roleSpecificData.remarks || "",
     calendar: roleSpecificData.calendar || false,
+    subsclass: roleSpecificData.subsclass || "",
     adddate: new Date().toLocaleDateString("en-US", {
       month: "numeric",
       day: "numeric",
@@ -152,7 +157,8 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
   const hasPaymentInfo =
     (roleSpecificData.paymtref && roleSpecificData.paymtref.trim() !== "") ||
     (roleSpecificData.paymtamt && roleSpecificData.paymtamt.trim() !== "") ||
-    (roleSpecificData.paymtmasses && roleSpecificData.paymtmasses.trim() !== "");
+    (roleSpecificData.paymtmasses &&
+      roleSpecificData.paymtmasses.trim() !== "");
   const hasDonorId =
     roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
   const hasReferralId =
@@ -167,4 +173,4 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
     hasDonorId ||
     hasReferralId
   );
-}; 
+};

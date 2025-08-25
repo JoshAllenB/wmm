@@ -29,6 +29,7 @@ import {
   getServiceFromSubscriptionType as getServiceType,
   hasSubscriptionData as checkSubscriptionData,
 } from "./modules";
+import SubscriptionTypeSelector from "./modules/SubscriptionTypeSelector";
 
 // Utility function to format date to "yyyy-MM-dd"
 const formatDateToInput = (date) => {
@@ -47,8 +48,16 @@ const cleanDateInput = (value) => {
   return value;
 };
 
-const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
+const Add = ({
+  fetchClients,
+  subscriptionType: initialSubscriptionType = "None",
+}) => {
   const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
+
+  // Local state for subscription type
+  const [subscriptionType, setSubscriptionType] = useState(
+    initialSubscriptionType
+  );
 
   // Array of month names for the dropdown
   const months = [
@@ -212,9 +221,15 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         subsclass: "",
         donorid: "",
         paymtref: "",
+        remarks: "",
       });
-    } else if (hasRole("HRG")) {
-      setRoleSpecificData({
+    }
+  }, [hasRole]);
+
+  // Initialize role-specific data for non-WMM roles
+  useEffect(() => {
+    if (hasRole("HRG")) {
+      setHrgData({
         recvdate: "",
         renewdate: "",
         campaigndate: "",
@@ -224,8 +239,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         unsubscribe: false,
         remarks: "",
       });
-    } else if (hasRole("FOM")) {
-      setRoleSpecificData({
+    }
+    if (hasRole("FOM")) {
+      setFomData({
         recvdate: "",
         paymtamt: "",
         paymtform: "",
@@ -233,8 +249,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         unsubscribe: false,
         remarks: "",
       });
-    } else if (hasRole("CAL")) {
-      setRoleSpecificData({
+    }
+    if (hasRole("CAL")) {
+      setCalData({
         recvdate: "",
         caltype: "",
         calqty: "",
@@ -333,6 +350,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
         return "bg-emerald-600 text-white border-emerald-700";
       case "Complimentary":
         return "bg-purple-600 text-white border-purple-700";
+      case "None":
+        return "bg-gray-600 text-white border-gray-700";
       default: // WMM
         return "bg-blue-600 text-white border-blue-700";
     }
@@ -384,9 +403,12 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
       subscriptionStart: "",
       subscriptionEnd: "",
       subsclass: "",
-      subscriptionType: subscriptionType,
+      subscriptionType: "None",
       donorid: null,
     });
+
+    // Reset subscription type to None
+    setSubscriptionType("None");
 
     // Reset address data
     setAddressData({
@@ -1372,26 +1394,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   };
 
   const handleRoleToggle = (role) => {
-    // Save current role data before switching
-    if (selectedRole === "HRG") {
-      setHrgData(roleSpecificData);
-    } else if (selectedRole === "FOM") {
-      setFomData(roleSpecificData);
-    } else if (selectedRole === "CAL") {
-      setCalData(roleSpecificData);
-    }
-
     // Set the new role
     setSelectedRole(role);
-
-    // Load the saved data for the new role
-    if (role === "HRG") {
-      setRoleSpecificData(hrgData);
-    } else if (role === "FOM") {
-      setRoleSpecificData(fomData);
-    } else if (role === "CAL") {
-      setRoleSpecificData(calData);
-    }
   };
 
   // Moved to duplicateChecker/duplicateLogic.js
@@ -1400,6 +1404,45 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   const handleDuplicateEditSuccess = (updatedData) => {
     // Create a properly formatted copy of the updated data
     const formattedData = { ...updatedData };
+
+    // Determine the correct subscription type based on available data
+    let subscriptionType = "None"; // Default to None when no data exists
+
+    // Check which subscription data exists and has records
+    if (
+      formattedData.promoData &&
+      ((formattedData.promoData.records &&
+        formattedData.promoData.records.length > 0) ||
+        (Array.isArray(formattedData.promoData) &&
+          formattedData.promoData.length > 0) ||
+        (typeof formattedData.promoData === "object" &&
+          Object.keys(formattedData.promoData).length > 0))
+    ) {
+      subscriptionType = "Promo";
+    } else if (
+      formattedData.compData &&
+      ((formattedData.compData.records &&
+        formattedData.compData.records.length > 0) ||
+        (Array.isArray(formattedData.compData) &&
+          formattedData.compData.length > 0) ||
+        (typeof formattedData.compData === "object" &&
+          Object.keys(formattedData.compData).length > 0))
+    ) {
+      subscriptionType = "Complimentary";
+    } else if (
+      formattedData.wmmData &&
+      ((formattedData.wmmData.records &&
+        formattedData.wmmData.records.length > 0) ||
+        (Array.isArray(formattedData.wmmData) &&
+          formattedData.wmmData.length > 0) ||
+        (typeof formattedData.wmmData === "object" &&
+          Object.keys(formattedData.wmmData).length > 0))
+    ) {
+      subscriptionType = "WMM";
+    }
+
+    // Ensure the subscription type is preserved
+    formattedData.subscriptionType = subscriptionType;
 
     // Ensure the role-specific data is properly structured for future use
     // Format WMM data if present
@@ -1509,30 +1552,6 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
   };
 
   // Moved to duplicateChecker/duplicateLogic.js
-
-  // Confirmation Dialog Component - Using ConfirmationSummaryDialog
-  const ConfirmationDialog = () => {
-    if (!showConfirmation) return null;
-
-    return (
-      <ConfirmationSummaryDialog
-        showConfirmation={showConfirmation}
-        setShowConfirmation={setShowConfirmation}
-        handleConfirmedSubmit={handleConfirmedSubmit}
-        closeModal={closeModal}
-        formData={formData}
-        addressData={addressData}
-        areaData={areaData}
-        combinedAddress={combinedAddress}
-        roleSpecificData={roleSpecificData}
-        subscriptionType={subscriptionType}
-        selectedRole={selectedRole}
-        hrgData={hrgData}
-        fomData={fomData}
-        calData={calData}
-      />
-    );
-  };
 
   // Add a function to load areas data
   const loadAreas = useCallback(async () => {
@@ -1700,6 +1719,57 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
     setCombinedAddress(formattedAddress);
   };
 
+  // Add missing handler functions for HRG, FOM, and CAL modules
+  const handleHrgChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setHrgData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+      return updated;
+    });
+  };
+
+  const handleFomChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setFomData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+      return updated;
+    });
+  };
+
+  const handleCalChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setCalData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+
+      // Calculate CAL total amount when quantity or unit price changes
+      if (name === "calqty" || name === "calunit") {
+        const calqty =
+          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        const calamt = calqty * calunit;
+        updated.calamt = calamt.toString();
+      }
+
+      return updated;
+    });
+  };
+
   return (
     <div className="relative">
       <Button
@@ -1711,7 +1781,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
           {subscriptionType === "HRG" ||
           subscriptionType === "FOM" ||
           subscriptionType === "CAL" ||
-          subscriptionType === "WMM"
+          subscriptionType === "WMM" ||
+          subscriptionType === "None"
             ? ""
             : ` ${subscriptionType}`}
         </span>
@@ -1748,7 +1819,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                       {subscriptionType === "HRG" ||
                       subscriptionType === "FOM" ||
                       subscriptionType === "CAL" ||
-                      subscriptionType === "WMM"
+                      subscriptionType === "WMM" ||
+                      subscriptionType === "None"
                         ? ""
                         : ` ${subscriptionType}`}
                     </h1>
@@ -2177,8 +2249,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Received Date:"
                                     id="recvdate"
                                     name="recvdate"
-                                    value={roleSpecificData.recvdate}
-                                    onChange={handleRoleSpecificChange}
+                                    value={hrgData.recvdate}
+                                    onChange={handleHrgChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2186,8 +2258,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Campaign Date:"
                                     id="campaigndate"
                                     name="campaigndate"
-                                    value={roleSpecificData.campaigndate}
-                                    onChange={handleRoleSpecificChange}
+                                    value={hrgData.campaigndate}
+                                    onChange={handleHrgChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2195,8 +2267,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Reference:"
                                     id="paymtref"
                                     name="paymtref"
-                                    value={roleSpecificData.paymtref}
-                                    onChange={handleRoleSpecificChange}
+                                    value={hrgData.paymtref}
+                                    onChange={handleHrgChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2204,8 +2276,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Amount:"
                                     id="paymtamt"
                                     name="paymtamt"
-                                    value={roleSpecificData.paymtamt}
-                                    onChange={handleRoleSpecificChange}
+                                    value={hrgData.paymtamt}
+                                    onChange={handleHrgChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2213,8 +2285,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Form:"
                                     id="paymtform"
                                     name="paymtform"
-                                    value={roleSpecificData.paymtform}
-                                    onChange={handleRoleSpecificChange}
+                                    value={hrgData.paymtform}
+                                    onChange={handleHrgChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2229,9 +2301,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                       type="checkbox"
                                       id="unsubscribe"
                                       name="unsubscribe"
-                                      checked={roleSpecificData.unsubscribe}
+                                      checked={hrgData.unsubscribe}
                                       onChange={(e) =>
-                                        setRoleSpecificData((prev) => ({
+                                        setHrgData((prev) => ({
                                           ...prev,
                                           unsubscribe: e.target.checked,
                                         }))
@@ -2249,8 +2321,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     <textarea
                                       id="remarks"
                                       name="remarks"
-                                      value={roleSpecificData.remarks || ""}
-                                      onChange={handleRoleSpecificChange}
+                                      value={hrgData.remarks || ""}
+                                      onChange={handleHrgChange}
                                       className="w-full p-2 border rounded-md text-base"
                                       rows="3"
                                     />
@@ -2266,8 +2338,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Received Date:"
                                     id="recvdate"
                                     name="recvdate"
-                                    value={roleSpecificData.recvdate}
-                                    onChange={handleRoleSpecificChange}
+                                    value={fomData.recvdate}
+                                    onChange={handleFomChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2275,8 +2347,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Reference:"
                                     id="paymtref"
                                     name="paymtref"
-                                    value={roleSpecificData.paymtref}
-                                    onChange={handleRoleSpecificChange}
+                                    value={fomData.paymtref}
+                                    onChange={handleFomChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2284,8 +2356,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Amount:"
                                     id="paymtamt"
                                     name="paymtamt"
-                                    value={roleSpecificData.paymtamt}
-                                    onChange={handleRoleSpecificChange}
+                                    value={fomData.paymtamt}
+                                    onChange={handleFomChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2293,8 +2365,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     label="Payment Form:"
                                     id="paymtform"
                                     name="paymtform"
-                                    value={roleSpecificData.paymtform}
-                                    onChange={handleRoleSpecificChange}
+                                    value={fomData.paymtform}
+                                    onChange={handleFomChange}
                                     className="text-base w-full"
                                     required={true}
                                   />
@@ -2309,9 +2381,9 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                       type="checkbox"
                                       id="unsubscribe"
                                       name="unsubscribe"
-                                      checked={roleSpecificData.unsubscribe}
+                                      checked={fomData.unsubscribe}
                                       onChange={(e) =>
-                                        setRoleSpecificData((prev) => ({
+                                        setFomData((prev) => ({
                                           ...prev,
                                           unsubscribe: e.target.checked,
                                         }))
@@ -2329,8 +2401,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     <textarea
                                       id="remarks"
                                       name="remarks"
-                                      value={roleSpecificData.remarks || ""}
-                                      onChange={handleRoleSpecificChange}
+                                      value={fomData.remarks || ""}
+                                      onChange={handleFomChange}
                                       className="w-full p-2 border rounded-md text-base"
                                       rows="3"
                                     />
@@ -2348,8 +2420,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Received Date:"
                                         id="recvdate"
                                         name="recvdate"
-                                        value={roleSpecificData.recvdate}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.recvdate}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2357,8 +2429,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Calendar Type:"
                                         id="caltype"
                                         name="caltype"
-                                        value={roleSpecificData.caltype}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.caltype}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2366,8 +2438,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Calendar Quantity:"
                                         id="calqty"
                                         name="calqty"
-                                        value={roleSpecificData.calqty}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.calqty}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2375,8 +2447,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Calendar Unit Price:"
                                         id="calunit"
                                         name="calunit"
-                                        value={roleSpecificData.calunit}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.calunit}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2384,8 +2456,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Calendar Total Amount:"
                                         id="calamt"
                                         name="calamt"
-                                        value={roleSpecificData.calamt}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.calamt}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                         readOnly={true}
@@ -2396,8 +2468,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Payment Reference:"
                                         id="paymtref"
                                         name="paymtref"
-                                        value={roleSpecificData.paymtref}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.paymtref}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2405,8 +2477,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Payment Amount:"
                                         id="paymtamt"
                                         name="paymtamt"
-                                        value={roleSpecificData.paymtamt}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.paymtamt}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2414,8 +2486,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Payment Form:"
                                         id="paymtform"
                                         name="paymtform"
-                                        value={roleSpecificData.paymtform}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.paymtform}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2423,8 +2495,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                         label="Payment Date:"
                                         id="paymtdate"
                                         name="paymtdate"
-                                        value={roleSpecificData.paymtdate}
-                                        onChange={handleRoleSpecificChange}
+                                        value={calData.paymtdate}
+                                        onChange={handleCalChange}
                                         className="text-base w-full"
                                         required={true}
                                       />
@@ -2440,8 +2512,8 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
                                     <textarea
                                       id="remarks"
                                       name="remarks"
-                                      value={roleSpecificData.remarks || ""}
-                                      onChange={handleRoleSpecificChange}
+                                      value={calData.remarks || ""}
+                                      onChange={handleCalChange}
                                       className="w-full p-2 border rounded-md text-base"
                                       rows="3"
                                     />
@@ -2456,44 +2528,79 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
 
                     {hasRole("WMM") && (
                       <div className="p-4 border rounded-lg shadow-sm">
-                        <h2
-                          className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center text-black`}
-                        >
-                          {subscriptionType} Subscription
-                        </h2>
-
-                        {/* Common subscription fields */}
-                        <CommonSubscriptionFields
-                          formData={formData}
-                          roleSpecificData={roleSpecificData}
-                          handleChange={handleChange}
-                          handleRoleSpecificChange={handleRoleSpecificChange}
-                          months={months}
+                        {/* Subscription Type Selector */}
+                        <SubscriptionTypeSelector
+                          subscriptionType={subscriptionType}
+                          setSubscriptionType={(newType) => {
+                            const newSubscriptionType =
+                              newType.subscriptionType;
+                            setSubscriptionType(newSubscriptionType);
+                            setFormData((prev) => ({
+                              ...prev,
+                              subscriptionType: newSubscriptionType,
+                            }));
+                          }}
+                          mode="add"
+                          hasSubscriptionData={() => false}
+                          rowData={null}
                         />
 
-                        {/* Subscription Type Specific Fields */}
-                        {subscriptionType === "WMM" && (
-                          <WMMModule
-                            formData={formData}
-                            roleSpecificData={roleSpecificData}
-                            handleChange={handleChange}
-                            handleRoleSpecificChange={handleRoleSpecificChange}
-                            handleNewDonorAdded={handleNewDonorAdded}
-                            subclasses={subclasses}
-                            months={months}
-                            subscriptionType={subscriptionType}
-                          />
-                        )}
+                        {subscriptionType === "None" ? (
+                          <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                            <p className="text-gray-500 text-lg mb-2">
+                              No subscription type selected
+                            </p>
+                            <p className="text-gray-400 text-sm">
+                              Please select a subscription type above to add
+                              subscription data
+                            </p>
+                          </div>
+                        ) : (
+                          <>
+                            <h2
+                              className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center text-black`}
+                            >
+                              {subscriptionType} Subscription
+                            </h2>
 
-                        {subscriptionType === "Promo" && (
-                          <PromoModule
-                            formData={formData}
-                            handleChange={handleChange}
-                          />
-                        )}
+                            {/* Common subscription fields */}
+                            <CommonSubscriptionFields
+                              formData={formData}
+                              roleSpecificData={roleSpecificData}
+                              handleChange={handleChange}
+                              handleRoleSpecificChange={
+                                handleRoleSpecificChange
+                              }
+                              months={months}
+                            />
 
-                        {subscriptionType === "Complimentary" && (
-                          <ComplimentaryModule />
+                            {/* Subscription Type Specific Fields */}
+                            {subscriptionType === "WMM" && (
+                              <WMMModule
+                                formData={formData}
+                                roleSpecificData={roleSpecificData}
+                                handleChange={handleChange}
+                                handleRoleSpecificChange={
+                                  handleRoleSpecificChange
+                                }
+                                handleNewDonorAdded={handleNewDonorAdded}
+                                subclasses={subclasses}
+                                months={months}
+                                subscriptionType={subscriptionType}
+                              />
+                            )}
+
+                            {subscriptionType === "Promo" && (
+                              <PromoModule
+                                formData={formData}
+                                handleChange={handleChange}
+                              />
+                            )}
+
+                            {subscriptionType === "Complimentary" && (
+                              <ComplimentaryModule />
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -2558,26 +2665,28 @@ const Add = ({ fetchClients, subscriptionType = "WMM" }) => {
               </div>
             </>
           )}
+
+          {/* Confirmation Dialog */}
+          {showConfirmation && (
+            <ConfirmationSummaryDialog
+              showConfirmation={showConfirmation}
+              setShowConfirmation={setShowConfirmation}
+              handleConfirmedSubmit={handleConfirmedSubmit}
+              closeModal={closeModal}
+              formData={formData}
+              addressData={addressData}
+              areaData={areaData}
+              combinedAddress={combinedAddress}
+              roleSpecificData={roleSpecificData}
+              subscriptionType={subscriptionType}
+              selectedRole={selectedRole}
+              hrgData={hrgData}
+              fomData={fomData}
+              calData={calData}
+            />
+          )}
         </Modal>
       )}
-
-      {/* Confirmation Dialog */}
-      <ConfirmationSummaryDialog
-        showConfirmation={showConfirmation}
-        setShowConfirmation={setShowConfirmation}
-        handleConfirmedSubmit={handleConfirmedSubmit}
-        closeModal={closeModal}
-        formData={formData}
-        addressData={addressData}
-        areaData={areaData}
-        combinedAddress={combinedAddress}
-        roleSpecificData={roleSpecificData}
-        subscriptionType={subscriptionType}
-        selectedRole={selectedRole}
-        hrgData={hrgData}
-        fomData={fomData}
-        calData={calData}
-      />
     </div>
   );
 };

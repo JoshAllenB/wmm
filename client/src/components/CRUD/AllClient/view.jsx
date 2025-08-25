@@ -21,7 +21,41 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   useEffect(() => {
     if (rowData) {
-      setFormData(rowData);
+      // Determine the correct subscription type based on available data
+      let subscriptionType = "None"; // Default to None when no data exists
+
+      // Check which subscription data exists and has records
+      if (
+        rowData.promoData &&
+        ((rowData.promoData.records && rowData.promoData.records.length > 0) ||
+          (Array.isArray(rowData.promoData) && rowData.promoData.length > 0) ||
+          (typeof rowData.promoData === "object" &&
+            Object.keys(rowData.promoData).length > 0))
+      ) {
+        subscriptionType = "Promo";
+      } else if (
+        rowData.compData &&
+        ((rowData.compData.records && rowData.compData.records.length > 0) ||
+          (Array.isArray(rowData.compData) && rowData.compData.length > 0) ||
+          (typeof rowData.compData === "object" &&
+            Object.keys(rowData.compData).length > 0))
+      ) {
+        subscriptionType = "Complimentary";
+      } else if (
+        rowData.wmmData &&
+        ((rowData.wmmData.records && rowData.wmmData.records.length > 0) ||
+          (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) ||
+          (typeof rowData.wmmData === "object" &&
+            Object.keys(rowData.wmmData).length > 0))
+      ) {
+        subscriptionType = "WMM";
+      }
+
+      // Set formData with the correct subscription type
+      setFormData({
+        ...rowData,
+        subscriptionType: subscriptionType,
+      });
       setShowModal(true);
 
       // Get services array
@@ -149,9 +183,22 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditClick = () => {
+    // Determine the correct subscription type based on available data
+    let subscriptionType = "None"; // Default to None when no data exists
+
+    // Check which subscription data exists and has records
+    if (promoData && promoData.records && promoData.records.length > 0) {
+      subscriptionType = "Promo";
+    } else if (compData && compData.records && compData.records.length > 0) {
+      subscriptionType = "Complimentary";
+    } else if (wmmData && wmmData.records && wmmData.records.length > 0) {
+      subscriptionType = "WMM";
+    }
+
     // Ensure subscription data is properly structured before passing to edit
     const editData = {
       ...formData,
+      subscriptionType: subscriptionType, // Set the correct subscription type
       wmmData: wmmData,
       promoData: promoData,
       complimentaryData: compData,
@@ -168,8 +215,47 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditSuccess = (updatedData) => {
-    // Update formData with the base client data
-    setFormData(updatedData);
+    // Determine the correct subscription type based on available data
+    let subscriptionType = "None"; // Default to None when no data exists
+
+    // Check which subscription data exists and has records
+    if (
+      updatedData.promoData &&
+      ((updatedData.promoData.records &&
+        updatedData.promoData.records.length > 0) ||
+        (Array.isArray(updatedData.promoData) &&
+          updatedData.promoData.length > 0) ||
+        (typeof updatedData.promoData === "object" &&
+          Object.keys(updatedData.promoData).length > 0))
+    ) {
+      subscriptionType = "Promo";
+    } else if (
+      updatedData.compData &&
+      ((updatedData.compData.records &&
+        updatedData.compData.records.length > 0) ||
+        (Array.isArray(updatedData.compData) &&
+          updatedData.compData.length > 0) ||
+        (typeof updatedData.compData === "object" &&
+          Object.keys(updatedData.compData).length > 0))
+    ) {
+      subscriptionType = "Complimentary";
+    } else if (
+      updatedData.wmmData &&
+      ((updatedData.wmmData.records &&
+        updatedData.wmmData.records.length > 0) ||
+        (Array.isArray(updatedData.wmmData) &&
+          updatedData.wmmData.length > 0) ||
+        (typeof updatedData.wmmData === "object" &&
+          Object.keys(updatedData.wmmData).length > 0))
+    ) {
+      subscriptionType = "WMM";
+    }
+
+    // Update formData with the base client data and correct subscription type
+    setFormData({
+      ...updatedData,
+      subscriptionType: subscriptionType,
+    });
 
     // Determine which services this client actually has
     const clientServices = updatedData.services || [];
@@ -271,6 +357,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     if (onEditSuccess) {
       onEditSuccess(updatedData);
     }
+    // Also close the View modal after a successful edit
+    closeModal();
   };
 
   const renderField = (label, value) => {
@@ -382,6 +470,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       case "Complimentary":
         return {
           headerClass: "bg-purple-500 text-white",
+        };
+      case "None":
+        return {
+          headerClass: "bg-gray-500 text-white",
         };
       default: // WMM
         return {

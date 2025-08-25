@@ -114,7 +114,49 @@ const useDuplicateChecker = () => {
       );
 
       if (response.data) {
-        setSelectedDuplicate(response.data);
+        // Determine the correct subscription type based on available data
+        let subscriptionType = "None"; // Default to None when no data exists
+
+        // Check which subscription data exists and has records
+        if (
+          response.data.promoData &&
+          ((response.data.promoData.records &&
+            response.data.promoData.records.length > 0) ||
+            (Array.isArray(response.data.promoData) &&
+              response.data.promoData.length > 0) ||
+            (typeof response.data.promoData === "object" &&
+              Object.keys(response.data.promoData).length > 0))
+        ) {
+          subscriptionType = "Promo";
+        } else if (
+          response.data.compData &&
+          ((response.data.compData.records &&
+            response.data.compData.records.length > 0) ||
+            (Array.isArray(response.data.compData) &&
+              response.data.compData.length > 0) ||
+            (typeof response.data.compData === "object" &&
+              Object.keys(response.data.compData).length > 0))
+        ) {
+          subscriptionType = "Complimentary";
+        } else if (
+          response.data.wmmData &&
+          ((response.data.wmmData.records &&
+            response.data.wmmData.records.length > 0) ||
+            (Array.isArray(response.data.wmmData) &&
+              response.data.wmmData.length > 0) ||
+            (typeof response.data.wmmData === "object" &&
+              Object.keys(response.data.wmmData).length > 0))
+        ) {
+          subscriptionType = "WMM";
+        }
+
+        // Set the client data with the correct subscription type
+        const clientDataWithSubscriptionType = {
+          ...response.data,
+          subscriptionType: subscriptionType,
+        };
+
+        setSelectedDuplicate(clientDataWithSubscriptionType);
         setViewingDuplicate(true);
       }
     } catch (error) {

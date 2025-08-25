@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
+import ConfirmationSummaryDialog from "../../UI/confirmationSummaryDialog";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import {
@@ -218,6 +219,8 @@ const Edit = ({
     city: "",
   });
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [subscriptionFreq, setSubscriptionFreq] = useState("");
@@ -376,10 +379,70 @@ const Edit = ({
     referralid: "",
   });
 
+  // Add separate state variables for role-specific data
+  const [hrgData, setHrgData] = useState({
+    recvdate: "",
+    recvdateMonth: "",
+    recvdateDay: "",
+    recvdateYear: "",
+    campaigndate: "",
+    campaigndateMonth: "",
+    campaigndateDay: "",
+    campaigndateYear: "",
+    paymtref: "",
+    paymtamt: 0,
+    paymtform: "",
+    unsubscribe: false,
+    remarks: "",
+  });
+
+  const [fomData, setFomData] = useState({
+    recvdate: "",
+    recvdateMonth: "",
+    recvdateDay: "",
+    recvdateYear: "",
+    paymtref: "",
+    paymtamt: 0,
+    paymtform: "",
+    paymtdate: "",
+    paymtdateMonth: "",
+    paymtdateDay: "",
+    paymtdateYear: "",
+    unsubscribe: false,
+    remarks: "",
+  });
+
+  const [calData, setCalData] = useState({
+    recvdate: "",
+    recvdateMonth: "",
+    recvdateDay: "",
+    recvdateYear: "",
+    caltype: "",
+    calqty: 0,
+    calunit: 0,
+    calamt: 0,
+    paymtref: "",
+    paymtamt: 0,
+    paymtform: "",
+    paymtdate: "",
+    paymtdateMonth: "",
+    paymtdateDay: "",
+    paymtdateYear: "",
+    remarks: "",
+  });
+
   const [areas, setAreas] = useState(null);
   const [isLoadingAreas, setIsLoadingAreas] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Add state to control what type of update to perform
+  const [updateType, setUpdateType] = useState("all"); // "all", "clientOnly", "subscriptionOnly", "roleOnly"
+
+  // Handle update type change
+  const handleUpdateTypeChange = (newUpdateType) => {
+    setUpdateType(newUpdateType);
+  };
 
   // Helper function to check if subscription data exists
   const hasSubscriptionData = (data, type) => {
@@ -501,7 +564,7 @@ const Edit = ({
       }
 
       // Determine subscription type from existing data
-      let subscriptionType = "WMM"; // Default
+      let subscriptionType = "None"; // Default to None when no data exists
       if (rowData.subscriptionType) {
         // Verify that the subscription type from rowData actually has data
         const hasWmmData = hasSubscriptionData(rowData, "WMM");
@@ -942,6 +1005,10 @@ const Edit = ({
   // Clear subscription fields when component loads with default "add" mode
   useEffect(() => {
     if (subscriptionMode === "add" && rowData && mode === "edit") {
+      // Store the current subsclass value before clearing
+      const currentSubsclass =
+        formData.subsclass || roleSpecificData.subsclass || "";
+
       // Clear subscription-related fields in formData
       setFormData((prev) => ({
         ...prev,
@@ -954,11 +1021,11 @@ const Edit = ({
         subEndMonth: "",
         subEndDay: "",
         subEndYear: "",
-        subsclass: "",
+        subsclass: currentSubsclass, // Preserve the subsclass value
         referralid: formData.subscriptionType === "Promo" ? "" : undefined,
       }));
 
-      // Clear subscription data in roleSpecificData
+      // Clear subscription data in roleSpecificData but preserve subsclass
       setRoleSpecificData((prev) => ({
         ...prev,
         subsdate: "",
@@ -969,7 +1036,7 @@ const Edit = ({
         paymtamt: "",
         paymtmasses: "",
         calendar: false,
-        subsclass: "",
+        subsclass: currentSubsclass, // Preserve the subsclass value
         donorid: "",
         paymtref: "",
         remarks: "",
@@ -1062,7 +1129,10 @@ const Edit = ({
 
   const closeModal = () => {
     setShowModal(false);
-    onClose();
+    setShowConfirmation(false);
+    if (typeof onClose === "function") {
+      onClose();
+    }
   };
 
   const formatDateToMonthYear = (date) => {
@@ -1440,6 +1510,146 @@ const Edit = ({
     }));
   };
 
+  // Add separate handler functions for HRG, FOM, and CAL data
+  const handleHrgChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setHrgData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+
+      // Handle date component changes
+      if (
+        name === "recvdateMonth" ||
+        name === "recvdateDay" ||
+        name === "recvdateYear"
+      ) {
+        if (
+          updated.recvdateMonth &&
+          updated.recvdateDay &&
+          updated.recvdateYear
+        ) {
+          updated.recvdate = `${updated.recvdateYear}-${updated.recvdateMonth}-${updated.recvdateDay}`;
+        }
+      }
+
+      if (
+        name === "campaigndateMonth" ||
+        name === "campaigndateDay" ||
+        name === "campaigndateYear"
+      ) {
+        if (
+          updated.campaigndateMonth &&
+          updated.campaigndateDay &&
+          updated.campaigndateYear
+        ) {
+          updated.campaigndate = `${updated.campaigndateYear}-${updated.campaigndateMonth}-${updated.campaigndateDay}`;
+        }
+      }
+
+      return updated;
+    });
+  };
+
+  const handleFomChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setFomData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+
+      // Handle date component changes
+      if (
+        name === "recvdateMonth" ||
+        name === "recvdateDay" ||
+        name === "recvdateYear"
+      ) {
+        if (
+          updated.recvdateMonth &&
+          updated.recvdateDay &&
+          updated.recvdateYear
+        ) {
+          updated.recvdate = `${updated.recvdateMonth}-${updated.recvdateDay}-${updated.recvdateYear}`;
+        }
+      }
+
+      if (
+        name === "paymtdateMonth" ||
+        name === "paymtdateDay" ||
+        name === "paymtdateYear"
+      ) {
+        if (
+          updated.paymtdateMonth &&
+          updated.paymtdateDay &&
+          updated.paymtdateYear
+        ) {
+          updated.paymtdate = `${updated.paymtdateYear}-${updated.paymtdateMonth}-${updated.paymtdateDay}`;
+        }
+      }
+
+      return updated;
+    });
+  };
+
+  const handleCalChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === "checkbox" ? checked : value;
+
+    setCalData((prev) => {
+      const updated = {
+        ...prev,
+        [name]: newValue,
+      };
+
+      // Handle date component changes
+      if (
+        name === "recvdateMonth" ||
+        name === "recvdateDay" ||
+        name === "recvdateYear"
+      ) {
+        if (
+          updated.recvdateMonth &&
+          updated.recvdateDay &&
+          updated.recvdateYear
+        ) {
+          updated.recvdate = `${updated.recvdateYear}-${updated.recvdateMonth}-${updated.recvdateDay}`;
+        }
+      }
+
+      if (
+        name === "paymtdateMonth" ||
+        name === "paymtdateDay" ||
+        name === "paymtdateYear"
+      ) {
+        if (
+          updated.paymtdateMonth &&
+          updated.paymtdateDay &&
+          updated.paymtdateYear
+        ) {
+          updated.paymtdate = `${updated.paymtdateYear}-${updated.paymtdateMonth}-${updated.paymtdateDay}`;
+        }
+      }
+
+      // Calculate CAL total amount when quantity or unit price changes
+      if (name === "calqty" || name === "calunit") {
+        const calqty =
+          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        const calamt = calqty * calunit;
+        updated.calamt = calamt.toString();
+      }
+
+      return updated;
+    });
+  };
+
   // Update handleNewSubscriptionChange to ensure values are never undefined
   const handleNewSubscriptionChange = (e) => {
     const { name, value } = e.target;
@@ -1738,7 +1948,7 @@ const Edit = ({
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
           };
-          setRoleSpecificData(roleData);
+          setHrgData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedHrgRecord.recvdate
@@ -1749,7 +1959,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedHrgRecord.paymtdate
           );
-          setRoleSpecificData({
+          setHrgData({
             ...selectedHrgRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
@@ -1766,7 +1976,7 @@ const Edit = ({
         // No records available, set up empty form
         const today = new Date();
         const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
-        setRoleSpecificData({
+        setHrgData({
           recvdate: formatDateToMMDDYY(today),
           recvdateMonth: todayParts.month,
           recvdateDay: todayParts.day,
@@ -1802,7 +2012,7 @@ const Edit = ({
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
           };
-          setRoleSpecificData(roleData);
+          setFomData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedFomRecord.recvdate
@@ -1810,7 +2020,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedFomRecord.paymtdate
           );
-          setRoleSpecificData({
+          setFomData({
             ...selectedFomRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
@@ -1824,7 +2034,7 @@ const Edit = ({
         // No records available, set up empty form
         const today = new Date();
         const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
-        setRoleSpecificData({
+        setFomData({
           recvdate: formatDateToMMDDYY(today),
           recvdateMonth: todayParts.month,
           recvdateDay: todayParts.day,
@@ -1857,7 +2067,7 @@ const Edit = ({
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
           };
-          setRoleSpecificData(roleData);
+          setCalData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedCalRecord.recvdate
@@ -1865,7 +2075,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedCalRecord.paymtdate
           );
-          setRoleSpecificData({
+          setCalData({
             ...selectedCalRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
@@ -1879,7 +2089,7 @@ const Edit = ({
         // No records available, set up empty form
         const today = new Date();
         const todayParts = parseDateToComponents(formatDateToMMDDYY(today));
-        setRoleSpecificData({
+        setCalData({
           recvdate: formatDateToMMDDYY(today),
           recvdateMonth: todayParts.month,
           recvdateDay: todayParts.day,
@@ -2083,7 +2293,7 @@ const Edit = ({
       setSelectedHrgRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
       const campaigndateParts = parseDateToComponents(firstRecord.campaigndate);
-      setRoleSpecificData({
+      setHrgData({
         ...firstRecord,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
@@ -2100,7 +2310,7 @@ const Edit = ({
       const firstRecord = fomRecords[0];
       setSelectedFomRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
-      setRoleSpecificData({
+      setFomData({
         ...firstRecord,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
@@ -2114,7 +2324,7 @@ const Edit = ({
       const firstRecord = calRecords[0];
       setSelectedCalRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
-      setRoleSpecificData({
+      setCalData({
         ...firstRecord,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
@@ -2557,7 +2767,7 @@ const Edit = ({
   const removeEmptyFields = (obj) => {
     const result = {};
     for (const key in obj) {
-      if (obj[key] !== null && obj[key] !== undefined && obj[key] !== "") {
+      if (obj[key] !== undefined && obj[key] !== "") {
         if (typeof obj[key] === "object" && !Array.isArray(obj[key])) {
           const nestedResult = removeEmptyFields(obj[key]);
           if (Object.keys(nestedResult).length > 0) {
@@ -2571,6 +2781,54 @@ const Edit = ({
     return result;
   };
 
+  // Determine which client fields were cleared by the user so we can send nulls to backend
+  const getClearedClientFields = (previousData, currentData) => {
+    if (!previousData) return {};
+    const fieldsToCheck = [
+      "mname",
+      "sname",
+      "title",
+      "company",
+      "address",
+      "housestreet",
+      "subdivision",
+      "barangay",
+      "zipcode",
+      "area",
+      "acode",
+      "contactnos",
+      "cellno",
+      "ofcno",
+      "email",
+      "type",
+      "group",
+      "remarks",
+      "bdate",
+    ];
+
+    const cleared = {};
+    fieldsToCheck.forEach((field) => {
+      const previousValue = previousData?.[field];
+      const currentValue = currentData?.[field];
+      const previousHadValue =
+        previousValue !== undefined &&
+        previousValue !== null &&
+        String(previousValue).trim() !== "";
+
+      const isCleared =
+        currentValue === null ||
+        currentValue === undefined ||
+        (typeof currentValue === "string" && currentValue.trim() === "") ||
+        (field === "zipcode" && (currentValue === 0 || currentValue === "0"));
+
+      if (previousHadValue && isCleared) {
+        cleared[field] = null; // Explicitly clear on backend
+      }
+    });
+
+    return cleared;
+  };
+
   // Add subscription type styles
   const getSubscriptionTypeStyles = () => {
     switch (formData.subscriptionType) {
@@ -2578,6 +2836,8 @@ const Edit = ({
         return "bg-emerald-600 text-white border-emerald-700";
       case "Complimentary":
         return "bg-purple-600 text-white border-purple-700";
+      case "None":
+        return "bg-gray-600 text-white border-gray-700";
       default: // WMM
         return "bg-blue-600 text-white border-blue-700";
     }
@@ -2601,14 +2861,8 @@ const Edit = ({
   };
 
   // Update the handleSubmit function to handle both edit and add modes
-  const handleSubmit = async (e) => {
-    // Skip if this came from DonorAdd
-    if (e.nativeEvent?.donorAddEvent) {
-      return;
-    }
-
-    e.preventDefault();
-
+  // Handle confirmed submission from confirmation dialog
+  const handleConfirmedSubmit = async () => {
     // Prevent multiple submissions
     if (isSubmitting) {
       return;
@@ -2636,8 +2890,10 @@ const Edit = ({
       ...areaData,
     };
 
-    // Clean the client data by removing empty fields
+    // Clean the client data by removing empty fields, then add explicit nulls for cleared fields
     const clientData = removeEmptyFields(baseClientData);
+    const clearedFields = getClearedClientFields(rowData, baseClientData);
+    const clientDataWithClears = { ...clientData, ...clearedFields };
 
     // Determine the API endpoint based on mode
     const endpoint =
@@ -2656,20 +2912,116 @@ const Edit = ({
     // Prepare role submissions
     const roleSubmissions = [];
 
+    // If only updating client data, skip all role submissions
+    if (updateType === "clientOnly") {
+      const submissionData = {
+        clientData: {
+          ...clientDataWithClears,
+          service: "", // No service change for client-only updates
+          subscriptionType: "", // No subscription type change for client-only updates
+        },
+        roleSubmissions: [], // Empty role submissions for client-only updates
+        adddate: new Date().toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+      };
+
+      try {
+        // Check if authentication token exists
+        const token = localStorage.getItem("accessToken");
+        if (!token) {
+          toast({
+            title: "Authentication Error",
+            description: "Please log in again to continue.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const response = await axios.put(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
+            rowData.id
+          }`,
+          submissionData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+
+        if (response.data && response.data.success) {
+          toast({
+            title: "Client Information Updated Successfully",
+            description: (
+              <div>
+                <p>
+                  Client ID:{" "}
+                  <span className="font-mono bg-gray-100 px-1 rounded">
+                    {rowData.id}
+                  </span>
+                </p>
+                <p>
+                  Name: {clientData.fname} {clientData.lname}
+                  {clientData.company}
+                </p>
+                <p className="text-sm text-green-600 mt-1">
+                  ✓ Client information updated (no role data changed)
+                </p>
+              </div>
+            ),
+            duration: 5000,
+          });
+
+          if (onEditSuccess) {
+            onEditSuccess({
+              id: rowData.id,
+              ...clientDataWithClears,
+              services: [],
+              subscriptionType: "",
+            });
+          }
+          onClose();
+          return;
+        }
+      } catch (error) {
+        console.error("Error updating client information:", error);
+        const errorMessage =
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          "Failed to update client information. Please check your connection and try again.";
+
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
+    }
+
     // Use modular subscription data check
     const hasSubscriptionData = () => {
       return checkSubscriptionData(formData, roleSpecificData);
     };
 
-    // Only create WMM submission if user has WMM role AND is currently in WMM mode
-    if (hasRole("WMM") && selectedRole === "WMM" && hasSubscriptionData()) {
+    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it
+    if (
+      (updateType === "all" || updateType === "subscriptionOnly") &&
+      hasRole("WMM") &&
+      selectedRole === "WMM" &&
+      hasSubscriptionData()
+    ) {
       // Use modular subscription-specific data function
       const getSubscriptionSpecificData = () => {
-        return getSubscriptionData(
-          formData.subscriptionType,
-          formData,
-          roleSpecificData
-        );
+        return getSubscriptionData(formData.subscriptionType, formData, {
+          ...roleSpecificData,
+          subsclass: formData.subsclass || roleSpecificData.subsclass || "",
+        });
       };
 
       const subscriptionData = getSubscriptionSpecificData();
@@ -2715,8 +3067,9 @@ const Edit = ({
       dataSource.campaigndateDay &&
       dataSource.campaigndateYear;
 
-    // Only create HRG submission if user has HRG role AND is currently in HRG mode
+    // Only create HRG submission if user has HRG role AND is currently in HRG mode AND update type allows it
     if (
+      (updateType === "all" || updateType === "roleOnly") &&
       hasRole("HRG") &&
       selectedRole === "HRG" &&
       (hasHrgDate || hasHrgPayment || hasHrgRemarks || hasHrgCampaign)
@@ -2735,7 +3088,7 @@ const Edit = ({
       const hrgData = {
         recvdate: formatDate(
           dataSource.recvdateMonth,
-          dataSource.recvdateDay,
+          dataSource.recvdateMonth,
           dataSource.recvdateYear
         ),
         campaigndate: formatDate(
@@ -2779,8 +3132,9 @@ const Edit = ({
     const hasFomRemarks = dataSource.remarks;
     const hasFomForm = dataSource.paymtform;
 
-    // Only create FOM submission if user has FOM role AND is currently in FOM mode
+    // Only create FOM submission if user has FOM role AND is currently in FOM mode AND update type allows it
     if (
+      (updateType === "all" || updateType === "roleOnly") &&
       hasRole("FOM") &&
       selectedRole === "FOM" &&
       (hasFomDate ||
@@ -2850,8 +3204,9 @@ const Edit = ({
     const hasCalUnit = dataSource.calunit;
     const hasCalAmt = dataSource.calamt;
 
-    // Only create CAL submission if user has CAL role AND is currently in CAL mode
+    // Only create CAL submission if user has CAL role AND is currently in CAL mode AND update type allows it
     if (
+      (updateType === "all" || updateType === "roleOnly") &&
       hasRole("CAL") &&
       selectedRole === "CAL" &&
       (hasCalDate ||
@@ -2930,7 +3285,7 @@ const Edit = ({
 
     const submissionData = {
       clientData: {
-        ...clientData,
+        ...clientDataWithClears,
         service: getServiceFromRoleSubmissions(),
         subscriptionType:
           roleSubmissions.length > 0 ? formData.subscriptionType : "",
@@ -2994,7 +3349,467 @@ const Edit = ({
         if (onEditSuccess) {
           onEditSuccess({
             id: mode === "edit" ? rowData.id : response.data.id,
-            ...clientData,
+            ...clientDataWithClears,
+            services: [getServiceFromRoleSubmissions()],
+            subscriptionType: formData.subscriptionType,
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || [],
+            promoData: response.data.promoData || [],
+            complimentaryData: response.data.complimentaryData || [],
+          });
+        }
+        onClose();
+      } else {
+        // Handle case where API returns success: false
+        toast({
+          title: mode === "edit" ? "Update Failed" : "Add Failed",
+          description:
+            response.data?.message ||
+            (mode === "edit"
+              ? "Failed to update client. Please try again."
+              : "Failed to add client. Please try again."),
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Error ${mode === "edit" ? "updating" : "adding"} client:`,
+        error
+      );
+
+      // Show detailed error toast
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        `Failed to ${
+          mode === "edit" ? "update" : "add"
+        } client. Please check your connection and try again.`;
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    // Skip if this came from DonorAdd
+    if (e.nativeEvent?.donorAddEvent) {
+      return;
+    }
+
+    e.preventDefault();
+
+    // Show confirmation dialog for edit mode
+    if (mode === "edit") {
+      setShowConfirmation(true);
+      return;
+    }
+
+    // For add mode, proceed with submission
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Format birth date if all parts are present
+    const formatBdate = () => {
+      if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
+        // Clean trailing spaces before formatting
+        const month = cleanDateInput(formData.bdateMonth);
+        const day = cleanDateInput(formData.bdateDay);
+        const year = cleanDateInput(formData.bdateYear);
+        return `${month}/${day}/${year}`;
+      }
+      return formData.bdate || "";
+    };
+
+    // Prepare base client data
+    const baseClientData = {
+      ...formData,
+      bdate: formatBdate(),
+      address: combinedAddress,
+      ...areaData,
+    };
+
+    // Clean the client data by removing empty fields, then add explicit nulls for cleared fields
+    const clientData = removeEmptyFields(baseClientData);
+    const clearedFields = getClearedClientFields(rowData, baseClientData);
+    const clientDataWithClears = { ...clientData, ...clearedFields };
+    // Already computed clientDataWithClears above
+
+    // Determine the API endpoint based on mode
+    const endpoint =
+      mode === "edit"
+        ? `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
+            rowData.id
+          }`
+        : `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`;
+
+    const method = mode === "edit" ? "put" : "post";
+
+    // Determine role type based on subscription type
+    let roleType = "";
+    let roleData = {};
+
+    // Prepare role submissions
+    const roleSubmissions = [];
+
+    // Use modular subscription data check
+    const hasSubscriptionData = () => {
+      return checkSubscriptionData(formData, roleSpecificData);
+    };
+
+    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it
+    if (
+      (updateType === "all" || updateType === "subscriptionOnly") &&
+      hasRole("WMM") &&
+      selectedRole === "WMM" &&
+      hasSubscriptionData()
+    ) {
+      // Use modular subscription-specific data function
+      const getSubscriptionSpecificData = () => {
+        return getSubscriptionData(formData.subscriptionType, formData, {
+          ...roleSpecificData,
+          subsclass: formData.subsclass || roleSpecificData.subsclass || "",
+        });
+      };
+
+      const subscriptionData = getSubscriptionSpecificData();
+
+      // Map subscription types to their model types
+      const modelType = {
+        WMM: "WMM",
+        Promo: "PROMO",
+        Complimentary: "COMP",
+      }[formData.subscriptionType];
+
+      // Include recordId if we're editing an existing subscription
+      const submission = {
+        roleType: modelType,
+        roleData: subscriptionData,
+      };
+
+      // If we're in edit mode and have a selected subscription, include the recordId
+      if (subscriptionMode === "edit" && selectedSubscription) {
+        submission.recordId =
+          selectedSubscription.id || selectedSubscription._id;
+      }
+
+      roleSubmissions.push(submission);
+    }
+
+    // Use the appropriate data source based on mode
+    const dataSource =
+      roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+
+    // Check if we have valid date components for HRG
+    const hasHrgDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other HRG data
+    const hasHrgPayment =
+      dataSource.paymtref || dataSource.paymtamt || dataSource.paymtform;
+    const hasHrgRemarks = dataSource.remarks;
+    const hasHrgCampaign =
+      dataSource.campaigndateMonth &&
+      dataSource.campaigndateDay &&
+      dataSource.campaigndateYear;
+
+    // Only create HRG submission if user has HRG role AND is currently in HRG mode AND update type allows it
+    if (
+      (updateType === "all" || updateType === "roleOnly") &&
+      hasRole("HRG") &&
+      selectedRole === "HRG" &&
+      (hasHrgDate || hasHrgPayment || hasHrgRemarks || hasHrgCampaign)
+    ) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
+        }
+        return "";
+      };
+
+      const hrgData = {
+        recvdate: formatDate(
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
+        ),
+        campaigndate: formatDate(
+          dataSource.campaigndateMonth,
+          dataSource.campaigndateDay,
+          dataSource.campaigndateYear
+        ),
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
+        unsubscribe: dataSource.unsubscribe || false,
+        remarks: dataSource.remarks || "",
+      };
+
+      // Include recordId if we're editing an existing HRG record
+      const hrgSubmission = {
+        roleType: "HRG",
+        roleData: hrgData,
+      };
+
+      // If we're in edit mode and have a selected HRG record, include the recordId
+      if (roleRecordMode === "edit" && selectedHrgRecord) {
+        hrgSubmission.recordId = selectedHrgRecord.id || selectedHrgRecord._id;
+      }
+
+      roleSubmissions.push(hrgSubmission);
+    }
+
+    // Check if we have valid date components for FOM
+    const hasFomDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other FOM data
+    const hasFomPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasFomPaymentDate =
+      dataSource.paymtdateMonth &&
+      dataSource.paymtdateDay &&
+      dataSource.paymtdateYear;
+    const hasFomRemarks = dataSource.remarks;
+    const hasFomForm = dataSource.paymtform;
+
+    // Only create FOM submission if user has FOM role AND is currently in FOM mode AND update type allows it
+    if (
+      (updateType === "all" || updateType === "roleOnly") &&
+      hasRole("FOM") &&
+      selectedRole === "FOM" &&
+      (hasFomDate ||
+        hasFomPayment ||
+        hasFomPaymentDate ||
+        hasFomRemarks ||
+        hasFomForm)
+    ) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
+        }
+        return "";
+      };
+
+      const fomData = {
+        recvdate: formatDate(
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
+        ),
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
+        paymtdate: formatDate(
+          dataSource.paymtdateMonth,
+          dataSource.paymtdateDay,
+          dataSource.paymtdateYear
+        ),
+        unsubscribe: dataSource.unsubscribe || false,
+        remarks: dataSource.remarks || "",
+      };
+
+      // Include recordId if we're editing an existing FOM record
+      const fomSubmission = {
+        roleType: "FOM",
+        roleData: fomData,
+      };
+
+      // If we're in edit mode and have a selected FOM record, include the recordId
+      if (roleRecordMode === "edit" && selectedFomRecord) {
+        fomSubmission.recordId = selectedFomRecord.id || selectedFomRecord._id;
+      }
+
+      roleSubmissions.push(fomSubmission);
+    }
+
+    // Check if we have valid date components for CAL
+    const hasCalDate =
+      dataSource.recvdateMonth &&
+      dataSource.recvdateDay &&
+      dataSource.recvdateYear;
+
+    // Check for other CAL data
+    const hasCalPayment = dataSource.paymtref || dataSource.paymtamt;
+    const hasCalPaymentDate =
+      dataSource.paymtdateMonth &&
+      dataSource.paymtdateDay &&
+      dataSource.paymtdateYear;
+    const hasCalRemarks = dataSource.remarks;
+    const hasCalType = dataSource.caltype;
+    const hasCalQty = dataSource.calqty;
+    const hasCalUnit = dataSource.calunit;
+    const hasCalAmt = dataSource.calamt;
+
+    // Only create CAL submission if user has CAL role AND is currently in CAL mode AND update type allows it
+    if (
+      (updateType === "all" || updateType === "roleOnly") &&
+      hasRole("CAL") &&
+      selectedRole === "CAL" &&
+      (hasCalDate ||
+        hasCalPayment ||
+        hasCalPaymentDate ||
+        hasCalRemarks ||
+        hasCalType ||
+        hasCalQty ||
+        hasCalUnit ||
+        hasCalAmt)
+    ) {
+      const formatDate = (month, day, year) => {
+        if (month && day && year) {
+          // Clean trailing spaces and format as YYYY-MM-DD for database consistency
+          const cleanMonth = cleanDateInput(month);
+          const cleanDay = cleanDateInput(day);
+          const cleanYear = cleanDateInput(year);
+          return `${cleanYear}-${cleanMonth}-${cleanDay}`;
+        }
+        return "";
+      };
+
+      const calData = {
+        recvdate: formatDate(
+          dataSource.recvdateMonth,
+          dataSource.recvdateDay,
+          dataSource.recvdateYear
+        ),
+        caltype: dataSource.caltype || "",
+        calqty: dataSource.calqty || 0,
+        calunit: dataSource.calunit || 0,
+        calamt: dataSource.calamt || 0,
+        paymtref: dataSource.paymtref || "",
+        paymtamt: dataSource.paymtamt || 0,
+        paymtform: dataSource.paymtform || "",
+        paymtdate: formatDate(
+          dataSource.paymtdateMonth,
+          dataSource.paymtdateDay,
+          dataSource.paymtdateYear
+        ),
+        remarks: dataSource.remarks || "",
+      };
+
+      // Include recordId if we're editing an existing CAL record
+      const calSubmission = {
+        roleType: "CAL",
+        roleData: calData,
+      };
+
+      // If we're in edit mode and have a selected CAL record, include the recordId
+      if (roleRecordMode === "edit" && selectedCalRecord) {
+        calSubmission.recordId = selectedCalRecord.id || selectedCalRecord._id;
+      }
+
+      roleSubmissions.push(calSubmission);
+    }
+
+    // Determine service type based on actual role submissions, not just user role
+    const getServiceFromRoleSubmissions = () => {
+      if (roleSubmissions.length === 0) {
+        return ""; // No service if no role submissions
+      }
+
+      // Check if any subscription type is in the role submissions
+      const subscriptionTypes = roleSubmissions.map((sub) => sub.roleType);
+      if (subscriptionTypes.includes("WMM")) return "WMM";
+      if (subscriptionTypes.includes("PROMO")) return "PROMO";
+      if (subscriptionTypes.includes("COMP")) return "COMP";
+      if (subscriptionTypes.includes("HRG")) return "HRG";
+      if (subscriptionTypes.includes("FOM")) return "FOM";
+      if (subscriptionTypes.includes("CAL")) return "CAL";
+
+      // If no subscription types, return empty string
+      return "";
+    };
+
+    const submissionData = {
+      clientData: {
+        ...clientDataWithClears,
+        service: getServiceFromRoleSubmissions(),
+        subscriptionType:
+          roleSubmissions.length > 0 ? formData.subscriptionType : "",
+      },
+      roleSubmissions,
+      adddate: new Date().toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    };
+
+    try {
+      // Check if authentication token exists
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to continue.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await axios[method](endpoint, submissionData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+
+      if (response.data && response.data.success) {
+        // Show success toast with appropriate message
+        toast({
+          title:
+            mode === "edit"
+              ? "Client Updated Successfully"
+              : "Client Added Successfully",
+          description: (
+            <div>
+              {mode === "edit" && (
+                <p>
+                  Client ID:{" "}
+                  <span className="font-mono bg-gray-100 px-1 rounded">
+                    {rowData.id}
+                  </span>
+                </p>
+              )}
+              <p>
+                Name: {clientData.fname} {clientData.lname}
+                {clientData.company}
+              </p>
+              <p className="text-sm text-green-600 mt-1">
+                ✓ All role data saved successfully
+              </p>
+            </div>
+          ),
+          duration: 5000,
+        });
+
+        // Backend already emits the WebSocket event, so we don't need to emit it again
+        if (onEditSuccess) {
+          onEditSuccess({
+            id: mode === "edit" ? rowData.id : response.data.id,
+            ...clientDataWithClears,
             services: [getServiceFromRoleSubmissions()],
             subscriptionType: formData.subscriptionType,
             wmmData: response.data.wmmData || [],
@@ -3128,7 +3943,7 @@ const Edit = ({
               const todayParts = parseDateToComponents(
                 formatDateToMMDDYY(today)
               );
-              setRoleSpecificData({
+              setHrgData({
                 recvdate: formatDateToMMDDYY(today),
                 recvdateMonth: todayParts.month,
                 recvdateDay: todayParts.day,
@@ -3162,7 +3977,7 @@ const Edit = ({
               const todayParts = parseDateToComponents(
                 formatDateToMMDDYY(today)
               );
-              setRoleSpecificData({
+              setFomData({
                 recvdate: formatDateToMMDDYY(today),
                 recvdateMonth: todayParts.month,
                 recvdateDay: todayParts.day,
@@ -3193,7 +4008,7 @@ const Edit = ({
               const todayParts = parseDateToComponents(
                 formatDateToMMDDYY(today)
               );
-              setRoleSpecificData({
+              setCalData({
                 recvdate: formatDateToMMDDYY(today),
                 recvdateMonth: todayParts.month,
                 recvdateDay: todayParts.day,
@@ -3492,152 +4307,169 @@ const Edit = ({
                   rowData={rowData}
                 />
 
-                <h2
-                  className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center mb-2`}
-                >
-                  {formData.subscriptionType} Subscription
-                </h2>
-
-                {/* Mode toggle - Edit existing or Add new */}
-                <div className="mb-4">
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => handleSubscriptionModeChange("edit")}
-                      className={`px-3 py-1 rounded-md ${
-                        subscriptionMode === "edit"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      Edit Existing Subscription
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSubscriptionModeChange("add")}
-                      className={`px-3 py-1 rounded-md ${
-                        subscriptionMode === "add"
-                          ? "bg-blue-500 text-white"
-                          : "bg-gray-200 text-gray-700"
-                      }`}
-                    >
-                      {isRecentSubscription() ? "Renew" : "Add New"}
-                    </button>
+                {formData.subscriptionType === "None" ? (
+                  <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                    <p className="text-gray-500 text-lg mb-2">
+                      No subscription type selected
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Please select a subscription type above to add
+                      subscription data
+                    </p>
                   </div>
+                ) : (
+                  <>
+                    <h2
+                      className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center mb-2`}
+                    >
+                      {formData.subscriptionType} Subscription
+                    </h2>
 
-                  {subscriptionMode === "edit" &&
-                    availableSubscriptions.length > 0 && (
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Select Subscription:
-                        </label>
-                        <div className="flex gap-2">
-                          <select
-                            value={
-                              selectedSubscription
-                                ? selectedSubscription.id ||
-                                  selectedSubscription._id
-                                : ""
-                            }
-                            onChange={(e) => {
-                              const selectedSub = availableSubscriptions.find(
-                                (sub) => {
-                                  const subId = sub.id || sub._id;
-                                  const targetValue = e.target.value;
-                                  return String(subId) === String(targetValue);
-                                }
-                              );
-                              if (selectedSub) {
-                                selectSubscription(selectedSub);
-                              } else {
-                                console.error(
-                                  "No subscription found for value:",
-                                  e.target.value
-                                );
-                              }
-                            }}
-                            className="flex-1 p-2 border rounded-md text-base"
-                          >
-                            <option value="">Select a subscription</option>
-                            {availableSubscriptions.map((sub) => (
-                              <option
-                                key={sub.id || sub._id}
-                                value={sub.id || sub._id}
-                              >
-                                {sub.subsdate
-                                  ? formatDateToMonthYear(
-                                      parseDate(sub.subsdate)
-                                    )
-                                  : "Unknown"}{" "}
-                                to{" "}
-                                {sub.enddate
-                                  ? formatDateToMonthYear(
-                                      parseDate(sub.enddate)
-                                    )
-                                  : "Unknown"}{" "}
-                                - {sub.subsclass || "No Class"}
-                                {sub.paymtamt && ` (₱${sub.paymtamt})`}
-                              </option>
-                            ))}
-                          </select>
-                          {selectedSubscription && (
-                            <Button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteSubscription(selectedSubscription)
-                              }
-                              className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </Button>
-                          )}
-                        </div>
+                    {/* Mode toggle - Edit existing or Add new */}
+                    <div className="mb-4">
+                      <div className="flex gap-2 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSubscriptionModeChange("edit")}
+                          className={`px-3 py-1 rounded-md ${
+                            subscriptionMode === "edit"
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-200 text-gray-700"
+                          }`}
+                        >
+                          Edit Existing Subscription
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSubscriptionModeChange("add")}
+                          className={`px-3 py-1 rounded-md ${
+                            subscriptionMode === "edit"
+                              ? "bg-blue-500 text-white"
+                              : "bg-gray-200 text-gray-700"
+                          }`}
+                        >
+                          {isRecentSubscription() ? "Renew" : "Add New"}
+                        </button>
                       </div>
+
+                      {subscriptionMode === "edit" &&
+                        availableSubscriptions.length > 0 && (
+                          <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Select Subscription:
+                            </label>
+                            <div className="flex gap-2">
+                              <select
+                                value={
+                                  selectedSubscription
+                                    ? selectedSubscription.id ||
+                                      selectedSubscription._id
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  const selectedSub =
+                                    availableSubscriptions.find((sub) => {
+                                      const subId = sub.id || sub._id;
+                                      const targetValue = e.target.value;
+                                      return (
+                                        String(subId) === String(targetValue)
+                                      );
+                                    });
+                                  if (selectedSub) {
+                                    selectSubscription(selectedSub);
+                                  } else {
+                                    console.error(
+                                      "No subscription found for value:",
+                                      e.target.value
+                                    );
+                                  }
+                                }}
+                                className="flex-1 p-2 border rounded-md text-base"
+                              >
+                                <option value="">Select a subscription</option>
+                                {availableSubscriptions.map((sub) => (
+                                  <option
+                                    key={sub.id || sub._id}
+                                    value={sub.id || sub._id}
+                                  >
+                                    {sub.subsdate
+                                      ? formatDateToMonthYear(
+                                          parseDate(sub.subsdate)
+                                        )
+                                      : "Unknown"}{" "}
+                                    to{" "}
+                                    {sub.enddate
+                                      ? formatDateToMonthYear(
+                                          parseDate(sub.enddate)
+                                        )
+                                      : "Unknown"}{" "}
+                                    - {sub.subsclass || "No Class"}
+                                    {sub.paymtamt && ` (₱${sub.paymtamt})`}
+                                  </option>
+                                ))}
+                              </select>
+                              {selectedSubscription && (
+                                <Button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDeleteSubscription(
+                                      selectedSubscription
+                                    )
+                                  }
+                                  className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Common subscription fields */}
+                    <CommonSubscriptionFields
+                      formData={formData}
+                      roleSpecificData={roleSpecificData}
+                      handleChange={handleChange}
+                      handleRoleSpecificChange={handleRoleSpecificChange}
+                      months={months}
+                    />
+
+                    {/* Subscription Type Specific Fields */}
+                    {formData.subscriptionType === "WMM" && (
+                      <WMMModule
+                        formData={formData}
+                        roleSpecificData={roleSpecificData}
+                        handleChange={handleChange}
+                        handleRoleSpecificChange={handleRoleSpecificChange}
+                        handleNewDonorAdded={handleNewDonorAdded}
+                        subclasses={subclasses}
+                        months={months}
+                        subscriptionType={formData.subscriptionType}
+                      />
                     )}
-                </div>
 
-                {/* Common subscription fields */}
-                <CommonSubscriptionFields
-                  formData={formData}
-                  roleSpecificData={roleSpecificData}
-                  handleChange={handleChange}
-                  handleRoleSpecificChange={handleRoleSpecificChange}
-                  months={months}
-                />
+                    {formData.subscriptionType === "Promo" && (
+                      <PromoModule
+                        formData={formData}
+                        handleChange={handleChange}
+                      />
+                    )}
 
-                {/* Subscription Type Specific Fields */}
-                {formData.subscriptionType === "WMM" && (
-                  <WMMModule
-                    formData={formData}
-                    roleSpecificData={roleSpecificData}
-                    handleChange={handleChange}
-                    handleRoleSpecificChange={handleRoleSpecificChange}
-                    handleNewDonorAdded={handleNewDonorAdded}
-                    subclasses={subclasses}
-                    months={months}
-                    subscriptionType={formData.subscriptionType}
-                  />
-                )}
-
-                {formData.subscriptionType === "Promo" && (
-                  <PromoModule
-                    formData={formData}
-                    handleChange={handleChange}
-                  />
-                )}
-
-                {formData.subscriptionType === "Complimentary" && (
-                  <ComplimentaryModule />
+                    {formData.subscriptionType === "Complimentary" && (
+                      <ComplimentaryModule />
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -3664,22 +4496,22 @@ const Edit = ({
                 {/* Role-specific modules */}
                 {selectedRole === "HRG" && (
                   <HRGModule
-                    hrgData={roleSpecificData}
-                    handleHrgChange={handleRoleSpecificChange}
+                    hrgData={hrgData}
+                    handleHrgChange={handleHrgChange}
                   />
                 )}
 
                 {selectedRole === "FOM" && (
                   <FOMModule
-                    fomData={roleSpecificData}
-                    handleFomChange={handleRoleSpecificChange}
+                    fomData={fomData}
+                    handleFomChange={handleFomChange}
                   />
                 )}
 
                 {selectedRole === "CAL" && (
                   <CALModule
-                    calData={roleSpecificData}
-                    handleCalChange={handleRoleSpecificChange}
+                    calData={calData}
+                    handleCalChange={handleCalChange}
                   />
                 )}
 
@@ -6183,6 +7015,8 @@ const Edit = ({
           title={mode === "edit" ? "Edit Client" : "Add Client"}
         >
           <form onSubmit={handleSubmit}>
+            {/* Debug: Add a hidden input to test form submission */}
+            <input type="hidden" name="debug" value="form-submitted" />
             {/* Rest of the component content */}
             <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
               <Button
@@ -6235,6 +7069,29 @@ const Edit = ({
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* Confirmation Dialog - Rendered outside Modal as overlay */}
+      {showConfirmation && (
+        <ConfirmationSummaryDialog
+          showConfirmation={showConfirmation}
+          setShowConfirmation={setShowConfirmation}
+          handleConfirmedSubmit={handleConfirmedSubmit}
+          closeModal={closeModal}
+          formData={formData}
+          addressData={addressData}
+          areaData={areaData}
+          combinedAddress={combinedAddress}
+          roleSpecificData={roleSpecificData}
+          subscriptionType={formData.subscriptionType}
+          selectedRole={selectedRole}
+          hrgData={hrgData}
+          fomData={fomData}
+          calData={calData}
+          isEditMode={mode === "edit"}
+          onUpdateTypeChange={handleUpdateTypeChange}
+          updateType={updateType}
+        />
       )}
     </>
   );
