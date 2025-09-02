@@ -222,19 +222,39 @@ export const useColumns = () => {
               // Use the records array from subscription data
               const subscriptionRecords = subscriptionData.records || [];
 
-              // Sort records by subsdate in descending order (most recent first)
-              const sortedRecords = [...subscriptionRecords].sort((a, b) => {
-                const dateA = new Date(a.subsdate || 0);
-                const dateB = new Date(b.subsdate || 0);
-                return dateB - dateA;
-              });
+              // Check if there are filtered records available (from backend filtering)
+              // The backend should return filtered records in a separate property
+              const filteredRecords =
+                subscriptionData.filteredRecords ||
+                subscriptionData.matchedRecords ||
+                null;
 
-              // Check if we should show all records or just the most recent one
-              // Only show most recent record if there are filters applied AND they are not just service filters
-              const hasNonServiceFilters = row.hasNonServiceFilters === true;
-              const recordsToProcess = hasNonServiceFilters
-                ? [sortedRecords[0]]
-                : sortedRecords;
+              // Determine which records to display
+              let recordsToProcess;
+
+              if (
+                filteredRecords &&
+                Array.isArray(filteredRecords) &&
+                filteredRecords.length > 0
+              ) {
+                // Use filtered records from backend when available
+                recordsToProcess = filteredRecords;
+              } else {
+                // Fallback to original logic - check if we should show all records or just the most recent one
+                // Only show most recent record if there are filters applied AND they are not just service filters
+                const hasNonServiceFilters = row.hasNonServiceFilters === true;
+
+                // Sort records by subsdate in descending order (most recent first)
+                const sortedRecords = [...subscriptionRecords].sort((a, b) => {
+                  const dateA = new Date(a.subsdate || 0);
+                  const dateB = new Date(b.subsdate || 0);
+                  return dateB - dateA;
+                });
+
+                recordsToProcess = hasNonServiceFilters
+                  ? [sortedRecords[0]]
+                  : sortedRecords;
+              }
 
               return recordsToProcess
                 .filter((subscription) => subscription) // Filter out undefined/null subscriptions
@@ -288,76 +308,108 @@ export const useColumns = () => {
                   };
                 });
             },
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const subscriptions = getValue();
               if (!subscriptions || subscriptions.length === 0) {
                 return <div>No subscription data</div>;
               }
 
+              // Check if we're showing filtered records
+              const subscriptionData =
+                row.original.wmmData ||
+                row.original.promoData ||
+                row.original.compData;
+              const isShowingFilteredRecords =
+                subscriptionData &&
+                (subscriptionData.filteredRecords ||
+                  subscriptionData.matchedRecords) &&
+                Array.isArray(
+                  subscriptionData.filteredRecords ||
+                    subscriptionData.matchedRecords
+                ) &&
+                (
+                  subscriptionData.filteredRecords ||
+                  subscriptionData.matchedRecords
+                ).length > 0;
+
               return (
-                <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
-                  {subscriptions.map((sub, index) => {
-                    const statusClass = getStatusColorClass(sub.status);
-                    const statusIndicator =
-                      sub.status === "expired"
-                        ? "🔴 "
-                        : sub.status === "expiring-soon"
-                        ? "🟡 "
-                        : sub.status === "active"
-                        ? "🟢 "
-                        : "";
+                <div>
+                  {isShowingFilteredRecords && (
+                    <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+                      🔍 Showing filtered records ({subscriptions.length} of{" "}
+                      {(subscriptionData?.records || []).length})
+                    </div>
+                  )}
+                  <ul className="max-h-[200px] max-w-[450px] overflow-y-auto scrollbar-hide">
+                    {subscriptions.map((sub, index) => {
+                      const statusClass = getStatusColorClass(sub.status);
+                      const statusIndicator =
+                        sub.status === "expired"
+                          ? "🔴 "
+                          : sub.status === "expiring-soon"
+                          ? "🟡 "
+                          : sub.status === "active"
+                          ? "🟢 "
+                          : "";
 
-                    // Get subscription type badge color
-                    const typeBadgeColor =
-                      sub.type === "Promo"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : sub.type === "Complimentary"
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-blue-100 text-blue-800";
+                      // Get subscription type badge color
+                      const typeBadgeColor =
+                        sub.type === "Promo"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : sub.type === "Complimentary"
+                          ? "bg-purple-100 text-purple-800"
+                          : "bg-blue-100 text-blue-800";
 
-                    return (
-                      <li key={index} className="mb-1">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className={statusClass}>
-                              {statusIndicator}
-                              <strong>{sub.subsclass}</strong>: {sub.subsdate} -{" "}
-                              {sub.enddate}, Cps: {sub.copies}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadgeColor}`}
-                            >
-                              {sub.type}
-                            </span>
+                      return (
+                        <li key={index} className="mb-1">
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                              <span className={statusClass}>
+                                {statusIndicator}
+                                <strong>{sub.subsclass}</strong>: {sub.subsdate}{" "}
+                                - {sub.enddate}, Cps: {sub.copies}
+                              </span>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeBadgeColor}`}
+                              >
+                                {sub.type}
+                              </span>
+                            </div>
+                            {(sub.paymtref || sub.paymtamt) && (
+                              <div className="text-xs ml-4 text-gray-600">
+                                {sub.paymtref && (
+                                  <span>Ref: {sub.paymtref}</span>
+                                )}
+                                {sub.paymtref && sub.paymtamt && (
+                                  <span> • </span>
+                                )}
+                                {sub.paymtamt && (
+                                  <span>Amt: {sub.paymtamt}</span>
+                                )}
+                              </div>
+                            )}
+                            {index === 0 && (
+                              <div className="text-xs ml-4 mt-1">
+                                {sub.calendar ? (
+                                  <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full font-medium">
+                                    Calendar ✓
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                    No Calendar
+                                  </span>
+                                )}
+                                {sub.referralid && (
+                                  <span>Referral ID: {sub.referralid}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          {(sub.paymtref || sub.paymtamt) && (
-                            <div className="text-xs ml-4 text-gray-600">
-                              {sub.paymtref && <span>Ref: {sub.paymtref}</span>}
-                              {sub.paymtref && sub.paymtamt && <span> • </span>}
-                              {sub.paymtamt && <span>Amt: {sub.paymtamt}</span>}
-                            </div>
-                          )}
-                          {index === 0 && (
-                            <div className="text-xs ml-4 mt-1">
-                              {sub.calendar ? (
-                                <span className="text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full font-medium">
-                                  Calendar ✓
-                                </span>
-                              ) : (
-                                <span className="text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                  No Calendar
-                                </span>
-                              )}
-                              {sub.referralid && (
-                                <span>Referral ID: {sub.referralid}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               );
             },
             size: 250,
@@ -450,7 +502,32 @@ export const useColumns = () => {
                 hrgRecords = [row.hrgData];
               }
 
-              return [...hrgRecords]
+              // Check if there are filtered records available (from backend filtering)
+              const filteredRecords =
+                row.hrgData.filteredRecords ||
+                row.hrgData.matchedRecords ||
+                null;
+
+              // Determine which records to display
+              let recordsToProcess;
+
+              if (
+                filteredRecords &&
+                Array.isArray(filteredRecords) &&
+                filteredRecords.length > 0
+              ) {
+                // Use filtered records from backend when available
+                recordsToProcess = filteredRecords;
+              } else {
+                // Use all records sorted by date
+                recordsToProcess = [...hrgRecords].sort((a, b) => {
+                  const dateA = new Date(a.recvdate || 0);
+                  const dateB = new Date(b.recvdate || 0);
+                  return dateB - dateA;
+                });
+              }
+
+              return recordsToProcess
                 .sort((a, b) => {
                   const dateA = new Date(a.recvdate || 0);
                   const dateB = new Date(b.recvdate || 0);
@@ -493,11 +570,25 @@ export const useColumns = () => {
                   };
                 });
             },
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const records = getValue();
               if (!records || records.length === 0) {
                 return <div className="text-gray-500 italic">No HRG data</div>;
               }
+
+              // Check if we're showing filtered records
+              const isShowingFilteredRecords =
+                row.original.hrgData &&
+                (row.original.hrgData.filteredRecords ||
+                  row.original.hrgData.matchedRecords) &&
+                Array.isArray(
+                  row.original.hrgData.filteredRecords ||
+                    row.original.hrgData.matchedRecords
+                ) &&
+                (
+                  row.original.hrgData.filteredRecords ||
+                  row.original.hrgData.matchedRecords
+                ).length > 0;
 
               // Get the latest record's status
               const latestStatus = records[0].status;
@@ -507,6 +598,12 @@ export const useColumns = () => {
 
               return (
                 <div className="w-full max-h-[150px] overflow-y-auto">
+                  {isShowingFilteredRecords && (
+                    <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+                      🔍 Showing filtered records ({records.length} of{" "}
+                      {(row.original.hrgData?.records || []).length})
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mb-2">
                     <span className={statusColor}>{statusIcon}</span>
                     <span className={statusColor}>{latestStatus}</span>
@@ -588,7 +685,32 @@ export const useColumns = () => {
                   return [];
                 }
 
-                return [...fomRecords]
+                // Check if there are filtered records available (from backend filtering)
+                const filteredRecords =
+                  row.fomData.filteredRecords ||
+                  row.fomData.matchedRecords ||
+                  null;
+
+                // Determine which records to display
+                let recordsToProcess;
+
+                if (
+                  filteredRecords &&
+                  Array.isArray(filteredRecords) &&
+                  filteredRecords.length > 0
+                ) {
+                  // Use filtered records from backend when available
+                  recordsToProcess = filteredRecords;
+                } else {
+                  // Use all records sorted by date
+                  recordsToProcess = [...fomRecords].sort((a, b) => {
+                    const dateA = new Date(a.recvdate || 0);
+                    const dateB = new Date(b.recvdate || 0);
+                    return dateB - dateA;
+                  });
+                }
+
+                return recordsToProcess
                   .sort((a, b) => {
                     const dateA = new Date(a.recvdate || 0);
                     const dateB = new Date(b.recvdate || 0);
@@ -635,11 +757,25 @@ export const useColumns = () => {
                 return [];
               }
             },
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const records = getValue();
               if (!records || records.length === 0) {
                 return <div className="text-gray-500 italic">No FOM data</div>;
               }
+
+              // Check if we're showing filtered records
+              const isShowingFilteredRecords =
+                row.original.fomData &&
+                (row.original.fomData.filteredRecords ||
+                  row.original.fomData.matchedRecords) &&
+                Array.isArray(
+                  row.original.fomData.filteredRecords ||
+                    row.original.fomData.matchedRecords
+                ) &&
+                (
+                  row.original.fomData.filteredRecords ||
+                  row.original.fomData.matchedRecords
+                ).length > 0;
 
               // Get the latest record's status
               const latestStatus = records[0].status;
@@ -649,6 +785,12 @@ export const useColumns = () => {
 
               return (
                 <div className="w-full max-h-[150px] overflow-y-auto">
+                  {isShowingFilteredRecords && (
+                    <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+                      🔍 Showing filtered records ({records.length} of{" "}
+                      {(row.original.fomData?.records || []).length})
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mb-2">
                     <span className={statusColor}>{statusIcon}</span>
                     <span className={statusColor}>{latestStatus}</span>
@@ -719,7 +861,32 @@ export const useColumns = () => {
                 calRecords = [row.calData];
               }
 
-              return [...calRecords]
+              // Check if there are filtered records available (from backend filtering)
+              const filteredRecords =
+                row.calData.filteredRecords ||
+                row.calData.matchedRecords ||
+                null;
+
+              // Determine which records to display
+              let recordsToProcess;
+
+              if (
+                filteredRecords &&
+                Array.isArray(filteredRecords) &&
+                filteredRecords.length > 0
+              ) {
+                // Use filtered records from backend when available
+                recordsToProcess = filteredRecords;
+              } else {
+                // Use all records sorted by date
+                recordsToProcess = [...calRecords].sort((a, b) => {
+                  const dateA = new Date(a.recvdate || 0);
+                  const dateB = new Date(b.recvdate || 0);
+                  return dateB - dateA;
+                });
+              }
+
+              return recordsToProcess
                 .sort((a, b) => {
                   const dateA = new Date(a.recvdate || 0);
                   const dateB = new Date(b.recvdate || 0);
@@ -750,14 +917,34 @@ export const useColumns = () => {
                   };
                 });
             },
-            cell: ({ getValue }) => {
+            cell: ({ getValue, row }) => {
               const records = getValue();
               if (!records || records.length === 0) {
                 return <div className="text-gray-500 italic">No CAL data</div>;
               }
 
+              // Check if we're showing filtered records
+              const isShowingFilteredRecords =
+                row.original.calData &&
+                (row.original.calData.filteredRecords ||
+                  row.original.calData.matchedRecords) &&
+                Array.isArray(
+                  row.original.calData.filteredRecords ||
+                    row.original.calData.matchedRecords
+                ) &&
+                (
+                  row.original.calData.filteredRecords ||
+                  row.original.calData.matchedRecords
+                ).length > 0;
+
               return (
                 <div className="w-full max-h-[150px] overflow-y-auto">
+                  {isShowingFilteredRecords && (
+                    <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+                      🔍 Showing filtered records ({records.length} of{" "}
+                      {(row.original.calData?.records || []).length})
+                    </div>
+                  )}
                   {records.map((record, index) => (
                     <div
                       key={index}

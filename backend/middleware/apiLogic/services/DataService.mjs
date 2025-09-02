@@ -1,8 +1,12 @@
-import { buildFilterQuery } from './filterBuilder.mjs';
-import { aggregateClientData } from './dataAggregator.mjs';
-import { calculateStatistics } from './statsCalculator.mjs';
-import { validatePaginationParams, parseDate, adjustModelNamesForSubscription } from './helpers.mjs';
-import performanceMonitor from './performanceMonitor.mjs';
+import { buildFilterQuery } from "./filterBuilder.mjs";
+import { aggregateClientData } from "./dataAggregator.mjs";
+import { calculateStatistics } from "./statsCalculator.mjs";
+import {
+  validatePaginationParams,
+  parseDate,
+  adjustModelNamesForSubscription,
+} from "./helpers.mjs";
+import performanceMonitor from "./performanceMonitor.mjs";
 import ClientModel from "../../../models/clients.mjs";
 
 class DataService {
@@ -23,35 +27,41 @@ class DataService {
       clientIds = null,
       advancedFilterData = {},
       enableBatchProcessing = false,
-      batchSize = this.DEFAULT_BATCH_SIZE
+      batchSize = this.DEFAULT_BATCH_SIZE,
     } = params;
 
     try {
       // Ensure subscription type is set
-      const subscriptionType = advancedFilterData.subscriptionType || 'WMM';
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
 
       // Check if this is a search query
       const isSearchQuery = filter && filter.trim() !== "";
-      const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+      const isPaymentRefSearch =
+        isSearchQuery && filter.toLowerCase().startsWith("ref:");
       const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
-      const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
+      const isNameSearch =
+        isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
       // Check if there are any filters besides services
-      const hasNonServiceFilters = Object.keys(advancedFilterData).some(key => 
-        key !== 'services' && 
-        key !== 'subscriptionType' && 
-        advancedFilterData[key] !== undefined && 
-        advancedFilterData[key] !== null && 
-        advancedFilterData[key] !== ''
+      const hasNonServiceFilters = Object.keys(advancedFilterData).some(
+        (key) =>
+          key !== "services" &&
+          key !== "subscriptionType" &&
+          advancedFilterData[key] !== undefined &&
+          advancedFilterData[key] !== null &&
+          advancedFilterData[key] !== ""
       );
 
       // Validate pagination parameters
-      const { validPage, validLimit, skip } = validatePaginationParams(page, limit);
+      const { validPage, validLimit, skip } = validatePaginationParams(
+        page,
+        limit
+      );
 
       // Build filter query with subscription type
       const filterQuery = await buildFilterQuery(filter, group, {
         ...advancedFilterData,
-        subscriptionType
+        subscriptionType,
       });
 
       // Get total count first
@@ -60,7 +70,8 @@ class DataService {
       // Decide whether to use batch processing
       // Since we now process page-specific data, only use batch processing for very large datasets
       // or when explicitly enabled
-      const shouldUseBatchProcessing = enableBatchProcessing || totalCount > (batchSize * 5); // Only for datasets > 5000 clients
+      const shouldUseBatchProcessing =
+        enableBatchProcessing || totalCount > batchSize * 5; // Only for datasets > 5000 clients
 
       if (shouldUseBatchProcessing) {
         return await this._fetchDataWithBatching({
@@ -74,7 +85,7 @@ class DataService {
           subscriptionType,
           isSearchQuery,
           hasNonServiceFilters,
-          batchSize
+          batchSize,
         });
       } else {
         return await this._fetchDataDirectly({
@@ -87,11 +98,11 @@ class DataService {
           advancedFilterData,
           subscriptionType,
           isSearchQuery,
-          hasNonServiceFilters
+          hasNonServiceFilters,
         });
       }
     } catch (error) {
-      console.error('Error in DataService.fetchData:', error);
+      console.error("Error in DataService.fetchData:", error);
       throw error;
     }
   }
@@ -106,45 +117,80 @@ class DataService {
     advancedFilterData,
     subscriptionType,
     isSearchQuery,
-    hasNonServiceFilters
+    hasNonServiceFilters,
   }) {
-    // Get filtered clients with pagination for display
-    const clients = await this._getFilteredClients(filterQuery, skip, validLimit);
-    const pageClientIds = clients.map(client => client.id);
+    // Get ALL filtered clients for statistics calculation (unpaginated)
+    const allFilteredClients = await this._getFilteredClients(
+      filterQuery,
+      0, // No skip - get all clients
+      totalCount // Get all clients
+    );
+
+    // Get paginated clients for display
+    const pageClients = await this._getFilteredClients(
+      filterQuery,
+      skip,
+      validLimit
+    );
+    const pageClientIds = pageClients.map((client) => client.id);
 
     // For search queries, use ALL models regardless of user roles
     let adjustedModelNames;
     if (isSearchQuery) {
       // Use all available models for search queries
-      adjustedModelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"];
+      adjustedModelNames = [
+        "WmmModel",
+        "HrgModel",
+        "FomModel",
+        "CalModel",
+        "PromoModel",
+        "ComplimentaryModel",
+      ];
     } else {
       // Use role-based models for non-search queries
-      adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
+      adjustedModelNames = adjustModelNamesForSubscription(
+        modelNames,
+        subscriptionType
+      );
     }
 
-    // Get paginated data for display with subscription type
-    const { combinedData } = await aggregateClientData(clients, adjustedModelNames, {
-      ...advancedFilterData,
-      subscriptionType
-    });
+    // Get ALL filtered data for statistics calculation (unpaginated)
+    const { combinedData: allFilteredData } = await aggregateClientData(
+      allFilteredClients,
+      adjustedModelNames,
+      {
+        ...advancedFilterData,
+        subscriptionType,
+      }
+    );
 
-    // Add hasNonServiceFilters flag and subscription type to each client in combinedData
-    const enrichedData = combinedData.map(client => {
+    // Get paginated data for display with subscription type
+    const { combinedData: pageData } = await aggregateClientData(
+      pageClients,
+      adjustedModelNames,
+      {
+        ...advancedFilterData,
+        subscriptionType,
+      }
+    );
+
+    // Add hasNonServiceFilters flag and subscription type to each client in pageData
+    const enrichedData = pageData.map((client) => {
       // Start with base client data
       const enrichedClient = {
         ...client,
         hasNonServiceFilters,
-        subscriptionType
+        subscriptionType,
       };
 
       // Only include the relevant subscription data based on type
-      switch(subscriptionType) {
-        case 'Promo':
+      switch (subscriptionType) {
+        case "Promo":
           enrichedClient.promoData = client.promoData || null;
           delete enrichedClient.wmmData;
           delete enrichedClient.compData;
           break;
-        case 'Complimentary':
+        case "Complimentary":
           enrichedClient.compData = client.compData || null;
           delete enrichedClient.wmmData;
           delete enrichedClient.promoData;
@@ -163,11 +209,22 @@ class DataService {
       return enrichedClient;
     });
 
-    // Calculate statistics using filter query and current page info
-    const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
+    // Calculate statistics using ALL filtered data (unpaginated) for accurate totals
+    const stats = await calculateStatistics(
+      filterQuery,
+      pageClientIds,
+      validPage,
+      validLimit,
+      advancedFilterData,
+      { combinedData: allFilteredData } // Pass ALL filtered data for statistics
+    );
 
-    // Build client services based on subscription type
-    const clientServices = this._buildClientServices(enrichedData, subscriptionType, isSearchQuery);
+    // Build client services based on subscription type (using page data for display)
+    const clientServices = this._buildClientServices(
+      enrichedData,
+      subscriptionType,
+      isSearchQuery
+    );
 
     // Prepare response
     const response = {
@@ -177,7 +234,7 @@ class DataService {
       pageSize: validLimit,
       combinedData: enrichedData,
       clientServices,
-      subscriptionType // Include subscription type in response
+      subscriptionType, // Include subscription type in response
     };
 
     return response;
@@ -194,10 +251,10 @@ class DataService {
     subscriptionType,
     isSearchQuery,
     hasNonServiceFilters,
-    batchSize
+    batchSize,
   }) {
     const operationId = `fetch_data_batch_${Date.now()}`;
-    
+
     // Start performance monitoring
     performanceMonitor.startTiming(operationId, {
       totalCount,
@@ -216,21 +273,36 @@ class DataService {
     let adjustedModelNames;
     if (isSearchQuery) {
       // Use all available models for search queries
-      adjustedModelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"];
+      adjustedModelNames = [
+        "WmmModel",
+        "HrgModel",
+        "FomModel",
+        "CalModel",
+        "PromoModel",
+        "ComplimentaryModel",
+      ];
     } else {
       // Use role-based models for non-search queries
-      adjustedModelNames = adjustModelNamesForSubscription(modelNames, subscriptionType);
+      adjustedModelNames = adjustModelNamesForSubscription(
+        modelNames,
+        subscriptionType
+      );
     }
 
     // Calculate the range of clients we need for this page
     const pageStartIndex = skip;
     const pageEndIndex = Math.min(skip + validLimit, totalCount);
-    
+
     // OPTIMIZATION: Only process the clients needed for this page
     // Instead of processing entire batches, get exactly the clients we need
     const startTime = Date.now();
-    
+
     try {
+      // Get ALL filtered clients for statistics calculation (unpaginated)
+      const allFilteredClients = await ClientModel.find(filterQuery)
+        .sort({ id: 1 })
+        .lean();
+
       // Get only the clients needed for this page
       const pageClients = await ClientModel.find(filterQuery)
         .sort({ id: 1 })
@@ -268,37 +340,51 @@ class DataService {
             successRate: 0,
             performanceMetrics: performanceMonitor.getSummary(operationId),
             batchProcessingEnabled: true,
-            optimization: "page-specific processing"
+            optimization: "page-specific processing",
           },
         };
       }
 
-      // Process only the clients for this page
-      const { combinedData } = await aggregateClientData(pageClients, adjustedModelNames, {
-        ...advancedFilterData,
-        subscriptionType
-      });
+      // Get ALL filtered data for statistics calculation (unpaginated)
+      const { combinedData: allFilteredData } = await aggregateClientData(
+        allFilteredClients,
+        adjustedModelNames,
+        {
+          ...advancedFilterData,
+          subscriptionType,
+        }
+      );
 
-      const pageClientIds = pageClients.map(client => client.id);
+      // Process only the clients for this page for display
+      const { combinedData: pageData } = await aggregateClientData(
+        pageClients,
+        adjustedModelNames,
+        {
+          ...advancedFilterData,
+          subscriptionType,
+        }
+      );
+
+      const pageClientIds = pageClients.map((client) => client.id);
       const totalDuration = Date.now() - startTime;
-      
+
       // Add hasNonServiceFilters flag and subscription type to each client
-      const enrichedData = combinedData.map(client => {
+      const enrichedData = pageData.map((client) => {
         // Start with base client data
         const enrichedClient = {
           ...client,
           hasNonServiceFilters,
-          subscriptionType
+          subscriptionType,
         };
 
         // Only include the relevant subscription data based on type
-        switch(subscriptionType) {
-          case 'Promo':
+        switch (subscriptionType) {
+          case "Promo":
             enrichedClient.promoData = client.promoData || null;
             delete enrichedClient.wmmData;
             delete enrichedClient.compData;
             break;
-          case 'Complimentary':
+          case "Complimentary":
             enrichedClient.compData = client.compData || null;
             delete enrichedClient.wmmData;
             delete enrichedClient.promoData;
@@ -317,11 +403,22 @@ class DataService {
         return enrichedClient;
       });
 
-      // Calculate statistics using filter query and current page info
-      const stats = await calculateStatistics(filterQuery, pageClientIds, validPage, validLimit);
+      // Calculate statistics using ALL filtered data (unpaginated) for accurate totals
+      const stats = await calculateStatistics(
+        filterQuery,
+        pageClientIds,
+        validPage,
+        validLimit,
+        advancedFilterData,
+        { combinedData: allFilteredData } // Pass ALL filtered data for statistics
+      );
 
       // Build client services based on subscription type
-      const clientServices = this._buildClientServices(enrichedData, subscriptionType, isSearchQuery);
+      const clientServices = this._buildClientServices(
+        enrichedData,
+        subscriptionType,
+        isSearchQuery
+      );
 
       // End performance monitoring for the entire operation
       const performanceMetrics = performanceMonitor.endTiming(operationId, {
@@ -353,15 +450,14 @@ class DataService {
           successRate: pageClients.length / validLimit,
           performanceMetrics: performanceSummary,
           batchProcessingEnabled: true,
-          optimization: "page-specific processing"
+          optimization: "page-specific processing",
         },
       };
 
       return response;
-
     } catch (error) {
       console.error(`Error processing page ${validPage}:`, error);
-      
+
       // End performance monitoring for failed operation
       performanceMonitor.endTiming(operationId, {
         processedCount: 0,
@@ -371,7 +467,7 @@ class DataService {
         error: error.message,
         memoryUsage: performanceMonitor.getMemoryUsage(),
       });
-      
+
       throw error;
     }
   }
@@ -386,48 +482,48 @@ class DataService {
   }
 
   _buildClientServices(combinedData, subscriptionType, isSearchQuery = false) {
-    return combinedData.map(client => {
+    return combinedData.map((client) => {
       const services = [];
-      
+
       // For search queries, include all available services
       if (isSearchQuery) {
         // Add all subscription services that exist
-        if (client.wmmData) services.push('WMM');
-        if (client.promoData) services.push('PROMO');
-        if (client.compData) services.push('COMP');
-        if (client.hrgData) services.push('HRG');
-        if (client.fomData) services.push('FOM');
-        if (client.calData) services.push('CAL');
+        if (client.wmmData) services.push("WMM");
+        if (client.promoData) services.push("PROMO");
+        if (client.compData) services.push("COMP");
+        if (client.hrgData) services.push("HRG");
+        if (client.fomData) services.push("FOM");
+        if (client.calData) services.push("CAL");
       } else {
         // Add subscription service based on type
-        switch(subscriptionType) {
-          case 'Promo':
-            if (client.promoData) services.push('PROMO');
+        switch (subscriptionType) {
+          case "Promo":
+            if (client.promoData) services.push("PROMO");
             break;
-          case 'Complimentary':
-            if (client.compData) services.push('COMP');
+          case "Complimentary":
+            if (client.compData) services.push("COMP");
             break;
           default:
-            if (client.wmmData) services.push('WMM');
+            if (client.wmmData) services.push("WMM");
         }
 
         // Add other services
-        if (client.hrgData) services.push('HRG');
-        if (client.fomData) services.push('FOM');
-        if (client.calData) services.push('CAL');
+        if (client.hrgData) services.push("HRG");
+        if (client.fomData) services.push("FOM");
+        if (client.calData) services.push("CAL");
       }
-      
+
       // Add group-based services
       if (client.group) {
         const group = client.group.toUpperCase();
-        if (group === 'DCS') services.push('DCS');
-        if (group === 'MCCJ-ASIA') services.push('MCCJ-ASIA');
-        if (group === 'MCCJ') services.push('MCCJ');
+        if (group === "DCS") services.push("DCS");
+        if (group === "MCCJ-ASIA") services.push("MCCJ-ASIA");
+        if (group === "MCCJ") services.push("MCCJ");
       }
-      
+
       return {
         clientId: client.id,
-        services
+        services,
       };
     });
   }
@@ -439,39 +535,54 @@ class DataService {
       group,
       clientIds = null,
       advancedFilterData = {},
-      batchSize = this.DEFAULT_BATCH_SIZE
+      batchSize = this.DEFAULT_BATCH_SIZE,
     } = params;
 
     try {
       // Check if this is a search query
       const isSearchQuery = filter && filter.trim() !== "";
-      const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+      const isPaymentRefSearch =
+        isSearchQuery && filter.toLowerCase().startsWith("ref:");
       const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
-      const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
+      const isNameSearch =
+        isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
       // For search queries, use ALL models regardless of user roles
       let validModelNames;
       if (isSearchQuery) {
         // Use all available models for search queries
-        validModelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"];
+        validModelNames = [
+          "WmmModel",
+          "HrgModel",
+          "FomModel",
+          "CalModel",
+          "PromoModel",
+          "ComplimentaryModel",
+        ];
       } else {
         // Use role-based models for non-search queries
         validModelNames = Array.isArray(modelNames) ? modelNames : [];
         if (validModelNames.length === 0) {
-          throw new Error('No valid model names provided');
+          throw new Error("No valid model names provided");
         }
       }
 
       // Build filter query
-      let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      let filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
 
       // Add clientIds filter if provided and ensure it's a valid array
       if (clientIds) {
-        const validClientIds = Array.isArray(clientIds) ? clientIds.filter(id => id !== null && id !== undefined) : [];
+        const validClientIds = Array.isArray(clientIds)
+          ? clientIds.filter((id) => id !== null && id !== undefined)
+          : [];
         if (validClientIds.length > 0) {
           filterQuery = {
             ...filterQuery,
-            id: { $in: validClientIds.map(id => parseInt(id) || id) }
+            id: { $in: validClientIds.map((id) => parseInt(id) || id) },
           };
         }
       }
@@ -481,50 +592,79 @@ class DataService {
 
       // If the dataset is small enough, process it normally
       if (totalCount <= batchSize) {
-        return await this._processAllDataDirectly(filterQuery, validModelNames, advancedFilterData, isSearchQuery);
+        return await this._processAllDataDirectly(
+          filterQuery,
+          validModelNames,
+          advancedFilterData,
+          isSearchQuery
+        );
       }
 
       // Process in batches for large datasets
       return await this._processAllDataInBatches(
-        filterQuery, 
-        validModelNames, 
-        advancedFilterData, 
-        isSearchQuery, 
-        totalCount, 
+        filterQuery,
+        validModelNames,
+        advancedFilterData,
+        isSearchQuery,
+        totalCount,
         batchSize
       );
-
     } catch (error) {
-      console.error('Error in DataService.fetchAllData:', error);
+      console.error("Error in DataService.fetchAllData:", error);
       throw error;
     }
   }
 
-  async _processAllDataDirectly(filterQuery, validModelNames, advancedFilterData, isSearchQuery) {
+  async _processAllDataDirectly(
+    filterQuery,
+    validModelNames,
+    advancedFilterData,
+    isSearchQuery
+  ) {
     // Get ALL clients without pagination
-    const clients = await ClientModel.find(filterQuery)
-      .sort({ id: 1 })
-      .lean();
+    const clients = await ClientModel.find(filterQuery).sort({ id: 1 }).lean();
 
     // Get all data without pagination
-    const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
+    const { combinedData } = await aggregateClientData(
+      clients,
+      validModelNames,
+      advancedFilterData
+    );
 
     // Calculate statistics for the entire dataset
-    const stats = await calculateStatistics(filterQuery, clients.map(c => c.id), 1, clients.length);
+    const stats = await calculateStatistics(
+      filterQuery,
+      clients.map((c) => c.id),
+      1,
+      clients.length,
+      advancedFilterData,
+      { combinedData }
+    );
 
     // Prepare response
     const response = {
       stats,
       combinedData,
-      clientServices: this._buildClientServices(combinedData, advancedFilterData.subscriptionType || 'WMM', isSearchQuery)
+      clientServices: this._buildClientServices(
+        combinedData,
+        advancedFilterData.subscriptionType || "WMM",
+        isSearchQuery
+      ),
     };
 
     return response;
   }
 
-  async _processAllDataInBatches(filterQuery, validModelNames, advancedFilterData, isSearchQuery, totalCount, batchSize) {
+  async _processAllDataInBatches(
+    filterQuery,
+    validModelNames,
+    advancedFilterData,
+    isSearchQuery,
+    totalCount,
+    batchSize
+  ) {
     const operationId = `batch_processing_${Date.now()}`;
-    
+
     // Start performance monitoring
     performanceMonitor.startTiming(operationId, {
       totalCount,
@@ -549,15 +689,15 @@ class DataService {
       const batchStartTime = Date.now();
       const currentBatch = Math.floor(skip / adjustedBatchSize) + 1;
       const batchOperationId = `${operationId}_batch_${currentBatch}`;
-      
+
       // Start timing for this specific batch
       performanceMonitor.startTiming(batchOperationId, {
         batchNumber: currentBatch,
         totalBatches: Math.ceil(totalCount / adjustedBatchSize),
         batchSize: adjustedBatchSize,
-        skip
+        skip,
       });
-      
+
       try {
         // Get batch of clients
         const clients = await ClientModel.find(filterQuery)
@@ -569,16 +709,20 @@ class DataService {
         if (clients.length === 0) break;
 
         // Process this batch
-        const { combinedData } = await aggregateClientData(clients, validModelNames, advancedFilterData);
-        
+        const { combinedData } = await aggregateClientData(
+          clients,
+          validModelNames,
+          advancedFilterData
+        );
+
         // Add to results
         allCombinedData.push(...combinedData);
-        allClientIds.push(...clients.map(c => c.id));
+        allClientIds.push(...clients.map((c) => c.id));
         processedCount += clients.length;
 
         const batchEndTime = Date.now();
         const batchDuration = batchEndTime - batchStartTime;
-        
+
         // Track batch performance
         performanceMonitor.endTiming(batchOperationId, {
           processedCount: clients.length,
@@ -589,28 +733,33 @@ class DataService {
 
         // Optional: Add a small delay between batches to prevent overwhelming the database
         if (skip + adjustedBatchSize < totalCount) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
         // Memory management: Clear some references to help garbage collection
-        if (allCombinedData.length > 5000) { // Reduced threshold for more frequent GC
+        if (allCombinedData.length > 5000) {
+          // Reduced threshold for more frequent GC
           // Force garbage collection if available (Node.js with --expose-gc flag)
           if (global.gc) {
             global.gc();
           }
-          
+
           // Log memory usage after GC
           const memUsage = performanceMonitor.getMemoryUsage();
         }
 
         // Check memory usage and warn if high
-        if (performanceMonitor.isMemoryUsageHigh(400)) { // Reduced threshold to 400MB
-          console.warn(`High memory usage detected during batch processing. Consider reducing batch size. Current: ${performanceMonitor.getMemoryUsage().heapUsed}MB`);
+        if (performanceMonitor.isMemoryUsageHigh(400)) {
+          // Reduced threshold to 400MB
+          console.warn(
+            `High memory usage detected during batch processing. Consider reducing batch size. Current: ${
+              performanceMonitor.getMemoryUsage().heapUsed
+            }MB`
+          );
         }
-
       } catch (error) {
         console.error(`Error processing batch starting at ${skip}:`, error);
-        
+
         // End timing for failed batch
         performanceMonitor.endTiming(batchOperationId, {
           processedCount: 0,
@@ -618,7 +767,7 @@ class DataService {
           error: error.message,
           memoryUsage: performanceMonitor.getMemoryUsage(),
         });
-        
+
         // Continue with next batch instead of failing completely
         continue;
       }
@@ -627,7 +776,14 @@ class DataService {
     const totalDuration = Date.now() - startTime;
 
     // Calculate statistics for the entire dataset
-    const stats = await calculateStatistics(filterQuery, allClientIds, 1, processedCount);
+    const stats = await calculateStatistics(
+      filterQuery,
+      allClientIds,
+      1,
+      processedCount,
+      advancedFilterData,
+      { combinedData: allCombinedData }
+    );
 
     // End performance monitoring for the entire operation
     const performanceMetrics = performanceMonitor.endTiming(operationId, {
@@ -645,7 +801,11 @@ class DataService {
     const response = {
       stats,
       combinedData: allCombinedData,
-      clientServices: this._buildClientServices(allCombinedData, advancedFilterData.subscriptionType || "WMM", isSearchQuery),
+      clientServices: this._buildClientServices(
+        allCombinedData,
+        advancedFilterData.subscriptionType || "WMM",
+        isSearchQuery
+      ),
       processingInfo: {
         totalClients: totalCount,
         processedClients: processedCount,
@@ -677,8 +837,11 @@ class DataService {
     } = params;
 
     // Validate batch size
-    const validatedBatchSize = Math.min(Math.max(batchSize, 100), this.MAX_BATCH_SIZE);
-    
+    const validatedBatchSize = Math.min(
+      Math.max(batchSize, 100),
+      this.MAX_BATCH_SIZE
+    );
+
     // Get total count to decide processing strategy
     const { modelNames, filter, group, advancedFilterData = {} } = otherParams;
     let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
@@ -688,7 +851,7 @@ class DataService {
     if (enableBatchProcessing || totalCount > validatedBatchSize) {
       return await this.fetchData({
         ...otherParams,
-        batchSize: validatedBatchSize
+        batchSize: validatedBatchSize,
       });
     } else {
       // Use direct processing for smaller datasets
@@ -713,8 +876,11 @@ class DataService {
     } = params;
 
     // Validate batch size
-    const validatedBatchSize = Math.min(Math.max(batchSize, 100), this.MAX_BATCH_SIZE);
-    
+    const validatedBatchSize = Math.min(
+      Math.max(batchSize, 100),
+      this.MAX_BATCH_SIZE
+    );
+
     // Get total count to decide processing strategy
     const { modelNames, filter, group, advancedFilterData = {} } = otherParams;
     let filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
@@ -724,15 +890,20 @@ class DataService {
     if (enableBatchProcessing || totalCount > validatedBatchSize) {
       return await this.fetchAllData({
         ...otherParams,
-        batchSize: validatedBatchSize
+        batchSize: validatedBatchSize,
       });
     } else {
       // Use direct processing for smaller datasets
-      return await this._processAllDataDirectly(filterQuery, modelNames, advancedFilterData, false);
+      return await this._processAllDataDirectly(
+        filterQuery,
+        modelNames,
+        advancedFilterData,
+        false
+      );
     }
   }
 }
 
 // Create and export a singleton instance
 const dataService = new DataService();
-export default dataService; 
+export default dataService;
