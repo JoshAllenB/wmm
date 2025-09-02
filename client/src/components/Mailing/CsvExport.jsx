@@ -371,7 +371,8 @@ const CsvExport = ({
         "CAL Payment Reference",
         "CAL Payment Amount",
         "CAL Payment Form",
-        "CAL Payment Date"
+        "CAL Payment Date",
+        "CAL Received Date"
       );
     }
 
@@ -528,12 +529,12 @@ const CsvExport = ({
           rowData.push(
             `"${calRecord.caltype || ""}"`,
             `"${calRecord.calqty || ""}"`,
-            `"${calRecord.calunit || ""}"`,
             `"${calRecord.calamt || ""}"`,
             `"${calRecord.paymtref || ""}"`,
             `"${calRecord.paymtamt || ""}"`,
             `"${calRecord.paymtform || ""}"`,
-            `"${calRecord.paymtdate || ""}"`
+            `"${calRecord.paymtdate || ""}"`,
+            `"${calRecord.recvdate || ""}"`
           );
         }
 
