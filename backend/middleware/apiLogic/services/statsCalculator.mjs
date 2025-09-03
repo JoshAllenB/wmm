@@ -670,36 +670,23 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
         },
         convertedPaymtAmt: {
           $cond: [
-            {
-              $and: [
-                "$paymtref",
-                "$paymtdate",
-                "$paymtform",
-                { $gt: ["$paymtamt", 0] },
-              ],
-            },
+            { $eq: [{ $type: "$paymtamt" }, "string"] },
             {
               $cond: [
-                { $eq: [{ $type: "$paymtamt" }, "string"] },
+                { $eq: ["$paymtamt", "N/A"] },
+                0,
                 {
-                  $cond: [
-                    { $eq: ["$paymtamt", "N/A"] },
-                    0,
-                    {
-                      $toDouble: {
-                        $replaceOne: {
-                          input: "$paymtamt",
-                          find: ",",
-                          replacement: "",
-                        },
-                      },
+                  $toDouble: {
+                    $replaceOne: {
+                      input: "$paymtamt",
+                      find: ",",
+                      replacement: "",
                     },
-                  ],
+                  },
                 },
-                { $toDouble: "$paymtamt" },
               ],
             },
-            0,
+            { $toDouble: "$paymtamt" },
           ],
         },
       },
@@ -965,7 +952,11 @@ async function calculateHrgStats(
         totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
         clientCount: {
           $sum: {
-            $cond: [{ $eq: ["$latestRecord.unsubscribe", false] }, 1, 0],
+            $cond: [
+              { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
           },
         },
       },
@@ -986,7 +977,11 @@ async function calculateHrgStats(
         totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
         clientCount: {
           $sum: {
-            $cond: [{ $eq: ["$latestRecord.unsubscribe", false] }, 1, 0],
+            $cond: [
+              { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
           },
         },
       },
@@ -1012,7 +1007,6 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
   const basePipeline = [
     {
       $match: {
-        paymtamt: { $gt: 0 },
         clientid: { $exists: true },
       },
     },
@@ -1100,7 +1094,15 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
         nonNumericCount: {
           $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
         },
-        clientCount: { $sum: 1 }, // Count unique clients
+        clientCount: {
+          $sum: {
+            $cond: [
+              { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
+          },
+        },
       },
     },
   ];
@@ -1120,7 +1122,15 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
         nonNumericCount: {
           $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
         },
-        clientCount: { $sum: 1 }, // Count unique clients
+        clientCount: {
+          $sum: {
+            $cond: [
+              { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
+          },
+        },
       },
     },
   ];
@@ -1501,15 +1511,7 @@ function calculateCalStatsFromData(combinedData, pageClientIds) {
         const amt = qty * unitAmt;
 
         // Calculate payment amount
-        let paymtAmt = 0;
-        if (
-          latestRecord.paymtref &&
-          latestRecord.paymtdate &&
-          latestRecord.paymtform &&
-          latestRecord.paymtamt > 0
-        ) {
-          paymtAmt = parseNumeric(latestRecord.paymtamt);
-        }
+        const paymtAmt = parseNumeric(latestRecord.paymtamt);
 
         // Check for non-numeric payments
         if (
@@ -1671,12 +1673,23 @@ function calculateFomStatsFromData(combinedData, pageClientIds) {
           }
         }
 
+        // Always include amount; member count only if not unsubscribed
         totalAmt += paymtAmt;
-        totalClients++;
+        if (
+          latestRecord.unsubscribe !== true &&
+          latestRecord.unsubscribe !== 1
+        ) {
+          totalClients++;
+        }
 
         if (pageClientIds.includes(client.id)) {
           pageSpecificAmt += paymtAmt;
-          pageClients++;
+          if (
+            latestRecord.unsubscribe !== true &&
+            latestRecord.unsubscribe !== 1
+          ) {
+            pageClients++;
+          }
 
           if (
             typeof latestRecord.paymtamt === "string" &&
