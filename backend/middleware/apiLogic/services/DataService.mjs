@@ -28,6 +28,7 @@ class DataService {
       advancedFilterData = {},
       enableBatchProcessing = false,
       batchSize = this.DEFAULT_BATCH_SIZE,
+      userRoles = [],
     } = params;
 
     try {
@@ -86,6 +87,7 @@ class DataService {
           isSearchQuery,
           hasNonServiceFilters,
           batchSize,
+          userRoles,
         });
       } else {
         return await this._fetchDataDirectly({
@@ -99,6 +101,7 @@ class DataService {
           subscriptionType,
           isSearchQuery,
           hasNonServiceFilters,
+          userRoles,
         });
       }
     } catch (error) {
@@ -118,6 +121,7 @@ class DataService {
     subscriptionType,
     isSearchQuery,
     hasNonServiceFilters,
+    userRoles,
   }) {
     // Get ALL filtered clients for statistics calculation (unpaginated)
     const allFilteredClients = await this._getFilteredClients(
@@ -216,7 +220,8 @@ class DataService {
       validPage,
       validLimit,
       advancedFilterData,
-      { combinedData: allFilteredData } // Pass ALL filtered data for statistics
+      { combinedData: allFilteredData }, // Pass ALL filtered data for statistics
+      userRoles // Pass user roles for role-based calculations
     );
 
     // Build client services based on subscription type (using page data for display)
@@ -252,6 +257,7 @@ class DataService {
     isSearchQuery,
     hasNonServiceFilters,
     batchSize,
+    userRoles,
   }) {
     const operationId = `fetch_data_batch_${Date.now()}`;
 
@@ -410,7 +416,8 @@ class DataService {
         validPage,
         validLimit,
         advancedFilterData,
-        { combinedData: allFilteredData } // Pass ALL filtered data for statistics
+        { combinedData: allFilteredData }, // Pass ALL filtered data for statistics
+        userRoles // Pass user roles for role-based calculations
       );
 
       // Build client services based on subscription type
@@ -536,6 +543,7 @@ class DataService {
       clientIds = null,
       advancedFilterData = {},
       batchSize = this.DEFAULT_BATCH_SIZE,
+      userRoles = [],
     } = params;
 
     try {
@@ -596,7 +604,8 @@ class DataService {
           filterQuery,
           validModelNames,
           advancedFilterData,
-          isSearchQuery
+          isSearchQuery,
+          userRoles
         );
       }
 
@@ -607,7 +616,8 @@ class DataService {
         advancedFilterData,
         isSearchQuery,
         totalCount,
-        batchSize
+        batchSize,
+        userRoles
       );
     } catch (error) {
       console.error("Error in DataService.fetchAllData:", error);
@@ -619,7 +629,8 @@ class DataService {
     filterQuery,
     validModelNames,
     advancedFilterData,
-    isSearchQuery
+    isSearchQuery,
+    userRoles
   ) {
     // Get ALL clients without pagination
     const clients = await ClientModel.find(filterQuery).sort({ id: 1 }).lean();
@@ -638,7 +649,8 @@ class DataService {
       1,
       clients.length,
       advancedFilterData,
-      { combinedData }
+      { combinedData },
+      userRoles
     );
 
     // Prepare response
@@ -661,7 +673,8 @@ class DataService {
     advancedFilterData,
     isSearchQuery,
     totalCount,
-    batchSize
+    batchSize,
+    userRoles
   ) {
     const operationId = `batch_processing_${Date.now()}`;
 
@@ -782,7 +795,8 @@ class DataService {
       1,
       processedCount,
       advancedFilterData,
-      { combinedData: allCombinedData }
+      { combinedData: allCombinedData },
+      userRoles
     );
 
     // End performance monitoring for the entire operation

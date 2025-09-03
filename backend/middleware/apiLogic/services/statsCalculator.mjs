@@ -13,13 +13,26 @@ export async function calculateStatistics(
   page = 1,
   limit = 20,
   advancedFilterData = {},
-  preFilteredData = null
+  preFilteredData = null,
+  userRoles = []
 ) {
   try {
     // Ensure pageClientIds is always an array
     const validPageClientIds = Array.isArray(pageClientIds)
       ? pageClientIds
       : [];
+
+    // Determine which calculations to perform based on user roles
+    const hasAdminRole = userRoles.includes("Admin") || userRoles.includes("Accounting");
+    const hasWmmRole = userRoles.includes("WMM") || hasAdminRole;
+    const hasHrgRole = userRoles.includes("HRG") || hasAdminRole;
+    const hasFomRole = userRoles.includes("FOM") || hasAdminRole;
+    const hasCalRole = userRoles.includes("CAL") || hasAdminRole;
+    const hasPromoRole = userRoles.includes("WMM") || hasAdminRole; // Promo is part of WMM
+    const hasComplimentaryRole = userRoles.includes("WMM") || hasAdminRole; // Complimentary is part of WMM
+
+    // If no roles provided, assume admin access (fallback for backward compatibility)
+    const shouldCalculateAll = userRoles.length === 0 || hasAdminRole;
 
     // Initialize stats array with structured data
     const stats = {
@@ -207,106 +220,229 @@ export async function calculateStatistics(
         // Use pre-filtered data with date filters applied
         // This is more efficient than making additional database queries
         // since the data is already filtered by date in dataAggregator.mjs
-        const wmmStats = calculateWmmStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[0].total = wmmStats.totalCopies;
-        stats.metrics[0].page = wmmStats.pageSpecificCopies;
-        stats.metrics[0].clientsFound.total = wmmStats.totalClients;
-        stats.metrics[0].clientsFound.page = wmmStats.pageClients;
-        stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
-        stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
+        
+        // Only calculate WMM stats if user has WMM role
+        if (hasWmmRole || shouldCalculateAll) {
+          const wmmStats = calculateWmmStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[0].total = wmmStats.totalCopies;
+          stats.metrics[0].page = wmmStats.pageSpecificCopies;
+          stats.metrics[0].clientsFound.total = wmmStats.totalClients;
+          stats.metrics[0].clientsFound.page = wmmStats.pageClients;
+          stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
+          stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
+        }
 
-        const calStats = calculateCalStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[1].currentCalType = calStats.currentCalType;
-        stats.metrics[1].metrics[0].total = calStats.totalQty;
-        stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
-        stats.metrics[1].metrics[1].total = calStats.totalAmt;
-        stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
-        stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
-        stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
-        stats.metrics[1].metrics[3].total = calStats.totalBalance;
-        stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
-        stats.metrics[1].metrics[4].total = calStats.nonNumericCount;
-        stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
-        stats.metrics[1].clientsFound.total = calStats.totalClients;
-        stats.metrics[1].clientsFound.page = calStats.pageClients;
+        // Only calculate CAL stats if user has CAL role
+        if (hasCalRole || shouldCalculateAll) {
+          const calStats = calculateCalStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[1].currentCalType = calStats.currentCalType;
+          stats.metrics[1].metrics[0].total = calStats.totalQty;
+          stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
+          stats.metrics[1].metrics[1].total = calStats.totalAmt;
+          stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
+          stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
+          stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
+          stats.metrics[1].metrics[3].total = calStats.totalBalance;
+          stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
+          stats.metrics[1].metrics[4].total = calStats.nonNumericCount;
+          stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
+          stats.metrics[1].clientsFound.total = calStats.totalClients;
+          stats.metrics[1].clientsFound.page = calStats.pageClients;
+        }
 
-        const hrgStats = calculateHrgStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[2].total = hrgStats.totalAmt;
-        stats.metrics[2].page = hrgStats.pageSpecificAmt;
-        stats.metrics[2].clientsFound.total = hrgStats.totalClients;
-        stats.metrics[2].clientsFound.page = hrgStats.pageClients;
-        stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
-        stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
-        stats.dataQuality.hrg.nonNumericPayments.total =
-          hrgStats.nonNumericCount;
-        stats.dataQuality.hrg.nonNumericPayments.page =
-          hrgStats.pageNonNumericCount;
+        // Only calculate HRG stats if user has HRG role
+        if (hasHrgRole || shouldCalculateAll) {
+          const hrgStats = calculateHrgStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[2].total = hrgStats.totalAmt;
+          stats.metrics[2].page = hrgStats.pageSpecificAmt;
+          stats.metrics[2].clientsFound.total = hrgStats.totalClients;
+          stats.metrics[2].clientsFound.page = hrgStats.pageClients;
+          stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
+          stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
+          stats.dataQuality.hrg.nonNumericPayments.total =
+            hrgStats.nonNumericCount;
+          stats.dataQuality.hrg.nonNumericPayments.page =
+            hrgStats.pageNonNumericCount;
+        }
 
-        const fomStats = calculateFomStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[3].total = fomStats.totalAmt;
-        stats.metrics[3].page = fomStats.pageSpecificAmt;
-        stats.metrics[3].clientsFound.total = fomStats.totalClients;
-        stats.metrics[3].clientsFound.page = fomStats.pageClients;
-        stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
-        stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
-        stats.dataQuality.fom.nonNumericPayments.total =
-          fomStats.nonNumericCount;
-        stats.dataQuality.fom.nonNumericPayments.page =
-          fomStats.pageNonNumericCount;
+        // Only calculate FOM stats if user has FOM role
+        if (hasFomRole || shouldCalculateAll) {
+          const fomStats = calculateFomStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[3].total = fomStats.totalAmt;
+          stats.metrics[3].page = fomStats.pageSpecificAmt;
+          stats.metrics[3].clientsFound.total = fomStats.totalClients;
+          stats.metrics[3].clientsFound.page = fomStats.pageClients;
+          stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
+          stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
+          stats.dataQuality.fom.nonNumericPayments.total =
+            fomStats.nonNumericCount;
+          stats.dataQuality.fom.nonNumericPayments.page =
+            fomStats.pageNonNumericCount;
+        }
 
-        const promoStats = calculatePromoStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[4].total = promoStats.totalCopies;
-        stats.metrics[4].page = promoStats.pageSpecificCopies;
-        stats.metrics[4].clientsFound.total = promoStats.totalClients;
-        stats.metrics[4].clientsFound.page = promoStats.pageClients;
-        stats.serviceClientCounts.promo.total = promoStats.totalClients;
-        stats.serviceClientCounts.promo.page = promoStats.pageClients;
+        // Only calculate Promo stats if user has WMM role (Promo is part of WMM)
+        if (hasPromoRole || shouldCalculateAll) {
+          const promoStats = calculatePromoStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[4].total = promoStats.totalCopies;
+          stats.metrics[4].page = promoStats.pageSpecificCopies;
+          stats.metrics[4].clientsFound.total = promoStats.totalClients;
+          stats.metrics[4].clientsFound.page = promoStats.pageClients;
+          stats.serviceClientCounts.promo.total = promoStats.totalClients;
+          stats.serviceClientCounts.promo.page = promoStats.pageClients;
+        }
 
-        const complimentaryStats = calculateComplimentaryStatsFromData(
-          preFilteredData.combinedData,
-          validPageClientIds
-        );
-        stats.metrics[5].total = complimentaryStats.totalCopies;
-        stats.metrics[5].page = complimentaryStats.pageSpecificCopies;
-        stats.metrics[5].clientsFound.total = complimentaryStats.totalClients;
-        stats.metrics[5].clientsFound.page = complimentaryStats.pageClients;
-        stats.serviceClientCounts.complimentary.total =
-          complimentaryStats.totalClients;
-        stats.serviceClientCounts.complimentary.page =
-          complimentaryStats.pageClients;
+        // Only calculate Complimentary stats if user has WMM role (Complimentary is part of WMM)
+        if (hasComplimentaryRole || shouldCalculateAll) {
+          const complimentaryStats = calculateComplimentaryStatsFromData(
+            preFilteredData.combinedData,
+            validPageClientIds
+          );
+          stats.metrics[5].total = complimentaryStats.totalCopies;
+          stats.metrics[5].page = complimentaryStats.pageSpecificCopies;
+          stats.metrics[5].clientsFound.total = complimentaryStats.totalClients;
+          stats.metrics[5].clientsFound.page = complimentaryStats.pageClients;
+          stats.serviceClientCounts.complimentary.total =
+            complimentaryStats.totalClients;
+          stats.serviceClientCounts.complimentary.page =
+            complimentaryStats.pageClients;
+        }
       } else {
         // No date filters, use regular database queries
-        const wmmStats = await calculateWmmStats(
-          filteredIds,
-          validPageClientIds
-        );
+        
+        // Only calculate WMM stats if user has WMM role
+        if (hasWmmRole || shouldCalculateAll) {
+          const wmmStats = await calculateWmmStats(
+            filteredIds,
+            validPageClientIds
+          );
+          stats.metrics[0].total = wmmStats.totalCopies;
+          stats.metrics[0].page = wmmStats.pageSpecificCopies;
+          stats.metrics[0].clientsFound.total = wmmStats.totalClients;
+          stats.metrics[0].clientsFound.page = wmmStats.pageClients;
+          stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
+          stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
+        }
+
+        // Only calculate CAL statistics if user has CAL role
+        if (hasCalRole || shouldCalculateAll) {
+          const calStats = await calculateCalStats(
+            filteredIds,
+            validPageClientIds
+          );
+          stats.metrics[1].currentCalType = calStats.currentCalType;
+          stats.metrics[1].metrics[0].total = calStats.totalQty;
+          stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
+          stats.metrics[1].metrics[1].total = calStats.totalAmt;
+          stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
+          stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
+          stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
+          stats.metrics[1].metrics[3].total = calStats.totalBalance;
+          stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
+          stats.metrics[1].metrics[4].total = calStats.nonNumericCount;
+          stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
+          stats.metrics[1].clientsFound.total = calStats.totalClients;
+          stats.metrics[1].clientsFound.page = calStats.pageClients;
+        }
+
+        // Only calculate HRG statistics if user has HRG role
+        if (hasHrgRole || shouldCalculateAll) {
+          const hrgStats = await calculateHrgStats(
+            filteredIds,
+            validPageClientIds,
+            advancedFilterData
+          );
+          stats.metrics[2].total = hrgStats.totalAmt;
+          stats.metrics[2].page = hrgStats.pageSpecificAmt;
+          stats.metrics[2].clientsFound.total = hrgStats.totalClients;
+          stats.metrics[2].clientsFound.page = hrgStats.pageClients;
+          stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
+          stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
+          stats.dataQuality.hrg.nonNumericPayments.total =
+            hrgStats.nonNumericCount;
+          stats.dataQuality.hrg.nonNumericPayments.page =
+            hrgStats.pageNonNumericCount;
+        }
+
+        // Only calculate FOM statistics if user has FOM role
+        if (hasFomRole || shouldCalculateAll) {
+          const fomStats = await calculateFomStats(
+            filteredIds,
+            validPageClientIds
+          );
+          stats.metrics[3].total = fomStats.totalAmt;
+          stats.metrics[3].page = fomStats.pageSpecificAmt;
+          stats.metrics[3].clientsFound.total = fomStats.totalClients;
+          stats.metrics[3].clientsFound.page = fomStats.pageClients;
+          stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
+          stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
+          stats.dataQuality.fom.nonNumericPayments.total =
+            fomStats.nonNumericCount;
+          stats.dataQuality.fom.nonNumericPayments.page =
+            fomStats.pageNonNumericCount;
+        }
+
+        // Only calculate Promo statistics if user has WMM role (Promo is part of WMM)
+        if (hasPromoRole || shouldCalculateAll) {
+          const promoStats = await calculatePromoStats(
+            filteredIds,
+            validPageClientIds
+          );
+          stats.metrics[4].total = promoStats.totalCopies;
+          stats.metrics[4].page = promoStats.pageSpecificCopies;
+          stats.metrics[4].clientsFound.total = promoStats.totalClients;
+          stats.metrics[4].clientsFound.page = promoStats.pageClients;
+          stats.serviceClientCounts.promo.total = promoStats.totalClients;
+          stats.serviceClientCounts.promo.page = promoStats.pageClients;
+        }
+
+        // Only calculate Complimentary statistics if user has WMM role (Complimentary is part of WMM)
+        if (hasComplimentaryRole || shouldCalculateAll) {
+          const complimentaryStats = await calculateComplimentaryStats(
+            filteredIds,
+            validPageClientIds
+          );
+          stats.metrics[5].total = complimentaryStats.totalCopies;
+          stats.metrics[5].page = complimentaryStats.pageSpecificCopies;
+          stats.metrics[5].clientsFound.total = complimentaryStats.totalClients;
+          stats.metrics[5].clientsFound.page = complimentaryStats.pageClients;
+          stats.serviceClientCounts.complimentary.total =
+            complimentaryStats.totalClients;
+          stats.serviceClientCounts.complimentary.page =
+            complimentaryStats.pageClients;
+        }
+      }
+    } else {
+      // Fallback to original database queries if no pre-filtered data
+      
+      // Only calculate WMM stats if user has WMM role
+      if (hasWmmRole || shouldCalculateAll) {
+        const wmmStats = await calculateWmmStats(filteredIds, validPageClientIds);
         stats.metrics[0].total = wmmStats.totalCopies;
         stats.metrics[0].page = wmmStats.pageSpecificCopies;
         stats.metrics[0].clientsFound.total = wmmStats.totalClients;
         stats.metrics[0].clientsFound.page = wmmStats.pageClients;
         stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
         stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
+      }
 
-        // Calculate CAL statistics with current year focus
-        const calStats = await calculateCalStats(
-          filteredIds,
-          validPageClientIds
-        );
+      // Only calculate CAL statistics if user has CAL role
+      if (hasCalRole || shouldCalculateAll) {
+        const calStats = await calculateCalStats(filteredIds, validPageClientIds);
         stats.metrics[1].currentCalType = calStats.currentCalType;
         stats.metrics[1].metrics[0].total = calStats.totalQty;
         stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
@@ -320,8 +456,10 @@ export async function calculateStatistics(
         stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
         stats.metrics[1].clientsFound.total = calStats.totalClients;
         stats.metrics[1].clientsFound.page = calStats.pageClients;
+      }
 
-        // Calculate HRG statistics
+      // Only calculate HRG statistics if user has HRG role
+      if (hasHrgRole || shouldCalculateAll) {
         const hrgStats = await calculateHrgStats(
           filteredIds,
           validPageClientIds,
@@ -333,28 +471,27 @@ export async function calculateStatistics(
         stats.metrics[2].clientsFound.page = hrgStats.pageClients;
         stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
         stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
-        stats.dataQuality.hrg.nonNumericPayments.total =
-          hrgStats.nonNumericCount;
+        stats.dataQuality.hrg.nonNumericPayments.total = hrgStats.nonNumericCount;
         stats.dataQuality.hrg.nonNumericPayments.page =
           hrgStats.pageNonNumericCount;
+      }
 
-        // Calculate FOM statistics
-        const fomStats = await calculateFomStats(
-          filteredIds,
-          validPageClientIds
-        );
+      // Only calculate FOM statistics if user has FOM role
+      if (hasFomRole || shouldCalculateAll) {
+        const fomStats = await calculateFomStats(filteredIds, validPageClientIds);
         stats.metrics[3].total = fomStats.totalAmt;
         stats.metrics[3].page = fomStats.pageSpecificAmt;
         stats.metrics[3].clientsFound.total = fomStats.totalClients;
         stats.metrics[3].clientsFound.page = fomStats.pageClients;
         stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
         stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
-        stats.dataQuality.fom.nonNumericPayments.total =
-          fomStats.nonNumericCount;
+        stats.dataQuality.fom.nonNumericPayments.total = fomStats.nonNumericCount;
         stats.dataQuality.fom.nonNumericPayments.page =
           fomStats.pageNonNumericCount;
+      }
 
-        // Calculate Promo statistics
+      // Only calculate Promo statistics if user has WMM role (Promo is part of WMM)
+      if (hasPromoRole || shouldCalculateAll) {
         const promoStats = await calculatePromoStats(
           filteredIds,
           validPageClientIds
@@ -365,8 +502,10 @@ export async function calculateStatistics(
         stats.metrics[4].clientsFound.page = promoStats.pageClients;
         stats.serviceClientCounts.promo.total = promoStats.totalClients;
         stats.serviceClientCounts.promo.page = promoStats.pageClients;
+      }
 
-        // Calculate Complimentary statistics
+      // Only calculate Complimentary statistics if user has WMM role (Complimentary is part of WMM)
+      if (hasComplimentaryRole || shouldCalculateAll) {
         const complimentaryStats = await calculateComplimentaryStats(
           filteredIds,
           validPageClientIds
@@ -380,85 +519,6 @@ export async function calculateStatistics(
         stats.serviceClientCounts.complimentary.page =
           complimentaryStats.pageClients;
       }
-    } else {
-      // Fallback to original database queries if no pre-filtered data
-      const wmmStats = await calculateWmmStats(filteredIds, validPageClientIds);
-      stats.metrics[0].total = wmmStats.totalCopies;
-      stats.metrics[0].page = wmmStats.pageSpecificCopies;
-      stats.metrics[0].clientsFound.total = wmmStats.totalClients;
-      stats.metrics[0].clientsFound.page = wmmStats.pageClients;
-      stats.serviceClientCounts.wmm.total = wmmStats.totalClients;
-      stats.serviceClientCounts.wmm.page = wmmStats.pageClients;
-
-      // Calculate CAL statistics with current year focus
-      const calStats = await calculateCalStats(filteredIds, validPageClientIds);
-      stats.metrics[1].currentCalType = calStats.currentCalType;
-      stats.metrics[1].metrics[0].total = calStats.totalQty;
-      stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
-      stats.metrics[1].metrics[1].total = calStats.totalAmt;
-      stats.metrics[1].metrics[1].page = calStats.pageSpecificAmt;
-      stats.metrics[1].metrics[2].total = calStats.totalPaymtAmt;
-      stats.metrics[1].metrics[2].page = calStats.pageSpecificPaymtAmt;
-      stats.metrics[1].metrics[3].total = calStats.totalBalance;
-      stats.metrics[1].metrics[3].page = calStats.pageSpecificBalance;
-      stats.metrics[1].metrics[4].total = calStats.nonNumericCount;
-      stats.metrics[1].metrics[4].page = calStats.pageNonNumericCount;
-      stats.metrics[1].clientsFound.total = calStats.totalClients;
-      stats.metrics[1].clientsFound.page = calStats.pageClients;
-
-      // Calculate HRG statistics
-      const hrgStats = await calculateHrgStats(
-        filteredIds,
-        validPageClientIds,
-        advancedFilterData
-      );
-      stats.metrics[2].total = hrgStats.totalAmt;
-      stats.metrics[2].page = hrgStats.pageSpecificAmt;
-      stats.metrics[2].clientsFound.total = hrgStats.totalClients;
-      stats.metrics[2].clientsFound.page = hrgStats.pageClients;
-      stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
-      stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
-      stats.dataQuality.hrg.nonNumericPayments.total = hrgStats.nonNumericCount;
-      stats.dataQuality.hrg.nonNumericPayments.page =
-        hrgStats.pageNonNumericCount;
-
-      // Calculate FOM statistics
-      const fomStats = await calculateFomStats(filteredIds, validPageClientIds);
-      stats.metrics[3].total = fomStats.totalAmt;
-      stats.metrics[3].page = fomStats.pageSpecificAmt;
-      stats.metrics[3].clientsFound.total = fomStats.totalClients;
-      stats.metrics[3].clientsFound.page = fomStats.pageClients;
-      stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
-      stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
-      stats.dataQuality.fom.nonNumericPayments.total = fomStats.nonNumericCount;
-      stats.dataQuality.fom.nonNumericPayments.page =
-        fomStats.pageNonNumericCount;
-
-      // Calculate Promo statistics
-      const promoStats = await calculatePromoStats(
-        filteredIds,
-        validPageClientIds
-      );
-      stats.metrics[4].total = promoStats.totalCopies;
-      stats.metrics[4].page = promoStats.pageSpecificCopies;
-      stats.metrics[4].clientsFound.total = promoStats.totalClients;
-      stats.metrics[4].clientsFound.page = promoStats.pageClients;
-      stats.serviceClientCounts.promo.total = promoStats.totalClients;
-      stats.serviceClientCounts.promo.page = promoStats.pageClients;
-
-      // Calculate Complimentary statistics
-      const complimentaryStats = await calculateComplimentaryStats(
-        filteredIds,
-        validPageClientIds
-      );
-      stats.metrics[5].total = complimentaryStats.totalCopies;
-      stats.metrics[5].page = complimentaryStats.pageSpecificCopies;
-      stats.metrics[5].clientsFound.total = complimentaryStats.totalClients;
-      stats.metrics[5].clientsFound.page = complimentaryStats.pageClients;
-      stats.serviceClientCounts.complimentary.total =
-        complimentaryStats.totalClients;
-      stats.serviceClientCounts.complimentary.page =
-        complimentaryStats.pageClients;
     }
 
     return stats;
