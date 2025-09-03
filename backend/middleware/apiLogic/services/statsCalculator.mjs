@@ -23,7 +23,8 @@ export async function calculateStatistics(
       : [];
 
     // Determine which calculations to perform based on user roles
-    const hasAdminRole = userRoles.includes("Admin") || userRoles.includes("Accounting");
+    const hasAdminRole =
+      userRoles.includes("Admin") || userRoles.includes("Accounting");
     const hasWmmRole = userRoles.includes("WMM") || hasAdminRole;
     const hasHrgRole = userRoles.includes("HRG") || hasAdminRole;
     const hasFomRole = userRoles.includes("FOM") || hasAdminRole;
@@ -33,6 +34,10 @@ export async function calculateStatistics(
 
     // If no roles provided, assume admin access (fallback for backward compatibility)
     const shouldCalculateAll = userRoles.length === 0 || hasAdminRole;
+
+    // Check if we can use optimized calculation for large datasets
+    const totalCount = await ClientModel.countDocuments(filterQuery);
+    const useOptimizedCalculation = totalCount > 10000 && !preFilteredData;
 
     // Initialize stats array with structured data
     const stats = {
@@ -192,11 +197,30 @@ export async function calculateStatistics(
     stats.clientCount.total = totalClientsInDb;
 
     // Get filtered clients count
-    const filteredClientsCount = await ClientModel.countDocuments(filterQuery);
+    const filteredClientsCount = totalCount; // We already have this from the check above
     stats.clientCount.filtered = filteredClientsCount;
     stats.clientCount.page = validPageClientIds.length;
 
-    // Get filtered client IDs for service calculations
+    // For optimized calculation, use direct aggregation instead of loading all client IDs
+    if (useOptimizedCalculation) {
+      return await calculateStatisticsOptimized(
+        filterQuery,
+        validPageClientIds,
+        page,
+        limit,
+        advancedFilterData,
+        stats,
+        hasWmmRole,
+        hasHrgRole,
+        hasFomRole,
+        hasCalRole,
+        hasPromoRole,
+        hasComplimentaryRole,
+        shouldCalculateAll
+      );
+    }
+
+    // Get filtered client IDs for service calculations (only for smaller datasets)
     const filteredClients = await ClientModel.find(filterQuery)
       .select("id")
       .lean();
@@ -220,7 +244,7 @@ export async function calculateStatistics(
         // Use pre-filtered data with date filters applied
         // This is more efficient than making additional database queries
         // since the data is already filtered by date in dataAggregator.mjs
-        
+
         // Only calculate WMM stats if user has WMM role
         if (hasWmmRole || shouldCalculateAll) {
           const wmmStats = calculateWmmStatsFromData(
@@ -323,7 +347,7 @@ export async function calculateStatistics(
         }
       } else {
         // No date filters, use regular database queries
-        
+
         // Only calculate WMM stats if user has WMM role
         if (hasWmmRole || shouldCalculateAll) {
           const wmmStats = await calculateWmmStats(
@@ -428,10 +452,13 @@ export async function calculateStatistics(
       }
     } else {
       // Fallback to original database queries if no pre-filtered data
-      
+
       // Only calculate WMM stats if user has WMM role
       if (hasWmmRole || shouldCalculateAll) {
-        const wmmStats = await calculateWmmStats(filteredIds, validPageClientIds);
+        const wmmStats = await calculateWmmStats(
+          filteredIds,
+          validPageClientIds
+        );
         stats.metrics[0].total = wmmStats.totalCopies;
         stats.metrics[0].page = wmmStats.pageSpecificCopies;
         stats.metrics[0].clientsFound.total = wmmStats.totalClients;
@@ -442,7 +469,10 @@ export async function calculateStatistics(
 
       // Only calculate CAL statistics if user has CAL role
       if (hasCalRole || shouldCalculateAll) {
-        const calStats = await calculateCalStats(filteredIds, validPageClientIds);
+        const calStats = await calculateCalStats(
+          filteredIds,
+          validPageClientIds
+        );
         stats.metrics[1].currentCalType = calStats.currentCalType;
         stats.metrics[1].metrics[0].total = calStats.totalQty;
         stats.metrics[1].metrics[0].page = calStats.pageSpecificQty;
@@ -471,21 +501,26 @@ export async function calculateStatistics(
         stats.metrics[2].clientsFound.page = hrgStats.pageClients;
         stats.serviceClientCounts.hrgOnly.total = hrgStats.totalClients;
         stats.serviceClientCounts.hrgOnly.page = hrgStats.pageClients;
-        stats.dataQuality.hrg.nonNumericPayments.total = hrgStats.nonNumericCount;
+        stats.dataQuality.hrg.nonNumericPayments.total =
+          hrgStats.nonNumericCount;
         stats.dataQuality.hrg.nonNumericPayments.page =
           hrgStats.pageNonNumericCount;
       }
 
       // Only calculate FOM statistics if user has FOM role
       if (hasFomRole || shouldCalculateAll) {
-        const fomStats = await calculateFomStats(filteredIds, validPageClientIds);
+        const fomStats = await calculateFomStats(
+          filteredIds,
+          validPageClientIds
+        );
         stats.metrics[3].total = fomStats.totalAmt;
         stats.metrics[3].page = fomStats.pageSpecificAmt;
         stats.metrics[3].clientsFound.total = fomStats.totalClients;
         stats.metrics[3].clientsFound.page = fomStats.pageClients;
         stats.serviceClientCounts.fomOnly.total = fomStats.totalClients;
         stats.serviceClientCounts.fomOnly.page = fomStats.pageClients;
-        stats.dataQuality.fom.nonNumericPayments.total = fomStats.nonNumericCount;
+        stats.dataQuality.fom.nonNumericPayments.total =
+          fomStats.nonNumericCount;
         stats.dataQuality.fom.nonNumericPayments.page =
           fomStats.pageNonNumericCount;
       }
@@ -1875,4 +1910,955 @@ function calculateComplimentaryStatsFromData(combinedData, pageClientIds) {
     totalClients,
     pageClients,
   };
+}
+
+/**
+ * Optimized statistics calculation for large datasets using direct aggregation
+ */
+async function calculateStatisticsOptimized(
+  filterQuery,
+  validPageClientIds,
+  page,
+  limit,
+  advancedFilterData,
+  stats,
+  hasWmmRole,
+  hasHrgRole,
+  hasFomRole,
+  hasCalRole,
+  hasPromoRole,
+  hasComplimentaryRole,
+  shouldCalculateAll
+) {
+  // Use parallel aggregation for all statistics to avoid sequential database queries
+  const statisticsPromises = [];
+
+  // Only calculate WMM stats if user has WMM role
+  if (hasWmmRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculateWmmStatsOptimized(filterQuery, validPageClientIds).then(
+        (result) => ({ type: "wmm", data: result })
+      )
+    );
+  }
+
+  // Only calculate CAL stats if user has CAL role
+  if (hasCalRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculateCalStatsOptimized(filterQuery, validPageClientIds).then(
+        (result) => ({ type: "cal", data: result })
+      )
+    );
+  }
+
+  // Only calculate HRG stats if user has HRG role
+  if (hasHrgRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculateHrgStatsOptimized(
+        filterQuery,
+        validPageClientIds,
+        advancedFilterData
+      ).then((result) => ({ type: "hrg", data: result }))
+    );
+  }
+
+  // Only calculate FOM stats if user has FOM role
+  if (hasFomRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculateFomStatsOptimized(filterQuery, validPageClientIds).then(
+        (result) => ({ type: "fom", data: result })
+      )
+    );
+  }
+
+  // Only calculate Promo stats if user has WMM role (Promo is part of WMM)
+  if (hasPromoRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculatePromoStatsOptimized(filterQuery, validPageClientIds).then(
+        (result) => ({ type: "promo", data: result })
+      )
+    );
+  }
+
+  // Only calculate Complimentary stats if user has WMM role (Complimentary is part of WMM)
+  if (hasComplimentaryRole || shouldCalculateAll) {
+    statisticsPromises.push(
+      calculateComplimentaryStatsOptimized(
+        filterQuery,
+        validPageClientIds
+      ).then((result) => ({ type: "complimentary", data: result }))
+    );
+  }
+
+  // Execute all statistics calculations in parallel
+  const results = await Promise.all(statisticsPromises);
+
+  // Process results and update stats object
+  results.forEach(({ type, data }) => {
+    switch (type) {
+      case "wmm":
+        stats.metrics[0].total = data.totalCopies;
+        stats.metrics[0].page = data.pageSpecificCopies;
+        stats.metrics[0].clientsFound.total = data.totalClients;
+        stats.metrics[0].clientsFound.page = data.pageClients;
+        stats.serviceClientCounts.wmm.total = data.totalClients;
+        stats.serviceClientCounts.wmm.page = data.pageClients;
+        break;
+      case "cal":
+        stats.metrics[1].currentCalType = data.currentCalType;
+        stats.metrics[1].metrics[0].total = data.totalQty;
+        stats.metrics[1].metrics[0].page = data.pageSpecificQty;
+        stats.metrics[1].metrics[1].total = data.totalAmt;
+        stats.metrics[1].metrics[1].page = data.pageSpecificAmt;
+        stats.metrics[1].metrics[2].total = data.totalPaymtAmt;
+        stats.metrics[1].metrics[2].page = data.pageSpecificPaymtAmt;
+        stats.metrics[1].metrics[3].total = data.totalBalance;
+        stats.metrics[1].metrics[3].page = data.pageSpecificBalance;
+        stats.metrics[1].metrics[4].total = data.nonNumericCount;
+        stats.metrics[1].metrics[4].page = data.pageNonNumericCount;
+        stats.metrics[1].clientsFound.total = data.totalClients;
+        stats.metrics[1].clientsFound.page = data.pageClients;
+        break;
+      case "hrg":
+        stats.metrics[2].total = data.totalAmt;
+        stats.metrics[2].page = data.pageSpecificAmt;
+        stats.metrics[2].clientsFound.total = data.totalClients;
+        stats.metrics[2].clientsFound.page = data.pageClients;
+        stats.serviceClientCounts.hrgOnly.total = data.totalClients;
+        stats.serviceClientCounts.hrgOnly.page = data.pageClients;
+        stats.dataQuality.hrg.nonNumericPayments.total = data.nonNumericCount;
+        stats.dataQuality.hrg.nonNumericPayments.page =
+          data.pageNonNumericCount;
+        break;
+      case "fom":
+        stats.metrics[3].total = data.totalAmt;
+        stats.metrics[3].page = data.pageSpecificAmt;
+        stats.metrics[3].clientsFound.total = data.totalClients;
+        stats.metrics[3].clientsFound.page = data.pageClients;
+        stats.serviceClientCounts.fomOnly.total = data.totalClients;
+        stats.serviceClientCounts.fomOnly.page = data.pageClients;
+        stats.dataQuality.fom.nonNumericPayments.total = data.nonNumericCount;
+        stats.dataQuality.fom.nonNumericPayments.page =
+          data.pageNonNumericCount;
+        break;
+      case "promo":
+        stats.metrics[4].total = data.totalCopies;
+        stats.metrics[4].page = data.pageSpecificCopies;
+        stats.metrics[4].clientsFound.total = data.totalClients;
+        stats.metrics[4].clientsFound.page = data.pageClients;
+        stats.serviceClientCounts.promo.total = data.totalClients;
+        stats.serviceClientCounts.promo.page = data.pageClients;
+        break;
+      case "complimentary":
+        stats.metrics[5].total = data.totalCopies;
+        stats.metrics[5].page = data.pageSpecificCopies;
+        stats.metrics[5].clientsFound.total = data.totalClients;
+        stats.metrics[5].clientsFound.page = data.pageClients;
+        stats.serviceClientCounts.complimentary.total = data.totalClients;
+        stats.serviceClientCounts.complimentary.page = data.pageClients;
+        break;
+    }
+  });
+
+  return stats;
+}
+
+/**
+ * Optimized WMM statistics calculation using direct aggregation
+ */
+async function calculateWmmStatsOptimized(filterQuery, pageClientIds) {
+  // Use a single aggregation pipeline that combines both total and page calculations
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+        copies: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        subsDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: { input: "$subsdate", regex: /^\d{4}-\d{2}-\d{2}$/ },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        endDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: { input: "$enddate", regex: /^\d{4}-\d{2}-\d{2}$/ },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        copiesNum: {
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0,
+          },
+        },
+      },
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        endDateObj: { $exists: true },
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        subsDateObj: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentCopies: { $first: "$copiesNum" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCopies: { $sum: "$recentCopies" },
+        totalClients: { $sum: 1 },
+        pageSpecificCopies: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$recentCopies", 0],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, 1, 0],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await WmmModel.aggregate(pipeline);
+  return (
+    result[0] || {
+      totalCopies: 0,
+      pageSpecificCopies: 0,
+      totalClients: 0,
+      pageClients: 0,
+    }
+  );
+}
+
+/**
+ * Optimized CAL statistics calculation using direct aggregation
+ */
+async function calculateCalStatsOptimized(filterQuery, pageClientIds) {
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
+
+  const calTypes = await CalModel.distinct("caltype");
+  const validCalTypes = calTypes.filter((t) => t && typeof t === "string");
+  const currentCalType =
+    validCalTypes.find((t) => t.includes(String(nextYear))) ||
+    validCalTypes.find((t) => t.includes(String(currentYear))) ||
+    `WALL CALENDAR ${currentYear}`;
+
+  const pipeline = [
+    {
+      $match: {
+        caltype: currentCalType,
+        clientid: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        paymtDateObj: {
+          $dateFromString: {
+            dateString: "$paymtdate",
+            format: "%m/%d/%Y %H:%M:%S",
+            onError: null,
+            onNull: null,
+          },
+        },
+        convertedQty: { $toInt: "$calqty" },
+        convertedUnitAmt: {
+          $cond: [
+            { $eq: [{ $type: "$calamt" }, "string"] },
+            {
+              $toDouble: {
+                $replaceOne: { input: "$calamt", find: ",", replacement: "" },
+              },
+            },
+            { $toDouble: "$calamt" },
+          ],
+        },
+        convertedPaymtAmt: {
+          $cond: [
+            { $eq: [{ $type: "$paymtamt" }, "string"] },
+            {
+              $cond: [
+                { $eq: ["$paymtamt", "N/A"] },
+                0,
+                {
+                  $toDouble: {
+                    $replaceOne: {
+                      input: "$paymtamt",
+                      find: ",",
+                      replacement: "",
+                    },
+                  },
+                },
+              ],
+            },
+            { $toDouble: "$paymtamt" },
+          ],
+        },
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        paymtDateObj: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        qty: { $first: "$convertedQty" },
+        amt: { $first: { $multiply: ["$convertedQty", "$convertedUnitAmt"] } },
+        paymtAmt: { $first: "$convertedPaymtAmt" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalQty: { $sum: "$qty" },
+        totalAmt: { $sum: "$amt" },
+        totalPaymtAmt: { $sum: "$paymtAmt" },
+        totalClients: { $sum: 1 },
+        pageSpecificQty: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$qty", 0],
+          },
+        },
+        pageSpecificAmt: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$amt", 0],
+          },
+        },
+        pageSpecificPaymtAmt: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$paymtAmt", 0],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, 1, 0],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await CalModel.aggregate(pipeline);
+  const data = result[0] || {
+    totalQty: 0,
+    totalAmt: 0,
+    totalPaymtAmt: 0,
+    totalClients: 0,
+    pageSpecificQty: 0,
+    pageSpecificAmt: 0,
+    pageSpecificPaymtAmt: 0,
+    pageClients: 0,
+  };
+
+  return {
+    currentCalType,
+    totalQty: data.totalQty,
+    totalAmt: data.totalAmt,
+    totalPaymtAmt: data.totalPaymtAmt,
+    totalBalance: data.totalAmt - data.totalPaymtAmt,
+    pageSpecificQty: data.pageSpecificQty,
+    pageSpecificAmt: data.pageSpecificAmt,
+    pageSpecificPaymtAmt: data.pageSpecificPaymtAmt,
+    pageSpecificBalance: data.pageSpecificAmt - data.pageSpecificPaymtAmt,
+    nonNumericCount: 0, // Would need additional pipeline stage to calculate this
+    pageNonNumericCount: 0,
+    totalClients: data.totalClients,
+    pageClients: data.pageClients,
+  };
+}
+
+/**
+ * Optimized HRG statistics calculation using direct aggregation
+ */
+async function calculateHrgStatsOptimized(
+  filterQuery,
+  pageClientIds,
+  advancedFilterData
+) {
+  // Determine which date range to apply
+  let dateField = "recvdate";
+  let fromDate = null;
+  let toDate = null;
+
+  if (
+    advancedFilterData?.hrgPaymentFromDate ||
+    advancedFilterData?.hrgPaymentToDate
+  ) {
+    dateField = "recvdate";
+    fromDate = advancedFilterData.hrgPaymentFromDate || null;
+    toDate = advancedFilterData.hrgPaymentToDate || null;
+  } else if (
+    advancedFilterData?.hrgCampaignFromDate ||
+    advancedFilterData?.hrgCampaignToDate
+  ) {
+    dateField = "campaigndate";
+    fromDate = advancedFilterData.hrgCampaignFromDate || null;
+    toDate = advancedFilterData.hrgCampaignToDate || null;
+  } else if (advancedFilterData?.startDate || advancedFilterData?.endDate) {
+    dateField = "adddate";
+    fromDate = advancedFilterData.startDate || null;
+    toDate = advancedFilterData.endDate || null;
+  }
+
+  const dateObjField =
+    dateField === "recvdate"
+      ? "recvDateObj"
+      : dateField === "campaigndate"
+      ? "campaignDateObj"
+      : "addDateObj";
+
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        [dateObjField]: {
+          $let: {
+            vars: {
+              date1: {
+                $dateFromString: {
+                  dateString: `$${dateField}`,
+                  format: "%m/%d/%Y %H:%M:%S",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+              date2: {
+                $dateFromString: {
+                  dateString: `$${dateField}`,
+                  format: "%Y-%m-%d",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            },
+            in: {
+              $cond: [{ $ne: ["$$date1", null] }, "$$date1", "$$date2"],
+            },
+          },
+        },
+        convertedPaymtAmt: {
+          $cond: [
+            { $eq: [{ $type: "$paymtamt" }, "string"] },
+            {
+              $cond: [
+                { $eq: ["$paymtamt", "N/A"] },
+                0,
+                {
+                  $toDouble: {
+                    $replaceOne: {
+                      input: "$paymtamt",
+                      find: ",",
+                      replacement: "",
+                    },
+                  },
+                },
+              ],
+            },
+            { $toDouble: "$paymtamt" },
+          ],
+        },
+      },
+    },
+    {
+      $match: {
+        [dateObjField]: { $ne: null },
+        ...(fromDate || toDate
+          ? {
+              [dateObjField]: {
+                ...(fromDate ? { $gte: new Date(fromDate) } : {}),
+                ...(toDate
+                  ? {
+                      $lte: new Date(
+                        new Date(toDate).setHours(23, 59, 59, 999)
+                      ),
+                    }
+                  : {}),
+              },
+            }
+          : {}),
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        [dateObjField]: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        latestRecord: { $first: "$$ROOT" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
+        totalClients: {
+          $sum: {
+            $cond: [
+              { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
+          },
+        },
+        pageSpecificAmt: {
+          $sum: {
+            $cond: [
+              { $in: ["$_id", pageClientIds] },
+              "$latestRecord.convertedPaymtAmt",
+              0,
+            ],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $in: ["$_id", pageClientIds] },
+                  { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await HrgModel.aggregate(pipeline);
+  return (
+    result[0] || {
+      totalAmt: 0,
+      pageSpecificAmt: 0,
+      totalClients: 0,
+      pageClients: 0,
+      nonNumericCount: 0,
+      pageNonNumericCount: 0,
+    }
+  );
+}
+
+/**
+ * Optimized FOM statistics calculation using direct aggregation
+ */
+async function calculateFomStatsOptimized(filterQuery, pageClientIds) {
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        paymtDateObj: {
+          $dateFromString: {
+            dateString: "$recvdate",
+            format: "%m/%d/%Y %H:%M:%S",
+            onError: null,
+            onNull: null,
+          },
+        },
+        convertedPaymtAmt: {
+          $cond: [
+            { $eq: [{ $type: "$paymtamt" }, "string"] },
+            {
+              $cond: [
+                { $eq: ["$paymtamt", "N/A"] },
+                0,
+                {
+                  $toDouble: {
+                    $replaceOne: {
+                      input: "$paymtamt",
+                      find: ",",
+                      replacement: "",
+                    },
+                  },
+                },
+              ],
+            },
+            { $toDouble: "$paymtamt" },
+          ],
+        },
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        paymtDateObj: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        latestPayment: { $first: "$$ROOT" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
+        totalClients: {
+          $sum: {
+            $cond: [
+              { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
+              1,
+              0,
+            ],
+          },
+        },
+        pageSpecificAmt: {
+          $sum: {
+            $cond: [
+              { $in: ["$_id", pageClientIds] },
+              "$latestPayment.convertedPaymtAmt",
+              0,
+            ],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [
+              {
+                $and: [
+                  { $in: ["$_id", pageClientIds] },
+                  {
+                    $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }],
+                  },
+                ],
+              },
+              1,
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await FomModel.aggregate(pipeline);
+  return (
+    result[0] || {
+      totalAmt: 0,
+      pageSpecificAmt: 0,
+      totalClients: 0,
+      pageClients: 0,
+      nonNumericCount: 0,
+      pageNonNumericCount: 0,
+    }
+  );
+}
+
+/**
+ * Optimized Promo statistics calculation using direct aggregation
+ */
+async function calculatePromoStatsOptimized(filterQuery, pageClientIds) {
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+        copies: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        subsDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: { input: "$subsdate", regex: /^\d{4}-\d{2}-\d{2}$/ },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        endDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: { input: "$enddate", regex: /^\d{4}-\d{2}-\d{2}$/ },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        copiesNum: {
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0,
+          },
+        },
+      },
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        $or: [
+          { endDateObj: { $exists: true, $ne: null } },
+          { subsDateObj: { $exists: true, $ne: null } },
+        ],
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        subsDateObj: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentCopies: { $first: "$copiesNum" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCopies: { $sum: "$recentCopies" },
+        totalClients: { $sum: 1 },
+        pageSpecificCopies: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$recentCopies", 0],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, 1, 0],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await PromoModel.aggregate(pipeline);
+  return (
+    result[0] || {
+      totalCopies: 0,
+      pageSpecificCopies: 0,
+      totalClients: 0,
+      pageClients: 0,
+    }
+  );
+}
+
+/**
+ * Optimized Complimentary statistics calculation using direct aggregation
+ */
+async function calculateComplimentaryStatsOptimized(
+  filterQuery,
+  pageClientIds
+) {
+  const pipeline = [
+    {
+      $match: {
+        clientid: { $exists: true },
+        copies: { $exists: true },
+      },
+    },
+    {
+      $addFields: {
+        subsDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: {
+                input: "$subsdate",
+                regex: /^\\d{4}-\\d{2}-\\d{2}$/,
+              },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$subsdate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        endDateObj: {
+          $cond: {
+            if: {
+              $regexMatch: {
+                input: "$enddate",
+                regex: /^\\d{4}-\\d{2}-\\d{2}$/,
+              },
+            },
+            then: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
+            },
+            else: {
+              $dateFromString: {
+                dateString: "$enddate",
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
+              },
+            },
+          },
+        },
+        copiesNum: {
+          $convert: {
+            input: "$copies",
+            to: "int",
+            onError: 0,
+            onNull: 0,
+          },
+        },
+      },
+    },
+    {
+      $match: {
+        copiesNum: { $gt: 0 },
+        endDateObj: { $exists: true },
+      },
+    },
+    {
+      $sort: {
+        clientid: 1,
+        subsDateObj: -1,
+      },
+    },
+    {
+      $group: {
+        _id: "$clientid",
+        recentCopies: { $first: "$copiesNum" },
+        subsdate: { $first: "$subsdate" },
+        enddate: { $first: "$enddate" },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalCopies: { $sum: "$recentCopies" },
+        totalClients: { $sum: 1 },
+        pageSpecificCopies: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, "$recentCopies", 0],
+          },
+        },
+        pageClients: {
+          $sum: {
+            $cond: [{ $in: ["$_id", pageClientIds] }, 1, 0],
+          },
+        },
+      },
+    },
+  ];
+
+  const result = await ComplimentaryModel.aggregate(pipeline);
+  return (
+    result[0] || {
+      totalCopies: 0,
+      pageSpecificCopies: 0,
+      totalClients: 0,
+      pageClients: 0,
+    }
+  );
 }

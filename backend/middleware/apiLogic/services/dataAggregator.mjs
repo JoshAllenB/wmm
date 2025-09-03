@@ -202,11 +202,13 @@ export async function aggregateClientData(
     return { combinedData: [], modelDataMap: new Map() };
   }
 
-  // Limit batch size for performance
+  // Optimize batch size based on dataset size
   const MAX_BATCH_SIZE = 5000;
-  if (clients.length > MAX_BATCH_SIZE) {
+  const isLargeDataset = clients.length > MAX_BATCH_SIZE;
+
+  if (isLargeDataset) {
     console.warn(
-      `Large batch detected: ${clients.length} clients. Consider using smaller batches for better performance.`
+      `Large batch detected: ${clients.length} clients. Using optimized processing.`
     );
   }
 
@@ -249,21 +251,105 @@ export async function aggregateClientData(
   // Extract client IDs once for better performance
   const clientIds = clients.map((c) => c.id);
 
-  // Create a Map for O(1) client lookup - use WeakMap for better memory management
-  const clientMap = new Map(clients.map((client) => [client.id, client]));
+  // Use optimized processing based on dataset size
+  if (isLargeDataset) {
+    return await aggregateClientDataOptimized(
+      clients,
+      adjustedModelNames,
+      clientIds,
+      advancedFilterData,
+      subscriptionType,
+      modelDataMap
+    );
+  }
 
-  // Process model data in parallel with error handling and memory optimization
+  // Standard processing for smaller datasets
+  return await aggregateClientDataStandard(
+    clients,
+    adjustedModelNames,
+    clientIds,
+    advancedFilterData,
+    subscriptionType,
+    modelDataMap
+  );
+}
+
+/**
+ * Optimized aggregation for large datasets
+ */
+async function aggregateClientDataOptimized(
+  clients,
+  adjustedModelNames,
+  clientIds,
+  advancedFilterData,
+  subscriptionType,
+  modelDataMap
+) {
+  // Process models in smaller batches to reduce memory pressure
+  const BATCH_SIZE = 3; // Process 3 models at a time
+  const modelBatches = [];
+
+  for (let i = 0; i < adjustedModelNames.length; i += BATCH_SIZE) {
+    modelBatches.push(adjustedModelNames.slice(i, i + BATCH_SIZE));
+  }
+
+  // Process model batches sequentially to control memory usage
+  for (const modelBatch of modelBatches) {
+    const modelDataPromises = modelBatch.map(async (modelName) => {
+      try {
+        const Model = await getModelInstance(modelName);
+        const pipeline = buildOptimizedAggregationPipeline(
+          Model.modelName,
+          clientIds,
+          advancedFilterData
+        );
+        const result = await Model.aggregate(pipeline);
+        return { modelName, data: result, success: true };
+      } catch (error) {
+        console.error(`Error aggregating data for model ${modelName}:`, error);
+        return { modelName, data: [], success: false, error };
+      }
+    });
+
+    const modelDataResults = await Promise.all(modelDataPromises);
+
+    // Process results immediately to free memory
+    processModelDataResults(
+      modelDataResults,
+      modelDataMap,
+      advancedFilterData,
+      subscriptionType
+    );
+
+    // Force garbage collection between batches if available
+    if (global.gc && modelBatches.length > 1) {
+      global.gc();
+    }
+  }
+
+  return createCombinedData(clients, modelDataMap, subscriptionType);
+}
+
+/**
+ * Standard aggregation for smaller datasets
+ */
+async function aggregateClientDataStandard(
+  clients,
+  adjustedModelNames,
+  clientIds,
+  advancedFilterData,
+  subscriptionType,
+  modelDataMap
+) {
+  // Process model data in parallel with error handling
   const modelDataPromises = adjustedModelNames.map(async (modelName) => {
     try {
       const Model = await getModelInstance(modelName);
-
-      // Build aggregation pipeline based on model type
       const pipeline = buildAggregationPipeline(
         Model.modelName,
         clientIds,
         advancedFilterData
       );
-
       const result = await Model.aggregate(pipeline);
       return { modelName, data: result, success: true };
     } catch (error) {
@@ -273,8 +359,25 @@ export async function aggregateClientData(
   });
 
   const modelDataResults = await Promise.all(modelDataPromises);
+  processModelDataResults(
+    modelDataResults,
+    modelDataMap,
+    advancedFilterData,
+    subscriptionType
+  );
 
-  // Process and map the aggregated data with memory optimization
+  return createCombinedData(clients, modelDataMap, subscriptionType);
+}
+
+/**
+ * Process model data results and populate the modelDataMap
+ */
+function processModelDataResults(
+  modelDataResults,
+  modelDataMap,
+  advancedFilterData,
+  subscriptionType
+) {
   modelDataResults.forEach(({ modelName, data, success }) => {
     if (!success) return; // Skip failed aggregations
 
@@ -333,7 +436,12 @@ export async function aggregateClientData(
       }
     });
   });
+}
 
+/**
+ * Create combined data with memory optimization
+ */
+function createCombinedData(clients, modelDataMap, subscriptionType) {
   // Create combinedData by merging client data with model data - optimize for memory
   const combinedData = clients.map((client) => {
     // Get model data for this client
@@ -368,6 +476,187 @@ export async function aggregateClientData(
     combinedData,
     modelDataMap: new Map(), // Return empty map since we've processed the data
   };
+}
+
+/**
+ * Build optimized aggregation pipeline for large datasets
+ */
+function buildOptimizedAggregationPipeline(
+  modelName,
+  clientIds,
+  advancedFilterData
+) {
+  const baseMatch = {
+    clientid: { $in: clientIds.map((id) => parseInt(id)) },
+  };
+
+  // Use same pipeline for all subscription models (WMM, Promo, Complimentary)
+  if (modelName.toLowerCase().match(/wmm|promo|complimentary/)) {
+    const isPromo = modelName.toLowerCase().includes("promo");
+    const isWmm = modelName.toLowerCase().includes("wmm");
+
+    return [
+      { $match: baseMatch },
+      { $sort: { clientid: 1, subsdate: -1 } },
+      {
+        $addFields: {
+          modelType: modelName.replace(/model/i, "").toUpperCase(),
+        },
+      },
+      {
+        $group: {
+          _id: "$clientid",
+          recentCopies: { $first: "$copies" },
+          totalCopies: { $sum: { $toInt: "$copies" } },
+          subsclass: { $first: "$subsclass" },
+          subsdate: { $first: "$subsdate" },
+          enddate: { $first: "$enddate" },
+          subsyear: { $first: "$subsyear" },
+          remarks: { $first: "$remarks" },
+          calendar: { $first: "$calendar" },
+          adddate: { $first: "$adddate" },
+          adduser: { $first: "$adduser" },
+          // WMM specific fields
+          paymtref: { $first: { $cond: [isWmm, "$paymtref", null] } },
+          paymtamt: { $first: { $cond: [isWmm, "$paymtamt", null] } },
+          paymtmasses: { $first: { $cond: [isWmm, "$paymtmasses", null] } },
+          donorid: { $first: { $cond: [isWmm, "$donorid", null] } },
+          // Promo specific fields
+          referralid: { $first: { $cond: [isPromo, "$referralid", null] } },
+          // Optimized records - limit to most recent 10 records per client
+          records: {
+            $push: {
+              $cond: [
+                { $lte: [{ $size: { $ifNull: ["$records", []] } }, 10] },
+                {
+                  $mergeObjects: [
+                    "$$ROOT",
+                    {
+                      _id: { $toString: "$_id" },
+                      clientid: { $toString: "$clientid" },
+                    },
+                  ],
+                },
+                null,
+              ],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          clientid: "$_id",
+          recentCopies: 1,
+          totalCopies: 1,
+          subsclass: 1,
+          subsdate: 1,
+          enddate: 1,
+          subsyear: 1,
+          remarks: 1,
+          calendar: 1,
+          adddate: 1,
+          adduser: 1,
+          // WMM specific fields
+          paymtref: 1,
+          paymtamt: 1,
+          paymtmasses: 1,
+          donorid: 1,
+          // Promo specific fields
+          referralid: 1,
+          records: {
+            $filter: { input: "$records", cond: { $ne: ["$$this", null] } },
+          },
+        },
+      },
+    ];
+  }
+
+  // Handle other models with optimized pipelines
+  switch (modelName.toLowerCase()) {
+    case "cal":
+      return [
+        { $match: baseMatch },
+        {
+          $addFields: {
+            modelType: "CAL",
+            numericCalQty: { $toInt: "$calqty" },
+            numericCalUnit: { $toDouble: "$calunit" },
+            numericCalAmt: { $toDouble: "$calamt" },
+            lineTotal: {
+              $multiply: [
+                { $toInt: { $ifNull: ["$calqty", 0] } },
+                { $toDouble: { $ifNull: ["$calunit", 0] } },
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$clientid",
+            totalCalQty: { $sum: "$numericCalQty" },
+            totalCalAmt: { $sum: "$lineTotal" },
+            // Limit records to most recent 5 per client
+            records: {
+              $push: {
+                $cond: [
+                  { $lte: [{ $size: { $ifNull: ["$records", []] } }, 5] },
+                  "$$ROOT",
+                  null,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            clientid: "$_id",
+            totalCalQty: 1,
+            totalCalAmt: 1,
+            records: {
+              $filter: { input: "$records", cond: { $ne: ["$$this", null] } },
+            },
+          },
+        },
+      ];
+
+    default:
+      const modelType = modelName.replace(/model/i, "").toUpperCase();
+      return [
+        { $match: baseMatch },
+        { $sort: { clientid: 1, recvdate: -1 } },
+        {
+          $addFields: {
+            modelType: modelType,
+          },
+        },
+        {
+          $group: {
+            _id: "$clientid",
+            // Limit records to most recent 5 per client for other models
+            records: {
+              $push: {
+                $cond: [
+                  { $lte: [{ $size: { $ifNull: ["$records", []] } }, 5] },
+                  "$$ROOT",
+                  null,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            clientid: "$_id",
+            records: {
+              $filter: { input: "$records", cond: { $ne: ["$$this", null] } },
+            },
+          },
+        },
+      ];
+  }
 }
 
 function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {

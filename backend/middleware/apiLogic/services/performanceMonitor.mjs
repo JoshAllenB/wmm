@@ -15,7 +15,7 @@ class PerformanceMonitor {
   startTiming(operationId, metadata = {}) {
     this.startTimes.set(operationId, {
       startTime: Date.now(),
-      metadata
+      metadata,
     });
   }
 
@@ -33,7 +33,7 @@ class PerformanceMonitor {
 
     const endTime = Date.now();
     const duration = endTime - startData.startTime;
-    
+
     const metrics = {
       operationId,
       duration,
@@ -41,7 +41,7 @@ class PerformanceMonitor {
       endTime,
       metadata: startData.metadata,
       results,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.metrics.set(operationId, metrics);
@@ -49,7 +49,7 @@ class PerformanceMonitor {
 
     // Log performance metrics
     this.logMetrics(metrics);
-    
+
     return metrics;
   }
 
@@ -59,16 +59,18 @@ class PerformanceMonitor {
    */
   logMetrics(metrics) {
     const { operationId, duration, metadata, results } = metrics;
-    
+
     console.log(`Performance: ${operationId} completed in ${duration}ms`);
-    
+
     if (metadata.batchSize && results.processedCount) {
       const rate = Math.round((results.processedCount / duration) * 1000);
       console.log(`  Processing rate: ${rate} records/second`);
     }
-    
+
     if (metadata.totalBatches && results.currentBatch) {
-      console.log(`  Batch ${results.currentBatch}/${metadata.totalBatches} completed`);
+      console.log(
+        `  Batch ${results.currentBatch}/${metadata.totalBatches} completed`
+      );
     }
   }
 
@@ -82,16 +84,22 @@ class PerformanceMonitor {
     if (!metrics) return null;
 
     const { duration, metadata, results } = metrics;
-    
+
     return {
       operationId,
       totalDuration: duration,
-      averageBatchTime: metadata.totalBatches ? duration / metadata.totalBatches : duration,
-      processingRate: results.processedCount ? Math.round((results.processedCount / duration) * 1000) : 0,
-      successRate: results.processedCount && metadata.totalCount ? 
-        (results.processedCount / metadata.totalCount) * 100 : 100,
+      averageBatchTime: metadata.totalBatches
+        ? duration / metadata.totalBatches
+        : duration,
+      processingRate: results.processedCount
+        ? Math.round((results.processedCount / duration) * 1000)
+        : 0,
+      successRate:
+        results.processedCount && metadata.totalCount
+          ? (results.processedCount / metadata.totalCount) * 100
+          : 100,
       memoryUsage: process.memoryUsage(),
-      timestamp: metrics.timestamp
+      timestamp: metrics.timestamp,
     };
   }
 
@@ -113,7 +121,7 @@ class PerformanceMonitor {
       const sortedMetrics = metricsArray
         .sort((a, b) => b[1].timestamp.localeCompare(a[1].timestamp))
         .slice(0, 100);
-      
+
       this.metrics.clear();
       sortedMetrics.forEach(([key, value]) => {
         this.metrics.set(key, value);
@@ -132,7 +140,7 @@ class PerformanceMonitor {
       heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024), // MB
       heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
       external: Math.round(memUsage.external / 1024 / 1024), // MB
-      arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024) // MB
+      arrayBuffers: Math.round(memUsage.arrayBuffers / 1024 / 1024), // MB
     };
   }
 
@@ -149,4 +157,4 @@ class PerformanceMonitor {
 
 // Create and export a singleton instance
 const performanceMonitor = new PerformanceMonitor();
-export default performanceMonitor; 
+export default performanceMonitor;

@@ -272,13 +272,15 @@ class DataService {
       subscriptionType,
     });
 
-    // Validate and adjust batch size
-    const adjustedBatchSize = Math.min(batchSize, this.MAX_BATCH_SIZE);
+    // Optimize batch size based on total count and memory constraints
+    const adjustedBatchSize = this._calculateOptimalBatchSize(
+      totalCount,
+      batchSize
+    );
 
     // For search queries, use ALL models regardless of user roles
     let adjustedModelNames;
     if (isSearchQuery) {
-      // Use all available models for search queries
       adjustedModelNames = [
         "WmmModel",
         "HrgModel",
@@ -288,184 +290,54 @@ class DataService {
         "ComplimentaryModel",
       ];
     } else {
-      // Use role-based models for non-search queries
       adjustedModelNames = adjustModelNamesForSubscription(
         modelNames,
         subscriptionType
       );
     }
 
-    // Calculate the range of clients we need for this page
-    const pageStartIndex = skip;
-    const pageEndIndex = Math.min(skip + validLimit, totalCount);
-
-    // OPTIMIZATION: Only process the clients needed for this page
-    // Instead of processing entire batches, get exactly the clients we need
     const startTime = Date.now();
 
     try {
-      // Get ALL filtered clients for statistics calculation (unpaginated)
-      const allFilteredClients = await ClientModel.find(filterQuery)
-        .sort({ id: 1 })
-        .lean();
-
-      // Get only the clients needed for this page
-      const pageClients = await ClientModel.find(filterQuery)
-        .sort({ id: 1 })
-        .skip(pageStartIndex)
-        .limit(validLimit)
-        .lean();
-
-      if (pageClients.length === 0) {
-        // No clients found for this page
-        const totalDuration = Date.now() - startTime;
-
-        // End performance monitoring
-        performanceMonitor.endTiming(operationId, {
-          processedCount: 0,
+      // Use streaming approach for large datasets
+      if (totalCount > adjustedBatchSize * 2) {
+        return await this._processWithStreaming({
+          filterQuery,
+          validPage,
+          validLimit,
+          skip,
           totalCount,
-          successRate: 0,
-          totalDuration,
-          memoryUsage: performanceMonitor.getMemoryUsage(),
-        });
-
-        return {
-          stats: { clientCount: { total: totalCount, page: 0 }, metrics: [] },
-          totalPages: Math.ceil(totalCount / validLimit),
-          currentPage: validPage,
-          pageSize: validLimit,
-          combinedData: [],
-          clientServices: [],
+          adjustedModelNames,
+          advancedFilterData,
           subscriptionType,
-          processingInfo: {
-            totalClients: totalCount,
-            processedClients: 0,
-            batchSize: adjustedBatchSize,
-            totalBatches: 0,
-            processingTime: totalDuration,
-            successRate: 0,
-            performanceMetrics: performanceMonitor.getSummary(operationId),
-            batchProcessingEnabled: true,
-            optimization: "page-specific processing",
-          },
-        };
+          isSearchQuery,
+          hasNonServiceFilters,
+          userRoles,
+          operationId,
+          startTime,
+        });
       }
 
-      // Get ALL filtered data for statistics calculation (unpaginated)
-      const { combinedData: allFilteredData } = await aggregateClientData(
-        allFilteredClients,
-        adjustedModelNames,
-        {
-          ...advancedFilterData,
-          subscriptionType,
-        }
-      );
-
-      // Process only the clients for this page for display
-      const { combinedData: pageData } = await aggregateClientData(
-        pageClients,
-        adjustedModelNames,
-        {
-          ...advancedFilterData,
-          subscriptionType,
-        }
-      );
-
-      const pageClientIds = pageClients.map((client) => client.id);
-      const totalDuration = Date.now() - startTime;
-
-      // Add hasNonServiceFilters flag and subscription type to each client
-      const enrichedData = pageData.map((client) => {
-        // Start with base client data
-        const enrichedClient = {
-          ...client,
-          hasNonServiceFilters,
-          subscriptionType,
-        };
-
-        // Only include the relevant subscription data based on type
-        switch (subscriptionType) {
-          case "Promo":
-            enrichedClient.promoData = client.promoData || null;
-            delete enrichedClient.wmmData;
-            delete enrichedClient.compData;
-            break;
-          case "Complimentary":
-            enrichedClient.compData = client.compData || null;
-            delete enrichedClient.wmmData;
-            delete enrichedClient.promoData;
-            break;
-          default: // WMM
-            enrichedClient.wmmData = client.wmmData || null;
-            delete enrichedClient.promoData;
-            delete enrichedClient.compData;
-        }
-
-        // Keep other service data
-        if (client.hrgData) enrichedClient.hrgData = client.hrgData;
-        if (client.fomData) enrichedClient.fomData = client.fomData;
-        if (client.calData) enrichedClient.calData = client.calData;
-
-        return enrichedClient;
-      });
-
-      // Calculate statistics using ALL filtered data (unpaginated) for accurate totals
-      const stats = await calculateStatistics(
+      // For smaller datasets, use optimized parallel processing
+      return await this._processWithParallelBatching({
         filterQuery,
-        pageClientIds,
         validPage,
         validLimit,
-        advancedFilterData,
-        { combinedData: allFilteredData }, // Pass ALL filtered data for statistics
-        userRoles // Pass user roles for role-based calculations
-      );
-
-      // Build client services based on subscription type
-      const clientServices = this._buildClientServices(
-        enrichedData,
-        subscriptionType,
-        isSearchQuery
-      );
-
-      // End performance monitoring for the entire operation
-      const performanceMetrics = performanceMonitor.endTiming(operationId, {
-        processedCount: pageClients.length,
+        skip,
         totalCount,
-        successRate: pageClients.length / validLimit,
-        totalDuration,
-        memoryUsage: performanceMonitor.getMemoryUsage(),
-      });
-
-      // Get performance summary
-      const performanceSummary = performanceMonitor.getSummary(operationId);
-
-      // Prepare response
-      const response = {
-        stats,
-        totalPages: Math.ceil(totalCount / validLimit),
-        currentPage: validPage,
-        pageSize: validLimit,
-        combinedData: enrichedData,
-        clientServices,
+        adjustedModelNames,
+        advancedFilterData,
         subscriptionType,
-        processingInfo: {
-          totalClients: totalCount,
-          processedClients: pageClients.length,
-          batchSize: adjustedBatchSize,
-          totalBatches: 1, // Only one "batch" since we process page-specific data
-          processingTime: totalDuration,
-          successRate: pageClients.length / validLimit,
-          performanceMetrics: performanceSummary,
-          batchProcessingEnabled: true,
-          optimization: "page-specific processing",
-        },
-      };
-
-      return response;
+        isSearchQuery,
+        hasNonServiceFilters,
+        userRoles,
+        operationId,
+        startTime,
+        adjustedBatchSize,
+      });
     } catch (error) {
       console.error(`Error processing page ${validPage}:`, error);
 
-      // End performance monitoring for failed operation
       performanceMonitor.endTiming(operationId, {
         processedCount: 0,
         totalCount,
@@ -477,6 +349,390 @@ class DataService {
 
       throw error;
     }
+  }
+
+  /**
+   * Calculate optimal batch size based on total count and memory constraints
+   */
+  _calculateOptimalBatchSize(totalCount, requestedBatchSize) {
+    const memoryUsage = performanceMonitor.getMemoryUsage();
+    const isHighMemory = memoryUsage.heapUsed > 300; // 300MB threshold
+
+    // Dynamic batch sizing based on dataset size and memory usage
+    let optimalBatchSize;
+
+    if (totalCount > 50000) {
+      // Very large datasets - use smaller batches
+      optimalBatchSize = Math.min(1000, requestedBatchSize);
+    } else if (totalCount > 20000) {
+      // Large datasets - moderate batch size
+      optimalBatchSize = Math.min(2000, requestedBatchSize);
+    } else if (totalCount > 10000) {
+      // Medium datasets - standard batch size
+      optimalBatchSize = Math.min(3000, requestedBatchSize);
+    } else {
+      // Small datasets - can use larger batches
+      optimalBatchSize = Math.min(5000, requestedBatchSize);
+    }
+
+    // Reduce batch size if memory usage is high
+    if (isHighMemory) {
+      optimalBatchSize = Math.floor(optimalBatchSize * 0.5);
+    }
+
+    return Math.max(100, optimalBatchSize); // Minimum batch size of 100
+  }
+
+  /**
+   * Process data using streaming approach for very large datasets
+   */
+  async _processWithStreaming({
+    filterQuery,
+    validPage,
+    validLimit,
+    skip,
+    totalCount,
+    adjustedModelNames,
+    advancedFilterData,
+    subscriptionType,
+    isSearchQuery,
+    hasNonServiceFilters,
+    userRoles,
+    operationId,
+    startTime,
+  }) {
+    console.log(`Using streaming approach for ${totalCount} clients`);
+
+    // Get page clients first
+    const pageClients = await ClientModel.find(filterQuery)
+      .sort({ id: 1 })
+      .skip(skip)
+      .limit(validLimit)
+      .lean();
+
+    if (pageClients.length === 0) {
+      return this._createEmptyResponse(
+        validPage,
+        validLimit,
+        totalCount,
+        subscriptionType,
+        operationId,
+        startTime
+      );
+    }
+
+    const pageClientIds = pageClients.map((client) => client.id);
+
+    // Use optimized aggregation for statistics calculation
+    const stats = await this._calculateStatisticsOptimized(
+      filterQuery,
+      pageClientIds,
+      validPage,
+      validLimit,
+      advancedFilterData,
+      adjustedModelNames,
+      subscriptionType,
+      userRoles
+    );
+
+    // Process page data with streaming aggregation
+    const { combinedData: pageData } = await this._aggregateDataStreaming(
+      pageClients,
+      adjustedModelNames,
+      advancedFilterData,
+      subscriptionType
+    );
+
+    const enrichedData = this._enrichClientData(
+      pageData,
+      hasNonServiceFilters,
+      subscriptionType
+    );
+
+    const clientServices = this._buildClientServices(
+      enrichedData,
+      subscriptionType,
+      isSearchQuery
+    );
+
+    const totalDuration = Date.now() - startTime;
+    performanceMonitor.endTiming(operationId, {
+      processedCount: pageClients.length,
+      totalCount,
+      successRate: pageClients.length / validLimit,
+      totalDuration,
+      memoryUsage: performanceMonitor.getMemoryUsage(),
+    });
+
+    return {
+      stats,
+      totalPages: Math.ceil(totalCount / validLimit),
+      currentPage: validPage,
+      pageSize: validLimit,
+      combinedData: enrichedData,
+      clientServices,
+      subscriptionType,
+      processingInfo: {
+        totalClients: totalCount,
+        processedClients: pageClients.length,
+        batchSize: 0, // Streaming doesn't use traditional batches
+        totalBatches: 1,
+        processingTime: totalDuration,
+        successRate: pageClients.length / validLimit,
+        performanceMetrics: performanceMonitor.getSummary(operationId),
+        batchProcessingEnabled: true,
+        optimization: "streaming processing",
+      },
+    };
+  }
+
+  /**
+   * Process data using parallel batching for medium datasets
+   */
+  async _processWithParallelBatching({
+    filterQuery,
+    validPage,
+    validLimit,
+    skip,
+    totalCount,
+    adjustedModelNames,
+    advancedFilterData,
+    subscriptionType,
+    isSearchQuery,
+    hasNonServiceFilters,
+    userRoles,
+    operationId,
+    startTime,
+    adjustedBatchSize,
+  }) {
+    console.log(`Using parallel batching for ${totalCount} clients`);
+
+    // Get page clients
+    const pageClients = await ClientModel.find(filterQuery)
+      .sort({ id: 1 })
+      .skip(skip)
+      .limit(validLimit)
+      .lean();
+
+    if (pageClients.length === 0) {
+      return this._createEmptyResponse(
+        validPage,
+        validLimit,
+        totalCount,
+        subscriptionType,
+        operationId,
+        startTime
+      );
+    }
+
+    const pageClientIds = pageClients.map((client) => client.id);
+
+    // Parallel processing: Get statistics and page data simultaneously
+    const [stats, { combinedData: pageData }] = await Promise.all([
+      this._calculateStatisticsOptimized(
+        filterQuery,
+        pageClientIds,
+        validPage,
+        validLimit,
+        advancedFilterData,
+        adjustedModelNames,
+        subscriptionType,
+        userRoles
+      ),
+      this._aggregateDataParallel(
+        pageClients,
+        adjustedModelNames,
+        advancedFilterData,
+        subscriptionType
+      ),
+    ]);
+
+    const enrichedData = this._enrichClientData(
+      pageData,
+      hasNonServiceFilters,
+      subscriptionType
+    );
+
+    const clientServices = this._buildClientServices(
+      enrichedData,
+      subscriptionType,
+      isSearchQuery
+    );
+
+    const totalDuration = Date.now() - startTime;
+    performanceMonitor.endTiming(operationId, {
+      processedCount: pageClients.length,
+      totalCount,
+      successRate: pageClients.length / validLimit,
+      totalDuration,
+      memoryUsage: performanceMonitor.getMemoryUsage(),
+    });
+
+    return {
+      stats,
+      totalPages: Math.ceil(totalCount / validLimit),
+      currentPage: validPage,
+      pageSize: validLimit,
+      combinedData: enrichedData,
+      clientServices,
+      subscriptionType,
+      processingInfo: {
+        totalClients: totalCount,
+        processedClients: pageClients.length,
+        batchSize: adjustedBatchSize,
+        totalBatches: 1,
+        processingTime: totalDuration,
+        successRate: pageClients.length / validLimit,
+        performanceMetrics: performanceMonitor.getSummary(operationId),
+        batchProcessingEnabled: true,
+        optimization: "parallel processing",
+      },
+    };
+  }
+
+  /**
+   * Create empty response for when no clients are found
+   */
+  _createEmptyResponse(
+    validPage,
+    validLimit,
+    totalCount,
+    subscriptionType,
+    operationId,
+    startTime
+  ) {
+    const totalDuration = Date.now() - startTime;
+
+    performanceMonitor.endTiming(operationId, {
+      processedCount: 0,
+      totalCount,
+      successRate: 0,
+      totalDuration,
+      memoryUsage: performanceMonitor.getMemoryUsage(),
+    });
+
+    return {
+      stats: { clientCount: { total: totalCount, page: 0 }, metrics: [] },
+      totalPages: Math.ceil(totalCount / validLimit),
+      currentPage: validPage,
+      pageSize: validLimit,
+      combinedData: [],
+      clientServices: [],
+      subscriptionType,
+      processingInfo: {
+        totalClients: totalCount,
+        processedClients: 0,
+        batchSize: 0,
+        totalBatches: 0,
+        processingTime: totalDuration,
+        successRate: 0,
+        performanceMetrics: performanceMonitor.getSummary(operationId),
+        batchProcessingEnabled: true,
+        optimization: "empty result",
+      },
+    };
+  }
+
+  /**
+   * Enrich client data with subscription type and filters
+   */
+  _enrichClientData(pageData, hasNonServiceFilters, subscriptionType) {
+    return pageData.map((client) => {
+      const enrichedClient = {
+        ...client,
+        hasNonServiceFilters,
+        subscriptionType,
+      };
+
+      // Only include the relevant subscription data based on type
+      switch (subscriptionType) {
+        case "Promo":
+          enrichedClient.promoData = client.promoData || null;
+          delete enrichedClient.wmmData;
+          delete enrichedClient.compData;
+          break;
+        case "Complimentary":
+          enrichedClient.compData = client.compData || null;
+          delete enrichedClient.wmmData;
+          delete enrichedClient.promoData;
+          break;
+        default: // WMM
+          enrichedClient.wmmData = client.wmmData || null;
+          delete enrichedClient.promoData;
+          delete enrichedClient.compData;
+      }
+
+      // Keep other service data
+      if (client.hrgData) enrichedClient.hrgData = client.hrgData;
+      if (client.fomData) enrichedClient.fomData = client.fomData;
+      if (client.calData) enrichedClient.calData = client.calData;
+
+      return enrichedClient;
+    });
+  }
+
+  /**
+   * Optimized statistics calculation using direct aggregation
+   */
+  async _calculateStatisticsOptimized(
+    filterQuery,
+    pageClientIds,
+    validPage,
+    validLimit,
+    advancedFilterData,
+    adjustedModelNames,
+    subscriptionType,
+    userRoles
+  ) {
+    // Use the existing calculateStatistics function but with optimized parameters
+    return await calculateStatistics(
+      filterQuery,
+      pageClientIds,
+      validPage,
+      validLimit,
+      advancedFilterData,
+      null, // No pre-filtered data for optimized calculation
+      userRoles
+    );
+  }
+
+  /**
+   * Streaming aggregation for large datasets
+   */
+  async _aggregateDataStreaming(
+    clients,
+    modelNames,
+    advancedFilterData,
+    subscriptionType
+  ) {
+    // For streaming, we'll use the existing aggregateClientData but with memory optimization
+    const result = await aggregateClientData(clients, modelNames, {
+      ...advancedFilterData,
+      subscriptionType,
+    });
+
+    // Force garbage collection if available
+    if (global.gc && clients.length > 1000) {
+      global.gc();
+    }
+
+    return result;
+  }
+
+  /**
+   * Parallel aggregation for medium datasets
+   */
+  async _aggregateDataParallel(
+    clients,
+    modelNames,
+    advancedFilterData,
+    subscriptionType
+  ) {
+    // Use the existing aggregateClientData with parallel processing
+    return await aggregateClientData(clients, modelNames, {
+      ...advancedFilterData,
+      subscriptionType,
+    });
   }
 
   async _getFilteredClients(filterQuery, skip, limit) {
