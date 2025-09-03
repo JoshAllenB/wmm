@@ -10,13 +10,20 @@ import CalModel from "../../models/cal.mjs";
 import attachSocketId from "../apiLogic/attachSocketId.js";
 import dotenv from "dotenv";
 import dataService from "../apiLogic/services/DataService.mjs";
-import { logClientCreation, logClientUpdate, logClientDeletion } from '../clientLogs/clientLogs.mjs';
-import { checkDuplicates } from './duplicateCheck.mjs';
-import { calculateStatistics } from '../apiLogic/services/statsCalculator.mjs';
-import { buildFilterQuery } from '../apiLogic/services/filterBuilder.mjs';
+import {
+  logClientCreation,
+  logClientUpdate,
+  logClientDeletion,
+} from "../clientLogs/clientLogs.mjs";
+import { checkDuplicates } from "./duplicateCheck.mjs";
+import { calculateStatistics } from "../apiLogic/services/statsCalculator.mjs";
+import { buildFilterQuery } from "../apiLogic/services/filterBuilder.mjs";
 import PromoModel from "../../models/promo.mjs";
 import ComplimentaryModel from "../../models/complimentary.mjs";
-import { getSubscriptionModelName, adjustModelNamesForSubscription } from '../apiLogic/services/helpers.mjs';
+import {
+  getSubscriptionModelName,
+  adjustModelNamesForSubscription,
+} from "../apiLogic/services/helpers.mjs";
 
 dotenv.config();
 
@@ -31,7 +38,7 @@ const fetchClientData = async (req, options = {}) => {
     filter = "",
     group = "",
     modelNames = [],
-    subscriptionType = "WMM",  // Add default subscription type
+    subscriptionType = "WMM", // Add default subscription type
     ...advancedFilterData
   } = options;
 
@@ -41,14 +48,15 @@ const fetchClientData = async (req, options = {}) => {
   });
 
   const userRoles = req.user.roles.map((role) => role.role.name);
-  
+
   // Ensure modelNames is always a valid array
-  let validModelNames = Array.isArray(modelNames) && modelNames.length > 0 
-    ? modelNames 
-    : userRoles.includes("Admin") || userRoles.includes("Accounting")
+  let validModelNames =
+    Array.isArray(modelNames) && modelNames.length > 0
+      ? modelNames
+      : userRoles.includes("Admin") || userRoles.includes("Accounting")
       ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
       : userRoles
-          .filter(role => role !== "Accounting")
+          .filter((role) => role !== "Accounting")
           .map((role) => `${role}Model`);
 
   // Ensure we have at least one model to query
@@ -57,7 +65,10 @@ const fetchClientData = async (req, options = {}) => {
   }
 
   // Replace WmmModel with appropriate subscription model using helper function
-  validModelNames = adjustModelNamesForSubscription(validModelNames, subscriptionType);
+  validModelNames = adjustModelNamesForSubscription(
+    validModelNames,
+    subscriptionType
+  );
 
   // Use appropriate data fetching method based on skipPagination
   const results = skipPagination
@@ -68,8 +79,9 @@ const fetchClientData = async (req, options = {}) => {
         clientIds: null,
         advancedFilterData: {
           ...advancedFilterData,
-          subscriptionType
-        }
+          subscriptionType,
+        },
+        userRoles, // Pass user roles for role-based statistics calculation
       })
     : await dataService.fetchData({
         modelNames: validModelNames,
@@ -81,12 +93,20 @@ const fetchClientData = async (req, options = {}) => {
         clientIds: null,
         advancedFilterData: {
           ...advancedFilterData,
-          subscriptionType
-        }
+          subscriptionType,
+        },
+        userRoles, // Pass user roles for role-based statistics calculation
       });
 
   // Process and merge client services data
-  const { combinedData, clientServices, stats, totalPages, currentPage, processingInfo } = results;
+  const {
+    combinedData,
+    clientServices,
+    stats,
+    totalPages,
+    currentPage,
+    processingInfo,
+  } = results;
   const processedData = combinedData.map((client) => {
     const clientService = clientServices.find(
       (service) => service.clientId === client.id
@@ -94,7 +114,7 @@ const fetchClientData = async (req, options = {}) => {
     return {
       ...client,
       services: clientService ? clientService.services : [],
-      subscriptionType // Add subscription type to processed data
+      subscriptionType, // Add subscription type to processed data
     };
   });
 
@@ -104,160 +124,152 @@ const fetchClientData = async (req, options = {}) => {
     totalPages,
     currentPage,
     subscriptionType, // Add subscription type to return object
-    processingInfo // Include processing info if available
+    processingInfo, // Include processing info if available
   };
 };
 
-router.get(
-  "/",
-  verifyToken,
-  attachSocketId,
-  async (req, res) => {
-    const io = req.io;
-    const socketId = req.socketId;
-    const {
-      page = 1,
-      pageSize = 20,
-      filter = "",
-      group = "",
-      subscriptionType = "WMM",
-      ...advancedFilterData
-    } = req.query;
+router.get("/", verifyToken, attachSocketId, async (req, res) => {
+  const io = req.io;
+  const socketId = req.socketId;
+  const {
+    page = 1,
+    pageSize = 20,
+    filter = "",
+    group = "",
+    subscriptionType = "WMM",
+    ...advancedFilterData
+  } = req.query;
 
-    try {
-      const parsedPage = parseInt(page, 10);
-      const parsedPageSize = parseInt(pageSize, 10);
-      const validPage = isNaN(parsedPage) ? 1 : parsedPage;
-      const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
+  try {
+    const parsedPage = parseInt(page, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
+    const validPage = isNaN(parsedPage) ? 1 : parsedPage;
+    const validPageSize = isNaN(parsedPageSize) ? 20 : parsedPageSize;
 
-      // Normalize subscription type
-      let normalizedSubscriptionType = Array.isArray(subscriptionType) 
-        ? subscriptionType[0] 
-        : subscriptionType;
+    // Normalize subscription type
+    let normalizedSubscriptionType = Array.isArray(subscriptionType)
+      ? subscriptionType[0]
+      : subscriptionType;
 
-      // Validate subscription type
-      if (!["WMM", "Promo", "Complimentary"].includes(normalizedSubscriptionType)) {
-        normalizedSubscriptionType = "WMM";
-      }
+    // Validate subscription type
+    if (
+      !["WMM", "Promo", "Complimentary"].includes(normalizedSubscriptionType)
+    ) {
+      normalizedSubscriptionType = "WMM";
+    }
 
-      const { processedData, stats, totalPages, currentPage, processingInfo } = await fetchClientData(req, {
+    const { processedData, stats, totalPages, currentPage, processingInfo } =
+      await fetchClientData(req, {
         page: validPage,
         pageSize: validPageSize,
         filter,
         group,
         subscriptionType: normalizedSubscriptionType,
-        ...advancedFilterData
+        ...advancedFilterData,
       });
 
-      const actualPage = Math.min(currentPage, totalPages || 1);
+    const actualPage = Math.min(currentPage, totalPages || 1);
 
-      const responseData = {
-        combinedData: processedData,
-        page: actualPage,
-        totalPages: totalPages || 1,
-        stats,
-        subscriptionType: normalizedSubscriptionType
-      };
+    const responseData = {
+      combinedData: processedData,
+      page: actualPage,
+      totalPages: totalPages || 1,
+      stats,
+      subscriptionType: normalizedSubscriptionType,
+    };
 
-      // Include processing info if available (from automatic batch processing)
-      if (processingInfo) {
-        responseData.processingInfo = processingInfo;
-      }
+    // Include processing info if available (from automatic batch processing)
+    if (processingInfo) {
+      responseData.processingInfo = processingInfo;
+    }
 
-      res.json(responseData);
+    res.json(responseData);
 
-      if (io && socketId) {
-        io.to(socketId).emit("dataFetched", {
-          message: "Data fetched successfully",
-          timestamp: new Date(),
-          subscriptionType: normalizedSubscriptionType
-        });
-      }
-    } catch (error) {
-      console.error("Error in client data fetch:", error);
-      res.status(500).json({
-        error: "Internal server error",
-        message: error.message,
+    if (io && socketId) {
+      io.to(socketId).emit("dataFetched", {
+        message: "Data fetched successfully",
+        timestamp: new Date(),
+        subscriptionType: normalizedSubscriptionType,
       });
     }
+  } catch (error) {
+    console.error("Error in client data fetch:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+    });
   }
-);
+});
 
-router.post(
-  "/fetchall",
-  verifyToken,
-  attachSocketId,
-  async (req, res) => {
-    const io = req.io;
-    const socketId = req.socketId;
-    const {
-      filter = "",
-      group = "",
-      advancedFilterData = {},
-      batchSize = 1000, // Add batch size parameter with default
-      enableBatchProcessing = true // Enable batch processing by default
-    } = req.body;
+router.post("/fetchall", verifyToken, attachSocketId, async (req, res) => {
+  const io = req.io;
+  const socketId = req.socketId;
+  const {
+    filter = "",
+    group = "",
+    advancedFilterData = {},
+    batchSize = 1000, // Add batch size parameter with default
+    enableBatchProcessing = true, // Enable batch processing by default
+  } = req.body;
 
-    try {
-      await req.user.populate({
-        path: "roles.role",
-        populate: { path: "defaultPermissions" },
-      });
+  try {
+    await req.user.populate({
+      path: "roles.role",
+      populate: { path: "defaultPermissions" },
+    });
 
-      const userRoles = req.user.roles.map((role) => role.role.name);
-      
-      // Ensure modelNames is always an array
-      let modelNames = [];
-      if (userRoles.includes("Admin") || userRoles.includes("Accounting")) {
-        modelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel"];
-      } else {
-        modelNames = userRoles
-          .filter(role => role !== "Accounting") // Skip Accounting role as it's handled above
-          .map((role) => `${role}Model`);
-      }
+    const userRoles = req.user.roles.map((role) => role.role.name);
 
-      // Validate modelNames is not empty
-      if (!Array.isArray(modelNames) || modelNames.length === 0) {
-        modelNames = ["WmmModel"]; // Default to WmmModel if no roles match
-      }
+    // Ensure modelNames is always an array
+    let modelNames = [];
+    if (userRoles.includes("Admin") || userRoles.includes("Accounting")) {
+      modelNames = ["WmmModel", "HrgModel", "FomModel", "CalModel"];
+    } else {
+      modelNames = userRoles
+        .filter((role) => role !== "Accounting") // Skip Accounting role as it's handled above
+        .map((role) => `${role}Model`);
+    }
 
+    // Validate modelNames is not empty
+    if (!Array.isArray(modelNames) || modelNames.length === 0) {
+      modelNames = ["WmmModel"]; // Default to WmmModel if no roles match
+    }
 
-      // Use the optimized DataService with batch processing
-      const results = await dataService.fetchAllDataWithBatching({
-        modelNames,
-        filter,
-        group,
-        advancedFilterData,
-        batchSize,
-        enableBatchProcessing
-      });
+    // Use the optimized DataService with batch processing
+    const results = await dataService.fetchAllDataWithBatching({
+      modelNames,
+      filter,
+      group,
+      advancedFilterData,
+      batchSize,
+      enableBatchProcessing,
+    });
 
-      // Extract the processed data and stats
-      const { combinedData, stats, processingInfo } = results;
+    // Extract the processed data and stats
+    const { combinedData, stats, processingInfo } = results;
 
-      res.json({
-        combinedData,
-        stats,
-        processingInfo // Include processing information for monitoring
-      });
+    res.json({
+      combinedData,
+      stats,
+      processingInfo, // Include processing information for monitoring
+    });
 
-      if (io && socketId) {
-        io.to(socketId).emit("dataFetched", {
-          message: "All data fetched successfully with batch processing",
-          timestamp: new Date(),
-          processingInfo
-        });
-      }
-    } catch (error) {
-      console.error("Error in client data fetch:", error);
-      res.status(500).json({
-        error: "Internal server error",
-        message: error.message,
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined
+    if (io && socketId) {
+      io.to(socketId).emit("dataFetched", {
+        message: "All data fetched successfully with batch processing",
+        timestamp: new Date(),
+        processingInfo,
       });
     }
+  } catch (error) {
+    console.error("Error in client data fetch:", error);
+    res.status(500).json({
+      error: "Internal server error",
+      message: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
-);
+});
 
 router.get("/:id/latest-subscription", verifyToken, async (req, res) => {
   const { id } = req.params;
@@ -330,7 +342,6 @@ router.post("/add", verifyToken, async (req, res) => {
     const { clientData, roleSubmissions } = req.body;
     const isDonor = req.body.isDonor === true || clientData?.isDonor === true;
 
-
     const user = await UserModel.findById(req.userId).populate("roles.role");
 
     // Generate new client ID
@@ -342,8 +353,8 @@ router.post("/add", verifyToken, async (req, res) => {
       id: newClientId,
       ...clientData,
       adduser: user.username,
-      adddate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
-      isDonor: clientData.isDonor || isDonor // Use clientData.isDonor first, fallback to isDonor flag
+      adddate: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+      isDonor: clientData.isDonor || isDonor, // Use clientData.isDonor first, fallback to isDonor flag
     };
 
     // Insert base client data
@@ -359,122 +370,149 @@ router.post("/add", verifyToken, async (req, res) => {
         io.emit("data-update", {
           type: "add",
           data: newClient.toObject(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
-      const response = { 
-        success: true, 
+      const response = {
+        success: true,
         clientId: newClientId,
-        client: newClient.toObject()
+        client: newClient.toObject(),
       };
       return res.json(response);
     }
 
     // Handle role-specific data only if not a donor and roleSubmissions exists
-    if (!isDonor && Array.isArray(roleSubmissions) && roleSubmissions.length > 0) {
+    if (
+      !isDonor &&
+      Array.isArray(roleSubmissions) &&
+      roleSubmissions.length > 0
+    ) {
       const roleModelMap = {
         WMM: WmmModel,
         HRG: HrgModel,
         FOM: FomModel,
         CAL: CalModel,
         PROMO: PromoModel,
-        COMP: ComplimentaryModel
+        COMP: ComplimentaryModel,
       };
 
       const roleResults = [];
 
-    // Process each role submission
-    for (const submission of roleSubmissions) {
-      const { roleType, roleData } = submission;
+      // Process each role submission
+      for (const submission of roleSubmissions) {
+        const { roleType, roleData } = submission;
 
-      // Map subscription types to their model types
-      const subscriptionModelTypes = {
-        "Promo": "PROMO",
-        "Complimentary": "COMP",
-        "WMM": "WMM"
-      };
+        // Map subscription types to their model types
+        const subscriptionModelTypes = {
+          Promo: "PROMO",
+          Complimentary: "COMP",
+          WMM: "WMM",
+        };
 
-      // If this is a subscription-related submission
-      if (["WMM", "PROMO", "COMP"].includes(roleType)) {
-        // Only process if it matches the client's subscription type
-        const expectedModelType = subscriptionModelTypes[clientData.subscriptionType];
-        if (roleType !== expectedModelType) {
-          continue;
+        // If this is a subscription-related submission
+        if (["WMM", "PROMO", "COMP"].includes(roleType)) {
+          // Only process if it matches the client's subscription type
+          const expectedModelType =
+            subscriptionModelTypes[clientData.subscriptionType];
+          if (roleType !== expectedModelType) {
+            continue;
+          }
+        }
+
+        if (roleType && roleModelMap[roleType]) {
+          const RoleModel = roleModelMap[roleType];
+
+          // Generate new ID for the role-specific model
+          const highestIdRoleSpecific = await RoleModel.findOne().sort({
+            id: -1,
+          });
+          const newRoleSpecificId =
+            (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+
+          // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, "0");
+          const day = String(now.getDate()).padStart(2, "0");
+          const hours = String(now.getHours()).padStart(2, "0");
+          const minutes = String(now.getMinutes()).padStart(2, "0");
+          const seconds = String(now.getSeconds()).padStart(2, "0");
+          const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+
+          const roleSpecificData = {
+            id: newRoleSpecificId,
+            clientid: newClientId,
+            ...roleData,
+            adduser: user.username,
+            adddate: formattedAddDate,
+          };
+
+          // Insert role-specific data
+          const roleSpecificClient = await RoleModel.create(roleSpecificData);
+          roleResults.push({
+            roleType,
+            success: true,
+            data: roleSpecificClient,
+          });
         }
       }
 
-      if (roleType && roleModelMap[roleType]) {
-        const RoleModel = roleModelMap[roleType];
+      // Emit socket event with complete data - only fetch data for the correct subscription type
+      const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] =
+        await Promise.all([
+          clientData.subscriptionType === "WMM"
+            ? WmmModel.find({ clientid: newClientId })
+                .sort({ subsdate: -1 })
+                .lean()
+            : [],
+          HrgModel.find({ clientid: newClientId })
+            .sort({ recvdate: -1 })
+            .lean(),
+          FomModel.find({ clientid: newClientId })
+            .sort({ recvdate: -1 })
+            .lean(),
+          CalModel.find({ clientid: newClientId })
+            .sort({ recvdate: -1 })
+            .lean(),
+          clientData.subscriptionType === "Promo"
+            ? PromoModel.find({ clientid: newClientId })
+                .sort({ subsdate: -1 })
+                .lean()
+            : [],
+          clientData.subscriptionType === "Complimentary"
+            ? ComplimentaryModel.find({ clientid: newClientId })
+                .sort({ subsdate: -1 })
+                .lean()
+            : [],
+        ]);
 
-        // Generate new ID for the role-specific model
-        const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-        const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+      // Build the complete client data object
+      const completeClientData = {
+        ...newClient.toObject(),
+        subscriptionType: clientData.subscriptionType,
+        services: roleSubmissions.map((sub) => sub.roleType),
+        wmmData: { records: wmmData || [] },
+        hrgData: { records: hrgData || [] },
+        fomData: { records: fomData || [] },
+        calData: { records: calData || [] },
+        promoData: { records: promoData || [] },
+        complimentaryData: { records: complimentaryData || [] },
+      };
 
-        // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      // Emit the data update event
+      io.emit("data-update", {
+        type: "add",
+        data: completeClientData,
+        timestamp: Date.now(),
+      });
 
-        const roleSpecificData = {
-          id: newRoleSpecificId,
-          clientid: newClientId,
-          ...roleData,
-          adduser: user.username,
-          adddate: formattedAddDate,
-        };
-
-        // Insert role-specific data
-        const roleSpecificClient = await RoleModel.create(roleSpecificData);
-        roleResults.push({
-          roleType,
-          success: true,
-          data: roleSpecificClient
-        });
-      }
-    }
-
-    // Emit socket event with complete data - only fetch data for the correct subscription type
-    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
-      clientData.subscriptionType === "WMM" ? WmmModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : [],
-      HrgModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
-      FomModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
-      CalModel.find({ clientid: newClientId }).sort({ recvdate: -1 }).lean(),
-      clientData.subscriptionType === "Promo" ? PromoModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : [],
-      clientData.subscriptionType === "Complimentary" ? ComplimentaryModel.find({ clientid: newClientId }).sort({ subsdate: -1 }).lean() : []
-    ]);
-
-    // Build the complete client data object
-    const completeClientData = {
-      ...newClient.toObject(),
-      subscriptionType: clientData.subscriptionType,
-      services: roleSubmissions.map(sub => sub.roleType),
-      wmmData: { records: wmmData || [] },
-      hrgData: { records: hrgData || [] },
-      fomData: { records: fomData || [] },
-      calData: { records: calData || [] },
-      promoData: { records: promoData || [] },
-      complimentaryData: { records: complimentaryData || [] }
-    };
-
-    // Emit the data update event
-    io.emit("data-update", {
-      type: "add",
-      data: completeClientData,
-      timestamp: Date.now()
-    });
-
-    res.json({ 
-      success: true, 
-      clientId: newClientId,
-      client: completeClientData,
-      roleResults
-    });
+      res.json({
+        success: true,
+        clientId: newClientId,
+        client: completeClientData,
+        roleResults,
+      });
     } else {
       // Handle case when there are no role submissions
       const completeClientData = {
@@ -486,7 +524,7 @@ router.post("/add", verifyToken, async (req, res) => {
         fomData: { records: [] },
         calData: { records: [] },
         promoData: { records: [] },
-        complimentaryData: { records: [] }
+        complimentaryData: { records: [] },
       };
 
       // Emit the data update event
@@ -494,15 +532,15 @@ router.post("/add", verifyToken, async (req, res) => {
         io.emit("data-update", {
           type: "add",
           data: completeClientData,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         });
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         clientId: newClientId,
         client: completeClientData,
-        roleResults: []
+        roleResults: [],
       });
     }
   } catch (err) {
@@ -520,8 +558,16 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     }
 
     const { id } = req.params;
-    const { clientData, roleSubmissions, roleType, roleData, isNewRecord, isNewRoleData, recordId } = req.body;
-    
+    const {
+      clientData,
+      roleSubmissions,
+      roleType,
+      roleData,
+      isNewRecord,
+      isNewRoleData,
+      recordId,
+    } = req.body;
+
     // Get the old client data before update
     const oldClientData = await ClientModel.findOne({ id }).lean();
 
@@ -566,7 +612,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       COMP: ComplimentaryModel,
       HRG: HrgModel,
       FOM: FomModel,
-      CAL: CalModel
+      CAL: CalModel,
     };
 
     const roleResults = [];
@@ -586,17 +632,17 @@ router.put("/update/:id", verifyToken, async (req, res) => {
               editdate: new Date(),
               edituser: user.username,
             };
-            
+
             // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
             const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
-            
+
             let query;
             if (isObjectId) {
               query = { _id: recordId };
             } else {
               query = { id: Number(recordId) };
             }
-            
+
             const roleSpecificClient = await RoleModel.findOneAndUpdate(
               query,
               updatedRoleData,
@@ -605,22 +651,25 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             roleResults.push({
               roleType,
               success: true,
-              data: roleSpecificClient
+              data: roleSpecificClient,
             });
           } else {
             // Create new record if no recordId provided
             // Generate new ID for the role-specific model
-            const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-            const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+            const highestIdRoleSpecific = await RoleModel.findOne().sort({
+              id: -1,
+            });
+            const newRoleSpecificId =
+              (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
 
             // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
             const now = new Date();
             const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, "0");
+            const day = String(now.getDate()).padStart(2, "0");
+            const hours = String(now.getHours()).padStart(2, "0");
+            const minutes = String(now.getMinutes()).padStart(2, "0");
+            const seconds = String(now.getSeconds()).padStart(2, "0");
             const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const roleSpecificData = {
@@ -636,7 +685,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             roleResults.push({
               roleType,
               success: true,
-              data: roleSpecificClient
+              data: roleSpecificClient,
             });
           }
         }
@@ -648,19 +697,22 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
         if (isNewRecord || isNewRoleData) {
           // Generate new ID for the role-specific model
-          const highestIdRoleSpecific = await RoleModel.findOne().sort({ id: -1 });
-          const newRoleSpecificId = (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
-          
+          const highestIdRoleSpecific = await RoleModel.findOne().sort({
+            id: -1,
+          });
+          const newRoleSpecificId =
+            (highestIdRoleSpecific ? highestIdRoleSpecific.id : 0) + 1;
+
           // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
           const now = new Date();
           const year = now.getFullYear();
-          const month = String(now.getMonth() + 1).padStart(2, '0');
-          const day = String(now.getDate()).padStart(2, '0');
-          const hours = String(now.getHours()).padStart(2, '0');
-          const minutes = String(now.getMinutes()).padStart(2, '0');
-          const seconds = String(now.getSeconds()).padStart(2, '0');
+          const month = String(now.getMonth() + 1).padStart(2, "0");
+          const day = String(now.getDate()).padStart(2, "0");
+          const hours = String(now.getHours()).padStart(2, "0");
+          const minutes = String(now.getMinutes()).padStart(2, "0");
+          const seconds = String(now.getSeconds()).padStart(2, "0");
           const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-          
+
           const newRoleSpecificData = {
             id: newRoleSpecificId,
             clientid: parseInt(id),
@@ -668,13 +720,15 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             adduser: user.username,
             adddate: roleData.adddate || formattedAddDate,
           };
-          
+
           // Create new role-specific record
-          const roleSpecificClient = await RoleModel.create(newRoleSpecificData);
+          const roleSpecificClient = await RoleModel.create(
+            newRoleSpecificData
+          );
           roleResults.push({
             roleType,
             success: true,
-            data: roleSpecificClient
+            data: roleSpecificClient,
           });
         } else if (recordId) {
           // If we have a recordId, find and update that specific record
@@ -683,17 +737,17 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             editdate: new Date(),
             edituser: user.username,
           };
-          
+
           // Check if recordId is an ObjectId (string with 24 hex chars) or a numeric id
           const isObjectId = /^[0-9a-fA-F]{24}$/.test(recordId);
-          
+
           let query;
           if (isObjectId) {
             query = { _id: recordId };
           } else {
             query = { id: Number(recordId) };
           }
-          
+
           const roleSpecificClient = await RoleModel.findOneAndUpdate(
             query,
             updatedRoleData,
@@ -702,11 +756,13 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           roleResults.push({
             roleType,
             success: true,
-            data: roleSpecificClient
+            data: roleSpecificClient,
           });
         } else {
           // Find existing role-specific data by client ID (legacy behavior)
-          const existingRoleData = await RoleModel.findOne({ clientid: parseInt(id) });
+          const existingRoleData = await RoleModel.findOne({
+            clientid: parseInt(id),
+          });
 
           if (existingRoleData) {
             // Update only changed fields
@@ -730,18 +786,18 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             roleResults.push({
               roleType,
               success: true,
-              data: roleSpecificClient
+              data: roleSpecificClient,
             });
           } else {
             // If role-specific data doesn't exist, create it
             // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS
             const now = new Date();
             const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, "0");
+            const day = String(now.getDate()).padStart(2, "0");
+            const hours = String(now.getHours()).padStart(2, "0");
+            const minutes = String(now.getMinutes()).padStart(2, "0");
+            const seconds = String(now.getSeconds()).padStart(2, "0");
             const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
             const newRoleSpecificData = {
@@ -750,11 +806,13 @@ router.put("/update/:id", verifyToken, async (req, res) => {
               adduser: user.username,
               adddate: formattedAddDate,
             };
-            const roleSpecificClient = await RoleModel.create(newRoleSpecificData);
+            const roleSpecificClient = await RoleModel.create(
+              newRoleSpecificData
+            );
             roleResults.push({
               roleType,
               success: true,
-              data: roleSpecificClient
+              data: roleSpecificClient,
             });
           }
         }
@@ -762,58 +820,99 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     }
 
     // Gather all role-specific data after update
-    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
-      WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-      HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-      PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-      ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
-    ]);
-    
+    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] =
+      await Promise.all([
+        WmmModel.find({ clientid: parseInt(id) })
+          .sort({ subsdate: -1 })
+          .lean(),
+        HrgModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean(),
+        FomModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean(),
+        CalModel.find({ clientid: parseInt(id) })
+          .sort({ recvdate: -1 })
+          .lean(),
+        PromoModel.find({ clientid: parseInt(id) })
+          .sort({ subsdate: -1 })
+          .lean(),
+        ComplimentaryModel.find({ clientid: parseInt(id) })
+          .sort({ subsdate: -1 })
+          .lean(),
+      ]);
+
     // WebSocket updates
     if (req.io) {
       // Get all subscription data for this client
-      const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
-        WmmModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-        HrgModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-        FomModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-        CalModel.find({ clientid: parseInt(id) }).sort({ recvdate: -1 }).lean(),
-        PromoModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean(),
-        ComplimentaryModel.find({ clientid: parseInt(id) }).sort({ subsdate: -1 }).lean()
-      ]);
+      const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] =
+        await Promise.all([
+          WmmModel.find({ clientid: parseInt(id) })
+            .sort({ subsdate: -1 })
+            .lean(),
+          HrgModel.find({ clientid: parseInt(id) })
+            .sort({ recvdate: -1 })
+            .lean(),
+          FomModel.find({ clientid: parseInt(id) })
+            .sort({ recvdate: -1 })
+            .lean(),
+          CalModel.find({ clientid: parseInt(id) })
+            .sort({ recvdate: -1 })
+            .lean(),
+          PromoModel.find({ clientid: parseInt(id) })
+            .sort({ subsdate: -1 })
+            .lean(),
+          ComplimentaryModel.find({ clientid: parseInt(id) })
+            .sort({ subsdate: -1 })
+            .lean(),
+        ]);
 
       // Get services from roleResults
-      const services = roleResults.map(result => result.roleType);
+      const services = roleResults.map((result) => result.roleType);
 
       // Emit the updated client data with all subscription data
-      req.io.emit("data-update", [{
-        type: "update",
-        data: {
-          ...updatedClient.toObject(),
-          services: services,
-          wmmData: { records: wmmData || [] },
-          hrgData: { records: hrgData || [] },
-          fomData: { records: fomData || [] },
-          calData: { records: calData || [] },
-          promoData: { records: promoData || [] },
-          complimentaryData: { records: complimentaryData || [] }
-        }
-      }]);
+      req.io.emit("data-update", [
+        {
+          type: "update",
+          data: {
+            ...updatedClient.toObject(),
+            services: services,
+            wmmData: { records: wmmData || [] },
+            hrgData: { records: hrgData || [] },
+            fomData: { records: fomData || [] },
+            calData: { records: calData || [] },
+            promoData: { records: promoData || [] },
+            complimentaryData: { records: complimentaryData || [] },
+          },
+        },
+      ]);
 
       // Then fetch and emit the filtered data
-      const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
-      
+      const {
+        filter,
+        group,
+        pageSize = 20,
+        page = 1,
+        ...advancedFilterData
+      } = req.query;
+
       // Use the DataService to fetch filtered data
       const results = await dataService.fetchData({
-        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
+        modelNames: [
+          "WmmModel",
+          "HrgModel",
+          "FomModel",
+          "CalModel",
+          "PromoModel",
+          "ComplimentaryModel",
+        ],
         filter,
         page: parseInt(page),
         limit: parseInt(pageSize),
         pageSize: parseInt(pageSize),
         group,
         clientIds: null,
-        advancedFilterData
+        advancedFilterData,
       });
 
       let { combinedData, clientServices } = results;
@@ -834,8 +933,8 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         type: "filter-update",
         data: {
           combinedData,
-          updatedClientId: parseInt(id)
-        }
+          updatedClientId: parseInt(id),
+        },
       });
     }
 
@@ -849,7 +948,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       fomData: fomData,
       calData: calData,
       promoData: promoData,
-      complimentaryData: complimentaryData
+      complimentaryData: complimentaryData,
     };
 
     res.json(responseData);
@@ -857,7 +956,9 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     console.error("\n=== Update Process Failed ===");
     console.error("Error updating client:", err);
     console.error("Stack trace:", err.stack);
-    res.status(500).json({ error: "Internal Server Error", details: err.message });
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: err.message });
   }
 });
 
@@ -874,14 +975,15 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     }
 
     // Fetch all associated data before deletion for logging purposes
-    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] = await Promise.all([
-      WmmModel.find({ clientid: parseInt(id) }).lean(),
-      HrgModel.find({ clientid: parseInt(id) }).lean(),
-      FomModel.find({ clientid: parseInt(id) }).lean(),
-      CalModel.find({ clientid: parseInt(id) }).lean(),
-      PromoModel.find({ clientid: parseInt(id) }).lean(),
-      ComplimentaryModel.find({ clientid: parseInt(id) }).lean()
-    ]);
+    const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] =
+      await Promise.all([
+        WmmModel.find({ clientid: parseInt(id) }).lean(),
+        HrgModel.find({ clientid: parseInt(id) }).lean(),
+        FomModel.find({ clientid: parseInt(id) }).lean(),
+        CalModel.find({ clientid: parseInt(id) }).lean(),
+        PromoModel.find({ clientid: parseInt(id) }).lean(),
+        ComplimentaryModel.find({ clientid: parseInt(id) }).lean(),
+      ]);
 
     // Store complete client data for logging
     const completeClientData = {
@@ -891,7 +993,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       fomData,
       calData,
       promoData,
-      complimentaryData
+      complimentaryData,
     };
 
     // Delete from ClientModel
@@ -907,29 +1009,45 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       FomModel.deleteMany({ clientid: parseInt(id) }),
       CalModel.deleteMany({ clientid: parseInt(id) }),
       PromoModel.deleteMany({ clientid: parseInt(id) }),
-      ComplimentaryModel.deleteMany({ clientid: parseInt(id) })
+      ComplimentaryModel.deleteMany({ clientid: parseInt(id) }),
     ];
 
     // Wait for all delete operations to complete
     const deleteResults = await Promise.all(deletePromises);
 
     // Count total deleted associated records
-    const totalAssociatedDeleted = deleteResults.reduce((sum, result) => sum + result.deletedCount, 0);
+    const totalAssociatedDeleted = deleteResults.reduce(
+      (sum, result) => sum + result.deletedCount,
+      0
+    );
 
     // Re-run the filter to get updated filtered data for all clients
     if (io) {
-      const { filter, group, pageSize = 20, page = 1, ...advancedFilterData } = req.query;
-      
+      const {
+        filter,
+        group,
+        pageSize = 20,
+        page = 1,
+        ...advancedFilterData
+      } = req.query;
+
       // Use the DataService to fetch filtered data
       const results = await dataService.fetchData({
-        modelNames: ["WmmModel", "HrgModel", "FomModel", "CalModel", "PromoModel", "ComplimentaryModel"],
+        modelNames: [
+          "WmmModel",
+          "HrgModel",
+          "FomModel",
+          "CalModel",
+          "PromoModel",
+          "ComplimentaryModel",
+        ],
         filter,
         page: parseInt(page),
         limit: parseInt(pageSize),
         pageSize: parseInt(pageSize),
         group,
         clientIds: null,
-        advancedFilterData
+        advancedFilterData,
       });
 
       let { combinedData, clientServices } = results;
@@ -951,14 +1069,14 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
         data: {
           ...results,
           combinedData,
-          deletedClientId: parseInt(id)
-        }
+          deletedClientId: parseInt(id),
+        },
       });
     }
 
-    res.json({ 
+    res.json({
       success: true,
-      message: `Client and ${totalAssociatedDeleted} associated records deleted successfully`
+      message: `Client and ${totalAssociatedDeleted} associated records deleted successfully`,
     });
   } catch (err) {
     console.error("Error deleting client:", err);
@@ -968,23 +1086,23 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
 
 router.post("/check-duplicates", verifyToken, async (req, res) => {
   try {
-    const { 
-      fname, 
-      lname, 
-      email, 
-      cellno, 
-      contactnos, 
-      bdate, 
+    const {
+      fname,
+      lname,
+      email,
+      cellno,
+      contactnos,
+      bdate,
       bdateMonth,
       bdateDay,
       bdateYear,
-      address, 
-      standardizedAddress, 
-      addressComponents, 
-      acode, 
+      address,
+      standardizedAddress,
+      addressComponents,
+      acode,
       company,
       priorities,
-      searchPrecision
+      searchPrecision,
     } = req.body;
 
     const result = await checkDuplicates({
@@ -1003,7 +1121,7 @@ router.post("/check-duplicates", verifyToken, async (req, res) => {
       acode,
       company,
       priorities,
-      searchPrecision
+      searchPrecision,
     });
 
     res.json(result);
@@ -1033,10 +1151,10 @@ router.get("/:id", verifyToken, async (req, res) => {
       path: "roles.role",
       populate: { path: "defaultPermissions" },
     });
-    
+
     // Gather data from each role-specific model
     const roleData = {};
-    
+
     try {
       // Fetch all subscription data
       const wmmData = await WmmModel.find({ clientid: parseInt(id) })
@@ -1080,7 +1198,9 @@ router.get("/:id", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching client details:", err);
-    res.status(500).json({ error: "Internal Server Error", details: err.message });
+    res
+      .status(500)
+      .json({ error: "Internal Server Error", details: err.message });
   }
 });
 
@@ -1091,178 +1211,237 @@ router.post(
   async (req, res) => {
     try {
       const { subscribers, updateExisting = true } = req.body;
-      
+
       if (!Array.isArray(subscribers) || subscribers.length === 0) {
-        return res.status(400).json({ 
-          error: "Invalid request", 
-          message: "No valid subscriber data provided" 
+        return res.status(400).json({
+          error: "Invalid request",
+          message: "No valid subscriber data provided",
         });
       }
-      
+
       // Track results
       const results = {
         success: 0,
         updated: 0,
         skipped: 0,
         errors: 0,
-        errorDetails: []
+        errorDetails: [],
       };
-      
+
       // Process each subscriber
       for (let i = 0; i < subscribers.length; i++) {
         const subscriber = subscribers[i];
-        
+
         try {
           // Check if this is a new subscriber or existing one
-          const existingSubscriber = subscriber.id ? 
-            await ClientModel.findOne({ id: subscriber.id }) : 
-            await ClientModel.findOne({ 
-              lname: subscriber.lname,
-              fname: subscriber.fname,
-              address: { $regex: subscriber.address.split('\n')[0], $options: 'i' }
-            });
-          
+          const existingSubscriber = subscriber.id
+            ? await ClientModel.findOne({ id: subscriber.id })
+            : await ClientModel.findOne({
+                lname: subscriber.lname,
+                fname: subscriber.fname,
+                address: {
+                  $regex: subscriber.address.split("\n")[0],
+                  $options: "i",
+                },
+              });
+
           if (existingSubscriber) {
             // Skip if we're not updating existing subscribers
             if (!updateExisting) {
               results.skipped++;
               continue;
             }
-            
+
             // Update existing subscriber
             const subscrId = existingSubscriber.id;
-            
+
             // Update main client record
             await ClientModel.updateOne(
               { id: subscrId },
-              { $set: {
-                title: subscriber.title || existingSubscriber.title,
-                fname: subscriber.fname || existingSubscriber.fname,
-                mname: subscriber.mname || existingSubscriber.mname,
-                lname: subscriber.lname || existingSubscriber.lname,
-                address: subscriber.address || existingSubscriber.address,
-                cellno: subscriber.cellno || existingSubscriber.cellno,
-                officeno: subscriber.officeno || existingSubscriber.officeno,
-                email: subscriber.email || existingSubscriber.email,
-                acode: subscriber.acode !== undefined ? subscriber.acode : existingSubscriber.acode
-              }}
+              {
+                $set: {
+                  title: subscriber.title || existingSubscriber.title,
+                  fname: subscriber.fname || existingSubscriber.fname,
+                  mname: subscriber.mname || existingSubscriber.mname,
+                  lname: subscriber.lname || existingSubscriber.lname,
+                  address: subscriber.address || existingSubscriber.address,
+                  cellno: subscriber.cellno || existingSubscriber.cellno,
+                  officeno: subscriber.officeno || existingSubscriber.officeno,
+                  email: subscriber.email || existingSubscriber.email,
+                  acode:
+                    subscriber.acode !== undefined
+                      ? subscriber.acode
+                      : existingSubscriber.acode,
+                },
+              }
             );
-            
+
             // Handle service-specific data (WMM)
-            if (subscriber.copies || subscriber.enddate || subscriber.subsdate || subscriber.subsclass) {
+            if (
+              subscriber.copies ||
+              subscriber.enddate ||
+              subscriber.subsdate ||
+              subscriber.subsclass
+            ) {
               // Check for existing WMM subscription
-              let wmmSubscription = await WmmModel.findOne({ clientid: subscrId });
-              
+              let wmmSubscription = await WmmModel.findOne({
+                clientid: subscrId,
+              });
+
               if (wmmSubscription) {
                 // Update existing WMM subscription
                 await WmmModel.updateOne(
                   { clientid: subscrId },
-                  { $set: {
-                    copies: subscriber.copies || wmmSubscription.copies,
-                    enddate: subscriber.enddate || wmmSubscription.enddate,
-                    subsdate: subscriber.subsdate || wmmSubscription.subsdate,
-                    subsclass: subscriber.subsclass || wmmSubscription.subsclass
-                  }}
+                  {
+                    $set: {
+                      copies: subscriber.copies || wmmSubscription.copies,
+                      enddate: subscriber.enddate || wmmSubscription.enddate,
+                      subsdate: subscriber.subsdate || wmmSubscription.subsdate,
+                      subsclass:
+                        subscriber.subsclass || wmmSubscription.subsclass,
+                    },
+                  }
                 );
               } else {
                 // Create new WMM subscription
                 const newWmmSubscription = new WmmModel({
                   clientid: subscrId,
                   copies: subscriber.copies || 1,
-                  enddate: subscriber.enddate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+                  enddate:
+                    subscriber.enddate ||
+                    new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
                   subsdate: subscriber.subsdate || new Date(),
-                  subsclass: subscriber.subsclass || "Regular"
+                  subsclass: subscriber.subsclass || "Regular",
                 });
                 await newWmmSubscription.save();
               }
             }
-            
+
             // Handle HRG data if present
             if (subscriber.hrgData) {
-              let hrgSubscription = await HrgModel.findOne({ clientid: subscrId });
-              
+              let hrgSubscription = await HrgModel.findOne({
+                clientid: subscrId,
+              });
+
               if (hrgSubscription) {
                 // Update existing
                 await HrgModel.updateOne(
                   { clientid: subscrId },
-                  { $set: {
-                    quantity: subscriber.hrgData.quantity || hrgSubscription.quantity,
-                    totalAmount: subscriber.hrgData.totalAmount || hrgSubscription.totalAmount,
-                    lastPaymentDate: subscriber.hrgData.lastPaymentDate || hrgSubscription.lastPaymentDate
-                  }}
+                  {
+                    $set: {
+                      quantity:
+                        subscriber.hrgData.quantity || hrgSubscription.quantity,
+                      totalAmount:
+                        subscriber.hrgData.totalAmount ||
+                        hrgSubscription.totalAmount,
+                      lastPaymentDate:
+                        subscriber.hrgData.lastPaymentDate ||
+                        hrgSubscription.lastPaymentDate,
+                    },
+                  }
                 );
-              } else if (subscriber.hrgData.quantity || subscriber.hrgData.totalAmount) {
+              } else if (
+                subscriber.hrgData.quantity ||
+                subscriber.hrgData.totalAmount
+              ) {
                 // Create new
                 const newHrg = new HrgModel({
                   clientid: subscrId,
                   quantity: subscriber.hrgData.quantity || 1,
                   totalAmount: subscriber.hrgData.totalAmount || 0,
-                  lastPaymentDate: subscriber.hrgData.lastPaymentDate || new Date()
+                  lastPaymentDate:
+                    subscriber.hrgData.lastPaymentDate || new Date(),
                 });
                 await newHrg.save();
               }
             }
-            
+
             // Handle FOM data if present
             if (subscriber.fomData) {
-              let fomSubscription = await FomModel.findOne({ clientid: subscrId });
-              
+              let fomSubscription = await FomModel.findOne({
+                clientid: subscrId,
+              });
+
               if (fomSubscription) {
                 // Update existing
                 await FomModel.updateOne(
                   { clientid: subscrId },
-                  { $set: {
-                    quantity: subscriber.fomData.quantity || fomSubscription.quantity,
-                    totalAmount: subscriber.fomData.totalAmount || fomSubscription.totalAmount,
-                    lastPaymentDate: subscriber.fomData.lastPaymentDate || fomSubscription.lastPaymentDate
-                  }}
+                  {
+                    $set: {
+                      quantity:
+                        subscriber.fomData.quantity || fomSubscription.quantity,
+                      totalAmount:
+                        subscriber.fomData.totalAmount ||
+                        fomSubscription.totalAmount,
+                      lastPaymentDate:
+                        subscriber.fomData.lastPaymentDate ||
+                        fomSubscription.lastPaymentDate,
+                    },
+                  }
                 );
-              } else if (subscriber.fomData.quantity || subscriber.fomData.totalAmount) {
+              } else if (
+                subscriber.fomData.quantity ||
+                subscriber.fomData.totalAmount
+              ) {
                 // Create new
                 const newFom = new FomModel({
                   clientid: subscrId,
                   quantity: subscriber.fomData.quantity || 1,
                   totalAmount: subscriber.fomData.totalAmount || 0,
-                  lastPaymentDate: subscriber.fomData.lastPaymentDate || new Date()
+                  lastPaymentDate:
+                    subscriber.fomData.lastPaymentDate || new Date(),
                 });
                 await newFom.save();
               }
             }
-            
+
             // Handle CAL data if present
             if (subscriber.calData) {
-              let calSubscription = await CalModel.findOne({ clientid: subscrId });
-              
+              let calSubscription = await CalModel.findOne({
+                clientid: subscrId,
+              });
+
               if (calSubscription) {
                 // Update existing
                 await CalModel.updateOne(
                   { clientid: subscrId },
-                  { $set: {
-                    quantity: subscriber.calData.quantity || calSubscription.quantity,
-                    totalAmount: subscriber.calData.totalAmount || calSubscription.totalAmount,
-                    lastPaymentDate: subscriber.calData.lastPaymentDate || calSubscription.lastPaymentDate
-                  }}
+                  {
+                    $set: {
+                      quantity:
+                        subscriber.calData.quantity || calSubscription.quantity,
+                      totalAmount:
+                        subscriber.calData.totalAmount ||
+                        calSubscription.totalAmount,
+                      lastPaymentDate:
+                        subscriber.calData.lastPaymentDate ||
+                        calSubscription.lastPaymentDate,
+                    },
+                  }
                 );
-              } else if (subscriber.calData.quantity || subscriber.calData.totalAmount) {
+              } else if (
+                subscriber.calData.quantity ||
+                subscriber.calData.totalAmount
+              ) {
                 // Create new
                 const newCal = new CalModel({
                   clientid: subscrId,
                   quantity: subscriber.calData.quantity || 1,
                   totalAmount: subscriber.calData.totalAmount || 0,
-                  lastPaymentDate: subscriber.calData.lastPaymentDate || new Date()
+                  lastPaymentDate:
+                    subscriber.calData.lastPaymentDate || new Date(),
                 });
                 await newCal.save();
               }
             }
-            
+
             results.updated++;
           } else {
             // Create new subscriber
-            
+
             // Get next available ID
             const lastClient = await ClientModel.findOne().sort({ id: -1 });
             const nextId = lastClient ? lastClient.id + 1 : 1;
-            
+
             // Create client record
             const newClient = new ClientModel({
               id: nextId,
@@ -1274,56 +1453,75 @@ router.post(
               cellno: subscriber.cellno || "",
               officeno: subscriber.officeno || "",
               email: subscriber.email || "",
-              acode: subscriber.acode !== undefined ? subscriber.acode : ""
+              acode: subscriber.acode !== undefined ? subscriber.acode : "",
             });
-            
+
             await newClient.save();
-            
+
             // Create WMM subscription if data provided
-            if (subscriber.copies || subscriber.enddate || subscriber.subsdate || subscriber.subsclass) {
+            if (
+              subscriber.copies ||
+              subscriber.enddate ||
+              subscriber.subsdate ||
+              subscriber.subsclass
+            ) {
               const newWmmSubscription = new WmmModel({
                 clientid: nextId,
                 copies: subscriber.copies || 1,
-                enddate: subscriber.enddate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+                enddate:
+                  subscriber.enddate ||
+                  new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
                 subsdate: subscriber.subsdate || new Date(),
-                subsclass: subscriber.subsclass || "Regular"
+                subsclass: subscriber.subsclass || "Regular",
               });
               await newWmmSubscription.save();
             }
-            
+
             // Create HRG subscription if data provided
-            if (subscriber.hrgData && (subscriber.hrgData.quantity || subscriber.hrgData.totalAmount)) {
+            if (
+              subscriber.hrgData &&
+              (subscriber.hrgData.quantity || subscriber.hrgData.totalAmount)
+            ) {
               const newHrg = new HrgModel({
                 clientid: nextId,
                 quantity: subscriber.hrgData.quantity || 1,
                 totalAmount: subscriber.hrgData.totalAmount || 0,
-                lastPaymentDate: subscriber.hrgData.lastPaymentDate || new Date()
+                lastPaymentDate:
+                  subscriber.hrgData.lastPaymentDate || new Date(),
               });
               await newHrg.save();
             }
-            
+
             // Create FOM subscription if data provided
-            if (subscriber.fomData && (subscriber.fomData.quantity || subscriber.fomData.totalAmount)) {
+            if (
+              subscriber.fomData &&
+              (subscriber.fomData.quantity || subscriber.fomData.totalAmount)
+            ) {
               const newFom = new FomModel({
                 clientid: nextId,
                 quantity: subscriber.fomData.quantity || 1,
                 totalAmount: subscriber.fomData.totalAmount || 0,
-                lastPaymentDate: subscriber.fomData.lastPaymentDate || new Date()
+                lastPaymentDate:
+                  subscriber.fomData.lastPaymentDate || new Date(),
               });
               await newFom.save();
             }
-            
+
             // Create CAL subscription if data provided
-            if (subscriber.calData && (subscriber.calData.quantity || subscriber.calData.totalAmount)) {
+            if (
+              subscriber.calData &&
+              (subscriber.calData.quantity || subscriber.calData.totalAmount)
+            ) {
               const newCal = new CalModel({
                 clientid: nextId,
                 quantity: subscriber.calData.quantity || 1,
                 totalAmount: subscriber.calData.totalAmount || 0,
-                lastPaymentDate: subscriber.calData.lastPaymentDate || new Date()
+                lastPaymentDate:
+                  subscriber.calData.lastPaymentDate || new Date(),
               });
               await newCal.save();
             }
-            
+
             results.success++;
           }
         } catch (error) {
@@ -1331,29 +1529,30 @@ router.post(
           results.errorDetails.push({
             row: i + 1,
             message: error.message,
-            subscriber: subscriber.id || `${subscriber.lname}, ${subscriber.fname}`
+            subscriber:
+              subscriber.id || `${subscriber.lname}, ${subscriber.fname}`,
           });
           console.error(`Error processing subscriber at row ${i + 1}:`, error);
         }
       }
-      
+
       // Broadcast update notification through socket.io if available
       if (req.io) {
         req.io.emit("data-update", {
           type: "subscribers-imported",
-          count: results.success + results.updated
+          count: results.success + results.updated,
         });
       }
-      
+
       res.json({
         ...results,
-        message: `Import complete: ${results.success} added, ${results.updated} updated, ${results.skipped} skipped, ${results.errors} errors`
+        message: `Import complete: ${results.success} added, ${results.updated} updated, ${results.skipped} skipped, ${results.errors} errors`,
       });
     } catch (error) {
       console.error("Error in CSV import:", error);
       res.status(500).json({
         error: "Internal Server Error",
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -1368,7 +1567,11 @@ router.post(
       const { filter = "", group = "", advancedFilterData = {} } = req.body;
 
       // Get the filter query
-      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      const filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
 
       // Get all matching clients
       const clients = await ClientModel.find(filterQuery).lean();
@@ -1385,14 +1588,13 @@ router.post(
       res.json({
         success: true,
         totalClients: clients.length,
-        clientsWithWmm
+        clientsWithWmm,
       });
-
     } catch (error) {
       console.error("Error getting calendar update preview:", error);
       res.status(500).json({
         error: "Internal Server Error",
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -1405,12 +1607,19 @@ router.post(
   async (req, res) => {
     const io = req.io;
     try {
-      const { filter = "", group = "", advancedFilterData = {}, setCalendarTo, clientIds = [], subscriptionType = "WMM" } = req.body;
+      const {
+        filter = "",
+        group = "",
+        advancedFilterData = {},
+        setCalendarTo,
+        clientIds = [],
+        subscriptionType = "WMM",
+      } = req.body;
 
       if (setCalendarTo === undefined) {
         return res.status(400).json({
           error: "Bad Request",
-          message: "setCalendarTo parameter is required"
+          message: "setCalendarTo parameter is required",
         });
       }
 
@@ -1420,7 +1629,11 @@ router.post(
         clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
       } else {
         // Otherwise use the filter query
-        const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+        const filterQuery = await buildFilterQuery(
+          filter,
+          group,
+          advancedFilterData
+        );
         clients = await ClientModel.find(filterQuery).lean();
       }
 
@@ -1428,7 +1641,7 @@ router.post(
         return res.json({
           success: true,
           message: "No matching clients found",
-          modifiedCount: 0
+          modifiedCount: 0,
         });
       }
 
@@ -1441,7 +1654,7 @@ router.post(
 
       // Determine which model to use based on subscription type
       let SubscriptionModel;
-      switch(subscriptionType) {
+      switch (subscriptionType) {
         case "Promo":
           SubscriptionModel = PromoModel;
           break;
@@ -1457,14 +1670,16 @@ router.post(
         try {
           processedCount++;
           // Find all subscription records for this client
-          const subscriptionRecords = await SubscriptionModel.find({ clientid: client.id })
+          const subscriptionRecords = await SubscriptionModel.find({
+            clientid: client.id,
+          })
             .sort({ subsdate: -1 })
             .lean();
 
           if (subscriptionRecords && subscriptionRecords.length > 0) {
             // Get the most recent record
             const mostRecentRecord = subscriptionRecords[0];
-            
+
             // Check if the status is already what we want to set it to
             if (mostRecentRecord.calendar === setCalendarTo) {
               skippedCount++;
@@ -1473,20 +1688,20 @@ router.post(
                 fname: client.fname,
                 lname: client.lname,
                 error: "No changes made",
-                currentStatus: setCalendarTo
+                currentStatus: setCalendarTo,
               });
               continue;
             }
-            
+
             // Update the calendar status for the most recent record
             const updateResult = await SubscriptionModel.updateOne(
               { _id: mostRecentRecord._id },
-              { 
-                $set: { 
+              {
+                $set: {
                   calendar: setCalendarTo,
                   editdate: new Date(),
-                  edituser: req.user.username
-                }
+                  edituser: req.user.username,
+                },
               }
             );
 
@@ -1496,7 +1711,7 @@ router.post(
                 id: client.id,
                 fname: client.fname,
                 lname: client.lname,
-                wmmId: mostRecentRecord._id
+                wmmId: mostRecentRecord._id,
               });
             } else {
               skippedCount++;
@@ -1505,7 +1720,7 @@ router.post(
                 fname: client.fname,
                 lname: client.lname,
                 error: "Already has status",
-                currentStatus: mostRecentRecord.calendar
+                currentStatus: mostRecentRecord.calendar,
               });
             }
           } else {
@@ -1514,7 +1729,7 @@ router.post(
               id: client.id,
               fname: client.fname,
               lname: client.lname,
-              error: `No ${subscriptionType} record found`
+              error: `No ${subscriptionType} record found`,
             });
           }
         } catch (err) {
@@ -1523,7 +1738,7 @@ router.post(
             id: client.id,
             fname: client.fname,
             lname: client.lname,
-            error: err.message || "Unknown error"
+            error: err.message || "Unknown error",
           });
           console.error(`Error processing client ID ${client.id}:`, err);
         }
@@ -1533,7 +1748,7 @@ router.post(
       if (io) {
         io.emit("data-update", {
           type: "bulk-update",
-          message: "Calendar status updated for filtered clients"
+          message: "Calendar status updated for filtered clients",
         });
       }
 
@@ -1548,15 +1763,14 @@ router.post(
           skippedCount,
           errorCount,
           updatedClientIds,
-          failedClientIds
-        }
+          failedClientIds,
+        },
       });
-
     } catch (error) {
       console.error("Error updating calendar status:", error);
       res.status(500).json({
         error: "Internal Server Error",
-        message: error.message
+        message: error.message,
       });
     }
   }
@@ -1571,146 +1785,153 @@ router.post(
       const { filter = "", group = "", advancedFilterData = {} } = req.body;
 
       // Get the filter query
-      const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
+      const filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
 
       // Get all matching clients
       const clients = await ClientModel.find(filterQuery).lean();
 
       res.json({
         success: true,
-        totalClients: clients.length
+        totalClients: clients.length,
       });
-
     } catch (error) {
       console.error("Error getting spack update preview:", error);
       res.status(500).json({
         error: "Internal Server Error",
-        message: error.message
+        message: error.message,
       });
     }
   }
 );
 
-router.post(
-  "/update-spack",
-  verifyToken,
-  attachSocketId,
-  async (req, res) => {
-    const io = req.io;
-    try {
-      const { filter = "", group = "", advancedFilterData = {}, setSpackTo, clientIds = [] } = req.body;
+router.post("/update-spack", verifyToken, attachSocketId, async (req, res) => {
+  const io = req.io;
+  try {
+    const {
+      filter = "",
+      group = "",
+      advancedFilterData = {},
+      setSpackTo,
+      clientIds = [],
+    } = req.body;
 
-      if (setSpackTo === undefined) {
-        return res.status(400).json({
-          error: "Bad Request",
-          message: "setSpackTo parameter is required"
-        });
-      }
+    if (setSpackTo === undefined) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "setSpackTo parameter is required",
+      });
+    }
 
-      let clients;
-      if (clientIds.length > 0) {
-        // If specific client IDs are provided, use those
-        clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
-      } else {
-        // Otherwise use the filter query
-        const filterQuery = await buildFilterQuery(filter, group, advancedFilterData);
-        clients = await ClientModel.find(filterQuery).lean();
-      }
+    let clients;
+    if (clientIds.length > 0) {
+      // If specific client IDs are provided, use those
+      clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
+    } else {
+      // Otherwise use the filter query
+      const filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
+      clients = await ClientModel.find(filterQuery).lean();
+    }
 
-      if (!clients || clients.length === 0) {
-        return res.json({
-          success: true,
-          message: "No matching clients found",
-          modifiedCount: 0
-        });
-      }
+    if (!clients || clients.length === 0) {
+      return res.json({
+        success: true,
+        message: "No matching clients found",
+        modifiedCount: 0,
+      });
+    }
 
-      let modifiedCount = 0;
-      let processedCount = 0;
-      let skippedCount = 0;
-      let errorCount = 0;
-      let updatedClientIds = []; // Track successful updates
-      let failedClientIds = []; // Track failed updates
+    let modifiedCount = 0;
+    let processedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    let updatedClientIds = []; // Track successful updates
+    let failedClientIds = []; // Track failed updates
 
-      // Update each client's spack status
-      for (const client of clients) {
-        try {
-          processedCount++;
-          
-          // Update the client's spack status
-          const updateResult = await ClientModel.updateOne(
-            { id: client.id },
-            { 
-              $set: { 
-                spack: setSpackTo,
-                editdate: new Date(),
-                edituser: req.user.username
-              }
-            }
-          );
+    // Update each client's spack status
+    for (const client of clients) {
+      try {
+        processedCount++;
 
-          if (updateResult.modifiedCount > 0) {
-            modifiedCount++;
-            updatedClientIds.push({
-              id: client.id,
-              name: `${client.lname}, ${client.fname}`
-            });
-          } else {
-            skippedCount++;
-            failedClientIds.push({
-              id: client.id,
-              error: "No changes made"
-            });
+        // Update the client's spack status
+        const updateResult = await ClientModel.updateOne(
+          { id: client.id },
+          {
+            $set: {
+              spack: setSpackTo,
+              editdate: new Date(),
+              edituser: req.user.username,
+            },
           }
-        } catch (err) {
-          errorCount++;
+        );
+
+        if (updateResult.modifiedCount > 0) {
+          modifiedCount++;
+          updatedClientIds.push({
+            id: client.id,
+            name: `${client.lname}, ${client.fname}`,
+          });
+        } else {
+          skippedCount++;
           failedClientIds.push({
             id: client.id,
-            error: err.message || "Unknown error"
+            error: "No changes made",
           });
-          console.error(`Error processing client ID ${client.id}:`, err);
         }
-      }
-
-      // Emit socket event for data update
-      if (io) {
-        io.emit("data-update", {
-          type: "bulk-update",
-          message: "Spack status updated for clients"
+      } catch (err) {
+        errorCount++;
+        failedClientIds.push({
+          id: client.id,
+          error: err.message || "Unknown error",
         });
+        console.error(`Error processing client ID ${client.id}:`, err);
       }
+    }
 
-      res.json({
-        success: true,
-        message: `Updated spack status for ${modifiedCount} records`,
-        modifiedCount,
-        summary: {
-          totalClientsFound: clients.length,
-          processedCount,
-          modifiedCount,
-          skippedCount,
-          errorCount,
-          updatedClientIds,
-          failedClientIds
-        }
-      });
-
-    } catch (error) {
-      console.error("Error updating spack status:", error);
-      res.status(500).json({
-        error: "Internal Server Error",
-        message: error.message
+    // Emit socket event for data update
+    if (io) {
+      io.emit("data-update", {
+        type: "bulk-update",
+        message: "Spack status updated for clients",
       });
     }
+
+    res.json({
+      success: true,
+      message: `Updated spack status for ${modifiedCount} records`,
+      modifiedCount,
+      summary: {
+        totalClientsFound: clients.length,
+        processedCount,
+        modifiedCount,
+        skippedCount,
+        errorCount,
+        updatedClientIds,
+        failedClientIds,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating spack status:", error);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
   }
-);
+});
 
 router.get("/test-subscription-data", async (req, res) => {
   try {
     // Test queries for both models
     const promoCount = await PromoModel.countDocuments();
     const complimentaryCount = await ComplimentaryModel.countDocuments();
-    
+
     // Get sample data from each model
     const promoSample = await PromoModel.find().limit(5).lean();
     const complimentarySample = await ComplimentaryModel.find().limit(5).lean();
@@ -1720,17 +1941,16 @@ router.get("/test-subscription-data", async (req, res) => {
       complimentaryCount,
       promoSample,
       complimentarySample,
-      message: "Query completed successfully"
+      message: "Query completed successfully",
     });
   } catch (error) {
     console.error("Error in test subscription data route:", error);
     res.status(500).json({
       error: "Internal server error",
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 });
 
 export default router;
-
