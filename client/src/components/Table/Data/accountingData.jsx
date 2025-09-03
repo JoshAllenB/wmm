@@ -24,6 +24,9 @@ export const fetchAccounting = async (
       ...(advancedFilterData.endYear && {
         endYear: advancedFilterData.endYear.toString(),
       }),
+      ...(advancedFilterData.modelType && {
+        modelType: advancedFilterData.modelType,
+      }),
     });
 
     const response = await axios.get(
@@ -108,6 +111,9 @@ export const fetchAllAccounting = async (
       }),
       ...(advancedFilterData.endYear && {
         endYear: advancedFilterData.endYear.toString(),
+      }),
+      ...(advancedFilterData.modelType && {
+        modelType: advancedFilterData.modelType,
       }),
     });
 

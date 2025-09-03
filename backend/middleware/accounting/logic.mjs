@@ -45,13 +45,15 @@ const generateCacheKey = (params) => {
     startYear,
     endYear,
     search,
+    modelType,
   } = params;
-  const key = `payments_${page || 1}_${limit || 20}_${sort || "recvdate"}_${
+  const key = `payments_${page || 1}_${limit || 20}_${sort || "recvdate"}_$${
     order || "desc"
-  }_${startDate || ""}_${endDate || ""}_${startYear || ""}_${endYear || ""}_${
+  }_${startDate || ""}_${endDate || ""}_${startYear || ""}_${endYear || ""}_$${
     search || ""
   }`;
-  return key.toLowerCase(); // Normalize cache key
+  const withModel = modelType ? `${key}_${modelType}` : key;
+  return withModel.toLowerCase(); // Normalize cache key
 };
 
 // Helper function to extract payment reference numbers from various formats
@@ -387,6 +389,7 @@ export const getAllPayments = async (req, res) => {
       startYear,
       endYear,
       search = "",
+      modelType,
     } = req.query || {};
 
     const pageNum = parseInt(page);
@@ -406,6 +409,7 @@ export const getAllPayments = async (req, res) => {
       startYear,
       endYear,
       search,
+      modelType,
     });
 
     // Calculate pagination based on actual data length
@@ -446,7 +450,7 @@ export const getAllPaymentsUnpaginated = async (req, res) => {
     res.setHeader("Content-Type", "application/json");
 
     // Ensure req.query exists with default empty object
-    const { startYear, endYear, search = "" } = req.query || {};
+    const { startYear, endYear, search = "", modelType } = req.query || {};
     console.log("Req Query", req.query);
 
     // Generate cache key
@@ -463,6 +467,7 @@ export const getAllPaymentsUnpaginated = async (req, res) => {
       startYear,
       endYear,
       search,
+      modelType,
     });
 
     // Prepare the final result
@@ -481,7 +486,14 @@ export const getAllPaymentsUnpaginated = async (req, res) => {
 };
 
 // Common function to get payments data
-async function getPaymentsData({ startYear, endYear, search, sort, order }) {
+async function getPaymentsData({
+  startYear,
+  endYear,
+  search,
+  sort,
+  order,
+  modelType,
+}) {
   // Parse search and build client filter
   const parsedSearch = parseTaggedSearch(search);
 
@@ -495,6 +507,10 @@ async function getPaymentsData({ startYear, endYear, search, sort, order }) {
       modelName.toLowerCase().includes(valid)
     );
     if (!isValidModel) return false;
+    if (modelType) {
+      const selected = modelType.toLowerCase();
+      if (!modelName.toLowerCase().includes(selected)) return false;
+    }
     const paymentFields = getPaymentFields(modelName);
     return Object.keys(paymentFields).length > 0;
   });
@@ -899,9 +915,16 @@ async function getPaymentsData({ startYear, endYear, search, sort, order }) {
     };
   });
 
+  // Optional final filter by modelType in case of naming differences
+  const finalPayments = modelType
+    ? paymentsWithClientInfo.filter((p) =>
+        p.modelType?.toLowerCase().includes(modelType.toLowerCase())
+      )
+    : paymentsWithClientInfo;
+
   // Sort payments if needed (only for payment reference searches since they bypass aggregation)
   if (sort && parsedSearch.paymentRef) {
-    paymentsWithClientInfo.sort((a, b) => {
+    finalPayments.sort((a, b) => {
       const aVal = sort === "date" ? a.date : a[sort];
       const bVal = sort === "date" ? b.date : b[sort];
 
@@ -918,7 +941,7 @@ async function getPaymentsData({ startYear, endYear, search, sort, order }) {
   }
 
   return {
-    paymentsWithClientInfo,
-    totalRecords: paymentsWithClientInfo.length,
+    paymentsWithClientInfo: finalPayments,
+    totalRecords: finalPayments.length,
   };
 }

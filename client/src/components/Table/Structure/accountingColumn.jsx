@@ -22,18 +22,29 @@ export const useAccountingColumns = () => {
 
   return [
     {
-      id: "Client",
-      header: "Client",
+      id: "IdNo",
+      header: "ID No.",
+      accessorKey: "clientId",
+      cell: ({ getValue }) => (
+        <div className="py-2 font-medium text-base">{getValue() || "N/A"}</div>
+      ),
+      size: 100,
+    },
+    {
+      id: "ClientName",
+      header: "Client Name",
       accessorKey: "clientName",
       cell: ({ getValue, row }) => {
         const clientName = getValue();
         const company = row.original.company;
-        
+
         // If clientName is "undefined, undefined", only show company
         if (clientName === "undefined, undefined") {
-          return <div className="py-2 font-bold text-base">{company || "N/A"}</div>;
+          return (
+            <div className="py-2 font-bold text-base">{company || "N/A"}</div>
+          );
         }
-        
+
         // If both are available and valid, show both
         if (clientName && company && clientName !== company) {
           return (
@@ -43,9 +54,13 @@ export const useAccountingColumns = () => {
             </div>
           );
         }
-        
+
         // Otherwise show either clientName or company with bold styling
-        return <div className="py-2 font-bold text-base">{clientName || company || "N/A"}</div>;
+        return (
+          <div className="py-2 font-bold text-base">
+            {clientName || company || "N/A"}
+          </div>
+        );
       },
       size: 200,
     },
@@ -59,17 +74,6 @@ export const useAccountingColumns = () => {
         </div>
       ),
       size: 100,
-    },
-    {
-      id: "Masses",
-      header: "Masses",
-      accessorKey: "paymtmasses",
-      cell: ({ getValue }) => (
-        <div className="text-left font-medium py-2">
-          {getValue()}
-        </div>
-      ),
-      size: 80,
     },
     {
       id: "Date",
@@ -86,21 +90,29 @@ export const useAccountingColumns = () => {
         );
       },
       accessorKey: "date",
-      accessorFn: (row) => row.date ? new Date(row.date).getTime() : 0,
+      accessorFn: (row) => (row.date ? new Date(row.date).getTime() : 0),
       cell: ({ getValue, row }) => {
         // If it's a WMM record, always show N/A
-        if (row.original.modelType === 'WMM') {
+        if (row.original.modelType === "WMM") {
           return <div className="py-2">N/A</div>;
         }
-        
+
         // For other models, determine which date field was used
-        const dateField = row.original.paymtdate ? 'Payment Date' :
-                         row.original.recvdate ? 'Received Date' : '';
+        const dateField = row.original.paymtdate
+          ? "Payment Date"
+          : row.original.recvdate
+          ? "Received Date"
+          : "";
         const date = getValue();
-        
+
         return (
-          <div className="py-2" title={date ? `${dateField}: ${formatDate(date)}` : 'No date available'}>
-            {date ? formatDate(date) : 'N/A'}
+          <div
+            className="py-2"
+            title={
+              date ? `${dateField}: ${formatDate(date)}` : "No date available"
+            }
+          >
+            {date ? formatDate(date) : "N/A"}
           </div>
         );
       },
@@ -110,14 +122,16 @@ export const useAccountingColumns = () => {
       size: 120,
     },
     {
-      id: "Reference",
-      header: "Reference & Form",
+      id: "PaymentRefMode",
+      header: "PaymentRef/Mode of Payment",
       accessorKey: "paymtref",
       cell: ({ getValue, row }) => {
+        const isWmm = row.original.modelType === "WMM";
         const ref = getValue();
         const form = row.original.paymtform;
-        const model = row.original.model;
-        
+        if (!isWmm) {
+          return <div className="py-2">N/A</div>;
+        }
         return (
           <div className="py-2">
             <div className="text-md">
@@ -127,16 +141,32 @@ export const useAccountingColumns = () => {
           </div>
         );
       },
-      size: 200,
+      size: 220,
+    },
+    {
+      id: "PaymentOR",
+      header: "Payment OR",
+      accessorKey: "paymtref",
+      cell: ({ getValue, row }) => {
+        const isWmm = row.original.modelType === "WMM";
+        const ref = getValue();
+        if (isWmm) {
+          return <div className="py-2">N/A</div>;
+        }
+        return (
+          <div className="py-2 text-md">
+            {ref || <span className="text-muted-foreground italic">N/A</span>}
+          </div>
+        );
+      },
+      size: 160,
     },
     {
       id: "Model",
       header: "Services",
       accessorKey: "modelType",
       cell: ({ getValue }) => (
-        <div className="text-left font-medium py-2">
-          {getValue()}
-        </div>
+        <div className="text-left font-medium py-2">{getValue()}</div>
       ),
       size: 80,
     },

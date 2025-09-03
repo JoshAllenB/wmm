@@ -31,15 +31,17 @@ const Accounting = () => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [csvFilename, setCsvFilename] = useState("");
   const [selectedFields, setSelectedFields] = useState([
-    "Client",
+    "ID No.",
+    "Client Name",
     "Amount",
-    "Masses",
     "Date",
-    "Reference",
-    "Model",
+    "PaymentRef/Mode of Payment",
+    "Payment OR",
+    "Services",
   ]);
   const [exportMode, setExportMode] = useState("current");
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("");
   const debouncedFiltering = useDebounce(filtering, 500);
 
   const columns = useAccountingColumns();
@@ -117,6 +119,8 @@ const Accounting = () => {
             sortDesc: sorting[0]?.desc,
             startYear,
             endYear,
+            // include model filter
+            modelType: selectedModel || undefined,
           }
         );
 
@@ -133,7 +137,7 @@ const Accounting = () => {
         setIsLoading(false);
       }
     },
-    [sorting, startYear, endYear, validateYearRange]
+    [sorting, startYear, endYear, selectedModel, validateYearRange]
   );
 
   // Memoize the search handler to prevent unnecessary re-renders
@@ -173,12 +177,13 @@ const Accounting = () => {
     }
     const headers = [];
     const fieldMap = {
-      Client: "Client",
+      "ID No.": "ID No.",
+      "Client Name": "Client Name",
       Amount: "Amount",
-      Masses: "Masses",
       Date: "Date",
-      Reference: "Reference",
-      Model: "Services",
+      "PaymentRef/Mode of Payment": "PaymentRef/Mode of Payment",
+      "Payment OR": "Payment OR",
+      Services: "Services",
     };
 
     selectedFields.forEach((field) => {
@@ -195,7 +200,11 @@ const Accounting = () => {
 
       selectedFields.forEach((field) => {
         switch (field) {
-          case "Client": {
+          case "ID No.": {
+            rowData.push(row.clientId || "");
+            break;
+          }
+          case "Client Name": {
             const clientName =
               row.clientName === ""
                 ? row.company || ""
@@ -209,10 +218,6 @@ const Accounting = () => {
             );
             break;
           }
-          case "Masses": {
-            rowData.push(row.paymtmasses || "");
-            break;
-          }
           case "Date": {
             const date = row.date
               ? new Date(row.date).toLocaleDateString("en-US")
@@ -220,13 +225,24 @@ const Accounting = () => {
             rowData.push(date);
             break;
           }
-          case "Reference": {
-            const ref = row.paymtref || "";
-            const form = row.paymtform ? ` - ${row.paymtform}` : "";
-            rowData.push(`"${(ref + form).replace(/"/g, '""')}"`);
+          case "PaymentRef/Mode of Payment": {
+            const isWmm = row.modelType === "WMM";
+            if (isWmm) {
+              const ref = row.paymtref || "";
+              const form = row.paymtform ? ` - ${row.paymtform}` : "";
+              rowData.push(`"${(ref + form).replace(/"/g, '""')}"`);
+            } else {
+              rowData.push("");
+            }
             break;
           }
-          case "Model": {
+          case "Payment OR": {
+            const isWmm = row.modelType === "WMM";
+            const ref = row.paymtref || "";
+            rowData.push(isWmm ? "" : ref);
+            break;
+          }
+          case "Services": {
             const model = row.modelType || "";
             rowData.push(model);
             break;
@@ -261,6 +277,7 @@ const Accounting = () => {
           sortDesc: sorting[0]?.desc,
           startYear,
           endYear,
+          modelType: selectedModel || undefined,
         });
         console.log("Fetched all data:", dataToExport);
       }
@@ -356,7 +373,7 @@ const Accounting = () => {
                 placeholder="Start Year"
                 value={startYear}
                 onChange={(e) => handleYearChange(e, "start")}
-                className="w-24"
+                className="w-24 text-base text-bold"
                 maxLength={4}
               />
               <span className="self-center">-</span>
@@ -365,14 +382,33 @@ const Accounting = () => {
                 placeholder="End Year"
                 value={endYear}
                 onChange={(e) => handleYearChange(e, "end")}
-                className="w-24"
+                className="w-24 text-base text-bold"
                 maxLength={4}
               />
             </div>
             {yearError && (
-              <span className="text-xs text-red-500">{yearError}</span>
+              <span className="text-base text-red-500">{yearError}</span>
             )}
           </div>
+          <div className="flex items-center">
+            <select
+              value={selectedModel}
+              onChange={(e) => {
+                setSelectedModel(e.target.value);
+                setPage(1);
+                // trigger refresh with new filter
+                handleFetch(1, pageSize, debouncedFiltering, "", {});
+              }}
+              className="border px-2 py-1 h-[40px] text-base"
+            >
+              <option value="">All</option>
+              <option value="WMM">WMM</option>
+              <option value="HRG">HRG</option>
+              <option value="FOM">FOM</option>
+              <option value="CAL">CAL</option>
+            </select>
+          </div>
+
           <Button
             onClick={handleRefresh}
             className="bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
@@ -462,12 +498,13 @@ const Accounting = () => {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  "Client",
+                  "ID No.",
+                  "Client Name",
                   "Amount",
-                  "Masses",
                   "Date",
-                  "Reference",
-                  "Model",
+                  "PaymentRef/Mode of Payment",
+                  "Payment OR",
+                  "Services",
                 ].map((field) => (
                   <div key={field} className="flex items-center">
                     <input
