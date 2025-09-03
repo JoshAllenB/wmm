@@ -30,44 +30,51 @@ const extractPaymentRefNumber = (input) => {
 
 // Helper function to apply clientID filtering to a list of client IDs
 const applyClientIdFiltering = (clientIds, advancedFilterData) => {
-  if (!advancedFilterData.includeClientIds && !advancedFilterData.excludeClientIds) {
+  if (
+    !advancedFilterData.includeClientIds &&
+    !advancedFilterData.excludeClientIds
+  ) {
     return clientIds; // No filtering needed
   }
 
   let filteredClients = clientIds;
-  
+
   // Apply include filter
   if (advancedFilterData.includeClientIds) {
     const includeIds = Array.isArray(advancedFilterData.includeClientIds)
       ? advancedFilterData.includeClientIds
       : [advancedFilterData.includeClientIds];
-    
+
     const validIncludeIds = includeIds
       .map((id) => Number(id))
       .filter((id) => !isNaN(id) && isFinite(id));
-    
+
     if (validIncludeIds.length > 0) {
       // Only include clients that are both in the original list AND in the include list
-      filteredClients = filteredClients.filter(id => validIncludeIds.includes(id));
+      filteredClients = filteredClients.filter((id) =>
+        validIncludeIds.includes(id)
+      );
     }
   }
-  
+
   // Apply exclude filter
   if (advancedFilterData.excludeClientIds) {
     const excludeIds = Array.isArray(advancedFilterData.excludeClientIds)
       ? advancedFilterData.excludeClientIds
       : [advancedFilterData.excludeClientIds];
-    
+
     const validExcludeIds = excludeIds
       .map((id) => Number(id))
       .filter((id) => !isNaN(id) && isFinite(id));
-    
+
     if (validExcludeIds.length > 0) {
       // Remove clients that are in the exclude list
-      filteredClients = filteredClients.filter(id => !validExcludeIds.includes(id));
+      filteredClients = filteredClients.filter(
+        (id) => !validExcludeIds.includes(id)
+      );
     }
   }
-  
+
   return filteredClients;
 };
 
@@ -265,13 +272,16 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 
   // Check if this is a search-based query (names, client ID, or payment ref)
   const isSearchQuery = filter && filter.trim() !== "";
-  const isPaymentRefSearch = isSearchQuery && filter.toLowerCase().startsWith("ref:");
+  const isPaymentRefSearch =
+    isSearchQuery && filter.toLowerCase().startsWith("ref:");
   const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
-  const isNameSearch = isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
+  const isNameSearch =
+    isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
   // Check if services are explicitly selected
-  const hasExplicitServices = advancedFilterData.services && 
-    Array.isArray(advancedFilterData.services) && 
+  const hasExplicitServices =
+    advancedFilterData.services &&
+    Array.isArray(advancedFilterData.services) &&
     advancedFilterData.services.length > 0;
 
   // Handle client ID inclusion first (but defer processing if services are selected)
@@ -346,24 +356,18 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       }
     }
   }
-  
+
   // Add exclude CMC clients filter
   if (advancedFilterData.excludeCMCClients) {
     baseFilter.push({
-      $nor: [
-        { group: "CMC" },
-        { group: { $regex: "CMC", $options: "i" } }
-      ]
+      $nor: [{ group: "CMC" }, { group: { $regex: "CMC", $options: "i" } }],
     });
   }
 
   // Add exclude DCS clients filter
   if (advancedFilterData.excludeDCSClients) {
     baseFilter.push({
-      $nor: [
-        { group: "DCS" },
-        { group: { $regex: "DCS", $options: "i" } }
-      ]
+      $nor: [{ group: "DCS" }, { group: { $regex: "DCS", $options: "i" } }],
     });
   }
 
@@ -377,7 +381,9 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           // Search across ALL subscription models for payment references
           const WmmModel = await getModelInstance("WmmModel");
           const PromoModel = await getModelInstance("PromoModel");
-          const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+          const ComplimentaryModel = await getModelInstance(
+            "ComplimentaryModel"
+          );
           const FomModel = await getModelInstance("FomModel");
           const HrgModel = await getModelInstance("HrgModel");
           const CalModel = await getModelInstance("CalModel");
@@ -387,13 +393,32 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           const searchPattern = extractedRef || paymentRef;
 
           // Search in ALL models for payment reference
-          const [wmmClients, promoClients, complimentaryClients, fomClients, hrgClients, calClients] = await Promise.all([
-            WmmModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
-            PromoModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
-            ComplimentaryModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
-            FomModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
-            HrgModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid"),
-            CalModel.find({ paymtref: { $regex: searchPattern, $options: "i" } }).distinct("clientid")
+          const [
+            wmmClients,
+            promoClients,
+            complimentaryClients,
+            fomClients,
+            hrgClients,
+            calClients,
+          ] = await Promise.all([
+            WmmModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
+            PromoModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
+            ComplimentaryModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
+            FomModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
+            HrgModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
+            CalModel.find({
+              paymtref: { $regex: searchPattern, $options: "i" },
+            }).distinct("clientid"),
           ]);
 
           // Combine all client IDs from all models
@@ -403,7 +428,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             ...complimentaryClients,
             ...fomClients,
             ...hrgClients,
-            ...calClients
+            ...calClients,
           ];
 
           if (allClientIds.length > 0) {
@@ -428,17 +453,19 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       // Handle regular search (client ID, names, company names)
       const numericFilter = Number(filter);
       const isNumeric = !isNaN(numericFilter);
-      
+
       // Check if the search term contains spaces (likely a full name or company name)
       const hasSpaces = filter.includes(" ");
-      
+
       if (hasSpaces) {
         // Handle full names and company names with spaces
-        const searchTerms = filter.split(/\s+/).filter(term => term.trim() !== "");
-        
+        const searchTerms = filter
+          .split(/\s+/)
+          .filter((term) => term.trim() !== "");
+
         if (searchTerms.length > 0) {
           const searchQueries = [];
-          
+
           // Add exact full name/company match
           searchQueries.push({
             $or: [
@@ -447,32 +474,32 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               {
                 $and: [
                   { fname: { $regex: searchTerms[0], $options: "i" } },
-                  { lname: { $regex: searchTerms[1] || "", $options: "i" } }
-                ]
+                  { lname: { $regex: searchTerms[1] || "", $options: "i" } },
+                ],
               },
               // Try reverse order (last + first name)
               {
                 $and: [
                   { lname: { $regex: searchTerms[0], $options: "i" } },
-                  { fname: { $regex: searchTerms[1] || "", $options: "i" } }
-                ]
-              }
-            ]
+                  { fname: { $regex: searchTerms[1] || "", $options: "i" } },
+                ],
+              },
+            ],
           });
-          
+
           // Add partial matches for each search term
           searchQueries.push({
-            $or: searchTerms.map(term => ({
+            $or: searchTerms.map((term) => ({
               $or: [
                 { fname: { $regex: term, $options: "i" } },
                 { lname: { $regex: term, $options: "i" } },
                 { mname: { $regex: term, $options: "i" } },
                 { sname: { $regex: term, $options: "i" } },
-                { company: { $regex: term, $options: "i" } }
-              ]
-            }))
+                { company: { $regex: term, $options: "i" } },
+              ],
+            })),
           });
-          
+
           baseFilter.push({ $or: searchQueries });
         }
       } else {
@@ -494,11 +521,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add full name search
   if (advancedFilterData.fullName) {
     const fullName = advancedFilterData.fullName.trim();
-    const nameParts = fullName.split(/\s+/).filter(part => part.trim() !== "");
+    const nameParts = fullName
+      .split(/\s+/)
+      .filter((part) => part.trim() !== "");
 
     if (nameParts.length > 0) {
       const nameQueries = [];
-      
+
       // Add exact company name match
       nameQueries.push({ company: { $regex: fullName, $options: "i" } });
 
@@ -510,15 +539,15 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             {
               $and: [
                 { fname: { $regex: nameParts[0], $options: "i" } },
-                { lname: { $regex: nameParts[1], $options: "i" } }
-              ]
+                { lname: { $regex: nameParts[1], $options: "i" } },
+              ],
             },
             // Try reverse order (last + first name)
             {
               $and: [
                 { lname: { $regex: nameParts[0], $options: "i" } },
-                { fname: { $regex: nameParts[1], $options: "i" } }
-              ]
+                { fname: { $regex: nameParts[1], $options: "i" } },
+              ],
             },
             // Try to match any combination of name parts
             {
@@ -531,8 +560,8 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                   { company: { $regex: part, $options: "i" } },
                 ],
               })),
-            }
-          ]
+            },
+          ],
         });
       } else {
         // Handle single word names
@@ -564,7 +593,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Only apply service filters if this is NOT a search query
   if (!isSearchQuery) {
     await addServiceFilters(baseFilter, advancedFilterData);
-  } 
+  }
 
   // Add personal info field filters
   addPersonalInfoFilters(baseFilter, advancedFilterData);
@@ -578,12 +607,12 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Add subsclass filter (only for WMM model)
   if (advancedFilterData.subsclass) {
     const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-    
+
     // Only apply subsclass filter for WMM subscription type
     if (subscriptionType === "WMM") {
       try {
         const WmmModel = await getModelInstance("WmmModel");
-        
+
         // Use aggregation to get the most recent record for each client based on adddate
         const pipeline = [
           // Convert adddate string to Date for proper sorting
@@ -599,13 +628,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               },
             },
           },
-          
+
           // Only include records with valid dates
           { $match: { addDateObj: { $ne: null } } },
-          
+
           // Sort by client ID and adddate (newest first)
           { $sort: { clientid: 1, addDateObj: -1 } },
-          
+
           // Group by client ID to get the most recent record
           {
             $group: {
@@ -614,20 +643,20 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               latestAddDate: { $first: "$adddate" },
             },
           },
-          
+
           // Only include clients where the most recent subsclass exactly matches the filter
           { $match: { latestSubsclass: advancedFilterData.subsclass } },
-          
+
           // Project only the client ID
           { $project: { _id: 1 } },
         ];
-        
+
         const clientsWithSubsclass = await WmmModel.aggregate(pipeline);
-        
+
         const validClientIds = clientsWithSubsclass
           .map((c) => parseInt(c._id))
           .filter((id) => !isNaN(id));
-        
+
         if (validClientIds.length > 0) {
           baseFilter.push({ id: { $in: validClientIds } });
         } else {
@@ -816,7 +845,10 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   }
 
   // Add HRG/FOM subscription status filter
-  if (advancedFilterData.hrgFomSubscriptionStatus && advancedFilterData.hrgFomSubscriptionStatus !== "all") {
+  if (
+    advancedFilterData.hrgFomSubscriptionStatus &&
+    advancedFilterData.hrgFomSubscriptionStatus !== "all"
+  ) {
     try {
       const HrgModel = await getModelInstance("HrgModel");
       const FomModel = await getModelInstance("FomModel");
@@ -832,210 +864,41 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       const noServiceFilter = services.length === 0;
 
       // Check for date range filters
-      const hasHrgDateRange = advancedFilterData.hrgPaymentFromDate || advancedFilterData.hrgPaymentToDate || 
-                              advancedFilterData.hrgCampaignFromDate || advancedFilterData.hrgCampaignToDate;
-      const hasFomDateRange = advancedFilterData.fomPaymentFromDate || advancedFilterData.fomPaymentToDate;
+      const hasHrgDateRange =
+        advancedFilterData.hrgPaymentFromDate ||
+        advancedFilterData.hrgPaymentToDate ||
+        advancedFilterData.hrgCampaignFromDate ||
+        advancedFilterData.hrgCampaignToDate;
+      const hasFomDateRange =
+        advancedFilterData.fomPaymentFromDate ||
+        advancedFilterData.fomPaymentToDate;
 
       // Get clients based on subscription status
       if (advancedFilterData.hrgFomSubscriptionStatus === "subscribed") {
         // Get subscribed clients (unsubscribe = false or not set) with most recent data
         const queries = [];
-        
+
         if (noServiceFilter) {
           // If no service filter, check both HRG and FOM for subscribed clients
           // This will include clients who are subscribed to either HRG or FOM
-          
+
           // Get all HRG clients with their latest subscription status
           let hrgPipeline = [
-            { $match: {} }  // Get all records first
+            { $match: {} }, // Get all records first
           ];
 
           // Add date range filter for HRG if specified
           if (hasHrgDateRange) {
-            const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
-                                advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
-            const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
-                              advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
-
-            if (hrgEndDate) {
-              hrgEndDate.setHours(23, 59, 59, 999);
-            }
-
-            // Add date pipeline and date range match
-            hrgPipeline.push(...createDatePipeline("recvdate"));
-            hrgPipeline.push({
-              $match: {
-                normalizedDate: {
-                  ...(hrgStartDate && { $gte: hrgStartDate }),
-                  ...(hrgEndDate && { $lte: hrgEndDate }),
-                },
-              },
-            });
-          }
-
-                      hrgPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": { $ne: true } } },  // Only subscribed clients (unsubscribe != true)
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
-            );
-
-          queries.push(HrgModel.aggregate(hrgPipeline));
-
-          // Get all FOM clients with their latest subscription status
-          let fomPipeline = [
-            { $match: {} }  // Get all records first
-          ];
-
-          // Add date range filter for FOM if specified
-          if (hasFomDateRange) {
-            const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
-            const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
-
-            if (fomEndDate) {
-              fomEndDate.setHours(23, 59, 59, 999);
-            }
-
-            // Add date pipeline and date range match
-            fomPipeline.push(...createDatePipeline("recvdate"));
-            fomPipeline.push({
-              $match: {
-                normalizedDate: {
-                  ...(fomStartDate && { $gte: fomStartDate }),
-                  ...(fomEndDate && { $lte: fomEndDate }),
-                },
-              },
-            });
-          }
-
-                      fomPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": { $ne: true } } },  // Only subscribed clients (unsubscribe != true)
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
-            );
-
-          queries.push(FomModel.aggregate(fomPipeline));
-        } else {
-          // If service filter is applied, only check the specified services
-          if (checkHrg) {
-            let hrgPipeline = [
-              { $match: {} }  // Get all records first
-            ];
-
-            // Add date range filter for HRG if specified
-            if (hasHrgDateRange) {
-              const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
-                                  advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
-              const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
-                                advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
-
-              if (hrgEndDate) {
-                hrgEndDate.setHours(23, 59, 59, 999);
-              }
-
-              // Add date pipeline and date range match
-              hrgPipeline.push(...createDatePipeline("recvdate"));
-              hrgPipeline.push({
-                $match: {
-                  normalizedDate: {
-                    ...(hrgStartDate && { $gte: hrgStartDate }),
-                    ...(hrgEndDate && { $lte: hrgEndDate }),
-                  },
-                },
-              });
-            }
-
-            hrgPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
-            );
-
-            queries.push(HrgModel.aggregate(hrgPipeline));
-          }
-          
-          if (checkFom) {
-            let fomPipeline = [
-              { $match: {} }  // Get all records first
-            ];
-
-            // Add date range filter for FOM if specified
-            if (hasFomDateRange) {
-              const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
-              const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
-
-              if (fomEndDate) {
-                fomEndDate.setHours(23, 59, 59, 999);
-              }
-
-              // Add date pipeline and date range match
-              fomPipeline.push(...createDatePipeline("recvdate"));
-              fomPipeline.push({
-                $match: {
-                  normalizedDate: {
-                    ...(fomStartDate && { $gte: fomStartDate }),
-                    ...(fomEndDate && { $lte: fomEndDate }),
-                  },
-                },
-              });
-            }
-
-            fomPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
-            );
-
-            queries.push(FomModel.aggregate(fomPipeline));
-          }
-        }
-
-        const results = await Promise.all(queries);
-        
-        results.forEach((result, index) => {
-          result.forEach(client => {
-            targetClients.add(client._id);
-          });
-        });
-        
-      } else if (advancedFilterData.hrgFomSubscriptionStatus === "unsubscribed") {
-        // Get unsubscribed clients (unsubscribe = true) with most recent data
-        const queries = [];
-        
-        if (noServiceFilter) {
-          // If no service filter, check both HRG and FOM for unsubscribed clients
-          // This will include clients who are unsubscribed from either HRG or FOM
-          
-          // Get all HRG clients with their latest subscription status
-          let hrgPipeline = [
-            { $match: {} }  // Get all records first
-          ];
-
-          // Add date range filter for HRG if specified
-          if (hasHrgDateRange) {
-            const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
-                                advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
-            const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
-                              advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+            const hrgStartDate = advancedFilterData.hrgPaymentFromDate
+              ? parseDate(advancedFilterData.hrgPaymentFromDate)
+              : advancedFilterData.hrgCampaignFromDate
+              ? parseDate(advancedFilterData.hrgCampaignFromDate)
+              : null;
+            const hrgEndDate = advancedFilterData.hrgPaymentToDate
+              ? parseDate(advancedFilterData.hrgPaymentToDate)
+              : advancedFilterData.hrgCampaignToDate
+              ? parseDate(advancedFilterData.hrgCampaignToDate)
+              : null;
 
             if (hrgEndDate) {
               hrgEndDate.setHours(23, 59, 59, 999);
@@ -1054,27 +917,35 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           }
 
           hrgPipeline.push(
-            { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-            { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-            { $match: { "latestRecord.unsubscribe": true } },  // Only unsubscribed clients
-            { $project: { 
-              _id: 1, 
-              unsubscribeValue: "$latestRecord.unsubscribe", 
-              adddateValue: "$latestRecord.adddate" 
-            }}
+            { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+            {
+              $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } },
+            },
+            { $match: { "latestRecord.unsubscribe": { $ne: true } } }, // Only subscribed clients (unsubscribe != true)
+            {
+              $project: {
+                _id: 1,
+                unsubscribeValue: "$latestRecord.unsubscribe",
+                adddateValue: "$latestRecord.adddate",
+              },
+            }
           );
 
           queries.push(HrgModel.aggregate(hrgPipeline));
 
           // Get all FOM clients with their latest subscription status
           let fomPipeline = [
-            { $match: {} }  // Get all records first
+            { $match: {} }, // Get all records first
           ];
 
           // Add date range filter for FOM if specified
           if (hasFomDateRange) {
-            const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
-            const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+            const fomStartDate = advancedFilterData.fomPaymentFromDate
+              ? parseDate(advancedFilterData.fomPaymentFromDate)
+              : null;
+            const fomEndDate = advancedFilterData.fomPaymentToDate
+              ? parseDate(advancedFilterData.fomPaymentToDate)
+              : null;
 
             if (fomEndDate) {
               fomEndDate.setHours(23, 59, 59, 999);
@@ -1093,14 +964,18 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           }
 
           fomPipeline.push(
-            { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-            { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-            { $match: { "latestRecord.unsubscribe": true } },  // Only unsubscribed clients
-            { $project: { 
-              _id: 1, 
-              unsubscribeValue: "$latestRecord.unsubscribe", 
-              adddateValue: "$latestRecord.adddate" 
-            }}
+            { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+            {
+              $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } },
+            },
+            { $match: { "latestRecord.unsubscribe": { $ne: true } } }, // Only subscribed clients (unsubscribe != true)
+            {
+              $project: {
+                _id: 1,
+                unsubscribeValue: "$latestRecord.unsubscribe",
+                adddateValue: "$latestRecord.adddate",
+              },
+            }
           );
 
           queries.push(FomModel.aggregate(fomPipeline));
@@ -1108,15 +983,21 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           // If service filter is applied, only check the specified services
           if (checkHrg) {
             let hrgPipeline = [
-              { $match: {} }  // Get all records first
+              { $match: {} }, // Get all records first
             ];
 
             // Add date range filter for HRG if specified
             if (hasHrgDateRange) {
-              const hrgStartDate = advancedFilterData.hrgPaymentFromDate ? parseDate(advancedFilterData.hrgPaymentFromDate) : 
-                                  advancedFilterData.hrgCampaignFromDate ? parseDate(advancedFilterData.hrgCampaignFromDate) : null;
-              const hrgEndDate = advancedFilterData.hrgPaymentToDate ? parseDate(advancedFilterData.hrgPaymentToDate) : 
-                                advancedFilterData.hrgCampaignToDate ? parseDate(advancedFilterData.hrgCampaignToDate) : null;
+              const hrgStartDate = advancedFilterData.hrgPaymentFromDate
+                ? parseDate(advancedFilterData.hrgPaymentFromDate)
+                : advancedFilterData.hrgCampaignFromDate
+                ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                : null;
+              const hrgEndDate = advancedFilterData.hrgPaymentToDate
+                ? parseDate(advancedFilterData.hrgPaymentToDate)
+                : advancedFilterData.hrgCampaignToDate
+                ? parseDate(advancedFilterData.hrgCampaignToDate)
+                : null;
 
               if (hrgEndDate) {
                 hrgEndDate.setHours(23, 59, 59, 999);
@@ -1135,28 +1016,39 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             }
 
             hrgPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": true } },
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
+              { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+              {
+                $group: {
+                  _id: "$clientid",
+                  latestRecord: { $first: "$$ROOT" },
+                },
+              },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
+              {
+                $project: {
+                  _id: 1,
+                  unsubscribeValue: "$latestRecord.unsubscribe",
+                  adddateValue: "$latestRecord.adddate",
+                },
+              }
             );
 
             queries.push(HrgModel.aggregate(hrgPipeline));
           }
-          
+
           if (checkFom) {
             let fomPipeline = [
-              { $match: {} }  // Get all records first
+              { $match: {} }, // Get all records first
             ];
 
             // Add date range filter for FOM if specified
             if (hasFomDateRange) {
-              const fomStartDate = advancedFilterData.fomPaymentFromDate ? parseDate(advancedFilterData.fomPaymentFromDate) : null;
-              const fomEndDate = advancedFilterData.fomPaymentToDate ? parseDate(advancedFilterData.fomPaymentToDate) : null;
+              const fomStartDate = advancedFilterData.fomPaymentFromDate
+                ? parseDate(advancedFilterData.fomPaymentFromDate)
+                : null;
+              const fomEndDate = advancedFilterData.fomPaymentToDate
+                ? parseDate(advancedFilterData.fomPaymentToDate)
+                : null;
 
               if (fomEndDate) {
                 fomEndDate.setHours(23, 59, 59, 999);
@@ -1175,14 +1067,21 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             }
 
             fomPipeline.push(
-              { $sort: { clientid: 1, adddate: -1 } },  // Sort by adddate to get most recent record
-              { $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } } },
-              { $match: { "latestRecord.unsubscribe": true } },
-              { $project: { 
-                _id: 1, 
-                unsubscribeValue: "$latestRecord.unsubscribe", 
-                adddateValue: "$latestRecord.adddate" 
-              }}
+              { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+              {
+                $group: {
+                  _id: "$clientid",
+                  latestRecord: { $first: "$$ROOT" },
+                },
+              },
+              { $match: { "latestRecord.unsubscribe": { $ne: true } } },
+              {
+                $project: {
+                  _id: 1,
+                  unsubscribeValue: "$latestRecord.unsubscribe",
+                  adddateValue: "$latestRecord.adddate",
+                },
+              }
             );
 
             queries.push(FomModel.aggregate(fomPipeline));
@@ -1190,10 +1089,232 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         }
 
         const results = await Promise.all(queries);
-        
-        
+
         results.forEach((result, index) => {
-          result.forEach(client => {
+          result.forEach((client) => {
+            targetClients.add(client._id);
+          });
+        });
+      } else if (
+        advancedFilterData.hrgFomSubscriptionStatus === "unsubscribed"
+      ) {
+        // Get unsubscribed clients (unsubscribe = true) with most recent data
+        const queries = [];
+
+        if (noServiceFilter) {
+          // If no service filter, check both HRG and FOM for unsubscribed clients
+          // This will include clients who are unsubscribed from either HRG or FOM
+
+          // Get all HRG clients with their latest subscription status
+          let hrgPipeline = [
+            { $match: {} }, // Get all records first
+          ];
+
+          // Add date range filter for HRG if specified
+          if (hasHrgDateRange) {
+            const hrgStartDate = advancedFilterData.hrgPaymentFromDate
+              ? parseDate(advancedFilterData.hrgPaymentFromDate)
+              : advancedFilterData.hrgCampaignFromDate
+              ? parseDate(advancedFilterData.hrgCampaignFromDate)
+              : null;
+            const hrgEndDate = advancedFilterData.hrgPaymentToDate
+              ? parseDate(advancedFilterData.hrgPaymentToDate)
+              : advancedFilterData.hrgCampaignToDate
+              ? parseDate(advancedFilterData.hrgCampaignToDate)
+              : null;
+
+            if (hrgEndDate) {
+              hrgEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            hrgPipeline.push(...createDatePipeline("recvdate"));
+            hrgPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(hrgStartDate && { $gte: hrgStartDate }),
+                  ...(hrgEndDate && { $lte: hrgEndDate }),
+                },
+              },
+            });
+          }
+
+          hrgPipeline.push(
+            { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+            {
+              $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } },
+            },
+            { $match: { "latestRecord.unsubscribe": true } }, // Only unsubscribed clients
+            {
+              $project: {
+                _id: 1,
+                unsubscribeValue: "$latestRecord.unsubscribe",
+                adddateValue: "$latestRecord.adddate",
+              },
+            }
+          );
+
+          queries.push(HrgModel.aggregate(hrgPipeline));
+
+          // Get all FOM clients with their latest subscription status
+          let fomPipeline = [
+            { $match: {} }, // Get all records first
+          ];
+
+          // Add date range filter for FOM if specified
+          if (hasFomDateRange) {
+            const fomStartDate = advancedFilterData.fomPaymentFromDate
+              ? parseDate(advancedFilterData.fomPaymentFromDate)
+              : null;
+            const fomEndDate = advancedFilterData.fomPaymentToDate
+              ? parseDate(advancedFilterData.fomPaymentToDate)
+              : null;
+
+            if (fomEndDate) {
+              fomEndDate.setHours(23, 59, 59, 999);
+            }
+
+            // Add date pipeline and date range match
+            fomPipeline.push(...createDatePipeline("recvdate"));
+            fomPipeline.push({
+              $match: {
+                normalizedDate: {
+                  ...(fomStartDate && { $gte: fomStartDate }),
+                  ...(fomEndDate && { $lte: fomEndDate }),
+                },
+              },
+            });
+          }
+
+          fomPipeline.push(
+            { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+            {
+              $group: { _id: "$clientid", latestRecord: { $first: "$$ROOT" } },
+            },
+            { $match: { "latestRecord.unsubscribe": true } }, // Only unsubscribed clients
+            {
+              $project: {
+                _id: 1,
+                unsubscribeValue: "$latestRecord.unsubscribe",
+                adddateValue: "$latestRecord.adddate",
+              },
+            }
+          );
+
+          queries.push(FomModel.aggregate(fomPipeline));
+        } else {
+          // If service filter is applied, only check the specified services
+          if (checkHrg) {
+            let hrgPipeline = [
+              { $match: {} }, // Get all records first
+            ];
+
+            // Add date range filter for HRG if specified
+            if (hasHrgDateRange) {
+              const hrgStartDate = advancedFilterData.hrgPaymentFromDate
+                ? parseDate(advancedFilterData.hrgPaymentFromDate)
+                : advancedFilterData.hrgCampaignFromDate
+                ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                : null;
+              const hrgEndDate = advancedFilterData.hrgPaymentToDate
+                ? parseDate(advancedFilterData.hrgPaymentToDate)
+                : advancedFilterData.hrgCampaignToDate
+                ? parseDate(advancedFilterData.hrgCampaignToDate)
+                : null;
+
+              if (hrgEndDate) {
+                hrgEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              hrgPipeline.push(...createDatePipeline("recvdate"));
+              hrgPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(hrgStartDate && { $gte: hrgStartDate }),
+                    ...(hrgEndDate && { $lte: hrgEndDate }),
+                  },
+                },
+              });
+            }
+
+            hrgPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+              {
+                $group: {
+                  _id: "$clientid",
+                  latestRecord: { $first: "$$ROOT" },
+                },
+              },
+              { $match: { "latestRecord.unsubscribe": true } },
+              {
+                $project: {
+                  _id: 1,
+                  unsubscribeValue: "$latestRecord.unsubscribe",
+                  adddateValue: "$latestRecord.adddate",
+                },
+              }
+            );
+
+            queries.push(HrgModel.aggregate(hrgPipeline));
+          }
+
+          if (checkFom) {
+            let fomPipeline = [
+              { $match: {} }, // Get all records first
+            ];
+
+            // Add date range filter for FOM if specified
+            if (hasFomDateRange) {
+              const fomStartDate = advancedFilterData.fomPaymentFromDate
+                ? parseDate(advancedFilterData.fomPaymentFromDate)
+                : null;
+              const fomEndDate = advancedFilterData.fomPaymentToDate
+                ? parseDate(advancedFilterData.fomPaymentToDate)
+                : null;
+
+              if (fomEndDate) {
+                fomEndDate.setHours(23, 59, 59, 999);
+              }
+
+              // Add date pipeline and date range match
+              fomPipeline.push(...createDatePipeline("recvdate"));
+              fomPipeline.push({
+                $match: {
+                  normalizedDate: {
+                    ...(fomStartDate && { $gte: fomStartDate }),
+                    ...(fomEndDate && { $lte: fomEndDate }),
+                  },
+                },
+              });
+            }
+
+            fomPipeline.push(
+              { $sort: { clientid: 1, adddate: -1 } }, // Sort by adddate to get most recent record
+              {
+                $group: {
+                  _id: "$clientid",
+                  latestRecord: { $first: "$$ROOT" },
+                },
+              },
+              { $match: { "latestRecord.unsubscribe": true } },
+              {
+                $project: {
+                  _id: 1,
+                  unsubscribeValue: "$latestRecord.unsubscribe",
+                  adddateValue: "$latestRecord.adddate",
+                },
+              }
+            );
+
+            queries.push(FomModel.aggregate(fomPipeline));
+          }
+        }
+
+        const results = await Promise.all(queries);
+
+        results.forEach((result, index) => {
+          result.forEach((client) => {
             targetClients.add(client._id);
           });
         });
@@ -1207,8 +1328,11 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       // Handle clientID filtering when HRG/FOM subscription status is selected
       if (finalClients.length > 0) {
         // Apply clientID filtering to HRG/FOM subscription status results
-        const filteredClients = applyClientIdFiltering(finalClients, advancedFilterData);
-        
+        const filteredClients = applyClientIdFiltering(
+          finalClients,
+          advancedFilterData
+        );
+
         if (filteredClients.length > 0) {
           baseFilter.push({ id: { $in: filteredClients } });
         } else {
@@ -1250,8 +1374,11 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     // Handle clientID filtering when HRG/FOM active subscription is selected
     if (activeClientIds.length > 0) {
       // Apply clientID filtering to HRG/FOM active subscription results
-      const filteredClients = applyClientIdFiltering(activeClientIds, advancedFilterData);
-      
+      const filteredClients = applyClientIdFiltering(
+        activeClientIds,
+        advancedFilterData
+      );
+
       if (filteredClients.length > 0) {
         baseFilter.push({ id: { $in: filteredClients } });
       } else {
@@ -1264,22 +1391,28 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 
   // At the end, before returning the query:
   // Check if there are other filters besides include/exclude
-  const hasOtherFilters = baseFilter.length > 0 || 
-                         (filter && filter.trim() !== "") ||
-                         (advancedFilterData.group || group) ||
-                         hasExplicitServices ||
-                         Object.keys(advancedFilterData).some(key => 
-                           key !== "includeClientIds" && 
-                           key !== "excludeClientIds" && 
-                           key !== "clientId" &&
-                           advancedFilterData[key] !== undefined && 
-                           advancedFilterData[key] !== null && 
-                           advancedFilterData[key] !== ""
-                         );
+  const hasOtherFilters =
+    baseFilter.length > 0 ||
+    (filter && filter.trim() !== "") ||
+    advancedFilterData.group ||
+    group ||
+    hasExplicitServices ||
+    Object.keys(advancedFilterData).some(
+      (key) =>
+        key !== "includeClientIds" &&
+        key !== "excludeClientIds" &&
+        key !== "clientId" &&
+        advancedFilterData[key] !== undefined &&
+        advancedFilterData[key] !== null &&
+        advancedFilterData[key] !== ""
+    );
 
   // Get exclude IDs if present
-  const excludeIds = advancedFilterData.excludeClientIds ? 
-    (Array.isArray(advancedFilterData.excludeClientIds) ? advancedFilterData.excludeClientIds : [advancedFilterData.excludeClientIds]) : [];
+  const excludeIds = advancedFilterData.excludeClientIds
+    ? Array.isArray(advancedFilterData.excludeClientIds)
+      ? advancedFilterData.excludeClientIds
+      : [advancedFilterData.excludeClientIds]
+    : [];
   const validExcludeIds = excludeIds
     .map((id) => Number(id))
     .filter((id) => !isNaN(id) && isFinite(id));
@@ -1288,8 +1421,10 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     // Handle include logic
     if (validExcludeIds.length > 0) {
       // Apply exclude to included IDs
-      const filteredIncludedIds = includedIds.filter(id => !validExcludeIds.includes(id));
-      
+      const filteredIncludedIds = includedIds.filter(
+        (id) => !validExcludeIds.includes(id)
+      );
+
       if (filteredIncludedIds.length > 0) {
         if (hasOtherFilters) {
           // Include + Exclude + Other filters: filtered included IDs OR other filters
@@ -1326,7 +1461,11 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         filterQuery = { id: { $in: includedIds } };
       }
     }
-  } else if (!hasIncludedIds && validExcludeIds.length > 0 && !hasExplicitServices) {
+  } else if (
+    !hasIncludedIds &&
+    validExcludeIds.length > 0 &&
+    !hasExplicitServices
+  ) {
     // Only exclude logic
     if (hasOtherFilters) {
       // Exclude + Other filters: apply other filters first, then exclude
@@ -1346,27 +1485,37 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
         // For now, let's create a special case for this scenario
         try {
           const ClientModel = await getModelInstance("ClientModel");
-          
+
           // First, apply the other filters to get the matching client IDs
-          const otherFilters = baseFilter.filter(filter => !filter.id || !filter.id.$nin);
-          const matchQuery = otherFilters.length > 0 ? { $and: otherFilters } : {};
-          
+          const otherFilters = baseFilter.filter(
+            (filter) => !filter.id || !filter.id.$nin
+          );
+          const matchQuery =
+            otherFilters.length > 0 ? { $and: otherFilters } : {};
+
           // Get all clients that match the other filters
-          const matchingClients = await ClientModel.find(matchQuery).distinct("id");
+          const matchingClients = await ClientModel.find(matchQuery).distinct(
+            "id"
+          );
           const matchingClientIds = matchingClients
             .map((id) => Number(id))
             .filter((id) => !isNaN(id));
-          
+
           // Then exclude the specified IDs from the results
-          const finalClientIds = matchingClientIds.filter(id => !validExcludeIds.includes(id));
-          
+          const finalClientIds = matchingClientIds.filter(
+            (id) => !validExcludeIds.includes(id)
+          );
+
           if (finalClientIds.length > 0) {
             filterQuery = { id: { $in: finalClientIds } };
           } else {
             filterQuery = { id: -1 }; // No matches after exclusion
           }
         } catch (error) {
-          console.error("Error in exclude filtering with other filters:", error);
+          console.error(
+            "Error in exclude filtering with other filters:",
+            error
+          );
           // Fallback to simple $and approach
           baseFilter.push({ id: { $nin: validExcludeIds } });
           filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
@@ -1695,17 +1844,14 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         }
       }
 
-      // Special handling for FOM and HRG to ensure exclusivity
+      // Special handling for FOM and HRG to remove exclusivity and avoid implicit DCS/CMC exclusion
       if (serviceClientsMap.FOM || serviceClientsMap.HRG) {
-        // Get DCS clients to exclude
-        const dcsClients = await ClientModel.distinct("id", { group: "DCS" });
-
         const allThreeSelected =
           serviceClientsMap.FOM &&
           serviceClientsMap.HRG &&
           serviceClientsMap.CAL;
 
-        // If all three services are selected, bypass the exclusivity logic
+        // If all three services are selected, union all
         if (allThreeSelected) {
           targetClients = new Set([
             ...serviceClientsMap.FOM,
@@ -1713,37 +1859,20 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
             ...serviceClientsMap.CAL,
           ]);
         }
-        // If both FOM and HRG are selected, include clients with both services, HRG only, or FOM only
+        // If both FOM and HRG are selected, include union of both
         else if (serviceClientsMap.FOM && serviceClientsMap.HRG) {
-          // Include all clients that have either FOM or HRG (or both), excluding DCS clients
-          const allFomHrgClients = new Set([
+          targetClients = new Set([
             ...serviceClientsMap.FOM,
-            ...serviceClientsMap.HRG
+            ...serviceClientsMap.HRG,
           ]);
-          
-          targetClients = new Set(
-            [...allFomHrgClients].filter(
-              (id) => !dcsClients.includes(id)
-            )
-          );
         }
-        // If only FOM is selected, exclude any clients that have HRG or are in DCS group
+        // If only FOM is selected, include all FOM clients
         else if (serviceClientsMap.FOM) {
-          const hrgClients = await HrgModel.distinct("clientid", {});
-          targetClients = new Set(
-            [...serviceClientsMap.FOM].filter(
-              (id) => !hrgClients.includes(id) && !dcsClients.includes(id)
-            )
-          );
+          targetClients = new Set([...serviceClientsMap.FOM]);
         }
-        // If only HRG is selected, exclude any clients that have FOM or are in DCS group
+        // If only HRG is selected, include all HRG clients
         else if (serviceClientsMap.HRG) {
-          const fomClients = await FomModel.distinct("clientid", {});
-          targetClients = new Set(
-            [...serviceClientsMap.HRG].filter(
-              (id) => !fomClients.includes(id) && !dcsClients.includes(id)
-            )
-          );
+          targetClients = new Set([...serviceClientsMap.HRG]);
         }
       }
       // For subscription services (WMM/PROMO/COMP) or other combinations
@@ -1785,8 +1914,11 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       // Handle clientID filtering when services are selected
       if (finalClients.length > 0) {
         // Apply clientID filtering to service results
-        const filteredClients = applyClientIdFiltering(finalClients, advancedFilterData);
-        
+        const filteredClients = applyClientIdFiltering(
+          finalClients,
+          advancedFilterData
+        );
+
         if (filteredClients.length > 0) {
           baseFilter.push({ id: { $in: filteredClients } });
         } else {
@@ -2093,12 +2225,11 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   // Handle adddate_regex filter (optimized for subscription type)
   if (advancedFilterData.adddate_regex) {
     try {
-      
       // Determine which models to query based on subscription type
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-      
+
       let modelsToQuery = [];
-      
+
       if (subscriptionType === "WMM") {
         const WmmModel = await getModelInstance("WmmModel");
         modelsToQuery = [{ name: "WMM", model: WmmModel }];
@@ -2110,13 +2241,20 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         modelsToQuery = [{ name: "Complimentary", model: ComplimentaryModel }];
       } else {
         // Default: query all models (for backward compatibility)
-        const [WmmModel, FomModel, HrgModel, CalModel, PromoModel, ComplimentaryModel] = await Promise.all([
+        const [
+          WmmModel,
+          FomModel,
+          HrgModel,
+          CalModel,
+          PromoModel,
+          ComplimentaryModel,
+        ] = await Promise.all([
           getModelInstance("WmmModel"),
           getModelInstance("FomModel"),
           getModelInstance("HrgModel"),
           getModelInstance("CalModel"),
           getModelInstance("PromoModel"),
-          getModelInstance("ComplimentaryModel")
+          getModelInstance("ComplimentaryModel"),
         ]);
         modelsToQuery = [
           { name: "WMM", model: WmmModel },
@@ -2124,7 +2262,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           { name: "HRG", model: HrgModel },
           { name: "CAL", model: CalModel },
           { name: "Promo", model: PromoModel },
-          { name: "Complimentary", model: ComplimentaryModel }
+          { name: "Complimentary", model: ComplimentaryModel },
         ];
       }
 
@@ -2160,9 +2298,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
       // Combine all client IDs
       const matchingClientIds = [
-        ...new Set(
-          modelResults.flat().map((c) => Number(c._id))
-        ),
+        ...new Set(modelResults.flat().map((c) => Number(c._id))),
       ].filter((id) => !isNaN(id));
 
       if (matchingClientIds.length > 0) {
@@ -2176,128 +2312,146 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     }
   }
 
-// Handle WMM Date Encoded Filter (adddate)
-if (advancedFilterData.startDate || advancedFilterData.endDate) {
-  try {
-         // Determine which models to query based on subscription type
-     const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-     
-     let modelsToQuery = [];
-     
-     if (subscriptionType === "WMM") {
-       const WmmModel = await getModelInstance("WmmModel");
-       modelsToQuery = [{ name: "WMM", model: WmmModel, type: "WMM" }];
-     } else if (subscriptionType === "Promo") {
-       const PromoModel = await getModelInstance("PromoModel");
-       modelsToQuery = [{ name: "Promo", model: PromoModel, type: "Promo" }];
-     } else if (subscriptionType === "Complimentary") {
-       const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
-       modelsToQuery = [{ name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }];
-     } else {
-       // Default: query all models (for backward compatibility)
-       const [WmmModel, FomModel, HrgModel, CalModel, PromoModel, ComplimentaryModel] = await Promise.all([
-         getModelInstance("WmmModel"),
-         getModelInstance("FomModel"),
-         getModelInstance("HrgModel"),
-         getModelInstance("CalModel"),
-         getModelInstance("PromoModel"),
-         getModelInstance("ComplimentaryModel")
-       ]);
-       modelsToQuery = [
-         { name: "WMM", model: WmmModel, type: "WMM" },
-         { name: "FOM", model: FomModel, type: "WMM" },
-         { name: "HRG", model: HrgModel, type: "WMM" },
-         { name: "CAL", model: CalModel, type: "WMM" },
-         { name: "Promo", model: PromoModel, type: "Promo" },
-         { name: "Complimentary", model: ComplimentaryModel, type: "Complimentary" }
-       ];
-     }
+  // Handle WMM Date Encoded Filter (adddate)
+  if (advancedFilterData.startDate || advancedFilterData.endDate) {
+    try {
+      // Determine which models to query based on subscription type
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
 
-         // Prepare date range
-     const dateRange = {
-       startDate: advancedFilterData.startDate ? parseDate(advancedFilterData.startDate) : null,
-       endDate: advancedFilterData.endDate ? parseDate(advancedFilterData.endDate) : null
-     };
+      let modelsToQuery = [];
 
-     // Adjust end date to end of day if it exists
-     if (dateRange.endDate) {
-       dateRange.endDate.setHours(23, 59, 59, 999);
-     }
+      if (subscriptionType === "WMM") {
+        const WmmModel = await getModelInstance("WmmModel");
+        modelsToQuery = [{ name: "WMM", model: WmmModel, type: "WMM" }];
+      } else if (subscriptionType === "Promo") {
+        const PromoModel = await getModelInstance("PromoModel");
+        modelsToQuery = [{ name: "Promo", model: PromoModel, type: "Promo" }];
+      } else if (subscriptionType === "Complimentary") {
+        const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+        modelsToQuery = [
+          {
+            name: "Complimentary",
+            model: ComplimentaryModel,
+            type: "Complimentary",
+          },
+        ];
+      } else {
+        // Default: query all models (for backward compatibility)
+        const [
+          WmmModel,
+          FomModel,
+          HrgModel,
+          CalModel,
+          PromoModel,
+          ComplimentaryModel,
+        ] = await Promise.all([
+          getModelInstance("WmmModel"),
+          getModelInstance("FomModel"),
+          getModelInstance("HrgModel"),
+          getModelInstance("CalModel"),
+          getModelInstance("PromoModel"),
+          getModelInstance("ComplimentaryModel"),
+        ]);
+        modelsToQuery = [
+          { name: "WMM", model: WmmModel, type: "WMM" },
+          { name: "FOM", model: FomModel, type: "WMM" },
+          { name: "HRG", model: HrgModel, type: "WMM" },
+          { name: "CAL", model: CalModel, type: "WMM" },
+          { name: "Promo", model: PromoModel, type: "Promo" },
+          {
+            name: "Complimentary",
+            model: ComplimentaryModel,
+            type: "Complimentary",
+          },
+        ];
+      }
 
-         // Create pipelines for all models with date range filtering
-     const createDateRangePipeline = (dateField, subscriptionType = "WMM") => {
-       const basePipeline = createDatePipeline(dateField, subscriptionType);
-       
-       // Add date range filtering
-       const dateConditions = [];
-       if (dateRange.startDate && dateRange.endDate) {
-         dateConditions.push({
-           $expr: {
-             $and: [
-               { $gte: ["$normalizedDate", dateRange.startDate] },
-               { $lte: ["$normalizedDate", dateRange.endDate] }
-             ]
-           }
-         });
-       } else if (dateRange.startDate) {
-         dateConditions.push({
-           $expr: {
-             $gte: ["$normalizedDate", dateRange.startDate]
-           }
-         });
-       } else if (dateRange.endDate) {
-         dateConditions.push({
-           $expr: {
-             $lte: ["$normalizedDate", dateRange.endDate]
-           }
-         });
-       }
+      // Prepare date range
+      const dateRange = {
+        startDate: advancedFilterData.startDate
+          ? parseDate(advancedFilterData.startDate)
+          : null,
+        endDate: advancedFilterData.endDate
+          ? parseDate(advancedFilterData.endDate)
+          : null,
+      };
 
-       if (dateConditions.length > 0) {
-         basePipeline.push({ $match: { $or: dateConditions } });
-       }
+      // Adjust end date to end of day if it exists
+      if (dateRange.endDate) {
+        dateRange.endDate.setHours(23, 59, 59, 999);
+      }
 
-       // Add grouping to get client IDs and original adddate for debugging
-       basePipeline.push({
-         $group: {
-           _id: "$clientid",
-           originalAddDate: { $first: `$${dateField}` },
-           normalizedDate: { $first: "$normalizedDate" }
-         }
-       });
+      // Create pipelines for all models with date range filtering
+      const createDateRangePipeline = (dateField, subscriptionType = "WMM") => {
+        const basePipeline = createDatePipeline(dateField, subscriptionType);
 
-       return basePipeline;
-     };
+        // Add date range filtering
+        const dateConditions = [];
+        if (dateRange.startDate && dateRange.endDate) {
+          dateConditions.push({
+            $expr: {
+              $and: [
+                { $gte: ["$normalizedDate", dateRange.startDate] },
+                { $lte: ["$normalizedDate", dateRange.endDate] },
+              ],
+            },
+          });
+        } else if (dateRange.startDate) {
+          dateConditions.push({
+            $expr: {
+              $gte: ["$normalizedDate", dateRange.startDate],
+            },
+          });
+        } else if (dateRange.endDate) {
+          dateConditions.push({
+            $expr: {
+              $lte: ["$normalizedDate", dateRange.endDate],
+            },
+          });
+        }
 
-     const pipelines = modelsToQuery.map(({ model, type }) => ({
-       model,
-       pipeline: createDateRangePipeline("adddate", type)
-     }));
+        if (dateConditions.length > 0) {
+          basePipeline.push({ $match: { $or: dateConditions } });
+        }
 
-    // Execute all aggregations in parallel
-     const aggregationResults = await Promise.all(
-       pipelines.map(({ model, pipeline }) => 
-         model.aggregate(pipeline)
-       )
-     );
+        // Add grouping to get client IDs and original adddate for debugging
+        basePipeline.push({
+          $group: {
+            _id: "$clientid",
+            originalAddDate: { $first: `$${dateField}` },
+            normalizedDate: { $first: "$normalizedDate" },
+          },
+        });
 
-     // Combine and deduplicate client IDs
-     const matchingClientIds = aggregationResults
-       .flatMap(clients => clients.map(c => Number(c._id)))
-       .filter(id => !isNaN(id))
-       .filter((id, index, self) => self.indexOf(id) === index); // Deduplicate
+        return basePipeline;
+      };
 
-     
-     if (matchingClientIds.length > 0) {
-       baseFilter.push({ id: { $in: matchingClientIds } });
-     } else {
-       baseFilter.push({ id: -1 }); // No matches
-     }
-  } catch (error) {
-    console.error("Error in date filtering:", error);
-    baseFilter.push({ id: -1 });
+      const pipelines = modelsToQuery.map(({ model, type }) => ({
+        model,
+        pipeline: createDateRangePipeline("adddate", type),
+      }));
+
+      // Execute all aggregations in parallel
+      const aggregationResults = await Promise.all(
+        pipelines.map(({ model, pipeline }) => model.aggregate(pipeline))
+      );
+
+      // Combine and deduplicate client IDs
+      const matchingClientIds = aggregationResults
+        .flatMap((clients) => clients.map((c) => Number(c._id)))
+        .filter((id) => !isNaN(id))
+        .filter((id, index, self) => self.indexOf(id) === index); // Deduplicate
+
+      if (matchingClientIds.length > 0) {
+        baseFilter.push({ id: { $in: matchingClientIds } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches
+      }
+    } catch (error) {
+      console.error("Error in date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
   }
-}
   // Handle WMM Active Subscription Filter
   if (
     advancedFilterData.wmmActiveFromDate ||
