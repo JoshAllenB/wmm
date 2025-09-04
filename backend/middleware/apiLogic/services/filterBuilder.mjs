@@ -2531,13 +2531,15 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     }
   }
 
-  // Handle WMM Expiring Subscription Filter
+  // Handle Expiring Subscription Filter (supports WMM, Promo, Complimentary)
   if (
     advancedFilterData.wmmExpiringFromDate ||
     advancedFilterData.wmmExpiringToDate
   ) {
     try {
-      const WmmModel = await getModelInstance("WmmModel");
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+      const Model = await getSubscriptionModel(subscriptionType);
+
       let fromDate = null,
         toDate = null;
       if (advancedFilterData.wmmExpiringFromDate) {
@@ -2546,30 +2548,12 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       if (advancedFilterData.wmmExpiringToDate) {
         toDate = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
       }
+
       const pipeline = [
-        {
-          $match: {
-            enddate: { $exists: true, $ne: null },
-          },
-        },
-        {
-          $addFields: {
-            endDateObj: {
-              $dateFromString: {
-                dateString: "$enddate",
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null,
-              },
-            },
-          },
-        },
-        {
-          $match: {
-            endDateObj: { $ne: null },
-          },
-        },
+        ...createDatePipeline(
+          "enddate",
+          advancedFilterData.subscriptionType || "WMM"
+        ),
       ];
 
       // For expiring subscriptions, we want:
@@ -2581,21 +2565,21 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         dateConditions.push({
           $expr: {
             $and: [
-              { $gte: ["$endDateObj", fromDate] }, // ends during or after start month
-              { $lte: ["$endDateObj", toDate] }, // ends during or before end month
+              { $gte: ["$normalizedDate", fromDate] },
+              { $lte: ["$normalizedDate", toDate] },
             ],
           },
         });
       } else if (fromDate) {
         dateConditions.push({
           $expr: {
-            $gte: ["$endDateObj", fromDate], // ends during or after this month
+            $gte: ["$normalizedDate", fromDate],
           },
         });
       } else if (toDate) {
         dateConditions.push({
           $expr: {
-            $lte: ["$endDateObj", toDate], // ends during or before this month
+            $lte: ["$normalizedDate", toDate],
           },
         });
       }
@@ -2610,7 +2594,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         },
       });
 
-      const expiringClients = await WmmModel.aggregate(pipeline);
+      const expiringClients = await Model.aggregate(pipeline);
       const validClientIds = expiringClients
         .map((c) => Number(c._id))
         .filter((id) => !isNaN(id));
@@ -2620,7 +2604,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         baseFilter.push({ id: -1 });
       }
     } catch (error) {
-      console.error("Error in WMM expiring subscription filtering:", error);
+      console.error("Error in expiring subscription filtering:", error);
       baseFilter.push({ id: -1 });
     }
   }
