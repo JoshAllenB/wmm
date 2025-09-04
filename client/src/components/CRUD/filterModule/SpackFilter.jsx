@@ -15,9 +15,23 @@ const SpackFilter = ({ filterData, handleChange }) => {
             checked={filterData.spackReceived}
             onChange={handleChange}
             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="calendarReceived" className="ml-2 text-lg text-black">
+          />
+          <label htmlFor="spackReceived" className="ml-2 text-lg text-black">
             SPack Client
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            name="spackNotReceived"
+            id="spackNotReceived"
+            checked={filterData.spackNotReceived}
+            onChange={handleChange}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+          />
+          <label htmlFor="spackNotReceived" className="ml-2 text-lg text-black">
+            Exclude SPack Clients
           </label>
         </div>
       </div>
