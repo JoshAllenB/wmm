@@ -350,9 +350,6 @@ const Edit = ({
     paymtform: "",
     unsubscribe: false,
     remarks: "",
-    // FOM fields
-    paymtform: "",
-    // CAL fields
     caltype: "",
     calqty: 0,
     calunit: 0,
@@ -1509,6 +1506,22 @@ const Edit = ({
       [field]: cleanDateInput(value),
     }));
   };
+
+  // Auto-calculate CAL total amount in Add mode when quantity or unit price changes
+  useEffect(() => {
+    if (selectedRole === "CAL" && roleRecordMode === "add") {
+      const quantity = parseFloat(newRoleData.calqty) || 0;
+      const unitPrice = parseFloat(newRoleData.calunit) || 0;
+      const totalAmount = quantity * unitPrice;
+
+      if (String(newRoleData.calamt) !== String(totalAmount)) {
+        setNewRoleData((prev) => ({
+          ...prev,
+          calamt: totalAmount.toString(),
+        }));
+      }
+    }
+  }, [newRoleData.calqty, newRoleData.calunit, selectedRole, roleRecordMode]);
 
   // Add separate handler functions for HRG, FOM, and CAL data
   const handleHrgChange = (e) => {
@@ -4490,28 +4503,6 @@ const Edit = ({
                     hasRole={hasRole}
                     selectedRole={selectedRole}
                     handleRoleToggle={handleRoleToggle}
-                  />
-                )}
-
-                {/* Role-specific modules */}
-                {selectedRole === "HRG" && (
-                  <HRGModule
-                    hrgData={hrgData}
-                    handleHrgChange={handleHrgChange}
-                  />
-                )}
-
-                {selectedRole === "FOM" && (
-                  <FOMModule
-                    fomData={fomData}
-                    handleFomChange={handleFomChange}
-                  />
-                )}
-
-                {selectedRole === "CAL" && (
-                  <CALModule
-                    calData={calData}
-                    handleCalChange={handleCalChange}
                   />
                 )}
 
