@@ -609,7 +609,7 @@ const Mailing = ({
         });
       }
     }
-    // Generate print preview
+    // Generate print preview HTML (fallback when JSPrintManager isn't available)
     const htmlContent = generatePrintHTML(
       startClientId,
       endClientId,
@@ -690,100 +690,71 @@ const Mailing = ({
       }
     }
 
-    // Check if we need CP850 encoding
-    const needsCp850 = checkForSpecialCharacters(rowsToUse);
+    // Always try JSPrintManager raw printing first when available
+    try {
+      const rawCommands = generateCp850RawPrintContent(
+        startClientId,
+        endClientId,
+        startPosition,
+        rowsToUse,
+        templateToUse,
+        undefined, // leftPosition ignored by generator
+        undefined, // topPosition ignored by generator
+        undefined, // columnWidth ignored by generator
+        undefined, // horizontalSpacing ignored by generator
+        undefined, // rowSpacing ignored by generator
+        undefined, // labelHeight ignored by generator
+        templateToUse.selectedFields || selectedFields || [],
+        userRole,
+        subscriptionType,
+        rowsPerPage,
+        2, // Always use 2 columns for raw
+        false, // isPrintJobResumed
+        true // useCp850Encoding
+      );
 
-    if (needsCp850) {
-      // Use CP850-aware printing
-      try {
-        const rawCommands = generateCp850RawPrintContent(
-          startClientId,
-          endClientId,
-          startPosition,
-          rowsToUse,
-          templateToUse,
-          templateToUse.selectedFields || selectedFields || [],
-          userRole,
-          subscriptionType,
-          rowsPerPage,
-          2, // Always use 2 columns
-          false, // isPrintJobResumed
-          true, // useCp850Encoding
-          savedPrinterJobData?.labelAdjustments || null // Pass label adjustments
+      if (window.JSPM && window.JSPM.JSPrintManager) {
+        await printWithJsPrintManager(
+          rawCommands,
+          "", // default printer
+          true,
+          {
+            setStatus: (status) => {
+              if (typeof status === "string" && status.includes("Error:")) {
+                toast({ title: "Print Error", description: status, variant: "destructive" });
+              }
+            },
+            setPrintJobStatus: (status) => {
+              if (status === "failed" || status === "error") {
+                toast({
+                  title: "Print Job Failed",
+                  description: "Check console for detailed error information",
+                  variant: "destructive",
+                });
+              }
+            },
+            addPrinterEvent: (event, data) => {
+              if (data?.error) console.error("Printer error details:", data);
+            },
+          }
         );
-
-        // Check if JSPrintManager is available
-        if (window.JSPM && window.JSPM.JSPrintManager) {
-          // Use JSPrintManager for raw printing
-          await printWithJsPrintManager(
-            rawCommands,
-            "", // Use default printer
-            true, // useDefaultPrinter
-            {
-              setStatus: (status) => {
-                if (status.includes("Error:")) {
-                  toast({
-                    title: "Print Error",
-                    description: status,
-                    variant: "destructive",
-                  });
-                }
-              },
-              setPrintJobStatus: (status) => {
-                if (status === "failed" || status === "error") {
-                  toast({
-                    title: "Print Job Failed",
-                    description: "Check console for detailed error information",
-                    variant: "destructive",
-                  });
-                }
-              },
-              addPrinterEvent: (event, data) => {
-                if (data.error) {
-                  console.error("Printer error details:", data);
-                }
-              },
-            }
-          );
-
-          // Check if we should show success message
-          toast({
-            title: "Print Job Completed",
-            description: "Raw printing completed successfully!",
-            variant: "default",
-          });
-        } else {
-          // Fallback to HTML printing if JSPrintManager not available
-          toast({
-            title: "JSPrintManager Not Available",
-            description: "Falling back to HTML printing.",
-            variant: "destructive",
-          });
-          handlePrintWithRange();
-        }
-      } catch (error) {
-        console.error("CP850 print error:", error);
-
-        // Provide more specific error information
-        let errorMessage = error.message;
-        if (error.message.includes("timeout")) {
-          errorMessage =
-            "Print job timed out. This is likely a driver issue. Check:\n" +
-            "1. Printer is online and ready\n" +
-            "2. No stuck print jobs in Windows queue\n" +
-            "3. Printer driver is working properly";
-        }
-
+        toast({ title: "Print Job Completed", description: "Raw printing completed successfully!" });
+      } else {
         toast({
-          title: "Print Error",
-          description: errorMessage,
+          title: "JSPrintManager Not Available",
+          description: "JSPrintManager client not detected or websocket not open.",
           variant: "destructive",
         });
-
         handlePrintWithRange();
       }
-    } else {
-      // Use regular HTML printing
+    } catch (error) {
+      console.error("Raw print error:", error);
+      let errorMessage = error.message;
+      if (error.message?.includes("timeout")) {
+        errorMessage =
+          "Print job timed out. Check printer is ready, queue is clear, and driver works.";
+      }
+      toast({ title: "Print Error", description: errorMessage, variant: "destructive" });
       handlePrintWithRange();
     }
   };
