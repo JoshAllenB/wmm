@@ -213,9 +213,7 @@ const Accounting = () => {
             break;
           }
           case "Amount": {
-            rowData.push(
-              row.paymtamt ? `₱${parseFloat(row.paymtamt).toFixed(2)}` : "N/A"
-            );
+            rowData.push(row.paymtamt !== undefined && row.paymtamt !== null && row.paymtamt !== "" ? `${row.paymtamt}` : "N/A");
             break;
           }
           case "Date": {

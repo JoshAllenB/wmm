@@ -16,8 +16,8 @@ export const useAccountingColumns = () => {
 
   // Format amount function
   const formatAmount = (amount) => {
-    if (amount === null || amount === undefined) return "N/A";
-    return `₱${parseFloat(amount).toFixed(2)}`;
+    if (amount === null || amount === undefined || amount === "") return "N/A";
+    return String(amount);
   };
 
   return [
