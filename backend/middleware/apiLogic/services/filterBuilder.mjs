@@ -2081,12 +2081,8 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                 vars: {
                   datePart: {
                     $cond: {
-                      if: {
-                        $regexMatch: { input: `$${dateField}`, regex: " " },
-                      },
-                      then: {
-                        $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0],
-                      },
+                      if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
+                      then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
                       else: `$${dateField}`,
                     },
                   },
@@ -2098,42 +2094,18 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                       $let: {
                         vars: {
                           parts: { $split: ["$$datePart", "/"] },
-                          year: {
-                            $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2],
-                          },
+                          year: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2] },
                           month: {
                             $toString: {
                               $cond: {
                                 if: {
                                   $lt: [
-                                    {
-                                      $strLenBytes: {
-                                        $arrayElemAt: [
-                                          { $split: ["$$datePart", "/"] },
-                                          0,
-                                        ],
-                                      },
-                                    },
+                                    { $strLenBytes: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] } },
                                     2,
                                   ],
                                 },
-                                then: {
-                                  $concat: [
-                                    "0",
-                                    {
-                                      $arrayElemAt: [
-                                        { $split: ["$$datePart", "/"] },
-                                        0,
-                                      ],
-                                    },
-                                  ],
-                                },
-                                else: {
-                                  $arrayElemAt: [
-                                    { $split: ["$$datePart", "/"] },
-                                    0,
-                                  ],
-                                },
+                                then: { $concat: ["0", { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] }] },
+                                else: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] },
                               },
                             },
                           },
@@ -2142,43 +2114,19 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                               $cond: {
                                 if: {
                                   $lt: [
-                                    {
-                                      $strLenBytes: {
-                                        $arrayElemAt: [
-                                          { $split: ["$$datePart", "/"] },
-                                          1,
-                                        ],
-                                      },
-                                    },
+                                    { $strLenBytes: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] } },
                                     2,
                                   ],
                                 },
-                                then: {
-                                  $concat: [
-                                    "0",
-                                    {
-                                      $arrayElemAt: [
-                                        { $split: ["$$datePart", "/"] },
-                                        1,
-                                      ],
-                                    },
-                                  ],
-                                },
-                                else: {
-                                  $arrayElemAt: [
-                                    { $split: ["$$datePart", "/"] },
-                                    1,
-                                  ],
-                                },
+                                then: { $concat: ["0", { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] }] },
+                                else: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] },
                               },
                             },
                           },
                         },
                         in: {
                           $dateFromString: {
-                            dateString: {
-                              $concat: ["$$year", "-", "$$month", "-", "$$day"],
-                            },
+                            dateString: { $concat: ["$$year", "-", "$$month", "-", "$$day"] },
                             format: "%Y-%m-%d",
                             timezone: "UTC",
                             onError: null,
@@ -2188,13 +2136,26 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                       },
                     },
                     else: {
-                      // For WMM and Complimentary models, handle YYYY-MM-DD format
-                      $dateFromString: {
-                        dateString: `$${dateField}`,
-                        format: "%Y-%m-%d",
-                        timezone: "UTC",
-                        onError: null,
-                        onNull: null,
+                      // For WMM/Complimentary/HRG/FOM/CAL, strip time if present and parse YYYY-MM-DD
+                      $let: {
+                        vars: {
+                          datePart: {
+                            $cond: {
+                              if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
+                              then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
+                              else: `$${dateField}`,
+                            },
+                          },
+                        },
+                        in: {
+                          $dateFromString: {
+                            dateString: "$$datePart",
+                            format: "%Y-%m-%d",
+                            timezone: "UTC",
+                            onError: null,
+                            onNull: null,
+                          },
+                        },
                       },
                     },
                   },
@@ -2202,13 +2163,26 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               },
             },
             else: {
-              // For WMM and Complimentary models, handle YYYY-MM-DD format
-              $dateFromString: {
-                dateString: `$${dateField}`,
-                format: "%Y-%m-%d",
-                timezone: "UTC",
-                onError: null,
-                onNull: null,
+              // For non-Promo models, strip time part if present then parse YYYY-MM-DD
+              $let: {
+                vars: {
+                  datePart: {
+                    $cond: {
+                      if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
+                      then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
+                      else: `$${dateField}`,
+                    },
+                  },
+                },
+                in: {
+                  $dateFromString: {
+                    dateString: "$$datePart",
+                    format: "%Y-%m-%d",
+                    timezone: "UTC",
+                    onError: null,
+                    onNull: null,
+                  },
+                },
               },
             },
           },
@@ -2768,38 +2742,53 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   // Handle HRG Campaign Date Filter
   if (
     advancedFilterData.hrgCampaignFromDate ||
-    advancedFilterData.hrgCampaignToDate
+    advancedFilterData.hrgCampaignToDate ||
+    advancedFilterData.hrgCampaignYear
   ) {
     try {
       const HrgModel = await getModelInstance("HrgModel");
-      const startDate = advancedFilterData.hrgCampaignFromDate
-        ? parseDate(advancedFilterData.hrgCampaignFromDate)
-        : null;
-      const endDate = advancedFilterData.hrgCampaignToDate
-        ? parseDate(advancedFilterData.hrgCampaignToDate)
-        : null;
-
-      // Set end date to end of day for inclusive comparison
-      if (endDate) {
-        endDate.setHours(23, 59, 59, 999);
-      }
-
-      const pipeline = [
+      let pipeline = [
         ...createDatePipeline("campaigndate"),
-        {
+      ];
+
+      if (advancedFilterData.hrgCampaignYear) {
+        const year = Number(advancedFilterData.hrgCampaignYear);
+        if (!isNaN(year)) {
+          const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
+          const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
+          pipeline.push({
+            $match: {
+              normalizedDate: { $gte: yearStart, $lte: yearEnd },
+            },
+          });
+        }
+      } else {
+        const startDate = advancedFilterData.hrgCampaignFromDate
+          ? parseDate(advancedFilterData.hrgCampaignFromDate)
+          : null;
+        const endDate = advancedFilterData.hrgCampaignToDate
+          ? parseDate(advancedFilterData.hrgCampaignToDate)
+          : null;
+
+        if (endDate) {
+          endDate.setHours(23, 59, 59, 999);
+        }
+
+        pipeline.push({
           $match: {
             normalizedDate: {
               ...(startDate && { $gte: startDate }),
               ...(endDate && { $lte: endDate }),
             },
           },
+        });
+      }
+
+      pipeline.push({
+        $group: {
+          _id: "$clientid",
         },
-        {
-          $group: {
-            _id: "$clientid",
-          },
-        },
-      ];
+      });
 
       const campaignClients = await HrgModel.aggregate(pipeline);
       const validClientIds = campaignClients
@@ -2813,6 +2802,26 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       }
     } catch (error) {
       console.error("Error in HRG campaign date filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
+  // Handle CAL Calendar Year via caltype "WALL CALENDAR YYYY"
+  if (advancedFilterData.calYear) {
+    try {
+      const CalModel = await getModelInstance("CalModel");
+      const year = Number(advancedFilterData.calYear);
+      if (!isNaN(year)) {
+        const regex = new RegExp(`^WALL\\s+CALENDAR\\s+${year}$`, "i");
+        const clients = await CalModel.find({ caltype: { $regex: regex } }).distinct("clientid");
+        const validClientIds = clients.map((c) => Number(c)).filter((id) => !isNaN(id));
+        if (validClientIds.length > 0) baseFilter.push({ id: { $in: validClientIds } });
+        else baseFilter.push({ id: -1 });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in CAL calendar year filtering:", error);
       baseFilter.push({ id: -1 });
     }
   }

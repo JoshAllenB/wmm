@@ -678,81 +678,18 @@ const DateRangeFilter = ({
   const hrgCampaignDateSection = useMemo(
     () => (
       <div className="p-4 bg-white rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Campaign Date Range
-        </h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaign Year (HRG)</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              From:
+              Year:
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="relative">
-                <select
-                  id="hrgCampaignFromMonth"
-                  name="hrgCampaignFromMonth"
-                  value={filterData.hrgCampaignFromMonth}
-                  onChange={handleChange}
-                  className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <option value="">Month</option>
-                  {monthOptions}
-                </select>
-              </div>
+            <div className="grid grid-cols-1 gap-2">
               <input
                 type="text"
-                id="hrgCampaignFromDay"
-                name="hrgCampaignFromDay"
-                value={filterData.hrgCampaignFromDay}
-                onChange={handleChange}
-                placeholder="DD"
-                className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                maxLength="2"
-              />
-              <input
-                type="text"
-                id="hrgCampaignFromYear"
-                name="hrgCampaignFromYear"
-                value={filterData.hrgCampaignFromYear}
-                onChange={handleChange}
-                placeholder="YYYY"
-                className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                maxLength="4"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-gray-700 text-sm font-medium mb-2">
-              To:
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="relative">
-                <select
-                  id="hrgCampaignToMonth"
-                  name="hrgCampaignToMonth"
-                  value={filterData.hrgCampaignToMonth}
-                  onChange={handleChange}
-                  className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                >
-                  <option value="">Month</option>
-                  {monthOptions}
-                </select>
-              </div>
-              <input
-                type="text"
-                id="hrgCampaignToDay"
-                name="hrgCampaignToDay"
-                value={filterData.hrgCampaignToDay}
-                onChange={handleChange}
-                placeholder="DD"
-                className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                maxLength="2"
-              />
-              <input
-                type="text"
-                id="hrgCampaignToYear"
-                name="hrgCampaignToYear"
-                value={filterData.hrgCampaignToYear}
+                id="hrgCampaignYear"
+                name="hrgCampaignYear"
+                value={filterData.hrgCampaignYear || ""}
                 onChange={handleChange}
                 placeholder="YYYY"
                 className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
@@ -764,14 +701,8 @@ const DateRangeFilter = ({
       </div>
     ),
     [
-      filterData.hrgCampaignFromMonth,
-      filterData.hrgCampaignFromDay,
-      filterData.hrgCampaignFromYear,
-      filterData.hrgCampaignToMonth,
-      filterData.hrgCampaignToDay,
-      filterData.hrgCampaignToYear,
+      filterData.hrgCampaignYear,
       handleChange,
-      monthOptions,
     ]
   );
 
@@ -965,6 +896,26 @@ const DateRangeFilter = ({
           <>
             {calOrderReceivedSection}
             {calPaymentDateSection}
+            <div className="p-4 bg-white rounded-lg border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Calendar Year (CAL)</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-medium mb-2">Year:</label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <input
+                      type="text"
+                      id="calYear"
+                      name="calYear"
+                      value={filterData.calYear || ""}
+                      onChange={handleChange}
+                      placeholder="YYYY"
+                      className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      maxLength="4"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </>
         )}
 

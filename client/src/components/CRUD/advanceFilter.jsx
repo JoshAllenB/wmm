@@ -198,12 +198,9 @@ const AdvancedFilter = ({
     hrgPaymentToDay: "",
     hrgPaymentToYear: "",
     // HRG Campaign Date components
-    hrgCampaignFromMonth: "",
-    hrgCampaignFromDay: "",
-    hrgCampaignFromYear: "",
-    hrgCampaignToMonth: "",
-    hrgCampaignToDay: "",
-    hrgCampaignToYear: "",
+    hrgCampaignYear: "",
+    // CAL Calendar Year (single)
+    calYear: "",
     // Selected role for date filters
     selectedDateFilterRole: "",
     // FOM Payment Transaction Date components
@@ -406,12 +403,9 @@ const AdvancedFilter = ({
       hrgPaymentToDay: "",
       hrgPaymentToYear: "",
       // HRG Campaign Date components
-      hrgCampaignFromMonth: "",
-      hrgCampaignFromDay: "",
-      hrgCampaignFromYear: "",
-      hrgCampaignToMonth: "",
-      hrgCampaignToDay: "",
-      hrgCampaignToYear: "",
+      hrgCampaignYear: "",
+      // CAL Calendar Year (single)
+      calYear: "",
       // Selected role for date filters - set to user's only role if they have just one
       selectedDateFilterRole: initialRole,
       // FOM Payment Transaction Date components
@@ -460,6 +454,8 @@ const AdvancedFilter = ({
       "wmmExpiringToMonth",
       "wmmExpiringToDay",
       "wmmExpiringToYear",
+      // HRG Campaign Year (single year)
+      "hrgCampaignYear",
     ];
 
     if (dateComponentFields.includes(name)) {
@@ -764,17 +760,10 @@ const AdvancedFilter = ({
         filterData.hrgPaymentToDay,
         filterData.hrgPaymentToYear
       ),
-      // HRG Campaign Date
-      hrgCampaignFromDate: formatDateComponentsToISO(
-        filterData.hrgCampaignFromMonth,
-        filterData.hrgCampaignFromDay,
-        filterData.hrgCampaignFromYear
-      ),
-      hrgCampaignToDate: formatDateComponentsToISO(
-        filterData.hrgCampaignToMonth,
-        filterData.hrgCampaignToDay,
-        filterData.hrgCampaignToYear
-      ),
+      // HRG Campaign Year -> send year number
+      ...(filterData.hrgCampaignYear && {
+        hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
+      }),
       // FOM Payment Transaction Date
       fomPaymentFromDate: formatDateComponentsToISO(
         filterData.fomPaymentFromMonth,
@@ -786,6 +775,9 @@ const AdvancedFilter = ({
         filterData.fomPaymentToDay,
         filterData.fomPaymentToYear
       ),
+
+      // CAL Calendar Year (caltype-based)
+      ...(filterData.calYear && { calYear: parseInt(filterData.calYear) }),
 
       // Calendar status
       ...(filterData.calendarReceived && { calendarReceived: true }),
