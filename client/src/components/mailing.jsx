@@ -159,6 +159,10 @@ const Mailing = ({
   // State for selected printer
   const [selectedPrinter, setSelectedPrinter] = useState("");
 
+  // State for checklist title
+  const [checklistTitle, setChecklistTitle] = useState("Mailing Checklist");
+  const [showChecklistTitleInput, setShowChecklistTitleInput] = useState(false);
+
   // Callback to handle changes from RawPrinterControls
   const handleRawPrinterControlsChange = (changes) => {
     setLabelAdjustments(changes);
@@ -828,19 +832,69 @@ const Mailing = ({
     }
   };
 
-  // Print checklist
+  // Helper function to extract date from filter data
+  const getFilterDate = () => {
+    if (!advancedFilterData) return null;
+
+    // Check specifically for Date Encoded/Added date range
+    // These are the only date fields that represent when records were added/encoded
+    const {
+      startDateMonth,
+      startDateDay,
+      startDateYear,
+      endDateMonth,
+      endDateDay,
+      endDateYear,
+    } = advancedFilterData;
+
+    // Only use these specific date fields (Date Encoded/Added range)
+    // NOT the subscription active/expiry dates (wmmActiveFromMonth, wmmExpiringFromMonth, etc.)
+
+    // If we have a start date, use it
+    if (startDateMonth && startDateDay && startDateYear) {
+      const month = String(startDateMonth).padStart(2, "0");
+      const day = String(startDateDay).padStart(2, "0");
+      const year = String(startDateYear);
+      return `${year}-${month}-${day}`;
+    }
+
+    // If we have an end date, use it
+    if (endDateMonth && endDateDay && endDateYear) {
+      const month = String(endDateMonth).padStart(2, "0");
+      const day = String(endDateDay).padStart(2, "0");
+      const year = String(endDateYear);
+      return `${year}-${month}-${day}`;
+    }
+
+    return null;
+  };
+
+  // Show checklist title input
   const handlePrintChecklist = () => {
+    setShowChecklistTitleInput(true);
+  };
+
+  // Actually print the checklist
+  const executePrintChecklist = () => {
     const filteredColumns = table
       .getAllColumns()
       .filter(
         (column) => column.id !== "addedBy" && column.id !== "Added Info"
       );
 
+    // Get the filter date or use current date
+    const filterDate = getFilterDate();
+
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.open();
       printWindow.document.write(
-        generateChecklistHTML(filteredColumns, availableRows)
+        generateChecklistHTML(
+          filteredColumns,
+          availableRows,
+          checklistTitle,
+          filterDate
+        )
       );
       printWindow.document.close();
     } else {
@@ -848,6 +902,14 @@ const Mailing = ({
         "Could not open print window. Please check your pop-up blocker settings."
       );
     }
+
+    // Hide the input after printing
+    setShowChecklistTitleInput(false);
+  };
+
+  // Cancel checklist printing
+  const cancelPrintChecklist = () => {
+    setShowChecklistTitleInput(false);
   };
 
   // Toggle modal visibilities
@@ -1186,6 +1248,39 @@ const Mailing = ({
                       Print Checklist
                     </Button>
                   </div>
+
+                  {/* Checklist Title Input - Only show when printing checklist */}
+                  {showChecklistTitleInput && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Checklist Title
+                      </label>
+                      <input
+                        type="text"
+                        value={checklistTitle}
+                        onChange={(e) => setChecklistTitle(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                        placeholder="Enter checklist title..."
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={executePrintChecklist}
+                          size="sm"
+                          className="bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          Print Checklist
+                        </Button>
+                        <Button
+                          onClick={cancelPrintChecklist}
+                          size="sm"
+                          variant="outline"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Configuration Panel - Show different configs based on action */}
                   {showInputs && (

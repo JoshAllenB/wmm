@@ -1127,7 +1127,17 @@ export const printWithJsPrintManager = async (
 };
 
 // Generate HTML for a checklist
-export const generateChecklistHTML = (columns, rowsToUse) => {
+export const generateChecklistHTML = (
+  columns,
+  rowsToUse,
+  title = "Mailing Checklist",
+  date = null
+) => {
+  // Use provided date or current date
+  const displayDate = date
+    ? new Date(date).toLocaleDateString()
+    : new Date().toLocaleDateString();
+
   const checklistHtml = rowsToUse
     .map((row) => {
       const rowData = columns
@@ -1214,6 +1224,21 @@ export const generateChecklistHTML = (columns, rowsToUse) => {
     <head>
       <style>
         body { font-family: Arial, sans-serif; }
+        .checklist-header {
+          text-align: center;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #333;
+          padding-bottom: 10px;
+        }
+        .checklist-title {
+          font-size: 18px;
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+        .checklist-date {
+          font-size: 14px;
+          color: #666;
+        }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -1245,6 +1270,10 @@ export const generateChecklistHTML = (columns, rowsToUse) => {
       </style>
     </head>
     <body>
+      <div class="checklist-header">
+        <div class="checklist-title">${title}</div>
+        <div class="checklist-date">Date: ${displayDate}</div>
+      </div>
       <table class="checklist">
         ${checklistHtml}
       </table>
