@@ -11,22 +11,24 @@ import cliProgress from "cli-progress";
 dotenv.config();
 
 /**
- * Converts month/year to date objects for filtering
- * @param {number} month - Month (1-12)
+ * Converts year to November date objects for HRG filtering
+ * HRG reports always focus on November data regardless of month parameter
  * @param {number} year - Year (e.g., 2024)
- * @returns {Object} Date objects for report
+ * @returns {Object} Date objects for November report
  */
-function getReportDates(month, year) {
-  const startOfMonth = new Date(year, month - 1, 1);
-  const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-  const monthRegex = new RegExp(`^(${month})/\\d{1,2}/${year}`);
+function getHrgReportDates(year) {
+  // HRG reports always use November data
+  const startOfNovember = new Date(year, 10, 1); // November 1st
+  const endOfNovember = new Date(year, 10, 30, 23, 59, 59); // November 30th
+  const novemberRegex = new RegExp(`^11/\\d{1,2}/${year}`);
 
-  return { startOfMonth, endOfMonth, monthRegex };
+  return { startOfNovember, endOfNovember, novemberRegex };
 }
 
 /**
  * Process HRG data and generate monthly report
- * @param {number} month - Month (1-12)
+ * Note: HRG reports always focus on November data regardless of month parameter
+ * @param {number} month - Month (1-12) - kept for compatibility but not used for filtering
  * @param {number} year - Year (e.g., 2024)
  * @param {Object} io - Socket.io instance for real-time updates
  * @param {string} userId - User ID for targeted notifications
@@ -46,18 +48,19 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
     });
     sendProgressUpdate("✅ Database connection successful");
 
-    const { startOfMonth, endOfMonth } = getReportDates(month, year);
+    const { startOfNovember, endOfNovember } = getHrgReportDates(year);
 
     // Get all HRG records once; we'll compute per-year metrics client-side for reliability
-    sendProgressUpdate("Retrieving HRG data from database...");
+    // HRG reports focus on November campaign data
+    sendProgressUpdate(
+      "Retrieving HRG data from database (filtering for November campaigns)..."
+    );
     const allHrg = await HrgModel.find({}).lean();
 
     const baseYear = year;
-    const prevYear = baseYear - 1;
     const nextYear = baseYear + 1;
     // Cutoff dates derived from A5 requirement (Nov 1 YYYY 23:59:59)
     const cutoffBase = new Date(baseYear, 10, 1, 23, 59, 59);
-    const cutoffPrev = new Date(prevYear, 10, 1, 23, 59, 59);
     const cutoffNext = new Date(nextYear, 10, 1, 23, 59, 59);
 
     // Helpers to parse different stored formats
@@ -81,20 +84,12 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
     // Buckets we need: counts and amounts
     const metrics = {
       renewals: {
-        [prevYear]: {
-          lt1000: { count: 0, amount: 0 },
-          gte1000: { count: 0, amount: 0 },
-        },
         [baseYear]: {
           lt1000: { count: 0, amount: 0 },
           gte1000: { count: 0, amount: 0 },
         },
       },
       newMembers: {
-        [prevYear]: {
-          lt1000: { count: 0, amount: 0 },
-          gte1000: { count: 0, amount: 0 },
-        },
         [baseYear]: {
           lt1000: { count: 0, amount: 0 },
           gte1000: { count: 0, amount: 0 },
@@ -115,7 +110,6 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
       }
       return s;
     };
-    const priorBeforePrev = hasPriorBefore(cutoffPrev);
     const priorBeforeBase = hasPriorBefore(cutoffBase);
     const priorBeforeNext = hasPriorBefore(cutoffNext);
 
@@ -123,21 +117,25 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
     const bucketOf = (amount) =>
       amount >= 1000 ? "gte1000" : amount >= 250 ? "lt1000" : null;
 
+    // Helper to check if campaign date is in November
+    // HRG reports specifically focus on November campaign data
+    const isNovemberCampaign = (campaigndate) => {
+      if (!campaigndate) return false;
+      const cd = new Date(campaigndate);
+      return cd.getMonth() === 10; // November is month 10 (0-indexed)
+    };
+
     // Tally by year based on campaigndate year and prior existence
+    // Only process records with November campaign dates
     for (const doc of allHrg) {
       const amount = ensureNumber(doc.paymtamt);
       const cdYear = extractYear(doc.campaigndate);
       const bucket = bucketOf(amount);
-      if (!bucket || !cdYear) continue;
 
-      if (cdYear === prevYear) {
-        const isRenewal = priorBeforePrev.has(doc.clientid);
-        const target = isRenewal
-          ? metrics.renewals[prevYear]
-          : metrics.newMembers[prevYear];
-        target[bucket].count += 1;
-        target[bucket].amount += amount;
-      } else if (cdYear === baseYear) {
+      // Skip if not November campaign or invalid data
+      if (!bucket || !cdYear || !isNovemberCampaign(doc.campaigndate)) continue;
+
+      if (cdYear === baseYear) {
         const isRenewal = priorBeforeBase.has(doc.clientid);
         const target = isRenewal
           ? metrics.renewals[baseYear]
@@ -158,7 +156,6 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
 
     const reportData = {
       baseYear,
-      prevYear,
       nextYear,
       // Counts for placement in Excel
       counts: {
@@ -170,13 +167,6 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
               metrics.renewals[baseYear].lt1000.count +
               metrics.renewals[baseYear].gte1000.count,
           },
-          [prevYear]: {
-            between250and999: metrics.renewals[prevYear].lt1000.count,
-            gte1000: metrics.renewals[prevYear].gte1000.count,
-            total:
-              metrics.renewals[prevYear].lt1000.count +
-              metrics.renewals[prevYear].gte1000.count,
-          },
         },
         newMembers: {
           [baseYear]: {
@@ -185,13 +175,6 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
             total:
               metrics.newMembers[baseYear].lt1000.count +
               metrics.newMembers[baseYear].gte1000.count,
-          },
-          [prevYear]: {
-            between250and999: metrics.newMembers[prevYear].lt1000.count,
-            gte1000: metrics.newMembers[prevYear].gte1000.count,
-            total:
-              metrics.newMembers[prevYear].lt1000.count +
-              metrics.newMembers[prevYear].gte1000.count,
           },
           [nextYear]: {
             between250and999: metrics.newMembers[nextYear].lt1000.count,
@@ -209,19 +192,11 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
             lt1000: metrics.renewals[baseYear].lt1000.amount,
             gte1000: metrics.renewals[baseYear].gte1000.amount,
           },
-          [prevYear]: {
-            lt1000: metrics.renewals[prevYear].lt1000.amount,
-            gte1000: metrics.renewals[prevYear].gte1000.amount,
-          },
         },
         newMembers: {
           [baseYear]: {
             lt1000: metrics.newMembers[baseYear].lt1000.amount,
             gte1000: metrics.newMembers[baseYear].gte1000.amount,
-          },
-          [prevYear]: {
-            lt1000: metrics.newMembers[prevYear].lt1000.amount,
-            gte1000: metrics.newMembers[prevYear].gte1000.amount,
           },
           [nextYear]: {
             lt1000: metrics.newMembers[nextYear].lt1000.amount,
@@ -234,17 +209,11 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
           [baseYear]:
             metrics.renewals[baseYear].lt1000.amount +
             metrics.renewals[baseYear].gte1000.amount,
-          [prevYear]:
-            metrics.renewals[prevYear].lt1000.amount +
-            metrics.renewals[prevYear].gte1000.amount,
         },
         newMembers: {
           [baseYear]:
             metrics.newMembers[baseYear].lt1000.amount +
             metrics.newMembers[baseYear].gte1000.amount,
-          [prevYear]:
-            metrics.newMembers[prevYear].lt1000.amount +
-            metrics.newMembers[prevYear].gte1000.amount,
           [nextYear]:
             metrics.newMembers[nextYear].lt1000.amount +
             metrics.newMembers[nextYear].gte1000.amount,
@@ -255,9 +224,7 @@ async function processHrgMonthlyReport(month, year, io = null, userId = null) {
     // Total income across all categories we are populating
     reportData.totalIncome =
       reportData.amounts.renewals[baseYear] +
-      reportData.amounts.renewals[prevYear] +
       reportData.amounts.newMembers[baseYear] +
-      reportData.amounts.newMembers[prevYear] +
       reportData.amounts.newMembers[nextYear];
 
     // Campaign expenses left blank; net equals income for now
@@ -320,7 +287,6 @@ async function generateHrgExcelReport(reportData, outputPath) {
 
     // 2. Update year placeholders in labels/text
     const y = reportData.baseYear;
-    const py = reportData.prevYear;
     const ny = reportData.nextYear;
 
     const replaceYearsInCell = (cell) => {
@@ -329,7 +295,6 @@ async function generateHrgExcelReport(reportData, outputPath) {
       if (typeof val === "string") {
         let v = val;
         v = v.replace(/\b2011\b/g, String(y));
-        v = v.replace(/\b2010\b/g, String(py));
         v = v.replace(/\b2012\b/g, String(ny));
         v = v.replace(/(CAMPAIGN\s+)\d{4}/i, `$1${y}`);
         if (v !== val) cell.value = v;
@@ -342,7 +307,6 @@ async function generateHrgExcelReport(reportData, outputPath) {
             let t = rt.text;
             const orig = t;
             t = t.replace(/\b2011\b/g, String(y));
-            t = t.replace(/\b2010\b/g, String(py));
             t = t.replace(/\b2012\b/g, String(ny));
             t = t.replace(/(CAMPAIGN\s+)\d{4}/i, `$1${y}`);
             if (t !== orig) {
@@ -363,18 +327,15 @@ async function generateHrgExcelReport(reportData, outputPath) {
     try {
       const a3Date = new Date(y, 0, 15);
       const a5Date = new Date(y, 10, 1);
-      const b5Date = new Date(y - 1, 10, 1);
       const b6Date = new Date(y + 1, 10, 1);
 
       worksheet.getCell("A3").value = a3Date;
       worksheet.getCell("A5").value = a5Date;
-      worksheet.getCell("B5").value = b5Date;
       worksheet.getCell("B6").value = b6Date;
 
       // Update textual labels that previously used formulas, to avoid #NAME? placeholders
       const yearA3 = a3Date.getFullYear();
       const yearA5 = a5Date.getFullYear();
-      const yearB5 = b5Date.getFullYear();
       const yearB6 = b6Date.getFullYear();
 
       // Header campaign line (merged FGHIJKL3 in template; top-left is usually F3)
@@ -406,12 +367,8 @@ async function generateHrgExcelReport(reportData, outputPath) {
       // Section labels
       const f19 = worksheet.getCell("F19");
       if (f19) f19.value = `RENEWAL (${yearA5})`;
-      const l19 = worksheet.getCell("L19");
-      if (l19) l19.value = `RENEWAL (${yearB5})`;
       const f25 = worksheet.getCell("F25");
       if (f25) f25.value = `NEW MEMBER (${yearA5})`;
-      const l25 = worksheet.getCell("L25");
-      if (l25) l25.value = `NEW MEMBER (${yearB5})`;
       const f31 = worksheet.getCell("F31");
       if (f31) f31.value = `NEW MEMBER (${yearB6})`;
       const f38 = worksheet.getCell("F38");
@@ -444,18 +401,8 @@ async function generateHrgExcelReport(reportData, outputPath) {
     worksheet.getCell("G22").value = reportData.counts.renewals[y].total;
     worksheet.getCell("J22").value = reportData.amounts.renewals[y];
 
-    // RENEWALS - PREVIOUS YEAR (2010)
-    worksheet.getCell("M20").value =
-      reportData.counts.renewals[py].between250and999;
-    worksheet.getCell("P20").value =
-      reportData.amountBuckets.renewals[py].lt1000;
-
-    worksheet.getCell("M21").value = reportData.counts.renewals[py].gte1000;
-    worksheet.getCell("P21").value =
-      reportData.amountBuckets.renewals[py].gte1000;
-
-    worksheet.getCell("M22").value = reportData.counts.renewals[py].total;
-    worksheet.getCell("P22").value = reportData.amounts.renewals[py];
+    // RENEWALS - PREVIOUS YEAR (2010) - REMOVED
+    // No longer tracking previous year renewals
 
     // NEW MEMBERS - CURRENT YEAR (2011)
     worksheet.getCell("G26").value =
@@ -470,18 +417,8 @@ async function generateHrgExcelReport(reportData, outputPath) {
     worksheet.getCell("G28").value = reportData.counts.newMembers[y].total;
     worksheet.getCell("J28").value = reportData.amounts.newMembers[y];
 
-    // NEW MEMBERS - PREVIOUS YEAR (2010)
-    worksheet.getCell("M26").value =
-      reportData.counts.newMembers[py].between250and999;
-    worksheet.getCell("P26").value =
-      reportData.amountBuckets.newMembers[py].lt1000;
-
-    worksheet.getCell("M27").value = reportData.counts.newMembers[py].gte1000;
-    worksheet.getCell("P27").value =
-      reportData.amountBuckets.newMembers[py].gte1000;
-
-    worksheet.getCell("M28").value = reportData.counts.newMembers[py].total;
-    worksheet.getCell("P28").value = reportData.amounts.newMembers[py];
+    // NEW MEMBERS - PREVIOUS YEAR (2010) - REMOVED
+    // No longer tracking previous year new members
 
     // NEW MEMBERS - NEXT YEAR (2012)
     worksheet.getCell("G32").value =
@@ -510,8 +447,9 @@ async function generateHrgExcelReport(reportData, outputPath) {
     });
 
     // ADDITIONAL CELLS (from your formula dependencies)
-    worksheet.getCell("C40").value = reportData.counts.renewals[py].total || 0;
-    worksheet.getCell("G40").value = reportData.counts.renewals[py].total || 0;
+    // Previous year renewals no longer tracked
+    worksheet.getCell("C40").value = 0;
+    worksheet.getCell("G40").value = 0;
 
     worksheet.getCell("C42").value =
       reportData.counts.newMembers[ny].total || 0;
@@ -521,17 +459,15 @@ async function generateHrgExcelReport(reportData, outputPath) {
     // 5. Also populate the reference cells (C20, D20, etc.) for completeness
     worksheet.getCell("C20").value =
       reportData.counts.renewals[y].between250and999;
-    worksheet.getCell("D20").value =
-      reportData.counts.renewals[py].between250and999;
+    worksheet.getCell("D20").value = 0; // Previous year no longer tracked
     worksheet.getCell("C21").value = reportData.counts.renewals[y].gte1000;
-    worksheet.getCell("D21").value = reportData.counts.renewals[py].gte1000;
+    worksheet.getCell("D21").value = 0; // Previous year no longer tracked
 
     worksheet.getCell("C26").value =
       reportData.counts.newMembers[y].between250and999;
-    worksheet.getCell("D26").value =
-      reportData.counts.newMembers[py].between250and999;
+    worksheet.getCell("D26").value = 0; // Previous year no longer tracked
     worksheet.getCell("C27").value = reportData.counts.newMembers[y].gte1000;
-    worksheet.getCell("D27").value = reportData.counts.newMembers[py].gte1000;
+    worksheet.getCell("D27").value = 0; // Previous year no longer tracked
 
     worksheet.getCell("C32").value =
       reportData.counts.newMembers[ny].between250and999;
