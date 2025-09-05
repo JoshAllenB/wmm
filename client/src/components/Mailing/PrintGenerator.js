@@ -1,15 +1,15 @@
 // === ESC/P constants for LX-300+/LX-300II+ ===
 // Updated positioning system using ESC/P absolute positioning for precise dot-based control
 // This replaces the old character-based positioning with more accurate dot-based positioning
-const DPI_V = 60;  // vertical: 60 dots/inch
+const DPI_V = 60; // vertical: 60 dots/inch
 const DPI_H = 120; // horizontal: 120 dots/inch
 
 // Convert inches to dot counts
-const inchesToDotsV = inches => Math.round(inches * DPI_V);
-const inchesToDotsH = inches => Math.round(inches * DPI_H);
+const inchesToDotsV = (inches) => Math.round(inches * DPI_V);
+const inchesToDotsH = (inches) => Math.round(inches * DPI_H);
 
 // Paper + label specs
-const labelWidthIn = 3.5;   // per label
+const labelWidthIn = 3.5; // per label
 const labelHeightIn = 1.5;
 const pageWidthIn = 8.0;
 
@@ -17,31 +17,29 @@ const labelWidthDots = inchesToDotsH(labelWidthIn);
 const labelHeightDots = inchesToDotsV(labelHeightIn);
 
 // Horizontal positions - set directly in dots for precise control
-const col1X = 0;  
+const col1X = 0;
 const col2X = 255; // Set directly to 250 dots for correct positioning
-
-
 
 // Helper: wrap text into multiple lines given max width (in characters)
 function wrapText(text, maxChars) {
   if (!text) return [];
-  
+
   // Clean the text: remove \r\n and split by actual line breaks
-  const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = cleanText.split('\n').filter(line => line.trim() !== '');
-  
+  const cleanText = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = cleanText.split("\n").filter((line) => line.trim() !== "");
+
   const result = [];
-  
+
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (!trimmedLine) continue;
-    
+
     // If line is already within maxChars, keep it as is
     if (trimmedLine.length <= maxChars) {
       result.push(trimmedLine);
     } else {
       // Wrap this line
-      const words = trimmedLine.split(" ").filter(word => word.length > 0);
+      const words = trimmedLine.split(" ").filter((word) => word.length > 0);
       let currentLine = "";
 
       for (const word of words) {
@@ -57,7 +55,7 @@ function wrapText(text, maxChars) {
           currentLine += currentLine ? " " + word : word;
         }
       }
-      
+
       if (currentLine.trim()) {
         result.push(currentLine.trim());
       }
@@ -66,8 +64,6 @@ function wrapText(text, maxChars) {
 
   return result;
 }
-
-
 
 // CP850 character mapping for Spanish characters
 const utf8ToCp850Map = {
@@ -92,13 +88,13 @@ const utf8ToCp850Map = {
 // Helper function to convert UTF-8 to CP850 (browser-compatible)
 const utf8ToCp850 = (str) => {
   if (!str) return [];
-  
+
   const bytes = [];
-  
+
   for (let i = 0; i < str.length; i++) {
     const char = str[i];
     const charCode = char.charCodeAt(0);
-    
+
     if (utf8ToCp850Map[char] !== undefined) {
       const cp850Byte = utf8ToCp850Map[char];
       bytes.push(cp850Byte);
@@ -110,15 +106,17 @@ const utf8ToCp850 = (str) => {
       bytes.push(0x3f); // Question mark
     }
   }
-  
+
   return bytes;
 };
 
 // Helper function to check if text contains special characters that need CP850 conversion
 const needsCp850Conversion = (text) => {
   if (!text) return false;
-  
-  const foundChars = Object.keys(utf8ToCp850Map).filter(char => text.includes(char));
+
+  const foundChars = Object.keys(utf8ToCp850Map).filter((char) =>
+    text.includes(char)
+  );
   return foundChars.length > 0;
 };
 
@@ -143,32 +141,32 @@ export const getFullName = (data) => {
 // Helper function to clean phone numbers - extract only numeric parts
 const cleanPhoneNumber = (phoneNumber) => {
   if (!phoneNumber) return "";
-  
+
   // Convert to string first to handle number inputs
   const phoneStr = String(phoneNumber);
-  
+
   // Find the first sequence of digits, dashes, spaces, plus signs, and periods
   // This will capture phone numbers like: 0922-9625905, +63 922 962 5905, etc.
   const phoneMatch = phoneStr.match(/^[\d\s\-\+\.]+/);
-  
+
   if (phoneMatch) {
     // Clean up the matched phone number
     let cleaned = phoneMatch[0]
       // Remove extra spaces
-      .replace(/\s+/g, ' ')
+      .replace(/\s+/g, " ")
       // Remove multiple dashes
-      .replace(/-+/g, '-')
+      .replace(/-+/g, "-")
       // Remove multiple periods
-      .replace(/\.+/g, '.')
+      .replace(/\.+/g, ".")
       // Trim whitespace
       .trim();
-    
+
     // Remove trailing dashes, periods, or spaces
-    cleaned = cleaned.replace(/[\-\s\.]+$/, '');
-    
+    cleaned = cleaned.replace(/[\-\s\.]+$/, "");
+
     return cleaned;
   }
-  
+
   return "";
 };
 
@@ -312,7 +310,11 @@ export const generateLabelContent = (
       ${nameLines
         .map((line) => `<p style="${commonStyle}">${line}</p>`)
         .join("")}
-      ${address ? `<p class="multiline" style="${commonStyle}">${address}</p>` : ""}
+      ${
+        address
+          ? `<p class="multiline" style="${commonStyle}">${address}</p>`
+          : ""
+      }
       ${contact ? `<p style="${commonStyle}">${contact}</p>` : ""}
     </div>
   `;
@@ -330,9 +332,14 @@ const generateLabelTextContent = (
   // Get subscription data
   let subscriptionData;
   switch (subscriptionType) {
-    case "Promo": subscriptionData = data.promoData; break;
-    case "Complimentary": subscriptionData = data.compData; break;
-    default: subscriptionData = data.wmmData;
+    case "Promo":
+      subscriptionData = data.promoData;
+      break;
+    case "Complimentary":
+      subscriptionData = data.compData;
+      break;
+    default:
+      subscriptionData = data.wmmData;
   }
 
   const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
@@ -348,7 +355,7 @@ const generateLabelTextContent = (
 
   // ID line with expiry and copies logic
   const idLine = data.id || "";
-  
+
   const shouldHideExpiryAndCopies =
     ["HRG", "FOM", "CAL"].some((role) => userRole?.includes(role)) ||
     subscriptionType === "Promo" ||
@@ -375,13 +382,15 @@ const generateLabelTextContent = (
   // Address - preserve all lines including empty ones for proper spacing
   const address = data.address
     ? data.address
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0) // Keep only non-empty lines
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0) // Keep only non-empty lines
     : [];
 
   // Contact info - only include if cellno is selected
-  const contact = selectedFields.includes("cellno") ? getContactNumber(data) : "";
+  const contact = selectedFields.includes("cellno")
+    ? getContactNumber(data)
+    : "";
 
   // Build content with clear line breaks according to specified format
   let content = "";
@@ -409,7 +418,7 @@ const generateLabelTextContent = (
   }
 
   // Address - one line per address line
-  address.forEach(line => {
+  address.forEach((line) => {
     content += `${line}\r\n`;
   });
 
@@ -565,7 +574,8 @@ export const generatePrintHTML = (
 
       // Calculate positions using pixel values directly
       // Each label gets its own container with exact width and height
-      const xPos = leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
+      const xPos =
+        leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
       const yPos = topPosition + rowInPage * (labelHeight + rowSpacing);
 
       // Generate label content
@@ -614,7 +624,8 @@ export const generateCp850RawPrintContent = (
   rowsPerPage = 3,
   columnsPerPage = 2, // Always default to 2 columns
   isPrintJobResumed = false,
-  useCp850Encoding = true // Enable CP850 encoding for special characters
+  useCp850Encoding = true, // Enable CP850 encoding for special characters
+  labelAdjustments // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -638,7 +649,9 @@ export const generateCp850RawPrintContent = (
       return false;
     }
 
-    const isAfterStart = numericStartId ? numericClientId >= numericStartId : true;
+    const isAfterStart = numericStartId
+      ? numericClientId >= numericStartId
+      : true;
     const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
     return isAfterStart && isBeforeEnd;
   });
@@ -648,35 +661,63 @@ export const generateCp850RawPrintContent = (
   }
 
   // Check if any data needs CP850 conversion
-  const needsConversion = useCp850Encoding && filteredRows.some(row => {
-    const data = row.original;
-    const fullName = getFullName(data);
-    const company = data.company || "";
-    const address = data.address || "";
-    
-    const nameNeeds = needsCp850Conversion(fullName);
-    const companyNeeds = needsCp850Conversion(company);
-    const addressNeeds = needsCp850Conversion(address);
-    
-    return nameNeeds || companyNeeds || addressNeeds;
-  });
+  const needsConversion =
+    useCp850Encoding &&
+    filteredRows.some((row) => {
+      const data = row.original;
+      const fullName = getFullName(data);
+      const company = data.company || "";
+      const address = data.address || "";
+
+      const nameNeeds = needsCp850Conversion(fullName);
+      const companyNeeds = needsCp850Conversion(company);
+      const addressNeeds = needsCp850Conversion(address);
+
+      return nameNeeds || companyNeeds || addressNeeds;
+    });
+
+  // Resolve effective values using provided adjustments or fallbacks to existing defaults
+  const effectiveLabelWidthIn =
+    labelAdjustments && Number.isFinite(labelAdjustments.labelWidthIn)
+      ? labelAdjustments.labelWidthIn
+      : labelWidthIn;
+  const effectiveTopMarginLines =
+    labelAdjustments && Number.isFinite(labelAdjustments.topMargin)
+      ? labelAdjustments.topMargin
+      : 4;
+  const effectiveRowSpacingLines =
+    labelAdjustments && Number.isFinite(labelAdjustments.rowSpacing)
+      ? labelAdjustments.rowSpacing
+      : 14;
+  const effectiveCol2X =
+    labelAdjustments && Number.isFinite(labelAdjustments.col2X)
+      ? labelAdjustments.col2X
+      : col2X;
 
   // Initialize printer with new ESC/P positioning commands
   let rawCommands = [];
-  
+
   if (needsConversion) {
     // Use CP850 encoding for special characters
     rawCommands = [
-      0x1b, 0x40, // ESC @ (Reset)
-      0x1b, 0x4d, // ESC M (Elite 12 CPI)
-      0x1b, 0x74, 0x02, // ESC t 2 (PC850)
-      0x1b, 0x52, 0x07, // ESC R 7 (Spain)
+      0x1b,
+      0x40, // ESC @ (Reset)
+      0x1b,
+      0x4d, // ESC M (Elite 12 CPI)
+      0x1b,
+      0x74,
+      0x02, // ESC t 2 (PC850)
+      0x1b,
+      0x52,
+      0x07, // ESC R 7 (Spain)
     ];
   } else {
     // Standard ASCII encoding
     rawCommands = [
-      0x1b, 0x40, // ESC @ (Reset)
-      0x1b, 0x4d, // ESC M (Elite 12 CPI)
+      0x1b,
+      0x40, // ESC @ (Reset)
+      0x1b,
+      0x4d, // ESC M (Elite 12 CPI)
     ];
   }
 
@@ -685,11 +726,11 @@ export const generateCp850RawPrintContent = (
 
   // Add initial spacing
   rawCommands.push(0x0d, 0x0a); // CRLF
-  
+
   // Apply top margin only for first row of first page and only if not a resumed job
   if (!isPrintJobResumed) {
-    // 1 inch top margin = 6 lines at 6 LPI
-    const topMarginLines = 4;
+    // 1 inch top margin = 6 lines at 6 LPI (default 4 lines used here)
+    const topMarginLines = effectiveTopMarginLines;
     for (let i = 0; i < topMarginLines; i++) {
       rawCommands.push(0x0d, 0x0a);
     }
@@ -697,10 +738,10 @@ export const generateCp850RawPrintContent = (
   } else {
     // Top margin skipped for resumed print job
   }
-  
+
   // Calculate column widths for Elite 12 CPI
   const charWidthDots = 12; // 120 DPI / 12 chars per inch = 12 dots per character (Elite 12 CPI)
-  const labelWidthDots = inchesToDotsH(labelWidthIn); // 3.5 inches = 420 dots at 120 DPI
+  const labelWidthDots = inchesToDotsH(effectiveLabelWidthIn); // default 3.5 inches = 420 dots at 120 DPI
   const maxCharsPerCol = Math.floor(labelWidthDots / charWidthDots);
 
   // Process all rows sequentially
@@ -710,67 +751,72 @@ export const generateCp850RawPrintContent = (
     const leftLabelIndex = rowIndex * columnsPerPage;
     const rightLabelIndex = leftLabelIndex + 1;
 
-      // Get the labels for this row
-      const leftLabel = filteredRows[leftLabelIndex];
-      const rightLabel = rightLabelIndex < filteredRows.length ? filteredRows[rightLabelIndex] : null;
+    // Get the labels for this row
+    const leftLabel = filteredRows[leftLabelIndex];
+    const rightLabel =
+      rightLabelIndex < filteredRows.length
+        ? filteredRows[rightLabelIndex]
+        : null;
 
-      // Handle start from right logic for first label
-      const startFromRight = startPosition === "right" && rowIndex === 0;
-      const effectiveLeftLabel = startFromRight && rightLabel ? rightLabel : leftLabel;
-      const effectiveRightLabel = startFromRight && rightLabel ? leftLabel : rightLabel;
+    // Handle start from right logic for first label
+    const startFromRight = startPosition === "right" && rowIndex === 0;
+    const effectiveLeftLabel =
+      startFromRight && rightLabel ? rightLabel : leftLabel;
+    const effectiveRightLabel =
+      startFromRight && rightLabel ? leftLabel : rightLabel;
 
-      // Use fixed label height for ESC/P positioning (6 lines = 1 inch at 6 LPI)
-      const effectiveLabelHeight = 6; // Fixed at 6 lines for consistent positioning
+    // Use fixed label height for ESC/P positioning (6 lines = 1 inch at 6 LPI)
+    const effectiveLabelHeight = 6; // Fixed at 6 lines for consistent positioning
 
-            // Generate content for both labels
-      let leftContent = "";
-      if (effectiveLeftLabel) {
-        leftContent = generateLabelTextContent(
-          effectiveLeftLabel.original,
-          selectedFields,
-          userRole,
-          effectiveLeftLabel.original.subscriptionType || subscriptionType
-        );
-      }
+    // Generate content for both labels
+    let leftContent = "";
+    if (effectiveLeftLabel) {
+      leftContent = generateLabelTextContent(
+        effectiveLeftLabel.original,
+        selectedFields,
+        userRole,
+        effectiveLeftLabel.original.subscriptionType || subscriptionType
+      );
+    }
 
-      let rightContent = "";
-      if (effectiveRightLabel) {
-        rightContent = generateLabelTextContent(
-          effectiveRightLabel.original,
-          selectedFields,
-          userRole,
-          effectiveRightLabel.original.subscriptionType || subscriptionType
-        );
-      }
+    let rightContent = "";
+    if (effectiveRightLabel) {
+      rightContent = generateLabelTextContent(
+        effectiveRightLabel.original,
+        selectedFields,
+        userRole,
+        effectiveRightLabel.original.subscriptionType || subscriptionType
+      );
+    }
 
-      // Process entire content through wrapText, not individual lines
-      // Calculate max characters for each column based on actual dot space
-      // LX-300+ uses Elite 12 CPI = 12 dots per character
-      const charWidthDots = 12; // 120 DPI / 12 chars per inch = 12 dots per character (Elite 12 CPI)
-      const labelWidthDots = inchesToDotsH(labelWidthIn); // 3.5 inches = 420 dots at 120 DPI
-      const maxLeftChars = Math.floor(labelWidthDots / charWidthDots); // 420 / 12 = 35 chars
-      const maxRightChars = Math.floor(labelWidthDots / charWidthDots); // 420 / 12 = 35 chars
-      
-      const leftLines = wrapText(leftContent, maxLeftChars);
-      const rightLines = wrapText(rightContent, maxRightChars);
+    // Process entire content through wrapText, not individual lines
+    // Calculate max characters for each column based on actual dot space
+    // LX-300+ uses Elite 12 CPI = 12 dots per character
+    const charWidthDots = 12; // 120 DPI / 12 chars per inch = 12 dots per character (Elite 12 CPI)
+    const labelWidthDots = inchesToDotsH(effectiveLabelWidthIn); // default 3.5 inches = 420 dots at 120 DPI
+    const maxLeftChars = Math.floor(labelWidthDots / charWidthDots); // 420 / 12 = 35 chars
+    const maxRightChars = Math.floor(labelWidthDots / charWidthDots); // 420 / 12 = 35 chars
 
-      // Process label content
+    const leftLines = wrapText(leftContent, maxLeftChars);
+    const rightLines = wrapText(rightContent, maxRightChars);
 
-      // Print each line of the row using ESC/P absolute positioning
-      // Use the actual content length instead of fixed height
-      const maxLines = Math.max(leftLines.length, rightLines.length);
-      
-      for (let lineIndex = 0; lineIndex < maxLines; lineIndex++) {
-        // Get content for this line
-        const leftLine = lineIndex < leftLines.length 
-          ? leftLines[lineIndex] || ""
-          : "";
-        
-        const rightLine = lineIndex < rightLines.length && effectiveRightLabel
+    // Process label content
+
+    // Print each line of the row using ESC/P absolute positioning
+    // Use the actual content length instead of fixed height
+    const maxLines = Math.max(leftLines.length, rightLines.length);
+
+    for (let lineIndex = 0; lineIndex < maxLines; lineIndex++) {
+      // Get content for this line
+      const leftLine =
+        lineIndex < leftLines.length ? leftLines[lineIndex] || "" : "";
+
+      const rightLine =
+        lineIndex < rightLines.length && effectiveRightLabel
           ? rightLines[lineIndex] || ""
           : "";
 
-              // Print left column on this line (if it has content)
+      // Print left column on this line (if it has content)
       if (leftLine && leftLine !== "") {
         rawCommands.push(0x1b, 0x24, col1X % 256, Math.floor(col1X / 256));
         if (needsConversion && needsCp850Conversion(leftLine)) {
@@ -784,7 +830,12 @@ export const generateCp850RawPrintContent = (
 
       // Print right column on this line (if it has content)
       if (rightLine && rightLine !== "") {
-        rawCommands.push(0x1b, 0x24, col2X % 256, Math.floor(col2X / 256));
+        rawCommands.push(
+          0x1b,
+          0x24,
+          effectiveCol2X % 256,
+          Math.floor(effectiveCol2X / 256)
+        );
         if (needsConversion && needsCp850Conversion(rightLine)) {
           rawCommands.push(...utf8ToCp850(rightLine));
         } else {
@@ -796,26 +847,26 @@ export const generateCp850RawPrintContent = (
 
       // Move to next line
       rawCommands.push(0x0d, 0x0a);
-      }
+    }
 
-      // NORMALIZE ROW HEIGHT - Make each row exactly the same height
-      const fixedRowHeight = 8; // 8 lines = ~1.33 inches at 6 LPI
-      const actualLinesPrinted = maxLines;
-      const paddingLines = Math.max(0, fixedRowHeight - actualLinesPrinted);
+    // NORMALIZE ROW HEIGHT - Make each row exactly the same height
+    const fixedRowHeight = 8; // 8 lines = ~1.33 inches at 6 LPI
+    const actualLinesPrinted = maxLines;
+    const paddingLines = Math.max(0, fixedRowHeight - actualLinesPrinted);
 
-      // Add padding lines to normalize the row height
-      for (let i = 0; i < paddingLines; i++) {
+    // Add padding lines to normalize the row height
+    for (let i = 0; i < paddingLines; i++) {
+      rawCommands.push(0x0d, 0x0a);
+    }
+
+    // ROW SPACING (between label rows)
+    if (rowIndex < totalRows - 1) {
+      const rowSpacingLines = effectiveRowSpacingLines; // default 14 lines
+      for (let i = 0; i < rowSpacingLines; i++) {
         rawCommands.push(0x0d, 0x0a);
       }
-
-      // ROW SPACING (between label rows) - Fixed spacing for ESC/P
-      if (rowIndex < totalRows - 1) {
-        const rowSpacingLines = 14; // 1.87 inches (bottom margin + top margin) at 6 LPI
-        for (let i = 0; i < rowSpacingLines; i++) {
-          rawCommands.push(0x0d, 0x0a);
-        }
-      }
     }
+  }
 
   // Add final commands
   rawCommands.push(0x0a); // Line feed
@@ -828,55 +879,80 @@ export const generateCp850RawPrintContent = (
 };
 
 // Diagnostic function to check printer status and identify issues
-export const diagnosePrinterIssues = async (printerName, useDefaultPrinter = false) => {
+export const diagnosePrinterIssues = async (
+  printerName,
+  useDefaultPrinter = false
+) => {
   const diagnostics = {
     jspmAvailable: false,
     websocketStatus: "unknown",
     printerStatus: "unknown",
     driverIssues: [],
-    recommendations: []
+    recommendations: [],
   };
 
   try {
     // Check JSPrintManager availability
     if (window.JSPM && window.JSPM.JSPrintManager) {
       diagnostics.jspmAvailable = true;
-      
+
       // Check WebSocket status
-      if (window.JSPM.JSPrintManager.websocket_status === window.JSPM.WSStatus.Open) {
+      if (
+        window.JSPM.JSPrintManager.websocket_status ===
+        window.JSPM.WSStatus.Open
+      ) {
         diagnostics.websocketStatus = "connected";
-      } else if (window.JSPM.JSPrintManager.websocket_status === window.JSPM.WSStatus.Closed) {
+      } else if (
+        window.JSPM.JSPrintManager.websocket_status ===
+        window.JSPM.WSStatus.Closed
+      ) {
         diagnostics.websocketStatus = "disconnected";
         diagnostics.driverIssues.push("JSPrintManager client app not running");
-        diagnostics.recommendations.push("Start JSPrintManager client application");
-      } else if (window.JSPM.JSPrintManager.websocket_status === window.JSPM.WSStatus.Blocked) {
+        diagnostics.recommendations.push(
+          "Start JSPrintManager client application"
+        );
+      } else if (
+        window.JSPM.JSPrintManager.websocket_status ===
+        window.JSPM.WSStatus.Blocked
+      ) {
         diagnostics.websocketStatus = "blocked";
-        diagnostics.driverIssues.push("JSPrintManager has blocked this website");
-        diagnostics.recommendations.push("Allow this website in JSPrintManager settings");
+        diagnostics.driverIssues.push(
+          "JSPrintManager has blocked this website"
+        );
+        diagnostics.recommendations.push(
+          "Allow this website in JSPrintManager settings"
+        );
       } else {
         diagnostics.websocketStatus = "connecting";
         diagnostics.recommendations.push("Wait for JSPrintManager to connect");
       }
     } else {
       diagnostics.driverIssues.push("JSPrintManager library not loaded");
-      diagnostics.recommendations.push("Ensure JSPrintManager library is properly loaded");
+      diagnostics.recommendations.push(
+        "Ensure JSPrintManager library is properly loaded"
+      );
     }
 
     // Check printer availability
-    if (diagnostics.jspmAvailable && diagnostics.websocketStatus === "connected") {
+    if (
+      diagnostics.jspmAvailable &&
+      diagnostics.websocketStatus === "connected"
+    ) {
       try {
-        const printer = useDefaultPrinter 
+        const printer = useDefaultPrinter
           ? new window.JSPM.DefaultPrinter()
           : new window.JSPM.InstalledPrinter(printerName);
-        
+
         // Try to get printer status
         if (typeof printer.getStatus === "function") {
           const status = await printer.getStatus();
           diagnostics.printerStatus = status;
-          
+
           if (status === "offline" || status === "error") {
             diagnostics.driverIssues.push(`Printer is ${status}`);
-            diagnostics.recommendations.push("Check printer connection and power");
+            diagnostics.recommendations.push(
+              "Check printer connection and power"
+            );
           }
         } else {
           diagnostics.printerStatus = "unknown (no status method)";
@@ -890,13 +966,18 @@ export const diagnosePrinterIssues = async (printerName, useDefaultPrinter = fal
 
     // Add general recommendations
     if (diagnostics.driverIssues.length === 0) {
-      diagnostics.recommendations.push("Printer appears to be ready for printing");
+      diagnostics.recommendations.push(
+        "Printer appears to be ready for printing"
+      );
     } else {
       diagnostics.recommendations.push("Try restarting the printer");
-      diagnostics.recommendations.push("Check Windows printer queue for stuck jobs");
-      diagnostics.recommendations.push("Restart JSPrintManager client application");
+      diagnostics.recommendations.push(
+        "Check Windows printer queue for stuck jobs"
+      );
+      diagnostics.recommendations.push(
+        "Restart JSPrintManager client application"
+      );
     }
-
   } catch (error) {
     diagnostics.driverIssues.push(`Diagnostic error: ${error.message}`);
     diagnostics.recommendations.push("Restart the application and try again");
@@ -917,7 +998,9 @@ export const printWithJsPrintManager = async (
   }
 
   // Check WebSocket status
-  if (window.JSPM.JSPrintManager.websocket_status !== window.JSPM.WSStatus.Open) {
+  if (
+    window.JSPM.JSPrintManager.websocket_status !== window.JSPM.WSStatus.Open
+  ) {
     throw new Error("WebSocket connection not ready");
   }
 
@@ -937,7 +1020,6 @@ export const printWithJsPrintManager = async (
 
   // Set up status tracking with more detailed logging
   cpj.onUpdated = function (status) {
-    
     // Determine status for callbacks
     let statusText = "unknown";
     if (typeof status === "object" && status["state-description"]) {
@@ -959,12 +1041,15 @@ export const printWithJsPrintManager = async (
         status: statusText,
         rawStatus: status,
         timestamp: new Date().toISOString(),
-        details: typeof status === "object" ? {
-          state: status.state,
-          description: status["state-description"],
-          result: status.result,
-          error: status.error
-        } : null
+        details:
+          typeof status === "object"
+            ? {
+                state: status.state,
+                description: status["state-description"],
+                result: status.result,
+                error: status.error,
+              }
+            : null,
       });
     }
   };
@@ -978,17 +1063,20 @@ export const printWithJsPrintManager = async (
         timestamp: new Date().toISOString(),
       });
     }
-    
+
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(
-        () => reject(new Error("Print job timeout - printer may be busy or driver issue")),
+        () =>
+          reject(
+            new Error("Print job timeout - printer may be busy or driver issue")
+          ),
         60000 // Increased to 60 seconds for debugging
       );
     });
 
     const printPromise = cpj.sendToClient();
-    
+
     // Wait for either completion or timeout
     await Promise.race([printPromise, timeoutPromise]);
 
@@ -1005,22 +1093,24 @@ export const printWithJsPrintManager = async (
     }
   } catch (error) {
     console.error("Print job failed:", error);
-    
+
     // Provide more specific error information
     let errorMessage = error.message;
     if (error.message.includes("timeout")) {
-      errorMessage = "Print job timed out. This could be due to:\n" +
+      errorMessage =
+        "Print job timed out. This could be due to:\n" +
         "1. Printer driver issues\n" +
         "2. Printer is busy or offline\n" +
         "3. Network connectivity issues\n" +
         "4. JSPrintManager service problems";
     } else if (error.message.includes("WebSocket")) {
-      errorMessage = "WebSocket connection issue. Please check:\n" +
+      errorMessage =
+        "WebSocket connection issue. Please check:\n" +
         "1. JSPrintManager client app is running\n" +
         "2. Browser is allowed to connect to JSPrintManager\n" +
         "3. No firewall blocking the connection";
     }
-    
+
     if (callbacks.setStatus) callbacks.setStatus(`Error: ${errorMessage}`);
     if (callbacks.setPrintJobStatus) callbacks.setPrintJobStatus("failed");
 

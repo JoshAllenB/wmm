@@ -395,6 +395,7 @@ const RawPrinterControls = ({
   setLabelAdjustments,
   onPositionChange, // Callback to notify parent of position changes
   setSelectedFields, // Callback to update selectedFields in parent
+  onPrinterChange, // Callback to notify parent of printer selection changes
 }) => {
   const [selectedPrinter, setSelectedPrinter] = useState("");
 
@@ -404,6 +405,13 @@ const RawPrinterControls = ({
       onPositionChange(labelAdjustments);
     }
   }, [labelAdjustments, onPositionChange]);
+
+  // Notify parent component when printer selection changes
+  useEffect(() => {
+    if (onPrinterChange) {
+      onPrinterChange(selectedPrinter);
+    }
+  }, [selectedPrinter, onPrinterChange]);
 
   const {
     printers,

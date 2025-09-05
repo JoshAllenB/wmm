@@ -156,9 +156,17 @@ const Mailing = ({
     col2X: 255,
   });
 
+  // State for selected printer
+  const [selectedPrinter, setSelectedPrinter] = useState("");
+
   // Callback to handle changes from RawPrinterControls
   const handleRawPrinterControlsChange = (changes) => {
     setLabelAdjustments(changes);
+  };
+
+  // Callback to handle printer selection changes
+  const handlePrinterChange = (printerName) => {
+    setSelectedPrinter(printerName);
   };
 
   // Function to handle skipped data updates
@@ -710,18 +718,23 @@ const Mailing = ({
         rowsPerPage,
         2, // Always use 2 columns for raw
         false, // isPrintJobResumed
-        true // useCp850Encoding
+        true, // useCp850Encoding
+        labelAdjustments // Pass label adjustments
       );
 
       if (window.JSPM && window.JSPM.JSPrintManager) {
         await printWithJsPrintManager(
           rawCommands,
-          "", // default printer
-          true,
+          selectedPrinter || "", // Use selected printer or default
+          !selectedPrinter, // useDefaultPrinter = true only if no printer selected
           {
             setStatus: (status) => {
               if (typeof status === "string" && status.includes("Error:")) {
-                toast({ title: "Print Error", description: status, variant: "destructive" });
+                toast({
+                  title: "Print Error",
+                  description: status,
+                  variant: "destructive",
+                });
               }
             },
             setPrintJobStatus: (status) => {
@@ -738,11 +751,15 @@ const Mailing = ({
             },
           }
         );
-        toast({ title: "Print Job Completed", description: "Raw printing completed successfully!" });
+        toast({
+          title: "Print Job Completed",
+          description: "Raw printing completed successfully!",
+        });
       } else {
         toast({
           title: "JSPrintManager Not Available",
-          description: "JSPrintManager client not detected or websocket not open.",
+          description:
+            "JSPrintManager client not detected or websocket not open.",
           variant: "destructive",
         });
         handlePrintWithRange();
@@ -754,7 +771,11 @@ const Mailing = ({
         errorMessage =
           "Print job timed out. Check printer is ready, queue is clear, and driver works.";
       }
-      toast({ title: "Print Error", description: errorMessage, variant: "destructive" });
+      toast({
+        title: "Print Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
       handlePrintWithRange();
     }
   };
@@ -1189,6 +1210,7 @@ const Mailing = ({
                             setLabelAdjustments={setLabelAdjustments}
                             onPositionChange={handleRawPrinterControlsChange}
                             setSelectedFields={setSelectedFields}
+                            onPrinterChange={handlePrinterChange}
                           />
                         </div>
                       ) : (
