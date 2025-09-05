@@ -91,7 +91,7 @@ const LoginPage = ({ setIsLoggedIn }) => {
         }
       );
 
-      const { token, refreshToken, user } = response.data;
+      const { token, refreshToken, user, tokenExpiresAt } = response.data;
 
       // Store session information for WebSocket
       if (!localStorage.getItem("sessionId")) {
@@ -102,7 +102,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
       localStorage.setItem("userId", user.id);
       localStorage.setItem("username", user.username);
 
-      setTokens(token, refreshToken);
+      // Store token expiration information for better session management
+      if (tokenExpiresAt) {
+        localStorage.setItem("tokenExpiresAt", tokenExpiresAt);
+      }
+
+      setTokens(token, refreshToken, tokenExpiresAt);
       setAuthToken(token);
       setIsLoggedIn(true);
       setUserData(user);

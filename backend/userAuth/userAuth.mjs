@@ -58,7 +58,8 @@ router.post("/login", async (req, res) => {
       user,
       token,
       refreshToken,
-      expiresIn: "1h",
+      expiresIn: "30min", // Match actual JWT expiration
+      tokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     };
 
     res.status(200).json(response);
@@ -75,7 +76,6 @@ router.post("/register", async (req, res) => {
   console.log("Registration request received for:", req.body.username);
   try {
     const registerResult = await registerUser(req.body);
-    console.log("Registration Result:", registerResult);
 
     if (registerResult.error) {
       console.error("Registration error:", registerResult.error);
@@ -116,7 +116,6 @@ router.post("/verifyToken", async (req, res) => {
   const token = req.body.token;
 
   if (!token) {
-    console.log("No token provided");
     return res.status(401).json({
       error: "No token provided",
       message: "Authentication token is missing.",
@@ -209,7 +208,12 @@ router.post("/refreshToken", async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
-    res.json({ token: newToken, refreshToken: newRefreshToken });
+    res.json({
+      token: newToken,
+      refreshToken: newRefreshToken,
+      expiresIn: "30min",
+      tokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    });
   } catch (err) {
     console.error("Token refresh error:", err);
 

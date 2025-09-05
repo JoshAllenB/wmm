@@ -10,6 +10,11 @@ import {
 import { redirectToLogin } from "../ActivityMonitor";
 import errorHandler from "../../services/errorHandler";
 
+// Debounce token validation to prevent excessive calls
+let validationInProgress = false;
+let lastValidationTime = 0;
+const VALIDATION_DEBOUNCE_MS = 5000; // 5 seconds
+
 const decodeToken = (token) => {
   try {
     return jwtDecode(token);
@@ -25,6 +30,18 @@ const isTokenExpired = (token) => {
   return decoded.exp * 1000 < Date.now();
 };
 
+const shouldRefreshToken = (token) => {
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return false;
+
+  const expirationTime = decoded.exp * 1000;
+  const currentTime = Date.now();
+  const timeUntilExpiry = expirationTime - currentTime;
+
+  // Refresh if token expires in less than 5 minutes
+  return timeUntilExpiry < 5 * 60 * 1000;
+};
+
 const refreshAndValidate = async () => {
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
@@ -38,8 +55,8 @@ const refreshAndValidate = async () => {
       `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/refreshToken`,
       { token: refreshToken }
     );
-    const { token, refreshToken: newRefreshToken } = data;
-    setTokens(token, newRefreshToken);
+    const { token, refreshToken: newRefreshToken, tokenExpiresAt } = data;
+    setTokens(token, newRefreshToken, tokenExpiresAt);
     setAuthToken(token);
 
     const response = await axios.post(
@@ -64,12 +81,33 @@ const validateToken = async () => {
     return false;
   }
 
-  // First check if token is expired without making an API call
-  if (isTokenExpired(token)) {
-    return await refreshAndValidate();
+  // Debounce validation calls to prevent excessive API requests
+  const now = Date.now();
+  if (
+    validationInProgress ||
+    now - lastValidationTime < VALIDATION_DEBOUNCE_MS
+  ) {
+    return true; // Assume valid if recently validated
   }
 
+  validationInProgress = true;
+  lastValidationTime = now;
+
   try {
+    // Check if token is expired
+    if (isTokenExpired(token)) {
+      return await refreshAndValidate();
+    }
+
+    // Check if token should be refreshed proactively
+    if (shouldRefreshToken(token)) {
+      const refreshResult = await refreshAndValidate();
+      if (refreshResult) {
+        return refreshResult;
+      }
+      // If refresh failed, continue with current token validation
+    }
+
     const response = await axios.post(
       `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/verifyToken`,
       { token }
@@ -78,7 +116,7 @@ const validateToken = async () => {
       setAuthToken(token);
       return response.data.user;
     } else {
-      // Handle invalid token case
+      // Handle invalid token case - try refresh before giving up
       const refreshResult = await refreshAndValidate();
       if (!refreshResult) {
         removeTokens();
@@ -87,24 +125,37 @@ const validateToken = async () => {
     }
   } catch (error) {
     console.error("Token validation error:", error);
-    // If error status is 401, try refresh
-    if (error.response && error.response.status === 401) {
-      const refreshResult = await refreshAndValidate();
-      if (!refreshResult) {
-        // Use centralized error handler for token validation errors
-        errorHandler.handleAxiosError(error, {
-          shouldLogout: true,
-          shouldClearCache: true,
-        });
+
+    // Handle specific error cases
+    if (error.response) {
+      const { status, data } = error.response;
+
+      if (status === 401) {
+        // Token is invalid or expired - try refresh
+        const refreshResult = await refreshAndValidate();
+        if (!refreshResult) {
+          // Use centralized error handler for token validation errors
+          errorHandler.handleAxiosError(error, {
+            shouldLogout: true,
+            shouldClearCache: true,
+          });
+        }
+        return refreshResult;
+      } else if (status === 500) {
+        // Server error - don't logout, just return false
+        console.error("Server error during token validation:", data);
+        return false;
       }
-      return refreshResult;
     }
-    // Use centralized error handler for other token validation errors
-    errorHandler.handleAxiosError(error, {
-      shouldLogout: false,
-      shouldClearCache: true,
-    });
+
+    // For network errors or other issues, don't logout immediately
+    console.error(
+      "Token validation failed due to network or other error:",
+      error.message
+    );
     return false;
+  } finally {
+    validationInProgress = false;
   }
 };
 

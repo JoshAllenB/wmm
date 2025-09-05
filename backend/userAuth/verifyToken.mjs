@@ -5,6 +5,9 @@ import { activeSessions, isUserActive } from "./login.mjs";
 // Track revoked tokens
 const revokedTokens = new Set();
 
+// Track session restoration to prevent excessive logging
+const sessionRestorationLogs = new Map();
+
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1] || req.cookies.token;
 
@@ -33,24 +36,6 @@ const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "Invalid token issuance time" });
     }
 
-    // Modified session check - don't invalidate token if session not found
-    // This makes the app more tolerant to refreshes
-    if (decoded.jti && activeSessions.has(decoded.jti)) {
-      // Update the last activity time for this session if it exists
-      const session = activeSessions.get(decoded.jti);
-      if (session) {
-        session.lastActivity = new Date();
-      }
-    } else if (decoded.jti) {
-      // If session not found but token is valid, recreate the session
-      // This helps with page refreshes where the in-memory session might be lost
-      activeSessions.set(decoded.jti, {
-        userId: decoded.userId,
-        loginTime: new Date(),
-        lastActivity: new Date(),
-      });
-    }
-
     req.userId = decoded.userId;
     const user = await User.findById(decoded.userId)
       .populate({
@@ -63,9 +48,38 @@ const verifyToken = async (req, res, next) => {
       return res.status(401).json({ error: "User not found" });
     }
 
-    // Check if user is active using the isUserActive function
-    if (!isUserActive(user._id)) {
-      return res.status(401).json({ error: "User account is not active" });
+    // Check if session exists and restore it if needed
+    if (decoded.jti && activeSessions.has(decoded.jti)) {
+      // Update the last activity time for this session if it exists
+      const session = activeSessions.get(decoded.jti);
+      if (session) {
+        session.lastActivity = new Date();
+      }
+    } else if (decoded.jti) {
+      // Restore session for valid tokens (browser refresh scenario)
+      // This is safe because we've already validated the token
+      activeSessions.set(decoded.jti, {
+        userId: decoded.userId,
+        username: user.username,
+        loginTime: new Date(),
+        lastActivity: new Date(),
+      });
+
+      // Rate limit session restoration logs to prevent spam
+      const now = Date.now();
+      const lastLogTime = sessionRestorationLogs.get(decoded.jti) || 0;
+      if (now - lastLogTime > 30000) {
+        // Only log once every 30 seconds per session
+        console.log(
+          `Session restored for user ${user.username} after browser refresh`
+        );
+        sessionRestorationLogs.set(decoded.jti, now);
+      }
+    }
+
+    // Check if user is explicitly disabled or deleted
+    if (user.status === "Disabled" || user.status === "Deleted") {
+      return res.status(401).json({ error: "User account is disabled" });
     }
 
     req.user = user;

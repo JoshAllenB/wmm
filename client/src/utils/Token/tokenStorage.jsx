@@ -1,8 +1,13 @@
-export const setTokens = (accessToken, refreshToken) => {
+export const setTokens = (accessToken, refreshToken, tokenExpiresAt = null) => {
   localStorage.setItem("accessToken", accessToken);
   localStorage.setItem("refreshToken", refreshToken);
   sessionStorage.setItem("accessToken", accessToken);
   sessionStorage.setItem("refreshToken", refreshToken);
+
+  if (tokenExpiresAt) {
+    localStorage.setItem("tokenExpiresAt", tokenExpiresAt);
+    sessionStorage.setItem("tokenExpiresAt", tokenExpiresAt);
+  }
 };
 
 export const getAccessToken = () => {
@@ -21,8 +26,10 @@ export const getRefreshToken = () => {
 export const removeTokens = () => {
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
+  localStorage.removeItem("tokenExpiresAt");
   sessionStorage.removeItem("accessToken");
   sessionStorage.removeItem("refreshToken");
+  sessionStorage.removeItem("tokenExpiresAt");
 };
 
 export const syncTokens = () => {

@@ -51,6 +51,7 @@ const ActivityMonitor = ({
           return;
         }
 
+
         // Clear any stale session expired messages only if user is actually logged in
         // Don't clear if user was actually logged out due to inactivity
         const sessionExpired = localStorage.getItem("sessionExpired");
@@ -71,16 +72,31 @@ const ActivityMonitor = ({
     checkTokenOnLoad();
   }, [isLoggedIn, setIsLoggedIn]);
 
-  // Handle activity check
+  // Handle activity check and periodic token validation
   useEffect(() => {
     if (!isLoggedIn) {
       return;
     }
 
-    const activityCheck = setInterval(() => {
+    const activityCheck = setInterval(async () => {
       const currentTime = Date.now();
       const timeSinceLastActivity = currentTime - lastActivity;
       const timeUntilInactive = inactivityTimeout * 1000 - WARNING_DURATION;
+
+      // Check token validity every 10 minutes to ensure user stays logged in
+      // Only check if user has been active recently (within last 5 minutes)
+      if (
+        timeSinceLastActivity < 5 * 60 * 1000 &&
+        timeSinceLastActivity % (10 * 60 * 1000) < 1000
+      ) {
+        const isValid = await validateToken();
+        if (!isValid) {
+          setIsLoggedIn(false);
+          removeTokens();
+          redirectToLogin();
+          return;
+        }
+      }
 
       // Show warning when approaching timeout
       if (timeSinceLastActivity > timeUntilInactive && !showWarning) {
@@ -92,7 +108,7 @@ const ActivityMonitor = ({
     return () => {
       clearInterval(activityCheck);
     };
-  }, [isLoggedIn, lastActivity, inactivityTimeout, showWarning]);
+  }, [isLoggedIn, lastActivity, inactivityTimeout, showWarning, setIsLoggedIn]);
 
   // Handle countdown and logout
   useEffect(() => {
