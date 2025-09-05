@@ -1128,16 +1128,10 @@ export const TableComponent = function TableComponent({
                                         {cal.recvdate} - {cal.caltype}
                                       </span>
                                       <span className="mr-1">
-                                        Qty: {cal.calqty} - Unit: {cal.calunit}{" "}
-                                        ={" "}
-                                        {(
-                                          parseInt(cal.calqty || 0) *
-                                          parseFloat(
-                                            cal.calunit?.replace(
-                                              /[^\d.-]/g,
-                                              ""
-                                            ) || 0
-                                          )
+                                        Qty: {cal.calqty} x Cost: {cal.unit}{" "}
+                                        = {(
+                                          parseFloat(cal.calqty || 0) *
+                                          parseFloat((cal.unit || "0").toString().replace(/[^\d.-]/g, ""))
                                         ).toLocaleString()}
                                       </span>
                                       <span>

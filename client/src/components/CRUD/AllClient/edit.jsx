@@ -1474,14 +1474,12 @@ const Edit = ({
         }
       }
 
-      // Calculate CAL total amount when quantity or unit price changes
+      // When CAL qty/unit changes, only store unit cost under calamt (UI total is display-only)
       if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
-        const calqty =
-          parseFloat(name === "calqty" ? value : newData.calqty) || 0;
-        const calunit =
-          parseFloat(name === "calunit" ? value : newData.calunit) || 0;
-        const calamt = calqty * calunit;
-        newData.calamt = calamt.toString();
+        const calqty = parseFloat(name === "calqty" ? value : newData.calqty) || 0;
+        const calunit = parseFloat(name === "calunit" ? value : newData.calunit) || 0;
+        // Ensure unit cost is saved under calamt
+        newData.calamt = (parseFloat(newData.calunit) || 0).toString();
       }
 
       return newData;
@@ -1507,19 +1505,16 @@ const Edit = ({
     }));
   };
 
-  // Auto-calculate CAL total amount in Add mode when quantity or unit price changes
+  // In Add mode, keep calamt synced to unit price; do not auto-set paymtamt
   useEffect(() => {
     if (selectedRole === "CAL" && roleRecordMode === "add") {
       const quantity = parseFloat(newRoleData.calqty) || 0;
       const unitPrice = parseFloat(newRoleData.calunit) || 0;
-      const totalAmount = quantity * unitPrice;
-
-      if (String(newRoleData.calamt) !== String(totalAmount)) {
-        setNewRoleData((prev) => ({
-          ...prev,
-          calamt: totalAmount.toString(),
-        }));
-      }
+      setNewRoleData((prev) => ({
+        ...prev,
+        // store unit cost under calamt only
+        calamt: unitPrice.toString(),
+      }));
     }
   }, [newRoleData.calqty, newRoleData.calunit, selectedRole, roleRecordMode]);
 
@@ -1649,14 +1644,11 @@ const Edit = ({
         }
       }
 
-      // Calculate CAL total amount when quantity or unit price changes
+      // When CAL qty/unit changes, only store unit cost under calamt (UI total is display-only)
       if (name === "calqty" || name === "calunit") {
-        const calqty =
-          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
-        const calunit =
-          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
-        const calamt = calqty * calunit;
-        updated.calamt = calamt.toString();
+        const calqty = parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit = parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        updated.calamt = calunit.toString();
       }
 
       return updated;
@@ -3251,9 +3243,11 @@ const Edit = ({
         caltype: dataSource.caltype || "",
         calqty: dataSource.calqty || 0,
         calunit: dataSource.calunit || 0,
-        calamt: dataSource.calamt || 0,
+        // Persist unit cost under calamt
+        calamt: dataSource.calunit || 0,
         paymtref: dataSource.paymtref || "",
-        paymtamt: dataSource.paymtamt || 0,
+        // Only include paymtamt if user provided it (no auto-compute)
+        ...(dataSource.paymtamt ? { paymtamt: dataSource.paymtamt } : {}),
         paymtform: dataSource.paymtform || "",
         paymtdate: formatDate(
           dataSource.paymtdateMonth,
@@ -3263,10 +3257,13 @@ const Edit = ({
         remarks: dataSource.remarks || "",
       };
 
+      // Remove empty fields to avoid persisting unset payment fields
+      const cleanCalData = removeEmptyFields(calData);
+
       // Include recordId if we're editing an existing CAL record
       const calSubmission = {
         roleType: "CAL",
-        roleData: calData,
+        roleData: cleanCalData,
       };
 
       // If we're in edit mode and have a selected CAL record, include the recordId

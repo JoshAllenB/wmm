@@ -897,21 +897,33 @@ export const useColumns = () => {
                     ? new Date(calItem.recvdate).toLocaleDateString("en-US")
                     : "N/A";
 
-                  const calamt = calItem.calamt
-                    ? `₱${parseFloat(calItem.calamt).toFixed(2)}`
+                  const quantityNum = parseFloat(calItem.calqty ?? 0) || 0;
+                  // Use calamt strictly as unit cost
+                  const unitRaw = calItem.calamt;
+                  const unitCostNum =
+                    parseFloat(
+                      typeof unitRaw === "string"
+                        ? unitRaw.replace(/[^\d.-]/g, "")
+                        : unitRaw || 0
+                    ) || 0;
+                  const totalNum = quantityNum * unitCostNum;
+
+                  const unitFormatted = unitCostNum
+                    ? `${unitCostNum.toFixed(2)}`
+                    : "N/A";
+                  const totalFormatted = totalNum
+                    ? `${totalNum.toFixed(2)}`
                     : "N/A";
 
                   const paymtref = calItem.paymtref ? calItem.paymtref : "N/A";
-
-                  const paymtform = calItem.paymtform
-                    ? calItem.paymtform
-                    : "N/A";
+                  const paymtform = calItem.paymtform ? calItem.paymtform : "N/A";
 
                   return {
                     recvdate,
                     caltype: calItem.caltype || "N/A",
-                    calqty: calItem.calqty || "N/A",
-                    calamt,
+                    calqty: quantityNum || "N/A",
+                    unit: unitFormatted,
+                    total: totalFormatted,
                     paymtref,
                     paymtform,
                   };
@@ -959,11 +971,11 @@ export const useColumns = () => {
                           {record.caltype}
                         </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium mr-1">
-                          Qty: {record.calqty}
-                        </span>
+                        <span className="font-medium mr-1">Qty: {record.calqty}</span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium">{record.calamt}</span>
+                        <span className="font-medium mr-1">Unit: {record.unit}</span>
+                        <span className="mx-1">•</span>
+                        <span className="font-medium">Total: {record.total}</span>
                         <span className="mx-1">•</span>
                         <span className="font-medium">
                           Ref: #{record.paymtref} - {record.paymtform}

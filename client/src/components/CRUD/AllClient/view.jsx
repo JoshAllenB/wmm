@@ -738,11 +738,11 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
               return null;
             }
 
-            // Safely calculate total using calunit and calqty
+            // Safely calculate total using calamt (unit cost) and calqty
             const calQty = parseFloat(record.calqty || 0);
-            const calUnit = parseFloat(record.calunit || 0);
+            const unitCost = parseFloat(record.calamt || 0);
             const totalAmount =
-              isNaN(calQty) || isNaN(calUnit) ? 0 : calQty * calUnit;
+              isNaN(calQty) || isNaN(unitCost) ? 0 : calQty * unitCost;
 
             return (
               <div
@@ -750,12 +750,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 className="mb-1 text-base border-b border-gray-300 pb-2"
               >
                 <div className="font-medium">
-                  {record.recvdate ? formatDate(record.recvdate) : "N/A"} |{" "}
-                  {record.caltype || "N/A"}{" "}
+                  {record.recvdate ? formatDate(record.recvdate) : "N/A"} | {record.caltype || "N/A"}
                 </div>
                 <div className="font-medium">
-                  Qty: {record.calqty || "0"} - Unit: {record.calunit || "0"} =
-                  Php {totalAmount.toFixed(2)}
+                  Qty: {record.calqty || "0"} - Unit: {isNaN(unitCost) ? "0" : unitCost} = Php {totalAmount.toFixed(2)}
                   {record.paymtref ? ` - Ref: #${record.paymtref}` : ""}
                 </div>
                 {record.remarks && (

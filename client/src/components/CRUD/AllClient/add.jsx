@@ -1118,14 +1118,12 @@ const Add = ({
         [name]: fieldValue,
       };
 
-      // Calculate CAL total amount when quantity or unit price changes
+      // When CAL qty/unit changes, keep calamt synced to unit price only (no auto paymtamt)
       if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
-        const calqty =
-          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
-        const calunit =
-          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
-        const calamt = calqty * calunit;
-        updated.calamt = calamt.toString();
+        const calqty = parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit = parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        // store unit cost under calamt; do not auto-set paymtamt
+        updated.calamt = calunit.toString();
       }
 
       // Also update the role-specific state
@@ -1332,7 +1330,12 @@ const Add = ({
     }
 
     if (hasRole("CAL")) {
-      const cleanCalData = removeEmptyFields(calData);
+      // Before submitting, ensure calamt = unit cost; do not auto-set paymtamt
+      const calunitNum = parseFloat(calData.calunit) || 0;
+      const cleanCalData = removeEmptyFields({
+        ...calData,
+        calamt: calunitNum ? calunitNum.toString() : calData.calamt,
+      });
       if (Object.keys(cleanCalData).length > 0) {
         roleSubmissions.push({
           roleType: "CAL",
@@ -2603,30 +2606,6 @@ const Add = ({
                           </>
                         )}
                       </div>
-                    )}
-
-                    {/* HRG Module */}
-                    {hasRole("HRG") && (
-                      <HRGModule
-                        hrgData={hrgData}
-                        handleHrgChange={handleHrgChange}
-                      />
-                    )}
-
-                    {/* FOM Module */}
-                    {hasRole("FOM") && (
-                      <FOMModule
-                        fomData={fomData}
-                        handleFomChange={handleFomChange}
-                      />
-                    )}
-
-                    {/* CAL Module */}
-                    {hasRole("CAL") && (
-                      <CALModule
-                        calData={calData}
-                        handleCalChange={handleCalChange}
-                      />
                     )}
                   </div>
 
