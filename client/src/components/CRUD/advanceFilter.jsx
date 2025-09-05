@@ -220,6 +220,8 @@ const AdvancedFilter = ({
     calendarNotReceived: false,
     spackReceived: false,
     spackNotReceived: false,
+    expiryDateRangeOnly: false,
+    calendarEntitledOnly: false,
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -431,6 +433,8 @@ const AdvancedFilter = ({
       calendarNotReceived: false,
       spackReceived: false,
       spackNotReceived: false,
+      expiryDateRangeOnly: false,
+      calendarEntitledOnly: false,
     });
   };
 
@@ -783,18 +787,21 @@ const AdvancedFilter = ({
         hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
       }),
       // New HRG Campaign Month/Year support
-      ...(filterData.hrgCampaignMonth && filterData.hrgCampaignYear && {
-        hrgCampaignMonth: filterData.hrgCampaignMonth,
-        hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
-      }),
-      ...(filterData.hrgCampaignFromMonth && filterData.hrgCampaignFromYear && {
-        hrgCampaignFromMonth: filterData.hrgCampaignFromMonth,
-        hrgCampaignFromYear: parseInt(filterData.hrgCampaignFromYear),
-      }),
-      ...(filterData.hrgCampaignToMonth && filterData.hrgCampaignToYear && {
-        hrgCampaignToMonth: filterData.hrgCampaignToMonth,
-        hrgCampaignToYear: parseInt(filterData.hrgCampaignToYear),
-      }),
+      ...(filterData.hrgCampaignMonth &&
+        filterData.hrgCampaignYear && {
+          hrgCampaignMonth: filterData.hrgCampaignMonth,
+          hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
+        }),
+      ...(filterData.hrgCampaignFromMonth &&
+        filterData.hrgCampaignFromYear && {
+          hrgCampaignFromMonth: filterData.hrgCampaignFromMonth,
+          hrgCampaignFromYear: parseInt(filterData.hrgCampaignFromYear),
+        }),
+      ...(filterData.hrgCampaignToMonth &&
+        filterData.hrgCampaignToYear && {
+          hrgCampaignToMonth: filterData.hrgCampaignToMonth,
+          hrgCampaignToYear: parseInt(filterData.hrgCampaignToYear),
+        }),
       // FOM Payment Transaction Date
       fomPaymentFromDate: formatDateComponentsToISO(
         filterData.fomPaymentFromMonth,
@@ -816,6 +823,10 @@ const AdvancedFilter = ({
       // Spack status
       ...(filterData.spackReceived && { spackReceived: true }),
       ...(filterData.spackNotReceived && { spackNotReceived: true }),
+      // Expiry date range only filter
+      ...(filterData.expiryDateRangeOnly && { expiryDateRangeOnly: true }),
+      // Calendar entitlement filters
+      ...(filterData.calendarEntitledOnly && { calendarEntitledOnly: true }),
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
@@ -1529,6 +1540,12 @@ const AdvancedFilter = ({
           updates.hrgCampaignFromYear = "";
           updates.hrgCampaignToMonth = "";
           updates.hrgCampaignToYear = "";
+          break;
+        case "expiryDateRangeOnly":
+          updates.expiryDateRangeOnly = false;
+          break;
+        case "calendarEntitledOnly":
+          updates.calendarEntitledOnly = false;
           break;
         default:
           updates[key] = "";

@@ -1,13 +1,11 @@
-const CalendarFilter = ({
-  filterData,
-  handleChange,
-}) => {
+const CalendarFilter = ({ filterData, handleChange }) => {
   return (
     <div className="p-4 border rounded-lg shadow-sm">
       <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
         Calendar Status
       </h2>
-      <div>
+      <div className="space-y-4">
+        {/* Calendar Received/Not Received Status */}
         <div className="flex gap-5">
           <div className="flex items-center">
             <input
@@ -25,7 +23,10 @@ const CalendarFilter = ({
               }
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="calendarReceived" className="ml-2 text-lg text-black">
+            <label
+              htmlFor="calendarReceived"
+              className="ml-2 text-lg text-black"
+            >
               Calendar Received
             </label>
           </div>
@@ -45,9 +46,38 @@ const CalendarFilter = ({
               }
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="calendarNotReceived" className="ml-2 text-lg text-black">
+            <label
+              htmlFor="calendarNotReceived"
+              className="ml-2 text-lg text-black"
+            >
               Calendar Not Received
             </label>
+          </div>
+        </div>
+
+        {/* Calendar Entitlement Filter */}
+        <div className="border-t pt-4">
+          <h3 className="text-black text-md font-semibold mb-3">
+            Calendar Entitlement
+          </h3>
+          <div className="space-y-2">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="calendarEntitledOnly"
+                name="calendarEntitledOnly"
+                checked={filterData.calendarEntitledOnly || false}
+                onChange={handleChange}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label
+                htmlFor="calendarEntitledOnly"
+                className="ml-2 text-sm font-medium text-gray-700"
+              >
+                Only clients entitled for Calendar (subscription ends on/beyond
+                December)
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -55,4 +85,4 @@ const CalendarFilter = ({
   );
 };
 
-export default CalendarFilter; 
+export default CalendarFilter;

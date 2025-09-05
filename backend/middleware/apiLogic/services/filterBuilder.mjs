@@ -1988,6 +1988,102 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
     }
   }
 
+  // Handle Calendar Entitlement Filter
+  if (advancedFilterData.calendarEntitledOnly) {
+    try {
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+      const Model = await getSubscriptionModel(subscriptionType);
+
+      // Normalize expiry range to months (ignore day) if provided
+      // We will intersect entitlement with the selected Expiry Date range if present
+      let expiryStart = null;
+      let expiryEnd = null;
+      if (advancedFilterData.wmmExpiringFromDate) {
+        const d = parseDate(advancedFilterData.wmmExpiringFromDate);
+        if (d)
+          expiryStart = new Date(
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+          );
+      }
+      if (advancedFilterData.wmmExpiringToDate) {
+        const d = parseDate(advancedFilterData.wmmExpiringToDate);
+        if (d)
+          expiryEnd = new Date(
+            Date.UTC(
+              d.getUTCFullYear(),
+              d.getUTCMonth() + 1,
+              0,
+              23,
+              59,
+              59,
+              999
+            )
+          );
+      }
+
+      // Build pipeline on enddate; if expiry range provided, match within it
+      const entitlementPipeline = [
+        ...createDatePipeline("enddate", subscriptionType),
+      ];
+
+      if (expiryStart || expiryEnd) {
+        entitlementPipeline.push({
+          $match: {
+            normalizedDate: {
+              ...(expiryStart && { $gte: expiryStart }),
+              ...(expiryEnd && { $lte: expiryEnd }),
+            },
+          },
+        });
+      }
+
+      // Project year/month for month-only comparisons and group by client+year
+      entitlementPipeline.push(
+        {
+          $project: {
+            clientid: 1,
+            year: { $year: "$normalizedDate" },
+            month: { $month: "$normalizedDate" },
+          },
+        },
+        {
+          $group: {
+            _id: { clientid: "$clientid", year: "$year" },
+            maxMonth: { $max: "$month" },
+          },
+        }
+      );
+
+      const grouped = await Model.aggregate(entitlementPipeline);
+
+      // Determine entitlement per client within the (optional) expiry range years
+      const entitledSet = new Set();
+      for (const row of grouped) {
+        const clientId = Number(row._id.clientid);
+        if (isNaN(clientId)) continue;
+        const maxMonth = row.maxMonth; // 1..12
+        if (maxMonth >= 12) entitledSet.add(clientId);
+      }
+
+      // If an expiry range was given, only clients having at least one enddate in the range were considered above.
+      // If no expiry range is given, the above evaluates all years present in data.
+
+      let validClientIds = [...entitledSet];
+
+      // Deduplicate (defensive)
+      validClientIds = [...new Set(validClientIds)];
+
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in calendar entitlement filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
   // Handle SPack Status Filter
   if (advancedFilterData.spackReceived || advancedFilterData.spackNotReceived) {
     try {
@@ -2081,8 +2177,12 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                 vars: {
                   datePart: {
                     $cond: {
-                      if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
-                      then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
+                      if: {
+                        $regexMatch: { input: `$${dateField}`, regex: " " },
+                      },
+                      then: {
+                        $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0],
+                      },
                       else: `$${dateField}`,
                     },
                   },
@@ -2094,18 +2194,42 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                       $let: {
                         vars: {
                           parts: { $split: ["$$datePart", "/"] },
-                          year: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2] },
+                          year: {
+                            $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2],
+                          },
                           month: {
                             $toString: {
                               $cond: {
                                 if: {
                                   $lt: [
-                                    { $strLenBytes: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] } },
+                                    {
+                                      $strLenBytes: {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          0,
+                                        ],
+                                      },
+                                    },
                                     2,
                                   ],
                                 },
-                                then: { $concat: ["0", { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] }] },
-                                else: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0] },
+                                then: {
+                                  $concat: [
+                                    "0",
+                                    {
+                                      $arrayElemAt: [
+                                        { $split: ["$$datePart", "/"] },
+                                        0,
+                                      ],
+                                    },
+                                  ],
+                                },
+                                else: {
+                                  $arrayElemAt: [
+                                    { $split: ["$$datePart", "/"] },
+                                    0,
+                                  ],
+                                },
                               },
                             },
                           },
@@ -2114,19 +2238,43 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                               $cond: {
                                 if: {
                                   $lt: [
-                                    { $strLenBytes: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] } },
+                                    {
+                                      $strLenBytes: {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          1,
+                                        ],
+                                      },
+                                    },
                                     2,
                                   ],
                                 },
-                                then: { $concat: ["0", { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] }] },
-                                else: { $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1] },
+                                then: {
+                                  $concat: [
+                                    "0",
+                                    {
+                                      $arrayElemAt: [
+                                        { $split: ["$$datePart", "/"] },
+                                        1,
+                                      ],
+                                    },
+                                  ],
+                                },
+                                else: {
+                                  $arrayElemAt: [
+                                    { $split: ["$$datePart", "/"] },
+                                    1,
+                                  ],
+                                },
                               },
                             },
                           },
                         },
                         in: {
                           $dateFromString: {
-                            dateString: { $concat: ["$$year", "-", "$$month", "-", "$$day"] },
+                            dateString: {
+                              $concat: ["$$year", "-", "$$month", "-", "$$day"],
+                            },
                             format: "%Y-%m-%d",
                             timezone: "UTC",
                             onError: null,
@@ -2141,8 +2289,18 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                         vars: {
                           datePart: {
                             $cond: {
-                              if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
-                              then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
+                              if: {
+                                $regexMatch: {
+                                  input: `$${dateField}`,
+                                  regex: " ",
+                                },
+                              },
+                              then: {
+                                $arrayElemAt: [
+                                  { $split: [`$${dateField}`, " "] },
+                                  0,
+                                ],
+                              },
                               else: `$${dateField}`,
                             },
                           },
@@ -2168,8 +2326,12 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                 vars: {
                   datePart: {
                     $cond: {
-                      if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
-                      then: { $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0] },
+                      if: {
+                        $regexMatch: { input: `$${dateField}`, regex: " " },
+                      },
+                      then: {
+                        $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0],
+                      },
                       else: `$${dateField}`,
                     },
                   },
@@ -2569,9 +2731,49 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       });
 
       const expiringClients = await Model.aggregate(pipeline);
-      const validClientIds = expiringClients
+      let validClientIds = expiringClients
         .map((c) => Number(c._id))
         .filter((id) => !isNaN(id));
+
+      // If expiryDateRangeOnly is enabled, filter out clients who have renewed beyond the expiry date
+      if (advancedFilterData.expiryDateRangeOnly && validClientIds.length > 0) {
+        // Get the maximum expiry date from the range to use as the cutoff
+        const maxExpiryDate = toDate || fromDate;
+
+        if (maxExpiryDate) {
+          // Find clients who have subscription records beyond the max expiry date
+          const renewedClientsPipeline = [
+            ...createDatePipeline(
+              "subsdate",
+              advancedFilterData.subscriptionType || "WMM"
+            ),
+            {
+              $match: {
+                $expr: {
+                  $gt: ["$normalizedDate", maxExpiryDate],
+                },
+                clientid: { $in: validClientIds },
+              },
+            },
+            {
+              $group: {
+                _id: "$clientid",
+              },
+            },
+          ];
+
+          const renewedClients = await Model.aggregate(renewedClientsPipeline);
+          const renewedClientIds = renewedClients
+            .map((c) => Number(c._id))
+            .filter((id) => !isNaN(id));
+
+          // Remove clients who have renewed beyond the expiry date
+          validClientIds = validClientIds.filter(
+            (id) => !renewedClientIds.includes(id)
+          );
+        }
+      }
+
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {
@@ -2746,29 +2948,41 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     advancedFilterData.hrgCampaignToDate ||
     advancedFilterData.hrgCampaignYear ||
     advancedFilterData.hrgCampaignMonth ||
-    (advancedFilterData.hrgCampaignFromMonth && advancedFilterData.hrgCampaignFromYear) ||
-    (advancedFilterData.hrgCampaignToMonth && advancedFilterData.hrgCampaignToYear)
+    (advancedFilterData.hrgCampaignFromMonth &&
+      advancedFilterData.hrgCampaignFromYear) ||
+    (advancedFilterData.hrgCampaignToMonth &&
+      advancedFilterData.hrgCampaignToYear)
   ) {
     try {
       const HrgModel = await getModelInstance("HrgModel");
-      let pipeline = [
-        ...createDatePipeline("campaigndate"),
-      ];
+      let pipeline = [...createDatePipeline("campaigndate")];
 
       // New month/year handling
       const hasSingleMonthYear =
-        advancedFilterData.hrgCampaignMonth && advancedFilterData.hrgCampaignYear;
+        advancedFilterData.hrgCampaignMonth &&
+        advancedFilterData.hrgCampaignYear;
       const hasFromMonthYear =
-        advancedFilterData.hrgCampaignFromMonth && advancedFilterData.hrgCampaignFromYear;
+        advancedFilterData.hrgCampaignFromMonth &&
+        advancedFilterData.hrgCampaignFromYear;
       const hasToMonthYear =
-        advancedFilterData.hrgCampaignToMonth && advancedFilterData.hrgCampaignToYear;
+        advancedFilterData.hrgCampaignToMonth &&
+        advancedFilterData.hrgCampaignToYear;
 
       if (hasSingleMonthYear) {
         const year = Number(advancedFilterData.hrgCampaignYear);
         const monthZeroIdx = Number(advancedFilterData.hrgCampaignMonth) - 1;
-        if (!isNaN(year) && !isNaN(monthZeroIdx) && monthZeroIdx >= 0 && monthZeroIdx <= 11) {
-          const monthStart = new Date(Date.UTC(year, monthZeroIdx, 1, 0, 0, 0, 0));
-          const monthEnd = new Date(Date.UTC(year, monthZeroIdx + 1, 0, 23, 59, 59, 999));
+        if (
+          !isNaN(year) &&
+          !isNaN(monthZeroIdx) &&
+          monthZeroIdx >= 0 &&
+          monthZeroIdx <= 11
+        ) {
+          const monthStart = new Date(
+            Date.UTC(year, monthZeroIdx, 1, 0, 0, 0, 0)
+          );
+          const monthEnd = new Date(
+            Date.UTC(year, monthZeroIdx + 1, 0, 23, 59, 59, 999)
+          );
           pipeline.push({
             $match: { normalizedDate: { $gte: monthStart, $lte: monthEnd } },
           });
@@ -2779,17 +2993,33 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
         if (hasFromMonthYear) {
           const fromYear = Number(advancedFilterData.hrgCampaignFromYear);
-          const fromMonthZeroIdx = Number(advancedFilterData.hrgCampaignFromMonth) - 1;
-          if (!isNaN(fromYear) && !isNaN(fromMonthZeroIdx) && fromMonthZeroIdx >= 0 && fromMonthZeroIdx <= 11) {
-            rangeStart = new Date(Date.UTC(fromYear, fromMonthZeroIdx, 1, 0, 0, 0, 0));
+          const fromMonthZeroIdx =
+            Number(advancedFilterData.hrgCampaignFromMonth) - 1;
+          if (
+            !isNaN(fromYear) &&
+            !isNaN(fromMonthZeroIdx) &&
+            fromMonthZeroIdx >= 0 &&
+            fromMonthZeroIdx <= 11
+          ) {
+            rangeStart = new Date(
+              Date.UTC(fromYear, fromMonthZeroIdx, 1, 0, 0, 0, 0)
+            );
           }
         }
 
         if (hasToMonthYear) {
           const toYear = Number(advancedFilterData.hrgCampaignToYear);
-          const toMonthZeroIdx = Number(advancedFilterData.hrgCampaignToMonth) - 1;
-          if (!isNaN(toYear) && !isNaN(toMonthZeroIdx) && toMonthZeroIdx >= 0 && toMonthZeroIdx <= 11) {
-            rangeEnd = new Date(Date.UTC(toYear, toMonthZeroIdx + 1, 0, 23, 59, 59, 999));
+          const toMonthZeroIdx =
+            Number(advancedFilterData.hrgCampaignToMonth) - 1;
+          if (
+            !isNaN(toYear) &&
+            !isNaN(toMonthZeroIdx) &&
+            toMonthZeroIdx >= 0 &&
+            toMonthZeroIdx <= 11
+          ) {
+            rangeEnd = new Date(
+              Date.UTC(toYear, toMonthZeroIdx + 1, 0, 23, 59, 59, 999)
+            );
           }
         }
 
@@ -2865,9 +3095,14 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       const year = Number(advancedFilterData.calYear);
       if (!isNaN(year)) {
         const regex = new RegExp(`^WALL\\s+CALENDAR\\s+${year}$`, "i");
-        const clients = await CalModel.find({ caltype: { $regex: regex } }).distinct("clientid");
-        const validClientIds = clients.map((c) => Number(c)).filter((id) => !isNaN(id));
-        if (validClientIds.length > 0) baseFilter.push({ id: { $in: validClientIds } });
+        const clients = await CalModel.find({
+          caltype: { $regex: regex },
+        }).distinct("clientid");
+        const validClientIds = clients
+          .map((c) => Number(c))
+          .filter((id) => !isNaN(id));
+        if (validClientIds.length > 0)
+          baseFilter.push({ id: { $in: validClientIds } });
         else baseFilter.push({ id: -1 });
       } else {
         baseFilter.push({ id: -1 });
