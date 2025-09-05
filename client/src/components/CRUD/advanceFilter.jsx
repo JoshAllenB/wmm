@@ -199,6 +199,12 @@ const AdvancedFilter = ({
     hrgPaymentToYear: "",
     // HRG Campaign Date components
     hrgCampaignYear: "",
+    // New: HRG Campaign Month/Year (single or range)
+    hrgCampaignMonth: "",
+    hrgCampaignFromMonth: "",
+    hrgCampaignFromYear: "",
+    hrgCampaignToMonth: "",
+    hrgCampaignToYear: "",
     // CAL Calendar Year (single)
     calYear: "",
     // Selected role for date filters
@@ -404,6 +410,12 @@ const AdvancedFilter = ({
       hrgPaymentToYear: "",
       // HRG Campaign Date components
       hrgCampaignYear: "",
+      // New: HRG Campaign Month/Year (single or range)
+      hrgCampaignMonth: "",
+      hrgCampaignFromMonth: "",
+      hrgCampaignFromYear: "",
+      hrgCampaignToMonth: "",
+      hrgCampaignToYear: "",
       // CAL Calendar Year (single)
       calYear: "",
       // Selected role for date filters - set to user's only role if they have just one
@@ -456,6 +468,12 @@ const AdvancedFilter = ({
       "wmmExpiringToYear",
       // HRG Campaign Year (single year)
       "hrgCampaignYear",
+      // New HRG Campaign month/year components
+      "hrgCampaignMonth",
+      "hrgCampaignFromMonth",
+      "hrgCampaignFromYear",
+      "hrgCampaignToMonth",
+      "hrgCampaignToYear",
     ];
 
     if (dateComponentFields.includes(name)) {
@@ -763,6 +781,19 @@ const AdvancedFilter = ({
       // HRG Campaign Year -> send year number
       ...(filterData.hrgCampaignYear && {
         hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
+      }),
+      // New HRG Campaign Month/Year support
+      ...(filterData.hrgCampaignMonth && filterData.hrgCampaignYear && {
+        hrgCampaignMonth: filterData.hrgCampaignMonth,
+        hrgCampaignYear: parseInt(filterData.hrgCampaignYear),
+      }),
+      ...(filterData.hrgCampaignFromMonth && filterData.hrgCampaignFromYear && {
+        hrgCampaignFromMonth: filterData.hrgCampaignFromMonth,
+        hrgCampaignFromYear: parseInt(filterData.hrgCampaignFromYear),
+      }),
+      ...(filterData.hrgCampaignToMonth && filterData.hrgCampaignToYear && {
+        hrgCampaignToMonth: filterData.hrgCampaignToMonth,
+        hrgCampaignToYear: parseInt(filterData.hrgCampaignToYear),
       }),
       // FOM Payment Transaction Date
       fomPaymentFromDate: formatDateComponentsToISO(
@@ -1484,6 +1515,20 @@ const AdvancedFilter = ({
           break;
         case "hrgFomSubscriptionStatus":
           updates.hrgFomSubscriptionStatus = "all";
+          break;
+        case "hrgCampaignMonth":
+          updates.hrgCampaignMonth = "";
+          updates.hrgCampaignYear = "";
+          break;
+        case "hrgCampaignFromMonth":
+        case "hrgCampaignFromYear":
+        case "hrgCampaignToMonth":
+        case "hrgCampaignToYear":
+        case "hrgCampaignRange":
+          updates.hrgCampaignFromMonth = "";
+          updates.hrgCampaignFromYear = "";
+          updates.hrgCampaignToMonth = "";
+          updates.hrgCampaignToYear = "";
           break;
         default:
           updates[key] = "";

@@ -2740,10 +2740,14 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   }
 
   // Handle HRG Campaign Date Filter
+  // Now supports Month and Year (MM and YYYY) selection as well as legacy fields
   if (
     advancedFilterData.hrgCampaignFromDate ||
     advancedFilterData.hrgCampaignToDate ||
-    advancedFilterData.hrgCampaignYear
+    advancedFilterData.hrgCampaignYear ||
+    advancedFilterData.hrgCampaignMonth ||
+    (advancedFilterData.hrgCampaignFromMonth && advancedFilterData.hrgCampaignFromYear) ||
+    (advancedFilterData.hrgCampaignToMonth && advancedFilterData.hrgCampaignToYear)
   ) {
     try {
       const HrgModel = await getModelInstance("HrgModel");
@@ -2751,18 +2755,66 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         ...createDatePipeline("campaigndate"),
       ];
 
-      if (advancedFilterData.hrgCampaignYear) {
+      // New month/year handling
+      const hasSingleMonthYear =
+        advancedFilterData.hrgCampaignMonth && advancedFilterData.hrgCampaignYear;
+      const hasFromMonthYear =
+        advancedFilterData.hrgCampaignFromMonth && advancedFilterData.hrgCampaignFromYear;
+      const hasToMonthYear =
+        advancedFilterData.hrgCampaignToMonth && advancedFilterData.hrgCampaignToYear;
+
+      if (hasSingleMonthYear) {
+        const year = Number(advancedFilterData.hrgCampaignYear);
+        const monthZeroIdx = Number(advancedFilterData.hrgCampaignMonth) - 1;
+        if (!isNaN(year) && !isNaN(monthZeroIdx) && monthZeroIdx >= 0 && monthZeroIdx <= 11) {
+          const monthStart = new Date(Date.UTC(year, monthZeroIdx, 1, 0, 0, 0, 0));
+          const monthEnd = new Date(Date.UTC(year, monthZeroIdx + 1, 0, 23, 59, 59, 999));
+          pipeline.push({
+            $match: { normalizedDate: { $gte: monthStart, $lte: monthEnd } },
+          });
+        }
+      } else if (hasFromMonthYear || hasToMonthYear) {
+        let rangeStart = null;
+        let rangeEnd = null;
+
+        if (hasFromMonthYear) {
+          const fromYear = Number(advancedFilterData.hrgCampaignFromYear);
+          const fromMonthZeroIdx = Number(advancedFilterData.hrgCampaignFromMonth) - 1;
+          if (!isNaN(fromYear) && !isNaN(fromMonthZeroIdx) && fromMonthZeroIdx >= 0 && fromMonthZeroIdx <= 11) {
+            rangeStart = new Date(Date.UTC(fromYear, fromMonthZeroIdx, 1, 0, 0, 0, 0));
+          }
+        }
+
+        if (hasToMonthYear) {
+          const toYear = Number(advancedFilterData.hrgCampaignToYear);
+          const toMonthZeroIdx = Number(advancedFilterData.hrgCampaignToMonth) - 1;
+          if (!isNaN(toYear) && !isNaN(toMonthZeroIdx) && toMonthZeroIdx >= 0 && toMonthZeroIdx <= 11) {
+            rangeEnd = new Date(Date.UTC(toYear, toMonthZeroIdx + 1, 0, 23, 59, 59, 999));
+          }
+        }
+
+        if (rangeStart || rangeEnd) {
+          pipeline.push({
+            $match: {
+              normalizedDate: {
+                ...(rangeStart && { $gte: rangeStart }),
+                ...(rangeEnd && { $lte: rangeEnd }),
+              },
+            },
+          });
+        }
+      } else if (advancedFilterData.hrgCampaignYear) {
+        // Year-only fallback (legacy or explicit)
         const year = Number(advancedFilterData.hrgCampaignYear);
         if (!isNaN(year)) {
           const yearStart = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0));
           const yearEnd = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
           pipeline.push({
-            $match: {
-              normalizedDate: { $gte: yearStart, $lte: yearEnd },
-            },
+            $match: { normalizedDate: { $gte: yearStart, $lte: yearEnd } },
           });
         }
       } else {
+        // Legacy from/to full date values
         const startDate = advancedFilterData.hrgCampaignFromDate
           ? parseDate(advancedFilterData.hrgCampaignFromDate)
           : null;

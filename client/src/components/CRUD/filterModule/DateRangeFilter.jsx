@@ -678,13 +678,26 @@ const DateRangeFilter = ({
   const hrgCampaignDateSection = useMemo(
     () => (
       <div className="p-4 bg-white rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaign Year (HRG)</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Campaign Date (HRG)</h3>
         <div className="space-y-4">
+          {/* Single Month + Year */}
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
-              Year:
+              Month & Year:
             </label>
-            <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <select
+                  id="hrgCampaignMonth"
+                  name="hrgCampaignMonth"
+                  value={filterData.hrgCampaignMonth || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="">Month</option>
+                  {monthOptions}
+                </select>
+              </div>
               <input
                 type="text"
                 id="hrgCampaignYear"
@@ -697,12 +710,79 @@ const DateRangeFilter = ({
               />
             </div>
           </div>
+
+          {/* Range: From Month/Year to Month/Year */}
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">
+              From:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <select
+                  id="hrgCampaignFromMonth"
+                  name="hrgCampaignFromMonth"
+                  value={filterData.hrgCampaignFromMonth || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="">Month</option>
+                  {monthOptions}
+                </select>
+              </div>
+              <input
+                type="text"
+                id="hrgCampaignFromYear"
+                name="hrgCampaignFromYear"
+                value={filterData.hrgCampaignFromYear || ""}
+                onChange={handleChange}
+                placeholder="YYYY"
+                className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                maxLength="4"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 text-sm font-medium mb-2">
+              To:
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="relative">
+                <select
+                  id="hrgCampaignToMonth"
+                  name="hrgCampaignToMonth"
+                  value={filterData.hrgCampaignToMonth || ""}
+                  onChange={handleChange}
+                  className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="">Month</option>
+                  {monthOptions}
+                </select>
+              </div>
+              <input
+                type="text"
+                id="hrgCampaignToYear"
+                name="hrgCampaignToYear"
+                value={filterData.hrgCampaignToYear || ""}
+                onChange={handleChange}
+                placeholder="YYYY"
+                className="w-full p-2 text-sm border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                maxLength="4"
+              />
+            </div>
+          </div>
         </div>
       </div>
     ),
     [
+      filterData.hrgCampaignMonth,
       filterData.hrgCampaignYear,
+      filterData.hrgCampaignFromMonth,
+      filterData.hrgCampaignFromYear,
+      filterData.hrgCampaignToMonth,
+      filterData.hrgCampaignToYear,
       handleChange,
+      monthOptions,
     ]
   );
 
