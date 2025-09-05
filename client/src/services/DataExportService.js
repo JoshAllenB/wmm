@@ -2,7 +2,7 @@ import axios from "axios";
 import { webSocketService } from "./WebSocketService";
 
 // Create axios instance with base URL
-const BACKEND_URL = 'http://192.168.0.208:3001';
+const BACKEND_URL = `http://${import.meta.env.VITE_IP_ADDRESS}:3001`;
 const api = axios.create({
   baseURL: BACKEND_URL
 });
