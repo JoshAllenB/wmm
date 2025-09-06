@@ -68,7 +68,7 @@ const CommonSubscriptionFields = ({
           className="w-full p-2 border rounded-md text-base"
         >
           <option value="">Select Subscription Duration</option>
-          <option value="6">6 Months</option>
+          <option value="5">6 Months</option>
           <option value="11">1 Year</option>
           <option value="22">2 Years</option>
           <option value="others">Others</option>
