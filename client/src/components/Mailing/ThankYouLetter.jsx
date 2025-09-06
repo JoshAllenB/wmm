@@ -22,36 +22,35 @@ const ThankYouLetterDataOverlay = forwardRef(({
     // If shared configuration is provided, use it
     if (useSharedConfig && sharedConfig) {
       return sharedConfig.positions || {
-        // Only have the address fields group (similar to group2 from renewal)
-        addressGroup: {
-          top: 3.3, // ~30% of page height (matching renewal notice)
-          left: 0.5, // Position address group further right to match renewal notice
-          width: 4.0, // Wide enough for address fields (matching renewal notice)
-          lineSpacing: 0.175, // For compact address fields (matching renewal notice)
+        group1: {
+          // Month Year date display
+          top: 1.0,
+          left: 4.25, // Center of page by default (8.5/2)
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 12,
           fontWeight: "normal",
           fontFamily: "Arial"
         },
-        // Month Year date display
-        monthYear: {
-          top: 2.0, // Position at top of page
-          left: 4.25, // Center of page by default (8.5/2)
+        group2: {
+          // Address group (all client data and subscription info)
+          top: 2.0,
+          left: 0.5,
+          width: 4.0,
+          lineSpacing: 0.175,
           fontSize: 12,
+          fontWeight: "normal",
           fontFamily: "Arial"
         },
-        // Greeting field
-        greeting: {
-          top: 6.0, // Position below address
-          left: 0.5, // Match address left position
-          width: 4.0, // Width for greeting
+        group3: {
+          // Greeting field
+          top: 6.0,
+          left: 0.5,
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 14,
           fontWeight: "normal",
           fontFamily: "Arial"
-        },
-        // Spacing configurations
-        spacing: {
-          monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
-          addressToGreeting: 0.8, // Spacing between Address Group and Greeting
         }
       };
     }
@@ -66,38 +65,37 @@ const ThankYouLetterDataOverlay = forwardRef(({
       console.error('Error loading saved positions:', error);
     }
     
-    // Default positions based on renewal notice group2 values for consistent positioning
+    // Default positions for 3-group structure
     return {
-      // Address group (copied from renewal notice group2)
-      addressGroup: {
-        top: 2, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
-        left: 1, // Position address group further right to match renewal notice
-        width: 3.25, // Wide enough for address fields
-        lineSpacing: 0.175, // Reduced spacing to make fields appear closer together
-        fontSize: 12,
-        fontWeight: "normal",
-        fontFamily: "Arial"
-      },
-      // Month Year date display
-      monthYear: {
-        top: 1.3, // Position at top of page
+      group1: {
+        // Month Year date display
+        top: 1.0,
         left: 4.25, // Center of page by default (8.5/2)
+        width: 4.0,
+        lineSpacing: 0.3,
         fontSize: 12,
-        fontFamily: "Arial"
-      },
-      // Greeting field
-      greeting: {
-        top: 4, // Position below address
-        left: 1, // Match address left position
-        width: 4, // Width for greeting
-        fontSize: 13,
         fontWeight: "normal",
         fontFamily: "Arial"
       },
-      // Spacing configurations
-      spacing: {
-        monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
-        addressToGreeting: 1.0, // Spacing between Address Group and Greeting
+      group2: {
+        // Address group (all client data and subscription info)
+        top: 2.0,
+        left: 0.5,
+        width: 4.0,
+        lineSpacing: 0.175,
+        fontSize: 12,
+        fontWeight: "normal",
+        fontFamily: "Arial"
+      },
+      group3: {
+        // Greeting field
+        top: 6.0,
+        left: 0.5,
+        width: 4.0,
+        lineSpacing: 0.3,
+        fontSize: 14,
+        fontWeight: "normal",
+        fontFamily: "Arial"
       }
     };
   });
@@ -310,7 +308,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
     return `${months[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  // Handle position change for address group fields
+  // Handle position change for grouped fields
   const handleGroupPositionChange = (group, field, value) => {
     setPositions(prev => ({
       ...prev,
@@ -358,35 +356,35 @@ const ThankYouLetterDataOverlay = forwardRef(({
   const resetPositions = () => {
     if (confirm('Are you sure you want to reset to default positions?')) {
       setPositions({
-        addressGroup: {
-          top: 3.3, // ~30% of page height (11 inches * 0.30 = 3.3 inches)
-          left: 0.5, // Position address group further right to match renewal notice
-          width: 4.0, // Wide enough for address fields
-          lineSpacing: 0.175, // Reduced spacing to make fields appear closer together
+        group1: {
+          // Month Year date display
+          top: 1.0,
+          left: 4.25, // Center of page by default (8.5/2)
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 12,
           fontWeight: "normal",
           fontFamily: "Arial"
         },
-        // Month Year date display
-        monthYear: {
-          top: 2.0, // Position at top of page
-          left: 4.25, // Center of page by default (8.5/2)
+        group2: {
+          // Address group (all client data and subscription info)
+          top: 2.0,
+          left: 0.5,
+          width: 4.0,
+          lineSpacing: 0.175,
           fontSize: 12,
+          fontWeight: "normal",
           fontFamily: "Arial"
         },
-        // Greeting field
-        greeting: {
-          top: 6.0, // Position below address
-          left: 0.5, // Match address left position
-          width: 4.0, // Width for greeting
+        group3: {
+          // Greeting field
+          top: 6.0,
+          left: 0.5,
+          width: 4.0,
+          lineSpacing: 0.3,
           fontSize: 14,
           fontWeight: "normal",
           fontFamily: "Arial"
-        },
-        // Spacing configurations
-        spacing: {
-          monthYearToAddress: 0.5, // Spacing between Month Year and Address Group
-          addressToGreeting: 1.0, // Spacing between Address Group and Greeting
         }
       });
     }
@@ -418,6 +416,11 @@ const ThankYouLetterDataOverlay = forwardRef(({
       return;
     }
     
+    // For the greeting
+    const greetingName = sampleSubscriber.hasPersonalName ?
+      `${sampleSubscriber.title} ${sampleSubscriber.lastName}` :
+      (sampleSubscriber.hasCompany ? sampleSubscriber.company : "Customer");
+    
     // Generate preview HTML for a single subscriber
     const previewContent = `
       <!DOCTYPE html>
@@ -445,25 +448,6 @@ const ThankYouLetterDataOverlay = forwardRef(({
             background-color: rgba(255, 0, 0, 0.1);
             padding: 2px;
           }
-          .date-field {
-            position: absolute;
-            top: ${positions.addressGroup.top - 0.5}in;
-            width: 100%;
-            text-align: center;
-            font-size: 12pt;
-            border: 1px dashed blue;
-            background-color: rgba(0, 0, 255, 0.1);
-            padding: 2px;
-          }
-          .greeting-field {
-            position: absolute;
-            top: ${positions.addressGroup.top + positions.addressGroup.lineSpacing * 12}in;
-            left: ${positions.addressGroup.left}in;
-            font-size: 14pt; 
-=            border: 1px dashed purple;
-            background-color: rgba(128, 0, 128, 0.1);
-            padding: 2px;
-          }
           .group {
             position: absolute;
             border: 1px solid blue;
@@ -483,20 +467,22 @@ const ThankYouLetterDataOverlay = forwardRef(({
         </div>
         
         <div class="preview-container">
-          <!-- Month Year at top center -->
-          <div class="date-field">
-            ${getCurrentMonthYear()}
+          <!-- Group 1: Month Year -->
+          <div class="group" style="top: ${positions.group1.top - 0.2}in; left: ${positions.group1.left - 0.2}in; width: ${positions.group1.width + 0.4}in; height: ${positions.group1.lineSpacing + 0.4}in;">
+            <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.group1.width}in; text-align: center;">
+              ${getCurrentMonthYear()}
+            </div>
           </div>
           
-          <!-- Address Group: ID Header, Name & Address -->
-          <div class="group" style="top: ${positions.addressGroup.top - 0.2}in; left: ${positions.addressGroup.left - 0.2}in; width: ${positions.addressGroup.width + 0.4}in; height: ${positions.addressGroup.lineSpacing * 6 + 0.4}in;">
-            <!-- ID header section with ID and status -->
-            <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.addressGroup.width}in; line-height: 1.2;">
+          <!-- Group 2: Address Group (all client data and subscription info) -->
+          <div class="group" style="top: ${positions.group2.top - 0.2}in; left: ${positions.group2.left - 0.2}in; width: ${positions.group2.width + 0.4}in; height: ${positions.group2.lineSpacing * 6 + 0.4}in;">
+            <!-- Account Code -->
+            <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.group2.width}in; line-height: 1.2;">
               ${sampleSubscriber.accountCode}
             </div>
             
             <!-- Name and address block -->
-            <div class="data-field" style="top: ${0.2 + positions.addressGroup.lineSpacing}in; left: 0.2in; width: ${positions.addressGroup.width}in; line-height: 1.2; white-space: pre-wrap;">
+            <div class="data-field" style="top: ${0.2 + positions.group2.lineSpacing}in; left: 0.2in; width: ${positions.group2.width}in; line-height: 1.2; white-space: pre-wrap;">
               ${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}<br>
               ${sampleSubscriber.company ? `${sampleSubscriber.company}<br>` : ""}
               ${sampleSubscriber.address1 ? sampleSubscriber.address1.split('\n').map((line, i, arr) => 
@@ -510,9 +496,11 @@ const ThankYouLetterDataOverlay = forwardRef(({
             </div>
           </div>
           
-          <!-- Greeting below address -->
-          <div class="greeting-field">
-            Dear ${sampleSubscriber.title} ${sampleSubscriber.lastName},
+          <!-- Group 3: Greeting -->
+          <div class="group" style="top: ${positions.group3.top - 0.2}in; left: ${positions.group3.left - 0.2}in; width: ${positions.group3.width + 0.4}in; height: ${positions.group3.lineSpacing + 0.4}in;">
+            <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${positions.group3.width}in;">
+              Dear ${greetingName},
+            </div>
           </div>
         </div>
         
@@ -538,7 +526,9 @@ const ThankYouLetterDataOverlay = forwardRef(({
 
     // Create a settings object to pass to the print window
     const printSettings = {
-      addressGroup: positions.addressGroup
+      group1: positions.group1,
+      group2: positions.group2,
+      group3: positions.group3
     };
     const settingsJSON = JSON.stringify(printSettings);
 
@@ -567,30 +557,20 @@ const ThankYouLetterDataOverlay = forwardRef(({
             position: absolute;
             z-index: 1000;
           }
-          .address-field {
-            font-family: ${positions.addressGroup.fontFamily}, sans-serif;
-            font-size: ${positions.addressGroup.fontSize}pt;
-            font-weight: ${positions.addressGroup.fontWeight};
+          .group1-field {
+            font-family: ${positions.group1.fontFamily}, sans-serif;
+            font-size: ${positions.group1.fontSize}pt;
+            font-weight: ${positions.group1.fontWeight};
           }
-          .date-field {
-            position: absolute;
-            top: ${positions.monthYear.top}in;
-            left: 0;
-            width: 8.5in;
-            text-align: center;
-            font-family: ${positions.monthYear.fontFamily}, sans-serif;
-            font-size: ${positions.monthYear.fontSize}pt;
-            z-index: 1000;
+          .group2-field {
+            font-family: ${positions.group2.fontFamily}, sans-serif;
+            font-size: ${positions.group2.fontSize}pt;
+            font-weight: ${positions.group2.fontWeight};
           }
-          .greeting-field {
-            position: absolute;
-            top: ${positions.greeting.top}in;
-            left: ${positions.greeting.left}in;
-            width: ${positions.greeting.width}in;
-            font-family: ${positions.greeting.fontFamily}, sans-serif;
-            font-size: ${positions.greeting.fontSize}pt;
-            font-weight: ${positions.greeting.fontWeight};
-            z-index: 1000;
+          .group3-field {
+            font-family: ${positions.group3.fontFamily}, sans-serif;
+            font-size: ${positions.group3.fontSize}pt;
+            font-weight: ${positions.group3.fontWeight};
           }
           /* Print styles */
           @media print {
@@ -604,7 +584,7 @@ const ThankYouLetterDataOverlay = forwardRef(({
               visibility: visible !important;
               display: block !important;
             }
-            .data-field, .date-field, .greeting-field {
+            .data-field {
               visibility: visible !important;
               display: block !important;
               z-index: 1000;
@@ -657,112 +637,38 @@ const ThankYouLetterDataOverlay = forwardRef(({
       const subscriber = processSubscriberData(row);
       if (!subscriber) return;
       
-      // Determine if we need to adjust positions based on missing fields
-      let namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-      let companyPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-      let addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 3;
-      
-      // If company exists but no personal name, use company as the name
-      const displayName = subscriber.hasPersonalName ? 
-        `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
-        '';
-      
       // For the greeting
       const greetingName = subscriber.hasPersonalName ?
         `${subscriber.title} ${subscriber.lastName}` :
         (subscriber.hasCompany ? subscriber.company : "Customer");
       
-      // If there's no personal name, company name goes in the name position
-      if (!subscriber.hasPersonalName && subscriber.hasCompany) {
-        namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-        // Skip the company position since it's now in the name position
-        addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-      }
-      
-      // If there's no company, move address up
-      if (!subscriber.hasCompany) {
-        addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-      }
-      
       overlayHTML += `
         <div class="data-overlay">
-          <!-- Month Year centered at top -->
-          <div class="date-field" style="left: 0; width: 8.5in;">
+          <!-- Group 1: Month Year -->
+          <div class="data-field group1-field" style="top: ${positions.group1.top}in; left: ${positions.group1.left}in; width: ${positions.group1.width}in; text-align: center;">
             ${getCurrentMonthYear()}
           </div>
           
-          <!-- Address Group: ID Header, Name & Address -->
-          <div class="data-field address-field" style="top: ${positions.addressGroup.top}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
+          <!-- Group 2: Address Group (all client data and subscription info) -->
+          <div class="data-field group2-field" style="top: ${positions.group2.top}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
             ${subscriber.accountCode}
           </div>
-      `;
-      
-      // Add personal name if it exists
-      if (subscriber.hasPersonalName) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${namePosition}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${displayName}
+          
+          <div class="data-field group2-field" style="top: ${positions.group2.top + positions.group2.lineSpacing}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
+            ${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}
+            ${subscriber.company ? `<br>${subscriber.company}` : ""}
+            ${subscriber.address1 ? `<br>${subscriber.address1}` : ""}
+            ${subscriber.address2 ? `<br>${subscriber.address2}` : ""}
+            ${subscriber.address3 ? `<br>${subscriber.address3}` : ""}
+            ${subscriber.address4 ? `<br>${subscriber.address4}` : ""}
           </div>
-        `;
-      }
-      
-      // Add company if it exists (and wasn't already used as the name)
-      if (subscriber.hasCompany && subscriber.hasPersonalName) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${companyPosition}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.company}
+          
+          <!-- Group 3: Greeting -->
+          <div class="data-field group3-field" style="top: ${positions.group3.top}in; left: ${positions.group3.left}in; width: ${positions.group3.width}in;">
+            Dear ${greetingName},
           </div>
-        `;
-      } else if (subscriber.hasCompany && !subscriber.hasPersonalName) {
-        // Company being used as the name
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${namePosition}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.company}
-          </div>
-        `;
-      }
-      
-      // Add address fields with adjusted positions
-      if (subscriber.address1) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${addressStartPosition}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.address1}
-          </div>
-        `;
-      }
-      
-      if (subscriber.address2) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${addressStartPosition + positions.addressGroup.lineSpacing}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.address2}
-          </div>
-        `;
-      }
-      
-      if (subscriber.address3) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${addressStartPosition + positions.addressGroup.lineSpacing * 2}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.address3}
-          </div>
-        `;
-      }
-      
-      if (subscriber.address4) {
-        overlayHTML += `
-          <div class="data-field address-field" style="top: ${addressStartPosition + positions.addressGroup.lineSpacing * 3}in; left: ${positions.addressGroup.left}in; width: ${positions.addressGroup.width}in;">
-            ${subscriber.address4}
-          </div>
-        `;
-      }
-      
-      // Add the "Dear Title Lastname" greeting with explicit positioning
-      overlayHTML += `
-        <div class="greeting-field" style="left: ${positions.greeting.left}in; width: ${positions.greeting.width}in;">
-          Dear ${greetingName},
         </div>
       `;
-      
-      overlayHTML += `</div>`;
     });
 
     overlayHTML += `
@@ -880,44 +786,17 @@ const ThankYouLetterDataOverlay = forwardRef(({
                 </div>
                 
                 <div className="grid grid-cols-1 gap-4 mb-4">
-                  {/* Spacing Configuration */}
+                  {/* Group 1: Month Year */}
                   <fieldset className="border rounded p-3">
-                    <legend className="text-sm font-medium px-1">Spacing Configuration</legend>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs mb-1">Month Year to Address (in)</label>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={positions.spacing.monthYearToAddress} 
-                          onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Address to Greeting (in)</label>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={positions.spacing.addressToGreeting} 
-                          onChange={(e) => handleGroupPositionChange('spacing', 'addressToGreeting', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                    </div>
-                  </fieldset>
-
-                  {/* Address Group Configuration */}
-                  <fieldset className="border rounded p-3">
-                    <legend className="text-sm font-medium px-1">Address Group</legend>
+                    <legend className="text-sm font-medium px-1">Group 1: Month Year</legend>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
                         <label className="block text-xs mb-1">Top (in)</label>
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.addressGroup.top} 
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'top', e.target.value)}
+                          value={positions.group1.top} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'top', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
@@ -926,8 +805,8 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.addressGroup.left} 
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'left', e.target.value)}
+                          value={positions.group1.left} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'left', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
@@ -936,8 +815,8 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.addressGroup.width} 
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'width', e.target.value)}
+                          value={positions.group1.width} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'width', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
@@ -946,14 +825,14 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.addressGroup.lineSpacing} 
-                          onChange={(e) => handleGroupPositionChange('addressGroup', 'lineSpacing', e.target.value)}
+                          value={positions.group1.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group1', 'lineSpacing', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                     </div>
                     
-                    {/* Font settings for Address Group */}
+                    {/* Font settings for Group 1 */}
                     <div className="mt-2 border-t pt-2">
                       <div className="text-xs font-medium mb-1">Font Settings</div>
                       <div className="grid grid-cols-3 gap-2">
@@ -962,16 +841,16 @@ const ThankYouLetterDataOverlay = forwardRef(({
                           <input 
                             type="number" 
                             step="1"
-                            value={positions.addressGroup.fontSize} 
-                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontSize', e.target.value)}
+                            value={positions.group1.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontSize', e.target.value)}
                             className="w-full px-2 py-1 border rounded text-sm"
                           />
                         </div>
                         <div>
                           <label className="block text-xs mb-1">Weight</label>
                           <select
-                            value={positions.addressGroup.fontWeight}
-                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontWeight', e.target.value)}
+                            value={positions.group1.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontWeight', e.target.value)}
                             className="w-full px-2 py-1 border rounded text-sm"
                           >
                             <option value="normal">Normal</option>
@@ -981,8 +860,97 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <div>
                           <label className="block text-xs mb-1">Font Family</label>
                           <select
-                            value={positions.addressGroup.fontFamily}
-                            onChange={(e) => handleGroupPositionChange('addressGroup', 'fontFamily', e.target.value)}
+                            value={positions.group1.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group1', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </fieldset>
+                  
+                  {/* Group 2: Address Group */}
+                  <fieldset className="border rounded p-3">
+                    <legend className="text-sm font-medium px-1">Group 2: Address Group (Client Data & Subscription)</legend>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs mb-1">Top (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.top} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'top', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Left (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.left} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'left', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Width (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.width} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'width', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={positions.group2.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group2', 'lineSpacing', e.target.value)}
+                          className="w-full px-2 py-1 border rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Font settings for Group 2 */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.group2.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.group2.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.group2.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group2', 'fontFamily', e.target.value)}
                             className="w-full px-2 py-1 border rounded text-sm"
                           >
                             <option value="Arial">Arial</option>
@@ -996,78 +964,17 @@ const ThankYouLetterDataOverlay = forwardRef(({
                     </div>
                   </fieldset>
 
-                  {/* Month Year Configuration */}
+                  {/* Group 3: Greeting */}
                   <fieldset className="border rounded p-3">
-                    <legend className="text-sm font-medium px-1">Month Year</legend>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <label className="block text-xs mb-1">Top (in)</label>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={positions.monthYear.top} 
-                          onChange={(e) => handleGroupPositionChange('monthYear', 'top', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Left (in)</label>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          value={positions.monthYear.left} 
-                          onChange={(e) => handleGroupPositionChange('monthYear', 'left', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Font Size (pt)</label>
-                        <input 
-                          type="number" 
-                          step="1"
-                          value={positions.monthYear.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('monthYear', 'fontSize', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        />
-                      </div>
-                      <div className="col-span-3">
-                        <label className="block text-xs mb-1">Font Family</label>
-                        <select
-                          value={positions.monthYear.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('monthYear', 'fontFamily', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                          <option value="Verdana">Verdana</option>
-                          <option value="Tahoma">Tahoma</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <label className="block text-xs mb-1">Spacing to Address Group (in)</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        value={positions.spacing.monthYearToAddress} 
-                        onChange={(e) => handleGroupPositionChange('spacing', 'monthYearToAddress', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-sm"
-                      />
-                    </div>
-                  </fieldset>
-
-                  {/* Greeting Configuration */}
-                  <fieldset className="border rounded p-3">
-                    <legend className="text-sm font-medium px-1">Greeting</legend>
+                    <legend className="text-sm font-medium px-1">Group 3: Greeting</legend>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
                         <label className="block text-xs mb-1">Top (in)</label>
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.greeting.top} 
-                          onChange={(e) => handleGroupPositionChange('greeting', 'top', e.target.value)}
+                          value={positions.group3.top} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'top', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
@@ -1076,8 +983,8 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.greeting.left} 
-                          onChange={(e) => handleGroupPositionChange('greeting', 'left', e.target.value)}
+                          value={positions.group3.left} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'left', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
@@ -1086,47 +993,62 @@ const ThankYouLetterDataOverlay = forwardRef(({
                         <input 
                           type="number" 
                           step="0.01"
-                          value={positions.greeting.width} 
-                          onChange={(e) => handleGroupPositionChange('greeting', 'width', e.target.value)}
+                          value={positions.group3.width} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'width', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs mb-1">Font Size (pt)</label>
+                        <label className="block text-xs mb-1">Line Spacing (in)</label>
                         <input 
                           type="number" 
-                          step="1"
-                          value={positions.greeting.fontSize} 
-                          onChange={(e) => handleGroupPositionChange('greeting', 'fontSize', e.target.value)}
+                          step="0.01"
+                          value={positions.group3.lineSpacing} 
+                          onChange={(e) => handleGroupPositionChange('group3', 'lineSpacing', e.target.value)}
                           className="w-full px-2 py-1 border rounded text-sm"
                         />
                       </div>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-xs mb-1">Font Weight</label>
-                        <select
-                          value={positions.greeting.fontWeight}
-                          onChange={(e) => handleGroupPositionChange('greeting', 'fontWeight', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="bold">Bold</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs mb-1">Font Family</label>
-                        <select
-                          value={positions.greeting.fontFamily}
-                          onChange={(e) => handleGroupPositionChange('greeting', 'fontFamily', e.target.value)}
-                          className="w-full px-2 py-1 border rounded text-sm"
-                        >
-                          <option value="Arial">Arial</option>
-                          <option value="Times New Roman">Times New Roman</option>
-                          <option value="Courier New">Courier New</option>
-                          <option value="Verdana">Verdana</option>
-                          <option value="Tahoma">Tahoma</option>
-                        </select>
+                    
+                    {/* Font settings for Group 3 */}
+                    <div className="mt-2 border-t pt-2">
+                      <div className="text-xs font-medium mb-1">Font Settings</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-xs mb-1">Size (pt)</label>
+                          <input 
+                            type="number" 
+                            step="1"
+                            value={positions.group3.fontSize} 
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontSize', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Weight</label>
+                          <select
+                            value={positions.group3.fontWeight}
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontWeight', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="bold">Bold</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1">Font Family</label>
+                          <select
+                            value={positions.group3.fontFamily}
+                            onChange={(e) => handleGroupPositionChange('group3', 'fontFamily', e.target.value)}
+                            className="w-full px-2 py-1 border rounded text-sm"
+                          >
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                          </select>
+                        </div>
                       </div>
                     </div>
                   </fieldset>
@@ -1224,66 +1146,45 @@ const ThankYouLetterDataOverlay = forwardRef(({
                           const scaleX = 650 / 8.5; // pixels per inch horizontally
                           const scaleY = 750 / 11;  // pixels per inch vertically
                           
-                          // Determine if we need to adjust positions based on missing fields
-                          let namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-                          let companyPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                          let addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 3;
-                          
-                          // If company exists but no personal name, use company as the name
-                          const displayName = subscriber.hasPersonalName ? 
-                            `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim() :
-                            '';
-                          
                           // For the greeting
                           const greetingName = subscriber.hasPersonalName ?
                             `${subscriber.title} ${subscriber.lastName}` :
                             (subscriber.hasCompany ? subscriber.company : "Customer");
                           
-                          // If there's no personal name, company name goes in the name position
-                          if (!subscriber.hasPersonalName && subscriber.hasCompany) {
-                            namePosition = positions.addressGroup.top + positions.addressGroup.lineSpacing;
-                            // Skip the company position since it's now in the name position
-                            addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                          }
-                          
-                          // If there's no company, move address up
-                          if (!subscriber.hasCompany) {
-                            addressStartPosition = positions.addressGroup.top + positions.addressGroup.lineSpacing * 2;
-                          }
-                          
                           return (
                             <>
-                              {/* Month Year centered at top */}
+                              {/* Group 1: Month Year */}
                               <div 
-                                className="absolute bg-blue-50 border border-blue-200 p-1 text-sm font-mono"
+                                className="absolute bg-blue-50 border border-blue-200 p-2 text-sm font-mono"
                                 style={{
-                                  top: `${positions.monthYear.top * scaleY}px`,
-                                  left: `${positions.monthYear.left * scaleX}px`,
-                                  transform: 'translateX(-50%)', // Center the text around the left position
-                                  width: 'auto', // Let width be determined by content
-                                  textAlign: 'center',
-                                  fontFamily: positions.monthYear.fontFamily,
-                                  fontSize: `${positions.monthYear.fontSize}px`
+                                  top: `${positions.group1.top * scaleY}px`,
+                                  left: `${positions.group1.left * scaleX}px`,
+                                  width: `${positions.group1.width * scaleX}px`,
+                                  height: `${positions.group1.lineSpacing * scaleY}px`,
+                                  fontFamily: positions.group1.fontFamily,
+                                  fontSize: `${positions.group1.fontSize}px`,
+                                  fontWeight: positions.group1.fontWeight,
+                                  textAlign: 'center'
                                 }}
                               >
-                                <div className="absolute text-xs text-blue-500 font-mono -top-4 left-1/2 transform -translate-x-1/2">Month Year</div>
+                                <div className="absolute text-xs text-blue-500 font-mono -top-4 -left-1">Group 1</div>
                                 {getCurrentMonthYear()}
                               </div>
                               
-                              {/* Address Group */}
+                              {/* Group 2: Address Group (all client data and subscription info) */}
                               <div 
                                 className="absolute bg-green-50 border border-green-200 p-2 text-sm font-mono"
                                 style={{
-                                  top: `${positions.addressGroup.top * scaleY}px`,
-                                  left: `${positions.addressGroup.left * scaleX}px`,
-                                  width: `${positions.addressGroup.width * scaleX}px`,
-                                  minHeight: `${positions.addressGroup.lineSpacing * 7 * scaleY}px`,
-                                  fontFamily: positions.addressGroup.fontFamily,
-                                  fontSize: `${positions.addressGroup.fontSize}px`,
-                                  fontWeight: positions.addressGroup.fontWeight
+                                  top: `${positions.group2.top * scaleY}px`,
+                                  left: `${positions.group2.left * scaleX}px`,
+                                  width: `${positions.group2.width * scaleX}px`,
+                                  minHeight: `${positions.group2.lineSpacing * 6 * scaleY}px`,
+                                  fontFamily: positions.group2.fontFamily,
+                                  fontSize: `${positions.group2.fontSize}px`,
+                                  fontWeight: positions.group2.fontWeight
                                 }}
                               >
-                                <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Address Group</div>
+                                <div className="absolute text-xs text-green-500 font-mono -top-4 -left-1">Group 2</div>
                                 <div style={{
                                   position: "absolute",
                                   top: "0px",
@@ -1293,101 +1194,36 @@ const ThankYouLetterDataOverlay = forwardRef(({
                                   {subscriber.accountCode}
                                 </div>
                                 
-                                {/* Add personal name if it exists */}
-                                {subscriber.hasPersonalName && (
-                                  <div style={{
-                                    position: "absolute",
-                                    top: `${positions.addressGroup.lineSpacing * scaleY}px`,
-                                    left: "0px",
-                                    width: "100%"
-                                  }}>
-                                    {displayName}
-                                  </div>
-                                )}
-                                
-                                {/* Add company if it exists (and wasn't already used as the name) */}
-                                {subscriber.hasCompany && subscriber.hasPersonalName && (
-                                  <div style={{
-                                    position: "absolute",
-                                    top: `${positions.addressGroup.lineSpacing * 2 * scaleY}px`,
-                                    left: "0px",
-                                    width: "100%"
-                                  }}>
-                                    {subscriber.company}
-                                  </div>
-                                )}
-                                
-                                {/* Company being used as the name */}
-                                {subscriber.hasCompany && !subscriber.hasPersonalName && (
-                                  <div style={{
-                                    position: "absolute",
-                                    top: `${positions.addressGroup.lineSpacing * scaleY}px`,
-                                    left: "0px",
-                                    width: "100%"
-                                  }}>
-                                    {subscriber.company}
-                                  </div>
-                                )}
-                                
-                                {/* Address fields with adjusted positions */}
-                                {(() => {
-                                  // Process address lines first
-                                  const processAddress = (addr) => {
-                                    if (!addr) return null;
-                                    return addr.split('\n')
-                                      .map(line => line.trim())
-                                      .filter(line => line.length > 0)
-                                      .join('\n');
-                                  };
-
-                                  const addressLines = [];
-                                  const address1 = processAddress(subscriber.address1);
-                                  const address2 = processAddress(subscriber.address2);
-                                  const address3 = processAddress(subscriber.address3);
-                                  const address4 = processAddress(subscriber.address4);
-
-                                  if (address1) addressLines.push(address1);
-                                  if (address2) addressLines.push(address2);
-                                  if (address3) addressLines.push(address3);
-                                  if (address4) addressLines.push(address4);
-
-                                  // Join all address lines into a single string with line breaks
-                                  const fullAddress = addressLines.join('\n');
-
-                                  // Split the full address into lines for display
-                                  const displayLines = fullAddress.split('\n');
-
-                                  // Render address lines
-                                  return displayLines.map((line, index) => (
-                                    <div
-                                      key={`address-line-${index}`}
-                                      style={{
-                                        position: "absolute",
-                                        top: `${(addressStartPosition - positions.addressGroup.top + positions.addressGroup.lineSpacing * index) * scaleY}px`,
-                                        left: "0px",
-                                        width: "100%",
-                                        whiteSpace: "pre-wrap"
-                                      }}
-                                    >
-                                      {line}
-                                    </div>
-                                  ));
-                                })()}
+                                <div style={{
+                                  position: "absolute",
+                                  top: `${positions.group2.lineSpacing * scaleY}px`,
+                                  left: "0px",
+                                  width: "100%",
+                                  whiteSpace: "pre-wrap"
+                                }}>
+                                  {subscriber.title} {subscriber.firstName} {subscriber.middleName} {subscriber.lastName}
+                                  {subscriber.company ? `\n${subscriber.company}` : ""}
+                                  {subscriber.address1 ? `\n${subscriber.address1}` : ""}
+                                  {subscriber.address2 ? `\n${subscriber.address2}` : ""}
+                                  {subscriber.address3 ? `\n${subscriber.address3}` : ""}
+                                  {subscriber.address4 ? `\n${subscriber.address4}` : ""}
+                                </div>
                               </div>
                               
-                              {/* Greeting below address */}
+                              {/* Group 3: Greeting */}
                               <div 
-                                className="absolute bg-purple-50 border border-purple-200 p-1 text-sm font-mono"
+                                className="absolute bg-purple-50 border border-purple-200 p-2 text-sm font-mono"
                                 style={{
-                                  top: `${(positions.greeting.top) * scaleY}px`,
-                                  left: `${positions.greeting.left * scaleX}px`,
-                                  width: `${positions.greeting.width * scaleX}px`,
-                                  fontFamily: positions.greeting.fontFamily,
-                                  fontSize: `${positions.greeting.fontSize}px`,
-                                  fontWeight: positions.greeting.fontWeight
+                                  top: `${positions.group3.top * scaleY}px`,
+                                  left: `${positions.group3.left * scaleX}px`,
+                                  width: `${positions.group3.width * scaleX}px`,
+                                  height: `${positions.group3.lineSpacing * scaleY}px`,
+                                  fontFamily: positions.group3.fontFamily,
+                                  fontSize: `${positions.group3.fontSize}px`,
+                                  fontWeight: positions.group3.fontWeight
                                 }}
                               >
-                                <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">Greeting</div>
+                                <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">Group 3</div>
                                 Dear {greetingName},
                               </div>
                               

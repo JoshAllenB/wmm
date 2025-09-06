@@ -523,7 +523,8 @@ const RenewalNoticeDataOverlay = forwardRef(({
     // Create a settings object to pass to the print window
     const printSettings = {
       group1: positions.group1,
-      group2: positions.group2
+      group2: positions.group2,
+      group3: positions.group3
     };
     const settingsJSON = JSON.stringify(printSettings);
 
@@ -563,6 +564,11 @@ const RenewalNoticeDataOverlay = forwardRef(({
             font-family: ${positions.group2.fontFamily}, sans-serif;
             font-size: ${positions.group2.fontSize}pt;
             font-weight: ${positions.group2.fontWeight};
+          }
+          .group3-field {
+            font-family: ${positions.group3.fontFamily}, sans-serif;
+            font-size: ${positions.group3.fontSize}pt;
+            font-weight: ${positions.group3.fontWeight};
           }
           /* Print styles */
           @media print {
@@ -761,6 +767,17 @@ const RenewalNoticeDataOverlay = forwardRef(({
           </div>
         `;
       }
+
+      // Add Group 3: Sucat Reminder Text
+      overlayHTML += `
+      <div class="data-field group3-field" style="top: ${positions.group3.top}in; left: ${positions.group3.left}in; width: ${positions.group3.width}in;">
+        Sucat - ${reminderMonth} ${reminderYear}
+      </div>
+
+      <div class="data-field group3-field" style="top: ${positions.group3.top + positions.group3.lineSpacing}in; left: ${positions.group3.left}in; width: ${positions.group3.width}in;">
+        (Friendly Reminder - ${locationType})
+      </div>
+      `;
       
       overlayHTML += `</div>`;
     });
