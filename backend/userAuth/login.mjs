@@ -162,17 +162,13 @@ const loginUser = async (username, password) => {
  */
 const resetActiveUsersStatus = async () => {
   try {
-    console.log("Running startup cleanup: Clearing all active sessions...");
     // Clear all active sessions
     activeSessions.clear();
-    console.log(
-      "Startup cleanup finished. All active sessions have been cleared."
-    );
   } catch (error) {
     console.error("Error during startup session cleanup:", error);
   }
 };
 
 // Export the active sessions map and the reset function
-export { activeSessions, resetActiveUsersStatus, isUserActive };
+export { activeSessions, resetActiveUsersStatus, isUserActive, generateToken };
 export default loginUser;

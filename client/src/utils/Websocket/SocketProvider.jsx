@@ -21,8 +21,15 @@ export const SocketProvider = ({ children }) => {
 
   // Effect for handling connection
   useEffect(() => {
-    // Only try to connect if we have valid user data
-    if (userData && userData.id && userData.username) {
+    // Only try to connect if we have valid user data with roles
+    if (
+      userData &&
+      userData.id &&
+      userData.username &&
+      userData.roles &&
+      Array.isArray(userData.roles) &&
+      userData.roles.length > 0
+    ) {
       const sessionId = localStorage.getItem("sessionId");
 
       // Set up connection status monitoring
@@ -36,6 +43,7 @@ export const SocketProvider = ({ children }) => {
       // Set up periodic status checks
       const statusInterval = setInterval(checkConnectionStatus, 5000);
 
+      // Try to connect with user data
       webSocketService.connect({
         query: {
           userId: userData.id,
@@ -51,6 +59,12 @@ export const SocketProvider = ({ children }) => {
 
       const handleDisconnect = () => {
         updateConnectionStatus();
+        // Auto-reconnect on disconnect
+        setTimeout(() => {
+          if (!webSocketService.getConnectionStatus().connected) {
+            webSocketService.reconnectWithUserData(userData);
+          }
+        }, 2000);
       };
 
       // Add listeners for connection events
@@ -62,6 +76,11 @@ export const SocketProvider = ({ children }) => {
         webSocketService.off("connect", handleConnect);
         webSocketService.off("disconnect", handleDisconnect);
       };
+    } else if (userData && userData.id && userData.username) {
+      // If we have user data but no roles, try to reconnect with fresh data
+      setTimeout(() => {
+        webSocketService.reconnectWithUserData(userData);
+      }, 1000);
     }
   }, [userData, updateConnectionStatus]);
 

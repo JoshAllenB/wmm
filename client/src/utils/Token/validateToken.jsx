@@ -63,7 +63,10 @@ const refreshAndValidate = async () => {
       `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/verifyToken`,
       { token }
     );
-    return response.data.valid ? response.data.user : false;
+    if (response.data.valid) {
+      return response.data.user;
+    }
+    return false;
   } catch (refreshError) {
     console.error("Token refresh error:", refreshError);
     // Use centralized error handler for token refresh errors

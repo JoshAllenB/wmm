@@ -6,7 +6,7 @@ import { verifyToken } from "./verifyToken.mjs";
 import User from "../models/userControl/users.mjs";
 import jwt from "jsonwebtoken";
 import { Role, Permission } from "../models/userControl/role.mjs";
-import { isUserActive } from "./login.mjs";
+import { isUserActive, generateToken } from "./login.mjs";
 
 const router = express.Router();
 
@@ -14,7 +14,6 @@ router.post("/login", async (req, res) => {
   console.log("Login request received for:", req.body.username);
   try {
     const loginResult = await loginUser(req.body.username, req.body.password);
-    console.log("Login Result:", loginResult);
 
     if (loginResult.error) {
       console.error("Login error:", loginResult.error);
@@ -192,7 +191,14 @@ router.post("/refreshToken", async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(decoded.userId)
+      .populate({
+        path: "roles.role",
+        model: Role,
+        populate: { path: "defaultPermissions", model: Permission },
+      })
+      .populate("roles.customPermissions");
+
     if (!user) {
       return res.status(401).json({
         error: "User Not Found",
@@ -200,9 +206,17 @@ router.post("/refreshToken", async (req, res) => {
       });
     }
 
-    const newToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    // Generate roles and permissions for the new token (same as login)
+    const rolesAndPermissions = user.roles.map((role) => ({
+      role: role.role.name,
+      permissions: [
+        ...role.role.defaultPermissions.map((p) => p.name),
+        ...role.customPermissions.map((p) => p.name),
+      ],
+    }));
+
+    // Use the same generateToken function as login to include roles and permissions
+    const newToken = generateToken(user._id, rolesAndPermissions);
     const newRefreshToken = jwt.sign(
       { userId: user._id },
       process.env.REFRESH_TOKEN_SECRET,

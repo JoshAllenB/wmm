@@ -28,7 +28,6 @@ const App = () => {
   const [userData, setUserData] = useState(null);
 
   const handleInactivity = useCallback((timeout) => {
-    console.log(`Setting inactivity timeout to ${timeout} seconds`);
     setInactivityTimeout(timeout);
   }, []);
 

@@ -7,6 +7,13 @@ const UserContext = createContext();
 export const UserProvider = ({ children, initialUserData }) => {
   const [userData, setUserData] = useState(initialUserData);
 
+  // Update userData when initialUserData changes
+  useEffect(() => {
+    if (initialUserData) {
+      setUserData(initialUserData);
+    }
+  }, [initialUserData]);
+
   // Ensure we have a session ID
   useEffect(() => {
     if (!localStorage.getItem("sessionId")) {
@@ -31,18 +38,18 @@ export const UserProvider = ({ children, initialUserData }) => {
       if (!userData || !userData.roles || !Array.isArray(userData.roles)) {
         return false;
       }
-      
+
       // Split the roleName if it's a comma-separated string
       const roleNames =
         typeof roleName === "string"
           ? roleName.split(",").map((r) => r.trim())
           : [roleName];
-          
+
       // Check each role
       const result = userData.roles.some((roleObj) => {
         return roleNames.includes(roleObj.role);
       });
-      
+
       return result;
     },
     [userData]
