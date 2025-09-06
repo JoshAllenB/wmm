@@ -10,7 +10,6 @@ const attachSocketId = (req, res, next) => {
   if (global.socketIdMap && global.socketIdMap.has(userId)) {
     req.socketId = global.socketIdMap.get(userId);
     req.io = global.io;
-    console.log(`Attached socketId ${req.socketId} for user ${userId}`);
   } else {
     console.warn(`No Socket connection found for user ${userId}`);
   }
