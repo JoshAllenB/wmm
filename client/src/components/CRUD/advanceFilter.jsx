@@ -19,6 +19,7 @@ import {
   ServicesFilter,
   UserFilter,
   SpackFilter,
+  PaymentTypeFilter,
 } from "./filterModule";
 
 // Utility function to format date to "MM/DD/YY"
@@ -222,6 +223,8 @@ const AdvancedFilter = ({
     spackNotReceived: false,
     expiryDateRangeOnly: false,
     calendarEntitledOnly: false,
+    massPaid: false,
+    cashPaid: false,
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -435,6 +438,8 @@ const AdvancedFilter = ({
       spackNotReceived: false,
       expiryDateRangeOnly: false,
       calendarEntitledOnly: false,
+      massPaid: false,
+      cashPaid: false,
     });
   };
 
@@ -827,6 +832,10 @@ const AdvancedFilter = ({
       ...(filterData.expiryDateRangeOnly && { expiryDateRangeOnly: true }),
       // Calendar entitlement filters
       ...(filterData.calendarEntitledOnly && { calendarEntitledOnly: true }),
+
+      // Payment type filters
+      ...(filterData.massPaid && { massPaid: true }),
+      ...(filterData.cashPaid && { cashPaid: true }),
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
@@ -1326,6 +1335,23 @@ const AdvancedFilter = ({
       });
     }
 
+    // Add payment type filters if active
+    if (filterData.massPaid) {
+      active.push({
+        label: "Payment Type",
+        value: "Mass Paid",
+        key: "massPaid",
+      });
+    }
+
+    if (filterData.cashPaid) {
+      active.push({
+        label: "Payment Type",
+        value: "Cash Paid",
+        key: "cashPaid",
+      });
+    }
+
     // Add subscription status filter if not set to "all"
     if (
       filterData.subscriptionStatus &&
@@ -1547,6 +1573,12 @@ const AdvancedFilter = ({
         case "calendarEntitledOnly":
           updates.calendarEntitledOnly = false;
           break;
+        case "massPaid":
+          updates.massPaid = false;
+          break;
+        case "cashPaid":
+          updates.cashPaid = false;
+          break;
         default:
           updates[key] = "";
       }
@@ -1714,6 +1746,12 @@ const AdvancedFilter = ({
                     )}
                     {!hasHRGFOMCALRole() && (
                       <SpackFilter
+                        filterData={filterData}
+                        handleChange={handleChange}
+                      />
+                    )}
+                    {hasRole("WMM") && (
+                      <PaymentTypeFilter
                         filterData={filterData}
                         handleChange={handleChange}
                       />

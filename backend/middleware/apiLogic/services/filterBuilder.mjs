@@ -2134,6 +2134,143 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       baseFilter.push({ id: -1 });
     }
   }
+
+  // Handle Payment Type Filter (Mass Paid / Cash Paid)
+  if (advancedFilterData.massPaid || advancedFilterData.cashPaid) {
+    console.log(
+      "Payment filter values:",
+      advancedFilterData.massPaid,
+      advancedFilterData.cashPaid
+    );
+    console.log("Payment filter query will be built for:", {
+      massPaid: advancedFilterData.massPaid,
+      cashPaid: advancedFilterData.cashPaid,
+    });
+    try {
+      const WmmModel = await getModelInstance("WmmModel");
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+      let paymentQuery = {};
+
+      // Build pipeline to get the most recent subscription for each client
+      const pipeline = [
+        // Check for any date range filter (Active, Expiry, or Date Encoded)
+        ...(advancedFilterData.wmmActiveFromDate ||
+        advancedFilterData.wmmActiveToDate ||
+        advancedFilterData.wmmExpiringFromDate ||
+        advancedFilterData.wmmExpiringToDate ||
+        advancedFilterData.startDate ||
+        advancedFilterData.endDate
+          ? [
+              ...createDatePipeline("subsdate", subscriptionType),
+              {
+                $match: {
+                  normalizedDate: {
+                    // Active date range
+                    ...(advancedFilterData.wmmActiveFromDate && {
+                      $gte: parseDate(advancedFilterData.wmmActiveFromDate),
+                    }),
+                    ...(advancedFilterData.wmmActiveToDate && {
+                      $lte: parseDate(advancedFilterData.wmmActiveToDate),
+                    }),
+                    // Expiry date range (check if subscription date falls within expiry range)
+                    ...(advancedFilterData.wmmExpiringFromDate && {
+                      $gte: parseDate(advancedFilterData.wmmExpiringFromDate),
+                    }),
+                    ...(advancedFilterData.wmmExpiringToDate && {
+                      $lte: parseDate(advancedFilterData.wmmExpiringToDate),
+                    }),
+                    // Date Encoded range
+                    ...(advancedFilterData.startDate && {
+                      $gte: parseDate(advancedFilterData.startDate),
+                    }),
+                    ...(advancedFilterData.endDate && {
+                      $lte: parseDate(advancedFilterData.endDate),
+                    }),
+                  },
+                },
+              },
+            ]
+          : []),
+
+        // Sort by clientid and subsdate to get the most recent record per client
+        { $sort: { clientid: 1, subsdate: -1 } },
+
+        // Group by clientid and take the first (most recent) record
+        {
+          $group: {
+            _id: "$clientid",
+            latestRecord: { $first: "$$ROOT" },
+          },
+        },
+
+        // Replace root with the latest record
+        { $replaceRoot: { newRoot: "$latestRecord" } },
+      ];
+
+      // Add payment type filter based on the most recent records
+      if (advancedFilterData.massPaid && !advancedFilterData.cashPaid) {
+        // Mass Paid: paymtmasses has any value AND paymtamt = 0
+        pipeline.push({
+          $match: {
+            $and: [
+              { paymtmasses: { $exists: true } },
+              { paymtmasses: { $ne: null } },
+              { paymtmasses: { $ne: "" } },
+              { paymtamt: 0 },
+            ],
+          },
+        });
+      } else if (advancedFilterData.cashPaid && !advancedFilterData.massPaid) {
+        // Cash Paid: paymtmasses is empty/null/0 AND paymtamt has any value
+        pipeline.push({
+          $match: {
+            $and: [
+              {
+                $or: [
+                  { paymtmasses: { $exists: false } },
+                  { paymtmasses: null },
+                  { paymtmasses: "" },
+                  { paymtmasses: 0 },
+                ],
+              },
+              { paymtamt: { $ne: 0 } },
+              { paymtamt: { $exists: true } },
+            ],
+          },
+        });
+      } else if (advancedFilterData.massPaid && advancedFilterData.cashPaid) {
+        // If both are selected, no need to filter by payment type
+        return;
+      }
+
+      // Project only the clientid for the final result
+      pipeline.push({
+        $project: { clientid: 1 },
+      });
+
+      console.log("Payment pipeline:", JSON.stringify(pipeline, null, 2));
+
+      const clientsWithPaymentType = await WmmModel.aggregate(pipeline);
+      console.log(
+        "Found clients with payment type:",
+        clientsWithPaymentType.length
+      );
+
+      const validClientIds = clientsWithPaymentType
+        .map((doc) => parseInt(doc.clientid))
+        .filter((id) => !isNaN(id));
+
+      console.log("Valid client IDs:", validClientIds.length);
+      if (validClientIds.length > 0) {
+        baseFilter.push({ id: { $in: validClientIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+    } catch (error) {
+      console.error("Error in payment type filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
 }
 
 function addPersonalInfoFilters(baseFilter, advancedFilterData) {
