@@ -7,73 +7,16 @@ const printConnection = mongoose.createConnection(process.env.MONGODB_URI, {
   dbName: process.env.DB_NAME_CLIENT,
 });
 
-const layoutSchema = new mongoose.Schema({
-  // Standard mailing label settings
-  fontSize: { type: Number, required: true, default: 12 },
-  leftPosition: { type: Number, required: true, default: 10 },
-  topPosition: { type: Number, required: true, default: 10 },
-  columnWidth: { type: Number, required: true, default: 300 },
-  labelHeight: { type: Number, default: 100 },
-  horizontalSpacing: { type: Number, default: 20 },
-  rowSpacing: { type: Number, default: 63.5 },
-  
-  // Paper settings
-  paperWidth: { type: Number, default: 215.9 },
-  paperHeight: { type: Number, default: 279.4 },
-  rowsPerPage: { type: Number, default: 3 },
-  columnsPerPage: { type: Number, default: 2 },
-  
-  // Data spacing controls
-  dataVerticalSpacing: { type: Number, default: 4 },
-  dataHorizontalSpacing: { type: Number, default: 0 },
-  contentLeftMargin: { type: Number, default: 4 },
-  contentRightMargin: { type: Number, default: 4 },
-  contentTopMargin: { type: Number, default: 4 },
-
-  // Advanced label controls
-  labelsToSkip: { type: Number, default: 0 },
-  labelsPerPage: { type: Number, default: 16 },
-  verticalGap: { type: Number, default: 0 },
-  
-  // Physical label size
-  fixedLabelWidth: { type: Number, default: 192 },
-  fixedLabelHeight: { type: Number, default: 96 },
-  showFixedLabels: { type: Boolean, default: true },
-
-  // Raw printer controls (from RawPrinterControls)
-  labelWidthIn: { type: Number, default: 3.5 },
-  topMargin: { type: Number, default: 4 },
-  rowSpacingLines: { type: Number, default: 14 },
-  col2X: { type: Number, default: 255 },
-
-  // Renewal notice settings
-  renewalFontSize: { type: Number, default: 14 },
-  renewalLeftMargin: { type: Number, default: 40 },
-  renewalTopMargin: { type: Number, default: 40 },
-  renewalRightColumnPosition: { type: Number, default: 400 },
-  leftColumnLineSpacing: { type: Number, default: 8 },
-  rightColumnLineSpacing: { type: Number, default: 12 },
-  nameAddressSpacing: { type: Number, default: 24 },
-  addressContactSpacing: { type: Number, default: 30 },
-  rightColumnItemSpacing: { type: Number, default: 16 },
-  lineSpacing: { type: Number, default: 8 },
-
-  // Thank You Letter settings
-  thankYouFontSize: { type: Number, default: 14 },
-  thankYouTopMargin: { type: Number, default: 60 },
-  thankYouLeftMargin: { type: Number, default: 60 },
-  thankYouLineSpacing: { type: Number, default: 16 },
-  thankYouWidth: { type: Number, default: 400 },
-  thankYouDateSpacing: { type: Number, default: 40 },
-  thankYouGreetingSpacing: { type: Number, default: 30 },
-  thankYouContentSpacing: { type: Number, default: 20 },
-});
+// Use a flexible layout type so we only persist fields provided by the client
+// This prevents unrelated defaults (e.g., label or thank-you settings) from
+// being injected into renewal templates which only need `{ positions }`.
+const flexibleLayoutType = mongoose.Schema.Types.Mixed;
 
 const printLabelSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, default: "" },
   department: { type: String, required: true }, // Department = role
-  layout: { type: layoutSchema, required: true },
+  layout: { type: flexibleLayoutType, required: true },
   selectedFields: [{ type: String, required: true }],
   previewType: {
     type: String,
