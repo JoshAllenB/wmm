@@ -72,9 +72,9 @@ const TemplateSaver = ({
     setIsSaving(true);
 
     try {
-      // Combine all settings into a unified layout
+      // Save ONLY mailing label configuration in this component
       const unifiedLayout = {
-        // Standard mailing label settings
+        // Mailing label layout
         fontSize,
         leftPosition,
         topPosition,
@@ -82,53 +82,11 @@ const TemplateSaver = ({
         labelHeight,
         horizontalSpacing,
         rowSpacing,
-
-        // Paper settings
+        // Paper/page layout
         paperWidth,
         paperHeight,
         rowsPerPage,
         columnsPerPage,
-
-        // Raw printer controls
-        labelWidthIn: labelAdjustments?.labelWidthIn || 3.5,
-        topMargin: labelAdjustments?.topMargin || 4,
-        rowSpacingLines: labelAdjustments?.rowSpacing || 14,
-        col2X: labelAdjustments?.col2X || 255,
-
-        // Default values for other settings
-        dataVerticalSpacing: 4,
-        dataHorizontalSpacing: 0,
-        contentLeftMargin: 4,
-        contentRightMargin: 4,
-        contentTopMargin: 4,
-        labelsToSkip: 0,
-        labelsPerPage: 16,
-        verticalGap: 0,
-        fixedLabelWidth: 192,
-        fixedLabelHeight: 96,
-        showFixedLabels: true,
-
-        // Renewal notice settings (defaults)
-        renewalFontSize: 14,
-        renewalLeftMargin: 40,
-        renewalTopMargin: 40,
-        renewalRightColumnPosition: 400,
-        leftColumnLineSpacing: 8,
-        rightColumnLineSpacing: 12,
-        nameAddressSpacing: 24,
-        addressContactSpacing: 30,
-        rightColumnItemSpacing: 16,
-        lineSpacing: 8,
-
-        // Thank you letter settings (defaults)
-        thankYouFontSize: 14,
-        thankYouTopMargin: 60,
-        thankYouLeftMargin: 60,
-        thankYouLineSpacing: 16,
-        thankYouWidth: 400,
-        thankYouDateSpacing: 40,
-        thankYouGreetingSpacing: 30,
-        thankYouContentSpacing: 20,
       };
 
       const newTemplate = {

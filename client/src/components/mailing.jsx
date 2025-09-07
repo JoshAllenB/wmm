@@ -448,8 +448,10 @@ const Mailing = ({
       );
       const templatesData = templatesResponse.data;
 
-      // Add the templates to state
-      const validTemplates = Array.isArray(templatesData) ? templatesData : [];
+      // Add the templates to state (filter to label/standard only)
+      const validTemplates = (
+        Array.isArray(templatesData) ? templatesData : []
+      ).filter((t) => (t.previewType || "standard") === "standard");
 
       // If no templates were found, add a default template
       if (validTemplates.length === 0) {
@@ -476,6 +478,7 @@ const Mailing = ({
             col2X: 255,
           },
           selectedFields: ["cellno"],
+          previewType: "standard",
         });
       }
 
@@ -508,6 +511,7 @@ const Mailing = ({
             col2X: 255,
           },
           selectedFields: ["cellno"],
+          previewType: "standard",
         },
       ]);
     } finally {
