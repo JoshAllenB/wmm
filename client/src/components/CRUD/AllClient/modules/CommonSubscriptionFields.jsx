@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import InputField from "../../input.jsx";
 
 const CommonSubscriptionFields = ({
@@ -8,9 +8,101 @@ const CommonSubscriptionFields = ({
   handleRoleSpecificChange,
   months,
 }) => {
+  // Function to calculate end date with April/May always treated as one month
+  const calculateEndDate = () => {
+    const { subStartMonth, subStartDay, subStartYear, subscriptionFreq } =
+      formData;
+
+    if (!subStartMonth || !subStartDay || !subStartYear || !subscriptionFreq)
+      return;
+
+    const startMonth = parseInt(subStartMonth);
+    const startDay = parseInt(subStartDay);
+    const startYear = parseInt(subStartYear);
+    const frequency = parseInt(subscriptionFreq);
+
+    if (
+      isNaN(startMonth) ||
+      isNaN(startDay) ||
+      isNaN(startYear) ||
+      isNaN(frequency)
+    )
+      return;
+
+    let currentMonth = startMonth;
+    let currentYear = startYear;
+    let monthsRemaining = frequency;
+
+    // Count the starting month
+    if (monthsRemaining > 0) {
+      monthsRemaining--;
+    }
+
+    // Add remaining months, skipping May entirely
+    while (monthsRemaining > 0) {
+      currentMonth++;
+
+      // Always skip May (April/May are treated as one month)
+      if (currentMonth === 5) {
+        currentMonth = 6; // Skip from April to June
+      }
+
+      if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+      }
+
+      monthsRemaining--;
+    }
+
+    // Handle day overflow
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const endDay = Math.min(startDay, daysInMonth);
+
+    // Update form data
+    handleChange({
+      target: {
+        name: "subEndMonth",
+        value: currentMonth.toString().padStart(2, "0"),
+      },
+    });
+
+    handleChange({
+      target: {
+        name: "subEndDay",
+        value: endDay.toString().padStart(2, "0"),
+      },
+    });
+
+    handleChange({
+      target: {
+        name: "subEndYear",
+        value: currentYear.toString(),
+      },
+    });
+  };
+
+  // Calculate end date when start date or frequency changes
+  useEffect(() => {
+    if (
+      formData.subStartMonth &&
+      formData.subStartDay &&
+      formData.subStartYear &&
+      formData.subscriptionFreq
+    ) {
+      calculateEndDate();
+    }
+  }, [
+    formData.subStartMonth,
+    formData.subStartDay,
+    formData.subStartYear,
+    formData.subscriptionFreq,
+  ]);
+
+  // Rest of the component remains the same...
   return (
     <>
-      {/* Start Date - Common for all types */}
+      {/* Start Date */}
       <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Subscription Start: <span className="text-red-500 ml-1">*</span>
@@ -55,7 +147,7 @@ const CommonSubscriptionFields = ({
         </div>
       </div>
 
-      {/* Common fields for all subscription types */}
+      {/* Subscription Duration */}
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Subscription Duration: <span className="text-red-500 ml-1">*</span>
@@ -68,14 +160,14 @@ const CommonSubscriptionFields = ({
           className="w-full p-2 border rounded-md text-base"
         >
           <option value="">Select Subscription Duration</option>
-          <option value="5">6 Months</option>
+          <option value="6">6 Months</option>
           <option value="11">1 Year</option>
           <option value="22">2 Years</option>
           <option value="others">Others</option>
         </select>
       </div>
 
-      {/* End Date - Common for all types */}
+      {/* End Date */}
       <div className="mb-2">
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Subscription End: <span className="text-red-500 ml-1">*</span>
@@ -120,7 +212,7 @@ const CommonSubscriptionFields = ({
         </div>
       </div>
 
-      {/* Common fields for copies and calendar */}
+      {/* Copies and Calendar */}
       <div className="flex space-x-4 mb-4">
         <div className="flex flex-row items-center justify-center gap-2">
           <label className="block text-lg font-medium leading-6 text-black">
@@ -151,7 +243,7 @@ const CommonSubscriptionFields = ({
         </div>
       </div>
 
-      {/* Remarks field - Common for all types */}
+      {/* Remarks field */}
       <div className="mt-4">
         <InputField
           label="Remarks:"

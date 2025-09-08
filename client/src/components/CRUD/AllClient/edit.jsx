@@ -223,7 +223,6 @@ const Edit = ({
 
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
-  const [subscriptionFreq, setSubscriptionFreq] = useState("");
   const [groups, setGroups] = useState([]);
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
@@ -1172,92 +1171,6 @@ const Edit = ({
     return `${month} ${day}, ${year}`;
   };
 
-  const calculateEndMonth = (startDate, monthsToAdd) => {
-    if (!startDate || !monthsToAdd) return null;
-
-    try {
-      // Use our parse function to ensure consistent date handling
-      let start;
-      if (typeof startDate === "string") {
-        start = parseDate(startDate);
-      } else {
-        start = new Date(startDate);
-      }
-
-      if (!start || isNaN(start.getTime())) {
-        throw new Error("Invalid start date");
-      }
-
-      // Create a new date object and add months
-      const endDate = new Date(start);
-      endDate.setMonth(endDate.getMonth() + parseInt(monthsToAdd));
-
-      // Keep the same day of the month to count full months correctly
-      // For example, April 15 + 1 month = May 15
-
-      return endDate;
-    } catch (error) {
-      console.error("Error calculating end date:", error);
-      return null;
-    }
-  };
-
-  // Helper function to calculate and update end date based on start date and duration
-  const calculateAndUpdateEndDate = (
-    startDate,
-    duration,
-    updateRoleSpecific = true
-  ) => {
-    if (!startDate || !duration) return null;
-
-    const monthsToAdd = parseInt(duration);
-
-    // Check if the duration is a valid number (not NaN)
-    if (isNaN(monthsToAdd)) {
-      // If duration is "others" or invalid, clear the end date fields
-      if (updateRoleSpecific) {
-        setTimeout(() => {
-          setRoleSpecificData((prev) => ({
-            ...prev,
-            enddate: "",
-          }));
-        }, 0);
-      }
-
-      return {
-        subEndMonth: "",
-        subEndDay: "",
-        subEndYear: "",
-        subscriptionEnd: "",
-      };
-    }
-
-    const endDate = calculateEndMonth(startDate, monthsToAdd);
-
-    // Format end date parts
-    const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
-    const endDay = String(endDate.getDate()).padStart(2, "0");
-    const endYear = String(endDate.getFullYear());
-
-    const endDateString = `${endMonth}/${endDay}/${endYear}`;
-
-    if (updateRoleSpecific) {
-      setTimeout(() => {
-        setRoleSpecificData((prev) => ({
-          ...prev,
-          enddate: formatDateToMonthYear(endDate),
-        }));
-      }, 0);
-    }
-
-    return {
-      subEndMonth: endMonth,
-      subEndDay: endDay,
-      subEndYear: endYear,
-      subscriptionEnd: endDateString,
-    };
-  };
-
   // Update handleChange to ensure values are never undefined
   const handleChange = async (e) => {
     const { name, value } = e.target;
@@ -1280,116 +1193,6 @@ const Edit = ({
 
         return newData;
       });
-      return;
-    }
-
-    // Handle subscription start date parts
-    if (
-      name === "subStartMonth" ||
-      name === "subStartDay" ||
-      name === "subStartYear"
-    ) {
-      setFormData((prevData) => {
-        const newData = {
-          ...prevData,
-          [name]: cleanDateInput(safeValue),
-        };
-
-        // Combine the date parts into subscriptionStart if all are present
-        if (
-          newData.subStartMonth &&
-          newData.subStartDay &&
-          newData.subStartYear
-        ) {
-          newData.subscriptionStart = `${newData.subStartMonth}/${newData.subStartDay}/${newData.subStartYear}`;
-        } else {
-          newData.subscriptionStart = "";
-        }
-
-        return newData;
-      });
-      return;
-    }
-
-    // Handle subscription end date parts
-    if (
-      name === "subEndMonth" ||
-      name === "subEndDay" ||
-      name === "subEndYear"
-    ) {
-      setFormData((prevData) => {
-        const newData = {
-          ...prevData,
-          [name]: cleanDateInput(safeValue),
-        };
-
-        // Combine the date parts into subscriptionEnd if all are present
-        if (newData.subEndMonth && newData.subEndDay && newData.subEndYear) {
-          newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
-        } else {
-          newData.subscriptionEnd = "";
-        }
-
-        return newData;
-      });
-      return;
-    }
-
-    // Handle subscription frequency change
-    if (name === "subscriptionFreq") {
-      setFormData((prevData) => {
-        const newData = { ...prevData, subscriptionFreq: value };
-
-        // Check if we have a valid start date already set by the user
-        let subscriptionStart;
-
-        if (
-          newData.subStartMonth &&
-          newData.subStartDay &&
-          newData.subStartYear
-        ) {
-          // Use the existing start date that user has set
-          subscriptionStart = new Date(
-            parseInt(newData.subStartYear),
-            parseInt(newData.subStartMonth) - 1,
-            parseInt(newData.subStartDay)
-          );
-        } else {
-          // No start date set, use today's date as default
-          subscriptionStart = new Date();
-
-          // Update the start date fields with today's date
-          const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
-            2,
-            "0"
-          );
-          const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
-          const startYear = String(subscriptionStart.getFullYear());
-
-          newData.subStartMonth = startMonth;
-          newData.subStartDay = startDay;
-          newData.subStartYear = startYear;
-          newData.subscriptionStart = `${startMonth}/${startDay}/${startYear}`;
-        }
-
-        // Calculate end date based on the start date and duration
-        const endDateData = calculateAndUpdateEndDate(subscriptionStart, value);
-        if (endDateData) {
-          Object.assign(newData, endDateData);
-        }
-
-        // Update roleSpecificData with the start date
-        setTimeout(() => {
-          setRoleSpecificData((prev) => ({
-            ...prev,
-            subsdate: formatDateToMonthYear(subscriptionStart),
-            copies: prev.copies || 1,
-          }));
-        }, 0);
-
-        return newData;
-      });
-
       return;
     }
 
@@ -1476,8 +1279,10 @@ const Edit = ({
 
       // When CAL qty/unit changes, only store unit cost under calamt (UI total is display-only)
       if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
-        const calqty = parseFloat(name === "calqty" ? value : newData.calqty) || 0;
-        const calunit = parseFloat(name === "calunit" ? value : newData.calunit) || 0;
+        const calqty =
+          parseFloat(name === "calqty" ? value : newData.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : newData.calunit) || 0;
         // Ensure unit cost is saved under calamt
         newData.calamt = (parseFloat(newData.calunit) || 0).toString();
       }
@@ -1646,8 +1451,10 @@ const Edit = ({
 
       // When CAL qty/unit changes, only store unit cost under calamt (UI total is display-only)
       if (name === "calqty" || name === "calunit") {
-        const calqty = parseFloat(name === "calqty" ? value : updated.calqty) || 0;
-        const calunit = parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        const calqty =
+          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
         updated.calamt = calunit.toString();
       }
 
@@ -2630,141 +2437,12 @@ const Edit = ({
         else if (diffMonths >= 5 && diffMonths <= 7) frequency = "5";
 
         if (frequency) {
-          setSubscriptionFreq(frequency);
           setFormData((prev) => ({
             ...prev,
             subscriptionFreq: frequency,
           }));
         }
       }
-    }
-  };
-
-  const handleSubscriptionFreqChange = (e) => {
-    const freq = e.target.value;
-    setSubscriptionFreq(freq);
-
-    // Handle "others" case by clearing end date fields
-    if (freq === "others") {
-      // Clear end date fields when "others" is selected
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        enddate: "",
-        endDateMonth: "",
-        endDateDay: "",
-        endDateYear: "",
-        subsyear: 0,
-      }));
-
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: freq,
-        subscriptionEnd: "",
-        subEndMonth: "",
-        subEndDay: "",
-        subEndYear: "",
-      }));
-
-      return;
-    }
-
-    // Get months to add based on frequency
-    let monthsToAdd;
-    if (freq === "5") monthsToAdd = 6;
-    else if (freq === "11") monthsToAdd = 12;
-    else if (freq === "22") monthsToAdd = 24;
-    else return; // Return if not a standard option
-
-    // Handle different subscription modes
-    if (subscriptionMode === "edit" && selectedSubscription) {
-      // When editing existing subscription
-      let startDate = parseDate(roleSpecificData.subsdate);
-
-      if (!startDate || isNaN(startDate.getTime())) {
-        // If no valid start date, use today
-        startDate = new Date();
-      }
-
-      // Calculate end date preserving the day of month
-      const newEndDate = calculateEndMonth(startDate, monthsToAdd);
-
-      if (!newEndDate) return; // Safety check
-
-      // Format for display
-      const formattedDate = formatDateToMMDDYY(newEndDate);
-
-      // Extract month, day, year for end date
-      const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
-      const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
-      const endDateYear = String(newEndDate.getFullYear());
-
-      // Update state with both formatted date and components
-      setRoleSpecificData((prev) => ({
-        ...prev,
-        enddate: formattedDate,
-        endDateMonth,
-        endDateDay,
-        endDateYear,
-        subsyear: monthsToAdd === 12 ? 1 : monthsToAdd === 24 ? 2 : 0.5,
-      }));
-
-      // Also update formData for consistency
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: freq,
-        subscriptionEnd: formattedDate,
-        subEndMonth: endDateMonth,
-        subEndDay: endDateDay,
-        subEndYear: endDateYear,
-      }));
-    } else {
-      // Handle new subscription
-      let startDate = parseDate(newSubscription.subsdate);
-
-      if (!startDate || isNaN(startDate.getTime())) {
-        // If no valid start date, use today
-        startDate = new Date();
-
-        // Also update the start date in newSubscription
-        const today = new Date();
-        const startMonth = String(today.getMonth() + 1).padStart(2, "0");
-        const startDay = String(today.getDate()).padStart(2, "0");
-        const startYear = String(today.getFullYear());
-        const formattedStartDate = `${startMonth}/${startDay}/${startYear}`;
-
-        setTimeout(() => {
-          setNewSubscription((prev) => ({
-            ...prev,
-            subsdate: formattedStartDate,
-            subsDateMonth: startMonth,
-            subsDateDay: startDay,
-            subsDateYear: startYear,
-          }));
-        }, 0);
-      }
-
-      // Calculate end date preserving the day of month
-      const newEndDate = calculateEndMonth(startDate, monthsToAdd);
-
-      if (!newEndDate) return; // Safety check
-
-      // Format for display
-      const formattedDate = formatDateToMMDDYY(newEndDate);
-
-      // Extract month, day, year for end date
-      const endDateMonth = String(newEndDate.getMonth() + 1).padStart(2, "0");
-      const endDateDay = String(newEndDate.getDate()).padStart(2, "0");
-      const endDateYear = String(newEndDate.getFullYear());
-
-      // Update state with both formatted date and components
-      setNewSubscription((prev) => ({
-        ...prev,
-        enddate: formattedDate,
-        endDateMonth,
-        endDateDay,
-        endDateYear,
-        subsyear: monthsToAdd === 12 ? 1 : monthsToAdd === 24 ? 2 : 0.5,
-      }));
     }
   };
 

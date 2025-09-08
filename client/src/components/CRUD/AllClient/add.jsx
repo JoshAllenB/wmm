@@ -488,82 +488,6 @@ const Add = ({
     setShowConfirmation(false);
   };
 
-  const formatDateToMonthYear = (date) => {
-    const d = new Date(date);
-    const month = d.getMonth() + 1;
-    const day = d.getDate();
-    const year = d.getFullYear().toString().slice(-2);
-    return `${month}/${day}/${year}`;
-  };
-
-  const calculateEndMonth = (startDate, monthsToAdd) => {
-    const start = new Date(startDate);
-    // Create a new end date by adding months
-    const endDate = new Date(start);
-    endDate.setMonth(endDate.getMonth() + monthsToAdd);
-
-    // Keep the same day of the month to count full months correctly
-    // For example, April 15 + 1 month = May 15
-
-    return endDate;
-  };
-
-  // Helper function to calculate and update end date based on start date and duration
-  const calculateAndUpdateEndDate = (
-    startDate,
-    duration,
-    updateRoleSpecific = true
-  ) => {
-    if (!startDate || !duration) return null;
-
-    const monthsToAdd = parseInt(duration);
-
-    // Check if the duration is a valid number (not NaN)
-    if (isNaN(monthsToAdd)) {
-      // If duration is "others" or invalid, clear the end date fields
-      if (updateRoleSpecific) {
-        setTimeout(() => {
-          setRoleSpecificData((prev) => ({
-            ...prev,
-            enddate: "",
-          }));
-        }, 0);
-      }
-
-      return {
-        subEndMonth: "",
-        subEndDay: "",
-        subEndYear: "",
-        subscriptionEnd: "",
-      };
-    }
-
-    const endDate = calculateEndMonth(startDate, monthsToAdd);
-
-    // Format end date parts
-    const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
-    const endDay = String(endDate.getDate()).padStart(2, "0");
-    const endYear = String(endDate.getFullYear());
-
-    const endDateString = `${endMonth}/${endDay}/${endYear}`;
-
-    if (updateRoleSpecific) {
-      setTimeout(() => {
-        setRoleSpecificData((prev) => ({
-          ...prev,
-          enddate: formatDateToMonthYear(endDate),
-        }));
-      }, 0);
-    }
-
-    return {
-      subEndMonth: endMonth,
-      subEndDay: endDay,
-      subEndYear: endYear,
-      subscriptionEnd: endDateString,
-    };
-  };
-
   // Moved to duplicateLogic.js
 
   // Moved to duplicateLogic.js
@@ -658,161 +582,8 @@ const Add = ({
       return;
     }
 
-    // Handle subscription start date parts
-    if (
-      name === "subStartMonth" ||
-      name === "subStartDay" ||
-      name === "subStartYear"
-    ) {
-      setFormData((prevData) => {
-        const newData = {
-          ...prevData,
-          [name]: cleanDateInput(value),
-        };
-
-        // Combine the date parts into subscriptionStart if all are present
-        if (
-          newData.subStartMonth &&
-          newData.subStartDay &&
-          newData.subStartYear
-        ) {
-          newData.subscriptionStart = `${newData.subStartMonth}/${newData.subStartDay}/${newData.subStartYear}`;
-
-          // If frequency is selected, recalculate end date based on the new start date
-          if (newData.subscriptionFreq) {
-            const startDate = new Date(
-              parseInt(cleanDateInput(newData.subStartYear)),
-              parseInt(cleanDateInput(newData.subStartMonth)) - 1,
-              parseInt(cleanDateInput(newData.subStartDay))
-            );
-
-            const endDateData = calculateAndUpdateEndDate(
-              startDate,
-              newData.subscriptionFreq
-            );
-            if (endDateData) {
-              Object.assign(newData, endDateData);
-            }
-
-            // Also update roleSpecificData with start date
-            setTimeout(() => {
-              setRoleSpecificData((prev) => ({
-                ...prev,
-                subsdate: newData.subscriptionStart,
-              }));
-            }, 0);
-          }
-        } else {
-          newData.subscriptionStart = "";
-          // Clear end date if start date is incomplete
-          newData.subEndMonth = "";
-          newData.subEndDay = "";
-          newData.subEndYear = "";
-          newData.subscriptionEnd = "";
-        }
-
-        return newData;
-      });
-
-      return;
-    }
-
-    // Handle subscription end date parts
-    if (
-      name === "subEndMonth" ||
-      name === "subEndDay" ||
-      name === "subEndYear"
-    ) {
-      setFormData((prevData) => {
-        const newData = {
-          ...prevData,
-          [name]: cleanDateInput(value),
-        };
-
-        // Combine the date parts into subscriptionEnd if all are present
-        if (newData.subEndMonth && newData.subEndDay && newData.subEndYear) {
-          newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
-        } else {
-          newData.subscriptionEnd = "";
-        }
-
-        return newData;
-      });
-
-      return;
-    }
-
-    if (name === "subscriptionFreq") {
-      setFormData((prevData) => {
-        const newData = { ...prevData, subscriptionFreq: value };
-
-        // Check if we have a valid start date already set by the user
-        let subscriptionStart;
-
-        if (
-          newData.subStartMonth &&
-          newData.subStartDay &&
-          newData.subStartYear
-        ) {
-          // Use the existing start date that user has set
-          subscriptionStart = new Date(
-            parseInt(cleanDateInput(newData.subStartYear)),
-            parseInt(cleanDateInput(newData.subStartMonth)) - 1,
-            parseInt(cleanDateInput(newData.subStartDay))
-          );
-        } else {
-          // No start date set, use today's date as default
-          subscriptionStart = new Date();
-
-          // Update the start date fields with today's date
-          const startMonth = String(subscriptionStart.getMonth() + 1).padStart(
-            2,
-            "0"
-          );
-          const startDay = String(subscriptionStart.getDate()).padStart(2, "0");
-          const startYear = String(subscriptionStart.getFullYear());
-
-          newData.subStartMonth = startMonth;
-          newData.subStartDay = startDay;
-          newData.subStartYear = startYear;
-          newData.subscriptionStart = `${startMonth}/${startDay}/${startYear}`;
-        }
-
-        // Calculate end date based on the start date and duration
-        const endDateData = calculateAndUpdateEndDate(subscriptionStart, value);
-        if (endDateData) {
-          Object.assign(newData, endDateData);
-        }
-
-        // Update roleSpecificData with the start date
-        setTimeout(() => {
-          setRoleSpecificData((prev) => ({
-            ...prev,
-            subsdate: formatDateToMonthYear(subscriptionStart),
-            copies: prev.copies || 1,
-          }));
-        }, 0);
-
-        return newData;
-      });
-
-      return;
-    }
-
     if (name === "renewalType") {
       setRenewalType(value);
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: "",
-        subscriptionStart: "",
-        subscriptionEnd: "",
-        subStartMonth: "",
-        subStartDay: "",
-        subStartYear: "",
-        subEndMonth: "",
-        subEndDay: "",
-        subEndYear: "",
-      }));
       return;
     }
 
@@ -1120,8 +891,10 @@ const Add = ({
 
       // When CAL qty/unit changes, keep calamt synced to unit price only (no auto paymtamt)
       if (selectedRole === "CAL" && (name === "calqty" || name === "calunit")) {
-        const calqty = parseFloat(name === "calqty" ? value : updated.calqty) || 0;
-        const calunit = parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        const calqty =
+          parseFloat(name === "calqty" ? value : updated.calqty) || 0;
+        const calunit =
+          parseFloat(name === "calunit" ? value : updated.calunit) || 0;
         // store unit cost under calamt; do not auto-set paymtamt
         updated.calamt = calunit.toString();
       }
