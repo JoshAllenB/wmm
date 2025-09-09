@@ -395,7 +395,10 @@ const Mailing = ({
         {
           filter: filtering,
           group: selectedGroup,
-          advancedFilterData,
+          advancedFilterData: {
+            ...advancedFilterData,
+            subscriptionType, // Include subscription type for proper data fetching
+          },
           batchSize: 1000, // Use optimized batch size
           enableBatchProcessing: true, // Enable batch processing
         },
@@ -1028,7 +1031,10 @@ const Mailing = ({
         {
           filter: filtering,
           group: selectedGroup,
-          advancedFilterData,
+          advancedFilterData: {
+            ...advancedFilterData,
+            subscriptionType, // Include subscription type for proper data fetching
+          },
           batchSize: 1000, // Use optimized batch size
           enableBatchProcessing: true, // Enable batch processing
         },
