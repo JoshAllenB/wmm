@@ -403,12 +403,9 @@ const Add = ({
       subscriptionStart: "",
       subscriptionEnd: "",
       subsclass: "",
-      subscriptionType: "None",
+      subscriptionType: subscriptionType,
       donorid: null,
     });
-
-    // Reset subscription type to None
-    setSubscriptionType("None");
 
     // Reset address data
     setAddressData({
