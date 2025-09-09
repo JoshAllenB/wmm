@@ -232,6 +232,7 @@ const AdvancedFilter = ({
   const [types, setTypes] = useState([]);
   const [users, setUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
 
   // Load subclasses, areas, and types on component mount
   useEffect(() => {
@@ -1855,23 +1856,31 @@ const AdvancedFilter = ({
               </div>
 
               {/* Client Information */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4 text-gray-700 border-b pb-2">
-                  Client Information
-                </h2>
-                <ClientInfoFilter
-                  filterData={filterData}
-                  handleChange={handleChange}
-                />
+              <div className="border rounded-md bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsClientInfoOpen((prev) => !prev)}
+                  className="w-full flex items-center justify-between px-4 py-3"
+                  aria-expanded={isClientInfoOpen}
+                  aria-controls="client-info-content"
+                >
+                  <span className="text-xl font-semibold text-gray-700">
+                    Client Information Filter
+                  </span>
+                  <span className="text-gray-500">
+                    {isClientInfoOpen ? "▾" : "▸"}
+                  </span>
+                </button>
+                {isClientInfoOpen && (
+                  <div id="client-info-content" className="px-4 pb-4">
+                    <ClientInfoFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                    />
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Keep existing Active Filters Section */}
-            {getActiveFilters().length > 0 && (
-              <div className="mt-6 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                {/* ... existing active filters code ... */}
-              </div>
-            )}
 
             <div className="mt-4 pt-4 border-t flex flex-wrap justify-end gap-3">
               <Button

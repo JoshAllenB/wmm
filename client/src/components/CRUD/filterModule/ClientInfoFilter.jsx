@@ -1,18 +1,15 @@
-const ClientInfoFilter = ({
-  filterData,
-  handleChange,
-}) => {
-  const inputClasses = "w-full p-2 border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400 transition-colors";
+const ClientInfoFilter = ({ filterData, handleChange }) => {
+  const inputClasses =
+    "w-full p-2 border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-200 hover:border-gray-400 transition-colors";
 
   return (
     <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-        Client Information
-      </h2>
       <div className="space-y-4">
         {/* Personal Information */}
         <div>
-          <h3 className="text-lg font-medium text-black mb-2">Personal Information</h3>
+          <h3 className="text-lg font-medium text-black mb-2">
+            Personal Information
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-black mb-1">
@@ -122,7 +119,9 @@ const ClientInfoFilter = ({
 
         {/* Contact Information */}
         <div>
-          <h3 className="text-lg font-medium text-black mb-2">Contact Information</h3>
+          <h3 className="text-lg font-medium text-black mb-2">
+            Contact Information
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-black mb-1">
@@ -196,4 +195,4 @@ const ClientInfoFilter = ({
   );
 };
 
-export default ClientInfoFilter; 
+export default ClientInfoFilter;
