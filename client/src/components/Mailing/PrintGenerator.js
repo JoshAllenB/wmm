@@ -243,13 +243,20 @@ export const generateLabelContent = (
   const fields = Array.isArray(selectedFields) ? selectedFields : [];
 
   const subscription = getSubscriptionData(data, subscriptionType);
-  const copies = subscription.copies ?? "N/A";
+  const hasValidCopies =
+    subscription &&
+    subscription.copies !== undefined &&
+    subscription.copies !== null &&
+    `${subscription.copies}`.trim() !== "";
+  const copies = hasValidCopies ? subscription.copies : "N/A";
   let enddate = "N/A";
+  let hasValidEnddate = false;
 
-  if (subscription.enddate) {
+  if (subscription && subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
       enddate = date.toLocaleDateString();
+      hasValidEnddate = true;
     }
   }
 
@@ -266,8 +273,16 @@ export const generateLabelContent = (
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
   const idLine = data.id || "";
+  // If subscription details are missing (no valid enddate and copies),
+  // fall back to HRG/FOM-like format: id/acode (no N/A placeholders)
+  const noValidSubscriptionInfo = !(hasValidEnddate || hasValidCopies);
+
   const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+    ? noValidSubscriptionInfo
+      ? data.acode
+        ? `/${data.acode}`
+        : ""
+      : ` - ${enddate} - ${copies}cps/${data.acode || ""}`
     : isSpecialRole && isCMCGroup
     ? `/${group}/${data.acode || ""}`
     : data.acode
@@ -343,13 +358,20 @@ const generateLabelTextContent = (
   }
 
   const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
-  const copies = subscription.copies ?? "N/A";
+  const hasValidCopies =
+    subscription &&
+    subscription.copies !== undefined &&
+    subscription.copies !== null &&
+    `${subscription.copies}`.trim() !== "";
+  const copies = hasValidCopies ? subscription.copies : "N/A";
   let enddate = "N/A";
+  let hasValidEnddate = false;
 
   if (subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
       enddate = date.toLocaleDateString();
+      hasValidEnddate = true;
     }
   }
 
@@ -367,8 +389,16 @@ const generateLabelTextContent = (
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
+  // If subscription details are missing (no valid enddate and copies),
+  // fall back to HRG/FOM-like format: id/acode (no N/A placeholders)
+  const noValidSubscriptionInfo = !(hasValidEnddate || hasValidCopies);
+
   const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+    ? noValidSubscriptionInfo
+      ? data.acode
+        ? `/${data.acode}`
+        : ""
+      : ` - ${enddate} - ${copies}cps/${data.acode || ""}`
     : isSpecialRole && isCMCGroup
     ? `/${group}/${data.acode || ""}`
     : data.acode
