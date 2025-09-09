@@ -278,23 +278,6 @@ const DateRangeFilter = ({
           Expiring Subscriptions
         </h3>
         <div className="space-y-4">
-          {/* Checkbox for expiry date range filtering */}
-          <div className="flex items-center space-x-2 mb-4">
-            <input
-              type="checkbox"
-              id="expiryDateRangeOnly"
-              name="expiryDateRangeOnly"
-              checked={filterData.expiryDateRangeOnly || false}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label
-              htmlFor="expiryDateRangeOnly"
-              className="text-sm font-medium text-gray-700"
-            >
-              Only show clients who haven't renewed beyond expiry date
-            </label>
-          </div>
           <div>
             <label className="block text-gray-700 text-sm font-medium mb-2">
               From:
@@ -372,6 +355,23 @@ const DateRangeFilter = ({
                 maxLength="4"
               />
             </div>
+          </div>
+          {/* Checkbox for expiry date range filtering */}
+          <div className="flex items-center space-x-2 mb-4">
+            <input
+              type="checkbox"
+              id="expiryDateRangeOnly"
+              name="expiryDateRangeOnly"
+              checked={filterData.expiryDateRangeOnly || false}
+              onChange={handleChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label
+              htmlFor="expiryDateRangeOnly"
+              className="text-sm font-medium text-gray-700"
+            >
+              Only show clients who haven't renewed beyond expiry date
+            </label>
           </div>
         </div>
       </div>
