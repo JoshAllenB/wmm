@@ -9,73 +9,89 @@ import ComplimentaryModel from "../../models/complimentary.mjs";
 // Address standardization utility function
 // Update the standardizeAddress function to better handle Philippine addresses
 const standardizeAddress = (address) => {
-  if (!address || typeof address !== 'string') return '';
-  
-  return address
-    .toUpperCase()
-    // Standardize Philippine-specific terms
-    .replace(/\bPRK\b|\bPUROK\b/gi, "PUROK")
-    .replace(/\bBRGY\b|\bBGY\b|\bBARANGAY\b/gi, "BARANGAY")
-    .replace(/\bSUBD\b|\bSUBDIV\b|\bSUBDIVISION\b/gi, "SUBDIVISION")
-    .replace(/\bVLG\b|\bVILL\b|\bVILLAGE\b/gi, "VILLAGE")
-    // Remove common punctuation except for slashes in lot/block numbers
-    .replace(/[.,#!$%\^&\*;:{}=\-_`~()]/g, " ")
-    // Standardize spaces
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  if (!address || typeof address !== "string") return "";
+
+  return (
+    address
+      .toUpperCase()
+      // Standardize Philippine-specific terms
+      .replace(/\bPRK\b|\bPUROK\b/gi, "PUROK")
+      .replace(/\bBRGY\b|\bBGY\b|\bBARANGAY\b/gi, "BARANGAY")
+      .replace(/\bSUBD\b|\bSUBDIV\b|\bSUBDIVISION\b/gi, "SUBDIVISION")
+      .replace(/\bVLG\b|\bVILL\b|\bVILLAGE\b/gi, "VILLAGE")
+      // Remove common punctuation except for slashes in lot/block numbers
+      .replace(/[.,#!$%\^&\*;:{}=\-_`~()]/g, " ")
+      // Standardize spaces
+      .replace(/\s{2,}/g, " ")
+      .trim()
+  );
 };
 
 // Add a function to extract address components
 const extractAddressComponents = (address) => {
   if (!address) return {};
-  
-  const lines = address.split('\n').map(line => line.trim()).filter(line => line);
+
+  const lines = address
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line);
   const components = {
-    housestreet: lines[0] || '',
-    subdivision: lines[1] || '',
-    barangay: lines[2] || '',
+    housestreet: lines[0] || "",
+    subdivision: lines[1] || "",
+    barangay: lines[2] || "",
   };
-  
+
   return components;
 };
 
 // Extract address tokens for partial matching
 const getAddressTokens = (address) => {
-  if (!address || typeof address !== 'string') return [];
-  
+  if (!address || typeof address !== "string") return [];
+
   const standardized = standardizeAddress(address);
-  
+
   // Split by spaces and filter out short words and numbers-only tokens
-  return standardized
-    .split(/\s+/)
-    .filter(token => 
+  return standardized.split(/\s+/).filter(
+    (token) =>
       token.length > 2 && // Keep minimum 2 chars for Ph abbreviations
       !/^\d+$/.test(token) && // Exclude tokens that are just numbers
-      !['STREET', 'AVENUE', 'ROAD', 'THE', 'AND', 
-        'SUBDIVISION', 'VILLAGE', 'BARANGAY', 'PUROK', 'PHASE', 'BLOCK', 'LOT',
-        'BUILDING'].includes(token) // Exclude common Philippine address terms
-    );
+      ![
+        "STREET",
+        "AVENUE",
+        "ROAD",
+        "THE",
+        "AND",
+        "SUBDIVISION",
+        "VILLAGE",
+        "BARANGAY",
+        "PUROK",
+        "PHASE",
+        "BLOCK",
+        "LOT",
+        "BUILDING",
+      ].includes(token) // Exclude common Philippine address terms
+  );
 };
 
 // Helper function to standardize address components
 const standardizeAddressComponents = (components) => {
   if (!components) return {};
-  
+
   // Helper to clean city/municipality names
   const cleanCityName = (city) => {
-    if (!city) return '';
+    if (!city) return "";
     return city
       .toUpperCase()
-      .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, '')
+      .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, "")
       .trim();
   };
-  
+
   return {
-    housestreet: standardizeAddress(components.housestreet || ''),
-    subdivision: standardizeAddress(components.subdivision || ''),
-    barangay: standardizeAddress(components.barangay || ''),
-    city: cleanCityName(components.city || ''),
-    province: standardizeAddress(components.province || '')
+    housestreet: standardizeAddress(components.housestreet || ""),
+    subdivision: standardizeAddress(components.subdivision || ""),
+    barangay: standardizeAddress(components.barangay || ""),
+    city: cleanCityName(components.city || ""),
+    province: standardizeAddress(components.province || ""),
   };
 };
 
@@ -95,30 +111,50 @@ export async function checkDuplicates({
   acode,
   company,
   priorities,
-  searchPrecision
+  searchPrecision,
 }) {
   // Track if we have any significant data to search with
   let hasSearchableData = false;
-  
+
   // Check for the presence of any of the specified fields
   const hasLname = lname && lname.length >= 2;
   const hasFname = fname && fname.length >= 2;
   const hasAddress = address && address.length >= 3;
-  const hasHouseStreet = addressComponents?.housestreet && addressComponents.housestreet.length >= 2;
-  const hasSubdivision = addressComponents?.subdivision && addressComponents.subdivision.length >= 2;
-  const hasBarangay = addressComponents?.barangay && addressComponents.barangay.length >= 2;
-  const hasPhone = (cellno && cellno.length >= 5) || (contactnos && contactnos.length >= 3);
-  const hasBdate = (bdate && bdate.length > 0) || (bdateMonth && bdateDay && bdateYear);
+  const hasHouseStreet =
+    addressComponents?.housestreet && addressComponents.housestreet.length >= 2;
+  const hasSubdivision =
+    addressComponents?.subdivision && addressComponents.subdivision.length >= 2;
+  const hasBarangay =
+    addressComponents?.barangay && addressComponents.barangay.length >= 2;
+  const hasPhone =
+    (cellno && cellno.length >= 5) || (contactnos && contactnos.length >= 3);
+  const hasBdate =
+    (bdate && bdate.length > 0) || (bdateMonth && bdateDay && bdateYear);
 
   // If none of the specified fields are present, return empty results
-  if (!hasLname && !hasFname && !hasHouseStreet && !hasSubdivision && !hasBarangay && !hasPhone && !hasBdate) {
+  if (
+    !hasLname &&
+    !hasFname &&
+    !hasHouseStreet &&
+    !hasSubdivision &&
+    !hasBarangay &&
+    !hasPhone &&
+    !hasBdate
+  ) {
     return { matches: [] };
   }
 
   // Calculate search precision level based on key fields
-  const filledFieldsCount = [hasLname, hasFname, hasHouseStreet, hasSubdivision, hasBarangay, hasPhone, hasBdate]
-    .filter(Boolean).length;
-  
+  const filledFieldsCount = [
+    hasLname,
+    hasFname,
+    hasHouseStreet,
+    hasSubdivision,
+    hasBarangay,
+    hasPhone,
+    hasBdate,
+  ].filter(Boolean).length;
+
   // Adjust search strategy based on available data
   const isHighPrecision = filledFieldsCount >= 3;
   const isMediumPrecision = filledFieldsCount >= 2;
@@ -134,11 +170,11 @@ export async function checkDuplicates({
   if (hasFname) {
     query.$or.push({ fname: fname });
     query.$or.push({ fname: { $regex: new RegExp(`^${fname}`, "i") } });
-    
+
     // Adjust first name scoring based on precision
     const fnameExactScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
     const fnamePartialScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 6;
-    
+
     scoringPipeline.push({
       $addFields: {
         fnameMatch: {
@@ -168,11 +204,15 @@ export async function checkDuplicates({
   if (hasLname) {
     query.$or.push({ lname: lname });
     query.$or.push({ lname: { $regex: new RegExp(`^${lname}`, "i") } });
-    
+
     // Adjust scoring based on precision level
     const lnameExactScore = isHighPrecision ? 25 : isMediumPrecision ? 20 : 15;
-    const lnamePartialScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
-    
+    const lnamePartialScore = isHighPrecision
+      ? 20
+      : isMediumPrecision
+      ? 15
+      : 10;
+
     scoringPipeline.push({
       $addFields: {
         lnameMatch: {
@@ -195,53 +235,82 @@ export async function checkDuplicates({
         },
       },
     });
-    
+
     hasSearchableData = true;
   }
 
   // Address matching with standardization and components
-  const clientStandardizedAddress = standardizedAddress || (address ? standardizeAddress(address) : '');
-  const standardizedComponents = standardizeAddressComponents(addressComponents);
-  
+  const clientStandardizedAddress =
+    standardizedAddress || (address ? standardizeAddress(address) : "");
+  const standardizedComponents =
+    standardizeAddressComponents(addressComponents);
+
   // Process address components
   try {
     // Match on full standardized address if available
     if (clientStandardizedAddress) {
-      query.$or.push({ 
-        address: { 
-          $regex: new RegExp(clientStandardizedAddress.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), "i") 
-        } 
+      query.$or.push({
+        address: {
+          $regex: new RegExp(
+            clientStandardizedAddress.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"),
+            "i"
+          ),
+        },
       });
       hasSearchableData = true;
     }
 
     // Match on individual components - each can trigger a search independently
     if (standardizedComponents.housestreet) {
-      query.$or.push({ 
+      query.$or.push({
         $or: [
-          { address: { $regex: new RegExp(standardizedComponents.housestreet, "i") } },
-          { housestreet: { $regex: new RegExp(standardizedComponents.housestreet, "i") } }
-        ]
+          {
+            address: {
+              $regex: new RegExp(standardizedComponents.housestreet, "i"),
+            },
+          },
+          {
+            housestreet: {
+              $regex: new RegExp(standardizedComponents.housestreet, "i"),
+            },
+          },
+        ],
       });
       hasSearchableData = true;
     }
-    
+
     if (standardizedComponents.subdivision) {
-      query.$or.push({ 
+      query.$or.push({
         $or: [
-          { address: { $regex: new RegExp(standardizedComponents.subdivision, "i") } },
-          { subdivision: { $regex: new RegExp(standardizedComponents.subdivision, "i") } }
-        ]
+          {
+            address: {
+              $regex: new RegExp(standardizedComponents.subdivision, "i"),
+            },
+          },
+          {
+            subdivision: {
+              $regex: new RegExp(standardizedComponents.subdivision, "i"),
+            },
+          },
+        ],
       });
       hasSearchableData = true;
     }
-    
+
     if (standardizedComponents.barangay) {
-      query.$or.push({ 
+      query.$or.push({
         $or: [
-          { address: { $regex: new RegExp(standardizedComponents.barangay, "i") } },
-          { barangay: { $regex: new RegExp(standardizedComponents.barangay, "i") } }
-        ]
+          {
+            address: {
+              $regex: new RegExp(standardizedComponents.barangay, "i"),
+            },
+          },
+          {
+            barangay: {
+              $regex: new RegExp(standardizedComponents.barangay, "i"),
+            },
+          },
+        ],
       });
       hasSearchableData = true;
     }
@@ -258,18 +327,31 @@ export async function checkDuplicates({
 
     // Add scoring for address matches with precision-based scoring
     const addressFullScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
-    const addressPartialScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
-    const addressComponentScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 6;
+    const addressPartialScore = isHighPrecision
+      ? 15
+      : isMediumPrecision
+      ? 10
+      : 8;
+    const addressComponentScore = isHighPrecision
+      ? 12
+      : isMediumPrecision
+      ? 8
+      : 6;
     const addressCityScore = isHighPrecision ? 10 : isMediumPrecision ? 7 : 5;
-    const addressProvinceScore = isHighPrecision ? 8 : isMediumPrecision ? 5 : 3;
-    
+    const addressProvinceScore = isHighPrecision
+      ? 8
+      : isMediumPrecision
+      ? 5
+      : 3;
+
     // Only add address scoring if we have any address data
-    const hasAddressData = clientStandardizedAddress || 
-                          standardizedComponents.housestreet || 
-                          standardizedComponents.subdivision || 
-                          standardizedComponents.barangay || 
-                          standardizedComponents.city || 
-                          standardizedComponents.province;
+    const hasAddressData =
+      clientStandardizedAddress ||
+      standardizedComponents.housestreet ||
+      standardizedComponents.subdivision ||
+      standardizedComponents.barangay ||
+      standardizedComponents.city ||
+      standardizedComponents.province;
 
     if (hasAddressData) {
       scoringPipeline.push({
@@ -277,79 +359,106 @@ export async function checkDuplicates({
           addressMatch: {
             $sum: [
               // Full address match - only if we have a client address
-              ...(clientStandardizedAddress ? [{
-                $cond: [
-                  { $eq: ["$address", clientStandardizedAddress] },
-                  addressFullScore,
-                  { 
-                    $cond: [
-                      { 
-                        $and: [
-                          { $ne: ["$address", ""] },
-                          { 
-                            $regexMatch: {
-                              input: "$address",
-                              regex: new RegExp(clientStandardizedAddress, "i")
-                            }
-                          }
-                        ]
-                      },
-                      addressPartialScore,
-                      0
-                    ]
-                  }
-                ]
-              }] : []),
+              ...(clientStandardizedAddress
+                ? [
+                    {
+                      $cond: [
+                        { $eq: ["$address", clientStandardizedAddress] },
+                        addressFullScore,
+                        {
+                          $cond: [
+                            {
+                              $and: [
+                                { $ne: ["$address", ""] },
+                                {
+                                  $regexMatch: {
+                                    input: "$address",
+                                    regex: new RegExp(
+                                      clientStandardizedAddress,
+                                      "i"
+                                    ),
+                                  },
+                                },
+                              ],
+                            },
+                            addressPartialScore,
+                            0,
+                          ],
+                        },
+                      ],
+                    },
+                  ]
+                : []),
               // Component matches - only if we have component data
-              ...(standardizedComponents.housestreet ? [{
-                $cond: [
-                  { 
-                    $or: [
-                      { $eq: ["$housestreet", standardizedComponents.housestreet] },
-                      { 
-                        $and: [
-                          { $ne: ["$address", ""] },
-                          { 
-                            $regexMatch: {
-                              input: { $ifNull: ["$address", ""] },
-                              regex: new RegExp(standardizedComponents.housestreet, "i")
-                            }
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  addressComponentScore,
-                  0
-                ]
-              }] : []),
-              ...(standardizedComponents.city ? [{
-                $cond: [
-                  { $eq: ["$city", standardizedComponents.city] },
-                  addressCityScore,
-                  0
-                ]
-              }] : []),
-              ...(standardizedComponents.province ? [{
-                $cond: [
-                  { $eq: ["$province", standardizedComponents.province] },
-                  addressProvinceScore,
-                  0
-                ]
-              }] : [])
-            ]
-          }
-        }
+              ...(standardizedComponents.housestreet
+                ? [
+                    {
+                      $cond: [
+                        {
+                          $or: [
+                            {
+                              $eq: [
+                                "$housestreet",
+                                standardizedComponents.housestreet,
+                              ],
+                            },
+                            {
+                              $and: [
+                                { $ne: ["$address", ""] },
+                                {
+                                  $regexMatch: {
+                                    input: { $ifNull: ["$address", ""] },
+                                    regex: new RegExp(
+                                      standardizedComponents.housestreet,
+                                      "i"
+                                    ),
+                                  },
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                        addressComponentScore,
+                        0,
+                      ],
+                    },
+                  ]
+                : []),
+              ...(standardizedComponents.city
+                ? [
+                    {
+                      $cond: [
+                        { $eq: ["$city", standardizedComponents.city] },
+                        addressCityScore,
+                        0,
+                      ],
+                    },
+                  ]
+                : []),
+              ...(standardizedComponents.province
+                ? [
+                    {
+                      $cond: [
+                        { $eq: ["$province", standardizedComponents.province] },
+                        addressProvinceScore,
+                        0,
+                      ],
+                    },
+                  ]
+                : []),
+            ],
+          },
+        },
       });
     } else {
       // If no address data, set addressMatch to 0
       scoringPipeline.push({
         $addFields: {
-          addressMatch: 0
-        }
+          addressMatch: 0,
+        },
       });
     }
-    
+
     hasSearchableData = true;
   } catch (error) {
     console.error("Error processing address:", error);
@@ -358,29 +467,25 @@ export async function checkDuplicates({
   // Email exact matching (high priority)
   if (email) {
     query.$or.push({ email: email.toLowerCase() });
-    
+
     // Adjust email scoring based on precision
     const emailScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
-    
+
     scoringPipeline.push({
       $addFields: {
         emailMatch: {
-          $cond: [
-            { $eq: ["$email", email.toLowerCase()] },
-            emailScore,
-            0
-          ]
-        }
-      }
+          $cond: [{ $eq: ["$email", email.toLowerCase()] }, emailScore, 0],
+        },
+      },
     });
     hasSearchableData = true;
   }
 
   // Phone number matching with improved pattern recognition
   const normalizePhoneNumber = (number) => {
-    if (!number) return '';
+    if (!number) return "";
     // Remove all non-digit characters
-    return number.replace(/\D/g, '');
+    return number.replace(/\D/g, "");
   };
 
   const getLastDigits = (number, length = 4) => {
@@ -393,7 +498,7 @@ export async function checkDuplicates({
     const normalizedCellno = normalizePhoneNumber(cellno);
     const lastFourDigits = getLastDigits(cellno);
     const lastSixDigits = getLastDigits(cellno, 6);
-    
+
     // Add multiple matching conditions for cell number
     query.$or.push(
       // Exact matches (normalized)
@@ -403,27 +508,39 @@ export async function checkDuplicates({
       { cellno: { $regex: lastFourDigits + "$" } },
       { contactnos: { $regex: lastFourDigits + "$" } },
       // Last 6 digits match (if available)
-      ...(lastSixDigits.length === 6 ? [
-        { cellno: { $regex: lastSixDigits + "$" } },
-        { contactnos: { $regex: lastSixDigits + "$" } }
-      ] : [])
+      ...(lastSixDigits.length === 6
+        ? [
+            { cellno: { $regex: lastSixDigits + "$" } },
+            { contactnos: { $regex: lastSixDigits + "$" } },
+          ]
+        : [])
     );
-    
+
     // Adjust phone scoring based on precision and match type
     const exactScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
     const sixDigitScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
     const fourDigitScore = isHighPrecision ? 10 : isMediumPrecision ? 8 : 5;
-    
+
     scoringPipeline.push({
       $addFields: {
         cellnoMatch: {
           $cond: [
             // Exact match
-            { 
+            {
               $or: [
-                { $eq: [{ $ifNull: [{ $toString: "$cellno" }, ""] }, normalizedCellno] },
-                { $eq: [{ $ifNull: [{ $toString: "$contactnos" }, ""] }, normalizedCellno] }
-              ]
+                {
+                  $eq: [
+                    { $ifNull: [{ $toString: "$cellno" }, ""] },
+                    normalizedCellno,
+                  ],
+                },
+                {
+                  $eq: [
+                    { $ifNull: [{ $toString: "$contactnos" }, ""] },
+                    normalizedCellno,
+                  ],
+                },
+              ],
             },
             exactScore,
             {
@@ -431,9 +548,19 @@ export async function checkDuplicates({
                 // Last 6 digits match
                 {
                   $or: [
-                    { $regexMatch: { input: { $ifNull: [{ $toString: "$cellno" }, ""] }, regex: new RegExp(lastSixDigits + "$") } },
-                    { $regexMatch: { input: { $ifNull: [{ $toString: "$contactnos" }, ""] }, regex: new RegExp(lastSixDigits + "$") } }
-                  ]
+                    {
+                      $regexMatch: {
+                        input: { $ifNull: [{ $toString: "$cellno" }, ""] },
+                        regex: new RegExp(lastSixDigits + "$"),
+                      },
+                    },
+                    {
+                      $regexMatch: {
+                        input: { $ifNull: [{ $toString: "$contactnos" }, ""] },
+                        regex: new RegExp(lastSixDigits + "$"),
+                      },
+                    },
+                  ],
                 },
                 sixDigitScore,
                 {
@@ -441,19 +568,31 @@ export async function checkDuplicates({
                     // Last 4 digits match
                     {
                       $or: [
-                        { $regexMatch: { input: { $ifNull: [{ $toString: "$cellno" }, ""] }, regex: new RegExp(lastFourDigits + "$") } },
-                        { $regexMatch: { input: { $ifNull: [{ $toString: "$contactnos" }, ""] }, regex: new RegExp(lastFourDigits + "$") } }
-                      ]
+                        {
+                          $regexMatch: {
+                            input: { $ifNull: [{ $toString: "$cellno" }, ""] },
+                            regex: new RegExp(lastFourDigits + "$"),
+                          },
+                        },
+                        {
+                          $regexMatch: {
+                            input: {
+                              $ifNull: [{ $toString: "$contactnos" }, ""],
+                            },
+                            regex: new RegExp(lastFourDigits + "$"),
+                          },
+                        },
+                      ],
                     },
                     fourDigitScore,
-                    0
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      }
+                    0,
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
     });
     hasSearchableData = true;
   }
@@ -462,7 +601,7 @@ export async function checkDuplicates({
     const normalizedContactnos = normalizePhoneNumber(contactnos);
     const lastFourDigits = getLastDigits(contactnos);
     const lastSixDigits = getLastDigits(contactnos, 6);
-    
+
     // Add multiple matching conditions for contact number
     query.$or.push(
       // Exact matches (normalized)
@@ -472,27 +611,39 @@ export async function checkDuplicates({
       { cellno: { $regex: lastFourDigits + "$" } },
       { contactnos: { $regex: lastFourDigits + "$" } },
       // Last 6 digits match (if available)
-      ...(lastSixDigits.length === 6 ? [
-        { cellno: { $regex: lastSixDigits + "$" } },
-        { contactnos: { $regex: lastSixDigits + "$" } }
-      ] : [])
+      ...(lastSixDigits.length === 6
+        ? [
+            { cellno: { $regex: lastSixDigits + "$" } },
+            { contactnos: { $regex: lastSixDigits + "$" } },
+          ]
+        : [])
     );
-    
+
     // Adjust phone scoring based on precision and match type
     const exactScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
     const sixDigitScore = isHighPrecision ? 15 : isMediumPrecision ? 10 : 8;
     const fourDigitScore = isHighPrecision ? 10 : isMediumPrecision ? 8 : 5;
-    
+
     scoringPipeline.push({
       $addFields: {
         contactnosMatch: {
           $cond: [
             // Exact match
-            { 
+            {
               $or: [
-                { $eq: [{ $ifNull: [{ $toString: "$cellno" }, ""] }, normalizedContactnos] },
-                { $eq: [{ $ifNull: [{ $toString: "$contactnos" }, ""] }, normalizedContactnos] }
-              ]
+                {
+                  $eq: [
+                    { $ifNull: [{ $toString: "$cellno" }, ""] },
+                    normalizedContactnos,
+                  ],
+                },
+                {
+                  $eq: [
+                    { $ifNull: [{ $toString: "$contactnos" }, ""] },
+                    normalizedContactnos,
+                  ],
+                },
+              ],
             },
             exactScore,
             {
@@ -500,9 +651,19 @@ export async function checkDuplicates({
                 // Last 6 digits match
                 {
                   $or: [
-                    { $regexMatch: { input: { $ifNull: [{ $toString: "$cellno" }, ""] }, regex: new RegExp(lastSixDigits + "$") } },
-                    { $regexMatch: { input: { $ifNull: [{ $toString: "$contactnos" }, ""] }, regex: new RegExp(lastSixDigits + "$") } }
-                  ]
+                    {
+                      $regexMatch: {
+                        input: { $ifNull: [{ $toString: "$cellno" }, ""] },
+                        regex: new RegExp(lastSixDigits + "$"),
+                      },
+                    },
+                    {
+                      $regexMatch: {
+                        input: { $ifNull: [{ $toString: "$contactnos" }, ""] },
+                        regex: new RegExp(lastSixDigits + "$"),
+                      },
+                    },
+                  ],
                 },
                 sixDigitScore,
                 {
@@ -510,19 +671,31 @@ export async function checkDuplicates({
                     // Last 4 digits match
                     {
                       $or: [
-                        { $regexMatch: { input: { $ifNull: [{ $toString: "$cellno" }, ""] }, regex: new RegExp(lastFourDigits + "$") } },
-                        { $regexMatch: { input: { $ifNull: [{ $toString: "$contactnos" }, ""] }, regex: new RegExp(lastFourDigits + "$") } }
-                      ]
+                        {
+                          $regexMatch: {
+                            input: { $ifNull: [{ $toString: "$cellno" }, ""] },
+                            regex: new RegExp(lastFourDigits + "$"),
+                          },
+                        },
+                        {
+                          $regexMatch: {
+                            input: {
+                              $ifNull: [{ $toString: "$contactnos" }, ""],
+                            },
+                            regex: new RegExp(lastFourDigits + "$"),
+                          },
+                        },
+                      ],
                     },
                     fourDigitScore,
-                    0
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      }
+                    0,
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
     });
     hasSearchableData = true;
   }
@@ -530,20 +703,20 @@ export async function checkDuplicates({
   // Birth date matching
   if (bdate && bdate.length > 0) {
     // If we have a full bdate string, use it directly
-    const [year, month, day] = bdate.split('-');
+    const [year, month, day] = bdate.split("-");
     const monthDay = `${month}-${day}`;
-    
+
     // Add multiple matching conditions for birthdate
     query.$or.push(
       { bdate: bdate }, // Exact match
       { bdate: { $regex: new RegExp(`-${monthDay}$`) } }, // Match month-day regardless of year
       { bdate: { $regex: new RegExp(`${year}-${month}`) } } // Match year-month
     );
-    
+
     // Adjust birth date scoring based on precision
     const bdateScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
     const bdatePartialScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 5;
-    
+
     scoringPipeline.push({
       $addFields: {
         bdateMatch: {
@@ -554,35 +727,55 @@ export async function checkDuplicates({
               $cond: [
                 {
                   $or: [
-                    { $regexMatch: { input: "$bdate", regex: new RegExp(`-${monthDay}$`) } }, // Month-day match
-                    { $regexMatch: { input: "$bdate", regex: new RegExp(`${year}-${month}`) } } // Year-month match
-                  ]
+                    {
+                      $regexMatch: {
+                        input: "$bdate",
+                        regex: new RegExp(`-${monthDay}$`),
+                      },
+                    }, // Month-day match
+                    {
+                      $regexMatch: {
+                        input: "$bdate",
+                        regex: new RegExp(`${year}-${month}`),
+                      },
+                    }, // Year-month match
+                  ],
                 },
                 bdatePartialScore,
-                0
-              ]
-            }
-          ]
-        }
-      }
+                0,
+              ],
+            },
+          ],
+        },
+      },
     });
     hasSearchableData = true;
   } else if (bdateMonth && bdateDay && bdateYear) {
     // If we have all three components (day, month, year), format as YYYY-MM-DD
-    const formattedBdate = `${bdateYear}-${bdateMonth.padStart(2, '0')}-${bdateDay.padStart(2, '0')}`;
-    const monthDay = `${bdateMonth.padStart(2, '0')}-${bdateDay.padStart(2, '0')}`;
-    
+    const formattedBdate = `${bdateYear}-${bdateMonth.padStart(
+      2,
+      "0"
+    )}-${bdateDay.padStart(2, "0")}`;
+    const monthDay = `${bdateMonth.padStart(2, "0")}-${bdateDay.padStart(
+      2,
+      "0"
+    )}`;
+
     // Add multiple matching conditions
     query.$or.push(
       { bdate: formattedBdate }, // Exact match
       { bdate: { $regex: new RegExp(`-${monthDay}$`) } }, // Match month-day regardless of year
-      { bdate: { $regex: new RegExp(`${bdateYear}-${bdateMonth.padStart(2, '0')}`) } } // Match year-month
+      {
+        bdate: {
+          $regex: new RegExp(`${bdateYear}-${bdateMonth.padStart(2, "0")}`),
+        },
+      } // Match year-month
     );
 
     // Adjust birth date scoring based on precision - higher score for complete date
     const bdateScore = isHighPrecision ? 20 : isMediumPrecision ? 15 : 10;
     const bdatePartialScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 5;
-    
+
     scoringPipeline.push({
       $addFields: {
         bdateMatch: {
@@ -593,26 +786,38 @@ export async function checkDuplicates({
               $cond: [
                 {
                   $or: [
-                    { $regexMatch: { input: "$bdate", regex: new RegExp(`-${monthDay}$`) } }, // Month-day match
-                    { $regexMatch: { input: "$bdate", regex: new RegExp(`${bdateYear}-${bdateMonth.padStart(2, '0')}`) } } // Year-month match
-                  ]
+                    {
+                      $regexMatch: {
+                        input: "$bdate",
+                        regex: new RegExp(`-${monthDay}$`),
+                      },
+                    }, // Month-day match
+                    {
+                      $regexMatch: {
+                        input: "$bdate",
+                        regex: new RegExp(
+                          `${bdateYear}-${bdateMonth.padStart(2, "0")}`
+                        ),
+                      },
+                    }, // Year-month match
+                  ],
                 },
                 bdatePartialScore,
-                0
-              ]
-            }
-          ]
-        }
-      }
+                0,
+              ],
+            },
+          ],
+        },
+      },
     });
     hasSearchableData = true;
   } else if (bdateMonth && bdateDay) {
     // If we have only day and month (no year), search for partial matches
     // This allows finding clients with same birth day and month regardless of year
-    const month = bdateMonth.padStart(2, '0');
-    const day = bdateDay.padStart(2, '0');
+    const month = bdateMonth.padStart(2, "0");
+    const day = bdateDay.padStart(2, "0");
     const monthDay = `${month}-${day}`;
-    
+
     // Add month-day pattern matching
     query.$or.push(
       { bdate: { $regex: new RegExp(`-${monthDay}$`) } }, // Match month-day at end of date
@@ -622,23 +827,33 @@ export async function checkDuplicates({
     // Lower score for partial date matches (day/month only)
     const bdatePartialScore = isHighPrecision ? 12 : isMediumPrecision ? 8 : 5;
     const monthOnlyScore = isHighPrecision ? 8 : isMediumPrecision ? 5 : 3;
-    
+
     scoringPipeline.push({
       $addFields: {
         bdateMatch: {
           $cond: [
-            { $regexMatch: { input: "$bdate", regex: new RegExp(`-${monthDay}$`) } }, // Month-day match
+            {
+              $regexMatch: {
+                input: "$bdate",
+                regex: new RegExp(`-${monthDay}$`),
+              },
+            }, // Month-day match
             bdatePartialScore,
             {
               $cond: [
-                { $regexMatch: { input: "$bdate", regex: new RegExp(`-${month}-`) } }, // Month only match
+                {
+                  $regexMatch: {
+                    input: "$bdate",
+                    regex: new RegExp(`-${month}-`),
+                  },
+                }, // Month only match
                 monthOnlyScore,
-                0
-              ]
-            }
-          ]
-        }
-      }
+                0,
+              ],
+            },
+          ],
+        },
+      },
     });
     hasSearchableData = true;
   }
@@ -647,11 +862,15 @@ export async function checkDuplicates({
   if (company) {
     query.$or.push({ company: company });
     query.$or.push({ company: { $regex: new RegExp(`^${company}`, "i") } });
-    
+
     // Adjust company scoring based on precision
     const companyExactScore = isHighPrecision ? 12 : isMediumPrecision ? 10 : 6;
-    const companyPartialScore = isHighPrecision ? 10 : isMediumPrecision ? 8 : 5;
-    
+    const companyPartialScore = isHighPrecision
+      ? 10
+      : isMediumPrecision
+      ? 8
+      : 5;
+
     scoringPipeline.push({
       $addFields: {
         companyMatch: {
@@ -727,7 +946,7 @@ export async function checkDuplicates({
       },
     },
     { $sort: { totalScore: -1 } },
-    { $limit: 15 }
+    { $limit: 15 },
   ];
 
   let clients = [];
@@ -738,11 +957,25 @@ export async function checkDuplicates({
     };
 
     clients = await ClientModel.aggregate(pipeline, options);
+
+    // Debug logging
+    console.log("🗄️ Database query results:", {
+      totalFound: clients.length,
+      sampleResults: clients.slice(0, 3).map((c) => ({
+        id: c.id,
+        fname: c.fname,
+        lname: c.lname,
+        totalScore: c.totalScore,
+        fnameMatch: c.fnameMatch,
+        lnameMatch: c.lnameMatch,
+      })),
+    });
   } catch (dbError) {
     console.error("Database error during client search:", dbError);
     return {
       matches: [],
-      error: "Search operation timed out, please try with more specific criteria.",
+      error:
+        "Search operation timed out, please try with more specific criteria.",
     };
   }
 
@@ -757,7 +990,14 @@ export async function checkDuplicates({
 
       if (clientIds.length > 0) {
         // Run service queries in parallel with increased timeouts
-        const [wmmClients, hrgClients, fomClients, calClients, promoClients, complimentaryClients] = await Promise.all([
+        const [
+          wmmClients,
+          hrgClients,
+          fomClients,
+          calClients,
+          promoClients,
+          complimentaryClients,
+        ] = await Promise.all([
           WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
             .maxTimeMS(5000)
             .lean()
@@ -783,7 +1023,9 @@ export async function checkDuplicates({
             .lean()
             .exec()
             .catch(() => []),
-          ComplimentaryModel.distinct("clientid", { clientid: { $in: clientIds } })
+          ComplimentaryModel.distinct("clientid", {
+            clientid: { $in: clientIds },
+          })
             .maxTimeMS(5000)
             .lean()
             .exec()
@@ -799,8 +1041,10 @@ export async function checkDuplicates({
             if (hrgClients.includes(clientId)) clientCopy.services.push("HRG");
             if (fomClients.includes(clientId)) clientCopy.services.push("FOM");
             if (calClients.includes(clientId)) clientCopy.services.push("CAL");
-            if (promoClients.includes(clientId)) clientCopy.services.push("PROMO");
-            if (complimentaryClients.includes(clientId)) clientCopy.services.push("COMP");
+            if (promoClients.includes(clientId))
+              clientCopy.services.push("PROMO");
+            if (complimentaryClients.includes(clientId))
+              clientCopy.services.push("COMP");
           }
 
           return clientCopy;
@@ -815,18 +1059,35 @@ export async function checkDuplicates({
   const categorizeResults = (clients) => {
     if (clients.length === 0) return { matches: [], categories: {} };
 
+    // Debug logging
+    console.log("🔍 Categorizing results:", {
+      totalClients: clients.length,
+      clientScores: clients.map((c) => ({
+        id: c.id,
+        fname: c.fname,
+        lname: c.lname,
+        totalScore: c.totalScore,
+      })),
+    });
+
     // Define match quality thresholds
     const HIGH_MATCH_THRESHOLD = 35; // Multiple strong field matches
     const MEDIUM_MATCH_THRESHOLD = 25; // Several field matches
-    const LOW_MATCH_THRESHOLD = 15; // Few field matches
+    const LOW_MATCH_THRESHOLD = 5; // Few field matches
 
     // Categorize clients by match quality
-    const highMatches = clients.filter(client => client.totalScore >= HIGH_MATCH_THRESHOLD);
-    const mediumMatches = clients.filter(client => 
-      client.totalScore >= MEDIUM_MATCH_THRESHOLD && client.totalScore < HIGH_MATCH_THRESHOLD
+    const highMatches = clients.filter(
+      (client) => client.totalScore >= HIGH_MATCH_THRESHOLD
     );
-    const lowMatches = clients.filter(client => 
-      client.totalScore >= LOW_MATCH_THRESHOLD && client.totalScore < MEDIUM_MATCH_THRESHOLD
+    const mediumMatches = clients.filter(
+      (client) =>
+        client.totalScore >= MEDIUM_MATCH_THRESHOLD &&
+        client.totalScore < HIGH_MATCH_THRESHOLD
+    );
+    const lowMatches = clients.filter(
+      (client) =>
+        client.totalScore >= LOW_MATCH_THRESHOLD &&
+        client.totalScore < MEDIUM_MATCH_THRESHOLD
     );
 
     // Determine which results to show based on available data and match quality
@@ -862,18 +1123,32 @@ export async function checkDuplicates({
       threshold: {
         high: HIGH_MATCH_THRESHOLD,
         medium: MEDIUM_MATCH_THRESHOLD,
-        low: LOW_MATCH_THRESHOLD
-      }
+        low: LOW_MATCH_THRESHOLD,
+      },
     };
 
-    return { 
-      matches: finalMatches, 
+    // Debug logging
+    console.log("📊 Categorization results:", {
+      highMatches: highMatches.length,
+      mediumMatches: mediumMatches.length,
+      lowMatches: lowMatches.length,
+      finalMatches: finalMatches.length,
+      finalMatchScores: finalMatches.map((m) => ({
+        id: m.id,
+        fname: m.fname,
+        lname: m.lname,
+        totalScore: m.totalScore,
+      })),
+    });
+
+    return {
+      matches: finalMatches,
       categories,
       // Include all matches for debugging/advanced view if needed
-      allMatches: clients 
+      allMatches: clients,
     };
   };
 
   const categorizedResults = categorizeResults(clientsWithServices);
   return categorizedResults;
-};
+}

@@ -597,7 +597,7 @@ const Add = ({
       if (duplicateRelatedFields.includes(name)) {
         setTimeout(() => {
           // Only check if we have at least one identifying field with enough content
-          if (
+          const hasEnoughData =
             (newData.fname && newData.fname.length > 1) ||
             (newData.lname && newData.lname.length > 1) ||
             (newData.company && newData.company.length > 1) ||
@@ -607,8 +607,9 @@ const Add = ({
             (newData.contactnos && newData.contactnos.length > 5) ||
             (addressData.housestreet && addressData.housestreet.length > 2) ||
             (addressData.subdivision && addressData.subdivision.length > 2) ||
-            (addressData.barangay && addressData.barangay.length > 2)
-          ) {
+            (addressData.barangay && addressData.barangay.length > 2);
+
+          if (hasEnoughData) {
             const checkData = {
               fname: newData.fname,
               lname: newData.lname,
@@ -1023,7 +1024,6 @@ const Add = ({
   };
 
   const handleConfirmedSubmit = async () => {
-    console.log("handleConfirmedSubmit - add.jsx");
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -1144,7 +1144,6 @@ const Add = ({
     };
 
     try {
-      console.log("Making axios request to backend...");
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
         submissionData,
@@ -1154,7 +1153,6 @@ const Add = ({
           },
         }
       );
-      console.log("Backend response:", response.data);
       if (response.data.success) {
         // Backend already emits the WebSocket event, so we don't need to emit it again
         // Just refresh the client list
