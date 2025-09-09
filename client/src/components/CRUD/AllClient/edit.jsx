@@ -227,6 +227,15 @@ const Edit = ({
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
   const [selectedRole, setSelectedRole] = useState("HRG"); // Default to HRG
+  // Track if user manually picked a subscription type to avoid overwriting
+  const [hasUserSelectedSubscriptionType, setHasUserSelectedSubscriptionType] =
+    useState(false);
+
+  // Dedicated handler to change subscription type safely
+  const handleSubscriptionTypeChange = (newType) => {
+    setHasUserSelectedSubscriptionType(true);
+    setFormData((prev) => ({ ...prev, subscriptionType: newType }));
+  };
 
   // Track if we're editing an existing subscription or adding a new one
   const [subscriptionMode, setSubscriptionMode] = useState("add");
@@ -446,29 +455,35 @@ const Edit = ({
 
     switch (type) {
       case "WMM":
-        return (
-          data.wmmData &&
-          (data.wmmData.records?.length > 0 ||
-            Array.isArray(data.wmmData) ||
-            (typeof data.wmmData === "object" &&
-              Object.keys(data.wmmData).length > 0))
-        );
+        if (!data.wmmData) return false;
+        {
+          const records = Array.isArray(data.wmmData)
+            ? data.wmmData
+            : Array.isArray(data.wmmData.records)
+            ? data.wmmData.records
+            : [];
+          return records.length > 0;
+        }
       case "Promo":
-        return (
-          data.promoData &&
-          (data.promoData.records?.length > 0 ||
-            Array.isArray(data.promoData) ||
-            (typeof data.promoData === "object" &&
-              Object.keys(data.promoData).length > 0))
-        );
+        if (!data.promoData) return false;
+        {
+          const records = Array.isArray(data.promoData)
+            ? data.promoData
+            : Array.isArray(data.promoData.records)
+            ? data.promoData.records
+            : [];
+          return records.length > 0;
+        }
       case "Complimentary":
-        return (
-          data.complimentaryData &&
-          (data.complimentaryData.records?.length > 0 ||
-            Array.isArray(data.complimentaryData) ||
-            (typeof data.complimentaryData === "object" &&
-              Object.keys(data.complimentaryData).length > 0))
-        );
+        if (!data.complimentaryData) return false;
+        {
+          const records = Array.isArray(data.complimentaryData)
+            ? data.complimentaryData
+            : Array.isArray(data.complimentaryData.records)
+            ? data.complimentaryData.records
+            : [];
+          return records.length > 0;
+        }
       default:
         return false;
     }
@@ -625,7 +640,10 @@ const Edit = ({
         type: rowData.type || "",
         group: rowData.group || "",
         remarks: rowData.remarks || "",
-        subscriptionType: subscriptionType, // Set the determined subscription type
+        // Respect manual user selection; only set detected type if user hasn't chosen
+        subscriptionType: hasUserSelectedSubscriptionType
+          ? prev.subscriptionType
+          : subscriptionType,
       }));
 
       // Update addressData state with parsed address components
@@ -847,7 +865,7 @@ const Edit = ({
         donorid: "",
       });
     }
-  }, [rowData, mode, subscriptionMode, formData.subscriptionType]); // Add subscriptionType to dependency array
+  }, [rowData, mode, subscriptionMode, hasUserSelectedSubscriptionType]);
 
   // Also update the WMM subscription data useEffect
   useEffect(() => {
@@ -1189,6 +1207,56 @@ const Edit = ({
           newData.bdate = `${newData.bdateMonth}/${newData.bdateDay}/${newData.bdateYear}`;
         } else {
           newData.bdate = "";
+        }
+
+        return newData;
+      });
+      return;
+    }
+
+    // Handle subscription start date parts
+    if (
+      name === "subStartMonth" ||
+      name === "subStartDay" ||
+      name === "subStartYear"
+    ) {
+      setFormData((prevData) => {
+        const newData = {
+          ...prevData,
+          [name]: cleanDateInput(safeValue),
+        };
+
+        if (
+          newData.subStartMonth &&
+          newData.subStartDay &&
+          newData.subStartYear
+        ) {
+          newData.subscriptionStart = `${newData.subStartMonth}/${newData.subStartDay}/${newData.subStartYear}`;
+        } else {
+          newData.subscriptionStart = "";
+        }
+
+        return newData;
+      });
+      return;
+    }
+
+    // Handle subscription end date parts
+    if (
+      name === "subEndMonth" ||
+      name === "subEndDay" ||
+      name === "subEndYear"
+    ) {
+      setFormData((prevData) => {
+        const newData = {
+          ...prevData,
+          [name]: cleanDateInput(safeValue),
+        };
+
+        if (newData.subEndMonth && newData.subEndDay && newData.subEndYear) {
+          newData.subscriptionEnd = `${newData.subEndMonth}/${newData.subEndDay}/${newData.subEndYear}`;
+        } else {
+          newData.subscriptionEnd = "";
         }
 
         return newData;
@@ -3989,7 +4057,7 @@ const Edit = ({
                 {/* Subscription Type Selector */}
                 <SubscriptionTypeSelector
                   subscriptionType={formData.subscriptionType}
-                  setSubscriptionType={setFormData}
+                  setSubscriptionType={handleSubscriptionTypeChange}
                   mode={mode}
                   hasSubscriptionData={hasSubscriptionData}
                   rowData={rowData}

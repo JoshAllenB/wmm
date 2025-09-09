@@ -16,12 +16,7 @@ const SubscriptionTypeSelector = ({
         {/* Show None button - allows users to start fresh */}
         <button
           type="button"
-          onClick={() =>
-            setSubscriptionType((prev) => ({
-              ...prev,
-              subscriptionType: "None",
-            }))
-          }
+          onClick={() => setSubscriptionType("None")}
           className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
             subscriptionType === "None"
               ? "bg-gray-600 text-white shadow-sm"
@@ -34,12 +29,7 @@ const SubscriptionTypeSelector = ({
         {/* Always show WMM button - users should be able to choose any type */}
         <button
           type="button"
-          onClick={() =>
-            setSubscriptionType((prev) => ({
-              ...prev,
-              subscriptionType: "WMM",
-            }))
-          }
+          onClick={() => setSubscriptionType("WMM")}
           className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
             subscriptionType === "WMM"
               ? "bg-blue-600 text-white shadow-sm"
@@ -52,12 +42,7 @@ const SubscriptionTypeSelector = ({
         {/* Always show Promo button - users should be able to choose any type */}
         <button
           type="button"
-          onClick={() =>
-            setSubscriptionType((prev) => ({
-              ...prev,
-              subscriptionType: "Promo",
-            }))
-          }
+          onClick={() => setSubscriptionType("Promo")}
           className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
             subscriptionType === "Promo"
               ? "bg-emerald-600 text-white shadow-sm"
@@ -70,12 +55,7 @@ const SubscriptionTypeSelector = ({
         {/* Always show Complimentary button - users should be able to choose any type */}
         <button
           type="button"
-          onClick={() =>
-            setSubscriptionType((prev) => ({
-              ...prev,
-              subscriptionType: "Complimentary",
-            }))
-          }
+          onClick={() => setSubscriptionType("Complimentary")}
           className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
             subscriptionType === "Complimentary"
               ? "bg-purple-600 text-white shadow-sm"
