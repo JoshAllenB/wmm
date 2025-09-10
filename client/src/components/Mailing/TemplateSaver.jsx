@@ -87,6 +87,12 @@ const TemplateSaver = ({
         paperHeight,
         rowsPerPage,
         columnsPerPage,
+        // Raw printer specific adjustments (persisted for 'standard' previewType)
+        // These align with how templates are read in mailing.jsx
+        labelWidthIn: labelAdjustments?.labelWidthIn,
+        topMargin: labelAdjustments?.topMargin,
+        rowSpacingLines: labelAdjustments?.rowSpacing,
+        col2X: labelAdjustments?.col2X,
       };
 
       const newTemplate = {
