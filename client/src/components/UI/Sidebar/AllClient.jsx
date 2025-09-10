@@ -1191,64 +1191,24 @@ const AllClient = () => {
 
   // Update handleSubscriptionTypeChange to also update services
   const handleSubscriptionTypeChange = (type) => {
-    setSubscriptionType(type);
-    setPage(1); // Reset to first page
-
-    // Update services based on subscription type for WMM role
+    // Determine new services for WMM role
+    let newServices = advancedFilterData.services || [];
     if (hasRole("WMM")) {
-      let newServices = [];
-      switch (type) {
-        case "Promo":
-          newServices = ["PROMO"];
-          break;
-        case "Complimentary":
-          newServices = ["COMP"];
-          break;
-        default: // WMM
-          newServices = ["WMM"];
-      }
-
-      // Update advancedFilterData with new services
-      setAdvancedFilterData((prev) => ({
-        ...prev,
-        services: newServices,
-        subscriptionType: type,
-      }));
+      if (type === "Promo") newServices = ["PROMO"];
+      else if (type === "Complimentary") newServices = ["COMP"];
+      else newServices = ["WMM"]; // default
     }
 
-    // Create a snapshot of what the filter will be
-    const filterSnapshot = JSON.stringify({
-      services: advancedFilterData.services,
-      page: 1,
-      filtering: debouncedFiltering,
-      group: selectedGroup,
-      addedToday,
+    // Update state first and let the main effect trigger the fetch
+    setSubscriptionType(type);
+    setPage(1);
+    setAdvancedFilterData((prev) => ({
+      ...prev,
+      services: newServices,
       subscriptionType: type,
-    });
-    // Update last filter ref to prevent bounce
-    lastFilterRef.current = filterSnapshot;
+    }));
 
-    // Fetch data with updated subscription type
-    const updatedAdvancedFilterData = {
-      ...advancedFilterData,
-      subscriptionType: type,
-      services: hasRole("WMM")
-        ? type === "Promo"
-          ? ["PROMO"]
-          : type === "Complimentary"
-          ? ["COMP"]
-          : ["WMM"]
-        : advancedFilterData.services,
-    };
-
-    fetchData(
-      1,
-      pageSize,
-      debouncedFiltering,
-      selectedGroup,
-      updatedAdvancedFilterData,
-      type
-    );
+    // Do NOT touch lastFilterRef here; allow the main effect to detect changes and refetch
   };
 
   return (
