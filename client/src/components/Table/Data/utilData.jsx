@@ -206,3 +206,115 @@ export const fetchLegacyLabels = async () => {
     return [];
   }
 };
+
+// Print Queue API helpers
+export const createPrintQueue = async ({
+  name,
+  visibility = "user",
+  actionType = "label",
+  templateRefId,
+  ttlDays = 30,
+  department,
+}) => {
+  const response = await axios.post(
+    `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/print-queues`,
+    { name, visibility, actionType, templateRefId, ttlDays, department },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
+
+export const listPrintQueues = async () => {
+  const response = await axios.get(
+    `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/print-queues`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    }
+  );
+  return response.data;
+};
+
+export const getPrintQueue = async (queueId) => {
+  const response = await axios.get(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/${queueId}`,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    }
+  );
+  return response.data;
+};
+
+export const enqueueSelectionToQueue = async (queueId, clientIds) => {
+  const response = await axios.post(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/${queueId}/enqueue/selection`,
+    { clientIds },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
+
+export const enqueueFilterToQueue = async (queueId, filterPayload) => {
+  const response = await axios.post(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/${queueId}/enqueue/filter`,
+    filterPayload,
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
+
+export const clearPrintQueue = async (queueId) => {
+  const response = await axios.post(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/${queueId}/clear`,
+    {},
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
+
+export const checkPrintHistory = async (clientIds) => {
+  const response = await axios.post(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/check-history`,
+    { clientIds },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};

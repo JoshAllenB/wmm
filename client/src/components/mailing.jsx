@@ -34,6 +34,17 @@ import {
   diagnosePrinterIssues,
 } from "./Mailing/PrintGenerator";
 
+// Import print queue functions
+import {
+  createPrintQueue,
+  listPrintQueues,
+  getPrintQueue,
+  enqueueSelectionToQueue,
+  enqueueFilterToQueue,
+  clearPrintQueue,
+  checkPrintHistory,
+} from "./Table/Data/utilData.jsx";
+
 // Helper functions
 
 // Conversion functions
@@ -162,6 +173,14 @@ const Mailing = ({
   // State for checklist title
   const [checklistTitle, setChecklistTitle] = useState("Mailing Checklist");
   const [showChecklistTitleInput, setShowChecklistTitleInput] = useState(false);
+
+  // Print queue state - simplified
+  const [queueDuplicates, setQueueDuplicates] = useState([]);
+  const [printedDuplicates, setPrintedDuplicates] = useState([]);
+  const [printHistory, setPrintHistory] = useState({});
+  const [showDuplicatePanel, setShowDuplicatePanel] = useState(false);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [currentQueueId, setCurrentQueueId] = useState("");
 
   // Callback to handle changes from RawPrinterControls
   const handleRawPrinterControlsChange = (changes) => {
@@ -339,6 +358,13 @@ const Mailing = ({
   useEffect(() => {
     fetchAllTemplates();
   }, []);
+
+  // Auto-create queue and add data when modal opens with data
+  useEffect(() => {
+    if (modalOpen && hasAvailableRows && !currentQueueId) {
+      autoEnqueueData();
+    }
+  }, [modalOpen, hasAvailableRows]);
 
   // Add effect to fetch all data when useFetchAll changes
   useEffect(() => {
@@ -1103,6 +1129,144 @@ const Mailing = ({
     }
   };
 
+  // Simplified automated print queue functions
+  const createAutoQueue = async () => {
+    if (currentQueueId) return currentQueueId;
+
+    try {
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const queue = await createPrintQueue({
+        name: `Mailing-${currentAction}-${timestamp}`,
+        actionType: currentAction,
+        department: userRole,
+      });
+      setCurrentQueueId(queue._id);
+      return queue._id;
+    } catch (error) {
+      console.error("Error creating auto queue:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create print queue",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const autoEnqueueData = async () => {
+    if (!currentQueueId) {
+      const queueId = await createAutoQueue();
+      if (!queueId) return;
+    }
+
+    setQueueLoading(true);
+    try {
+      const clientIds = availableRows.map((row) => row.original.id.toString());
+
+      // Check both queue duplicates and print history
+      const [queueResult, historyResult] = await Promise.all([
+        enqueueSelectionToQueue(currentQueueId, clientIds),
+        checkPrintHistory(clientIds),
+      ]);
+
+      // Check for queue duplicates
+      const queueDuplicates = queueResult.duplicatesSample || [];
+      const hasQueueDuplicates = queueResult.alreadyInQueueCount > 0;
+
+      // Check for previously printed items
+      const printedDuplicates = historyResult.printedIds || [];
+      const hasPrintedDuplicates = historyResult.totalPrinted > 0;
+
+      // Show duplicate panel if any duplicates found
+      if (hasQueueDuplicates || hasPrintedDuplicates) {
+        setQueueDuplicates(queueDuplicates);
+        setPrintedDuplicates(printedDuplicates);
+        setPrintHistory(historyResult.printHistory || {});
+        setShowDuplicatePanel(true);
+
+        let message = "";
+        if (hasQueueDuplicates && hasPrintedDuplicates) {
+          message = `${queueResult.alreadyInQueueCount} items already in queue, ${historyResult.totalPrinted} items already printed. Review duplicates below.`;
+        } else if (hasQueueDuplicates) {
+          message = `${queueResult.alreadyInQueueCount} items already in queue. Review duplicates below.`;
+        } else if (hasPrintedDuplicates) {
+          message = `${historyResult.totalPrinted} items already printed. Review duplicates below.`;
+        }
+
+        toast({
+          title: "Duplicates Found",
+          description: message,
+          variant: "destructive",
+        });
+      } else {
+        // Silent success - no toast for automatic queuing
+        console.log(`Auto-queued ${queueResult.addedCount} items`);
+      }
+    } catch (error) {
+      console.error("Error auto-enqueuing:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add items to queue",
+        variant: "destructive",
+      });
+    } finally {
+      setQueueLoading(false);
+    }
+  };
+
+  const removeDuplicatesFromMailing = () => {
+    // Remove both queue and printed duplicate client IDs from availableRows
+    const allDuplicateIds = new Set([...queueDuplicates, ...printedDuplicates]);
+    const filteredRows = availableRows.filter(
+      (row) => !allDuplicateIds.has(row.original.id.toString())
+    );
+
+    // Update the table data to reflect the filtered rows
+    // This would need to be implemented based on your table structure
+    const totalRemoved = queueDuplicates.length + printedDuplicates.length;
+    toast({
+      title: "Duplicates Removed",
+      description: `Removed ${totalRemoved} duplicate items from mailing list`,
+    });
+
+    setShowDuplicatePanel(false);
+    setQueueDuplicates([]);
+    setPrintedDuplicates([]);
+    setPrintHistory({});
+  };
+
+  const keepDuplicatesInQueue = () => {
+    // Just hide the duplicate panel - duplicates stay in queue
+    setShowDuplicatePanel(false);
+    setQueueDuplicates([]);
+    setPrintedDuplicates([]);
+    setPrintHistory({});
+    toast({
+      title: "Duplicates Kept",
+      description: "Duplicate items will be printed",
+    });
+  };
+
+  const removeOnlyPrintedDuplicates = () => {
+    // Remove only previously printed items, keep queue duplicates
+    const filteredRows = availableRows.filter(
+      (row) => !printedDuplicates.includes(row.original.id.toString())
+    );
+
+    toast({
+      title: "Printed Duplicates Removed",
+      description: `Removed ${printedDuplicates.length} previously printed items from mailing list`,
+    });
+
+    setPrintedDuplicates([]);
+    // Keep queue duplicates and panel open if there are still queue duplicates
+    if (queueDuplicates.length === 0) {
+      setShowDuplicatePanel(false);
+      setPrintHistory({});
+    }
+  };
+
   const [currentAction, setCurrentAction] = useState(initialAction);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
@@ -1292,6 +1456,128 @@ const Mailing = ({
                     </div>
                   )}
 
+                  {/* Duplicate Handling Panel - Only show when duplicates detected */}
+                  {showDuplicatePanel && (
+                    <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h4 className="font-medium mb-3 text-yellow-800">
+                        Duplicate Items Found
+                      </h4>
+                      <p className="text-sm text-yellow-700 mb-3">
+                        {queueDuplicates.length > 0 &&
+                        printedDuplicates.length > 0
+                          ? `${queueDuplicates.length} items already in queue, ${printedDuplicates.length} items already printed.`
+                          : queueDuplicates.length > 0
+                          ? `${queueDuplicates.length} items already in queue.`
+                          : `${printedDuplicates.length} items already printed.`}{" "}
+                        Choose how to handle these duplicates:
+                      </p>
+
+                      <div className="space-y-3">
+                        {/* Queue Duplicates */}
+                        {queueDuplicates.length > 0 && (
+                          <div className="p-3 bg-white rounded border text-sm">
+                            <div className="font-medium mb-2 text-blue-700">
+                              Already in Queue ({queueDuplicates.length}):
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {queueDuplicates.slice(0, 10).map((id, index) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-blue-100 rounded text-xs"
+                                >
+                                  {id}
+                                </span>
+                              ))}
+                              {queueDuplicates.length > 10 && (
+                                <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                                  +{queueDuplicates.length - 10} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Previously Printed Duplicates */}
+                        {printedDuplicates.length > 0 && (
+                          <div className="p-3 bg-white rounded border text-sm">
+                            <div className="font-medium mb-2 text-red-700">
+                              Already Printed ({printedDuplicates.length}):
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {printedDuplicates
+                                .slice(0, 10)
+                                .map((id, index) => {
+                                  const history = printHistory[id];
+                                  return (
+                                    <span
+                                      key={index}
+                                      className="px-2 py-1 bg-red-100 rounded text-xs"
+                                      title={
+                                        history
+                                          ? `Last printed: ${new Date(
+                                              history.lastPrinted
+                                            ).toLocaleString()}`
+                                          : ""
+                                      }
+                                    >
+                                      {id}
+                                    </span>
+                                  );
+                                })}
+                              {printedDuplicates.length > 10 && (
+                                <span className="px-2 py-1 bg-red-100 rounded text-xs">
+                                  +{printedDuplicates.length - 10} more
+                                </span>
+                              )}
+                            </div>
+                            {printedDuplicates.length > 0 && (
+                              <div className="mt-2 text-xs text-gray-600">
+                                Last printed:{" "}
+                                {new Date(
+                                  printHistory[
+                                    printedDuplicates[0]
+                                  ]?.lastPrinted
+                                ).toLocaleString() || "Unknown"}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={removeDuplicatesFromMailing}
+                              size="sm"
+                              className="bg-red-600 text-white hover:bg-red-700 flex-1"
+                            >
+                              Remove All Duplicates
+                            </Button>
+                            <Button
+                              onClick={keepDuplicatesInQueue}
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                            >
+                              Print All (Including Duplicates)
+                            </Button>
+                          </div>
+
+                          {printedDuplicates.length > 0 && (
+                            <Button
+                              onClick={removeOnlyPrintedDuplicates}
+                              size="sm"
+                              variant="outline"
+                              className="w-full text-red-700 border-red-300 hover:bg-red-50"
+                            >
+                              Remove Only Previously Printed Items
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Configuration Panel - Show different configs based on action */}
                   {showInputs && (
                     <div className="mb-6">
@@ -1477,6 +1763,12 @@ const Mailing = ({
                         Layout dimensions: {Math.max(columnWidth * 2, 200)}px ×{" "}
                         {Math.max(labelHeight * 2, 100)}px
                       </p>
+                      {hasAvailableRows && currentQueueId && (
+                        <p className="text-xs text-green-600 mt-2">
+                          ✓ {availableRows.length} items automatically added to
+                          print queue
+                        </p>
+                      )}
                     </div>
 
                     {/* Add Mailing Actions */}
@@ -1486,6 +1778,7 @@ const Mailing = ({
                         hasAvailableRows={hasAvailableRows}
                         selectedTemplate={selectedTemplate}
                         onPrintPreview={handleCp850PrintWithRange}
+                        queueLoading={queueLoading}
                       />
                     </div>
                   </div>

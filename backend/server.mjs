@@ -22,6 +22,7 @@ import dataExportRoutes from "./middleware/dataExport/dataExport.mjs";
 import clientLogsRoutes from "./middleware/users/clientLogs.mjs";
 import accountingRoutes from "./middleware/accounting/api.mjs";
 import donorRoute from "./middleware/donorData/api.mjs";
+import printQueueRoutes from "./middleware/printQueue.mjs";
 
 dotenv.config();
 
@@ -66,6 +67,7 @@ const attachIO = (req, res, next) => {
 console.log("IP Address:", process.env.IP_ADDRESS);
 
 app.use("/util", attachIO, utilRoutes);
+app.use("/util", attachIO, printQueueRoutes);
 app.use("/auth", attachIO, userAuthRouter);
 app.use("/users", attachIO, userRoutes);
 app.use("/clients", attachIO, clientsRoutes);
