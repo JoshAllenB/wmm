@@ -17,7 +17,7 @@ const labelWidthDots = inchesToDotsH(labelWidthIn);
 const labelHeightDots = inchesToDotsV(labelHeightIn);
 
 // Horizontal positions - set directly in dots for precise control
-const col1X = 0;
+const col1X = 2;
 const col2X = 255; // Set directly to 250 dots for correct positioning
 
 // Helper: wrap text into multiple lines given max width (in characters)
@@ -725,7 +725,9 @@ export const generateCp850RawPrintContent = (
   rawCommands.push(0x1b, 0x32); // ESC 2 - Set line spacing to 1/6 inch
 
   // Add initial spacing
-  rawCommands.push(0x0d, 0x0a); // CRLF
+  // rawCommands.push(0x0d, 0x0a); // CRLF
+  // feed 8 dots = 1/720 inch per dot on LX-300+ (≈1/216")
+  rawCommands.push(0x1b, 0x4a, 0x08); // ESC J 8
 
   // Apply top margin only for first row of first page and only if not a resumed job
   if (!isPrintJobResumed) {
@@ -764,8 +766,10 @@ export const generateCp850RawPrintContent = (
         // Subsequent rows: indices shift by one due to the initial right-only row
         const leftIdx = rowIndex * columnsPerPage - 1; // (rowIndex*2)-1
         const rightIdx = leftIdx + 1; // rowIndex*2
-        effectiveLeftLabel = leftIdx < filteredRows.length ? filteredRows[leftIdx] : null;
-        effectiveRightLabel = rightIdx < filteredRows.length ? filteredRows[rightIdx] : null;
+        effectiveLeftLabel =
+          leftIdx < filteredRows.length ? filteredRows[leftIdx] : null;
+        effectiveRightLabel =
+          rightIdx < filteredRows.length ? filteredRows[rightIdx] : null;
       }
     } else {
       // Normal left-first layout
@@ -885,9 +889,9 @@ export const generateCp850RawPrintContent = (
   }
 
   // Add final commands
-  rawCommands.push(0x0a); // Line feed
+  // rawCommands.push(0x0a); // Line feed
   rawCommands.push(0x0d); // Carriage return
-  rawCommands.push(0x0c); // Form feed
+  // rawCommands.push(0x0c); // Form feed
   rawCommands.push(0x1b, 0x40); // Reset printer
   rawCommands.push(0x0d, 0x0a); // Final line ending
 
