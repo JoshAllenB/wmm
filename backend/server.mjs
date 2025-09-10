@@ -83,9 +83,16 @@ app.use("/client-logs", attachIO, clientLogsRoutes);
 app.use("/accounting", attachIO, accountingRoutes);
 app.use("/donor-data", attachIO, donorRoute);
 
-app.use(express.static(path.join(__dirname, "../client/dist")));
+app.use(
+  express.static(path.join(__dirname, "../client/dist"), {
+    maxAge: "1y", // cache hashed assets for 1 year
+    etag: false, // optional: disable etag for perf
+    index: false, // don't auto-serve index.html here
+  })
+);
 
 app.get("*", (req, res) => {
+  res.setHeader("Cache-Control", "no-store"); // disables caching
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
