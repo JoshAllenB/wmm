@@ -655,25 +655,25 @@ const Mailing = ({
       }
     }
     // Generate print preview HTML (fallback when JSPrintManager isn't available)
-    const htmlContent = generatePrintHTML(
-      startClientId,
-      endClientId,
-      startPosition,
-      rowsToUse,
-      templateToUse,
-      mmToPx(leftPosition),
-      mmToPx(topPosition),
-      mmToPx(columnWidth),
-      mmToPx(horizontalSpacing),
-      mmToPx(rowSpacing),
-      fontSize,
-      mmToPx(labelHeight),
-      templateToUse.selectedFields || selectedFields || [],
-      userRole,
-      subscriptionType, // Add subscription type here
-      rowsPerPage,
-      columnsPerPage
-    );
+    // const htmlContent = generatePrintHTML(
+    //   startClientId,
+    //   endClientId,
+    //   startPosition,
+    //   rowsToUse,
+    //   templateToUse,
+    //   mmToPx(leftPosition),
+    //   mmToPx(topPosition),
+    //   mmToPx(columnWidth),
+    //   mmToPx(horizontalSpacing),
+    //   mmToPx(rowSpacing),
+    //   fontSize,
+    //   mmToPx(labelHeight),
+    //   templateToUse.selectedFields || selectedFields || [],
+    //   userRole,
+    //   subscriptionType, // Add subscription type here
+    //   rowsPerPage,
+    //   columnsPerPage
+    // );
 
     const printWindow = window.open("", "_blank", "height=600,width=800");
     if (printWindow) {
@@ -735,8 +735,19 @@ const Mailing = ({
       }
     }
 
-    // Always try JSPrintManager raw printing first when available
+    // Always use JSPrintManager raw printing. Do not fall back to HTML preview here.
     try {
+      // Guard: Ensure JSPrintManager is available and ready
+      if (!window.JSPM || !window.JSPM.JSPrintManager) {
+        toast({
+          title: "JSPrintManager Not Available",
+          description:
+            "JSPrintManager client not detected or websocket not open.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const rawCommands = generateCp850RawPrintContent(
         startClientId,
         endClientId,
@@ -759,48 +770,38 @@ const Mailing = ({
         labelAdjustments // Pass label adjustments
       );
 
-      if (window.JSPM && window.JSPM.JSPrintManager) {
-        await printWithJsPrintManager(
-          rawCommands,
-          selectedPrinter || "", // Use selected printer or default
-          !selectedPrinter, // useDefaultPrinter = true only if no printer selected
-          {
-            setStatus: (status) => {
-              if (typeof status === "string" && status.includes("Error:")) {
-                toast({
-                  title: "Print Error",
-                  description: status,
-                  variant: "destructive",
-                });
-              }
-            },
-            setPrintJobStatus: (status) => {
-              if (status === "failed" || status === "error") {
-                toast({
-                  title: "Print Job Failed",
-                  description: "Check console for detailed error information",
-                  variant: "destructive",
-                });
-              }
-            },
-            addPrinterEvent: (event, data) => {
-              if (data?.error) console.error("Printer error details:", data);
-            },
-          }
-        );
-        toast({
-          title: "Print Job Completed",
-          description: "Raw printing completed successfully!",
-        });
-      } else {
-        toast({
-          title: "JSPrintManager Not Available",
-          description:
-            "JSPrintManager client not detected or websocket not open.",
-          variant: "destructive",
-        });
-        handlePrintWithRange();
-      }
+      await printWithJsPrintManager(
+        rawCommands,
+        selectedPrinter || "", // Use selected printer or default
+        !selectedPrinter, // useDefaultPrinter = true only if no printer selected
+        {
+          setStatus: (status) => {
+            if (typeof status === "string" && status.includes("Error:")) {
+              toast({
+                title: "Print Error",
+                description: status,
+                variant: "destructive",
+              });
+            }
+          },
+          setPrintJobStatus: (status) => {
+            if (status === "failed" || status === "error") {
+              toast({
+                title: "Print Job Failed",
+                description: "Check console for detailed error information",
+                variant: "destructive",
+              });
+            }
+          },
+          addPrinterEvent: (event, data) => {
+            if (data?.error) console.error("Printer error details:", data);
+          },
+        }
+      );
+      toast({
+        title: "Print Job Completed",
+        description: "Raw printing completed successfully!",
+      });
     } catch (error) {
       console.error("Raw print error:", error);
       let errorMessage = error.message;
@@ -813,7 +814,8 @@ const Mailing = ({
         description: errorMessage,
         variant: "destructive",
       });
-      handlePrintWithRange();
+      // Do not fallback to HTML preview here to avoid unintended generatePrintHTML calls
+      return;
     }
   };
 
@@ -1155,8 +1157,10 @@ const Mailing = ({
   };
 
   const autoEnqueueData = async () => {
-    if (!currentQueueId) {
-      const queueId = await createAutoQueue();
+    // Ensure we have a valid queue ID and use it locally to avoid race conditions
+    let queueId = currentQueueId;
+    if (!queueId) {
+      queueId = await createAutoQueue();
       if (!queueId) return;
     }
 
@@ -1166,7 +1170,7 @@ const Mailing = ({
 
       // Check both queue duplicates and print history
       const [queueResult, historyResult] = await Promise.all([
-        enqueueSelectionToQueue(currentQueueId, clientIds),
+        enqueueSelectionToQueue(queueId, clientIds),
         checkPrintHistory(clientIds),
       ]);
 
