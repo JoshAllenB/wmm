@@ -254,39 +254,31 @@ const Edit = ({
   });
   const [availableSubscriptions, setAvailableSubscriptions] = useState([]);
 
-  // Function to check if the most recent subscription is within 3 months
+  // Function to check if the most recent subscription end date is within ±3 months of today
   const isRecentSubscription = () => {
     if (!availableSubscriptions || availableSubscriptions.length === 0) {
       return false;
     }
 
-    // Get the most recent subscription (last in the array)
-    const latestSubscription =
-      availableSubscriptions[availableSubscriptions.length - 1];
+    // Find the subscription with the latest valid end date
+    const latestByEndDate = availableSubscriptions
+      .map((s) => ({ sub: s, end: parseDate(s.enddate) }))
+      .filter((x) => x.end instanceof Date && !isNaN(x.end.getTime()))
+      .sort((a, b) => a.end - b.end)
+      .pop();
 
-    if (!latestSubscription.enddate) {
-      return false;
-    }
+    if (!latestByEndDate) return false;
 
-    // Parse the end date
-    const endDate = parseDate(latestSubscription.enddate);
-    if (!endDate) {
-      return false;
-    }
+    const endDate = latestByEndDate.end;
 
-    // Current date (August 8, 2025 as specified)
-    const currentDate = new Date(2025, 7, 8); // Month is 0-indexed, so 7 = August
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const threeMonthsAgo = new Date(today);
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    const threeMonthsAhead = new Date(today);
+    threeMonthsAhead.setMonth(threeMonthsAhead.getMonth() + 3);
 
-    // Calculate the difference in months
-    const diffMonths =
-      (currentDate.getFullYear() - endDate.getFullYear()) * 12 +
-      (currentDate.getMonth() - endDate.getMonth());
-
-    // Return true if the subscription is within 3 months of expiring (past or future)
-    // diffMonths >= -3 means the subscription expires within the next 3 months
-    // diffMonths <= 3 means it expired within the last 3 months
-    const isRecent = diffMonths >= -3 && diffMonths <= 3;
-    return isRecent;
+    return endDate >= threeMonthsAgo && endDate <= threeMonthsAhead;
   };
 
   const [newSubscription, setNewSubscription] = useState({
@@ -894,9 +886,25 @@ const Edit = ({
         // Select the latest subscription
         setSelectedSubscription(latestSubscription);
       }
-    } else if (mode === "add" || subscriptionMode === "add") {
-      // Clear subscription data for add mode
+    } else if (mode === "add") {
+      // Brand-new client add: clear everything
       setAvailableSubscriptions([]);
+      setSelectedSubscription({
+        subsdate: "",
+        enddate: "",
+        renewdate: "",
+        subsyear: "",
+        copies: "1",
+        paymtamt: "",
+        paymtmasses: "",
+        calendar: false,
+        subsclass: "",
+        donorid: "",
+        paymtref: "",
+      });
+    } else if (subscriptionMode === "add") {
+      // Switching to add mode while editing an existing client: keep availableSubscriptions
+      // so the CTA label (Renew/Add New) remains stable based on recency
       setSelectedSubscription({
         subsdate: "",
         enddate: "",
@@ -4092,7 +4100,7 @@ const Edit = ({
                           type="button"
                           onClick={() => handleSubscriptionModeChange("add")}
                           className={`px-3 py-1 rounded-md ${
-                            subscriptionMode === "edit"
+                            subscriptionMode === "add"
                               ? "bg-blue-500 text-white"
                               : "bg-gray-200 text-gray-700"
                           }`}
