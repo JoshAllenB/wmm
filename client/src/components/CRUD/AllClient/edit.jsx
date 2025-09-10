@@ -1960,8 +1960,7 @@ const Edit = ({
           );
           setCalData({
             ...selectedCalRecord,
-            calunit:
-              selectedCalRecord.calunit ?? selectedCalRecord.calamt ?? 0,
+            calunit: selectedCalRecord.calunit ?? selectedCalRecord.calamt ?? 0,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
@@ -2707,17 +2706,6 @@ const Edit = ({
       };
 
       try {
-        // Check if authentication token exists
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
-          toast({
-            title: "Authentication Error",
-            description: "Please log in again to continue.",
-            variant: "destructive",
-          });
-          return;
-        }
-
         const response = await axios.put(
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
             rowData.id
@@ -3082,17 +3070,6 @@ const Edit = ({
     };
 
     try {
-      // Check if authentication token exists
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in again to continue.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const response = await axios[method](endpoint, submissionData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -3542,17 +3519,6 @@ const Edit = ({
     };
 
     try {
-      // Check if authentication token exists
-      const token = localStorage.getItem("accessToken");
-      if (!token) {
-        toast({
-          title: "Authentication Error",
-          description: "Please log in again to continue.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const response = await axios[method](endpoint, submissionData, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -4502,7 +4468,8 @@ const Edit = ({
                                   );
                                   setRoleSpecificData({
                                     ...record,
-                                    calunit: record.calunit ?? record.calamt ?? 0,
+                                    calunit:
+                                      record.calunit ?? record.calamt ?? 0,
                                     recvdateMonth: recvdateParts.month,
                                     recvdateDay: recvdateParts.day,
                                     recvdateYear: recvdateParts.year,

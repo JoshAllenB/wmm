@@ -495,12 +495,6 @@ const AllClient = () => {
             description: "An error occurred on the server. Please try again.",
             variant: "destructive",
           });
-        } else if (error.response?.status === 401) {
-          toast({
-            title: "Authentication Error",
-            description: "Please log in again to continue.",
-            variant: "destructive",
-          });
         } else {
           toast({
             title: "Error",
@@ -525,7 +519,6 @@ const AllClient = () => {
     }
 
     const initializeComponent = async () => {
-
       try {
         // Load groups and users in parallel
         const [groupsData, userData] = await Promise.all([
@@ -609,7 +602,6 @@ const AllClient = () => {
 
   // Main data loading effect (runs AFTER role-based services are set)
   useEffect(() => {
-
     // Skip this effect during initial load when services are being set up
     if (isLoading) {
       return;
