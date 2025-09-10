@@ -9,6 +9,7 @@ import { Button } from "../UI/ShadCN/button";
 import axios from "axios";
 import { useUser } from "../../utils/Hooks/userProvider";
 import { toast } from "react-hot-toast";
+import RangeSelector from "./RangeSelector";
 
 const ThankYouLetterDataOverlay = forwardRef(
   (
@@ -248,6 +249,25 @@ const ThankYouLetterDataOverlay = forwardRef(
       };
     }, []);
 
+    // Local range state to enable in-component RangeSelector
+    const [localStartId, setLocalStartId] = useState("");
+    const [localEndId, setLocalEndId] = useState("");
+    const [localStartPosition, setLocalStartPosition] = useState("left");
+
+    // Derive effective IDs: prefer local if set, else props
+    const effectiveStartId = (localStartId || "").trim() || (startId || "").trim();
+    const effectiveEndId = (localEndId || "").trim() || (endId || "").trim();
+
+    // Helper to compute min client id from available rows
+    const getMinClientId = useCallback(() => {
+      if (!availableRows?.length) return null;
+      const ids = availableRows
+        .map((r) => parseInt((r?.original?.id ?? "").toString(), 10))
+        .filter((n) => !isNaN(n));
+      if (ids.length === 0) return null;
+      return Math.min(...ids);
+    }, [availableRows]);
+
     // Memoize the filtering function
     const filterSubscribers = useCallback(
       (rows) => {
@@ -266,14 +286,19 @@ const ThankYouLetterDataOverlay = forwardRef(
             return;
           }
 
-          const trimmedStartId = startId?.trim();
-          const trimmedEndId = endId?.trim();
+          const trimmedStartId = effectiveStartId || "";
+          const trimmedEndId = effectiveEndId || "";
 
           // Convert to numbers for comparison
           const numericClientId = parseInt(clientId, 10);
-          const numericStartId = trimmedStartId
-            ? parseInt(trimmedStartId, 10)
-            : null;
+          // If only end ID provided and no start ID, default start to minimum available ID
+          let numericStartId = null;
+          if (trimmedStartId) {
+            numericStartId = parseInt(trimmedStartId, 10);
+          } else if (trimmedEndId) {
+            const minId = getMinClientId();
+            numericStartId = minId !== null ? minId : null;
+          }
           const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
 
           // Check if any conversion resulted in NaN
@@ -322,7 +347,7 @@ const ThankYouLetterDataOverlay = forwardRef(
 
         return { filtered, skipped };
       },
-      [startId, endId, processSubscriberData]
+      [effectiveStartId, effectiveEndId, processSubscriberData, getMinClientId]
     );
 
     // Update filtered subscribers and skipped records when dependencies change
@@ -352,7 +377,7 @@ const ThankYouLetterDataOverlay = forwardRef(
 
       // Cleanup timeout on unmount or when dependencies change
       return () => clearTimeout(timeoutId);
-    }, [availableRows, startId, endId, filterSubscribers]); // Remove onSkippedDataUpdate from dependencies
+    }, [availableRows, effectiveStartId, effectiveEndId, filterSubscribers]); // Remove onSkippedDataUpdate from dependencies
 
     // Format date as human-readable MM/DD/YYYY
     const formatDate = (dateInput) => {
@@ -1027,6 +1052,34 @@ const ThankYouLetterDataOverlay = forwardRef(
           <div className="flex flex-col md:flex-row w-full gap-4">
             {/* Left side: Configuration */}
             <div className="w-full md:w-2/5">
+              {/* Range Selector */}
+              <div className="mb-4 border rounded-lg p-3 bg-gray-50">
+                <div className="mb-2 text-sm font-medium">Range</div>
+                <RangeSelector
+                  startClientId={localStartId}
+                  setStartClientId={setLocalStartId}
+                  endClientId={localEndId}
+                  setEndClientId={setLocalEndId}
+                  startPosition={localStartPosition}
+                  setStartPosition={setLocalStartPosition}
+                  availableRows={availableRows}
+                  onSetFromSelection={() => {
+                    if (!availableRows?.length) return;
+                    const ids = availableRows
+                      .map((r) => parseInt((r?.original?.id ?? "").toString(), 10))
+                      .filter((n) => !isNaN(n));
+                    if (ids.length === 0) return;
+                    const minId = Math.min(...ids).toString();
+                    const maxId = Math.max(...ids).toString();
+                    setLocalStartId(minId);
+                    setLocalEndId(maxId);
+                  }}
+                  showStartPosition={false}
+                />
+                <div className="mt-2 text-xs text-gray-600">
+                  Using: {(effectiveStartId || getMinClientId() || "").toString() || "Start"} - {effectiveEndId || "End"}
+                </div>
+              </div>
               {/* Template controls */}
               <div className="mb-4 border rounded-lg p-3 bg-gray-50">
                 <div className="mb-2 text-sm font-medium">Templates</div>
