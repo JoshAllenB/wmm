@@ -2147,65 +2147,66 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       cashPaid: advancedFilterData.cashPaid,
     });
     try {
-      const WmmModel = await getModelInstance("WmmModel");
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-      let paymentQuery = {};
+      const SubscriptionModel = await getSubscriptionModel(subscriptionType);
 
       // Build pipeline to get the most recent subscription for each client
       const pipeline = [
-        // Check for any date range filter (Active, Expiry, or Date Encoded)
-        ...(advancedFilterData.wmmActiveFromDate ||
+        // Always normalize subsdate so we can reliably sort by date across models
+        ...createDatePipeline("subsdate", subscriptionType),
+      ];
+
+      // If any date range is provided, constrain the records BEFORE picking latest per client
+      if (
+        advancedFilterData.wmmActiveFromDate ||
         advancedFilterData.wmmActiveToDate ||
         advancedFilterData.wmmExpiringFromDate ||
         advancedFilterData.wmmExpiringToDate ||
         advancedFilterData.startDate ||
         advancedFilterData.endDate
-          ? [
-              ...createDatePipeline("subsdate", subscriptionType),
-              {
-                $match: {
-                  normalizedDate: {
-                    // Active date range
-                    ...(advancedFilterData.wmmActiveFromDate && {
-                      $gte: parseDate(advancedFilterData.wmmActiveFromDate),
-                    }),
-                    ...(advancedFilterData.wmmActiveToDate && {
-                      $lte: parseDate(advancedFilterData.wmmActiveToDate),
-                    }),
-                    // Expiry date range (check if subscription date falls within expiry range)
-                    ...(advancedFilterData.wmmExpiringFromDate && {
-                      $gte: parseDate(advancedFilterData.wmmExpiringFromDate),
-                    }),
-                    ...(advancedFilterData.wmmExpiringToDate && {
-                      $lte: parseDate(advancedFilterData.wmmExpiringToDate),
-                    }),
-                    // Date Encoded range
-                    ...(advancedFilterData.startDate && {
-                      $gte: parseDate(advancedFilterData.startDate),
-                    }),
-                    ...(advancedFilterData.endDate && {
-                      $lte: parseDate(advancedFilterData.endDate),
-                    }),
-                  },
-                },
-              },
-            ]
-          : []),
-
-        // Sort by clientid and subsdate to get the most recent record per client
-        { $sort: { clientid: 1, subsdate: -1 } },
-
-        // Group by clientid and take the first (most recent) record
-        {
-          $group: {
-            _id: "$clientid",
-            latestRecord: { $first: "$$ROOT" },
+      ) {
+        pipeline.push({
+          $match: {
+            normalizedDate: {
+              // Active date range
+              ...(advancedFilterData.wmmActiveFromDate && {
+                $gte: parseDate(advancedFilterData.wmmActiveFromDate),
+              }),
+              ...(advancedFilterData.wmmActiveToDate && {
+                $lte: parseDate(advancedFilterData.wmmActiveToDate),
+              }),
+              // Expiry date range (use subsdate to check within selected expiry months)
+              ...(advancedFilterData.wmmExpiringFromDate && {
+                $gte: parseDate(advancedFilterData.wmmExpiringFromDate),
+              }),
+              ...(advancedFilterData.wmmExpiringToDate && {
+                $lte: parseDate(advancedFilterData.wmmExpiringToDate),
+              }),
+              // Date Encoded range
+              ...(advancedFilterData.startDate && {
+                $gte: parseDate(advancedFilterData.startDate),
+              }),
+              ...(advancedFilterData.endDate && {
+                $lte: parseDate(advancedFilterData.endDate),
+              }),
+            },
           },
-        },
+        });
+      }
 
-        // Replace root with the latest record
-        { $replaceRoot: { newRoot: "$latestRecord" } },
-      ];
+      // Sort by clientid and normalized date to get the most recent record per client
+      pipeline.push({ $sort: { clientid: 1, normalizedDate: -1 } });
+
+      // Group by clientid and take the first (most recent) record
+      pipeline.push({
+        $group: {
+          _id: "$clientid",
+          latestRecord: { $first: "$$ROOT" },
+        },
+      });
+
+      // Replace root with the latest record
+      pipeline.push({ $replaceRoot: { newRoot: "$latestRecord" } });
 
       // Add payment type filter based on the most recent records
       if (advancedFilterData.massPaid && !advancedFilterData.cashPaid) {
@@ -2250,7 +2251,9 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       console.log("Payment pipeline:", JSON.stringify(pipeline, null, 2));
 
-      const clientsWithPaymentType = await WmmModel.aggregate(pipeline);
+      const clientsWithPaymentType = await SubscriptionModel.aggregate(
+        pipeline
+      );
       console.log(
         "Found clients with payment type:",
         clientsWithPaymentType.length
