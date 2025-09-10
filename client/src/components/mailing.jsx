@@ -1802,6 +1802,7 @@ const Mailing = ({
                       setStartPosition={setStartPosition}
                       availableRows={availableRows}
                       onSetFromSelection={setRangeFromSelection}
+                      showStartPosition={true}
                     />
                   </div>
                 </div>
