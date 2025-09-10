@@ -43,6 +43,7 @@ import {
   enqueueFilterToQueue,
   clearPrintQueue,
   checkPrintHistory,
+  markQueuePrinted,
 } from "./Table/Data/utilData.jsx";
 
 // Helper functions
@@ -181,6 +182,8 @@ const Mailing = ({
   const [showDuplicatePanel, setShowDuplicatePanel] = useState(false);
   const [queueLoading, setQueueLoading] = useState(false);
   const [currentQueueId, setCurrentQueueId] = useState("");
+  const recheckTimerRef = useRef(null);
+  const [excludedIds, setExcludedIds] = useState(new Set());
 
   // Callback to handle changes from RawPrinterControls
   const handleRawPrinterControlsChange = (changes) => {
@@ -285,6 +288,13 @@ const Mailing = ({
 
   // Get available rows using useMemo to avoid initialization issues
   const availableRows = useMemo(() => getAvailableRows(), [getAvailableRows]);
+  // Apply local exclusions (removed duplicates for this run) to form effective rows
+  const effectiveRows = useMemo(() => {
+    if (!excludedIds || excludedIds.size === 0) return availableRows;
+    return availableRows.filter(
+      (row) => !excludedIds.has(row?.original?.id?.toString())
+    );
+  }, [availableRows, excludedIds]);
   const hasAvailableRows = availableRows.length > 0;
 
   // Get row count based on selected dataSource
@@ -346,12 +356,17 @@ const Mailing = ({
     if (modalOpen) {
       setStartClientId("");
       setEndClientId("");
+      setExcludedIds(new Set()); // Reset exclusions for fresh start
     }
   }, [modalOpen]);
 
   // Update modal open state when isOpen prop changes
   useEffect(() => {
     setModalOpen(isOpen);
+    // Reset exclusions when modal closes to allow fresh start next time
+    if (!isOpen) {
+      setExcludedIds(new Set());
+    }
   }, [isOpen]);
 
   // Fetch templates on component mount
@@ -638,12 +653,16 @@ const Mailing = ({
       };
     }
 
-    // Determine which data to use
-    let rowsToUse = availableRows;
+    // Determine which data to use - use effectiveRows (after duplicate removal)
+    let rowsToUse = effectiveRows;
     if (useAllData) {
       try {
         const allData = await fetchAllData();
-        rowsToUse = allData.map((item) => ({ original: item }));
+        const allDataRows = allData.map((item) => ({ original: item }));
+        // Apply exclusions to all data as well
+        rowsToUse = allDataRows.filter(
+          (row) => !excludedIds.has(row?.original?.id?.toString())
+        );
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
@@ -741,7 +760,8 @@ const Mailing = ({
                 done = true;
                 clearTimeout(timer);
                 // restore any previous handler
-                window.JSPM.JSPrintManager.WS.onStatusChanged = prevHandler || null;
+                window.JSPM.JSPrintManager.WS.onStatusChanged =
+                  prevHandler || null;
                 resolve(true);
               }
               // pass through to previous handler if it exists
@@ -780,12 +800,16 @@ const Mailing = ({
       };
     }
 
-    // Determine which data to use
-    let rowsToUse = availableRows;
+    // Determine which data to use - use effectiveRows (after duplicate removal)
+    let rowsToUse = effectiveRows;
     if (useAllData) {
       try {
         const allData = await fetchAllData();
-        rowsToUse = allData.map((item) => ({ original: item }));
+        const allDataRows = allData.map((item) => ({ original: item }));
+        // Apply exclusions to all data as well
+        rowsToUse = allDataRows.filter(
+          (row) => !excludedIds.has(row?.original?.id?.toString())
+        );
       } catch (error) {
         console.error("Error fetching all data:", error);
         toast({
@@ -872,6 +896,23 @@ const Mailing = ({
           },
         }
       );
+      // On successful send to printer, record printed IDs
+      try {
+        const clientIds = rowsToUse
+          .map((r) => r.original.id?.toString())
+          .filter(Boolean);
+        if (currentQueueId && clientIds.length > 0) {
+          await markQueuePrinted(currentQueueId, {
+            clientIds,
+            jobId: undefined,
+            printerName: selectedPrinter || undefined,
+            templateRefId: selectedTemplate?._id || undefined,
+            actionType: currentAction || "label",
+          });
+        }
+      } catch (recordErr) {
+        console.error("Failed to record printed items:", recordErr);
+      }
       toast({
         title: "Print Job Completed",
         description: "Raw printing completed successfully!",
@@ -1000,7 +1041,7 @@ const Mailing = ({
       printWindow.document.write(
         generateChecklistHTML(
           filteredColumns,
-          availableRows,
+          effectiveRows,
           checklistTitle,
           filterDate
         )
@@ -1293,25 +1334,93 @@ const Mailing = ({
     }
   };
 
-  const removeDuplicatesFromMailing = () => {
-    // Remove both queue and printed duplicate client IDs from availableRows
-    const allDuplicateIds = new Set([...queueDuplicates, ...printedDuplicates]);
-    const filteredRows = availableRows.filter(
-      (row) => !allDuplicateIds.has(row.original.id.toString())
-    );
+  // Debounced recheck of duplicates when the current selection changes
+  const recheckDuplicates = useCallback(async () => {
+    if (!modalOpen || !currentQueueId) return;
+    if (effectiveRows.length === 0) {
+      setShowDuplicatePanel(false);
+      setQueueDuplicates([]);
+      setPrintedDuplicates([]);
+      setPrintHistory({});
+      return;
+    }
 
-    // Update the table data to reflect the filtered rows
-    // This would need to be implemented based on your table structure
-    const totalRemoved = queueDuplicates.length + printedDuplicates.length;
+    setQueueLoading(true);
+    try {
+      const clientIds = effectiveRows.map((row) => row.original.id.toString());
+      const [queueResult, historyResult] = await Promise.all([
+        enqueueSelectionToQueue(currentQueueId, clientIds),
+        checkPrintHistory(clientIds),
+      ]);
+
+      const queueDuplicatesLocal = queueResult.duplicatesSample || [];
+      const hasQueueDuplicatesLocal = queueResult.alreadyInQueueCount > 0;
+
+      const printedDuplicatesLocal = historyResult.printedIds || [];
+      const hasPrintedDuplicatesLocal = historyResult.totalPrinted > 0;
+
+      if (hasQueueDuplicatesLocal || hasPrintedDuplicatesLocal) {
+        setQueueDuplicates(queueDuplicatesLocal);
+        setPrintedDuplicates(printedDuplicatesLocal);
+        setPrintHistory(historyResult.printHistory || {});
+        setShowDuplicatePanel(true);
+      } else {
+        setShowDuplicatePanel(false);
+        setQueueDuplicates([]);
+        setPrintedDuplicates([]);
+        setPrintHistory({});
+      }
+    } catch (error) {
+      console.error("Error rechecking duplicates:", error);
+    } finally {
+      setQueueLoading(false);
+    }
+  }, [modalOpen, currentQueueId, effectiveRows]);
+
+  // Watch selection-related inputs and recheck duplicates with debounce
+  useEffect(() => {
+    if (!modalOpen || !currentQueueId) return;
+    if (recheckTimerRef.current) clearTimeout(recheckTimerRef.current);
+    recheckTimerRef.current = setTimeout(() => {
+      recheckDuplicates();
+    }, 400);
+    return () => {
+      if (recheckTimerRef.current) clearTimeout(recheckTimerRef.current);
+    };
+  }, [
+    modalOpen,
+    currentQueueId,
+    availableRows,
+    effectiveRows,
+    startClientId,
+    endClientId,
+    dataSource,
+    useAllData,
+    recheckDuplicates,
+  ]);
+
+  const removeDuplicatesFromMailing = () => {
+    // Exclude both queue duplicates and previously printed items for this run
+    const allDuplicateIds = new Set([
+      ...queueDuplicates.map((x) => x.toString()),
+      ...printedDuplicates.map((x) => x.toString()),
+    ]);
+    const next = new Set(excludedIds);
+    allDuplicateIds.forEach((id) => next.add(id));
+    setExcludedIds(next);
+
+    const totalRemoved = allDuplicateIds.size;
     toast({
       title: "Duplicates Removed",
-      description: `Removed ${totalRemoved} duplicate items from mailing list`,
+      description: `Removed ${totalRemoved} duplicate items from this print run`,
     });
 
     setShowDuplicatePanel(false);
     setQueueDuplicates([]);
     setPrintedDuplicates([]);
     setPrintHistory({});
+    // Recheck with the new effective set to keep UI accurate
+    recheckDuplicates();
   };
 
   const keepDuplicatesInQueue = () => {
@@ -1327,22 +1436,22 @@ const Mailing = ({
   };
 
   const removeOnlyPrintedDuplicates = () => {
-    // Remove only previously printed items, keep queue duplicates
-    const filteredRows = availableRows.filter(
-      (row) => !printedDuplicates.includes(row.original.id.toString())
-    );
+    // Exclude only the previously printed IDs for this run
+    const next = new Set(excludedIds);
+    printedDuplicates.forEach((id) => next.add(id.toString()));
+    setExcludedIds(next);
 
     toast({
       title: "Printed Duplicates Removed",
-      description: `Removed ${printedDuplicates.length} previously printed items from mailing list`,
+      description: `Removed ${printedDuplicates.length} previously printed items from this print run`,
     });
 
     setPrintedDuplicates([]);
-    // Keep queue duplicates and panel open if there are still queue duplicates
     if (queueDuplicates.length === 0) {
       setShowDuplicatePanel(false);
       setPrintHistory({});
     }
+    recheckDuplicates();
   };
 
   const [currentAction, setCurrentAction] = useState(initialAction);
@@ -1405,11 +1514,8 @@ const Mailing = ({
 
             <div className="flex w-full gap-6">
               {/* Left Panel - Configuration Controls */}
-              <div className="w-[400px] flex-shrink-0">
-                <div
-                  className="border rounded-lg p-4 bg-white shadow-sm"
-                  style={{ maxHeight: "calc(90vh - 100px)", overflowY: "auto" }}
-                >
+              <div className="w-[550px] flex-shrink-0">
+                <div className="h-fullborder rounded-lg p-4 shadow-sm">
                   {/* Standardized Data Source Toggle */}
                   <div className="mb-4 p-4 bg-blue-50 rounded-lg">
                     <div className="flex flex-col">
@@ -1482,8 +1588,12 @@ const Mailing = ({
                   </div>
 
                   {/* Configuration Toggle and Checklist Button */}
-                  <div className="flex justify-center gap-2 mb-4">
-                    <Button onClick={toggleShowInputs} variant="outline">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                    <Button
+                      onClick={toggleShowInputs}
+                      variant="outline"
+                      className="w-full"
+                    >
                       {showInputs
                         ? currentAction === "label"
                           ? "Hide Raw Printer Config"
@@ -1496,6 +1606,7 @@ const Mailing = ({
                       onClick={handlePrintChecklist}
                       variant="outline"
                       disabled={!hasAvailableRows || isLoading}
+                      className="w-full"
                     >
                       Print Checklist
                     </Button>
@@ -1535,99 +1646,105 @@ const Mailing = ({
                   )}
 
                   {/* Duplicate Handling Panel - Only show when duplicates detected */}
-                  {showDuplicatePanel && (
-                    <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <h4 className="font-medium mb-3 text-yellow-800">
-                        Duplicate Items Found
-                      </h4>
-                      <p className="text-sm text-yellow-700 mb-3">
-                        {queueDuplicates.length > 0 &&
-                        printedDuplicates.length > 0
-                          ? `${queueDuplicates.length} items already in queue, ${printedDuplicates.length} items already printed.`
-                          : queueDuplicates.length > 0
-                          ? `${queueDuplicates.length} items already in queue.`
-                          : `${printedDuplicates.length} items already printed.`}{" "}
-                        Choose how to handle these duplicates:
-                      </p>
+                  {showDuplicatePanel &&
+                    (queueDuplicates.length > 0 ||
+                      printedDuplicates.length > 0) && (
+                      <div className="mb-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <h4 className="font-medium mb-3 text-yellow-800">
+                          Duplicate Items Found
+                        </h4>
+                        <p className="text-sm text-yellow-700 mb-3">
+                          {queueDuplicates.length > 0 &&
+                          printedDuplicates.length > 0
+                            ? `${queueDuplicates.length} items already in queue, ${printedDuplicates.length} items already printed.`
+                            : queueDuplicates.length > 0
+                            ? `${queueDuplicates.length} items already in queue.`
+                            : `${printedDuplicates.length} items already printed.`}{" "}
+                          Choose how to handle these duplicates:
+                        </p>
 
-                      <div className="space-y-3">
-                        {/* Queue Duplicates */}
-                        {queueDuplicates.length > 0 && (
-                          <div className="p-3 bg-white rounded border text-sm">
-                            <div className="font-medium mb-2 text-blue-700">
-                              Already in Queue ({queueDuplicates.length}):
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {queueDuplicates.slice(0, 10).map((id, index) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-1 bg-blue-100 rounded text-xs"
-                                >
-                                  {id}
-                                </span>
-                              ))}
-                              {queueDuplicates.length > 10 && (
-                                <span className="px-2 py-1 bg-blue-100 rounded text-xs">
-                                  +{queueDuplicates.length - 10} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Previously Printed Duplicates */}
-                        {printedDuplicates.length > 0 && (
-                          <div className="p-3 bg-white rounded border text-sm">
-                            <div className="font-medium mb-2 text-red-700">
-                              Already Printed ({printedDuplicates.length}):
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {printedDuplicates
-                                .slice(0, 10)
-                                .map((id, index) => {
-                                  const history = printHistory[id];
-                                  return (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                          {/* Queue Duplicates */}
+                          {queueDuplicates.length > 0 && (
+                            <div className="p-3 bg-white rounded border text-sm">
+                              <div className="font-medium mb-2 text-blue-700">
+                                Already in Queue ({queueDuplicates.length}):
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {queueDuplicates
+                                  .slice(0, 15)
+                                  .map((id, index) => (
                                     <span
                                       key={index}
-                                      className="px-2 py-1 bg-red-100 rounded text-xs"
-                                      title={
-                                        history
-                                          ? `Last printed: ${new Date(
-                                              history.lastPrinted
-                                            ).toLocaleString()}`
-                                          : ""
-                                      }
+                                      className="px-2 py-1 bg-blue-100 rounded text-xs"
                                     >
                                       {id}
                                     </span>
-                                  );
-                                })}
-                              {printedDuplicates.length > 10 && (
-                                <span className="px-2 py-1 bg-red-100 rounded text-xs">
-                                  +{printedDuplicates.length - 10} more
-                                </span>
+                                  ))}
+                                {queueDuplicates.length > 15 && (
+                                  <span className="px-2 py-1 bg-blue-100 rounded text-xs">
+                                    +{queueDuplicates.length - 15} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Previously Printed Duplicates */}
+                          {printedDuplicates.length > 0 && (
+                            <div className="p-3 bg-white rounded border text-sm">
+                              <div className="font-medium mb-2 text-red-700">
+                                Already Printed ({printedDuplicates.length}):
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                {printedDuplicates
+                                  .slice(0, 15)
+                                  .map((id, index) => {
+                                    const history = printHistory[id];
+                                    return (
+                                      <span
+                                        key={index}
+                                        className="px-2 py-1 bg-red-100 rounded text-xs"
+                                        title={
+                                          history
+                                            ? `Last printed: ${new Date(
+                                                history.lastPrinted
+                                              ).toLocaleString()}`
+                                            : ""
+                                        }
+                                      >
+                                        {id}
+                                      </span>
+                                    );
+                                  })}
+                                {printedDuplicates.length > 15 && (
+                                  <span className="px-2 py-1 bg-red-100 rounded text-xs">
+                                    +{printedDuplicates.length - 15} more
+                                  </span>
+                                )}
+                              </div>
+                              {printedDuplicates.length > 0 && (
+                                <div className="mt-2 text-xs text-gray-600">
+                                  Last printed:{" "}
+                                  {new Date(
+                                    printHistory[
+                                      printedDuplicates[0]
+                                    ]?.lastPrinted
+                                  ).toLocaleString() || "Unknown"}
+                                </div>
                               )}
                             </div>
-                            {printedDuplicates.length > 0 && (
-                              <div className="mt-2 text-xs text-gray-600">
-                                Last printed:{" "}
-                                {new Date(
-                                  printHistory[
-                                    printedDuplicates[0]
-                                  ]?.lastPrinted
-                                ).toLocaleString() || "Unknown"}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         {/* Action Buttons */}
-                        <div className="space-y-2">
-                          <div className="flex gap-2">
+                        <div className="mt-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <Button
                               onClick={removeDuplicatesFromMailing}
                               size="sm"
-                              className="bg-red-600 text-white hover:bg-red-700 flex-1"
+                              className="bg-red-600 text-white hover:bg-red-700"
+                              title="Removes both queue duplicates and previously printed IDs from this run"
                             >
                               Remove All Duplicates
                             </Button>
@@ -1635,7 +1752,8 @@ const Mailing = ({
                               onClick={keepDuplicatesInQueue}
                               size="sm"
                               variant="outline"
-                              className="flex-1 text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                              className="text-yellow-700 border-yellow-300 hover:bg-yellow-100"
+                              title="Keeps all items, including duplicates, and proceeds to print"
                             >
                               Print All (Including Duplicates)
                             </Button>
@@ -1646,15 +1764,38 @@ const Mailing = ({
                               onClick={removeOnlyPrintedDuplicates}
                               size="sm"
                               variant="outline"
-                              className="w-full text-red-700 border-red-300 hover:bg-red-50"
+                              className="w-full mt-2 text-red-700 border-red-300 hover:bg-red-50"
+                              title="Removes only IDs with prior print history; keeps items already in this queue"
                             >
                               Remove Only Previously Printed Items
                             </Button>
                           )}
+
+                          {excludedIds.size > 0 && (
+                            <Button
+                              onClick={() => {
+                                setExcludedIds(new Set());
+                                setShowDuplicatePanel(false);
+                                setQueueDuplicates([]);
+                                setPrintedDuplicates([]);
+                                setPrintHistory({});
+                                toast({
+                                  title: "Exclusions Reset",
+                                  description:
+                                    "All duplicate exclusions have been cleared. You can now re-run duplicate detection.",
+                                });
+                              }}
+                              size="sm"
+                              variant="outline"
+                              className="w-full mt-2 text-blue-700 border-blue-300 hover:bg-blue-50"
+                              title="Clears all duplicate exclusions and allows re-running duplicate detection"
+                            >
+                              Reset Exclusions & Re-check
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* Configuration Panel - Show different configs based on action */}
                   {showInputs && (
@@ -1669,7 +1810,7 @@ const Mailing = ({
                             startClientId={startClientId}
                             endClientId={endClientId}
                             startPosition={startPosition}
-                            rows={availableRows}
+                            rows={effectiveRows}
                             selectedFields={selectedFields}
                             userRole={userRole}
                             subscriptionType={subscriptionType}
@@ -1800,7 +1941,7 @@ const Mailing = ({
                       setEndClientId={setEndClientId}
                       startPosition={startPosition}
                       setStartPosition={setStartPosition}
-                      availableRows={availableRows}
+                      availableRows={effectiveRows}
                       onSetFromSelection={setRangeFromSelection}
                       showStartPosition={true}
                     />
@@ -1814,51 +1955,63 @@ const Mailing = ({
                   <h3 className="text-center font-semibold mb-4">
                     Label Preview
                   </h3>
-                  <div className="flex flex-col items-center justify-center h-[calc(90vh-200px)]">
-                    <LabelPreview
-                      isLoading={isLoading}
-                      selectedTemplate={selectedTemplate}
-                      hasAvailableRows={hasAvailableRows}
-                      availableRows={availableRows}
-                      fontSize={fontSize}
-                      columnWidth={columnWidth}
-                      horizontalSpacing={horizontalSpacing}
-                      labelHeight={labelHeight}
-                      selectedFields={selectedFields}
-                      startPosition={startPosition}
-                      rowSpacing={rowSpacing}
-                      topPosition={topPosition}
-                      leftPosition={leftPosition}
-                      userRole={userRole}
-                      paperWidth={paperWidth}
-                      paperHeight={paperHeight}
-                      rowsPerPage={rowsPerPage}
-                      columnsPerPage={columnsPerPage}
-                      subscriptionType={subscriptionType} // Add subscription type here
-                    />
+                  <div className="flex flex-col">
+                    {/* Preview Area */}
+                    <div className="flex-grow flex items-center justify-center">
+                      <LabelPreview
+                        isLoading={isLoading}
+                        selectedTemplate={selectedTemplate}
+                        hasAvailableRows={effectiveRows.length > 0}
+                        availableRows={effectiveRows}
+                        fontSize={fontSize}
+                        columnWidth={columnWidth}
+                        horizontalSpacing={horizontalSpacing}
+                        labelHeight={labelHeight}
+                        selectedFields={selectedFields}
+                        startPosition={startPosition}
+                        rowSpacing={rowSpacing}
+                        topPosition={topPosition}
+                        leftPosition={leftPosition}
+                        userRole={userRole}
+                        paperWidth={paperWidth}
+                        paperHeight={paperHeight}
+                        rowsPerPage={rowsPerPage}
+                        columnsPerPage={columnsPerPage}
+                        subscriptionType={subscriptionType}
+                      />
+                    </div>
+
+                    {/* Preview Info */}
                     <div className="text-sm text-gray-600 mt-4 text-center">
                       <p>Real-time preview of how labels will print</p>
                       <p className="text-xs">
                         Layout dimensions: {Math.max(columnWidth * 2, 200)}px ×{" "}
                         {Math.max(labelHeight * 2, 100)}px
                       </p>
-                      {hasAvailableRows && currentQueueId && (
+                      {effectiveRows.length > 0 && currentQueueId && (
                         <p className="text-xs text-green-600 mt-2">
-                          ✓ {availableRows.length} items automatically added to
+                          ✓ {effectiveRows.length} items automatically added to
                           print queue
+                          {excludedIds.size > 0 && (
+                            <span className="text-orange-600 ml-1">
+                              ({excludedIds.size} duplicates excluded)
+                            </span>
+                          )}
                         </p>
                       )}
                     </div>
 
-                    {/* Add Mailing Actions */}
-                    <div className="mt-6 w-full max-w-md">
-                      <MailingActions
-                        isLoading={isLoading}
-                        hasAvailableRows={hasAvailableRows}
-                        selectedTemplate={selectedTemplate}
-                        onPrintPreview={handleCp850PrintWithRange}
-                        queueLoading={queueLoading}
-                      />
+                    {/* Mailing Actions */}
+                    <div className="mt-6 flex justify-center">
+                      <div className="w-full max-w-lg">
+                        <MailingActions
+                          isLoading={isLoading}
+                          hasAvailableRows={effectiveRows.length > 0}
+                          selectedTemplate={selectedTemplate}
+                          onPrintPreview={handleCp850PrintWithRange}
+                          queueLoading={queueLoading}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1875,7 +2028,9 @@ const Mailing = ({
     <div>
       {/* Main Mailing Modal - only show for label printing */}
       <Modal isOpen={isOpen && currentAction === "label"} onClose={handleClose}>
-        <div className="w-full max-w-[95vw]">{renderContent()}</div>
+        <div className="w-full max-w-[98vw] min-w-[1200px]">
+          {renderContent()}
+        </div>
       </Modal>
 
       {/* Document Generator Modal */}

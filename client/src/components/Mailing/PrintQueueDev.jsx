@@ -7,6 +7,7 @@ import {
   enqueueSelectionToQueue,
   enqueueFilterToQueue,
   clearPrintQueue,
+  checkPrintHistory,
 } from "../Table/Data/utilData.jsx";
 
 const PrintQueueDev = () => {
@@ -75,6 +76,29 @@ const PrintQueueDev = () => {
       toast.error("Please enter some IDs to enqueue");
       return;
     }
+
+    // Check print history first
+    try {
+      const historyResult = await checkPrintHistory(ids);
+      if (historyResult.totalPrinted > 0) {
+        const printedIds = historyResult.printedIds.slice(0, 10);
+        const message = `${
+          historyResult.totalPrinted
+        } of these IDs have already been printed:\n${printedIds.join(", ")}${
+          historyResult.totalPrinted > 10
+            ? `\n...and ${historyResult.totalPrinted - 10} more`
+            : ""
+        }\n\nDo you want to continue adding them to the queue?`;
+
+        if (!confirm(message)) {
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not check print history:", e);
+      // Continue anyway if history check fails
+    }
+
     setLoading(true);
     setError("");
     try {

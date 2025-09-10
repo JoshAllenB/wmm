@@ -379,6 +379,11 @@ router.post("/templates-add", verifyToken, async (req, res) => {
             "paperHeight",
             "rowsPerPage",
             "columnsPerPage",
+            // Raw printer specific adjustments
+            "labelWidthIn",
+            "topMargin",
+            "rowSpacingLines",
+            "col2X",
           ]);
       }
     }
@@ -453,6 +458,11 @@ router.put("/templates/:id", verifyToken, async (req, res) => {
             "paperHeight",
             "rowsPerPage",
             "columnsPerPage",
+            // Raw printer specific adjustments
+            "labelWidthIn",
+            "topMargin",
+            "rowSpacingLines",
+            "col2X",
           ]);
       }
     }

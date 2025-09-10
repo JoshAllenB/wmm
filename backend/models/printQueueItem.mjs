@@ -12,6 +12,9 @@ const PrintQueueItemSchema = new mongoose.Schema(
     clientId: { type: String, index: true, required: true },
     addedBy: { type: String },
     addedAt: { type: Date, default: Date.now },
+    printedAt: { type: Date },
+    printedBy: { type: String },
+    printJobId: { type: mongoose.Schema.Types.ObjectId, ref: "print_jobs" },
   },
   { versionKey: false }
 );

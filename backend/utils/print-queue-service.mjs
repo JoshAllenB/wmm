@@ -1,7 +1,37 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import PrintQueueModel from "../models/printQueue.mjs";
 import PrintQueueItemModel from "../models/printQueueItem.mjs";
 import ClientModel from "../models/clients.mjs";
+
+// === Simple persistent logger (safe from bloat) ===
+const logFile = path.join(process.cwd(), "print-queue.log");
+
+function log(message, data = null) {
+  const timestamp = new Date().toISOString();
+
+  // Avoid bloating logs with large arrays or objects
+  let safeData = null;
+  if (data) {
+    safeData = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (Array.isArray(value)) {
+        safeData[key] = `Array(${value.length})`; // just length
+      } else if (typeof value === "object" && value !== null) {
+        safeData[key] = "[Object]"; // mark object
+      } else {
+        safeData[key] = value;
+      }
+    }
+  }
+
+  const line =
+    `[${timestamp}] ${message}` +
+    (safeData ? ` | ${JSON.stringify(safeData)}` : "");
+  fs.appendFileSync(logFile, line + "\n", "utf8");
+  console.log(line); // still see it live in terminal
+}
 
 function hashFilter(filterObj) {
   const normalized = JSON.stringify(filterObj || {});
@@ -31,13 +61,18 @@ export async function createQueue({
     templateRefId,
     expiresAt,
   });
+  log("Queue created", { id: queue._id, ownerUserId, department });
   return queue;
 }
 
 export async function getQueue(queueId) {
   const queue = await PrintQueueModel.findById(queueId).lean();
-  if (!queue) return null;
+  if (!queue) {
+    log("Queue not found", { queueId });
+    return null;
+  }
   const count = await PrintQueueItemModel.countDocuments({ queueId });
+  log("Queue fetched", { queueId, count });
   return { ...queue, counts: { total: count } };
 }
 
@@ -47,8 +82,10 @@ export async function enqueueSelection({ queueId, clientIds, userId }) {
     clientId: String(id),
     addedBy: userId,
   }));
-  if (docs.length === 0)
+  if (docs.length === 0) {
+    log("Enqueue skipped (no clients)", { queueId, userId });
     return { addedCount: 0, alreadyInQueueCount: 0, duplicatesSample: [] };
+  }
 
   try {
     const result = await PrintQueueItemModel.bulkWrite(
@@ -57,31 +94,25 @@ export async function enqueueSelection({ queueId, clientIds, userId }) {
     );
     const addedCount = result.insertedCount || 0;
     const alreadyInQueueCount = docs.length - addedCount;
-    let duplicatesSample = [];
-    if (alreadyInQueueCount > 0) {
-      const existing = await PrintQueueItemModel.find({
-        queueId,
-        clientId: { $in: docs.map((d) => d.clientId) },
-      })
-        .limit(10)
-        .lean();
-      duplicatesSample = existing.map((e) => e.clientId);
-    }
-    return { addedCount, alreadyInQueueCount, duplicatesSample };
+    log("Clients enqueued", { queueId, addedCount, alreadyInQueueCount });
+    return { addedCount, alreadyInQueueCount, duplicatesSample: [] };
   } catch (e) {
-    // bulkWrite with ordered:false will continue past duplicates; count from acknowledged ops
     let addedCount = 0;
-    if (e && e.result && typeof e.result.insertedCount === "number") {
+    if (e?.result?.insertedCount) {
       addedCount = e.result.insertedCount;
     }
     const alreadyInQueueCount = docs.length - addedCount;
+    log("Enqueue error (duplicates likely)", {
+      queueId,
+      addedCount,
+      alreadyInQueueCount,
+    });
     return { addedCount, alreadyInQueueCount, duplicatesSample: [] };
   }
 }
 
 export async function enqueueByFilter({ queueId, filterPayload, userId }) {
   const signatureHash = hashFilter(filterPayload);
-  // Save source on queue
   await PrintQueueModel.findByIdAndUpdate(queueId, {
     $push: {
       sources: {
@@ -92,7 +123,6 @@ export async function enqueueByFilter({ queueId, filterPayload, userId }) {
     },
   });
 
-  // Compute matching IDs server-side
   const query = buildClientQuery(filterPayload);
   const cursor = ClientModel.find(query).select({ id: 1, _id: 0 }).cursor();
 
@@ -114,6 +144,7 @@ export async function enqueueByFilter({ queueId, filterPayload, userId }) {
   }
 
   const alreadyInQueueCount = total - addedCount;
+  log("Enqueue by filter", { queueId, total, addedCount, alreadyInQueueCount });
   return { addedCount, alreadyInQueueCount, totalMatched: total };
 }
 
@@ -125,21 +156,15 @@ async function flushBatch(batch) {
     );
     return { added: result.insertedCount || 0 };
   } catch (e) {
-    let added = 0;
-    if (e && e.result && typeof e.result.insertedCount === "number") {
-      added = e.result.insertedCount;
-    }
-    return { added };
+    return { added: e?.result?.insertedCount || 0 };
   }
 }
 
 function buildClientQuery(filterPayload) {
-  // Minimal passthrough. Extend based on your existing filtering rules used by clients/fetchall
-  // Accept keys like filtering (text), group, advancedFilterData
   const { filter, group, advancedFilterData } = filterPayload || {};
   const query = {};
   if (group) query.group = group;
-  if (filter && typeof filter === "string" && filter.trim()) {
+  if (filter?.trim()) {
     const regex = new RegExp(filter.trim(), "i");
     query.$or = [
       { lname: regex },
@@ -151,7 +176,6 @@ function buildClientQuery(filterPayload) {
       { email: regex },
     ];
   }
-  // Example: date encoded range from advancedFilterData
   if (advancedFilterData) {
     const {
       startDateYear,
@@ -185,21 +209,21 @@ export async function listQueues({ ownerUserId, department }) {
   const q = {
     $or: [{ ownerUserId }, { visibility: "department", department }],
   };
-  return PrintQueueModel.find(q).sort({ updatedAt: -1 }).lean();
+  const queues = await PrintQueueModel.find(q).sort({ updatedAt: -1 }).lean();
+  log("Queues listed", { count: queues.length, ownerUserId, department });
+  return queues;
 }
 
 export async function clearQueue(queueId) {
   await PrintQueueItemModel.deleteMany({ queueId });
   await PrintQueueModel.findByIdAndUpdate(queueId, { status: "completed" });
+  log("Queue cleared", { queueId });
   return { success: true };
 }
 
 export async function checkPrintHistory(clientIds) {
   try {
-    // Import PrintJobModel dynamically to avoid circular dependency
     const { default: PrintJobModel } = await import("../models/printJob.mjs");
-
-    // Find print jobs that contain any of these client IDs
     const printedJobs = await PrintJobModel.find({
       clientIds: { $in: clientIds },
       status: "completed",
@@ -207,10 +231,8 @@ export async function checkPrintHistory(clientIds) {
       .sort({ completedAt: -1 })
       .lean();
 
-    // Extract which client IDs were printed and when
     const printedIds = new Set();
     const printHistory = {};
-
     printedJobs.forEach((job) => {
       job.clientIds.forEach((id) => {
         if (clientIds.includes(id)) {
@@ -227,17 +249,106 @@ export async function checkPrintHistory(clientIds) {
       });
     });
 
+    log("Print history checked", {
+      clientIds: clientIds.length,
+      printed: printedIds.size,
+    });
     return {
       printedIds: Array.from(printedIds),
       printHistory,
       totalPrinted: printedIds.size,
     };
   } catch (error) {
-    console.error("Error checking print history:", error);
-    return {
-      printedIds: [],
-      printHistory: {},
-      totalPrinted: 0,
+    log("Error checking print history", {
+      error: error.message,
+      clientIds: clientIds.length,
+    });
+    return { printedIds: [], printHistory: {}, totalPrinted: 0 };
+  }
+}
+
+// Record printed items for a queue and append to history
+export async function markQueueItemsPrinted({
+  queueId,
+  clientIds = [],
+  userId,
+  jobId,
+  printerName,
+  templateRefId,
+  actionType,
+}) {
+  try {
+    if (!queueId || !Array.isArray(clientIds) || clientIds.length === 0) {
+      log("markQueueItemsPrinted skipped (invalid input)", {
+        queueId,
+        clientIds: Array.isArray(clientIds) ? clientIds.length : 0,
+      });
+      return { updated: 0 };
+    }
+
+    const { default: PrintJobModel } = await import("../models/printJob.mjs");
+
+    // Ensure required metadata exists by peeking at the queue if needed
+    if (!actionType || !templateRefId) {
+      try {
+        const { default: PrintQueueModel } = await import(
+          "../models/printQueue.mjs"
+        );
+        const queueDoc = await PrintQueueModel.findById(queueId)
+          .select({ actionType: 1, templateRefId: 1 })
+          .lean();
+        if (queueDoc) {
+          actionType = actionType || queueDoc.actionType;
+          templateRefId = templateRefId || queueDoc.templateRefId;
+        }
+      } catch (e) {
+        // Non-fatal, will fail at model validation if still missing
+      }
+    }
+
+    // Upsert a PrintJob record to capture this print action
+    const job = await PrintJobModel.create({
+      queueId,
+      clientIds: clientIds.map((id) => String(id)),
+      status: "completed",
+      completedAt: new Date(),
+      userId,
+      jobId,
+      printerName,
+      templateRefId,
+      actionType,
+    });
+
+    // Mark queue items as printed for quick duplicate detection
+    const updateQuery = {
+      queueId,
+      clientId: { $in: clientIds.map((id) => String(id)) },
     };
+
+    // Debug: Check what queue items exist
+    const existingItems = await PrintQueueItemModel.find(updateQuery).lean();
+    log("Found existing queue items", {
+      queueId,
+      clientIds: clientIds.length,
+      foundItems: existingItems.length,
+      sampleClientIds: clientIds.slice(0, 3),
+    });
+
+    const res = await PrintQueueItemModel.updateMany(updateQuery, {
+      $set: { printedAt: new Date(), printedBy: userId, printJobId: job._id },
+    });
+
+    log("Queue items marked as printed", {
+      queueId,
+      count: res?.modifiedCount || 0,
+      jobId: job?._id,
+    });
+    return { updated: res?.modifiedCount || 0, jobId: job?._id };
+  } catch (error) {
+    log("Error marking queue items as printed", {
+      error: error.message,
+      queueId,
+    });
+    throw error;
   }
 }

@@ -8,6 +8,7 @@ import {
   listQueues,
   clearQueue,
   checkPrintHistory,
+  markQueueItemsPrinted,
 } from "../utils/print-queue-service.mjs";
 
 const router = express.Router();
@@ -115,6 +116,31 @@ router.post("/print-queues/check-history", verifyToken, async (req, res) => {
   } catch (e) {
     console.error("checkPrintHistory error", e);
     res.status(500).json({ error: "Failed to check print history" });
+  }
+});
+
+router.post("/print-queues/:queueId/printed", verifyToken, async (req, res) => {
+  try {
+    const {
+      clientIds = [],
+      jobId,
+      printerName,
+      templateRefId,
+      actionType,
+    } = req.body;
+    const result = await markQueueItemsPrinted({
+      queueId: req.params.queueId,
+      clientIds,
+      userId: req.user?.id || req.user?._id || req.user?.username || "unknown",
+      jobId,
+      printerName,
+      templateRefId,
+      actionType,
+    });
+    res.json({ success: true, ...result });
+  } catch (e) {
+    console.error("markQueueItemsPrinted error", e);
+    res.status(500).json({ error: "Failed to record printed items" });
   }
 });
 

@@ -318,3 +318,22 @@ export const checkPrintHistory = async (clientIds) => {
   );
   return response.data;
 };
+
+export const markQueuePrinted = async (
+  queueId,
+  { clientIds, jobId, printerName, templateRefId, actionType }
+) => {
+  const response = await axios.post(
+    `http://${
+      import.meta.env.VITE_IP_ADDRESS
+    }:3001/util/print-queues/${queueId}/printed`,
+    { clientIds, jobId, printerName, templateRefId, actionType },
+    {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  return response.data;
+};
