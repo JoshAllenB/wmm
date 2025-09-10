@@ -2303,8 +2303,7 @@ const Add = ({
                         <SubscriptionTypeSelector
                           subscriptionType={subscriptionType}
                           setSubscriptionType={(newType) => {
-                            const newSubscriptionType =
-                              newType.subscriptionType;
+                            const newSubscriptionType = newType; // component passes string like "WMM"
                             setSubscriptionType(newSubscriptionType);
                             setFormData((prev) => ({
                               ...prev,
