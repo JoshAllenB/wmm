@@ -1523,6 +1523,7 @@ const Edit = ({
           parseFloat(name === "calqty" ? value : updated.calqty) || 0;
         const calunit =
           parseFloat(name === "calunit" ? value : updated.calunit) || 0;
+        // Persist unit price in calamt for backend
         updated.calamt = calunit.toString();
       }
 
@@ -1885,6 +1886,8 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
             ...firstRecord,
+            // map backend unit (calamt) into UI unit field
+            calunit: firstRecord.calunit ?? firstRecord.calamt ?? 0,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
@@ -1957,6 +1960,8 @@ const Edit = ({
           );
           setCalData({
             ...selectedCalRecord,
+            calunit:
+              selectedCalRecord.calunit ?? selectedCalRecord.calamt ?? 0,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
@@ -1977,6 +1982,7 @@ const Edit = ({
           caltype: "",
           calqty: 0,
           calamt: 0,
+          calunit: 0,
           paymtref: "",
           paymtamt: 0,
           paymtform: "",
@@ -2206,6 +2212,7 @@ const Edit = ({
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
       setCalData({
         ...firstRecord,
+        calunit: firstRecord.calunit ?? firstRecord.calamt ?? 0,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
         recvdateYear: recvdateParts.year,
@@ -2609,6 +2616,26 @@ const Edit = ({
     const day = d.getDate();
     const year = d.getFullYear();
     return `${month}/${day}/${year}`;
+  };
+
+  // ===== CAL helpers: unit price, quantity, computed total (display only) =====
+  const getCalUnitPrice = (source) => {
+    if (!source) return 0;
+    const unit = source.calunit ?? source.calamt; // backend stores unit in calamt
+    const num = parseFloat(unit);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const getCalQuantity = (source) => {
+    if (!source) return 0;
+    const qty = source.calqty;
+    const num = parseFloat(qty);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const getCalTotal = (source) => {
+    const total = getCalQuantity(source) * getCalUnitPrice(source);
+    return Number.isFinite(total) ? total.toFixed(2) : "0.00";
   };
 
   // Update the handleSubmit function to handle both edit and add modes
@@ -4475,6 +4502,7 @@ const Edit = ({
                                   );
                                   setRoleSpecificData({
                                     ...record,
+                                    calunit: record.calunit ?? record.calamt ?? 0,
                                     recvdateMonth: recvdateParts.month,
                                     recvdateDay: recvdateParts.day,
                                     recvdateYear: recvdateParts.year,
@@ -4496,7 +4524,7 @@ const Edit = ({
                                     : "Unknown"}
                                   {record.caltype ? ` - ${record.caltype}` : ""}
                                   {record.calqty ? ` (${record.calqty})` : ""}
-                                  {record.calamt ? ` - ₱${record.calamt}` : ""}
+                                  {` - ₱${getCalTotal(record)}`}
                                 </option>
                               ))}
                             </select>
@@ -5367,8 +5395,8 @@ const Edit = ({
                         name="calamt"
                         value={
                           roleRecordMode === "edit"
-                            ? roleSpecificData.calamt || ""
-                            : newRoleData.calamt || ""
+                            ? getCalTotal(roleSpecificData)
+                            : getCalTotal(newRoleData)
                         }
                         onChange={
                           roleRecordMode === "edit"
