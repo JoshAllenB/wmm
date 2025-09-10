@@ -131,7 +131,7 @@ export const getFullName = (data) => {
 
   if (company) {
     return company;
-  }f
+  }
 
   return [title, fname, mname, lname, sname]
     .filter((part) => part && part.trim())
