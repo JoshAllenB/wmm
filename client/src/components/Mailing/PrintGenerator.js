@@ -131,7 +131,7 @@ export const getFullName = (data) => {
 
   if (company) {
     return company;
-  }
+  }f
 
   return [title, fname, mname, lname, sname]
     .filter((part) => part && part.trim())
@@ -243,20 +243,13 @@ export const generateLabelContent = (
   const fields = Array.isArray(selectedFields) ? selectedFields : [];
 
   const subscription = getSubscriptionData(data, subscriptionType);
-  const hasValidCopies =
-    subscription &&
-    subscription.copies !== undefined &&
-    subscription.copies !== null &&
-    `${subscription.copies}`.trim() !== "";
-  const copies = hasValidCopies ? subscription.copies : "N/A";
+  const copies = subscription.copies ?? "N/A";
   let enddate = "N/A";
-  let hasValidEnddate = false;
 
-  if (subscription && subscription.enddate) {
+  if (subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
       enddate = date.toLocaleDateString();
-      hasValidEnddate = true;
     }
   }
 
@@ -273,16 +266,8 @@ export const generateLabelContent = (
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
   const idLine = data.id || "";
-  // If subscription details are missing (no valid enddate and copies),
-  // fall back to HRG/FOM-like format: id/acode (no N/A placeholders)
-  const noValidSubscriptionInfo = !(hasValidEnddate || hasValidCopies);
-
   const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? noValidSubscriptionInfo
-      ? data.acode
-        ? `/${data.acode}`
-        : ""
-      : ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
     : isSpecialRole && isCMCGroup
     ? `/${group}/${data.acode || ""}`
     : data.acode
@@ -358,20 +343,13 @@ const generateLabelTextContent = (
   }
 
   const subscription = subscriptionData?.records?.[0] || subscriptionData || {};
-  const hasValidCopies =
-    subscription &&
-    subscription.copies !== undefined &&
-    subscription.copies !== null &&
-    `${subscription.copies}`.trim() !== "";
-  const copies = hasValidCopies ? subscription.copies : "N/A";
+  const copies = subscription.copies ?? "N/A";
   let enddate = "N/A";
-  let hasValidEnddate = false;
 
   if (subscription.enddate) {
     const date = new Date(subscription.enddate);
     if (!isNaN(date.getTime())) {
       enddate = date.toLocaleDateString();
-      hasValidEnddate = true;
     }
   }
 
@@ -389,16 +367,8 @@ const generateLabelTextContent = (
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
-  // If subscription details are missing (no valid enddate and copies),
-  // fall back to HRG/FOM-like format: id/acode (no N/A placeholders)
-  const noValidSubscriptionInfo = !(hasValidEnddate || hasValidCopies);
-
   const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? noValidSubscriptionInfo
-      ? data.acode
-        ? `/${data.acode}`
-        : ""
-      : ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
     : isSpecialRole && isCMCGroup
     ? `/${group}/${data.acode || ""}`
     : data.acode
@@ -775,25 +745,41 @@ export const generateCp850RawPrintContent = (
   const maxCharsPerCol = Math.floor(labelWidthDots / charWidthDots);
 
   // Process all rows sequentially
-  const totalRows = Math.ceil(filteredRows.length / columnsPerPage);
+  // If starting from right, first row consumes only 1 item on the right column
+  const startFromRightMode = startPosition === "right";
+  const totalRows = startFromRightMode
+    ? Math.ceil((filteredRows.length + 1) / columnsPerPage)
+    : Math.ceil(filteredRows.length / columnsPerPage);
 
   for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
-    const leftLabelIndex = rowIndex * columnsPerPage;
-    const rightLabelIndex = leftLabelIndex + 1;
+    let effectiveLeftLabel = null;
+    let effectiveRightLabel = null;
 
-    // Get the labels for this row
-    const leftLabel = filteredRows[leftLabelIndex];
-    const rightLabel =
-      rightLabelIndex < filteredRows.length
-        ? filteredRows[rightLabelIndex]
-        : null;
-
-    // Handle start from right logic for first label
-    const startFromRight = startPosition === "right" && rowIndex === 0;
-    const effectiveLeftLabel =
-      startFromRight && rightLabel ? rightLabel : leftLabel;
-    const effectiveRightLabel =
-      startFromRight && rightLabel ? leftLabel : rightLabel;
+    if (startFromRightMode) {
+      if (rowIndex === 0) {
+        // Row 0: print first item on right, leave left blank
+        effectiveLeftLabel = null;
+        effectiveRightLabel = filteredRows[0] || null;
+      } else {
+        // Subsequent rows: indices shift by one due to the initial right-only row
+        const leftIdx = rowIndex * columnsPerPage - 1; // (rowIndex*2)-1
+        const rightIdx = leftIdx + 1; // rowIndex*2
+        effectiveLeftLabel = leftIdx < filteredRows.length ? filteredRows[leftIdx] : null;
+        effectiveRightLabel = rightIdx < filteredRows.length ? filteredRows[rightIdx] : null;
+      }
+    } else {
+      // Normal left-first layout
+      const leftLabelIndex = rowIndex * columnsPerPage;
+      const rightLabelIndex = leftLabelIndex + 1;
+      effectiveLeftLabel =
+        leftLabelIndex < filteredRows.length
+          ? filteredRows[leftLabelIndex]
+          : null;
+      effectiveRightLabel =
+        rightLabelIndex < filteredRows.length
+          ? filteredRows[rightLabelIndex]
+          : null;
+    }
 
     // Use fixed label height for ESC/P positioning (6 lines = 1 inch at 6 LPI)
     const effectiveLabelHeight = 6; // Fixed at 6 lines for consistent positioning
