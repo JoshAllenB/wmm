@@ -13,7 +13,7 @@ const MailingActions = ({
       <Button
         onClick={onPrintPreview}
         disabled={!hasAvailableRows || isLoading || queueLoading}
-        className="w-full bg-blue-600 hover:bg-blue-700"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         variant="default"
       >
         {queueLoading ? "Preparing Print Queue..." : "Print Preview"}
