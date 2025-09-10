@@ -11,7 +11,8 @@ const RangeSelector = ({
   startPosition,
   setStartPosition,
   availableRows,
-  onSetFromSelection
+  onSetFromSelection,
+  showStartPosition = true
 }) => {
   return (
     <div className="space-y-4">
@@ -63,25 +64,27 @@ const RangeSelector = ({
           />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="startPosition">Start Position</Label>
-          <div className="flex gap-2">
-            <Button
-              variant={startPosition === "left" ? "default" : "outline"}
-              onClick={() => setStartPosition("left")}
-              className="flex-1"
-            >
-              Left
-            </Button>
-            <Button
-              variant={startPosition === "right" ? "default" : "outline"}
-              onClick={() => setStartPosition("right")}
-              className="flex-1"
-            >
-              Right
-            </Button>
+        {showStartPosition && (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="startPosition">Start Position</Label>
+            <div className="flex gap-2">
+              <Button
+                variant={startPosition === "left" ? "default" : "outline"}
+                onClick={() => setStartPosition("left")}
+                className={`flex-1 ${startPosition === "left" ? "bg-blue-600 text-white" : ""}`}
+              >
+                Left
+              </Button>
+              <Button
+                variant={startPosition === "right" ? "default" : "outline"}
+                onClick={() => setStartPosition("right")}
+                className={`flex-1 ${startPosition === "right" ? "bg-blue-600 text-white" : ""}`}
+              >
+                Right
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
