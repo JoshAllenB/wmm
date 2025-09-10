@@ -702,6 +702,68 @@ const Mailing = ({
 
   // Handle CP850-aware printing with JSPrintManager
   const handleCp850PrintWithRange = async () => {
+    // Ensure JSPrintManager is connected before attempting to print
+    const ensureJspmConnected = async (timeoutMs = 15000) => {
+      if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
+      try {
+        // Enable auto-reconnect and start if not already started
+        window.JSPM.JSPrintManager.auto_reconnect = true;
+        try {
+          await window.JSPM.JSPrintManager.start();
+        } catch (e) {
+          // start() may throw if already started; ignore
+        }
+
+        const isOpen = () =>
+          (window.JSPM.JSPrintManager.websocket_status ||
+            window.JSPM.JSPrintManager.WS?.status) ===
+          window.JSPM.WSStatus.Open;
+
+        if (isOpen()) return true;
+
+        // Wait until WS opens or timeout
+        return await new Promise((resolve) => {
+          let done = false;
+          const timer = setTimeout(() => {
+            if (!done) {
+              done = true;
+              resolve(false);
+            }
+          }, timeoutMs);
+
+          const prevHandler = window.JSPM.JSPrintManager.WS
+            ? window.JSPM.JSPrintManager.WS.onStatusChanged
+            : null;
+
+          if (window.JSPM.JSPrintManager.WS) {
+            window.JSPM.JSPrintManager.WS.onStatusChanged = (s) => {
+              if (s === window.JSPM.WSStatus.Open && !done) {
+                done = true;
+                clearTimeout(timer);
+                // restore any previous handler
+                window.JSPM.JSPrintManager.WS.onStatusChanged = prevHandler || null;
+                resolve(true);
+              }
+              // pass through to previous handler if it exists
+              if (typeof prevHandler === "function") prevHandler(s);
+            };
+          } else {
+            // No WS object exposed; resolve based on periodic check
+            const interval = setInterval(() => {
+              if (isOpen() && !done) {
+                done = true;
+                clearInterval(interval);
+                clearTimeout(timer);
+                resolve(true);
+              }
+            }, 200);
+          }
+        });
+      } catch (err) {
+        return false;
+      }
+    };
+
     let templateToUse = selectedTemplate;
     if (!templateToUse) {
       templateToUse = {
@@ -743,6 +805,18 @@ const Mailing = ({
           title: "JSPrintManager Not Available",
           description:
             "JSPrintManager client not detected or websocket not open.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Try to establish the websocket connection if not yet open
+      const connected = await ensureJspmConnected(15000);
+      if (!connected) {
+        toast({
+          title: "Printer Not Ready",
+          description:
+            "Could not establish JSPrintManager WebSocket connection. Ensure the client app is running and allowed.",
           variant: "destructive",
         });
         return;
