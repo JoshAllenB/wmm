@@ -11,6 +11,16 @@ const ClientSchema = new mongoose.Schema(
   {
     id: { type: Number, index: true },
     spack: { type: Boolean, index: true },
+    rtsCount: { type: Number, default: 0, index: true },
+    rtsMaxReached: { type: Boolean, default: false, index: true },
+    rtsHistory: [
+      {
+        date: { type: String },
+        reason: { type: String },
+        addedBy: { type: String },
+        addedAt: { type: String },
+      },
+    ],
     lname: { type: String, index: true },
     fname: { type: String, index: true },
     mname: String,
