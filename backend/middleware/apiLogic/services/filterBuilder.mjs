@@ -2135,6 +2135,132 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
     }
   }
 
+  // Handle RTS Status Filter
+  if (
+    advancedFilterData.rtsMaxReached ||
+    advancedFilterData.rtsActive ||
+    advancedFilterData.rtsNone ||
+    advancedFilterData.excludeRTSMax
+  ) {
+    try {
+      let rtsQuery = {};
+
+      // Build query based on selected options
+      if (
+        advancedFilterData.rtsMaxReached &&
+        !advancedFilterData.rtsActive &&
+        !advancedFilterData.rtsNone
+      ) {
+        // Only Max RTS selected
+        rtsQuery = { rtsMaxReached: true };
+      } else if (
+        advancedFilterData.rtsActive &&
+        !advancedFilterData.rtsMaxReached &&
+        !advancedFilterData.rtsNone
+      ) {
+        // Only Active RTS selected (1-2 RTS)
+        rtsQuery = {
+          $and: [
+            { rtsCount: { $gte: 1 } },
+            { rtsCount: { $lt: 3 } },
+            { rtsMaxReached: { $ne: true } },
+          ],
+        };
+      } else if (
+        advancedFilterData.rtsNone &&
+        !advancedFilterData.rtsMaxReached &&
+        !advancedFilterData.rtsActive
+      ) {
+        // Only No RTS selected (0 RTS)
+        rtsQuery = {
+          $or: [
+            { rtsCount: { $eq: 0 } },
+            { rtsCount: { $exists: false } },
+            { rtsCount: null },
+          ],
+        };
+      } else if (
+        advancedFilterData.excludeRTSMax &&
+        !advancedFilterData.rtsMaxReached &&
+        !advancedFilterData.rtsActive &&
+        !advancedFilterData.rtsNone
+      ) {
+        // Exclude Max RTS clients
+        rtsQuery = {
+          $or: [
+            { rtsMaxReached: { $ne: true } },
+            { rtsMaxReached: { $exists: false } },
+            { rtsMaxReached: null },
+          ],
+        };
+      } else {
+        // Multiple options selected or range filters - build complex query
+        const conditions = [];
+
+        if (advancedFilterData.rtsMaxReached) {
+          conditions.push({ rtsMaxReached: true });
+        }
+        if (advancedFilterData.rtsActive) {
+          conditions.push({
+            $and: [
+              { rtsCount: { $gte: 1 } },
+              { rtsCount: { $lt: 3 } },
+              { rtsMaxReached: { $ne: true } },
+            ],
+          });
+        }
+        if (advancedFilterData.rtsNone) {
+          conditions.push({
+            $or: [
+              { rtsCount: { $eq: 0 } },
+              { rtsCount: { $exists: false } },
+              { rtsCount: null },
+            ],
+          });
+        }
+
+        if (conditions.length > 0) {
+          rtsQuery = { $or: conditions };
+        }
+
+        // Handle exclude RTS Max
+        if (advancedFilterData.excludeRTSMax) {
+          rtsQuery = {
+            $and: [
+              rtsQuery,
+              {
+                $or: [
+                  { rtsMaxReached: { $ne: true } },
+                  { rtsMaxReached: { $exists: false } },
+                  { rtsMaxReached: null },
+                ],
+              },
+            ],
+          };
+        }
+      }
+
+      // Only proceed if we have a valid query
+      if (Object.keys(rtsQuery).length > 0) {
+        const clientsWithRTSStatus = await ClientModel.find(rtsQuery).distinct(
+          "id"
+        );
+        const validClientIds = clientsWithRTSStatus
+          .map((id) => parseInt(id))
+          .filter((id) => !isNaN(id));
+
+        if (validClientIds.length > 0) {
+          baseFilter.push({ id: { $in: validClientIds } });
+        } else {
+          baseFilter.push({ id: -1 });
+        }
+      }
+    } catch (error) {
+      console.error("Error in RTS status filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
   // Handle Payment Type Filter (Mass Paid / Cash Paid)
   if (advancedFilterData.massPaid || advancedFilterData.cashPaid) {
     console.log(

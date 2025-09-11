@@ -19,6 +19,7 @@ import {
   ServicesFilter,
   UserFilter,
   SpackFilter,
+  RTSFilter,
   PaymentTypeFilter,
 } from "./filterModule";
 
@@ -221,6 +222,12 @@ const AdvancedFilter = ({
     calendarNotReceived: false,
     spackReceived: false,
     spackNotReceived: false,
+    rtsMaxReached: false,
+    rtsActive: false,
+    rtsNone: false,
+    excludeRTSMax: false,
+    rtsMinCount: "",
+    rtsMaxCount: "",
     expiryDateRangeOnly: false,
     calendarEntitledOnly: false,
     massPaid: false,
@@ -437,6 +444,12 @@ const AdvancedFilter = ({
       calendarNotReceived: false,
       spackReceived: false,
       spackNotReceived: false,
+      rtsMaxReached: false,
+      rtsActive: false,
+      rtsNone: false,
+      excludeRTSMax: false,
+      rtsMinCount: "",
+      rtsMaxCount: "",
       expiryDateRangeOnly: false,
       calendarEntitledOnly: false,
       massPaid: false,
@@ -829,6 +842,17 @@ const AdvancedFilter = ({
       // Spack status
       ...(filterData.spackReceived && { spackReceived: true }),
       ...(filterData.spackNotReceived && { spackNotReceived: true }),
+      // RTS status
+      ...(filterData.rtsMaxReached && { rtsMaxReached: true }),
+      ...(filterData.rtsActive && { rtsActive: true }),
+      ...(filterData.rtsNone && { rtsNone: true }),
+      ...(filterData.excludeRTSMax && { excludeRTSMax: true }),
+      ...(filterData.rtsMinCount && {
+        rtsMinCount: parseInt(filterData.rtsMinCount),
+      }),
+      ...(filterData.rtsMaxCount && {
+        rtsMaxCount: parseInt(filterData.rtsMaxCount),
+      }),
       // Expiry date range only filter
       ...(filterData.expiryDateRangeOnly && { expiryDateRangeOnly: true }),
       // Calendar entitlement filters
@@ -1751,6 +1775,10 @@ const AdvancedFilter = ({
                         handleChange={handleChange}
                       />
                     )}
+                    <RTSFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                    />
                     {hasRole("WMM") && (
                       <PaymentTypeFilter
                         filterData={filterData}
