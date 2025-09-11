@@ -1926,6 +1926,243 @@ router.post("/update-spack", verifyToken, attachSocketId, async (req, res) => {
   }
 });
 
+// RTS Update endpoint
+router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
+  const io = req.io;
+  try {
+    const {
+      filter = "",
+      group = "",
+      advancedFilterData = {},
+      rtsAction,
+      rtsReason = "",
+      clientIds = [],
+    } = req.body;
+
+    if (!rtsAction) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "rtsAction parameter is required",
+      });
+    }
+
+    if (rtsAction === "add" && !rtsReason.trim()) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "rtsReason is required when adding RTS",
+      });
+    }
+
+    let clients;
+    if (clientIds.length > 0) {
+      // If specific client IDs are provided, use those
+      clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
+    } else {
+      // Otherwise use the filter query
+      const filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
+      clients = await ClientModel.find(filterQuery).lean();
+    }
+
+    if (!clients || clients.length === 0) {
+      return res.json({
+        success: true,
+        message: "No matching clients found",
+        modifiedCount: 0,
+      });
+    }
+
+    let modifiedCount = 0;
+    let processedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+    let updatedClientIds = [];
+    let failedClientIds = [];
+    let willReachMaxCount = 0;
+    let alreadyMaxRTS = 0;
+
+    const currentDate = new Date().toISOString();
+    const currentUser = req.user.username;
+
+    // Update each client's RTS status
+    for (const client of clients) {
+      try {
+        processedCount++;
+
+        let updateData = {};
+        let willReachMax = false;
+
+        if (rtsAction === "add") {
+          const currentRtsCount = client.rtsCount || 0;
+          const newRtsCount = currentRtsCount + 1;
+
+          // Check if this will reach max RTS (3 or more)
+          if (newRtsCount >= 3) {
+            willReachMax = true;
+            willReachMaxCount++;
+          }
+
+          // Check if already at max RTS
+          if (currentRtsCount >= 3) {
+            alreadyMaxRTS++;
+            skippedCount++;
+            failedClientIds.push({
+              id: client.id,
+              error: "Already at maximum RTS count",
+            });
+            continue;
+          }
+
+          updateData = {
+            rtsCount: newRtsCount,
+            rtsMaxReached: newRtsCount >= 3,
+            $push: {
+              rtsHistory: {
+                date: currentDate.split("T")[0], // YYYY-MM-DD format
+                reason: rtsReason.trim(),
+                addedBy: currentUser,
+                addedAt: currentDate,
+              },
+            },
+            editdate: currentDate,
+            edituser: currentUser,
+          };
+        } else if (rtsAction === "reset") {
+          updateData = {
+            rtsCount: 0,
+            rtsMaxReached: false,
+            rtsHistory: [], // Clear history when resetting
+            editdate: currentDate,
+            edituser: currentUser,
+          };
+        }
+
+        // Update the client's RTS status
+        const updateResult = await ClientModel.updateOne(
+          { id: client.id },
+          { $set: updateData }
+        );
+
+        if (updateResult.modifiedCount > 0) {
+          modifiedCount++;
+          updatedClientIds.push({
+            id: client.id,
+            name: `${client.lname}, ${client.fname}`,
+            newRtsCount: updateData.rtsCount,
+            willReachMax: willReachMax,
+          });
+        } else {
+          skippedCount++;
+          failedClientIds.push({
+            id: client.id,
+            error: "No changes made",
+          });
+        }
+      } catch (err) {
+        errorCount++;
+        failedClientIds.push({
+          id: client.id,
+          error: err.message || "Unknown error",
+        });
+        console.error(`Error processing client ID ${client.id}:`, err);
+      }
+    }
+
+    // Emit socket event for data update
+    if (io) {
+      io.emit("data-update", {
+        type: "bulk-update",
+        message: "RTS status updated for clients",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Updated RTS status for ${modifiedCount} records`,
+      modifiedCount,
+      processedCount,
+      skippedCount,
+      errorCount,
+      updatedClientIds,
+      failedClientIds,
+      willReachMaxCount,
+      alreadyMaxRTS,
+    });
+  } catch (error) {
+    console.error("Error updating RTS status:", error);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
+// RTS Preview endpoint
+router.post("/preview-rts-update", verifyToken, async (req, res) => {
+  try {
+    const {
+      filter = "",
+      group = "",
+      advancedFilterData = {},
+      clientIds = [],
+    } = req.body;
+
+    let clients;
+    if (clientIds.length > 0) {
+      clients = await ClientModel.find({ id: { $in: clientIds } }).lean();
+    } else {
+      const filterQuery = await buildFilterQuery(
+        filter,
+        group,
+        advancedFilterData
+      );
+      clients = await ClientModel.find(filterQuery).lean();
+    }
+
+    if (!clients || clients.length === 0) {
+      return res.json({
+        totalClients: 0,
+        willModify: 0,
+        alreadyMaxRTS: 0,
+        willReachMax: 0,
+      });
+    }
+
+    let willModify = 0;
+    let alreadyMaxRTS = 0;
+    let willReachMax = 0;
+
+    for (const client of clients) {
+      const currentRtsCount = client.rtsCount || 0;
+
+      if (currentRtsCount >= 3) {
+        alreadyMaxRTS++;
+      } else {
+        willModify++;
+        if (currentRtsCount >= 2) {
+          willReachMax++;
+        }
+      }
+    }
+
+    res.json({
+      totalClients: clients.length,
+      willModify,
+      alreadyMaxRTS,
+      willReachMax,
+    });
+  } catch (error) {
+    console.error("Error previewing RTS update:", error);
+    res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
+    });
+  }
+});
+
 router.get("/test-subscription-data", async (req, res) => {
   try {
     // Test queries for both models
