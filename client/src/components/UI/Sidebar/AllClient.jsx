@@ -21,6 +21,7 @@ import {
   Settings2,
   FileText,
   FileSpreadsheet,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "../ShadCN/hooks/use-toast";
 import {
@@ -35,6 +36,7 @@ import { RadioGroup, RadioGroupItem } from "../ShadCN/radio-group";
 import { Label } from "../ShadCN/label";
 import CalendarUpdate from "../../Calendar";
 import SpackUpdate from "../../SpackUpdate";
+import RTSUpdate from "../../RTSUpdate";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1182,6 +1184,7 @@ const AllClient = () => {
   const [showMailingModal, setShowMailingModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [showSpackModal, setShowSpackModal] = useState(false);
+  const [showRTSModal, setShowRTSModal] = useState(false);
   const [mailingAction, setMailingAction] = useState("label"); // 'label', 'document', or 'csv'
 
   const handleMailingAction = (action) => {
@@ -1295,6 +1298,10 @@ const AllClient = () => {
               <Package className="h-4 w-4 mr-2" />
               Update Spack Status
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setShowRTSModal(true)}>
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Manage RTS
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -1339,6 +1346,19 @@ const AllClient = () => {
         table={tableInstance}
         isOpen={showSpackModal}
         onClose={() => setShowSpackModal(false)}
+      />
+
+      <RTSUpdate
+        filtering={filtering}
+        selectedGroup={selectedGroup}
+        advancedFilterData={advancedFilterData}
+        onUpdateSuccess={fetchData}
+        page={page}
+        pageSize={pageSize}
+        debouncedFiltering={debouncedFiltering}
+        table={tableInstance}
+        isOpen={showRTSModal}
+        onClose={() => setShowRTSModal(false)}
       />
 
       <div className="flex gap-4 mb-4">
