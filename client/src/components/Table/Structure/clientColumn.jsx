@@ -121,7 +121,16 @@ export const useColumns = () => {
           displayParts.push(`Spack: Spack Client`);
         }
 
-        // Add donor status second - only if true
+        // Add RTS status - show count and max status
+        if (row.rtsCount && row.rtsCount > 0) {
+          if (row.rtsMaxReached || row.rtsCount >= 3) {
+            displayParts.push(`RTS: MAX RTS (${row.rtsCount})`);
+          } else {
+            displayParts.push(`RTS: ${row.rtsCount} RTS`);
+          }
+        }
+
+        // Add donor status third - only if true
         if (row.isDonor) {
           displayParts.push(`Donor: Donor Client`);
         }
@@ -916,7 +925,9 @@ export const useColumns = () => {
                     : "N/A";
 
                   const paymtref = calItem.paymtref ? calItem.paymtref : "N/A";
-                  const paymtform = calItem.paymtform ? calItem.paymtform : "N/A";
+                  const paymtform = calItem.paymtform
+                    ? calItem.paymtform
+                    : "N/A";
 
                   return {
                     recvdate,
@@ -971,11 +982,17 @@ export const useColumns = () => {
                           {record.caltype}
                         </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium mr-1">Qty: {record.calqty}</span>
+                        <span className="font-medium mr-1">
+                          Qty: {record.calqty}
+                        </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium mr-1">Unit: {record.unit}</span>
+                        <span className="font-medium mr-1">
+                          Unit: {record.unit}
+                        </span>
                         <span className="mx-1">•</span>
-                        <span className="font-medium">Total: {record.total}</span>
+                        <span className="font-medium">
+                          Total: {record.total}
+                        </span>
                         <span className="mx-1">•</span>
                         <span className="font-medium">
                           Ref: #{record.paymtref} - {record.paymtform}

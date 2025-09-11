@@ -829,6 +829,22 @@ export const TableComponent = function TableComponent({
                                       </span>
                                     </div>
                                   );
+                                } else if (part.startsWith("RTS: ")) {
+                                  const rtsText = part.substring(5); // Remove "RTS: " prefix
+                                  const isMaxRTS = rtsText.includes("MAX RTS");
+                                  return (
+                                    <div key={index} className="mt-1">
+                                      <span
+                                        className={`px-2 py-0.5 text-sm font-medium ${
+                                          isMaxRTS
+                                            ? "bg-red-100 text-red-800"
+                                            : "bg-orange-100 text-orange-800"
+                                        }`}
+                                      >
+                                        {rtsText}
+                                      </span>
+                                    </div>
+                                  );
                                 } else if (part.startsWith("Donor: ")) {
                                   return (
                                     <div key={index} className="mt-1">
@@ -1128,10 +1144,14 @@ export const TableComponent = function TableComponent({
                                         {cal.recvdate} - {cal.caltype}
                                       </span>
                                       <span className="mr-1">
-                                        Qty: {cal.calqty} x Cost: {cal.unit}{" "}
-                                        = {(
+                                        Qty: {cal.calqty} x Cost: {cal.unit} ={" "}
+                                        {(
                                           parseFloat(cal.calqty || 0) *
-                                          parseFloat((cal.unit || "0").toString().replace(/[^\d.-]/g, ""))
+                                          parseFloat(
+                                            (cal.unit || "0")
+                                              .toString()
+                                              .replace(/[^\d.-]/g, "")
+                                          )
                                         ).toLocaleString()}
                                       </span>
                                       <span>
