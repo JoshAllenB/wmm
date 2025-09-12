@@ -521,7 +521,7 @@ const Mailing = ({
             rowSpacingLines: 14,
             col2X: 255,
           },
-          selectedFields: ["cellno"],
+          selectedFields: [],
           previewType: "standard",
         });
       }
@@ -554,7 +554,7 @@ const Mailing = ({
             rowSpacingLines: 14,
             col2X: 255,
           },
-          selectedFields: ["cellno"],
+          selectedFields: [],
           previewType: "standard",
         },
       ]);
