@@ -2263,15 +2263,21 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
   // Handle Payment Type Filter (Mass Paid / Cash Paid)
   if (advancedFilterData.massPaid || advancedFilterData.cashPaid) {
-    console.log(
-      "Payment filter values:",
-      advancedFilterData.massPaid,
-      advancedFilterData.cashPaid
-    );
-    console.log("Payment filter query will be built for:", {
-      massPaid: advancedFilterData.massPaid,
-      cashPaid: advancedFilterData.cashPaid,
-    });
+    // Normalize boolean-like inputs for payment flags (true, 'true', 1, '1')
+    const normalizeFlag = (value) => {
+      if (value === true) return true;
+      if (value === false) return false;
+      if (typeof value === "string") {
+        const v = value.trim().toLowerCase();
+        if (v === "true" || v === "1" || v === "yes" || v === "on") return true;
+        if (v === "false" || v === "0" || v === "no" || v === "off")
+          return false;
+      }
+      if (typeof value === "number") return value === 1;
+      return Boolean(value);
+    };
+    const massPaidSelected = normalizeFlag(advancedFilterData.massPaid);
+    const cashPaidSelected = normalizeFlag(advancedFilterData.cashPaid);
     try {
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
       const SubscriptionModel = await getSubscriptionModel(subscriptionType);
@@ -2281,44 +2287,6 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         // Always normalize subsdate so we can reliably sort by date across models
         ...createDatePipeline("subsdate", subscriptionType),
       ];
-
-      // If any date range is provided, constrain the records BEFORE picking latest per client
-      if (
-        advancedFilterData.wmmActiveFromDate ||
-        advancedFilterData.wmmActiveToDate ||
-        advancedFilterData.wmmExpiringFromDate ||
-        advancedFilterData.wmmExpiringToDate ||
-        advancedFilterData.startDate ||
-        advancedFilterData.endDate
-      ) {
-        pipeline.push({
-          $match: {
-            normalizedDate: {
-              // Active date range
-              ...(advancedFilterData.wmmActiveFromDate && {
-                $gte: parseDate(advancedFilterData.wmmActiveFromDate),
-              }),
-              ...(advancedFilterData.wmmActiveToDate && {
-                $lte: parseDate(advancedFilterData.wmmActiveToDate),
-              }),
-              // Expiry date range (use subsdate to check within selected expiry months)
-              ...(advancedFilterData.wmmExpiringFromDate && {
-                $gte: parseDate(advancedFilterData.wmmExpiringFromDate),
-              }),
-              ...(advancedFilterData.wmmExpiringToDate && {
-                $lte: parseDate(advancedFilterData.wmmExpiringToDate),
-              }),
-              // Date Encoded range
-              ...(advancedFilterData.startDate && {
-                $gte: parseDate(advancedFilterData.startDate),
-              }),
-              ...(advancedFilterData.endDate && {
-                $lte: parseDate(advancedFilterData.endDate),
-              }),
-            },
-          },
-        });
-      }
 
       // Sort by clientid and normalized date to get the most recent record per client
       pipeline.push({ $sort: { clientid: 1, normalizedDate: -1 } });
@@ -2334,40 +2302,35 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       // Replace root with the latest record
       pipeline.push({ $replaceRoot: { newRoot: "$latestRecord" } });
 
-      // Add payment type filter based on the most recent records
-      if (advancedFilterData.massPaid && !advancedFilterData.cashPaid) {
-        // Mass Paid: paymtmasses has any value AND paymtamt = 0
+      // Add payment type filter using improved logic
+      // Build conditions for mass payments and cash payments, then apply based on selected flags
+      const massPaymentCondition = {
+        paymtmasses: {
+          $exists: true,
+          $ne: null,
+          $ne: "",
+          $ne: 0,
+        },
+      };
+
+      // For cash payments: paymtamt <> 0 and exists
+      const cashPaymentCondition = {
+        $expr: {
+          $gt: [{ $toDouble: { $ifNull: ["$paymtamt", 0] } }, 0],
+        },
+      };
+
+      if (massPaidSelected && cashPaidSelected) {
+        // Either mass payments OR non-zero cash payments
         pipeline.push({
           $match: {
-            $and: [
-              { paymtmasses: { $exists: true } },
-              { paymtmasses: { $ne: null } },
-              { paymtmasses: { $ne: "" } },
-              { paymtamt: 0 },
-            ],
+            $or: [massPaymentCondition, cashPaymentCondition],
           },
         });
-      } else if (advancedFilterData.cashPaid && !advancedFilterData.massPaid) {
-        // Cash Paid: paymtmasses is empty/null/0 AND paymtamt has any value
-        pipeline.push({
-          $match: {
-            $and: [
-              {
-                $or: [
-                  { paymtmasses: { $exists: false } },
-                  { paymtmasses: null },
-                  { paymtmasses: "" },
-                  { paymtmasses: 0 },
-                ],
-              },
-              { paymtamt: { $ne: 0 } },
-              { paymtamt: { $exists: true } },
-            ],
-          },
-        });
-      } else if (advancedFilterData.massPaid && advancedFilterData.cashPaid) {
-        // If both are selected, no need to filter by payment type
-        return;
+      } else if (massPaidSelected) {
+        pipeline.push({ $match: massPaymentCondition });
+      } else if (cashPaidSelected) {
+        pipeline.push({ $match: cashPaymentCondition });
       }
 
       // Project only the clientid for the final result
@@ -2375,21 +2338,21 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         $project: { clientid: 1 },
       });
 
-      console.log("Payment pipeline:", JSON.stringify(pipeline, null, 2));
-
       const clientsWithPaymentType = await SubscriptionModel.aggregate(
         pipeline
-      );
-      console.log(
-        "Found clients with payment type:",
-        clientsWithPaymentType.length
       );
 
       const validClientIds = clientsWithPaymentType
         .map((doc) => parseInt(doc.clientid))
         .filter((id) => !isNaN(id));
 
-      console.log("Valid client IDs:", validClientIds.length);
+      // Summarize result alongside presence of other filters
+      try {
+        const alongsideOtherFilters = baseFilter.length > 0;
+      } catch (_) {
+        // best-effort logging only
+      }
+
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {
