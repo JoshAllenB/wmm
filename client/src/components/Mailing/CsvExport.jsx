@@ -155,6 +155,9 @@ const CsvExport = ({
       subsclass: false,
       email: false,
       referralid: false, // Add referralID field
+      // WMM payment fields
+      paymtamt: false,
+      paymtmasses: false,
       // Add service-specific data fields
       hrgData: false,
       fomData: false,
@@ -208,6 +211,14 @@ const CsvExport = ({
         subscription.subsclass.trim()
       )
         fieldsWithData.subsclass = true;
+      // WMM payments presence (include zero values)
+      if (subscription.paymtamt !== undefined && subscription.paymtamt !== null)
+        fieldsWithData.paymtamt = true;
+      if (
+        subscription.paymtmasses !== undefined &&
+        subscription.paymtmasses !== null
+      )
+        fieldsWithData.paymtmasses = true;
       if (subscription.referralid) fieldsWithData.referralid = true; // Check referralID
 
       // Check dates
@@ -341,6 +352,10 @@ const CsvExport = ({
       headers.push("Subscription Date");
     if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
       headers.push("Subscription Class");
+    if (csvIncludeFields.includes("paymtamt") && fieldsWithData.paymtamt)
+      headers.push("Payment Amount");
+    if (csvIncludeFields.includes("paymtmasses") && fieldsWithData.paymtmasses)
+      headers.push("Payment Masses");
     if (subscriptionType === "Promo" && fieldsWithData.referralid)
       headers.push("Referral ID");
 
@@ -487,6 +502,15 @@ const CsvExport = ({
 
         if (csvIncludeFields.includes("subsclass") && fieldsWithData.subsclass)
           rowData.push(`"${subscription.subsclass || ""}"`);
+
+        // Add WMM payment fields (include zero values)
+        if (csvIncludeFields.includes("paymtamt") && fieldsWithData.paymtamt)
+          rowData.push(`"${subscription.paymtamt ?? ""}"`);
+        if (
+          csvIncludeFields.includes("paymtmasses") &&
+          fieldsWithData.paymtmasses
+        )
+          rowData.push(`"${subscription.paymtmasses ?? ""}"`);
 
         // Add referral ID for promo subscriptions
         if (subscriptionType === "Promo" && fieldsWithData.referralid)
@@ -1008,6 +1032,26 @@ const CsvExport = ({
                     />
                     <Label htmlFor="csv-subsdate" className="font-normal">
                       {renderFieldLabel("subsdate", "Subscription Date")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="csv-paymtamt"
+                      checked={csvIncludeFields.includes("paymtamt")}
+                      onCheckedChange={() => toggleCsvField("paymtamt")}
+                    />
+                    <Label htmlFor="csv-paymtamt" className="font-normal">
+                      {renderFieldLabel("paymtamt", "Payment Amount")}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="csv-paymtmasses"
+                      checked={csvIncludeFields.includes("paymtmasses")}
+                      onCheckedChange={() => toggleCsvField("paymtmasses")}
+                    />
+                    <Label htmlFor="csv-paymtmasses" className="font-normal">
+                      {renderFieldLabel("paymtmasses", "Payment Masses")}
                     </Label>
                   </div>
                 </div>
