@@ -4,6 +4,20 @@
 const DPI_V = 60; // vertical: 60 dots/inch
 const DPI_H = 120; // horizontal: 120 dots/inch
 
+// Default label configs for different media types
+const labelConfigs = {
+  blueLabel: {
+    startMarginInches: 0.25, // top margin
+    rowHeightInches: 1.0, // height of each label
+    fineTuneDots: 0, // extra tweak if needed
+  },
+  stickerLabel: {
+    startMarginInches: 0, // no margin
+    rowHeightInches: 0.984, // ~25mm sticker
+    fineTuneDots: 0, // tweak later (+/- few dots)
+  },
+};
+
 // Convert inches to dot counts
 const inchesToDotsV = (inches) => Math.round(inches * DPI_V);
 const inchesToDotsH = (inches) => Math.round(inches * DPI_H);
@@ -896,6 +910,96 @@ export const generateCp850RawPrintContent = (
   rawCommands.push(0x0d, 0x0a); // Final line ending
 
   return rawCommands;
+};
+
+// Generate ESC/P raw content (CP850-aware) for Sticker/Blue label rows with precise vertical spacing
+// This function is separate and non-invasive to the existing BlueLabel logic above
+export const generateStickerLabelRawPrintContent = (
+  startClientId,
+  endClientId,
+  startPosition, // override start (dots) or null for config default
+  rows, // array of strings already formatted for printing
+  template, // unused, kept for compatibility
+  leftPosition = 0, // horizontal offset (in dots)
+  labelType = "blueLabel", // "blueLabel" | "stickerLabel"
+  fineTuneOverride = 0, // manual fine-tune dots for runtime adjustments
+  useCp850Encoding = true
+) => {
+  // Validate inputs
+  const texts = Array.isArray(rows) ? rows : [];
+
+  const config = labelConfigs[labelType] || labelConfigs.blueLabel;
+  const startMarginDots = Math.round(config.startMarginInches * DPI_V);
+  const rowHeightDots = Math.round(config.rowHeightInches * DPI_V);
+  const baseStart = Number.isFinite(startPosition)
+    ? startPosition
+    : startMarginDots;
+  const fineTune = (config.fineTuneDots || 0) + (fineTuneOverride || 0);
+
+  // Determine if any text needs CP850 conversion
+  const needsConversion =
+    useCp850Encoding && texts.some((t) => needsCp850Conversion(t));
+
+  // Helpers
+  const setAbsoluteHorizontal = (xDots) => [
+    0x1b,
+    0x24,
+    xDots & 0xff,
+    Math.floor(xDots / 256) & 0xff,
+  ];
+  const feedVerticalDots = (dots) => {
+    // ESC J n feeds by n/216"; convert our 60 dpi dots → 216 dpi units
+    const units216 = Math.max(0, Math.round(dots * (216 / DPI_V))); // 216/60 = 3.6
+    // For large feeds, send multiple chunks of max 255
+    const seq = [];
+    let remaining = units216;
+    while (remaining > 0) {
+      const chunk = Math.min(255, remaining);
+      seq.push(0x1b, 0x4a, chunk);
+      remaining -= chunk;
+    }
+    return seq;
+  };
+
+  // Begin command stream
+  const raw = [];
+  raw.push(0x1b, 0x40); // Reset
+  raw.push(0x1b, 0x4d); // Elite 12 CPI
+
+  if (needsConversion) {
+    raw.push(0x1b, 0x74, 0x02); // PC850
+    raw.push(0x1b, 0x52, 0x07); // Spain
+  }
+
+  // Move to initial vertical start (including fine-tune)
+  raw.push(...feedVerticalDots(baseStart + fineTune));
+
+  // Print each row
+  for (let i = 0; i < texts.length; i++) {
+    const text = texts[i] ?? "";
+
+    // Set horizontal position per row
+    raw.push(...setAbsoluteHorizontal(leftPosition));
+
+    // Write text
+    if (needsConversion && needsCp850Conversion(text)) {
+      raw.push(...utf8ToCp850(text));
+    } else {
+      for (let j = 0; j < text.length; j++) raw.push(text.charCodeAt(j));
+    }
+    raw.push(0x0d, 0x0a); // CRLF
+
+    // Feed to next row except after last
+    if (i < texts.length - 1) {
+      raw.push(...feedVerticalDots(rowHeightDots));
+    }
+  }
+
+  // Finalize
+  raw.push(0x1b, 0x40); // Reset
+  raw.push(0x0d, 0x0a);
+
+  return raw;
 };
 
 // Diagnostic function to check printer status and identify issues

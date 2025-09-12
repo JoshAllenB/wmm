@@ -93,6 +93,9 @@ const TemplateSaver = ({
         topMargin: labelAdjustments?.topMargin,
         rowSpacingLines: labelAdjustments?.rowSpacing,
         col2X: labelAdjustments?.col2X,
+        // Sticker label options
+        isStickerLabel: !!labelAdjustments?.isStickerLabel,
+        stickerFineTuneDots: labelAdjustments?.stickerFineTuneDots || 0,
       };
 
       const newTemplate = {
