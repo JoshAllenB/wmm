@@ -3,12 +3,7 @@ import axios from "axios";
 export const fetchGroups = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      }
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`
     );
     return response.data;
   } catch (error) {
@@ -20,12 +15,7 @@ export const fetchGroups = async () => {
 export const fetchSubclasses = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      }
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/subclass`
     );
     return response.data;
   } catch (error) {
@@ -37,12 +27,7 @@ export const fetchSubclasses = async () => {
 export const fetchAreas = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/areas`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      }
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/areas`
     );
     return response.data;
   } catch (error) {
@@ -66,12 +51,7 @@ export const fetchTypes = async () => {
 export const fetchUsers = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      }
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`
     );
     return response.data;
   } catch (error) {
@@ -79,12 +59,7 @@ export const fetchUsers = async () => {
     // Try an alternative endpoint if the first one fails
     try {
       const altResponse = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/user`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/user`
       );
       return altResponse.data;
     } catch (altError) {
@@ -97,12 +72,7 @@ export const fetchUsers = async () => {
 export const fetchPrintTemplates = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates`,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      }
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates`
     );
     return response.data;
   } catch (error) {
@@ -221,7 +191,6 @@ export const createPrintQueue = async ({
     { name, visibility, actionType, templateRefId, ttlDays, department },
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }
@@ -231,12 +200,7 @@ export const createPrintQueue = async ({
 
 export const listPrintQueues = async () => {
   const response = await axios.get(
-    `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/print-queues`,
-    {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    }
+    `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/print-queues`
   );
   return response.data;
 };
@@ -245,12 +209,7 @@ export const getPrintQueue = async (queueId) => {
   const response = await axios.get(
     `http://${
       import.meta.env.VITE_IP_ADDRESS
-    }:3001/util/print-queues/${queueId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    }
+    }:3001/util/print-queues/${queueId}`
   );
   return response.data;
 };
@@ -263,7 +222,6 @@ export const enqueueSelectionToQueue = async (queueId, clientIds) => {
     { clientIds },
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }
@@ -279,7 +237,6 @@ export const enqueueFilterToQueue = async (queueId, filterPayload) => {
     filterPayload,
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }
@@ -295,7 +252,6 @@ export const clearPrintQueue = async (queueId) => {
     {},
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }
@@ -311,7 +267,6 @@ export const checkPrintHistory = async (clientIds) => {
     { clientIds },
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }
@@ -330,7 +285,6 @@ export const markQueuePrinted = async (
     { clientIds, jobId, printerName, templateRefId, actionType },
     {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         "Content-Type": "application/json",
       },
     }

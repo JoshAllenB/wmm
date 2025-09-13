@@ -27,8 +27,21 @@ class ErrorHandler {
 
       switch (status) {
         case 401:
-          // Unauthorized - always logout
-          this.triggerLogout("Your session has expired. Please log in again.");
+          // Unauthorized - check if it's a token refresh scenario
+          if (error.config && error.config._isTokenRefresh) {
+            // This is a token refresh request that failed - logout
+            this.triggerLogout(
+              "Your session has expired. Please log in again."
+            );
+          } else {
+            // Regular API call failed with 401 - try to refresh token first
+            console.warn(
+              "API call returned 401, token refresh should be handled by interceptor"
+            );
+            if (shouldClearCache) {
+              this.clearCache();
+            }
+          }
           break;
         case 403:
           // Forbidden - usually means session issues

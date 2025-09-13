@@ -59,11 +59,7 @@ export const fetchClients = async (
     });
 
     // Make the request
-    const response = await axios.get(`${baseUrl}?${queryParams.toString()}`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-    });
+    const response = await axios.get(`${baseUrl}?${queryParams.toString()}`);
 
     // Extract all relevant values from the response
     const {

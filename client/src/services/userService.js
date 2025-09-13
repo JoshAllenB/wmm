@@ -1,5 +1,5 @@
 import axios from "axios";
-import errorHandler from './errorHandler';
+import errorHandler from "./errorHandler";
 
 const API_URL = `http://${import.meta.env.VITE_IP_ADDRESS}:3001`;
 
@@ -39,9 +39,15 @@ apiClient.interceptors.response.use(
         const refreshToken = localStorage.getItem("refreshToken");
         if (!refreshToken) throw new Error("No refresh token available");
 
-        const response = await axios.post(`${API_URL}/auth/refreshToken`, {
-          token: refreshToken,
-        });
+        const response = await axios.post(
+          `${API_URL}/auth/refreshToken`,
+          {
+            token: refreshToken,
+          },
+          {
+            _isTokenRefresh: true,
+          }
+        );
 
         const { token, refreshToken: newRefreshToken } = response.data;
         localStorage.setItem("accessToken", token);
@@ -52,13 +58,19 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         // If refresh fails, use centralized error handler
-        errorHandler.handleAxiosError(refreshError, { shouldLogout: true, shouldClearCache: true });
+        errorHandler.handleAxiosError(refreshError, {
+          shouldLogout: true,
+          shouldClearCache: true,
+        });
         return Promise.reject(refreshError);
       }
     }
 
     // For all other errors, use centralized error handler
-    errorHandler.handleAxiosError(error, { shouldLogout: false, shouldClearCache: true });
+    errorHandler.handleAxiosError(error, {
+      shouldLogout: false,
+      shouldClearCache: true,
+    });
     return Promise.reject(error);
   }
 );
@@ -167,7 +179,7 @@ const userService = {
       console.log("Fetching roles from API...");
       const response = await apiClient.get("/roles/roles");
       console.log("Raw API response:", response);
-      
+
       // The backend returns { roles: [...] }
       let rolesData;
       if (response.data?.roles && Array.isArray(response.data.roles)) {
@@ -178,7 +190,7 @@ const userService = {
         console.warn("Unexpected roles response format:", response.data);
         rolesData = [];
       }
-      
+
       console.log("Processed roles data:", rolesData);
       return rolesData;
     } catch (error) {

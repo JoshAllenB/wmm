@@ -270,12 +270,7 @@ const Add = ({
     const fetchGroups = async () => {
       try {
         const response = await axios.get(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`
         );
         setGroups(response.data);
       } catch (error) {
@@ -1143,12 +1138,7 @@ const Add = ({
     try {
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
-        submissionData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
+        submissionData
       );
       if (response.data.success) {
         // Backend already emits the WebSocket event, so we don't need to emit it again

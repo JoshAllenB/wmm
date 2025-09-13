@@ -1093,12 +1093,7 @@ const Edit = ({
     const fetchGroups = async () => {
       try {
         const response = await axios.get(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`
         );
         setGroups(response.data);
       } catch (error) {
@@ -2728,12 +2723,7 @@ const Edit = ({
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
             rowData.id
           }`,
-          submissionData,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
+          submissionData
         );
 
         if (response.data && response.data.success) {
@@ -3088,11 +3078,7 @@ const Edit = ({
     };
 
     try {
-      const response = await axios[method](endpoint, submissionData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      const response = await axios[method](endpoint, submissionData);
 
       if (response.data && response.data.success) {
         // Show success toast with appropriate message
@@ -3537,11 +3523,7 @@ const Edit = ({
     };
 
     try {
-      const response = await axios[method](endpoint, submissionData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      const response = await axios[method](endpoint, submissionData);
 
       if (response.data && response.data.success) {
         // Show success toast with appropriate message
@@ -3683,11 +3665,7 @@ const Edit = ({
     }
 
     try {
-      const response = await axios.delete(endpoint, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      const response = await axios.delete(endpoint);
 
       if (response.status === 200) {
         // Remove the deleted record from the appropriate records array
@@ -3869,11 +3847,7 @@ const Edit = ({
     }
 
     try {
-      const response = await axios.delete(endpoint, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-        },
-      });
+      const response = await axios.delete(endpoint);
 
       if (response.data && response.data.success) {
         // Remove the deleted subscription from the available subscriptions
