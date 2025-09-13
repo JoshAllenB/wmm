@@ -1298,8 +1298,18 @@ const Edit = ({
       ) {
         // Clean trailing spaces for date components
         fieldValue = cleanDateInput(safeValue).toUpperCase();
+      } else if (["paymtmasses", "paymtamt"].includes(name)) {
+        // Always convert to number for payment fields
+        fieldValue = Number(safeValue) || 0;
+      } else if (
+        ["subsyear", "calqty", "calunit", "calamt", "zipcode"].includes(name)
+      ) {
+        // Handle other numeric fields - convert to number if possible, otherwise keep as string
+        fieldValue = isNaN(safeValue) ? safeValue : Number(safeValue);
       } else {
-        fieldValue = safeValue.toUpperCase();
+        // Only call toUpperCase on string values
+        fieldValue =
+          typeof safeValue === "string" ? safeValue.toUpperCase() : safeValue;
       }
 
       const newData = {
