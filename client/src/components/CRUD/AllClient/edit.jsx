@@ -606,37 +606,56 @@ const Edit = ({
       }
 
       // Initialize client information fields with values from rowData
-      setFormData((prev) => ({
-        ...prev,
-        lname: rowData.lname || "",
-        fname: rowData.fname || "",
-        mname: rowData.mname || "",
-        sname: rowData.sname || "",
-        title: rowData.title || "",
-        bdate: rowData.bdate || "",
-        bdateMonth: bdateMonth || "",
-        bdateDay: bdateDay || "",
-        bdateYear: bdateYear || "",
-        company: rowData.company || "",
-        address: rowData.address || "",
-        housestreet: housestreet || "",
-        subdivision: subdivision || "",
-        barangay: barangay || "",
-        zipcode: zipcode || "",
-        area: city || "",
-        acode: rowData.acode || "",
-        contactnos: rowData.contactnos || "",
-        cellno: rowData.cellno || "",
-        ofcno: rowData.ofcno || "",
-        email: rowData.email || "",
-        type: rowData.type || "",
-        group: rowData.group || "",
-        remarks: rowData.remarks || "",
-        // Respect manual user selection; only set detected type if user hasn't chosen
-        subscriptionType: hasUserSelectedSubscriptionType
-          ? prev.subscriptionType
-          : subscriptionType,
-      }));
+      setFormData((prev) => {
+        // Only update if this is the initial load (when formData is empty or has default values)
+        const isInitialLoad = !prev.lname && !prev.fname && !prev.company;
+
+        if (isInitialLoad) {
+          const newData = {
+            ...prev,
+            lname: rowData.lname || "",
+            fname: rowData.fname || "",
+            mname: rowData.mname || "",
+            sname: rowData.sname || "",
+            title: rowData.title || "",
+            bdate: rowData.bdate || "",
+            bdateMonth: bdateMonth || "",
+            bdateDay: bdateDay || "",
+            bdateYear: bdateYear || "",
+            company: rowData.company || "",
+            address: rowData.address || "",
+            housestreet: housestreet || "",
+            subdivision: subdivision || "",
+            barangay: barangay || "",
+            zipcode: zipcode || "",
+            area: city || "",
+            acode: rowData.acode || "",
+            contactnos: rowData.contactnos || "",
+            cellno: rowData.cellno || "",
+            ofcno: rowData.ofcno || "",
+            email: rowData.email || "",
+            type: rowData.type || "",
+            group: rowData.group || "",
+            remarks: rowData.remarks || "",
+            // Respect manual user selection; only set detected type if user hasn't chosen
+            subscriptionType: hasUserSelectedSubscriptionType
+              ? prev.subscriptionType
+              : subscriptionType,
+          };
+          return newData;
+        } else {
+          // If form already has data, only update subscription type if it hasn't been set
+          if (!prev.subscriptionType || prev.subscriptionType === "None") {
+            return {
+              ...prev,
+              subscriptionType: hasUserSelectedSubscriptionType
+                ? prev.subscriptionType
+                : subscriptionType,
+            };
+          }
+          return prev; // Don't update anything if form already has data
+        }
+      });
 
       // Update addressData state with parsed address components
       setAddressData({
@@ -857,7 +876,7 @@ const Edit = ({
         donorid: "",
       });
     }
-  }, [rowData, mode, subscriptionMode, hasUserSelectedSubscriptionType]);
+  }, [rowData, mode, subscriptionMode]);
 
   // Also update the WMM subscription data useEffect
   useEffect(() => {
@@ -1027,25 +1046,27 @@ const Edit = ({
   // Clear subscription fields when component loads with default "add" mode
   useEffect(() => {
     if (subscriptionMode === "add" && rowData && mode === "edit") {
-      // Store the current subsclass value before clearing
-      const currentSubsclass =
-        formData.subsclass || roleSpecificData.subsclass || "";
-
       // Clear subscription-related fields in formData
-      setFormData((prev) => ({
-        ...prev,
-        subscriptionFreq: "",
-        subscriptionStart: "",
-        subscriptionEnd: "",
-        subStartMonth: "",
-        subStartDay: "",
-        subStartYear: "",
-        subEndMonth: "",
-        subEndDay: "",
-        subEndYear: "",
-        subsclass: currentSubsclass, // Preserve the subsclass value
-        referralid: formData.subscriptionType === "Promo" ? "" : undefined,
-      }));
+      setFormData((prev) => {
+        // Store the current subsclass value before clearing
+        const currentSubsclass =
+          prev.subsclass || roleSpecificData.subsclass || "";
+
+        return {
+          ...prev,
+          subscriptionFreq: "",
+          subscriptionStart: "",
+          subscriptionEnd: "",
+          subStartMonth: "",
+          subStartDay: "",
+          subStartYear: "",
+          subEndMonth: "",
+          subEndDay: "",
+          subEndYear: "",
+          subsclass: currentSubsclass, // Preserve the subsclass value
+          referralid: prev.subscriptionType === "Promo" ? "" : undefined,
+        };
+      });
 
       // Clear subscription data in roleSpecificData but preserve subsclass
       setRoleSpecificData((prev) => ({
@@ -1058,11 +1079,11 @@ const Edit = ({
         paymtamt: "",
         paymtmasses: "",
         calendar: false,
-        subsclass: currentSubsclass, // Preserve the subsclass value
+        subsclass: prev.subsclass, // Preserve the subsclass value
         donorid: "",
         paymtref: "",
         remarks: "",
-        referralid: formData.subscriptionType === "Promo" ? "" : "",
+        referralid: prev.subscriptionType === "Promo" ? "" : "",
       }));
 
       // Initialize with today's date for the new subscription
@@ -1268,10 +1289,13 @@ const Edit = ({
     }
 
     // For all other fields
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: safeValue,
-    }));
+    setFormData((prevData) => {
+      const newData = {
+        ...prevData,
+        [name]: safeValue,
+      };
+      return newData;
+    });
   };
 
   // Update handleRoleSpecificChange to ensure values are never undefined
@@ -2536,8 +2560,37 @@ const Edit = ({
   // Add removeEmptyFields helper function before handleSubmit
   const removeEmptyFields = (obj) => {
     const result = {};
+
+    // Essential client fields that should always be included, even if empty
+    const essentialFields = [
+      "fname",
+      "lname",
+      "mname",
+      "sname",
+      "title",
+      "company",
+      "address",
+      "housestreet",
+      "subdivision",
+      "barangay",
+      "zipcode",
+      "area",
+      "acode",
+      "contactnos",
+      "cellno",
+      "ofcno",
+      "email",
+      "type",
+      "group",
+      "remarks",
+      "bdate",
+    ];
+
     for (const key in obj) {
-      if (obj[key] !== undefined && obj[key] !== "") {
+      // Always include essential fields, even if empty
+      if (essentialFields.includes(key)) {
+        result[key] = obj[key] || "";
+      } else if (obj[key] !== undefined && obj[key] !== "") {
         if (typeof obj[key] === "object" && !Array.isArray(obj[key])) {
           const nestedResult = removeEmptyFields(obj[key]);
           if (Object.keys(nestedResult).length > 0) {
@@ -2651,6 +2704,92 @@ const Edit = ({
   };
 
   // Update the handleSubmit function to handle both edit and add modes
+  // Data validation function to catch common issues before submission
+  const validateSubmissionData = (data) => {
+    const errors = [];
+
+    // Check for required fields
+    if (!data.clientData) {
+      errors.push("Client data is missing");
+    } else {
+      if (!data.clientData.fname || data.clientData.fname.trim() === "") {
+        errors.push("First name is required");
+      }
+      if (!data.clientData.lname || data.clientData.lname.trim() === "") {
+        errors.push("Last name is required");
+      }
+    }
+
+    // Check for valid dates
+    if (data.clientData?.bdate) {
+      try {
+        const date = new Date(data.clientData.bdate);
+        if (isNaN(date.getTime())) {
+          errors.push("Invalid birth date format");
+        }
+      } catch (e) {
+        errors.push("Invalid birth date format");
+      }
+    }
+
+    // Check role submissions data
+    if (data.roleSubmissions && Array.isArray(data.roleSubmissions)) {
+      data.roleSubmissions.forEach((submission, index) => {
+        if (!submission.roleType) {
+          errors.push(`Role submission ${index + 1} is missing role type`);
+        }
+        if (!submission.roleData) {
+          errors.push(`Role submission ${index + 1} is missing role data`);
+        }
+      });
+    }
+
+    if (errors.length > 0) {
+      console.error("Data validation errors:", errors);
+      throw new Error(`Data validation failed: ${errors.join(", ")}`);
+    }
+
+    return true;
+  };
+
+  // Enhanced submission handler with comprehensive error handling
+  const handleSubmissionWithErrorHandling = async (
+    submissionData,
+    endpoint,
+    method
+  ) => {
+    // Validate data before submission
+    try {
+      validateSubmissionData(submissionData);
+    } catch (validationError) {
+      console.error("Data validation failed:", validationError);
+      toast({
+        title: "Data Validation Error",
+        description: validationError.message,
+        variant: "destructive",
+      });
+      throw validationError;
+    }
+
+    try {
+      const response = await axios[method](endpoint, submissionData);
+      return response;
+    } catch (error) {
+      console.error("Submission error details:", {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data,
+        },
+      });
+      throw error;
+    }
+  };
+
   // Handle confirmed submission from confirmation dialog
   const handleConfirmedSubmit = async () => {
     // Prevent multiple submissions
@@ -2662,14 +2801,27 @@ const Edit = ({
 
     // Format birth date if all parts are present
     const formatBdate = () => {
-      if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
-        // Clean trailing spaces before formatting
-        const month = cleanDateInput(formData.bdateMonth);
-        const day = cleanDateInput(formData.bdateDay);
-        const year = cleanDateInput(formData.bdateYear);
-        return `${month}/${day}/${year}`;
+      try {
+        if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
+          // Clean trailing spaces before formatting
+          const month = cleanDateInput(formData.bdateMonth);
+          const day = cleanDateInput(formData.bdateDay);
+          const year = cleanDateInput(formData.bdateYear);
+
+          // Validate date components
+          if (!month || !day || !year) {
+            console.warn("Invalid date components:", { month, day, year });
+            return formData.bdate || "";
+          }
+
+          const formattedDate = `${month}/${day}/${year}`;
+          return formattedDate;
+        }
+        return formData.bdate || "";
+      } catch (error) {
+        console.error("Error formatting birth date:", error);
+        return formData.bdate || "";
       }
-      return formData.bdate || "";
     };
 
     // Prepare base client data
@@ -2719,11 +2871,12 @@ const Edit = ({
       };
 
       try {
-        const response = await axios.put(
+        const response = await handleSubmissionWithErrorHandling(
+          submissionData,
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
             rowData.id
           }`,
-          submissionData
+          "put"
         );
 
         if (response.data && response.data.success) {
@@ -3078,7 +3231,11 @@ const Edit = ({
     };
 
     try {
-      const response = await axios[method](endpoint, submissionData);
+      const response = await handleSubmissionWithErrorHandling(
+        submissionData,
+        endpoint,
+        method
+      );
 
       if (response.data && response.data.success) {
         // Show success toast with appropriate message
@@ -3209,7 +3366,6 @@ const Edit = ({
     const clientData = removeEmptyFields(baseClientData);
     const clearedFields = getClearedClientFields(rowData, baseClientData);
     const clientDataWithClears = { ...clientData, ...clearedFields };
-    // Already computed clientDataWithClears above
 
     // Determine the API endpoint based on mode
     const endpoint =
@@ -3228,9 +3384,10 @@ const Edit = ({
     // Prepare role submissions
     const roleSubmissions = [];
 
-    // Use modular subscription data check
+    // Use modular subscription data check with enhanced logging
     const hasSubscriptionData = () => {
-      return checkSubscriptionData(formData, roleSpecificData);
+      const result = checkSubscriptionData(formData, roleSpecificData);
+      return result;
     };
 
     // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it
@@ -3523,7 +3680,11 @@ const Edit = ({
     };
 
     try {
-      const response = await axios[method](endpoint, submissionData);
+      const response = await handleSubmissionWithErrorHandling(
+        submissionData,
+        endpoint,
+        method
+      );
 
       if (response.data && response.data.success) {
         // Show success toast with appropriate message
@@ -3588,6 +3749,15 @@ const Edit = ({
         error
       );
 
+      // Enhanced error logging
+      console.error("Full error details:", {
+        message: error.message,
+        stack: error.stack,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config,
+      });
+
       // Show detailed error toast
       const errorMessage =
         error.response?.data?.message ||
@@ -3607,16 +3777,18 @@ const Edit = ({
                 Status: {error.response.status}
               </p>
             )}
-            {process.env.NODE_ENV === "development" &&
-              error.response?.data?.details && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Details: {error.response.data.details}
-                </p>
-              )}
+            {process.env.NODE_ENV === "development" && (
+              <div className="text-xs text-gray-500 mt-1">
+                {error.response?.data?.details && (
+                  <p>Details: {error.response.data.details}</p>
+                )}
+                <p>Check console for full error details</p>
+              </div>
+            )}
           </div>
         ),
         variant: "destructive",
-        duration: 8000,
+        duration: 10000,
       });
     } finally {
       setIsSubmitting(false);
