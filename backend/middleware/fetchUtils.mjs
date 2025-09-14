@@ -335,6 +335,7 @@ router.post("/templates-add", verifyToken, async (req, res) => {
       layout,
       selectedFields,
       previewType,
+      selectedPrinter,
     } = req.body;
 
     // Validate required fields
@@ -397,6 +398,7 @@ router.post("/templates-add", verifyToken, async (req, res) => {
       layout: sanitizedLayout,
       selectedFields,
       previewType: previewType || "standard",
+      selectedPrinter: selectedPrinter || "",
     });
 
     await newTemplate.save();
@@ -425,6 +427,7 @@ router.put("/templates/:id", verifyToken, async (req, res) => {
       layout,
       selectedFields,
       previewType,
+      selectedPrinter,
     } = req.body;
 
     function sanitizeLayoutByPreviewType(inputLayout, type) {
@@ -478,6 +481,7 @@ router.put("/templates/:id", verifyToken, async (req, res) => {
         layout: sanitizedLayout,
         selectedFields,
         previewType: previewType || "standard",
+        selectedPrinter: selectedPrinter || "",
         updatedAt: new Date(),
       },
       { new: true }

@@ -596,6 +596,9 @@ const Mailing = ({
         col2X: selected.layout.col2X || 255,
       });
 
+      // Note: We don't auto-select the printer in the dropdown
+      // The template's printer will be used directly during printing
+
       setSelectedTemplate(selected);
     }
   };
@@ -603,6 +606,30 @@ const Mailing = ({
   // Handle template saved callback
   const handleTemplateSaved = (newTemplate) => {
     setSavedTemplates([...savedTemplates, newTemplate]);
+  };
+
+  // Handle template updated callback
+  const handleTemplateUpdated = (updatedTemplate) => {
+    setSavedTemplates((prevTemplates) =>
+      prevTemplates.map((template) =>
+        template._id === updatedTemplate._id ? updatedTemplate : template
+      )
+    );
+    // Update selected template if it was the one updated
+    if (selectedTemplate && selectedTemplate._id === updatedTemplate._id) {
+      setSelectedTemplate(updatedTemplate);
+    }
+  };
+
+  // Handle template deleted callback
+  const handleTemplateDeleted = (deletedTemplateId) => {
+    setSavedTemplates((prevTemplates) =>
+      prevTemplates.filter((template) => template._id !== deletedTemplateId)
+    );
+    // Clear selected template if it was the one deleted
+    if (selectedTemplate && selectedTemplate._id === deletedTemplateId) {
+      setSelectedTemplate(null);
+    }
   };
 
   // Check if data contains special characters that need CP850 encoding
@@ -868,10 +895,14 @@ const Mailing = ({
         labelAdjustments // Pass label adjustments
       );
 
+      // Use printer from template if available, otherwise use selected printer
+      const printerToUse =
+        selectedTemplate?.selectedPrinter || selectedPrinter || "";
+
       await printWithJsPrintManager(
         rawCommands,
-        selectedPrinter || "", // Use selected printer or default
-        !selectedPrinter, // useDefaultPrinter = true only if no printer selected
+        printerToUse,
+        !printerToUse, // useDefaultPrinter = true only if no printer selected
         {
           setStatus: (status) => {
             if (typeof status === "string" && status.includes("Error:")) {
@@ -905,7 +936,7 @@ const Mailing = ({
           await markQueuePrinted(currentQueueId, {
             clientIds,
             jobId: undefined,
-            printerName: selectedPrinter || undefined,
+            printerName: printerToUse || undefined,
             templateRefId: selectedTemplate?._id || undefined,
             actionType: currentAction || "label",
           });
@@ -1872,7 +1903,12 @@ const Mailing = ({
                       columnsPerPage={columnsPerPage}
                       labelAdjustments={labelAdjustments}
                       userRole={userRole}
+                      selectedPrinter={selectedPrinter}
+                      selectedTemplate={selectedTemplate}
+                      savedTemplates={savedTemplates}
                       onTemplateSaved={handleTemplateSaved}
+                      onTemplateUpdated={handleTemplateUpdated}
+                      onTemplateDeleted={handleTemplateDeleted}
                     />
                   </div>
 
@@ -1929,6 +1965,14 @@ const Mailing = ({
                       isLoading={isLoading}
                       onTemplateSelect={handleTemplateSelect}
                       userRole={userRole}
+                      onTemplateUpdate={(template) => {
+                        // This will trigger the update flow in TemplateSaver
+                        setSelectedTemplate(template);
+                      }}
+                      onTemplateDelete={(template) => {
+                        // This will trigger the delete flow in TemplateSaver
+                        setSelectedTemplate(template);
+                      }}
                     />
                   </div>
 
@@ -1988,6 +2032,12 @@ const Mailing = ({
                         Layout dimensions: {Math.max(columnWidth * 2, 200)}px ×{" "}
                         {Math.max(labelHeight * 2, 100)}px
                       </p>
+                      {selectedTemplate?.selectedPrinter && (
+                        <p className="text-xs text-blue-600 mt-2">
+                          📄 Template printer:{" "}
+                          <strong>{selectedTemplate.selectedPrinter}</strong>
+                        </p>
+                      )}
                       {effectiveRows.length > 0 && currentQueueId && (
                         <p className="text-xs text-green-600 mt-2">
                           ✓ {effectiveRows.length} items automatically added to

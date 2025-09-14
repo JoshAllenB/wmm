@@ -24,15 +24,26 @@ const TemplateSaver = ({
   // User info
   userRole,
 
+  // Printer info
+  selectedPrinter,
+
+  // Template management
+  selectedTemplate,
+  savedTemplates,
+
   // Callbacks
   onTemplateSaved,
+  onTemplateUpdated,
+  onTemplateDeleted,
   onClose,
 }) => {
   const [templateName, setTemplateName] = useState("");
   const [description, setDescription] = useState("");
   const [department, setDepartment] = useState(userRole || "");
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Update department when userRole changes
   useEffect(() => {
@@ -55,9 +66,21 @@ const TemplateSaver = ({
   // Handle save button click
   const handleSaveClick = () => {
     setShowForm(true);
+    setIsUpdating(false);
   };
 
-  // Handle template save
+  // Handle update button click
+  const handleUpdateClick = () => {
+    if (selectedTemplate) {
+      setTemplateName(selectedTemplate.name);
+      setDescription(selectedTemplate.description || "");
+      setDepartment(selectedTemplate.department || userRole);
+      setShowForm(true);
+      setIsUpdating(true);
+    }
+  };
+
+  // Handle template save/update
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) {
       toast.error("Please enter a template name");
@@ -98,35 +121,57 @@ const TemplateSaver = ({
         stickerFineTuneDots: labelAdjustments?.stickerFineTuneDots || 0,
       };
 
-      const newTemplate = {
+      const templateData = {
         name: templateName.trim(),
         description: description.trim(),
         department,
         layout: unifiedLayout,
         selectedFields: selectedFields || [],
         previewType: "standard",
+        // Include selected printer information
+        selectedPrinter: selectedPrinter || "",
       };
 
-      const response = await axios.post(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
-        newTemplate,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
+      let response;
+      if (isUpdating && selectedTemplate) {
+        // Update existing template
+        response = await axios.put(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${
+            selectedTemplate._id
+          }`,
+          templateData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        toast.success("Template updated successfully!");
+        if (onTemplateUpdated) {
+          onTemplateUpdated(response.data);
         }
-      );
-
-      toast.success("Template saved successfully!");
-
-      if (onTemplateSaved) {
-        onTemplateSaved(response.data);
+      } else {
+        // Create new template
+        response = await axios.post(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
+          templateData,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        toast.success("Template saved successfully!");
+        if (onTemplateSaved) {
+          onTemplateSaved(response.data);
+        }
       }
 
       // Reset form
       setTemplateName("");
       setDescription("");
       setShowForm(false);
+      setIsUpdating(false);
 
       if (onClose) {
         onClose();
@@ -145,11 +190,70 @@ const TemplateSaver = ({
     }
   };
 
+  // Handle template deletion
+  const handleDeleteTemplate = async () => {
+    if (!selectedTemplate) {
+      toast.error("No template selected for deletion");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Are you sure you want to delete the template "${selectedTemplate.name}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      await axios.delete(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${
+          selectedTemplate._id
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      toast.success("Template deleted successfully!");
+
+      if (onTemplateDeleted) {
+        onTemplateDeleted(selectedTemplate._id);
+      }
+
+      // Reset form
+      setTemplateName("");
+      setDescription("");
+      setShowForm(false);
+      setIsUpdating(false);
+
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error deleting template:", error);
+
+      let errorMessage = "Error deleting template. Please try again.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Handle cancel
   const handleCancel = () => {
     setTemplateName("");
     setDescription("");
     setShowForm(false);
+    setIsUpdating(false);
     if (onClose) {
       onClose();
     }
@@ -157,21 +261,50 @@ const TemplateSaver = ({
 
   if (!showForm) {
     return (
-      <div>
+      <div className="space-y-2">
         <Button
           onClick={handleSaveClick}
           variant="secondary"
-          className="w-full mb-2"
+          className="w-full"
         >
           Save Current Settings as Template
         </Button>
+
+        {selectedTemplate && (
+          <div className="flex gap-2">
+            <Button
+              onClick={handleUpdateClick}
+              variant="outline"
+              className="flex-1"
+            >
+              Update Selected Template
+            </Button>
+            <Button
+              onClick={handleDeleteTemplate}
+              variant="destructive"
+              disabled={isDeleting}
+              className="flex-1"
+            >
+              {isDeleting ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Deleting...</span>
+                </div>
+              ) : (
+                "Delete Template"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="border rounded-lg p-4 bg-white shadow-sm">
-      <h4 className="font-medium mb-3 text-gray-800">Save Template</h4>
+      <h4 className="font-medium mb-3 text-gray-800">
+        {isUpdating ? "Update Template" : "Save Template"}
+      </h4>
 
       <div className="space-y-3">
         {/* Template Name */}
@@ -238,6 +371,7 @@ const TemplateSaver = ({
             </div>
             <div>Label Width: {labelAdjustments?.labelWidthIn || 3.5}"</div>
             <div>Selected Fields: {selectedFields?.join(", ") || "None"}</div>
+            {selectedPrinter && <div>Printer: {selectedPrinter}</div>}
           </div>
         </div>
 
@@ -251,8 +385,10 @@ const TemplateSaver = ({
             {isSaving ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Saving...</span>
+                <span>{isUpdating ? "Updating..." : "Saving..."}</span>
               </div>
+            ) : isUpdating ? (
+              "Update Template"
             ) : (
               "Save Template"
             )}

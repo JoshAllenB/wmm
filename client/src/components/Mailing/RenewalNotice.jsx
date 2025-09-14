@@ -263,7 +263,8 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [localStartPosition, setLocalStartPosition] = useState("left");
 
     // Derive effective IDs: prefer local if set, else props
-    const effectiveStartId = (localStartId || "").trim() || (startId || "").trim();
+    const effectiveStartId =
+      (localStartId || "").trim() || (startId || "").trim();
     const effectiveEndId = (localEndId || "").trim() || (endId || "").trim();
 
     // Helper to compute min client id from available rows
@@ -1079,20 +1080,49 @@ const RenewalNoticeDataOverlay = forwardRef(
           layout: { positions },
           selectedFields: [],
           previewType: "renewal",
+          selectedPrinter: "", // Renewal notices don't use raw printing
         };
-        const res = await axios.post(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
+
+        const selectedTemplate = templates.find(
+          (t) => t._id === selectedTemplateId
         );
-        toast.success("Template saved");
-        // add to list and select
-        setTemplates((prev) => [res.data, ...prev]);
-        setSelectedTemplateId(res.data._id || "");
+        let res;
+
+        if (selectedTemplate && selectedTemplateId !== "") {
+          // Update existing template
+          res = await axios.put(
+            `http://${
+              import.meta.env.VITE_IP_ADDRESS
+            }:3001/util/templates/${selectedTemplateId}`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }
+          );
+          toast.success("Template updated");
+          // Update in list
+          setTemplates((prev) =>
+            prev.map((t) => (t._id === selectedTemplateId ? res.data : t))
+          );
+        } else {
+          // Create new template
+          res = await axios.post(
+            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }
+          );
+          toast.success("Template saved");
+          // add to list and select
+          setTemplates((prev) => [res.data, ...prev]);
+          setSelectedTemplateId(res.data._id || "");
+        }
+
         setTemplateName("");
         setTemplateDesc("");
       } catch (e) {
@@ -1100,6 +1130,47 @@ const RenewalNoticeDataOverlay = forwardRef(
         toast.error(e.response?.data?.error || "Failed to save template");
       } finally {
         setIsSavingTemplate(false);
+      }
+    };
+
+    // Delete template
+    const handleDeleteTemplate = async () => {
+      if (!selectedTemplateId) {
+        toast.error("No template selected for deletion");
+        return;
+      }
+
+      if (
+        !confirm(
+          "Are you sure you want to delete this template? This action cannot be undone."
+        )
+      ) {
+        return;
+      }
+
+      try {
+        await axios.delete(
+          `http://${
+            import.meta.env.VITE_IP_ADDRESS
+          }:3001/util/templates/${selectedTemplateId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+
+        toast.success("Template deleted");
+        // Remove from list and clear selection
+        setTemplates((prev) =>
+          prev.filter((t) => t._id !== selectedTemplateId)
+        );
+        setSelectedTemplateId("");
+        setTemplateName("");
+        setTemplateDesc("");
+      } catch (e) {
+        console.error("Delete template error:", e);
+        toast.error(e.response?.data?.error || "Failed to delete template");
       }
     };
 
@@ -1164,7 +1235,9 @@ const RenewalNoticeDataOverlay = forwardRef(
                   onSetFromSelection={() => {
                     if (!availableRows?.length) return;
                     const ids = availableRows
-                      .map((r) => parseInt((r?.original?.id ?? "").toString(), 10))
+                      .map((r) =>
+                        parseInt((r?.original?.id ?? "").toString(), 10)
+                      )
                       .filter((n) => !isNaN(n));
                     if (ids.length === 0) return;
                     const minId = Math.min(...ids).toString();
@@ -1175,7 +1248,10 @@ const RenewalNoticeDataOverlay = forwardRef(
                   showStartPosition={false}
                 />
                 <div className="mt-2 text-xs text-gray-600">
-                  Using: {(effectiveStartId || getMinClientId() || "").toString() || "Start"} - {effectiveEndId || "End"}
+                  Using:{" "}
+                  {(effectiveStartId || getMinClientId() || "").toString() ||
+                    "Start"}{" "}
+                  - {effectiveEndId || "End"}
                 </div>
               </div>
               {/* Template controls */}
@@ -1241,13 +1317,30 @@ const RenewalNoticeDataOverlay = forwardRef(
                     value={templateDesc}
                     onChange={(e) => setTemplateDesc(e.target.value)}
                   />
-                  <Button
-                    onClick={handleSaveTemplate}
-                    size="sm"
-                    disabled={isSavingTemplate}
-                  >
-                    {isSavingTemplate ? "Saving..." : "Save as Template"}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSaveTemplate}
+                      size="sm"
+                      disabled={isSavingTemplate}
+                      className="flex-1"
+                    >
+                      {isSavingTemplate
+                        ? "Saving..."
+                        : selectedTemplateId
+                        ? "Update Template"
+                        : "Save as Template"}
+                    </Button>
+                    {selectedTemplateId && (
+                      <Button
+                        onClick={handleDeleteTemplate}
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                      >
+                        Delete Template
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
               {(showConfig || useSharedConfig) && !useSharedConfig && (

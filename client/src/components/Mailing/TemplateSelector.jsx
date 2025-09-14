@@ -6,6 +6,8 @@ const TemplateSelector = ({
   isLoading,
   onTemplateSelect,
   userRole,
+  onTemplateUpdate,
+  onTemplateDelete,
 }) => {
   // Filter templates based on user department (role)
   const filteredTemplates = React.useMemo(() => {
@@ -163,9 +165,42 @@ const TemplateSelector = ({
 
                   <div className="font-medium">Column 2 Position:</div>
                   <div>{selectedTemplate.layout?.col2X || 255} dots</div>
+
+                  {selectedTemplate.selectedPrinter && (
+                    <>
+                      <div className="font-medium">Printer (will be used):</div>
+                      <div className="text-blue-600 font-medium">
+                        {selectedTemplate.selectedPrinter}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </details>
+
+            {/* Template Management Actions */}
+            {selectedTemplate && selectedTemplate._id !== "DEFAULT" && (
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() =>
+                      onTemplateUpdate && onTemplateUpdate(selectedTemplate)
+                    }
+                    className="flex-1 px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Update Template
+                  </button>
+                  <button
+                    onClick={() =>
+                      onTemplateDelete && onTemplateDelete(selectedTemplate)
+                    }
+                    className="flex-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                  >
+                    Delete Template
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

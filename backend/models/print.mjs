@@ -23,6 +23,7 @@ const printLabelSchema = new mongoose.Schema({
     enum: ["standard", "renewal", "thankyou"],
     default: "standard",
   },
+  selectedPrinter: { type: String, default: "" },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
