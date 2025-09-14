@@ -167,6 +167,9 @@ const Edit = ({
     subEndDay: "",
     subEndYear: "",
     subsclass: "",
+    rts: false, // Add RTS field
+    rtsCount: 0, // Add RTS count field
+    rtsMaxReached: false, // Add RTS max reached field
   });
 
   const [addressData, setAddressData] = useState({
@@ -637,6 +640,9 @@ const Edit = ({
             type: rowData.type || "",
             group: rowData.group || "",
             remarks: rowData.remarks || "",
+            rts: rowData.rts || false, // Add RTS field
+            rtsCount: rowData.rtsCount || 0, // Add RTS count field
+            rtsMaxReached: rowData.rtsMaxReached || false, // Add RTS max reached field
             // Respect manual user selection; only set detected type if user hasn't chosen
             subscriptionType: hasUserSelectedSubscriptionType
               ? prev.subscriptionType
@@ -2584,12 +2590,22 @@ const Edit = ({
       "group",
       "remarks",
       "bdate",
+      "spack",
+      "rts",
+      "rtsCount",
+      "rtsMaxReached",
     ];
 
     for (const key in obj) {
       // Always include essential fields, even if empty
       if (essentialFields.includes(key)) {
-        result[key] = obj[key] || "";
+        // For boolean fields, preserve the actual value (including false)
+        if (key === "spack" || key === "rts" || key === "rtsMaxReached") {
+          result[key] =
+            obj[key] === true || obj[key] === false ? obj[key] : false;
+        } else {
+          result[key] = obj[key] || "";
+        }
       } else if (obj[key] !== undefined && obj[key] !== "") {
         if (typeof obj[key] === "object" && !Array.isArray(obj[key])) {
           const nestedResult = removeEmptyFields(obj[key]);
@@ -2627,25 +2643,53 @@ const Edit = ({
       "group",
       "remarks",
       "bdate",
+      "spack",
+      "rts",
+      "rtsCount",
+      "rtsMaxReached",
     ];
 
     const cleared = {};
     fieldsToCheck.forEach((field) => {
       const previousValue = previousData?.[field];
       const currentValue = currentData?.[field];
-      const previousHadValue =
-        previousValue !== undefined &&
-        previousValue !== null &&
-        String(previousValue).trim() !== "";
 
-      const isCleared =
-        currentValue === null ||
-        currentValue === undefined ||
-        (typeof currentValue === "string" && currentValue.trim() === "") ||
-        (field === "zipcode" && (currentValue === 0 || currentValue === "0"));
+      // Special handling for boolean fields
+      if (field === "spack" || field === "rts" || field === "rtsMaxReached") {
+        const previousHadValue =
+          previousValue === true || previousValue === false;
+        const isCleared = currentValue === false && previousValue === true;
 
-      if (previousHadValue && isCleared) {
-        cleared[field] = null; // Explicitly clear on backend
+        if (previousHadValue && isCleared) {
+          cleared[field] = false; // Explicitly set to false on backend
+        }
+      } else if (field === "rtsCount") {
+        // Special handling for rtsCount (numeric field)
+        const previousHadValue =
+          previousValue !== undefined &&
+          previousValue !== null &&
+          previousValue !== 0;
+        const isCleared = currentValue === 0 && previousValue > 0;
+
+        if (previousHadValue && isCleared) {
+          cleared[field] = 0; // Explicitly set to 0 on backend
+        }
+      } else {
+        // Original logic for string fields
+        const previousHadValue =
+          previousValue !== undefined &&
+          previousValue !== null &&
+          String(previousValue).trim() !== "";
+
+        const isCleared =
+          currentValue === null ||
+          currentValue === undefined ||
+          (typeof currentValue === "string" && currentValue.trim() === "") ||
+          (field === "zipcode" && (currentValue === 0 || currentValue === "0"));
+
+        if (previousHadValue && isCleared) {
+          cleared[field] = null; // Explicitly clear on backend
+        }
       }
     });
 

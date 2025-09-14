@@ -14,29 +14,87 @@ const PersonalInfoModule = ({
         Personal Information
       </h2>
       <div className="space-y-3">
-        <div className="mb-4">
-          <label className="block text-black text-xl mb-1">
-            Special Package:
-          </label>
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="spack"
-              name="spack"
-              checked={formData.spack || false}
-              onChange={(e) =>
-                handleChange({
-                  target: {
-                    name: "spack",
-                    value: e.target.checked,
-                  },
-                })
-              }
-              className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-            />
-            <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
-              Mark as Special Package
+        <div className="flex gap-4">
+          <div className="mb-4">
+            <label className="block text-black text-xl mb-1">
+              Special Package:
             </label>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="spack"
+                name="spack"
+                checked={formData.spack || false}
+                onChange={(e) =>
+                  handleChange({
+                    target: {
+                      name: "spack",
+                      value: e.target.checked,
+                    },
+                  })
+                }
+                className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
+                Mark as Special Package
+              </label>
+            </div>
+          </div>
+          <div className="mb-4">
+            <label className="block text-black text-xl mb-1">
+              Return to Sender (RTS):
+            </label>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="rts"
+                name="rts"
+                checked={formData.rts || false}
+                onChange={(e) => {
+                  const isChecked = e.target.checked;
+                  const currentRtsCount = formData.rtsCount || 0;
+                  const newRtsCount = isChecked
+                    ? currentRtsCount + 1
+                    : Math.max(0, currentRtsCount - 1);
+
+                  handleChange({
+                    target: {
+                      name: "rts",
+                      value: isChecked,
+                    },
+                  });
+
+                  handleChange({
+                    target: {
+                      name: "rtsCount",
+                      value: newRtsCount,
+                    },
+                  });
+
+                  handleChange({
+                    target: {
+                      name: "rtsMaxReached",
+                      value: newRtsCount >= 3,
+                    },
+                  });
+                }}
+                className="h-5 w-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+              />
+              <label htmlFor="rts" className="ml-2 text-gray-700 text-base">
+                Mark as Return to Sender
+                {formData.rtsCount > 0 && (
+                  <span
+                    className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                      formData.rtsMaxReached
+                        ? "bg-red-100 text-red-800"
+                        : "bg-orange-100 text-orange-800"
+                    }`}
+                  >
+                    {formData.rtsCount} RTS
+                  </span>
+                )}
+              </label>
+            </div>
           </div>
         </div>
         <InputField
