@@ -34,8 +34,6 @@ const RTSUpdate = ({
   const [showResultsDialog, setShowResultsDialog] = useState(false);
   const [updateResults, setUpdateResults] = useState(null);
   const [selectedRTSAction, setSelectedRTSAction] = useState(null);
-  const [rtsReason, setRtsReason] = useState("");
-  const [customRtsCount, setCustomRtsCount] = useState("");
   const [previewCounts, setPreviewCounts] = useState(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [clientIdsText, setClientIdsText] = useState("");
@@ -67,8 +65,6 @@ const RTSUpdate = ({
   const handleClose = () => {
     // Reset all form state
     setSelectedRTSAction(null);
-    setRtsReason("");
-    setCustomRtsCount("");
     setClientIdsText("");
     setPreviewCounts(null);
     setActiveTab("filter");
@@ -96,35 +92,6 @@ const RTSUpdate = ({
       return;
     }
 
-    if (selectedRTSAction === "add" && !rtsReason.trim()) {
-      toast({
-        title: "Error",
-        description: "Please provide a reason for adding RTS",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (selectedRTSAction === "custom") {
-      const customCount = parseInt(customRtsCount);
-      if (isNaN(customCount) || customCount < 0 || customCount > 10) {
-        toast({
-          title: "Error",
-          description: "Please enter a valid RTS count (0-10)",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!rtsReason.trim()) {
-        toast({
-          title: "Error",
-          description: "Please provide a reason for setting custom RTS count",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
     try {
       setIsUpdatingRTS(true);
 
@@ -135,9 +102,6 @@ const RTSUpdate = ({
         group: activeTab === "filter" ? selectedGroup : "",
         advancedFilterData: activeTab === "filter" ? advancedFilterData : {},
         rtsAction: selectedRTSAction,
-        rtsReason: rtsReason.trim(),
-        customRtsCount:
-          selectedRTSAction === "custom" ? parseInt(customRtsCount) : null,
         clientIds:
           activeTab === "specific"
             ? clientIdsText
@@ -168,9 +132,7 @@ const RTSUpdate = ({
         }
       );
 
-      console.log("RTS update response status:", response.status);
       const data = await response.json();
-      console.log("RTS update response data:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Failed to update RTS status");
@@ -196,8 +158,6 @@ const RTSUpdate = ({
 
       // Reset form
       setSelectedRTSAction(null);
-      setRtsReason("");
-      setCustomRtsCount("");
       setClientIdsText("");
 
       toast({
@@ -281,14 +241,6 @@ const RTSUpdate = ({
         .map((id) => parseInt(id.trim()))
         .filter((id) => !isNaN(id));
       return ids.length > 0;
-    }
-    return true;
-  };
-
-  const validateCustomCount = () => {
-    if (selectedRTSAction === "custom") {
-      const customCount = parseInt(customRtsCount);
-      return !isNaN(customCount) && customCount >= 0 && customCount <= 10;
     }
     return true;
   };
@@ -425,64 +377,20 @@ const RTSUpdate = ({
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="custom" id="custom" />
-                  <Label htmlFor="custom" className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-purple-600" />
-                    Set Custom Count
+                  <RadioGroupItem value="max" id="max" />
+                  <Label htmlFor="max" className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                    Max 3 RTS
                   </Label>
                 </div>
               </RadioGroup>
             </div>
 
-            {(selectedRTSAction === "add" ||
-              selectedRTSAction === "custom") && (
-              <div className="space-y-2">
-                <Label htmlFor="rtsReason">
-                  Reason for RTS {selectedRTSAction === "add" ? "*" : "*"}
-                </Label>
-                <Textarea
-                  id="rtsReason"
-                  value={rtsReason}
-                  onChange={(e) => setRtsReason(e.target.value)}
-                  placeholder={
-                    selectedRTSAction === "add"
-                      ? "Enter reason for return to sender..."
-                      : "Enter reason for setting custom RTS count..."
-                  }
-                  className="min-h-[80px]"
-                />
-              </div>
-            )}
-
-            {selectedRTSAction === "custom" && (
-              <div className="space-y-2">
-                <Label htmlFor="customRtsCount">Custom RTS Count *</Label>
-                <input
-                  id="customRtsCount"
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={customRtsCount}
-                  onChange={(e) => setCustomRtsCount(e.target.value)}
-                  placeholder="Enter RTS count (0-10)"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <p className="text-sm text-gray-500">
-                  Enter a number between 0 and 10. Clients with 3+ RTS will be
-                  marked as max reached.
-                </p>
-              </div>
-            )}
-
             <div className="flex gap-2">
               <Button
                 onClick={fetchPreviewCounts}
                 variant="outline"
-                disabled={
-                  !validateClientIds() ||
-                  !validateCustomCount() ||
-                  isLoadingPreview
-                }
+                disabled={!validateClientIds() || isLoadingPreview}
                 className="flex items-center gap-2"
               >
                 {isLoadingPreview ? (
@@ -530,9 +438,7 @@ const RTSUpdate = ({
             </Button>
             <Button
               onClick={handleUpdateRTS}
-              disabled={
-                !validateClientIds() || !validateCustomCount() || isUpdatingRTS
-              }
+              disabled={!validateClientIds() || isUpdatingRTS}
               className="bg-orange-600 hover:bg-orange-700"
             >
               {isUpdatingRTS ? (

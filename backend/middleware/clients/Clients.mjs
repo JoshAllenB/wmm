@@ -592,6 +592,28 @@ router.put("/update/:id", verifyToken, async (req, res) => {
         .replace(",", ""),
     };
 
+    // Handle RTS count update if RTS checkbox is being changed
+    if (
+      clientData.hasOwnProperty("rts") &&
+      clientData.hasOwnProperty("rtsCount")
+    ) {
+      // If RTS is being checked and rtsCount is being incremented
+      if (
+        clientData.rts &&
+        clientData.rtsCount > (oldClientData.rtsCount || 0)
+      ) {
+        // Add to RTS history
+        updatedClientData.$push = {
+          rtsHistory: {
+            date: new Date().toISOString().split("T")[0], // YYYY-MM-DD format
+            reason: "RTS checkbox checked",
+            addedBy: user.username,
+            addedAt: new Date().toISOString(),
+          },
+        };
+      }
+    }
+
     const updatedClient = await ClientModel.findOneAndUpdate(
       { id },
       updatedClientData,
@@ -1935,7 +1957,6 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
       group = "",
       advancedFilterData = {},
       rtsAction,
-      rtsReason = "",
       clientIds = [],
     } = req.body;
 
@@ -1943,13 +1964,6 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
       return res.status(400).json({
         error: "Bad Request",
         message: "rtsAction parameter is required",
-      });
-    }
-
-    if (rtsAction === "add" && !rtsReason.trim()) {
-      return res.status(400).json({
-        error: "Bad Request",
-        message: "rtsReason is required when adding RTS",
       });
     }
 
@@ -2019,14 +2033,6 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
           updateData = {
             rtsCount: newRtsCount,
             rtsMaxReached: newRtsCount >= 3,
-            $push: {
-              rtsHistory: {
-                date: currentDate.split("T")[0], // YYYY-MM-DD format
-                reason: rtsReason.trim(),
-                addedBy: currentUser,
-                addedAt: currentDate,
-              },
-            },
             editdate: currentDate,
             edituser: currentUser,
           };
@@ -2035,6 +2041,27 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
             rtsCount: 0,
             rtsMaxReached: false,
             rtsHistory: [], // Clear history when resetting
+            editdate: currentDate,
+            edituser: currentUser,
+          };
+        } else if (rtsAction === "max") {
+          // Set to maximum RTS count (3)
+          const currentRtsCount = client.rtsCount || 0;
+
+          // Check if already at max RTS
+          if (currentRtsCount >= 3) {
+            alreadyMaxRTS++;
+            skippedCount++;
+            failedClientIds.push({
+              id: client.id,
+              error: "Already at maximum RTS count",
+            });
+            continue;
+          }
+
+          updateData = {
+            rtsCount: 3,
+            rtsMaxReached: true,
             editdate: currentDate,
             edituser: currentUser,
           };
