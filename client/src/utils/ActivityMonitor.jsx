@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, createContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext } from "react";
 import { getAccessToken, removeTokens } from "./Token/tokenStorage";
 import InactivityWarning from "../components/UI/InactivityWarning";
 import validateToken from "./Token/validateToken";
@@ -28,6 +28,11 @@ const ActivityMonitor = ({
   const [showWarning, setShowWarning] = useState(false);
   const [remainingTime, setRemainingTime] = useState(WARNING_DURATION);
 
+  // Timer refs to avoid setInterval throttling in background tabs
+  const warningTimeoutRef = useRef(null);
+  const logoutTimeoutRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+
   const resetActivityTimer = useCallback(() => {
     setLastActivity(Date.now());
     setIsInactive(false);
@@ -39,6 +44,14 @@ const ActivityMonitor = ({
   useEffect(() => {
     const checkTokenOnLoad = async () => {
       if (isLoggedIn) {
+        // If another tab already flagged inactivity, enforce logout immediately
+        if (localStorage.getItem("sessionExpired") === "true") {
+          setIsLoggedIn(false);
+          removeTokens();
+          redirectToLogin();
+          return;
+        }
+
         const token = getAccessToken();
         if (!token) {
           setIsLoggedIn(false);
@@ -50,7 +63,6 @@ const ActivityMonitor = ({
           setIsLoggedIn(false);
           return;
         }
-
 
         // Clear any stale session expired messages only if user is actually logged in
         // Don't clear if user was actually logged out due to inactivity
@@ -72,74 +84,76 @@ const ActivityMonitor = ({
     checkTokenOnLoad();
   }, [isLoggedIn, setIsLoggedIn]);
 
-  // Handle activity check and periodic token validation
+  // Schedule timers for warning and auto-logout using setTimeout (reliable in background)
   useEffect(() => {
     if (!isLoggedIn) {
       return;
     }
 
-    const activityCheck = setInterval(async () => {
-      const currentTime = Date.now();
-      const timeSinceLastActivity = currentTime - lastActivity;
-      const timeUntilInactive = inactivityTimeout * 1000 - WARNING_DURATION;
+    // Clear any existing timers
+    if (warningTimeoutRef.current) {
+      clearTimeout(warningTimeoutRef.current);
+    }
+    if (logoutTimeoutRef.current) {
+      clearTimeout(logoutTimeoutRef.current);
+    }
 
-      // Check token validity every 10 minutes to ensure user stays logged in
-      // Only check if user has been active recently (within last 5 minutes)
-      if (
-        timeSinceLastActivity < 5 * 60 * 1000 &&
-        timeSinceLastActivity % (10 * 60 * 1000) < 1000
-      ) {
-        const isValid = await validateToken();
-        if (!isValid) {
-          setIsLoggedIn(false);
-          removeTokens();
-          redirectToLogin();
-          return;
-        }
-      }
+    const now = Date.now();
+    const elapsed = now - lastActivity;
+    const totalMs = inactivityTimeout * 1000;
+    const warningAt = Math.max(0, totalMs - WARNING_DURATION - elapsed);
+    const logoutAt = Math.max(0, totalMs - elapsed);
 
-      // Show warning when approaching timeout
-      if (timeSinceLastActivity > timeUntilInactive && !showWarning) {
-        setShowWarning(true);
-        setIsInactive(true);
+    // Schedule warning
+    warningTimeoutRef.current = setTimeout(() => {
+      setShowWarning(true);
+      setIsInactive(true);
+
+      // Start visible countdown every second only while dialog is shown
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
       }
-    }, 1000);
+      setRemainingTime(WARNING_DURATION);
+      countdownIntervalRef.current = setInterval(() => {
+        setRemainingTime((prev) => Math.max(0, prev - 1000));
+      }, 1000);
+    }, warningAt);
+
+    // Schedule logout
+    logoutTimeoutRef.current = setTimeout(() => {
+      setShowWarning(false);
+      setIsInactive(false);
+      setIsLoggedIn(false);
+      removeTokens();
+      localStorage.setItem("sessionExpired", "true");
+      redirectToLogin();
+    }, logoutAt);
 
     return () => {
-      clearInterval(activityCheck);
+      if (warningTimeoutRef.current) {
+        clearTimeout(warningTimeoutRef.current);
+      }
+      if (logoutTimeoutRef.current) {
+        clearTimeout(logoutTimeoutRef.current);
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
     };
-  }, [isLoggedIn, lastActivity, inactivityTimeout, showWarning, setIsLoggedIn]);
+  }, [isLoggedIn, lastActivity, inactivityTimeout, setIsLoggedIn]);
 
-  // Handle countdown and logout
+  // Visibility change: if tab becomes active, recompute timers immediately
   useEffect(() => {
-    if (isInactive && showWarning) {
-      const countdownInterval = setInterval(() => {
-        setRemainingTime((prev) => {
-          const newTime = prev - 1000;
-
-          if (newTime <= 0) {
-            clearInterval(countdownInterval);
-            // Close the warning dialog immediately
-            setShowWarning(false);
-            setIsInactive(false);
-            // Perform logout
-            setIsLoggedIn(false);
-            removeTokens();
-            // Set session expired flag to prevent incorrect messages on reload
-            localStorage.setItem("sessionExpired", "true");
-            redirectToLogin();
-            return 0;
-          }
-
-          return newTime;
-        });
-      }, 1000);
-
-      return () => {
-        clearInterval(countdownInterval);
-      };
-    }
-  }, [isInactive, showWarning, setIsLoggedIn]);
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        // Force re-scheduling by updating lastActivity with same value
+        setLastActivity((prev) => prev);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   // Event listeners for user activity
   useEffect(() => {

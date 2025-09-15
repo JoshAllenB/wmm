@@ -44,7 +44,7 @@ export default function MenuSidebar({
 }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
-  const [inactiveTimeout, setInactiveTimeout] = useState(300);
+  const [inactiveTimeout, setInactiveTimeout] = useState(900);
   const { hasRole } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,10 +57,10 @@ export default function MenuSidebar({
     setSelected(item);
   };
 
-  const handleTimeout = (timeout) => {
-    setInactiveTimeout(timeout);
+  const handleTimeout = (timeoutSeconds) => {
+    setInactiveTimeout(timeoutSeconds);
     if (typeof onInactivityTimeoutChange === "function") {
-      onInactivityTimeoutChange(timeout);
+      onInactivityTimeoutChange(timeoutSeconds);
     }
   };
 
@@ -294,29 +294,17 @@ export default function MenuSidebar({
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
-                        <DropdownMenuRadioGroup value={inactiveTimeout}>
-                          <DropdownMenuRadioItem
-                            value={30}
-                            onClick={() => handleTimeout(30)}
-                          >
-                            30 seconds
-                          </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem
-                            value={300}
-                            onClick={() => handleTimeout(300)}
-                          >
+                        <DropdownMenuRadioGroup
+                          value={String(inactiveTimeout)}
+                          onValueChange={(v) => handleTimeout(Number(v))}
+                        >
+                          <DropdownMenuRadioItem value={"300"}>
                             5 minutes
                           </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem
-                            value={900}
-                            onClick={() => handleTimeout(900)}
-                          >
+                          <DropdownMenuRadioItem value={"900"}>
                             15 minutes
                           </DropdownMenuRadioItem>
-                          <DropdownMenuRadioItem
-                            value={1800}
-                            onClick={() => handleTimeout(1800)}
-                          >
+                          <DropdownMenuRadioItem value={"1800"}>
                             30 minutes
                           </DropdownMenuRadioItem>
                         </DropdownMenuRadioGroup>
