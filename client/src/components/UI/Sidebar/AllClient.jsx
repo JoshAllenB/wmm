@@ -992,8 +992,15 @@ const AllClient = () => {
     if (advancedFilterData.subsclass)
       filters.push(`Subclass: ${advancedFilterData.subsclass}`);
 
-    // Properly handle areas filter
+    // Areas: Prefer selectedAreaGroups (Local/Foreign) if provided; else list codes
     if (
+      Array.isArray(advancedFilterData.selectedAreaGroups) &&
+      advancedFilterData.selectedAreaGroups.length > 0
+    ) {
+      filters.push(
+        `Areas: ${advancedFilterData.selectedAreaGroups.join(", ")}`
+      );
+    } else if (
       advancedFilterData.areas &&
       Array.isArray(advancedFilterData.areas) &&
       advancedFilterData.areas.length > 0
@@ -1087,9 +1094,9 @@ const AllClient = () => {
         filters.push(
           `Include Clients: ${advancedFilterData.includeClientIds
             .slice(0, 5)
-            .join(", ")}... (${
-            advancedFilterData.includeClientIds.length
-          } total)`
+            .join(", ")}... (${`
+            ${advancedFilterData.includeClientIds.length}
+          `} total)`
         );
       }
     }
@@ -1106,9 +1113,9 @@ const AllClient = () => {
         filters.push(
           `Exclude Clients: ${advancedFilterData.excludeClientIds
             .slice(0, 5)
-            .join(", ")}... (${
-            advancedFilterData.excludeClientIds.length
-          } total)`
+            .join(", ")}... (${`
+            ${advancedFilterData.excludeClientIds.length}
+          `} total)`
         );
       }
     }
@@ -1143,6 +1150,120 @@ const AllClient = () => {
       )?.username;
       filters.push(`User: ${username || advancedFilterData.userId}`);
     }
+
+    // Calendar status
+    if (advancedFilterData.calendarReceived) filters.push("Calendar: Received");
+    if (advancedFilterData.calendarNotReceived)
+      filters.push("Calendar: Not Received");
+
+    // Spack status
+    if (advancedFilterData.spackReceived) filters.push("SPack: Received");
+    if (advancedFilterData.spackNotReceived)
+      filters.push("SPack: Not Received");
+
+    // RTS statuses and limits
+    if (advancedFilterData.rtsMaxReached) filters.push("RTS: Max Reached");
+    if (advancedFilterData.rtsActive) filters.push("RTS: Active");
+    if (advancedFilterData.rtsNone) filters.push("RTS: None");
+    if (advancedFilterData.excludeRTSMax) filters.push("Exclude RTS Max");
+    if (advancedFilterData.rtsMinCount || advancedFilterData.rtsMaxCount) {
+      const min = advancedFilterData.rtsMinCount ?? "0";
+      const max = advancedFilterData.rtsMaxCount ?? "∞";
+      filters.push(`RTS Count: ${min} - ${max}`);
+    }
+
+    // Payment type
+    if (advancedFilterData.massPaid) filters.push("Payment Type: Mass Paid");
+    if (advancedFilterData.cashPaid) filters.push("Payment Type: Cash Paid");
+
+    // HRG/FOM subscription status
+    if (
+      advancedFilterData.hrgFomSubscriptionStatus &&
+      advancedFilterData.hrgFomSubscriptionStatus !== "all"
+    ) {
+      const v = advancedFilterData.hrgFomSubscriptionStatus;
+      filters.push(`HRG/FOM Status: ${v.charAt(0).toUpperCase()}${v.slice(1)}`);
+    }
+
+    // Helper for ranges
+    const addRange = (label, from, to) => {
+      if (from && to)
+        filters.push(
+          `${label}: ${formatDateWithMonthName(
+            from
+          )} to ${formatDateWithMonthName(to)}`
+        );
+      else if (from)
+        filters.push(`${label} From: ${formatDateWithMonthName(from)}`);
+      else if (to) filters.push(`${label} To: ${formatDateWithMonthName(to)}`);
+    };
+    // CAL/HRG/FOM ranges
+    addRange(
+      "CAL Order Received",
+      advancedFilterData.calReceivedFromDate,
+      advancedFilterData.calReceivedToDate
+    );
+    addRange(
+      "CAL Payment",
+      advancedFilterData.calPaymentFromDate,
+      advancedFilterData.calPaymentToDate
+    );
+    addRange(
+      "HRG Payment",
+      advancedFilterData.hrgPaymentFromDate,
+      advancedFilterData.hrgPaymentToDate
+    );
+    addRange(
+      "FOM Payment",
+      advancedFilterData.fomPaymentFromDate,
+      advancedFilterData.fomPaymentToDate
+    );
+
+    // HRG Campaign info
+    if (
+      advancedFilterData.hrgCampaignYear &&
+      advancedFilterData.hrgCampaignMonth
+    ) {
+      filters.push(
+        `HRG Campaign: ${getMonthName(advancedFilterData.hrgCampaignMonth)} ${
+          advancedFilterData.hrgCampaignYear
+        }`
+      );
+    } else if (
+      advancedFilterData.hrgCampaignFromMonth &&
+      advancedFilterData.hrgCampaignFromYear &&
+      advancedFilterData.hrgCampaignToMonth &&
+      advancedFilterData.hrgCampaignToYear
+    ) {
+      filters.push(
+        `HRG Campaign: ${getMonthName(
+          advancedFilterData.hrgCampaignFromMonth
+        )} ${advancedFilterData.hrgCampaignFromYear} to ${getMonthName(
+          advancedFilterData.hrgCampaignToMonth
+        )} ${advancedFilterData.hrgCampaignToYear}`
+      );
+    } else if (advancedFilterData.hrgCampaignYear) {
+      filters.push(`HRG Campaign Year: ${advancedFilterData.hrgCampaignYear}`);
+    }
+
+    // CAL Calendar Year
+    if (advancedFilterData.calYear)
+      filters.push(`Calendar Year: ${advancedFilterData.calYear}`);
+
+    // Date range name
+    if (advancedFilterData.dateRangeName)
+      filters.push(`Date Range: ${advancedFilterData.dateRangeName}`);
+
+    // Expiry and entitlement flags
+    if (advancedFilterData.expiryDateRangeOnly)
+      filters.push("Expiry Date Range Only");
+    if (advancedFilterData.calendarEntitledOnly)
+      filters.push("Calendar Entitled Only");
+
+    // Exclude lists for special clients
+    if (advancedFilterData.excludeDCSClients) filters.push("Exclude DCS");
+    if (advancedFilterData.excludeCMCClients)
+      filters.push("Exclude CMCClients");
 
     return filters;
   };

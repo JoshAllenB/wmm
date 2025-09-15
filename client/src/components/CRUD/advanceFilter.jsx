@@ -740,6 +740,15 @@ const AdvancedFilter = ({
       ...(filterData.areas?.length > 0 && { areas: filterData.areas }),
       ...(filterData.services?.length > 0 && { services: filterData.services }),
 
+      // Provide area group selections for display in AllClient
+      ...(filterData.areas?.length > 0 &&
+        (areAllLocalSelected || areAllForeignSelected) && {
+          selectedAreaGroups: [
+            ...(areAllLocalSelected ? ["Local"] : []),
+            ...(areAllForeignSelected ? ["Foreign"] : []),
+          ],
+        }),
+
       // Handle client ID filters with strict validation
       ...(filterData.clientIdFilterType === "exclude" && {
         excludeClientIds: processClientIds(filterData.clientExcludeIds),
