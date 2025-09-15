@@ -155,6 +155,7 @@ const Edit = ({
     type: "",
     group: "",
     remarks: "",
+    spack: false,
     subscriptionType: "WMM",
     referralid: "",
     subscriptionFreq: "",
@@ -640,6 +641,7 @@ const Edit = ({
             type: rowData.type || "",
             group: rowData.group || "",
             remarks: rowData.remarks || "",
+            spack: rowData.spack ?? false,
             rts: rowData.rts || false, // Add RTS field
             rtsCount: rowData.rtsCount || 0, // Add RTS count field
             rtsMaxReached: rowData.rtsMaxReached || false, // Add RTS max reached field
