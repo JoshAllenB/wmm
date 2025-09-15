@@ -50,7 +50,7 @@ export const getSubscriptionSpecificData = (
   if (subscriptionType === "Promo") {
     return {
       ...baseData,
-      subsdate: formData.subscriptionStart
+      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
         ? formatDateForPromo(
             new Date(
               cleanDateInput(formData.subStartYear),
@@ -59,7 +59,7 @@ export const getSubscriptionSpecificData = (
             )
           )
         : "",
-      enddate: formData.subscriptionEnd
+      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
         ? formatDateForPromo(
             new Date(
               cleanDateInput(formData.subEndYear),
@@ -82,7 +82,7 @@ export const getSubscriptionSpecificData = (
   } else if (subscriptionType === "Complimentary") {
     return {
       ...baseData,
-      subsdate: formData.subscriptionStart
+      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
         ? formatDateForWMM(
             new Date(
               cleanDateInput(formData.subStartYear),
@@ -91,7 +91,7 @@ export const getSubscriptionSpecificData = (
             )
           )
         : "",
-      enddate: formData.subscriptionEnd
+      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
         ? formatDateForWMM(
             new Date(
               cleanDateInput(formData.subEndYear),
@@ -106,7 +106,7 @@ export const getSubscriptionSpecificData = (
     // WMM
     return {
       ...baseData,
-      subsdate: formData.subscriptionStart
+      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
         ? formatDateForWMM(
             new Date(
               cleanDateInput(formData.subStartYear),
@@ -115,7 +115,7 @@ export const getSubscriptionSpecificData = (
             )
           )
         : "",
-      enddate: formData.subscriptionEnd
+      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
         ? formatDateForWMM(
             new Date(
               cleanDateInput(formData.subEndYear),
@@ -148,9 +148,11 @@ export const getServiceFromSubscriptionType = (subscriptionType) => {
 // Check if subscription data has meaningful content
 export const hasSubscriptionData = (formData, roleSpecificData) => {
   const hasStartDate =
-    formData.subscriptionStart && formData.subscriptionStart.trim() !== "";
+    (formData.subStartYear && formData.subStartMonth && formData.subStartDay) ||
+    (formData.subscriptionStart && formData.subscriptionStart.trim() !== "");
   const hasEndDate =
-    formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "";
+    (formData.subEndYear && formData.subEndMonth && formData.subEndDay) ||
+    (formData.subscriptionEnd && formData.subscriptionEnd.trim() !== "");
   const hasFrequency =
     formData.subscriptionFreq && formData.subscriptionFreq !== "";
   const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
@@ -163,6 +165,8 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
     roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
   const hasReferralId =
     formData.referralid && formData.referralid.trim() !== "";
+  const hasSubsclass =
+    roleSpecificData.subsclass && roleSpecificData.subsclass.trim() !== "";
 
   return (
     hasStartDate ||
@@ -171,6 +175,7 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
     hasCopies ||
     hasPaymentInfo ||
     hasDonorId ||
-    hasReferralId
+    hasReferralId ||
+    hasSubsclass
   );
 };

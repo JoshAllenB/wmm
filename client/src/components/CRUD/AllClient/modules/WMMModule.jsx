@@ -22,8 +22,8 @@ const WMMModule = ({
         <select
           id="subsclass"
           name="subsclass"
-          value={formData.subsclass}
-          onChange={handleChange}
+          value={roleSpecificData.subsclass || ""}
+          onChange={handleRoleSpecificChange}
           className="w-full p-2 border rounded-md text-base"
         >
           <option value="">Select a classification</option>
