@@ -1,6 +1,22 @@
+import { useContext, useEffect } from "react";
 import { Button } from "./UI/ShadCN/button";
+import { ActivityContext } from "../utils/ActivityMonitor";
 
 const Modal = ({ children, isOpen, onClose }) => {
+  const resetActivityTimer = useContext(ActivityContext);
+
+  // Pause activity monitoring when modal is open; resume when closed
+  useEffect(() => {
+    if (resetActivityTimer && resetActivityTimer.setActivityPaused) {
+      resetActivityTimer.setActivityPaused(Boolean(isOpen));
+    }
+
+    return () => {
+      if (resetActivityTimer && resetActivityTimer.setActivityPaused) {
+        resetActivityTimer.setActivityPaused(false);
+      }
+    };
+  }, [isOpen, resetActivityTimer]);
   if (!isOpen) return null;
 
   return (

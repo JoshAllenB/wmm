@@ -27,6 +27,7 @@ const ActivityMonitor = ({
   const [isInactive, setIsInactive] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
   const [remainingTime, setRemainingTime] = useState(WARNING_DURATION);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Timer refs to avoid setInterval throttling in background tabs
   const warningTimeoutRef = useRef(null);
@@ -97,6 +98,24 @@ const ActivityMonitor = ({
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
     }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    // If activity is paused (e.g., a modal is open), do not schedule timers
+    if (isPaused) {
+      return () => {
+        if (warningTimeoutRef.current) {
+          clearTimeout(warningTimeoutRef.current);
+        }
+        if (logoutTimeoutRef.current) {
+          clearTimeout(logoutTimeoutRef.current);
+        }
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+        }
+      };
+    }
 
     const now = Date.now();
     const elapsed = now - lastActivity;
@@ -140,7 +159,7 @@ const ActivityMonitor = ({
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [isLoggedIn, lastActivity, inactivityTimeout, setIsLoggedIn]);
+  }, [isLoggedIn, lastActivity, inactivityTimeout, setIsLoggedIn, isPaused]);
 
   // Visibility change: if tab becomes active, recompute timers immediately
   useEffect(() => {
@@ -176,6 +195,9 @@ const ActivityMonitor = ({
     setShowWarning(false);
     resetActivityTimer();
   };
+
+  // Expose pause control on the context function without breaking existing consumers
+  resetActivityTimer.setActivityPaused = setIsPaused;
 
   return (
     <ActivityContext.Provider value={resetActivityTimer}>
