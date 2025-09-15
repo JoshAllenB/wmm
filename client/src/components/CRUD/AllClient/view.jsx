@@ -954,7 +954,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         formData.rtsCount > 0
                           ? formData.rtsMaxReached
                             ? "bg-red-100 text-red-800"
-                            : "bg-yellow-100 text-yellow-800"
+                            : "bg-orange-100 text-orange-800"
                           : "bg-gray-100 text-gray-800"
                       }`}
                     >
@@ -962,7 +962,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     </span>
                   )}
                   {(spackEnabled || formData.spack === true) && (
-                    <span className="px-3 py-1 rounded-full text-base font-medium bg-blue-50 text-blue-700">
+                    <span className="px-3 py-1 rounded-full text-base font-medium bg-amber-100 text-amber-800">
                       SPack
                     </span>
                   )}
