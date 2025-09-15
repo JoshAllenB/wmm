@@ -16,8 +16,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   const [calData, setCalData] = useState({ records: [] });
   const [promoData, setPromoData] = useState({ records: [] }); // Add promoData state
   const [compData, setCompData] = useState({ records: [] }); // Add compData state
+  const [spackData, setSpackData] = useState({ records: [] }); // Add spackData state
+  const [rtsData, setRtsData] = useState({ records: [] }); // Add rtsData state
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [expandedSubs, setExpandedSubs] = useState({}); // Track expanded remark items by key
+  const [spackEnabled, setSpackEnabled] = useState(false); // Track SPack flag when only boolean is provided
 
   useEffect(() => {
     if (rowData) {
@@ -174,6 +178,53 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       } else {
         setCalData({ records: [] });
       }
+
+      // Handle SPack data properly (support spackData, spackHistory, or boolean spack)
+      const inputSpack =
+        rowData.spackData ?? rowData.spackHistory ?? rowData.spack;
+      if (inputSpack) {
+        if (Array.isArray(inputSpack)) {
+          setSpackData({ records: inputSpack });
+          setSpackEnabled(true);
+        } else if (inputSpack.records && Array.isArray(inputSpack.records)) {
+          setSpackData(inputSpack);
+          setSpackEnabled(true);
+        } else if (typeof inputSpack === "object") {
+          setSpackData({
+            records: [inputSpack].filter(
+              (item) => Object.keys(item).length > 0
+            ),
+          });
+          setSpackEnabled(true);
+        } else if (typeof inputSpack === "boolean") {
+          setSpackEnabled(!!inputSpack);
+          setSpackData({ records: [] });
+        } else {
+          setSpackData({ records: [] });
+          setSpackEnabled(false);
+        }
+      } else {
+        setSpackData({ records: [] });
+        setSpackEnabled(false);
+      }
+
+      // Handle RTS data properly (support rtsData, rtsHistory, rts)
+      const inputRts = rowData.rtsData ?? rowData.rtsHistory ?? rowData.rts;
+      if (inputRts) {
+        if (Array.isArray(inputRts)) {
+          setRtsData({ records: inputRts });
+        } else if (inputRts.records && Array.isArray(inputRts.records)) {
+          setRtsData(inputRts);
+        } else if (typeof inputRts === "object") {
+          setRtsData({
+            records: [inputRts].filter((item) => Object.keys(item).length > 0),
+          });
+        } else {
+          setRtsData({ records: [] });
+        }
+      } else {
+        setRtsData({ records: [] });
+      }
     }
   }, [rowData]);
 
@@ -205,6 +256,8 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       hrgData: hrgData,
       fomData: fomData,
       calData: calData,
+      spackData: spackData,
+      rtsData: rtsData,
     };
     setFormData(editData);
     setIsEditing(true);
@@ -349,6 +402,58 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       }
     } else {
       setCalData({ records: [] });
+    }
+
+    // Update SPack data if present (do not rely on services gating) - supports spackHistory and boolean spack
+    if (
+      updatedData.spackData ||
+      updatedData.spackHistory ||
+      typeof updatedData.spack === "boolean"
+    ) {
+      const inputSpack =
+        updatedData.spackData ?? updatedData.spackHistory ?? updatedData.spack;
+      if (Array.isArray(inputSpack)) {
+        setSpackData({ records: inputSpack });
+        setSpackEnabled(true);
+      } else if (
+        inputSpack &&
+        inputSpack.records &&
+        Array.isArray(inputSpack.records)
+      ) {
+        setSpackData(inputSpack);
+        setSpackEnabled(true);
+      } else if (typeof inputSpack === "boolean") {
+        setSpackEnabled(!!inputSpack);
+        setSpackData({ records: [] });
+      } else if (inputSpack && typeof inputSpack === "object") {
+        setSpackData({
+          records: [inputSpack].filter((item) => Object.keys(item).length > 0),
+        });
+        setSpackEnabled(true);
+      } else {
+        setSpackData({ records: [] });
+        setSpackEnabled(false);
+      }
+    } else {
+      setSpackData({ records: [] });
+      setSpackEnabled(false);
+    }
+
+    // Update RTS data if present (do not rely on services gating) - supports rtsHistory
+    if (updatedData.rtsData || updatedData.rtsHistory || updatedData.rts) {
+      const inputRts =
+        updatedData.rtsData ?? updatedData.rtsHistory ?? updatedData.rts;
+      if (Array.isArray(inputRts)) {
+        setRtsData({ records: inputRts });
+      } else if (inputRts.records && Array.isArray(inputRts.records)) {
+        setRtsData(inputRts);
+      } else {
+        setRtsData({
+          records: [inputRts].filter((item) => Object.keys(item).length > 0),
+        });
+      }
+    } else {
+      setRtsData({ records: [] });
     }
 
     setIsEditing(false);
@@ -524,6 +629,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           const status = getSubscriptionStatus(subscription.enddate);
           const statusClass = getStatusColorClass(status);
           const statusIndicator = getStatusIndicator(status);
+          const addUserValue =
+            subscription.adduser ||
+            subscription.addUser ||
+            subscription.add_user;
 
           return (
             <div key={index} className="border-b border-gray-200 pb-2 mb-2">
@@ -593,10 +702,54 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     </div>
                   )}
 
+                {/* Remarks - Collapsible to save space */}
+                {subscription.remarks && (
+                  <div className="mt-1 pl-4 text-sm space-y-1">
+                    {(() => {
+                      const itemKey = `${type}-${index}`;
+                      const isExpanded = !!expandedSubs[itemKey];
+                      const remarksText = String(subscription.remarks || "");
+                      const shouldTruncate = remarksText.length > 120;
+                      const displayText =
+                        !shouldTruncate || isExpanded
+                          ? remarksText
+                          : `${remarksText.slice(0, 120)}...`;
+                      return (
+                        <div>
+                          <div className="text-gray-700">
+                            <span className="font-semibold">Remark:</span>{" "}
+                            <span>{displayText}</span>
+                            {shouldTruncate && (
+                              <button
+                                type="button"
+                                className="ml-2 text-blue-600 hover:underline"
+                                onClick={() =>
+                                  setExpandedSubs((prev) => ({
+                                    ...prev,
+                                    [itemKey]: !isExpanded,
+                                  }))
+                                }
+                              >
+                                {isExpanded ? "Less" : "More"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {subscription.adddate && (
                   <div className="mt-1 pl-4 text-sm">
                     <span className="font-semibold">Added:</span>{" "}
                     <span>{formatDate(subscription.adddate)}</span>
+                    {addUserValue && (
+                      <span>
+                        {" "}
+                        by <span className="font-semibold">{addUserValue}</span>
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -750,10 +903,13 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                 className="mb-1 text-base border-b border-gray-300 pb-2"
               >
                 <div className="font-medium">
-                  {record.recvdate ? formatDate(record.recvdate) : "N/A"} | {record.caltype || "N/A"}
+                  {record.recvdate ? formatDate(record.recvdate) : "N/A"} |{" "}
+                  {record.caltype || "N/A"}
                 </div>
                 <div className="font-medium">
-                  Qty: {record.calqty || "0"} - Unit: {isNaN(unitCost) ? "0" : unitCost} = Php {totalAmount.toFixed(2)}
+                  Qty: {record.calqty || "0"} - Unit:{" "}
+                  {isNaN(unitCost) ? "0" : unitCost} = Php{" "}
+                  {totalAmount.toFixed(2)}
                   {record.paymtref ? ` - Ref: #${record.paymtref}` : ""}
                 </div>
                 {record.remarks && (
@@ -782,13 +938,35 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
             />
           ) : (
             <>
-              <div className="flex flex-col justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold text-black">
-                  Client Information ID: {formData.id}
-                </h2>
-                <h2 className="flex flex-col text-xl font-bold text-black">
-                  Added Date: {formatDate(formData.adddate)}
-                </h2>
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col justify-between items-start mb-4">
+                  <h2 className="text-2xl font-bold text-black">
+                    Client Information ID: {formData.id}
+                  </h2>
+                  <h2 className="flex flex-col text-xl font-bold text-black">
+                    Added Date: {formatDate(formData.adddate)}
+                  </h2>
+                </div>
+                <div className="mb-2 flex items-center gap-2">
+                  {typeof formData.rtsCount !== "undefined" && (
+                    <span
+                      className={`px-3 py-1 rounded-full text-base font-medium ${
+                        formData.rtsCount > 0
+                          ? formData.rtsMaxReached
+                            ? "bg-red-100 text-red-800"
+                            : "bg-yellow-100 text-yellow-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      RTS: {formData.rtsCount}
+                    </span>
+                  )}
+                  {(spackEnabled || formData.spack === true) && (
+                    <span className="px-3 py-1 rounded-full text-base font-medium bg-blue-50 text-blue-700">
+                      SPack
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 w-full">
                 {/* Personal Information Card */}
