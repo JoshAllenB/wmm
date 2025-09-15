@@ -2587,6 +2587,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     },
   ];
 
+  // Combined handler toggle for Active/Expiry so they work together
+  let combinedActiveExpiryHandled = false;
+
   // Handle adddate_regex filter (optimized for subscription type)
   if (advancedFilterData.adddate_regex) {
     try {
@@ -2817,9 +2820,173 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       baseFilter.push({ id: -1 });
     }
   }
+  // Combined WMM Active/Expiry filter (works together across any of From/To)
+  if (
+    (advancedFilterData.wmmActiveFromDate ||
+      advancedFilterData.wmmActiveToDate ||
+      advancedFilterData.wmmExpiringFromDate ||
+      advancedFilterData.wmmExpiringToDate) &&
+    !combinedActiveExpiryHandled
+  ) {
+    try {
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+      const Model = await getSubscriptionModel(subscriptionType);
+
+      // Build Active constraints (subsdate)
+      let activeFrom = null,
+        activeTo = null;
+      if (advancedFilterData.wmmActiveFromDate) {
+        activeFrom = getMonthRange(advancedFilterData.wmmActiveFromDate).start;
+      }
+      if (advancedFilterData.wmmActiveToDate) {
+        activeTo = getMonthRange(advancedFilterData.wmmActiveToDate).end;
+      }
+
+      // Build Expiry constraints (enddate)
+      let expiryFrom = null,
+        expiryTo = null;
+      if (advancedFilterData.wmmExpiringFromDate) {
+        expiryFrom = getMonthRange(
+          advancedFilterData.wmmExpiringFromDate
+        ).start;
+      }
+      if (advancedFilterData.wmmExpiringToDate) {
+        expiryTo = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
+      }
+
+      // Compute Active client set (if any Active constraint provided)
+      let activeClientIds = null;
+      if (activeFrom || activeTo) {
+        const activePipeline = [
+          ...createDatePipeline(
+            "subsdate",
+            advancedFilterData.subscriptionType || "WMM"
+          ),
+        ];
+        const activeDateConditions = [];
+        if (activeFrom && activeTo) {
+          activeDateConditions.push({
+            $expr: {
+              $and: [
+                { $gte: ["$normalizedDate", activeFrom] },
+                { $lte: ["$normalizedDate", activeTo] },
+              ],
+            },
+          });
+        } else if (activeFrom) {
+          activeDateConditions.push({
+            $expr: { $gte: ["$normalizedDate", activeFrom] },
+          });
+        } else if (activeTo) {
+          activeDateConditions.push({
+            $expr: { $lte: ["$normalizedDate", activeTo] },
+          });
+        }
+        if (activeDateConditions.length > 0) {
+          activePipeline.push({ $match: { $or: activeDateConditions } });
+        }
+        activePipeline.push({ $group: { _id: "$clientid" } });
+        const activeResults = await Model.aggregate(activePipeline);
+        activeClientIds = activeResults
+          .map((c) => Number(c._id))
+          .filter((id) => !isNaN(id));
+      }
+
+      // Compute Expiry client set (if any Expiry constraint provided)
+      let expiryClientIds = null;
+      if (expiryFrom || expiryTo) {
+        const expiryPipeline = [
+          ...createDatePipeline(
+            "enddate",
+            advancedFilterData.subscriptionType || "WMM"
+          ),
+        ];
+        const expiryDateConditions = [];
+        if (expiryFrom && expiryTo) {
+          expiryDateConditions.push({
+            $expr: {
+              $and: [
+                { $gte: ["$normalizedDate", expiryFrom] },
+                { $lte: ["$normalizedDate", expiryTo] },
+              ],
+            },
+          });
+        } else if (expiryFrom) {
+          expiryDateConditions.push({
+            $expr: { $gte: ["$normalizedDate", expiryFrom] },
+          });
+        } else if (expiryTo) {
+          expiryDateConditions.push({
+            $expr: { $lte: ["$normalizedDate", expiryTo] },
+          });
+        }
+        if (expiryDateConditions.length > 0) {
+          expiryPipeline.push({ $match: { $or: expiryDateConditions } });
+        }
+        expiryPipeline.push({ $group: { _id: "$clientid" } });
+        let expiryResults = await Model.aggregate(expiryPipeline);
+        expiryClientIds = expiryResults
+          .map((c) => Number(c._id))
+          .filter((id) => !isNaN(id));
+
+        // Respect existing behavior for expiryDateRangeOnly by removing clients who renewed beyond max expiry bound
+        if (
+          advancedFilterData.expiryDateRangeOnly &&
+          expiryClientIds.length > 0
+        ) {
+          const maxExpiryDate = expiryTo || expiryFrom;
+          if (maxExpiryDate) {
+            const renewedClientsPipeline = [
+              ...createDatePipeline(
+                "subsdate",
+                advancedFilterData.subscriptionType || "WMM"
+              ),
+              {
+                $match: {
+                  $expr: { $gt: ["$normalizedDate", maxExpiryDate] },
+                  clientid: { $in: expiryClientIds },
+                },
+              },
+              { $group: { _id: "$clientid" } },
+            ];
+            const renewed = await Model.aggregate(renewedClientsPipeline);
+            const renewedIds = new Set(
+              renewed.map((c) => Number(c._id)).filter((id) => !isNaN(id))
+            );
+            expiryClientIds = expiryClientIds.filter(
+              (id) => !renewedIds.has(id)
+            );
+          }
+        }
+      }
+
+      // Combine sets: intersection if both provided, else whichever exists
+      let finalIds = [];
+      if (activeClientIds && expiryClientIds) {
+        const expirySet = new Set(expiryClientIds);
+        finalIds = activeClientIds.filter((id) => expirySet.has(id));
+      } else if (activeClientIds) {
+        finalIds = activeClientIds;
+      } else if (expiryClientIds) {
+        finalIds = expiryClientIds;
+      }
+
+      if (finalIds.length > 0) {
+        baseFilter.push({ id: { $in: finalIds } });
+      } else {
+        baseFilter.push({ id: -1 });
+      }
+
+      combinedActiveExpiryHandled = true;
+    } catch (error) {
+      console.error("Error in combined Active/Expiry filtering:", error);
+      baseFilter.push({ id: -1 });
+      combinedActiveExpiryHandled = true;
+    }
+  }
   // Handle WMM Active Subscription Filter
   if (
-    advancedFilterData.wmmActiveFromDate ||
+    (!combinedActiveExpiryHandled && advancedFilterData.wmmActiveFromDate) ||
     advancedFilterData.wmmActiveToDate
   ) {
     try {
@@ -2898,7 +3065,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
   // Handle Expiring Subscription Filter (supports WMM, Promo, Complimentary)
   if (
-    advancedFilterData.wmmExpiringFromDate ||
+    (!combinedActiveExpiryHandled && advancedFilterData.wmmExpiringFromDate) ||
     advancedFilterData.wmmExpiringToDate
   ) {
     try {
