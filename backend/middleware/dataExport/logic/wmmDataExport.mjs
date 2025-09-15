@@ -154,19 +154,26 @@ async function processMonthlyDistribution(
     // Step 1: Retrieve all required data in parallel
     sendProgressUpdate("Retrieving data from database...");
 
-    const [
-      clients,
-      allSubscriptions,
-      allComplimentary,
-      clientsAddedThisMonth,
-      subsStartedThisMonth,
-    ] = await Promise.all([
-      ClientModel.find({}).lean(),
-      WmmModel.find({}).lean(),
-      ComplimentaryModel.find({}).lean(),
-      ClientModel.find({ adddate: { $regex: monthRegex } }).lean(),
-      WmmModel.find({ subsdate: { $regex: monthRegex } }).lean(),
-    ]);
+    const [clients, allSubscriptions, allComplimentary, clientsAddedThisMonth] =
+      await Promise.all([
+        ClientModel.find({}).lean(),
+        WmmModel.find({}).lean(),
+        ComplimentaryModel.find({}).lean(),
+        ClientModel.find({ adddate: { $regex: monthRegex } }).lean(),
+      ]);
+
+    // Get subscriptions that started this month using proper date filtering
+    const subsStartedThisMonth = allSubscriptions.filter((sub) => {
+      try {
+        const subDate = new Date(sub.subsdate);
+        return subDate >= startOfMonth && subDate <= endOfMonth;
+      } catch (error) {
+        console.log(
+          chalk.red(`Error parsing date "${sub.subsdate}": ${error.message}`)
+        );
+        return false;
+      }
+    });
 
     sendProgressUpdate(
       `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions`
@@ -332,8 +339,10 @@ async function processMonthlyDistribution(
       `✅ Processed ${processedCount} subscriptions (${skippedCount} skipped)`
     );
 
-    // Step 4: Process renewals vs new subscriptions
-    sendProgressUpdate("Processing new subscribers & renewals...");
+    // Step 4: Process renewals vs new subscriptions and due for renewal
+    sendProgressUpdate(
+      "Processing new subscribers, renewals & due for renewal..."
+    );
 
     sendProgressUpdate(
       `✅ Found ${clientsAddedThisMonth.length} clients added this month`
@@ -372,12 +381,34 @@ async function processMonthlyDistribution(
         const subDate = new Date(sub.subsdate);
         const prevSubs = previousSubsByClient[sub.clientid] || [];
 
-        // Check if any previous subscription ended within 90 days
+        // Debug logging for first few subscriptions
+        if (newSubs.length + renewals.length < 3) {
+          console.log(
+            chalk.cyan(
+              `Processing subscription ${sub.id} (${sub.subsdate}) - ${prevSubs.length} previous subs`
+            )
+          );
+        }
+
+        // Check if any previous subscription ended within 3 months (90 days)
         const isRenewal = prevSubs.some((prevSub) => {
           try {
             const prevEndDate = new Date(prevSub.enddate);
             const daysDiff = (subDate - prevEndDate) / (1000 * 60 * 60 * 24);
-            return daysDiff <= 90 && daysDiff >= 0;
+            const isWithin90Days = daysDiff <= 90 && daysDiff >= 0;
+
+            // Debug logging for first few subscriptions
+            if (newSubs.length + renewals.length < 3) {
+              console.log(
+                chalk.cyan(
+                  `  Checking previous sub ending ${
+                    prevSub.enddate
+                  } (${daysDiff.toFixed(0)} days ago)`
+                )
+              );
+            }
+
+            return isWithin90Days;
           } catch {
             return false;
           }
@@ -385,8 +416,14 @@ async function processMonthlyDistribution(
 
         if (isRenewal) {
           renewals.push(sub);
+          if (renewals.length <= 3) {
+            console.log(chalk.green(`  -> RENEWAL`));
+          }
         } else {
           newSubs.push(sub);
+          if (newSubs.length <= 3) {
+            console.log(chalk.green(`  -> NEW SUBSCRIBER`));
+          }
         }
       } catch (error) {
         console.error(
@@ -396,9 +433,31 @@ async function processMonthlyDistribution(
       }
     }
 
-    sendProgressUpdate(
-      `✅ Analysis complete: ${newSubs.length} new subscriptions, ${renewals.length} renewals`
-    );
+    // Step 4.5: Calculate due for renewal
+    sendProgressUpdate("Calculating due for renewal...");
+
+    // Get all active subscriptions to check for due renewals
+    const dueForRenewal = [];
+
+    for (const sub of activeSubscriptions) {
+      try {
+        const endDate = new Date(sub.enddate);
+        const currentDate = new Date();
+
+        // Check if subscription ends within the current month or has already ended
+        const isDueForRenewal =
+          endDate <= endOfMonth && endDate >= startOfMonth;
+
+        if (isDueForRenewal) {
+          dueForRenewal.push(sub);
+        }
+      } catch (error) {
+        console.error(
+          chalk.red(`❌ Error checking due for renewal ${sub.id}:`),
+          error.message
+        );
+      }
+    }
 
     // Step 5: Process complimentary subscriptions
     sendProgressUpdate("Processing complimentary copies...");
@@ -556,6 +615,7 @@ async function processMonthlyDistribution(
       paidSubscribers,
       newSubscribers: newSubs.length,
       renewals: renewals.length,
+      dueForRenewal: dueForRenewal.length,
       complimentary: complimentaryResult,
       // These would be filled in manually or from another source
       consignments: {
@@ -708,9 +768,10 @@ async function generateExcelReport(reportData, outputPath) {
       row++;
     }
 
-    // Fill in new subscribers and renewals (rows 25-26)
+    // Fill in new subscribers, renewals, and due for renewal (rows 25-27)
     worksheet.getCell("I25").value = Number(reportData.newSubscribers || 0);
     worksheet.getCell("I26").value = Number(reportData.renewals || 0);
+    worksheet.getCell("I27").value = Number(reportData.dueForRenewal || 0);
 
     // Fill in complimentary (rows 51-58)
     row = 51;
