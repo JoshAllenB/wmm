@@ -13,20 +13,53 @@ import { fileURLToPath } from "url";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
-// Create a temporary directory for storing export files
-const tempDir = path.join(__dirname, "../../../temp_exports");
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
+/**
+ * Get the temporary directory path for data export files
+ * @returns {string} The path to temporary DataExport folder
+ */
+function getDataExportPath() {
+  const tempDir = path.join(__dirname, "..", "..", "temp", "DataExport");
+
+  // Ensure the directory exists
+  try {
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+  } catch (error) {
+    console.error("Error creating temporary directory:", error);
+    throw new Error("Unable to create temporary DataExport directory");
+  }
+
+  return tempDir;
+}
+
+/**
+ * Clean up old files from the temporary directory (older than 1 hour)
+ */
+function cleanupOldFiles() {
+  try {
+    const tempDir = getDataExportPath();
+    const files = fs.readdirSync(tempDir);
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
+    files.forEach((file) => {
+      const filePath = path.join(tempDir, file);
+      const stats = fs.statSync(filePath);
+
+      if (stats.isFile() && stats.mtime.getTime() < oneHourAgo) {
+        fs.unlinkSync(filePath);
+      }
+    });
+  } catch (error) {
+    console.warn("Error during cleanup:", error);
+  }
 }
 
 // Endpoint to trigger WMM data export
 router.post("/generate", async (req, res) => {
   try {
     const { month, year, userId, username } = req.body;
-
-    console.log('Starting WMM export process:', { month, year, userId, username });
 
     if (!month || !year || !userId || !username) {
       return res.status(400).json({
@@ -38,11 +71,9 @@ router.post("/generate", async (req, res) => {
 
     // Get the socket ID for this user
     const socketId = global.socketIdMap.get(userId);
-    console.log(`Socket ID for user ${userId}:`, socketId);
 
     // Function to emit events to the specific user
     const emitToUser = (event, data) => {
-      console.log(`Emitting ${event} to user ${userId}:`, data);
       if (socketId) {
         req.io.to(socketId).emit(event, data);
       } else {
@@ -54,63 +85,62 @@ router.post("/generate", async (req, res) => {
     emitToUser(`export-started-${userId}`, {
       status: "started",
       message: "Data export process has started",
-      progress: 0
+      progress: 0,
     });
 
     // Process the data
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Connecting to database...",
-      progress: 10
+      progress: 10,
     });
 
-    console.log('Processing WMM monthly distribution data...');
     const reportData = await processMonthlyDistribution(
       month,
       year,
       req.io,
       userId
     );
-    console.log('WMM data processed successfully');
 
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Generating Excel report...",
-      progress: 80
+      progress: 80,
     });
+
+    // Clean up old files before generating new ones
+    cleanupOldFiles();
 
     // Generate the Excel report
     const filename = `Monthly_Report_${month}_${year}.xlsx`;
-    const outputPath = path.join(tempDir, filename);
-    
-    console.log('Generating WMM Excel report:', {
-      filename,
-      outputPath,
-      tempDir,
-      dataSize: reportData ? Object.keys(reportData).length : 0
-    });
+    const dataExportDir = getDataExportPath();
+    const outputPath = path.join(dataExportDir, filename);
 
-    await generateExcelReport(reportData, outputPath);
-    console.log('WMM Excel report generated');
+    console.log("=== EXCEL GENERATION DEBUG ===");
+    console.log("DataExport directory:", dataExportDir);
+    console.log("Output path:", outputPath);
+    console.log("Directory exists:", fs.existsSync(dataExportDir));
+    console.log("Report data keys:", Object.keys(reportData));
+
+    try {
+      await generateExcelReport(reportData, outputPath);
+      console.log("✅ Excel generation completed successfully");
+    } catch (excelError) {
+      console.error("❌ Excel generation failed:", excelError);
+      throw excelError;
+    }
 
     // Verify the file was created
     if (!fs.existsSync(outputPath)) {
-      console.error('WMM output file not found at path:', outputPath);
+      console.error("WMM output file not found at path:", outputPath);
       throw new Error("Failed to create export file");
     }
-    
-    const fileStats = fs.statSync(outputPath);
-    console.log('WMM file created successfully:', {
-      path: outputPath,
-      size: fileStats.size,
-      created: fileStats.birthtime,
-      modified: fileStats.mtime
-    });
 
+    const fileStats = fs.statSync(outputPath);
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Finalizing report...",
-      progress: 90
+      progress: 90,
     });
 
     // Notify the client that export is complete
@@ -118,14 +148,14 @@ router.post("/generate", async (req, res) => {
       status: "complete",
       message: "Data export process completed successfully",
       filename: filename,
-      progress: 100
+      progress: 100,
     });
 
     // Return success response
     res.status(200).json({
       success: true,
       message: "Data export process completed successfully",
-      filename: filename
+      filename: filename,
     });
   } catch (error) {
     console.error("Error in WMM export process:", error);
@@ -133,7 +163,6 @@ router.post("/generate", async (req, res) => {
 
     // Get the socket ID for this user
     const socketId = global.socketIdMap.get(req.body.userId);
-    console.log(`Socket ID for user ${req.body.userId} (error):`, socketId);
 
     // Notify the client about the error
     if (req.body.userId) {
@@ -141,21 +170,23 @@ router.post("/generate", async (req, res) => {
         req.io.to(socketId).emit(`export-error-${req.body.userId}`, {
           status: "error",
           message: `Error: ${error.message}`,
-          progress: 0
+          progress: 0,
         });
       } else {
-        req.io.to(`user:${req.body.userId}`).emit(`export-error-${req.body.userId}`, {
-          status: "error",
-          message: `Error: ${error.message}`,
-          progress: 0
-        });
+        req.io
+          .to(`user:${req.body.userId}`)
+          .emit(`export-error-${req.body.userId}`, {
+            status: "error",
+            message: `Error: ${error.message}`,
+            progress: 0,
+          });
       }
     }
 
     res.status(500).json({
       success: false,
       message: "Error generating data export",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -164,23 +195,20 @@ router.post("/generate", async (req, res) => {
 router.post("/generate-hrg", async (req, res) => {
   try {
     const { month, year, userId, username } = req.body;
-    
-    console.log('Starting HRG export process:', { month, year, userId, username });
 
     if (!month || !year || !userId || !username) {
       return res.status(400).json({
         success: false,
-        message: "Missing required parameters: month, year, userId, or username",
+        message:
+          "Missing required parameters: month, year, userId, or username",
       });
     }
 
     // Get the socket ID for this user
     const socketId = global.socketIdMap.get(userId);
-    console.log(`Socket ID for user ${userId}:`, socketId);
 
     // Function to emit events to the specific user
     const emitToUser = (event, data) => {
-      console.log(`Emitting ${event} to user ${userId}:`, data);
       if (socketId) {
         req.io.to(socketId).emit(event, data);
       } else {
@@ -192,63 +220,63 @@ router.post("/generate-hrg", async (req, res) => {
     emitToUser(`export-started-${userId}`, {
       status: "started",
       message: "HRG data export process has started",
-      progress: 0
+      progress: 0,
     });
 
     // Process the data
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Connecting to database...",
-      progress: 10
+      progress: 10,
     });
 
-    console.log('Processing HRG monthly report data...');
     const reportData = await processHrgMonthlyReport(
       month,
       year,
       req.io,
       userId
     );
-    console.log('HRG data processed successfully');
 
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Generating Excel report...",
-      progress: 80
+      progress: 80,
     });
+
+    // Clean up old files before generating new ones
+    cleanupOldFiles();
 
     // Generate the Excel report
     const filename = `HRG_Monthly_Report_${month}_${year}.xlsx`;
-    const outputPath = path.join(tempDir, filename);
-    
-    console.log('Generating HRG Excel report:', {
-      filename,
-      outputPath,
-      tempDir,
-      dataSize: reportData ? Object.keys(reportData).length : 0
-    });
+    const dataExportDir = getDataExportPath();
+    const outputPath = path.join(dataExportDir, filename);
 
-    await generateHrgExcelReport(reportData, outputPath);
-    console.log('HRG Excel report generated');
+    console.log("=== HRG EXCEL GENERATION DEBUG ===");
+    console.log("DataExport directory:", dataExportDir);
+    console.log("Output path:", outputPath);
+    console.log("Directory exists:", fs.existsSync(dataExportDir));
+    console.log("Report data keys:", Object.keys(reportData));
+
+    try {
+      await generateHrgExcelReport(reportData, outputPath);
+      console.log("✅ HRG Excel generation completed successfully");
+    } catch (excelError) {
+      console.error("❌ HRG Excel generation failed:", excelError);
+      throw excelError;
+    }
 
     // Verify the file was created
     if (!fs.existsSync(outputPath)) {
-      console.error('HRG output file not found at path:', outputPath);
+      console.error("HRG output file not found at path:", outputPath);
       throw new Error("Failed to create export file");
     }
-    
+
     const fileStats = fs.statSync(outputPath);
-    console.log('HRG file created successfully:', {
-      path: outputPath,
-      size: fileStats.size,
-      created: fileStats.birthtime,
-      modified: fileStats.mtime
-    });
 
     emitToUser(`export-progress-${userId}`, {
       status: "progress",
       message: "Finalizing report...",
-      progress: 90
+      progress: 90,
     });
 
     // Notify the client that export is complete
@@ -256,14 +284,14 @@ router.post("/generate-hrg", async (req, res) => {
       status: "complete",
       message: "HRG data export process completed successfully",
       filename: filename,
-      progress: 100
+      progress: 100,
     });
 
     // Return success response
     res.status(200).json({
       success: true,
       message: "HRG data export process completed successfully",
-      filename: filename
+      filename: filename,
     });
   } catch (error) {
     console.error("Error in HRG export process:", error);
@@ -271,7 +299,6 @@ router.post("/generate-hrg", async (req, res) => {
 
     // Get the socket ID for this user
     const socketId = global.socketIdMap.get(req.body.userId);
-    console.log(`Socket ID for user ${req.body.userId} (error):`, socketId);
 
     // Notify the client about the error
     if (req.body.userId) {
@@ -279,70 +306,77 @@ router.post("/generate-hrg", async (req, res) => {
         req.io.to(socketId).emit(`export-error-${req.body.userId}`, {
           status: "error",
           message: `Error: ${error.message}`,
-          progress: 0
+          progress: 0,
         });
       } else {
-        req.io.to(`user:${req.body.userId}`).emit(`export-error-${req.body.userId}`, {
-          status: "error",
-          message: `Error: ${error.message}`,
-          progress: 0
-        });
+        req.io
+          .to(`user:${req.body.userId}`)
+          .emit(`export-error-${req.body.userId}`, {
+            status: "error",
+            message: `Error: ${error.message}`,
+            progress: 0,
+          });
       }
     }
 
     res.status(500).json({
       success: false,
       message: "Error generating HRG data export",
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// Endpoint to download the generated file
+// Download endpoint for WMM reports
 router.get("/download/:filename", (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(tempDir, filename);
-    
-    console.log('Download request received:', {
-      filename,
-      filePath,
-      exists: fs.existsSync(filePath)
-    });
+
+    // Validate filename to prevent directory traversal
+    if (
+      !filename ||
+      filename.includes("..") ||
+      filename.includes("/") ||
+      filename.includes("\\")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid filename",
+      });
+    }
+
+    const dataExportDir = getDataExportPath();
+    const filePath = path.join(dataExportDir, filename);
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      console.error('File not found for download:', filePath);
       return res.status(404).json({
         success: false,
         message: "File not found",
       });
     }
 
-    const fileStats = fs.statSync(filePath);
-    console.log('Preparing to download file:', {
-      path: filePath,
-      size: fileStats.size,
-      modified: fileStats.mtime
-    });
+    // Set appropriate headers for file download
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
 
-    // Send the file
-    res.download(filePath, filename, (err) => {
+    // Stream the file to the client
+    res.sendFile(filePath, (err) => {
       if (err) {
-        console.error("Error during file download:", err);
-        console.error("Error stack:", err.stack);
-      } else {
-        console.log('File download completed successfully:', filename);
+        console.error("Error sending file:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Error downloading file",
+          });
+        }
       }
-
-      // Delete the file after download (optional)
-      // fs.unlink(filePath, (unlinkErr) => {
-      //   if (unlinkErr) console.error("Error deleting file:", unlinkErr);
-      // });
     });
   } catch (error) {
     console.error("Error in download endpoint:", error);
-    console.error("Error stack:", error.stack);
     res.status(500).json({
       success: false,
       message: "Error downloading file",
@@ -351,33 +385,59 @@ router.get("/download/:filename", (req, res) => {
   }
 });
 
-// Endpoint to clean up old files (can be called periodically)
-router.post("/cleanup", (req, res) => {
+// Download endpoint for HRG reports
+router.get("/download-hrg/:filename", (req, res) => {
   try {
-    const files = fs.readdirSync(tempDir);
-    const now = new Date();
+    const { filename } = req.params;
 
-    // Delete files older than 24 hours
-    files.forEach((file) => {
-      const filePath = path.join(tempDir, file);
-      const stats = fs.statSync(filePath);
-      const fileAge = (now - stats.mtime) / (1000 * 60 * 60); // in hours
+    // Validate filename to prevent directory traversal
+    if (
+      !filename ||
+      filename.includes("..") ||
+      filename.includes("/") ||
+      filename.includes("\\")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid filename",
+      });
+    }
 
-      if (fileAge > 24) {
-        fs.unlinkSync(filePath);
-        console.log(`Deleted old file: ${file}`);
+    const dataExportDir = getDataExportPath();
+    const filePath = path.join(dataExportDir, filename);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+    }
+
+    // Set appropriate headers for file download
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Stream the file to the client
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("Error sending file:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Error downloading file",
+          });
+        }
       }
     });
-
-    res.status(200).json({
-      success: true,
-      message: "Cleanup completed successfully",
-    });
   } catch (error) {
-    console.error("Error during cleanup:", error);
+    console.error("Error in HRG download endpoint:", error);
     res.status(500).json({
       success: false,
-      message: "Error during cleanup",
+      message: "Error downloading file",
       error: error.message,
     });
   }
