@@ -13,6 +13,7 @@ import { fileURLToPath } from "url";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Get the temporary directory path for data export files
