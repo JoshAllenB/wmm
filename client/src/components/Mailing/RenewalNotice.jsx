@@ -10,6 +10,7 @@ import axios from "axios";
 import { useUser } from "../../utils/Hooks/userProvider";
 import { toast } from "react-hot-toast";
 import RangeSelector from "./RangeSelector";
+import { formatClientId } from "../../utils/clientId";
 
 const RenewalNoticeDataOverlay = forwardRef(
   (
@@ -236,9 +237,11 @@ const RenewalNoticeDataOverlay = forwardRef(
       }
 
       // If we get here, the record is valid
+      const formattedId = formatClientId(original.id);
+      const idWithType = `${formattedId}`;
       return {
         skipped: false,
-        id: original.id,
+        id: idWithType,
         title: original.title || "",
         firstName: original.fname || "",
         middleName: original.mname || "",

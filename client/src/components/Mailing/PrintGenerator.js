@@ -193,6 +193,7 @@ export const getContactNumber = (data) => {
   }
   return "";
 };
+import { formatClientId, getSubscriptionTypeCode } from "../../utils/clientId";
 
 // Common function to filter rows based on start/end Client IDs
 const filterRowsByClientId = (rows, startClientId, endClientId) => {
@@ -279,7 +280,10 @@ export const generateLabelContent = (
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
-  const idLine = data.id || "";
+  const idTypeCode = getSubscriptionTypeCode(
+    data.subscriptionType || subscriptionType
+  );
+  const idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
   const expiryAndCopies = !shouldHideExpiryAndCopies
     ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
     : isSpecialRole && isCMCGroup
@@ -368,7 +372,10 @@ const generateLabelTextContent = (
   }
 
   // ID line with expiry and copies logic
-  const idLine = data.id || "";
+  const idTypeCode = getSubscriptionTypeCode(
+    data.subscriptionType || subscriptionType
+  );
+  const idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
 
   const shouldHideExpiryAndCopies =
     ["HRG", "FOM", "CAL"].some((role) => userRole?.includes(role)) ||

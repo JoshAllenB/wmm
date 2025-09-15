@@ -10,6 +10,7 @@ import axios from "axios";
 import { useUser } from "../../utils/Hooks/userProvider";
 import { toast } from "react-hot-toast";
 import RangeSelector from "./RangeSelector";
+import { formatClientId } from "../../utils/clientId";
 
 const ThankYouLetterDataOverlay = forwardRef(
   (
@@ -226,9 +227,11 @@ const ThankYouLetterDataOverlay = forwardRef(
       }
 
       // If we get here, the record is valid
+      const formattedId = formatClientId(original.id);
+      const idWithType = `${formattedId}`;
       return {
         skipped: false,
-        id: original.id,
+        id: idWithType,
         title: original.title || "",
         firstName: original.fname || "",
         middleName: original.mname || "",
@@ -243,7 +246,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         expiryDate: formatDate(enddate), // Use enddate directly
         copies,
         acode,
-        accountCode: `${original.id} / ${copies}-cp(s) / Expiry - ${formatDate(
+        accountCode: `${idWithType}/${copies}-cp(s)/Expiry-${formatDate(
           enddate
         )}${acode ? ` / ${acode}` : ""}`,
       };

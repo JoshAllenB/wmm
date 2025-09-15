@@ -1,4 +1,9 @@
 import React from "react";
+import {
+  formatClientId,
+  getSubscriptionTypeCode,
+  formatClientIdWithType,
+} from "../../utils/clientId";
 
 // Conversion functions
 const mmToPx = (mm) => Math.round((mm * 96) / 25.4); // Convert mm to pixels at 96dpi
@@ -341,7 +346,7 @@ const LabelItem = ({
       }}
     >
       <p style={commonParagraphStyle}>
-        {rowData.id || ""}
+        {formatClientIdWithType(rowData.id, rowSubscriptionType)}
         {!shouldHideExpiryAndCopies &&
           ` - ${enddate} - ${copies}cps/${rowData.acode || ""}`}
         {shouldHideExpiryAndCopies &&
