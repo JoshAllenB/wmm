@@ -97,7 +97,8 @@ router.post("/register", async (req, res) => {
 
 router.post("/logout", verifyToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1] || req.cookies.token;
+    const token =
+      req.headers.authorization?.split(" ")[1] || req.cookies?.token;
     const logoutResult = await logoutUser(req.userId, token, req.io);
 
     if (logoutResult.error) {
