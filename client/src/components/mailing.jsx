@@ -483,17 +483,29 @@ const Mailing = ({
   const fetchAllTemplates = async () => {
     setIsLoading(true);
     try {
-      // Fetch templates filtered by user's department
-      const templatesResponse = await axios.get(
-        `http://${
-          import.meta.env.VITE_IP_ADDRESS
-        }:3001/util/templates?department=${userRole}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-          },
-        }
-      );
+      // Determine fetch strategy based on roles
+      const roleString = Array.isArray(userRole)
+        ? userRole.join(" ")
+        : userRole;
+      const upperRoles = String(roleString || "").toUpperCase();
+      const isAdmin = upperRoles.includes("ADMIN");
+      const hasMultipleRoles = /[\s,\/|]+/.test(upperRoles.trim());
+
+      // When admin or multiple roles, fetch all templates and filter client-side
+      // Otherwise, fetch by the single department for efficiency
+      const baseUrl = `http://${
+        import.meta.env.VITE_IP_ADDRESS
+      }:3001/util/templates`;
+      const url =
+        isAdmin || hasMultipleRoles
+          ? baseUrl
+          : `${baseUrl}?department=${encodeURIComponent(upperRoles)}`;
+
+      const templatesResponse = await axios.get(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
       const templatesData = templatesResponse.data;
 
       // Add the templates to state (filter to label/standard only)
@@ -507,7 +519,7 @@ const Mailing = ({
           _id: "DEFAULT",
           name: "Default Template",
           description: "Default Mailing Label Template",
-          department: userRole,
+          department: upperRoles,
           layout: {
             fontSize: 12,
             leftPosition: 10,
@@ -535,12 +547,16 @@ const Mailing = ({
       console.error("Error in fetchAllTemplates:", error);
 
       // Add only a default template
+      const roleString = Array.isArray(userRole)
+        ? userRole.join(" ")
+        : userRole;
+      const upperRoles = String(roleString || "").toUpperCase();
       setSavedTemplates([
         {
           _id: "DEFAULT",
           name: "Default Template",
           description: "Default Mailing Label Template",
-          department: userRole,
+          department: upperRoles,
           layout: {
             fontSize: 12,
             leftPosition: 10,

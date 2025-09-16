@@ -11,29 +11,48 @@ const TemplateSelector = ({
 }) => {
   // Filter templates based on user department(s)
   const filteredTemplates = React.useMemo(() => {
-    if (!userRole) return savedTemplates;
+    if (!userRole) return Array.isArray(savedTemplates) ? savedTemplates : [];
 
     const roleString = Array.isArray(userRole) ? userRole.join(" ") : userRole;
-    const upper = roleString.toUpperCase();
+    const upper = String(roleString || "").toUpperCase();
 
     // Admin can see all templates
     if (upper.includes("ADMIN")) return savedTemplates;
 
     // Extract possible departments from a combined role string
     // Accept separators by space, comma, slash, or pipe
-    const departments = (
-      Array.isArray(userRole) ? userRole : upper.split(/[\s,\/|]+/)
-    )
-      .map((r) => r.trim())
-      .filter(Boolean);
+    let departments;
+    if (Array.isArray(userRole)) {
+      const tokens = [];
+      for (const raw of userRole) {
+        const part = String(raw || "").toUpperCase();
+        for (const token of part.split(/[\s,\/|]+/)) {
+          const trimmed = token.trim();
+          if (trimmed) tokens.push(trimmed);
+        }
+      }
+      departments = tokens;
+    } else {
+      departments = upper
+        .split(/[\s,\/|]+/)
+        .map((r) => r.trim())
+        .filter(Boolean);
+    }
 
     if (departments.length === 0) return [];
 
     const deptSet = new Set(departments);
 
-    return savedTemplates.filter((template) =>
-      deptSet.has(String(template.department || "").toUpperCase())
-    );
+    const templates = Array.isArray(savedTemplates) ? savedTemplates : [];
+
+    return templates.filter((template) => {
+      const templateDeptUpper = String(
+        template?.department ?? template?.departmentCode ?? ""
+      )
+        .trim()
+        .toUpperCase();
+      return templateDeptUpper && deptSet.has(templateDeptUpper);
+    });
   }, [savedTemplates, userRole]);
 
   return (
