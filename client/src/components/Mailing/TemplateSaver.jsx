@@ -49,6 +49,9 @@ const TemplateSaver = ({
   const [showForm, setShowForm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateTemplate, setDuplicateTemplate] = useState(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
 
   // Update department when userRole changes
   useEffect(() => {
@@ -99,6 +102,29 @@ const TemplateSaver = ({
     }
   };
 
+  // Check if template already exists
+  const checkForDuplicate = async (name, dept) => {
+    try {
+      const response = await axios.get(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      const existingTemplate = response.data.find(
+        (template) => template.name === name && template.department === dept
+      );
+
+      return existingTemplate || null;
+    } catch (error) {
+      console.error("Error checking for duplicate template:", error);
+      return null;
+    }
+  };
+
   // Handle template save/update
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) {
@@ -111,6 +137,39 @@ const TemplateSaver = ({
       return;
     }
 
+    // If updating existing template, skip duplicate check
+    if (isUpdating && selectedTemplate) {
+      await performSave();
+      return;
+    }
+
+    // Check for duplicates before saving new template
+    setIsCheckingDuplicate(true);
+    try {
+      const duplicate = await checkForDuplicate(
+        templateName.trim(),
+        department
+      );
+
+      if (duplicate) {
+        setDuplicateTemplate(duplicate);
+        setShowDuplicateModal(true);
+        setIsCheckingDuplicate(false);
+        return;
+      }
+
+      // No duplicate found, proceed with save
+      await performSave();
+    } catch (error) {
+      console.error("Error checking for duplicates:", error);
+      toast.error("Error checking for existing templates. Please try again.");
+    } finally {
+      setIsCheckingDuplicate(false);
+    }
+  };
+
+  // Perform the actual save operation
+  const performSave = async () => {
     setIsSaving(true);
 
     try {
@@ -268,6 +327,116 @@ const TemplateSaver = ({
   // Cancel template deletion
   const cancelDeleteTemplate = () => {
     setShowDeleteModal(false);
+  };
+
+  // Handle duplicate template options
+  const handleReplaceDuplicate = async () => {
+    if (!duplicateTemplate) return;
+
+    setIsSaving(true);
+    setShowDuplicateModal(false);
+
+    try {
+      // Delete the existing template first
+      await axios.delete(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${
+          duplicateTemplate._id
+        }`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      // Now save the new template
+      await performSave();
+
+      toast.success("Template replaced successfully!");
+    } catch (error) {
+      console.error("Error replacing template:", error);
+      toast.error("Error replacing template. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateDuplicate = async () => {
+    if (!duplicateTemplate) return;
+
+    setIsSaving(true);
+    setShowDuplicateModal(false);
+
+    try {
+      // Update the existing template with new settings
+      const unifiedLayout = {
+        fontSize,
+        leftPosition,
+        topPosition,
+        columnWidth,
+        labelHeight,
+        horizontalSpacing,
+        rowSpacing,
+        paperWidth,
+        paperHeight,
+        rowsPerPage,
+        columnsPerPage,
+        labelWidthIn: labelAdjustments?.labelWidthIn,
+        topMargin: labelAdjustments?.topMargin,
+        rowSpacingLines: labelAdjustments?.rowSpacing,
+        col2X: labelAdjustments?.col2X,
+        isStickerLabel: !!labelAdjustments?.isStickerLabel,
+        stickerFineTuneDots: labelAdjustments?.stickerFineTuneDots || 0,
+      };
+
+      const templateData = {
+        name: templateName.trim(),
+        description: description.trim(),
+        department,
+        layout: unifiedLayout,
+        selectedFields: selectedFields || [],
+        previewType: "standard",
+        selectedPrinter: selectedPrinter || "",
+      };
+
+      const response = await axios.put(
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${
+          duplicateTemplate._id
+        }`,
+        templateData,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      toast.success("Template updated successfully!");
+
+      if (onTemplateUpdated) {
+        onTemplateUpdated(response.data);
+      }
+
+      // Reset form
+      setTemplateName("");
+      setDescription("");
+      setShowForm(false);
+      setIsUpdating(false);
+
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error("Error updating template:", error);
+      toast.error("Error updating template. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelDuplicate = () => {
+    setShowDuplicateModal(false);
+    setDuplicateTemplate(null);
   };
 
   // Handle cancel
@@ -468,10 +637,20 @@ const TemplateSaver = ({
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handleSaveTemplate}
-              disabled={isSaving || !templateName.trim() || !department}
+              disabled={
+                isSaving ||
+                isCheckingDuplicate ||
+                !templateName.trim() ||
+                !department
+              }
               className="flex-1"
             >
-              {isSaving ? (
+              {isCheckingDuplicate ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Checking...</span>
+                </div>
+              ) : isSaving ? (
                 <div className="flex items-center gap-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>{isUpdating ? "Updating..." : "Saving..."}</span>
@@ -551,6 +730,118 @@ const TemplateSaver = ({
                   ) : (
                     "Delete Template"
                   )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duplicate Template Modal */}
+      {showDuplicateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-yellow-100">
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Template Already Exists
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                A template with the name{" "}
+                <span className="font-medium text-gray-900">
+                  "{duplicateTemplate?.name}"
+                </span>{" "}
+                already exists in the {duplicateTemplate?.department}{" "}
+                department.
+              </p>
+
+              <div className="bg-gray-50 p-3 rounded-md mb-4 text-left">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Existing Template Details:
+                </h4>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div>
+                    Created:{" "}
+                    {duplicateTemplate?.createdAt
+                      ? new Date(
+                          duplicateTemplate.createdAt
+                        ).toLocaleDateString()
+                      : "Unknown"}
+                  </div>
+                  <div>
+                    Description:{" "}
+                    {duplicateTemplate?.description || "No description"}
+                  </div>
+                  <div>
+                    Font Size: {duplicateTemplate?.layout?.fontSize || 12}pt
+                  </div>
+                  <div>
+                    Paper: {duplicateTemplate?.layout?.paperWidth || 215.9}mm ×{" "}
+                    {duplicateTemplate?.layout?.paperHeight || 279.4}mm
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">
+                What would you like to do?
+              </p>
+
+              <div className="space-y-2">
+                <Button
+                  onClick={handleUpdateDuplicate}
+                  disabled={isSaving}
+                  className="w-full"
+                >
+                  {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Updating...</span>
+                    </div>
+                  ) : (
+                    "Update Existing Template"
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleReplaceDuplicate}
+                  variant="outline"
+                  disabled={isSaving}
+                  className="w-full"
+                >
+                  {isSaving ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                      <span>Replacing...</span>
+                    </div>
+                  ) : (
+                    "Replace Existing Template"
+                  )}
+                </Button>
+
+                <Button
+                  onClick={handleCancelDuplicate}
+                  variant="outline"
+                  disabled={isSaving}
+                  className="w-full"
+                >
+                  Cancel
                 </Button>
               </div>
             </div>

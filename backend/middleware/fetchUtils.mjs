@@ -391,6 +391,26 @@ router.post("/templates-add", verifyToken, async (req, res) => {
 
     const sanitizedLayout = sanitizeLayoutByPreviewType(layout, previewType);
 
+    // Check if template already exists
+    const existingTemplate = await PrintLabelModel.findOne({
+      name,
+      department,
+    });
+
+    if (existingTemplate) {
+      return res.status(400).json({
+        error: "A template with this name already exists in this department",
+        existingTemplate: {
+          _id: existingTemplate._id,
+          name: existingTemplate.name,
+          department: existingTemplate.department,
+          description: existingTemplate.description,
+          createdAt: existingTemplate.createdAt,
+          layout: existingTemplate.layout,
+        },
+      });
+    }
+
     const newTemplate = new PrintLabelModel({
       name,
       description: description || "",
