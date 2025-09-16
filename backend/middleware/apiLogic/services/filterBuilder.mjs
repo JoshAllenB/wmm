@@ -2832,94 +2832,56 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
       const Model = await getSubscriptionModel(subscriptionType);
 
-      // Parse dates properly - use the actual date, not month range
+      // Build Active constraints (subsdate)
       let activeFrom = null,
         activeTo = null;
       if (advancedFilterData.wmmActiveFromDate) {
-        activeFrom = parseDate(advancedFilterData.wmmActiveFromDate);
-        if (activeFrom) activeFrom.setHours(0, 0, 0, 0); // Start of day
+        activeFrom = getMonthRange(advancedFilterData.wmmActiveFromDate).start;
       }
       if (advancedFilterData.wmmActiveToDate) {
-        activeTo = parseDate(advancedFilterData.wmmActiveToDate);
-        if (activeTo) activeTo.setHours(23, 59, 59, 999); // End of day
+        activeTo = getMonthRange(advancedFilterData.wmmActiveToDate).end;
       }
 
+      // Build Expiry constraints (enddate)
       let expiryFrom = null,
         expiryTo = null;
       if (advancedFilterData.wmmExpiringFromDate) {
-        expiryFrom = parseDate(advancedFilterData.wmmExpiringFromDate);
-        if (expiryFrom) expiryFrom.setHours(0, 0, 0, 0); // Start of day
+        expiryFrom = getMonthRange(
+          advancedFilterData.wmmExpiringFromDate
+        ).start;
       }
       if (advancedFilterData.wmmExpiringToDate) {
-        expiryTo = parseDate(advancedFilterData.wmmExpiringToDate);
-        if (expiryTo) expiryTo.setHours(23, 59, 59, 999); // End of day
+        expiryTo = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
       }
 
       // Compute Active client set (if any Active constraint provided)
       let activeClientIds = null;
       if (activeFrom || activeTo) {
-        // For Active filters, we need to check both subsdate and enddate
-        // Active From: subsdate >= activeFrom
-        // Active To: subsdate <= activeTo AND enddate >= activeTo (active on that date)
         const activePipeline = [
-          {
-            $match: {
-              subsdate: { $exists: true, $ne: null },
-              enddate: { $exists: true, $ne: null },
-            },
-          },
-          ...createDatePipeline("subsdate", subscriptionType),
-          {
-            $addFields: {
-              subsDateNormalized: "$normalizedDate",
-            },
-          },
-          ...createDatePipeline("enddate", subscriptionType),
-          {
-            $addFields: {
-              endDateNormalized: "$normalizedDate",
-            },
-          },
-          {
-            $match: {
-              subsDateNormalized: { $ne: null },
-              endDateNormalized: { $ne: null },
-            },
-          },
+          ...createDatePipeline(
+            "subsdate",
+            advancedFilterData.subscriptionType || "WMM"
+          ),
         ];
-
         const activeDateConditions = [];
         if (activeFrom && activeTo) {
-          // Both From and To: subsdate >= activeFrom AND subsdate <= activeTo AND enddate <= activeTo
-          // This means: started on or after activeFrom AND was active up to activeTo
           activeDateConditions.push({
             $expr: {
               $and: [
-                { $gte: ["$subsDateNormalized", activeFrom] },
-                { $lte: ["$subsDateNormalized", activeTo] },
-                { $lte: ["$endDateNormalized", activeTo] },
+                { $gte: ["$normalizedDate", activeFrom] },
+                { $lte: ["$normalizedDate", activeTo] },
               ],
             },
           });
         } else if (activeFrom) {
-          // Only From: subsdate >= activeFrom
           activeDateConditions.push({
-            $expr: { $gte: ["$subsDateNormalized", activeFrom] },
+            $expr: { $gte: ["$normalizedDate", activeFrom] },
           });
         } else if (activeTo) {
-          // Only To: subsdate <= activeTo AND enddate <= activeTo (active up to that date)
-          // This means: subscription was active on or before activeTo date
-          // Must have started on or before activeTo AND ended on or before activeTo
           activeDateConditions.push({
-            $expr: {
-              $and: [
-                { $lte: ["$subsDateNormalized", activeTo] },
-                { $lte: ["$endDateNormalized", activeTo] },
-              ],
-            },
+            $expr: { $lte: ["$normalizedDate", activeTo] },
           });
         }
-
         if (activeDateConditions.length > 0) {
           activePipeline.push({ $match: { $or: activeDateConditions } });
         }
@@ -2934,11 +2896,13 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       let expiryClientIds = null;
       if (expiryFrom || expiryTo) {
         const expiryPipeline = [
-          ...createDatePipeline("enddate", subscriptionType),
+          ...createDatePipeline(
+            "enddate",
+            advancedFilterData.subscriptionType || "WMM"
+          ),
         ];
         const expiryDateConditions = [];
         if (expiryFrom && expiryTo) {
-          // Both From and To: enddate >= expiryFrom AND enddate <= expiryTo
           expiryDateConditions.push({
             $expr: {
               $and: [
@@ -2948,17 +2912,14 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             },
           });
         } else if (expiryFrom) {
-          // Only From: enddate >= expiryFrom (expires on or beyond this date)
           expiryDateConditions.push({
             $expr: { $gte: ["$normalizedDate", expiryFrom] },
           });
         } else if (expiryTo) {
-          // Only To: enddate <= expiryTo (expires on or before this date)
           expiryDateConditions.push({
             $expr: { $lte: ["$normalizedDate", expiryTo] },
           });
         }
-
         if (expiryDateConditions.length > 0) {
           expiryPipeline.push({ $match: { $or: expiryDateConditions } });
         }
@@ -2976,7 +2937,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           const maxExpiryDate = expiryTo || expiryFrom;
           if (maxExpiryDate) {
             const renewedClientsPipeline = [
-              ...createDatePipeline("subsdate", subscriptionType),
+              ...createDatePipeline(
+                "subsdate",
+                advancedFilterData.subscriptionType || "WMM"
+              ),
               {
                 $match: {
                   $expr: { $gt: ["$normalizedDate", maxExpiryDate] },
@@ -3026,76 +2990,49 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     advancedFilterData.wmmActiveToDate
   ) {
     try {
-      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-      const Model = await getSubscriptionModel(subscriptionType);
+      const Model = await getSubscriptionModel(
+        advancedFilterData.subscriptionType
+      );
 
       let fromDate = null,
         toDate = null;
       if (advancedFilterData.wmmActiveFromDate) {
-        fromDate = parseDate(advancedFilterData.wmmActiveFromDate);
-        if (fromDate) fromDate.setHours(0, 0, 0, 0); // Start of day
+        fromDate = getMonthRange(advancedFilterData.wmmActiveFromDate).start;
       }
       if (advancedFilterData.wmmActiveToDate) {
-        toDate = parseDate(advancedFilterData.wmmActiveToDate);
-        if (toDate) toDate.setHours(23, 59, 59, 999); // End of day
+        toDate = getMonthRange(advancedFilterData.wmmActiveToDate).end;
       }
 
-      // For Active filters, we need to check both subsdate and enddate
       const pipeline = [
-        {
-          $match: {
-            subsdate: { $exists: true, $ne: null },
-            enddate: { $exists: true, $ne: null },
-          },
-        },
-        ...createDatePipeline("subsdate", subscriptionType),
-        {
-          $addFields: {
-            subsDateNormalized: "$normalizedDate",
-          },
-        },
-        ...createDatePipeline("enddate", subscriptionType),
-        {
-          $addFields: {
-            endDateNormalized: "$normalizedDate",
-          },
-        },
-        {
-          $match: {
-            subsDateNormalized: { $ne: null },
-            endDateNormalized: { $ne: null },
-          },
-        },
+        ...createDatePipeline(
+          "subsdate",
+          advancedFilterData.subscriptionType || "WMM"
+        ),
       ];
 
-      // Corrected Active date logic:
-      // From date: subsdate >= fromDate (subscription started on or after this date)
-      // To date: subsdate <= toDate AND enddate <= toDate (active up to that date)
+      // Match the old SQL logic exactly:
+      // From date: subsdate >= date at midnight
+      // To date: subsdate <= date at end of day
       const dateConditions = [];
       if (fromDate && toDate) {
-        // Both From and To: subsdate >= fromDate AND subsdate <= toDate AND enddate <= toDate
         dateConditions.push({
           $expr: {
             $and: [
-              { $gte: ["$subsDateNormalized", fromDate] },
-              { $lte: ["$subsDateNormalized", toDate] },
-              { $lte: ["$endDateNormalized", toDate] },
+              { $gte: ["$normalizedDate", fromDate] }, // subsdate >= fromDate at midnight
+              { $lte: ["$normalizedDate", toDate] }, // subsdate <= toDate at 23:59:59
             ],
           },
         });
       } else if (fromDate) {
-        // Only From: subsdate >= fromDate
-        dateConditions.push({
-          $expr: { $gte: ["$subsDateNormalized", fromDate] },
-        });
-      } else if (toDate) {
-        // Only To: subsdate <= toDate AND enddate <= toDate (active up to that date)
         dateConditions.push({
           $expr: {
-            $and: [
-              { $lte: ["$subsDateNormalized", toDate] },
-              { $lte: ["$endDateNormalized", toDate] },
-            ],
+            $gte: ["$normalizedDate", fromDate], // subsdate >= fromDate at midnight
+          },
+        });
+      } else if (toDate) {
+        dateConditions.push({
+          $expr: {
+            $lte: ["$normalizedDate", toDate], // subsdate <= toDate at 23:59:59
           },
         });
       }
@@ -3138,22 +3075,25 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       let fromDate = null,
         toDate = null;
       if (advancedFilterData.wmmExpiringFromDate) {
-        fromDate = parseDate(advancedFilterData.wmmExpiringFromDate);
-        if (fromDate) fromDate.setHours(0, 0, 0, 0); // Start of day
+        fromDate = getMonthRange(advancedFilterData.wmmExpiringFromDate).start;
       }
       if (advancedFilterData.wmmExpiringToDate) {
-        toDate = parseDate(advancedFilterData.wmmExpiringToDate);
-        if (toDate) toDate.setHours(23, 59, 59, 999); // End of day
+        toDate = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
       }
 
-      const pipeline = [...createDatePipeline("enddate", subscriptionType)];
+      const pipeline = [
+        ...createDatePipeline(
+          "enddate",
+          advancedFilterData.subscriptionType || "WMM"
+        ),
+      ];
 
-      // Corrected Expiry date logic:
-      // From date: enddate >= fromDate (expires on or beyond this date)
-      // To date: enddate <= toDate (expires on or before this date)
+      // For expiring subscriptions, we want:
+      // 1. If both fromDate and toDate: subscription must end within this period
+      // 2. If only fromDate: subscription must end during or after this month
+      // 3. If only toDate: subscription must end during or before this month
       const dateConditions = [];
       if (fromDate && toDate) {
-        // Both From and To: enddate >= fromDate AND enddate <= toDate
         dateConditions.push({
           $expr: {
             $and: [
@@ -3163,14 +3103,16 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           },
         });
       } else if (fromDate) {
-        // Only From: enddate >= fromDate (expires on or beyond this date)
         dateConditions.push({
-          $expr: { $gte: ["$normalizedDate", fromDate] },
+          $expr: {
+            $gte: ["$normalizedDate", fromDate],
+          },
         });
       } else if (toDate) {
-        // Only To: enddate <= toDate (expires on or before this date)
         dateConditions.push({
-          $expr: { $lte: ["$normalizedDate", toDate] },
+          $expr: {
+            $lte: ["$normalizedDate", toDate],
+          },
         });
       }
 
@@ -3197,7 +3139,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         if (maxExpiryDate) {
           // Find clients who have subscription records beyond the max expiry date
           const renewedClientsPipeline = [
-            ...createDatePipeline("subsdate", subscriptionType),
+            ...createDatePipeline(
+              "subsdate",
+              advancedFilterData.subscriptionType || "WMM"
+            ),
             {
               $match: {
                 $expr: {
