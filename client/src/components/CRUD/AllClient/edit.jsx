@@ -2758,11 +2758,20 @@ const Edit = ({
     if (!data.clientData) {
       errors.push("Client data is missing");
     } else {
-      if (!data.clientData.fname || data.clientData.fname.trim() === "") {
-        errors.push("First name is required");
-      }
-      if (!data.clientData.lname || data.clientData.lname.trim() === "") {
-        errors.push("Last name is required");
+      // Be lenient: if company is provided, allow missing first/last name
+      const hasFirstName =
+        typeof data.clientData.fname === "string" &&
+        data.clientData.fname.trim() !== "";
+      const hasLastName =
+        typeof data.clientData.lname === "string" &&
+        data.clientData.lname.trim() !== "";
+      const hasCompany =
+        typeof data.clientData.company === "string" &&
+        data.clientData.company.trim() !== "";
+
+      if (!hasCompany) {
+        if (!hasFirstName) errors.push("First name is required");
+        if (!hasLastName) errors.push("Last name is required");
       }
     }
 
