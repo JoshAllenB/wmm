@@ -25,6 +25,24 @@ import {
   adjustModelNamesForSubscription,
 } from "../apiLogic/services/helpers.mjs";
 
+// Helper function to sanitize numeric fields that might contain comma formatting
+const sanitizeNumericFields = (data, numericFields) => {
+  const sanitized = { ...data };
+
+  numericFields.forEach((field) => {
+    if (sanitized[field] && typeof sanitized[field] === "string") {
+      // Remove commas and other non-numeric characters except decimal point and negative sign
+      const cleaned = sanitized[field].replace(/[^\d.-]/g, "");
+      const parsed = parseFloat(cleaned);
+      if (!isNaN(parsed)) {
+        sanitized[field] = parsed;
+      }
+    }
+  });
+
+  return sanitized;
+};
+
 dotenv.config();
 
 const router = express.Router();
@@ -440,10 +458,28 @@ router.post("/add", verifyToken, async (req, res) => {
           const seconds = String(now.getSeconds()).padStart(2, "0");
           const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
+          // Sanitize numeric fields for HRG, FOM, and CAL models
+          const numericFields = [
+            "paymtamt",
+            "quantity",
+            "totalAmount",
+            "calqty",
+            "calamt",
+            "calunit",
+            "paymtmasses",
+            "copies",
+            "subsyear",
+            "donorid",
+          ];
+          const sanitizedRoleData = sanitizeNumericFields(
+            roleData,
+            numericFields
+          );
+
           const roleSpecificData = {
             id: newRoleSpecificId,
             clientid: newClientId,
-            ...roleData,
+            ...sanitizedRoleData,
             adduser: user.username,
             adddate: formattedAddDate,
           };
@@ -649,8 +685,26 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
           if (recordId) {
             // If we have a recordId, find and update that specific record
+            // Sanitize numeric fields for HRG, FOM, and CAL models
+            const numericFields = [
+              "paymtamt",
+              "quantity",
+              "totalAmount",
+              "calqty",
+              "calamt",
+              "calunit",
+              "paymtmasses",
+              "copies",
+              "subsyear",
+              "donorid",
+            ];
+            const sanitizedRoleData = sanitizeNumericFields(
+              roleData,
+              numericFields
+            );
+
             const updatedRoleData = {
-              ...roleData,
+              ...sanitizedRoleData,
               editdate: new Date(),
               edituser: user.username,
             };
@@ -694,10 +748,28 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             const seconds = String(now.getSeconds()).padStart(2, "0");
             const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
+            // Sanitize numeric fields for HRG, FOM, and CAL models
+            const numericFields = [
+              "paymtamt",
+              "quantity",
+              "totalAmount",
+              "calqty",
+              "calamt",
+              "calunit",
+              "paymtmasses",
+              "copies",
+              "subsyear",
+              "donorid",
+            ];
+            const sanitizedRoleData = sanitizeNumericFields(
+              roleData,
+              numericFields
+            );
+
             const roleSpecificData = {
               id: newRoleSpecificId,
               clientid: parseInt(id),
-              ...roleData,
+              ...sanitizedRoleData,
               adduser: user.username,
               adddate: formattedAddDate,
             };
@@ -735,12 +807,30 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           const seconds = String(now.getSeconds()).padStart(2, "0");
           const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
+          // Sanitize numeric fields for HRG, FOM, and CAL models
+          const numericFields = [
+            "paymtamt",
+            "quantity",
+            "totalAmount",
+            "calqty",
+            "calamt",
+            "calunit",
+            "paymtmasses",
+            "copies",
+            "subsyear",
+            "donorid",
+          ];
+          const sanitizedRoleData = sanitizeNumericFields(
+            roleData,
+            numericFields
+          );
+
           const newRoleSpecificData = {
             id: newRoleSpecificId,
             clientid: parseInt(id),
-            ...roleData,
+            ...sanitizedRoleData,
             adduser: user.username,
-            adddate: roleData.adddate || formattedAddDate,
+            adddate: sanitizedRoleData.adddate || formattedAddDate,
           };
 
           // Create new role-specific record
@@ -754,8 +844,26 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           });
         } else if (recordId) {
           // If we have a recordId, find and update that specific record
+          // Sanitize numeric fields for HRG, FOM, and CAL models
+          const numericFields = [
+            "paymtamt",
+            "quantity",
+            "totalAmount",
+            "calqty",
+            "calamt",
+            "calunit",
+            "paymtmasses",
+            "copies",
+            "subsyear",
+            "donorid",
+          ];
+          const sanitizedRoleData = sanitizeNumericFields(
+            roleData,
+            numericFields
+          );
+
           const updatedRoleData = {
-            ...roleData,
+            ...sanitizedRoleData,
             editdate: new Date(),
             edituser: user.username,
           };
@@ -787,9 +895,27 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           });
 
           if (existingRoleData) {
+            // Sanitize numeric fields for HRG, FOM, and CAL models
+            const numericFields = [
+              "paymtamt",
+              "quantity",
+              "totalAmount",
+              "calqty",
+              "calamt",
+              "calunit",
+              "paymtmasses",
+              "copies",
+              "subsyear",
+              "donorid",
+            ];
+            const sanitizedRoleData = sanitizeNumericFields(
+              roleData,
+              numericFields
+            );
+
             // Update only changed fields
             const updatedRoleData = {};
-            for (const [key, value] of Object.entries(roleData)) {
+            for (const [key, value] of Object.entries(sanitizedRoleData)) {
               if (existingRoleData[key] !== value) {
                 updatedRoleData[key] = value;
               }
@@ -822,9 +948,27 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             const seconds = String(now.getSeconds()).padStart(2, "0");
             const formattedAddDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
+            // Sanitize numeric fields for HRG, FOM, and CAL models
+            const numericFields = [
+              "paymtamt",
+              "quantity",
+              "totalAmount",
+              "calqty",
+              "calamt",
+              "calunit",
+              "paymtmasses",
+              "copies",
+              "subsyear",
+              "donorid",
+            ];
+            const sanitizedRoleData = sanitizeNumericFields(
+              roleData,
+              numericFields
+            );
+
             const newRoleSpecificData = {
               clientid: parseInt(id),
-              ...roleData,
+              ...sanitizedRoleData,
               adduser: user.username,
               adddate: formattedAddDate,
             };
