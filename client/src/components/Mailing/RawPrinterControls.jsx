@@ -396,8 +396,11 @@ const RawPrinterControls = ({
   onPositionChange, // Callback to notify parent of position changes
   setSelectedFields, // Callback to update selectedFields in parent
   onPrinterChange, // Callback to notify parent of printer selection changes
+  selectedPrinter: externalSelectedPrinter, // External selected printer from template
 }) => {
-  const [selectedPrinter, setSelectedPrinter] = useState("");
+  const [selectedPrinter, setSelectedPrinter] = useState(
+    externalSelectedPrinter || ""
+  );
 
   // Notify parent component when adjustments change
   useEffect(() => {
@@ -405,6 +408,16 @@ const RawPrinterControls = ({
       onPositionChange(labelAdjustments);
     }
   }, [labelAdjustments, onPositionChange]);
+
+  // Update internal selectedPrinter when external prop changes
+  useEffect(() => {
+    if (
+      externalSelectedPrinter &&
+      externalSelectedPrinter !== selectedPrinter
+    ) {
+      setSelectedPrinter(externalSelectedPrinter);
+    }
+  }, [externalSelectedPrinter]);
 
   // Notify parent component when printer selection changes
   useEffect(() => {
@@ -423,9 +436,19 @@ const RawPrinterControls = ({
     discoverPrinters,
   } = useRawPrinter({});
 
-  // Auto-select first available printer
+  // Auto-select first available printer (only if no external printer is set)
   useEffect(() => {
-    if (isReady && printers.length > 0 && !selectedPrinter) {
+    // Only auto-select if:
+    // 1. JSPrintManager is ready
+    // 2. We have printers available
+    // 3. No printer is currently selected
+    // 4. No external printer is provided (template should always override)
+    if (
+      isReady &&
+      printers.length > 0 &&
+      !selectedPrinter &&
+      !externalSelectedPrinter
+    ) {
       // Get the first available printer from any category
       const allPrinters = [
         ...printerCategories.installed,
@@ -439,7 +462,7 @@ const RawPrinterControls = ({
         setSelectedPrinter(allPrinters[0].name);
       }
     }
-  }, [isReady, printers, printerCategories, selectedPrinter]);
+  }, [isReady, printers, printerCategories, externalSelectedPrinter]);
 
   return (
     <div className="border rounded-lg p-4 bg-gray-50">
@@ -676,12 +699,13 @@ const RawPrinterControls = ({
             <input
               type="number"
               value={labelAdjustments.topMargin}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
                 setLabelAdjustments((prev) => ({
                   ...prev,
-                  topMargin: parseInt(e.target.value) || 0,
-                }))
-              }
+                  topMargin: isNaN(value) ? prev.topMargin : value,
+                }));
+              }}
               className="w-full p-1 text-sm border border-gray-300 rounded"
               min="0"
               max="20"
@@ -698,12 +722,13 @@ const RawPrinterControls = ({
             <input
               type="number"
               value={labelAdjustments.rowSpacing}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
                 setLabelAdjustments((prev) => ({
                   ...prev,
-                  rowSpacing: parseInt(e.target.value) || 0,
-                }))
-              }
+                  rowSpacing: isNaN(value) ? prev.rowSpacing : value,
+                }));
+              }}
               className="w-full p-1 text-sm border border-gray-300 rounded"
               min="0"
               max="30"
@@ -720,12 +745,13 @@ const RawPrinterControls = ({
             <input
               type="number"
               value={labelAdjustments.col2X}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
                 setLabelAdjustments((prev) => ({
                   ...prev,
-                  col2X: parseInt(e.target.value) || 255,
-                }))
-              }
+                  col2X: isNaN(value) ? prev.col2X : value,
+                }));
+              }}
               className="w-full p-1 text-sm border border-gray-300 rounded"
               min="10"
               max="260"

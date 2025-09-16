@@ -102,11 +102,13 @@ const TemplateSaver = ({
     }
   };
 
-  // Check if template already exists
+  // Check if template already exists in the same department
   const checkForDuplicate = async (name, dept) => {
     try {
       const response = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates`,
+        `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/util/templates?department=${dept}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
@@ -190,13 +192,10 @@ const TemplateSaver = ({
         columnsPerPage,
         // Raw printer specific adjustments (persisted for 'standard' previewType)
         // These align with how templates are read in mailing.jsx
-        labelWidthIn: labelAdjustments?.labelWidthIn,
-        topMargin: labelAdjustments?.topMargin,
-        rowSpacingLines: labelAdjustments?.rowSpacing,
-        col2X: labelAdjustments?.col2X,
-        // Sticker label options
-        isStickerLabel: !!labelAdjustments?.isStickerLabel,
-        stickerFineTuneDots: labelAdjustments?.stickerFineTuneDots || 0,
+        labelWidthIn: labelAdjustments?.labelWidthIn ?? undefined,
+        topMargin: labelAdjustments?.topMargin ?? undefined,
+        rowSpacingLines: labelAdjustments?.rowSpacing ?? undefined,
+        col2X: labelAdjustments?.col2X ?? undefined,
       };
 
       const templateData = {
@@ -381,12 +380,10 @@ const TemplateSaver = ({
         paperHeight,
         rowsPerPage,
         columnsPerPage,
-        labelWidthIn: labelAdjustments?.labelWidthIn,
-        topMargin: labelAdjustments?.topMargin,
-        rowSpacingLines: labelAdjustments?.rowSpacing,
-        col2X: labelAdjustments?.col2X,
-        isStickerLabel: !!labelAdjustments?.isStickerLabel,
-        stickerFineTuneDots: labelAdjustments?.stickerFineTuneDots || 0,
+        labelWidthIn: labelAdjustments?.labelWidthIn ?? undefined,
+        topMargin: labelAdjustments?.topMargin ?? undefined,
+        rowSpacingLines: labelAdjustments?.rowSpacing ?? undefined,
+        col2X: labelAdjustments?.col2X ?? undefined,
       };
 
       const templateData = {
@@ -761,7 +758,7 @@ const TemplateSaver = ({
 
             <div className="text-center">
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Template Already Exists
+                Template Already Exists in Department
               </h3>
               <p className="text-sm text-gray-500 mb-4">
                 A template with the name{" "}
@@ -769,7 +766,8 @@ const TemplateSaver = ({
                   "{duplicateTemplate?.name}"
                 </span>{" "}
                 already exists in the {duplicateTemplate?.department}{" "}
-                department.
+                department. Templates can have the same name in different
+                departments.
               </p>
 
               <div className="bg-gray-50 p-3 rounded-md mb-4 text-left">

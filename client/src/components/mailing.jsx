@@ -592,16 +592,16 @@ const Mailing = ({
       setRowsPerPage(selected.layout.rowsPerPage || 3);
       setColumnsPerPage(selected.layout.columnsPerPage || 2);
 
-      // Set raw printer controls
+      // Set raw printer controls configuration from template
       setLabelAdjustments({
-        labelWidthIn: selected.layout.labelWidthIn || 3.5,
-        topMargin: selected.layout.topMargin || 4,
-        rowSpacing: selected.layout.rowSpacingLines || 14,
-        col2X: selected.layout.col2X || 255,
+        labelWidthIn: selected.layout.labelWidthIn ?? 3.5,
+        topMargin: selected.layout.topMargin ?? 4,
+        rowSpacing: selected.layout.rowSpacingLines ?? 14,
+        col2X: selected.layout.col2X ?? 255,
       });
 
-      // Note: We don't auto-select the printer in the dropdown
-      // The template's printer will be used directly during printing
+      // Note: We don't need to set selectedPrinter state anymore
+      // The template's printer is passed directly to RawPrinterControls
 
       setSelectedTemplate(selected);
     }
@@ -1353,9 +1353,6 @@ const Mailing = ({
           description: message,
           variant: "destructive",
         });
-      } else {
-        // Silent success - no toast for automatic queuing
-        console.log(`Auto-queued ${queueResult.addedCount} items`);
       }
     } catch (error) {
       console.error("Error auto-enqueuing:", error);
@@ -1869,6 +1866,10 @@ const Mailing = ({
                             onPositionChange={handleRawPrinterControlsChange}
                             setSelectedFields={setSelectedFields}
                             onPrinterChange={handlePrinterChange}
+                            selectedPrinter={
+                              selectedTemplate?.selectedPrinter ||
+                              selectedPrinter
+                            }
                           />
                         </div>
                       ) : (

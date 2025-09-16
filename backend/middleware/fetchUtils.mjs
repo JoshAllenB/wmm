@@ -391,38 +391,26 @@ router.post("/templates-add", verifyToken, async (req, res) => {
 
     const sanitizedLayout = sanitizeLayoutByPreviewType(layout, previewType);
 
-    // Check if template already exists
-    const existingTemplate = await PrintLabelModel.findOne({
-      name,
-      department,
-    });
-
-    if (existingTemplate) {
-      return res.status(400).json({
-        error: "A template with this name already exists in this department",
-        existingTemplate: {
-          _id: existingTemplate._id,
-          name: existingTemplate.name,
-          department: existingTemplate.department,
-          description: existingTemplate.description,
-          createdAt: existingTemplate.createdAt,
-          layout: existingTemplate.layout,
+    // Overwrite existing template with same name+department or create new (upsert)
+    const upsertedTemplate = await PrintLabelModel.findOneAndUpdate(
+      { name, department },
+      {
+        $set: {
+          name,
+          description: description || "",
+          department,
+          layout: sanitizedLayout,
+          selectedFields,
+          previewType: previewType || "standard",
+          selectedPrinter: selectedPrinter || "",
+          updatedAt: new Date(),
         },
-      });
-    }
+        $setOnInsert: { createdAt: new Date() },
+      },
+      { new: true, upsert: true }
+    );
 
-    const newTemplate = new PrintLabelModel({
-      name,
-      description: description || "",
-      department,
-      layout: sanitizedLayout,
-      selectedFields,
-      previewType: previewType || "standard",
-      selectedPrinter: selectedPrinter || "",
-    });
-
-    await newTemplate.save();
-    res.status(201).json(newTemplate);
+    res.status(200).json(upsertedTemplate);
   } catch (error) {
     console.error("Error saving template:", error);
 

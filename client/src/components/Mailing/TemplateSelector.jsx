@@ -156,7 +156,7 @@ const TemplateSelector = ({
                   <div>{selectedTemplate.layout?.labelWidthIn || 3.5}"</div>
 
                   <div className="font-medium">Top Margin:</div>
-                  <div>{selectedTemplate.layout?.topMargin || 4} lines</div>
+                  <div>{selectedTemplate.layout?.topMargin ?? 4} lines</div>
 
                   <div className="font-medium">Row Spacing:</div>
                   <div>
