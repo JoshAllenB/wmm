@@ -615,56 +615,6 @@ const RawPrinterControls = ({
           Label Adjustments
         </h5>
 
-        {/* Sticker Label Toggle */}
-        <div className="mb-3 p-3 bg-white rounded border">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="sticker-toggle"
-              checked={!!labelAdjustments.isStickerLabel}
-              onCheckedChange={(checked) =>
-                setLabelAdjustments((prev) => ({
-                  ...prev,
-                  isStickerLabel: !!checked,
-                }))
-              }
-            />
-            <label
-              htmlFor="sticker-toggle"
-              className="text-sm font-medium text-gray-700"
-            >
-              Enable Sticker Label mode
-            </label>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Uses sticker spacing and allows fine-tuning vertical placement.
-          </p>
-          {labelAdjustments.isStickerLabel && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">
-                  Sticker Fine-Tune (dots)
-                </label>
-                <input
-                  type="number"
-                  value={labelAdjustments.stickerFineTuneDots || 0}
-                  onChange={(e) =>
-                    setLabelAdjustments((prev) => ({
-                      ...prev,
-                      stickerFineTuneDots: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full p-1 text-sm border border-gray-300 rounded"
-                  min="-20"
-                  max="20"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Adjust by a few dots to align rows precisely
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Cell Number Toggle */}
         <div className="mb-3 p-3 bg-white rounded border">
           <div className="flex items-center space-x-2">
