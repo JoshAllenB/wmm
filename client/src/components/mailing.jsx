@@ -175,6 +175,10 @@ const Mailing = ({
   const [checklistTitle, setChecklistTitle] = useState("Mailing Checklist");
   const [showChecklistTitleInput, setShowChecklistTitleInput] = useState(false);
 
+  // State for template operations triggers
+  const [triggerTemplateUpdate, setTriggerTemplateUpdate] = useState(false);
+  const [triggerTemplateDelete, setTriggerTemplateDelete] = useState(false);
+
   // Print queue state - simplified
   const [queueDuplicates, setQueueDuplicates] = useState([]);
   const [printedDuplicates, setPrintedDuplicates] = useState([]);
@@ -1500,6 +1504,19 @@ const Mailing = ({
     }
   }, [initialAction]);
 
+  // Reset template operation triggers after they've been used
+  useEffect(() => {
+    if (triggerTemplateUpdate) {
+      setTriggerTemplateUpdate(false);
+    }
+  }, [triggerTemplateUpdate]);
+
+  useEffect(() => {
+    if (triggerTemplateDelete) {
+      setTriggerTemplateDelete(false);
+    }
+  }, [triggerTemplateDelete]);
+
   // Function to render content based on current action
   const renderContent = () => {
     switch (currentAction) {
@@ -1909,6 +1926,8 @@ const Mailing = ({
                       onTemplateSaved={handleTemplateSaved}
                       onTemplateUpdated={handleTemplateUpdated}
                       onTemplateDeleted={handleTemplateDeleted}
+                      triggerUpdate={triggerTemplateUpdate}
+                      triggerDelete={triggerTemplateDelete}
                     />
                   </div>
 
@@ -1966,12 +1985,14 @@ const Mailing = ({
                       onTemplateSelect={handleTemplateSelect}
                       userRole={userRole}
                       onTemplateUpdate={(template) => {
-                        // This will trigger the update flow in TemplateSaver
+                        // Set the selected template and trigger update
                         setSelectedTemplate(template);
+                        setTriggerTemplateUpdate(true);
                       }}
                       onTemplateDelete={(template) => {
-                        // This will trigger the delete flow in TemplateSaver
+                        // Set the selected template and trigger delete
                         setSelectedTemplate(template);
+                        setTriggerTemplateDelete(true);
                       }}
                     />
                   </div>

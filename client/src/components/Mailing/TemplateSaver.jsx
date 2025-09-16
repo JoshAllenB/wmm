@@ -36,6 +36,10 @@ const TemplateSaver = ({
   onTemplateUpdated,
   onTemplateDeleted,
   onClose,
+
+  // External triggers
+  triggerUpdate,
+  triggerDelete,
 }) => {
   const [templateName, setTemplateName] = useState("");
   const [description, setDescription] = useState("");
@@ -44,6 +48,7 @@ const TemplateSaver = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Update department when userRole changes
   useEffect(() => {
@@ -51,6 +56,20 @@ const TemplateSaver = ({
       setDepartment(userRole);
     }
   }, [userRole, department]);
+
+  // Handle external update trigger
+  useEffect(() => {
+    if (triggerUpdate && selectedTemplate) {
+      handleUpdateClick();
+    }
+  }, [triggerUpdate, selectedTemplate]);
+
+  // Handle external delete trigger
+  useEffect(() => {
+    if (triggerDelete && selectedTemplate) {
+      handleDeleteTemplate();
+    }
+  }, [triggerDelete, selectedTemplate]);
 
   // Available departments (roles)
   const availableDepartments = [
@@ -197,15 +216,13 @@ const TemplateSaver = ({
       return;
     }
 
-    if (
-      !confirm(
-        `Are you sure you want to delete the template "${selectedTemplate.name}"? This action cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    setShowDeleteModal(true);
+  };
 
+  // Confirm template deletion
+  const confirmDeleteTemplate = async () => {
     setIsDeleting(true);
+    setShowDeleteModal(false);
 
     try {
       await axios.delete(
@@ -248,6 +265,11 @@ const TemplateSaver = ({
     }
   };
 
+  // Cancel template deletion
+  const cancelDeleteTemplate = () => {
+    setShowDeleteModal(false);
+  };
+
   // Handle cancel
   const handleCancel = () => {
     setTemplateName("");
@@ -261,149 +283,281 @@ const TemplateSaver = ({
 
   if (!showForm) {
     return (
-      <div className="space-y-2">
-        <Button
-          onClick={handleSaveClick}
-          variant="secondary"
-          className="w-full"
-        >
-          Save Current Settings as Template
-        </Button>
+      <>
+        <div className="space-y-2">
+          <Button
+            onClick={handleSaveClick}
+            variant="secondary"
+            className="w-full"
+          >
+            Save Current Settings as Template
+          </Button>
 
-        {selectedTemplate && (
-          <div className="flex gap-2">
-            <Button
-              onClick={handleUpdateClick}
-              variant="outline"
-              className="flex-1"
-            >
-              Update Selected Template
-            </Button>
-            <Button
-              onClick={handleDeleteTemplate}
-              variant="destructive"
-              disabled={isDeleting}
-              className="flex-1"
-            >
-              {isDeleting ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Deleting...</span>
+          {selectedTemplate && (
+            <div className="flex gap-2">
+              <Button
+                onClick={handleUpdateClick}
+                variant="outline"
+                className="flex-1"
+              >
+                Update Selected Template
+              </Button>
+              <Button
+                onClick={handleDeleteTemplate}
+                variant="destructive"
+                disabled={isDeleting}
+                className="flex-1"
+              >
+                {isDeleting ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </div>
+                ) : (
+                  "Delete Template"
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <div className="flex items-center mb-4">
+                <div className="flex-shrink-0 w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-red-100">
+                  <svg
+                    className="w-6 h-6 text-red-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
                 </div>
-              ) : (
-                "Delete Template"
-              )}
-            </Button>
+              </div>
+
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Delete Template
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete the template{" "}
+                  <span className="font-medium text-gray-900">
+                    "{selectedTemplate?.name}"
+                  </span>
+                  ? This action cannot be undone.
+                </p>
+
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    onClick={cancelDeleteTemplate}
+                    variant="outline"
+                    disabled={isDeleting}
+                    className="px-4 py-2"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={confirmDeleteTemplate}
+                    variant="destructive"
+                    disabled={isDeleting}
+                    className="px-4 py-2"
+                  >
+                    {isDeleting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Deleting...</span>
+                      </div>
+                    ) : (
+                      "Delete Template"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
-      <h4 className="font-medium mb-3 text-gray-800">
-        {isUpdating ? "Update Template" : "Save Template"}
-      </h4>
+    <>
+      <div className="border rounded-lg p-4 bg-white shadow-sm">
+        <h4 className="font-medium mb-3 text-gray-800">
+          {isUpdating ? "Update Template" : "Save Template"}
+        </h4>
 
-      <div className="space-y-3">
-        {/* Template Name */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Template Name *
-          </label>
-          <input
-            type="text"
-            value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
-            placeholder="Enter template name"
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          />
-        </div>
+        <div className="space-y-3">
+          {/* Template Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Template Name *
+            </label>
+            <input
+              type="text"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="Enter template name"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            />
+          </div>
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional description"
-            rows="2"
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              rows="2"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
 
-        {/* Department Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Department *
-          </label>
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            required
-          >
-            <option value="">Select Department</option>
-            {availableDepartments.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Department Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Department *
+            </label>
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              required
+            >
+              <option value="">Select Department</option>
+              {availableDepartments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Settings Summary */}
-        <div className="bg-gray-50 p-3 rounded-md">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">
-            Settings Summary
-          </h5>
-          <div className="text-xs text-gray-600 space-y-1">
-            <div>Font Size: {fontSize}pt</div>
-            <div>
-              Paper: {paperWidth}mm × {paperHeight}mm
+          {/* Settings Summary */}
+          <div className="bg-gray-50 p-3 rounded-md">
+            <h5 className="text-sm font-medium text-gray-700 mb-2">
+              Settings Summary
+            </h5>
+            <div className="text-xs text-gray-600 space-y-1">
+              <div>Font Size: {fontSize}pt</div>
+              <div>
+                Paper: {paperWidth}mm × {paperHeight}mm
+              </div>
+              <div>
+                Layout: {rowsPerPage} rows × {columnsPerPage} columns
+              </div>
+              <div>Label Width: {labelAdjustments?.labelWidthIn || 3.5}"</div>
+              <div>Selected Fields: {selectedFields?.join(", ") || "None"}</div>
+              {selectedPrinter && <div>Printer: {selectedPrinter}</div>}
             </div>
-            <div>
-              Layout: {rowsPerPage} rows × {columnsPerPage} columns
-            </div>
-            <div>Label Width: {labelAdjustments?.labelWidthIn || 3.5}"</div>
-            <div>Selected Fields: {selectedFields?.join(", ") || "None"}</div>
-            {selectedPrinter && <div>Printer: {selectedPrinter}</div>}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2 pt-2">
+            <Button
+              onClick={handleSaveTemplate}
+              disabled={isSaving || !templateName.trim() || !department}
+              className="flex-1"
+            >
+              {isSaving ? (
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>{isUpdating ? "Updating..." : "Saving..."}</span>
+                </div>
+              ) : isUpdating ? (
+                "Update Template"
+              ) : (
+                "Save Template"
+              )}
+            </Button>
+            <Button
+              onClick={handleCancel}
+              variant="outline"
+              disabled={isSaving}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2 pt-2">
-          <Button
-            onClick={handleSaveTemplate}
-            disabled={isSaving || !templateName.trim() || !department}
-            className="flex-1"
-          >
-            {isSaving ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>{isUpdating ? "Updating..." : "Saving..."}</span>
-              </div>
-            ) : isUpdating ? (
-              "Update Template"
-            ) : (
-              "Save Template"
-            )}
-          </Button>
-          <Button
-            onClick={handleCancel}
-            variant="outline"
-            disabled={isSaving}
-            className="flex-1"
-          >
-            Cancel
-          </Button>
-        </div>
       </div>
-    </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-10 h-10 mx-auto flex items-center justify-center rounded-full bg-red-100">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+            </div>
+
+            <div className="text-center">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Delete Template
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to delete the template{" "}
+                <span className="font-medium text-gray-900">
+                  "{selectedTemplate?.name}"
+                </span>
+                ? This action cannot be undone.
+              </p>
+
+              <div className="flex gap-3 justify-center">
+                <Button
+                  onClick={cancelDeleteTemplate}
+                  variant="outline"
+                  disabled={isDeleting}
+                  className="px-4 py-2"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDeleteTemplate}
+                  variant="destructive"
+                  disabled={isDeleting}
+                  className="px-4 py-2"
+                >
+                  {isDeleting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Deleting...</span>
+                    </div>
+                  ) : (
+                    "Delete Template"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
