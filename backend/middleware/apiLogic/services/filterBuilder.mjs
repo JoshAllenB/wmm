@@ -2854,130 +2854,219 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         expiryTo = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
       }
 
-      // Compute Active client set (if any Active constraint provided)
-      let activeClientIds = null;
-      if (activeFrom || activeTo) {
-        const activePipeline = [
-          ...createDatePipeline(
-            "subsdate",
-            advancedFilterData.subscriptionType || "WMM"
-          ),
-        ];
-        const activeDateConditions = [];
-        if (activeFrom && activeTo) {
-          activeDateConditions.push({
-            $expr: {
-              $and: [
-                { $gte: ["$normalizedDate", activeFrom] },
-                { $lte: ["$normalizedDate", activeTo] },
-              ],
-            },
-          });
-        } else if (activeFrom) {
-          activeDateConditions.push({
-            $expr: { $gte: ["$normalizedDate", activeFrom] },
-          });
-        } else if (activeTo) {
-          activeDateConditions.push({
-            $expr: { $lte: ["$normalizedDate", activeTo] },
-          });
-        }
-        if (activeDateConditions.length > 0) {
-          activePipeline.push({ $match: { $or: activeDateConditions } });
-        }
-        activePipeline.push({ $group: { _id: "$clientid" } });
-        const activeResults = await Model.aggregate(activePipeline);
-        activeClientIds = activeResults
-          .map((c) => Number(c._id))
-          .filter((id) => !isNaN(id));
-      }
-
-      // Compute Expiry client set (if any Expiry constraint provided)
-      let expiryClientIds = null;
-      if (expiryFrom || expiryTo) {
-        const expiryPipeline = [
-          ...createDatePipeline(
-            "enddate",
-            advancedFilterData.subscriptionType || "WMM"
-          ),
-        ];
-        const expiryDateConditions = [];
-        if (expiryFrom && expiryTo) {
-          expiryDateConditions.push({
-            $expr: {
-              $and: [
-                { $gte: ["$normalizedDate", expiryFrom] },
-                { $lte: ["$normalizedDate", expiryTo] },
-              ],
-            },
-          });
-        } else if (expiryFrom) {
-          expiryDateConditions.push({
-            $expr: { $gte: ["$normalizedDate", expiryFrom] },
-          });
-        } else if (expiryTo) {
-          expiryDateConditions.push({
-            $expr: { $lte: ["$normalizedDate", expiryTo] },
-          });
-        }
-        if (expiryDateConditions.length > 0) {
-          expiryPipeline.push({ $match: { $or: expiryDateConditions } });
-        }
-        expiryPipeline.push({ $group: { _id: "$clientid" } });
-        let expiryResults = await Model.aggregate(expiryPipeline);
-        expiryClientIds = expiryResults
-          .map((c) => Number(c._id))
-          .filter((id) => !isNaN(id));
-
-        // Respect existing behavior for expiryDateRangeOnly by removing clients who renewed beyond max expiry bound
-        if (
-          advancedFilterData.expiryDateRangeOnly &&
-          expiryClientIds.length > 0
-        ) {
-          const maxExpiryDate = expiryTo || expiryFrom;
-          if (maxExpiryDate) {
-            const renewedClientsPipeline = [
-              ...createDatePipeline(
-                "subsdate",
-                advancedFilterData.subscriptionType || "WMM"
-              ),
-              {
-                $match: {
-                  $expr: { $gt: ["$normalizedDate", maxExpiryDate] },
-                  clientid: { $in: expiryClientIds },
+      // Require the SAME subscription document to satisfy both constraints
+      {
+        // Build helper expression to normalize a date field depending on subscription type
+        const buildNormalizeExpr = (fieldName) => {
+          return subscriptionType === "Promo"
+            ? {
+                $let: {
+                  vars: {
+                    datePart: {
+                      $cond: {
+                        if: {
+                          $regexMatch: { input: `$${fieldName}`, regex: " " },
+                        },
+                        then: {
+                          $arrayElemAt: [{ $split: [`$${fieldName}`, " "] }, 0],
+                        },
+                        else: `$${fieldName}`,
+                      },
+                    },
+                  },
+                  in: {
+                    $cond: {
+                      if: { $regexMatch: { input: "$$datePart", regex: "/" } },
+                      then: {
+                        $let: {
+                          vars: {
+                            parts: { $split: ["$$datePart", "/"] },
+                            year: {
+                              $arrayElemAt: [
+                                { $split: ["$$datePart", "/"] },
+                                2,
+                              ],
+                            },
+                            month: {
+                              $toString: {
+                                $cond: {
+                                  if: {
+                                    $lt: [
+                                      {
+                                        $strLenBytes: {
+                                          $arrayElemAt: [
+                                            { $split: ["$$datePart", "/"] },
+                                            0,
+                                          ],
+                                        },
+                                      },
+                                      2,
+                                    ],
+                                  },
+                                  then: {
+                                    $concat: [
+                                      "0",
+                                      {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          0,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  else: {
+                                    $arrayElemAt: [
+                                      { $split: ["$$datePart", "/"] },
+                                      0,
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                            day: {
+                              $toString: {
+                                $cond: {
+                                  if: {
+                                    $lt: [
+                                      {
+                                        $strLenBytes: {
+                                          $arrayElemAt: [
+                                            { $split: ["$$datePart", "/"] },
+                                            1,
+                                          ],
+                                        },
+                                      },
+                                      2,
+                                    ],
+                                  },
+                                  then: {
+                                    $concat: [
+                                      "0",
+                                      {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          1,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  else: {
+                                    $arrayElemAt: [
+                                      { $split: ["$$datePart", "/"] },
+                                      1,
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          in: {
+                            $dateFromString: {
+                              dateString: {
+                                $concat: [
+                                  "$$year",
+                                  "-",
+                                  "$$month",
+                                  "-",
+                                  "$$day",
+                                ],
+                              },
+                              format: "%Y-%m-%d",
+                              timezone: "UTC",
+                              onError: null,
+                              onNull: null,
+                            },
+                          },
+                        },
+                      },
+                      else: {
+                        $dateFromString: {
+                          dateString: "$$datePart",
+                          format: "%Y-%m-%d",
+                          timezone: "UTC",
+                          onError: null,
+                          onNull: null,
+                        },
+                      },
+                    },
+                  },
                 },
-              },
-              { $group: { _id: "$clientid" } },
-            ];
-            const renewed = await Model.aggregate(renewedClientsPipeline);
-            const renewedIds = new Set(
-              renewed.map((c) => Number(c._id)).filter((id) => !isNaN(id))
-            );
-            expiryClientIds = expiryClientIds.filter(
-              (id) => !renewedIds.has(id)
-            );
-          }
+              }
+            : {
+                $let: {
+                  vars: {
+                    datePart: {
+                      $cond: {
+                        if: {
+                          $regexMatch: { input: `$${fieldName}`, regex: " " },
+                        },
+                        then: {
+                          $arrayElemAt: [{ $split: [`$${fieldName}`, " "] }, 0],
+                        },
+                        else: `$${fieldName}`,
+                      },
+                    },
+                  },
+                  in: {
+                    $dateFromString: {
+                      dateString: "$$datePart",
+                      format: "%Y-%m-%d",
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null,
+                    },
+                  },
+                },
+              };
+        };
+
+        const pipeline = [
+          {
+            $match: {
+              subsdate: { $exists: true, $ne: null },
+              enddate: { $exists: true, $ne: null },
+            },
+          },
+          {
+            $addFields: {
+              subsNorm: buildNormalizeExpr("subsdate"),
+              endNorm: buildNormalizeExpr("enddate"),
+            },
+          },
+          { $match: { subsNorm: { $ne: null }, endNorm: { $ne: null } } },
+        ];
+
+        const rangeMatch = {};
+        if (activeFrom || activeTo) {
+          rangeMatch.subsNorm = {};
+          if (activeFrom) rangeMatch.subsNorm.$gte = activeFrom;
+          if (activeTo) rangeMatch.subsNorm.$lte = activeTo;
         }
-      }
+        if (expiryFrom || expiryTo) {
+          rangeMatch.endNorm = {};
+          if (expiryFrom) rangeMatch.endNorm.$gte = expiryFrom;
+          if (expiryTo) rangeMatch.endNorm.$lte = expiryTo;
+        }
 
-      // Combine sets: intersection if both provided, else whichever exists
-      let finalIds = [];
-      if (activeClientIds && expiryClientIds) {
-        const expirySet = new Set(expiryClientIds);
-        finalIds = activeClientIds.filter((id) => expirySet.has(id));
-      } else if (activeClientIds) {
-        finalIds = activeClientIds;
-      } else if (expiryClientIds) {
-        finalIds = expiryClientIds;
-      }
+        if (Object.keys(rangeMatch).length > 0) {
+          pipeline.push({ $match: rangeMatch });
+        }
 
-      if (finalIds.length > 0) {
-        baseFilter.push({ id: { $in: finalIds } });
-      } else {
-        baseFilter.push({ id: -1 });
-      }
+        pipeline.push({ $group: { _id: "$clientid" } });
 
-      combinedActiveExpiryHandled = true;
+        const docs = await Model.aggregate(pipeline);
+        const finalIds = docs
+          .map((d) => Number(d._id))
+          .filter((id) => !isNaN(id));
+
+        if (finalIds.length > 0) {
+          baseFilter.push({ id: { $in: finalIds } });
+        } else {
+          baseFilter.push({ id: -1 });
+        }
+
+        combinedActiveExpiryHandled = true;
+      }
     } catch (error) {
       console.error("Error in combined Active/Expiry filtering:", error);
       baseFilter.push({ id: -1 });
