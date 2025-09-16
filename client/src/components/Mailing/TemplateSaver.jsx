@@ -139,8 +139,34 @@ const TemplateSaver = ({
       return;
     }
 
-    // If updating existing template, skip duplicate check
+    // If updating, only skip duplicate check when neither name nor department changed
     if (isUpdating && selectedTemplate) {
+      const newName = templateName.trim();
+      const nameChanged = newName !== selectedTemplate.name;
+      const deptChanged = department !== selectedTemplate.department;
+
+      if (nameChanged || deptChanged) {
+        setIsCheckingDuplicate(true);
+        try {
+          const duplicate = await checkForDuplicate(newName, department);
+          if (duplicate && duplicate._id !== selectedTemplate._id) {
+            setDuplicateTemplate(duplicate);
+            setShowDuplicateModal(true);
+            setIsCheckingDuplicate(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error checking for duplicates on update:", error);
+          toast.error(
+            "Error checking for existing templates. Please try again."
+          );
+          setIsCheckingDuplicate(false);
+          return;
+        } finally {
+          setIsCheckingDuplicate(false);
+        }
+      }
+
       await performSave();
       return;
     }

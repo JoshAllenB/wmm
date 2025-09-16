@@ -9,19 +9,31 @@ const TemplateSelector = ({
   onTemplateUpdate,
   onTemplateDelete,
 }) => {
-  // Filter templates based on user department (role)
+  // Filter templates based on user department(s)
   const filteredTemplates = React.useMemo(() => {
     if (!userRole) return savedTemplates;
 
-    // Admin can see all templates
-    if (userRole.toUpperCase().includes("ADMIN")) {
-      return savedTemplates;
-    }
+    const roleString = Array.isArray(userRole) ? userRole.join(" ") : userRole;
+    const upper = roleString.toUpperCase();
 
-    // Filter by department (role)
-    return savedTemplates.filter((template) => {
-      return template.department === userRole;
-    });
+    // Admin can see all templates
+    if (upper.includes("ADMIN")) return savedTemplates;
+
+    // Extract possible departments from a combined role string
+    // Accept separators by space, comma, slash, or pipe
+    const departments = (
+      Array.isArray(userRole) ? userRole : upper.split(/[\s,\/|]+/)
+    )
+      .map((r) => r.trim())
+      .filter(Boolean);
+
+    if (departments.length === 0) return [];
+
+    const deptSet = new Set(departments);
+
+    return savedTemplates.filter((template) =>
+      deptSet.has(String(template.department || "").toUpperCase())
+    );
   }, [savedTemplates, userRole]);
 
   return (
@@ -29,7 +41,9 @@ const TemplateSelector = ({
       <h3 className="font-medium text-sm mb-3">Template Selection</h3>
       <p className="text-xs text-gray-600 mb-3">
         Choose a template for your mailing labels. Templates are filtered by
-        your department ({userRole}).
+        your department{Array.isArray(userRole) ? "s" : ""} (
+        {Array.isArray(userRole) ? userRole.join(", ") : String(userRole || "")}{" "}
+        ).
       </p>
 
       <div className="space-y-3">
@@ -49,7 +63,10 @@ const TemplateSelector = ({
             >
               {filteredTemplates.length === 0 ? (
                 <option value="" disabled>
-                  No templates available for {userRole || "current user"}
+                  No templates available for{" "}
+                  {Array.isArray(userRole)
+                    ? userRole.join(", ")
+                    : userRole || "current user"}
                 </option>
               ) : (
                 <>
