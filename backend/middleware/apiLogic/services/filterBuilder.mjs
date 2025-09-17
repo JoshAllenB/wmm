@@ -605,7 +605,12 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   addAreaAndTypeFilters(baseFilter, advancedFilterData);
 
   // Add subsclass filter (only for WMM model)
-  if (advancedFilterData.subsclass) {
+  // Skip if date filtering is active as subclass is integrated into date filtering
+  if (
+    advancedFilterData.subsclass &&
+    !advancedFilterData.startDate &&
+    !advancedFilterData.endDate
+  ) {
     const subscriptionType = advancedFilterData.subscriptionType || "WMM";
 
     // Only apply subsclass filter for WMM subscription type
@@ -2754,42 +2759,50 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         const basePipeline = createDatePipeline(dateField, subscriptionType);
 
         // Add date range filtering
-        const dateConditions = [];
+        const dateConditions = {};
         if (dateRange.startDate && dateRange.endDate) {
-          dateConditions.push({
-            $expr: {
-              $and: [
-                { $gte: ["$normalizedDate", dateRange.startDate] },
-                { $lte: ["$normalizedDate", dateRange.endDate] },
-              ],
-            },
-          });
+          dateConditions.$expr = {
+            $and: [
+              { $gte: ["$normalizedDate", dateRange.startDate] },
+              { $lte: ["$normalizedDate", dateRange.endDate] },
+            ],
+          };
         } else if (dateRange.startDate) {
-          dateConditions.push({
-            $expr: {
-              $gte: ["$normalizedDate", dateRange.startDate],
-            },
-          });
+          dateConditions.$expr = {
+            $gte: ["$normalizedDate", dateRange.startDate],
+          };
         } else if (dateRange.endDate) {
-          dateConditions.push({
-            $expr: {
-              $lte: ["$normalizedDate", dateRange.endDate],
-            },
-          });
+          dateConditions.$expr = {
+            $lte: ["$normalizedDate", dateRange.endDate],
+          };
         }
 
-        if (dateConditions.length > 0) {
-          basePipeline.push({ $match: { $or: dateConditions } });
+        if (Object.keys(dateConditions).length > 0) {
+          basePipeline.push({ $match: dateConditions });
         }
 
         // Add grouping to get client IDs and original adddate for debugging
-        basePipeline.push({
+        const groupStage = {
           $group: {
             _id: "$clientid",
             originalAddDate: { $first: `$${dateField}` },
             normalizedDate: { $first: "$normalizedDate" },
           },
-        });
+        };
+
+        // Add subclass field if it exists and we're filtering WMM
+        if (subscriptionType === "WMM" && advancedFilterData.subsclass) {
+          groupStage.$group.latestSubsclass = { $first: "$subsclass" };
+        }
+
+        basePipeline.push(groupStage);
+
+        // Add subclass filter if specified and we're filtering WMM
+        if (subscriptionType === "WMM" && advancedFilterData.subsclass) {
+          basePipeline.push({
+            $match: { latestSubsclass: advancedFilterData.subsclass },
+          });
+        }
 
         return basePipeline;
       };
@@ -3103,31 +3116,26 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       // From date: subsdate >= date at midnight
       // To date: subsdate <= date at end of day
       const dateConditions = [];
+      const dateMatch = {};
       if (fromDate && toDate) {
-        dateConditions.push({
-          $expr: {
-            $and: [
-              { $gte: ["$normalizedDate", fromDate] }, // subsdate >= fromDate at midnight
-              { $lte: ["$normalizedDate", toDate] }, // subsdate <= toDate at 23:59:59
-            ],
-          },
-        });
+        dateMatch.$expr = {
+          $and: [
+            { $gte: ["$normalizedDate", fromDate] }, // subsdate >= fromDate at midnight
+            { $lte: ["$normalizedDate", toDate] }, // subsdate <= toDate at 23:59:59
+          ],
+        };
       } else if (fromDate) {
-        dateConditions.push({
-          $expr: {
-            $gte: ["$normalizedDate", fromDate], // subsdate >= fromDate at midnight
-          },
-        });
+        dateMatch.$expr = {
+          $gte: ["$normalizedDate", fromDate], // subsdate >= fromDate at midnight
+        };
       } else if (toDate) {
-        dateConditions.push({
-          $expr: {
-            $lte: ["$normalizedDate", toDate], // subsdate <= toDate at 23:59:59
-          },
-        });
+        dateMatch.$expr = {
+          $lte: ["$normalizedDate", toDate], // subsdate <= toDate at 23:59:59
+        };
       }
 
-      if (dateConditions.length > 0) {
-        pipeline.push({ $match: { $or: dateConditions } });
+      if (Object.keys(dateMatch).length > 0) {
+        pipeline.push({ $match: dateMatch });
       }
 
       pipeline.push({
@@ -3181,32 +3189,26 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       // 1. If both fromDate and toDate: subscription must end within this period
       // 2. If only fromDate: subscription must end during or after this month
       // 3. If only toDate: subscription must end during or before this month
-      const dateConditions = [];
+      const dateMatch = {};
       if (fromDate && toDate) {
-        dateConditions.push({
-          $expr: {
-            $and: [
-              { $gte: ["$normalizedDate", fromDate] },
-              { $lte: ["$normalizedDate", toDate] },
-            ],
-          },
-        });
+        dateMatch.$expr = {
+          $and: [
+            { $gte: ["$normalizedDate", fromDate] },
+            { $lte: ["$normalizedDate", toDate] },
+          ],
+        };
       } else if (fromDate) {
-        dateConditions.push({
-          $expr: {
-            $gte: ["$normalizedDate", fromDate],
-          },
-        });
+        dateMatch.$expr = {
+          $gte: ["$normalizedDate", fromDate],
+        };
       } else if (toDate) {
-        dateConditions.push({
-          $expr: {
-            $lte: ["$normalizedDate", toDate],
-          },
-        });
+        dateMatch.$expr = {
+          $lte: ["$normalizedDate", toDate],
+        };
       }
 
-      if (dateConditions.length > 0) {
-        pipeline.push({ $match: { $or: dateConditions } });
+      if (Object.keys(dateMatch).length > 0) {
+        pipeline.push({ $match: dateMatch });
       }
 
       pipeline.push({
