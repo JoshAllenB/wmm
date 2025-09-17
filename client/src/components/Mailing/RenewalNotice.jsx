@@ -148,6 +148,13 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [templateName, setTemplateName] = useState("");
     const [templateDesc, setTemplateDesc] = useState("");
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isDeletingTemplate, setIsDeletingTemplate] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [pendingTemplatePayload, setPendingTemplatePayload] = useState(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateTemplate, setDuplicateTemplate] = useState(null);
 
     // Fetch templates for renewal notice (same DB, filtered by previewType)
     useEffect(() => {
@@ -1069,65 +1076,98 @@ const RenewalNoticeDataOverlay = forwardRef(
     };
 
     // Save current positions as a template in shared DB, tagged as 'renewal'
-    const handleSaveTemplate = async () => {
-      if (!templateName.trim()) {
+  const handleSaveTemplate = async () => {
+      try {
+      const selectedTemplate = templates.find(
+        (t) => t._id === selectedTemplateId
+      );
+
+      // For updates, fallback to current template name/desc if inputs are empty
+      const effectiveName = (templateName || "").trim() || selectedTemplate?.name || "";
+      const effectiveDesc = (templateDesc || "").trim() || selectedTemplate?.description || "";
+
+      // For create, require a name
+      if (!selectedTemplate && !effectiveName) {
         toast.error("Enter a template name");
         return;
       }
-      try {
-        setIsSavingTemplate(true);
-        const payload = {
-          name: templateName.trim(),
-          description: templateDesc.trim(),
+
+      const payload = {
+        name: effectiveName,
+        description: effectiveDesc,
           department: userRole,
           layout: { positions },
           selectedFields: [],
           previewType: "renewal",
           selectedPrinter: "", // Renewal notices don't use raw printing
         };
-
-        const selectedTemplate = templates.find(
-          (t) => t._id === selectedTemplateId
+      // Duplicate check helper constrained to renewal previewType
+      const checkForDuplicate = async (name, dept) => {
+        const res = await axios.get(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates?department=${dept}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
         );
-        let res;
+        const existing = (res.data || []).find(
+          (t) => t.name === name && t.department === dept && (t.previewType || "standard") === "renewal"
+        );
+        return existing || null;
+      };
 
-        if (selectedTemplate && selectedTemplateId !== "") {
-          // Update existing template
-          res = await axios.put(
-            `http://${
-              import.meta.env.VITE_IP_ADDRESS
-            }:3001/util/templates/${selectedTemplateId}`,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
+      if (selectedTemplate && selectedTemplateId !== "") {
+        // For update: if name changed, check duplicate; otherwise just confirm update
+        const nameChanged = payload.name !== (selectedTemplate.name || "");
+        const deptChanged = payload.department !== (selectedTemplate.department || "");
+
+        if (nameChanged || deptChanged) {
+          setIsCheckingDuplicate(true);
+          try {
+            const dup = await checkForDuplicate(payload.name, payload.department);
+            if (dup && dup._id !== selectedTemplateId) {
+              setDuplicateTemplate(dup);
+              setPendingTemplatePayload(payload);
+              setShowDuplicateModal(true);
+              return;
             }
-          );
-          toast.success("Template updated");
-          // Update in list
-          setTemplates((prev) =>
-            prev.map((t) => (t._id === selectedTemplateId ? res.data : t))
-          );
-        } else {
-          // Create new template
-          res = await axios.post(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-              },
-            }
-          );
-          toast.success("Template saved");
-          // add to list and select
-          setTemplates((prev) => [res.data, ...prev]);
-          setSelectedTemplateId(res.data._id || "");
+          } finally {
+            setIsCheckingDuplicate(false);
+          }
         }
-
+        setPendingTemplatePayload(payload);
+        setShowUpdateModal(true);
+      } else {
+        // Create new: check duplicate first
+        setIsCheckingDuplicate(true);
+        try {
+          const dup = await checkForDuplicate(payload.name, payload.department);
+          if (dup) {
+            setDuplicateTemplate(dup);
+            setPendingTemplatePayload(payload);
+            setShowDuplicateModal(true);
+            return;
+          }
+        } finally {
+          setIsCheckingDuplicate(false);
+        }
+        setIsSavingTemplate(true);
+        const res = await axios.post(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        toast.success("Template saved");
+        setTemplates((prev) => [res.data, ...prev]);
+        setSelectedTemplateId(res.data._id || "");
         setTemplateName("");
         setTemplateDesc("");
+      }
       } catch (e) {
         console.error("Save template error:", e);
         toast.error(e.response?.data?.error || "Failed to save template");
@@ -1137,45 +1177,87 @@ const RenewalNoticeDataOverlay = forwardRef(
     };
 
     // Delete template
-    const handleDeleteTemplate = async () => {
-      if (!selectedTemplateId) {
-        toast.error("No template selected for deletion");
-        return;
-      }
+  const handleDeleteTemplate = () => {
+    if (!selectedTemplateId) {
+      toast.error("No template selected for deletion");
+      return;
+    }
+    setShowDeleteModal(true);
+  };
 
-      if (
-        !confirm(
-          "Are you sure you want to delete this template? This action cannot be undone."
-        )
-      ) {
-        return;
-      }
+  const confirmDeleteTemplate = async () => {
+    try {
+      setIsDeletingTemplate(true);
+      await axios.delete(
+        `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/util/templates/${selectedTemplateId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
 
-      try {
-        await axios.delete(
-          `http://${
-            import.meta.env.VITE_IP_ADDRESS
-          }:3001/util/templates/${selectedTemplateId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-          }
-        );
+      toast.success("Template deleted");
+      // Remove from list and clear selection
+      setTemplates((prev) =>
+        prev.filter((t) => t._id !== selectedTemplateId)
+      );
+      setSelectedTemplateId("");
+      setTemplateName("");
+      setTemplateDesc("");
+    } catch (e) {
+      console.error("Delete template error:", e);
+      toast.error(e.response?.data?.error || "Failed to delete template");
+    } finally {
+      setIsDeletingTemplate(false);
+      setShowDeleteModal(false);
+    }
+  };
 
-        toast.success("Template deleted");
-        // Remove from list and clear selection
-        setTemplates((prev) =>
-          prev.filter((t) => t._id !== selectedTemplateId)
-        );
-        setSelectedTemplateId("");
-        setTemplateName("");
-        setTemplateDesc("");
-      } catch (e) {
-        console.error("Delete template error:", e);
-        toast.error(e.response?.data?.error || "Failed to delete template");
-      }
-    };
+  const cancelDeleteTemplate = () => {
+    setShowDeleteModal(false);
+  };
+
+  const confirmUpdateTemplate = async () => {
+    if (!selectedTemplateId || !pendingTemplatePayload) {
+      setShowUpdateModal(false);
+      return;
+    }
+    try {
+      setIsSavingTemplate(true);
+      const res = await axios.put(
+        `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/util/templates/${selectedTemplateId}`,
+        pendingTemplatePayload,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+      toast.success("Template updated");
+      setTemplates((prev) =>
+        prev.map((t) => (t._id === selectedTemplateId ? res.data : t))
+      );
+      setTemplateName("");
+      setTemplateDesc("");
+    } catch (e) {
+      console.error("Update template error:", e);
+      toast.error(e.response?.data?.error || "Failed to update template");
+    } finally {
+      setIsSavingTemplate(false);
+      setShowUpdateModal(false);
+      setPendingTemplatePayload(null);
+    }
+  };
+
+  const cancelUpdateTemplate = () => {
+    setShowUpdateModal(false);
+    setPendingTemplatePayload(null);
+  };
 
     const applyTemplate = (templateId) => {
       setSelectedTemplateId(templateId);
@@ -2336,6 +2418,213 @@ const RenewalNoticeDataOverlay = forwardRef(
                   className="w-full h-full border-0"
                   title="Renewal Notice Preview"
                 />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Duplicate Template Modal */}
+        {showDuplicateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Template Already Exists</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  A template named <span className="font-medium">"{duplicateTemplate?.name}"</span> already exists in {duplicateTemplate?.department} for Renewal.
+                </p>
+                <div className="space-y-2">
+                  <Button
+                    onClick={async () => {
+                      if (!duplicateTemplate || !pendingTemplatePayload) return;
+                      try {
+                        setIsSavingTemplate(true);
+                        const res = await axios.put(
+                          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${duplicateTemplate._id}`,
+                          pendingTemplatePayload,
+                          { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+                        );
+                        toast.success("Template updated");
+                        setTemplates((prev) => prev.map((t) => (t._id === duplicateTemplate._id ? res.data : t)));
+                        setSelectedTemplateId(res.data._id || duplicateTemplate._id);
+                        setTemplateName("");
+                        setTemplateDesc("");
+                      } catch (e) {
+                        console.error("Duplicate update error:", e);
+                        toast.error(e.response?.data?.error || "Failed to update template");
+                      } finally {
+                        setIsSavingTemplate(false);
+                        setShowDuplicateModal(false);
+                        setPendingTemplatePayload(null);
+                        setDuplicateTemplate(null);
+                      }
+                    }}
+                    disabled={isSavingTemplate}
+                    className="w-full"
+                  >
+                    {isSavingTemplate ? "Updating..." : "Update Existing Template"}
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!duplicateTemplate || !pendingTemplatePayload) return;
+                      try {
+                        setIsSavingTemplate(true);
+                        await axios.delete(
+                          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates/${duplicateTemplate._id}`,
+                          { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+                        );
+                        const res = await axios.post(
+                          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/templates-add`,
+                          pendingTemplatePayload,
+                          { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } }
+                        );
+                        toast.success("Template replaced");
+                        setTemplates((prev) => [res.data, ...prev.filter((t) => t._id !== duplicateTemplate._id)]);
+                        setSelectedTemplateId(res.data._id || "");
+                        setTemplateName("");
+                        setTemplateDesc("");
+                      } catch (e) {
+                        console.error("Duplicate replace error:", e);
+                        toast.error(e.response?.data?.error || "Failed to replace template");
+                      } finally {
+                        setIsSavingTemplate(false);
+                        setShowDuplicateModal(false);
+                        setPendingTemplatePayload(null);
+                        setDuplicateTemplate(null);
+                      }
+                    }}
+                    variant="outline"
+                    disabled={isSavingTemplate}
+                    className="w-full"
+                  >
+                    {isSavingTemplate ? "Replacing..." : "Replace Existing Template"}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowDuplicateModal(false);
+                      setDuplicateTemplate(null);
+                      setPendingTemplatePayload(null);
+                    }}
+                    variant="outline"
+                    disabled={isSavingTemplate}
+                    className="w-full"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Template</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to delete this template? This action cannot be undone.
+                </p>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={cancelDeleteTemplate} variant="outline" disabled={isDeletingTemplate} className="px-4 py-2">Cancel</Button>
+                  <Button onClick={confirmDeleteTemplate} variant="destructive" disabled={isDeletingTemplate} className="px-4 py-2">
+                    {isDeletingTemplate ? "Deleting..." : "Delete"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Update Confirmation Modal */}
+        {showUpdateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <div className="text-center">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Update Template</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Are you sure you want to update the selected template with the current settings?
+                </p>
+                {/* Diff view: only changed values */}
+                <div className="text-left mb-4">
+                  <div className="text-xs text-gray-600 mb-2 font-medium">Changes</div>
+                  {(() => {
+                    const current = templates.find((t) => (t._id || "") === selectedTemplateId) || {};
+                    const nextPayload = pendingTemplatePayload || {
+                      name: (templateName || "").trim() || current.name,
+                      description: (templateDesc || "").trim() || current.description,
+                      department: userRole,
+                      layout: { positions },
+                    };
+
+                    const computeDiffs = (a, b, base = "") => {
+                      const diffs = [];
+                      const keys = new Set([
+                        ...Object.keys(a || {}),
+                        ...Object.keys(b || {}),
+                      ]);
+                      keys.forEach((k) => {
+                        const av = a ? a[k] : undefined;
+                        const bv = b ? b[k] : undefined;
+                        const path = base ? `${base}.${k}` : k;
+                        if (
+                          av && bv && typeof av === "object" && typeof bv === "object"
+                        ) {
+                          diffs.push(...computeDiffs(av, bv, path));
+                        } else if (JSON.stringify(av) !== JSON.stringify(bv)) {
+                          diffs.push({ path, from: av, to: bv });
+                        }
+                      });
+                      return diffs;
+                    };
+
+                    const diffs = [];
+                    if (current.name !== nextPayload.name) {
+                      diffs.push({ path: "name", from: current.name, to: nextPayload.name });
+                    }
+                    if (current.department !== nextPayload.department) {
+                      diffs.push({ path: "department", from: current.department, to: nextPayload.department });
+                    }
+                    if (current.description !== nextPayload.description) {
+                      diffs.push({ path: "description", from: current.description, to: nextPayload.description });
+                    }
+                    const currentPositions = current?.layout?.positions || {};
+                    const nextPositions = nextPayload?.layout?.positions || {};
+                    const posDiffs = computeDiffs(currentPositions, nextPositions, "positions");
+                    const allDiffs = [...diffs, ...posDiffs];
+
+                    if (allDiffs.length === 0) {
+                      return (
+                        <div className="text-xs text-gray-500">No changes detected.</div>
+                      );
+                    }
+
+                    return (
+                      <div className="text-xs max-h-48 overflow-auto border rounded p-2 bg-gray-50">
+                        <div className="mb-2 text-gray-700 font-medium">{allDiffs.length} change{allDiffs.length > 1 ? "s" : ""}</div>
+                        <ul className="space-y-1">
+                          {allDiffs.map((d, idx) => (
+                            <li key={`diff-${idx}`} className="flex flex-col">
+                              <span className="text-gray-600">{d.path}</span>
+                              <div className="pl-2">
+                                <span className="text-gray-400 mr-1">from</span>
+                                <code className="bg-white border rounded px-1 py-0.5">{String(d.from)}</code>
+                                <span className="text-gray-400 mx-1">→</span>
+                                <code className="bg-white border rounded px-1 py-0.5">{String(d.to)}</code>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={cancelUpdateTemplate} variant="outline" disabled={isSavingTemplate} className="px-4 py-2">Cancel</Button>
+                  <Button onClick={confirmUpdateTemplate} disabled={isSavingTemplate} className="px-4 py-2">
+                    {isSavingTemplate ? "Updating..." : "Confirm Update"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
