@@ -1262,8 +1262,10 @@ export const generateChecklistHTML = (
   columns,
   rowsToUse,
   title = "Mailing Checklist",
-  date = null
+  date = null,
+  activeFilters = []
 ) => {
+  console.log("activeFilters", activeFilters);
   // Use provided date or current date
   const displayDate = date
     ? new Date(date).toLocaleDateString()
@@ -1287,9 +1289,7 @@ export const generateChecklistHTML = (
             // Handle the Subscription column
             const subscriptionData = column.accessorFn(row.original);
             return `
-            <td class="checklist-data" style="width: ${
-              column.size
-            }px; padding-left: 10px;">
+            <td class="checklist-data" style="width: 400px; padding-left: 10px;">
               <ul class="max-h-[200px] max-w-[350px] overflow-y-auto scrollbar-hide" style="font-size: 12px;">
                 ${subscriptionData
                   .map(
@@ -1332,7 +1332,7 @@ export const generateChecklistHTML = (
       // Combine the data
       const combinedData = [
         namePart,
-        address,
+        address ? `<span style="font-size: 11px;">${address}</span>` : "",
         contactInfo,
         typePart ? `<br><strong>${typePart}</strong>` : "",
       ]
@@ -1362,13 +1362,20 @@ export const generateChecklistHTML = (
           padding-bottom: 10px;
         }
         .checklist-title {
-          font-size: 18px;
+          font-size: 12px;
           font-weight: bold;
           margin-bottom: 5px;
         }
         .checklist-date {
-          font-size: 14px;
-          color: #666;
+          font-size: 10px;
+          font-weight: bold;
+          color: #000;
+        }
+        .filters-wrap {
+          margin-top: 6px;
+          font-size: 10px;
+          color: #000;
+          text-align: center;
         }
         table {
           width: 100%;
@@ -1404,6 +1411,13 @@ export const generateChecklistHTML = (
       <div class="checklist-header">
         <div class="checklist-title">${title}</div>
         <div class="checklist-date">Date: ${displayDate}</div>
+        ${
+          Array.isArray(activeFilters) && activeFilters.length > 0
+            ? `<div class="filters-wrap">${activeFilters
+                .map((f) => `${f}`)
+                .join(" ")}</div>`
+            : ""
+        }
       </div>
       <table class="checklist">
         ${checklistHtml}

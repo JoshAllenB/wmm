@@ -1440,6 +1440,7 @@ const AllClient = () => {
         }}
         initialAction={mailingAction}
         subscriptionType={subscriptionType} // Add subscription type here
+        activeFilters={getActiveFilters()}
       />
 
       <CalendarUpdate

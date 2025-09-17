@@ -72,6 +72,7 @@ const Mailing = ({
   onClose,
   initialAction = "label",
   subscriptionType = "WMM", // Add subscription type with default value
+  activeFilters = [],
 }) => {
   const { hasRole } = useUser();
 
@@ -1094,7 +1095,8 @@ const Mailing = ({
           filteredColumns,
           effectiveRows,
           checklistTitle,
-          filterDate
+          filterDate,
+          activeFilters
         )
       );
       printWindow.document.close();
