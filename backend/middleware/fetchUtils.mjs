@@ -338,11 +338,9 @@ router.post("/templates-add", verifyToken, async (req, res) => {
       selectedPrinter,
     } = req.body;
 
-    // Validate required fields
-    if (!name || !department) {
-      return res
-        .status(400)
-        .json({ error: "Name and department are required" });
+    // Validate required fields (department optional)
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
     }
 
     // Sanitize layout based on previewType to avoid unrelated defaults being stored
@@ -390,15 +388,16 @@ router.post("/templates-add", verifyToken, async (req, res) => {
     }
 
     const sanitizedLayout = sanitizeLayoutByPreviewType(layout, previewType);
+    const normalizedDept = (department || "").trim();
 
     // Overwrite existing template with same name+department or create new (upsert)
     const upsertedTemplate = await PrintLabelModel.findOneAndUpdate(
-      { name, department },
+      { name, department: normalizedDept },
       {
         $set: {
           name,
           description: description || "",
-          department,
+          department: normalizedDept,
           layout: sanitizedLayout,
           selectedFields,
           previewType: previewType || "standard",
@@ -480,12 +479,14 @@ router.put("/templates/:id", verifyToken, async (req, res) => {
 
     const sanitizedLayout = sanitizeLayoutByPreviewType(layout, previewType);
 
+    const normalizedDept = (department || "").trim();
+
     const updatedTemplate = await PrintLabelModel.findByIdAndUpdate(
       id,
       {
         name,
         description: description || "",
-        department,
+        department: normalizedDept,
         layout: sanitizedLayout,
         selectedFields,
         previewType: previewType || "standard",

@@ -15,7 +15,7 @@ const flexibleLayoutType = mongoose.Schema.Types.Mixed;
 const printLabelSchema = new mongoose.Schema({
   name: { type: String, required: true },
   description: { type: String, default: "" },
-  department: { type: String, required: true }, // Department = role
+  department: { type: String, required: false, default: "" }, // Department optional; empty means global
   layout: { type: flexibleLayoutType, required: true },
   selectedFields: [{ type: String, required: true }],
   previewType: {
