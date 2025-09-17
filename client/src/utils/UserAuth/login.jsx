@@ -32,6 +32,8 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Ensure no stale Authorization header on login page
+      setAuthToken(null);
       const user = await validateToken();
       if (user) {
         setIsLoggedIn(true);
@@ -79,6 +81,11 @@ const LoginPage = ({ setIsLoggedIn }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // Ensure any prior logout/session messages are cleared before a new login
+    try {
+      localStorage.removeItem("errorMessage");
+      localStorage.removeItem("sessionExpired");
+    } catch {}
     setIsLoading(true);
     setErrorMessage("");
 
@@ -112,6 +119,12 @@ const LoginPage = ({ setIsLoggedIn }) => {
       setIsLoggedIn(true);
       setUserData(user);
       resetActivityTimer();
+
+      // Extra safety: clear any lingering error messages after a successful login
+      try {
+        localStorage.removeItem("errorMessage");
+        localStorage.removeItem("sessionExpired");
+      } catch {}
 
       // After setting the user data, connect to WebSocket
       webSocketService.connect({
