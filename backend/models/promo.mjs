@@ -20,6 +20,8 @@ const PromoSchema = new mongoose.Schema(
     referralid: Number,
     adddate: String,
     adduser: String,
+    editdate: Date,
+    edituser: String,
   },
   {
     versionKey: false,

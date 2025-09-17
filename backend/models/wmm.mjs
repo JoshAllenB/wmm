@@ -26,6 +26,8 @@ const WmmSchema = new mongoose.Schema(
     donornote: String,
     adddate: String,
     adduser: String,
+    editdate: Date,
+    edituser: String,
   },
   {
     versionKey: false,

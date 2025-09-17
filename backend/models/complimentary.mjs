@@ -22,6 +22,8 @@ const ComplimentarySchema = new mongoose.Schema(
     calendar: Number,
     adddate: String,
     adduser: String,
+    editdate: Date,
+    edituser: String,
   },
   {
     versionKey: false,

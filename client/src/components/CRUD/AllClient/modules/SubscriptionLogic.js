@@ -39,96 +39,87 @@ export const getSubscriptionSpecificData = (
     remarks: roleSpecificData.remarks || "",
     calendar: roleSpecificData.calendar || false,
     subsclass: roleSpecificData.subsclass || "",
-    adddate: new Date().toLocaleDateString("en-US", {
-      month: "numeric",
-      day: "numeric",
-      year: "numeric",
-    }),
+    // Note: adddate is set by backend when creating a new record. Do not send on edits.
   };
 
   // Format dates based on subscription type
   if (subscriptionType === "Promo") {
     return {
       ...baseData,
-      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
-        ? formatDateForPromo(
-            new Date(
-              cleanDateInput(formData.subStartYear),
-              cleanDateInput(formData.subStartMonth) - 1,
-              cleanDateInput(formData.subStartDay)
+      subsdate:
+        formData.subStartYear && formData.subStartMonth && formData.subStartDay
+          ? formatDateForPromo(
+              new Date(
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
+              )
             )
-          )
-        : "",
-      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
-        ? formatDateForPromo(
-            new Date(
-              cleanDateInput(formData.subEndYear),
-              cleanDateInput(formData.subEndMonth) - 1,
-              cleanDateInput(formData.subEndDay)
+          : "",
+      enddate:
+        formData.subEndYear && formData.subEndMonth && formData.subEndDay
+          ? formatDateForPromo(
+              new Date(
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
+              )
             )
-          )
-        : "",
+          : "",
       referralid: formData.referralid || 0,
-      adddate: new Date().toLocaleString("en-US", {
-        month: "numeric",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: false,
-      }),
     };
   } else if (subscriptionType === "Complimentary") {
     return {
       ...baseData,
-      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
-        ? formatDateForWMM(
-            new Date(
-              cleanDateInput(formData.subStartYear),
-              cleanDateInput(formData.subStartMonth) - 1,
-              cleanDateInput(formData.subStartDay)
+      subsdate:
+        formData.subStartYear && formData.subStartMonth && formData.subStartDay
+          ? formatDateForWMM(
+              new Date(
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
+              )
             )
-          )
-        : "",
-      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
-        ? formatDateForWMM(
-            new Date(
-              cleanDateInput(formData.subEndYear),
-              cleanDateInput(formData.subEndMonth) - 1,
-              cleanDateInput(formData.subEndDay)
+          : "",
+      enddate:
+        formData.subEndYear && formData.subEndMonth && formData.subEndDay
+          ? formatDateForWMM(
+              new Date(
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
+              )
             )
-          )
-        : "",
-      adddate: formatDateForWMM(new Date()),
+          : "",
     };
   } else {
     // WMM
     return {
       ...baseData,
-      subsdate: (formData.subStartYear && formData.subStartMonth && formData.subStartDay)
-        ? formatDateForWMM(
-            new Date(
-              cleanDateInput(formData.subStartYear),
-              cleanDateInput(formData.subStartMonth) - 1,
-              cleanDateInput(formData.subStartDay)
+      subsdate:
+        formData.subStartYear && formData.subStartMonth && formData.subStartDay
+          ? formatDateForWMM(
+              new Date(
+                cleanDateInput(formData.subStartYear),
+                cleanDateInput(formData.subStartMonth) - 1,
+                cleanDateInput(formData.subStartDay)
+              )
             )
-          )
-        : "",
-      enddate: (formData.subEndYear && formData.subEndMonth && formData.subEndDay)
-        ? formatDateForWMM(
-            new Date(
-              cleanDateInput(formData.subEndYear),
-              cleanDateInput(formData.subEndMonth) - 1,
-              cleanDateInput(formData.subEndDay)
+          : "",
+      enddate:
+        formData.subEndYear && formData.subEndMonth && formData.subEndDay
+          ? formatDateForWMM(
+              new Date(
+                cleanDateInput(formData.subEndYear),
+                cleanDateInput(formData.subEndMonth) - 1,
+                cleanDateInput(formData.subEndDay)
+              )
             )
-          )
-        : "",
+          : "",
       paymtref: roleSpecificData.paymtref || "",
       paymtamt: roleSpecificData.paymtamt || "",
       paymtmasses: roleSpecificData.paymtmasses || "",
       donorid: roleSpecificData.donorid || "",
-      adddate: formatDateForWMM(new Date()),
     };
   }
 };

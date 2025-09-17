@@ -739,19 +739,36 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     })()}
                   </div>
                 )}
-
-                {subscription.adddate && (
-                  <div className="mt-1 pl-4 text-sm">
-                    <span className="font-semibold">Added:</span>{" "}
-                    <span>{formatDate(subscription.adddate)}</span>
-                    {addUserValue && (
-                      <span>
-                        {" "}
-                        by <span className="font-semibold">{addUserValue}</span>
-                      </span>
-                    )}
-                  </div>
-                )}
+                <div className="flex">
+                  {subscription.adddate && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Added:</span>{" "}
+                      <span>{formatDate(subscription.adddate)}</span>
+                      {addUserValue && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">{addUserValue}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {(subscription.editdate || subscription.edituser) && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Edited:</span>{" "}
+                      <span>{formatDate(subscription.editdate)}</span>
+                      {subscription.edituser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">
+                            {subscription.edituser}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -946,6 +963,24 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   <h2 className="flex flex-col text-xl font-bold text-black">
                     Added Date: {formatDate(formData.adddate)}
                   </h2>
+                  {(formData.editedAt ||
+                    formData.editdate ||
+                    formData.editedBy ||
+                    formData.edituser) && (
+                    <h2 className="flex flex-col text-xl font-bold text-black">
+                      Last Edited:{" "}
+                      {formatDate(formData.editedAt || formData.editdate)}
+                      {(formData.editedBy || formData.edituser) && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">
+                            {formData.editedBy || formData.edituser}
+                          </span>
+                        </span>
+                      )}
+                    </h2>
+                  )}
                 </div>
                 <div className="mb-2 flex items-center gap-2">
                   {typeof formData.rtsCount !== "undefined" && (
