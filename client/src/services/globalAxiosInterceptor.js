@@ -1,5 +1,5 @@
-import axios from 'axios';
-import errorHandler from './errorHandler';
+import axios from "axios";
+import errorHandler from "./errorHandler";
 
 // Create a global axios interceptor to catch all errors
 const setupGlobalAxiosInterceptor = () => {
@@ -18,9 +18,9 @@ const setupGlobalAxiosInterceptor = () => {
       }
 
       // Use centralized error handler for all axios errors
-      errorHandler.handleAxiosError(error, { 
-        shouldLogout: false, 
-        shouldClearCache: true 
+      errorHandler.handleAxiosError(error, {
+        shouldLogout: false,
+        shouldClearCache: true,
       });
 
       return Promise.reject(error);
@@ -38,9 +38,17 @@ const setupGlobalAxiosInterceptor = () => {
       // Mark this request as handled to prevent double handling
       config._handledByUserService = true;
 
-      // Add auth token if available
+      // Skip attaching auth for auth endpoints
+      const url = (config.url || "").toLowerCase();
+      const isAuthEndpoint =
+        url.includes("/auth/login") ||
+        url.includes("/auth/register") ||
+        url.includes("/auth/verifytoken") ||
+        url.includes("/auth/refreshtoken");
+
+      // Add auth token if available and not an auth endpoint
       const token = localStorage.getItem("accessToken");
-      if (token && !config.headers.Authorization) {
+      if (!isAuthEndpoint && token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
@@ -52,4 +60,4 @@ const setupGlobalAxiosInterceptor = () => {
   );
 };
 
-export default setupGlobalAxiosInterceptor; 
+export default setupGlobalAxiosInterceptor;

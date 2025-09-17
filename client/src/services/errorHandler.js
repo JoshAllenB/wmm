@@ -138,7 +138,7 @@ class ErrorHandler {
    * Clear all cached data and session information
    */
   clearCache() {
-    // Clear localStorage
+    // Clear localStorage, but preserve tokens if we're mid-refresh
     const keysToRemove = [
       "accessToken",
       "refreshToken",
@@ -150,7 +150,17 @@ class ErrorHandler {
       "sessionExpired",
     ];
 
+    const isRefreshing =
+      sessionStorage.getItem("_tokenRefreshInFlight") === "true";
     keysToRemove.forEach((key) => {
+      if (
+        isRefreshing &&
+        (key === "accessToken" ||
+          key === "refreshToken" ||
+          key === "tokenExpiresAt")
+      ) {
+        return;
+      }
       localStorage.removeItem(key);
       sessionStorage.removeItem(key);
     });
@@ -168,8 +178,10 @@ class ErrorHandler {
     webSocketService.clearSession();
 
     // Clear auth headers
-    removeTokens();
-    setAuthToken(null);
+    if (!isRefreshing) {
+      removeTokens();
+      setAuthToken(null);
+    }
   }
 
   /**

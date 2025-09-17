@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, createContext } from "react";
-import { getAccessToken, removeTokens } from "./Token/tokenStorage";
+import { getAccessToken, removeTokens, setTokens } from "./Token/tokenStorage";
+import setAuthToken from "./Token/setAuthToken";
 import InactivityWarning from "../components/UI/InactivityWarning";
 import validateToken from "./Token/validateToken";
 import errorHandler from "../services/errorHandler";
@@ -49,6 +50,7 @@ const ActivityMonitor = ({
         if (localStorage.getItem("sessionExpired") === "true") {
           setIsLoggedIn(false);
           removeTokens();
+          setAuthToken(null);
           redirectToLogin();
           return;
         }
@@ -145,6 +147,7 @@ const ActivityMonitor = ({
       setIsLoggedIn(false);
       removeTokens();
       localStorage.setItem("sessionExpired", "true");
+      setAuthToken(null);
       redirectToLogin();
     }, logoutAt);
 
@@ -176,7 +179,52 @@ const ActivityMonitor = ({
 
   // Event listeners for user activity
   useEffect(() => {
-    const handleActivity = () => resetActivityTimer();
+    const handleActivity = async () => {
+      // If token is close to expiring, proactively refresh on real activity
+      try {
+        const token = getAccessToken();
+        if (token) {
+          const { jwtDecode } = await import("jwt-decode");
+          const decoded = jwtDecode(token);
+          if (decoded?.exp) {
+            const msLeft = decoded.exp * 1000 - Date.now();
+            // If less than 3 minutes left, refresh silently
+            if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
+              const refreshToken =
+                localStorage.getItem("refreshToken") ||
+                sessionStorage.getItem("refreshToken");
+              if (refreshToken) {
+                // Avoid spamming refresh: only once per warning period
+                if (
+                  !handleActivity._lastRefreshAt ||
+                  Date.now() - handleActivity._lastRefreshAt > 60 * 1000
+                ) {
+                  handleActivity._lastRefreshAt = Date.now();
+                  const axios = (await import("axios")).default;
+                  const { data } = await axios.post(
+                    `http://${
+                      import.meta.env.VITE_IP_ADDRESS
+                    }:3001/auth/refreshToken`,
+                    { token: refreshToken },
+                    { _isTokenRefresh: true }
+                  );
+                  const {
+                    token: newToken,
+                    refreshToken: newRefresh,
+                    tokenExpiresAt,
+                  } = data;
+                  setTokens(newToken, newRefresh, tokenExpiresAt);
+                  setAuthToken(newToken);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore refresh errors here; central error handler will manage if needed
+      }
+      resetActivityTimer();
+    };
 
     window.addEventListener("mousemove", handleActivity);
     window.addEventListener("keypress", handleActivity);
@@ -190,6 +238,46 @@ const ActivityMonitor = ({
       window.removeEventListener("scroll", handleActivity);
     };
   }, [resetActivityTimer]);
+
+  // Background refresh timer: renew token near expiry even when paused (e.g., modal open)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const token = getAccessToken();
+        if (!token) return;
+        const { jwtDecode } = await import("jwt-decode");
+        const decoded = jwtDecode(token);
+        if (!decoded?.exp) return;
+        const msLeft = decoded.exp * 1000 - Date.now();
+        // Refresh if expiring within 3 minutes, but not expired yet
+        if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
+          const refreshToken =
+            localStorage.getItem("refreshToken") ||
+            sessionStorage.getItem("refreshToken");
+          if (!refreshToken) return;
+          const axios = (await import("axios")).default;
+          const { data } = await axios.post(
+            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/refreshToken`,
+            { token: refreshToken },
+            { _isTokenRefresh: true }
+          );
+          const {
+            token: newToken,
+            refreshToken: newRefresh,
+            tokenExpiresAt,
+          } = data;
+          setTokens(newToken, newRefresh, tokenExpiresAt);
+          setAuthToken(newToken);
+        }
+      } catch (e) {
+        // Let central error handling manage any failures
+      }
+    }, 30_000); // check every 30s
+
+    return () => clearInterval(intervalId);
+  }, [isLoggedIn]);
 
   const handleClose = () => {
     setShowWarning(false);

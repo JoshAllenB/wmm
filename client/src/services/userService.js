@@ -1,5 +1,7 @@
 import axios from "axios";
 import errorHandler from "./errorHandler";
+import { setTokens } from "../utils/Token/tokenStorage";
+import setAuthToken from "../utils/Token/setAuthToken";
 
 const API_URL = `http://${import.meta.env.VITE_IP_ADDRESS}:3001`;
 
@@ -24,6 +26,9 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Track a single in-flight refresh to prevent concurrent refresh calls
+let refreshPromise = null;
+
 // Response interceptor for handling errors globally
 apiClient.interceptors.response.use(
   (response) => response,
@@ -35,29 +40,42 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Attempt to refresh token
-        const refreshToken = localStorage.getItem("refreshToken");
-        if (!refreshToken) throw new Error("No refresh token available");
+        const doRefresh = async () => {
+          const refreshToken =
+            localStorage.getItem("refreshToken") ||
+            sessionStorage.getItem("refreshToken");
+          if (!refreshToken) throw new Error("No refresh token available");
 
-        const response = await axios.post(
-          `${API_URL}/auth/refreshToken`,
-          {
-            token: refreshToken,
-          },
-          {
-            _isTokenRefresh: true,
-          }
-        );
+          const response = await axios.post(
+            `${API_URL}/auth/refreshToken`,
+            { token: refreshToken },
+            { _isTokenRefresh: true }
+          );
 
-        const { token, refreshToken: newRefreshToken } = response.data;
-        localStorage.setItem("accessToken", token);
-        localStorage.setItem("refreshToken", newRefreshToken);
+          const {
+            token,
+            refreshToken: newRefreshToken,
+            tokenExpiresAt,
+          } = response.data;
+          setTokens(token, newRefreshToken, tokenExpiresAt);
+          setAuthToken(token);
+          return token;
+        };
+
+        if (!refreshPromise) {
+          sessionStorage.setItem("_tokenRefreshInFlight", "true");
+          refreshPromise = doRefresh().finally(() => {
+            sessionStorage.removeItem("_tokenRefreshInFlight");
+            refreshPromise = null;
+          });
+        }
+
+        const newToken = await refreshPromise;
 
         // Retry original request with new token
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(originalRequest);
       } catch (refreshError) {
-        // If refresh fails, use centralized error handler
         errorHandler.handleAxiosError(refreshError, {
           shouldLogout: true,
           shouldClearCache: true,
