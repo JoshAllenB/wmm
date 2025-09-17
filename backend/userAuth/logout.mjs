@@ -2,12 +2,19 @@ import UserModel from "../models/userControl/users.mjs";
 import { revokeToken } from "./verifyToken.mjs";
 import { activeSessions } from "./login.mjs";
 import jwt from "jsonwebtoken";
+import { logTokenEvent } from "./tokenLogger.mjs";
 
 const logoutUser = async (userId, token, io) => {
   try {
     // Revoke the token
     if (token) {
       revokeToken(token);
+      logTokenEvent({
+        action: "REVOKE",
+        userId,
+        token,
+        meta: { reason: "manual_logout" },
+      });
 
       // Remove from active sessions if exists
       try {

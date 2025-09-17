@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/userControl/users.mjs";
 import { activeSessions, isUserActive } from "./login.mjs";
+import { logTokenEvent } from "./tokenLogger.mjs";
 
 // Track revoked tokens
 const revokedTokens = new Set();
@@ -83,11 +84,20 @@ const verifyToken = async (req, res, next) => {
     }
 
     req.user = user;
+    logTokenEvent({
+      action: "VERIFY_OK",
+      userId: user._id.toString(),
+      username: user.username,
+      token,
+      meta: {},
+    });
     next();
   } catch (err) {
     if (err.name === "TokenExpiredError") {
+      logTokenEvent({ action: "VERIFY_EXPIRED", token, meta: {} });
       return res.status(401).json({ error: "Token expired", expired: true });
     } else if (err.name === "JsonWebTokenError") {
+      logTokenEvent({ action: "VERIFY_INVALID", token, meta: {} });
       return res.status(401).json({ error: "Invalid token" });
     } else if (err.name === "NotBeforeError") {
       return res.status(401).json({ error: "Token not active yet" });

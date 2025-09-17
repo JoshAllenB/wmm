@@ -7,6 +7,8 @@ import User from "../models/userControl/users.mjs";
 import jwt from "jsonwebtoken";
 import { Role, Permission } from "../models/userControl/role.mjs";
 import { isUserActive, generateToken } from "./login.mjs";
+import { logTokenEvent } from "./tokenLogger.mjs";
+import { formatManila as _formatManila } from "./tokenLogger.mjs";
 
 const router = express.Router();
 
@@ -53,13 +55,31 @@ router.post("/login", async (req, res) => {
       { expiresIn: "7d" }
     );
 
+    const expDate = new Date(Date.now() + 15 * 60 * 1000);
     const response = {
       user,
       token,
       refreshToken,
       expiresIn: "30min", // Match actual JWT expiration
-      tokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      tokenExpiresAt: expDate.toISOString(),
+      tokenExpiresAtFormatted: _formatManila(expDate),
     };
+
+    // Token logs (masked)
+    logTokenEvent({
+      action: "ISSUE",
+      userId: user.id,
+      username: user.username,
+      token,
+      meta: { reason: "login" },
+    });
+    logTokenEvent({
+      action: "ISSUE",
+      userId: user.id,
+      username: user.username,
+      token: refreshToken,
+      meta: { reason: "login_refresh" },
+    });
 
     res.status(200).json(response);
   } catch (error) {
@@ -116,6 +136,14 @@ router.post("/verifyToken", async (req, res) => {
   const token = req.body.token;
 
   if (!token) {
+    try {
+      // Log missing token
+      logTokenEvent({
+        action: "VERIFY_INVALID",
+        token: null,
+        meta: { reason: "no_token_provided" },
+      });
+    } catch {}
     return res.status(401).json({
       error: "No token provided",
       message: "Authentication token is missing.",
@@ -133,6 +161,13 @@ router.post("/verifyToken", async (req, res) => {
       .populate("roles.customPermissions");
 
     if (!user) {
+      try {
+        logTokenEvent({
+          action: "VERIFY_INVALID",
+          token,
+          meta: { reason: "user_not_found" },
+        });
+      } catch {}
       return res.status(401).json({
         error: "User Not Found",
         message: "The user associated with this token no longer exists.",
@@ -150,6 +185,16 @@ router.post("/verifyToken", async (req, res) => {
     // Use isUserActive function to determine real-time status
     const userStatus = isUserActive(user._id) ? "Active" : "Logged Off";
 
+    try {
+      logTokenEvent({
+        action: "VERIFY_OK",
+        userId: user._id.toString(),
+        username: user.username,
+        token,
+        meta: {},
+      });
+    } catch {}
+
     res.json({
       valid: true,
       user: {
@@ -161,6 +206,13 @@ router.post("/verifyToken", async (req, res) => {
     });
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) {
+      try {
+        logTokenEvent({
+          action: "VERIFY_EXPIRED",
+          token,
+          meta: { reason: "access_token_expired" },
+        });
+      } catch {}
       return res.status(401).json({
         error: "Token expired",
         expired: true,
@@ -168,6 +220,13 @@ router.post("/verifyToken", async (req, res) => {
       });
     }
     if (err instanceof jwt.JsonWebTokenError) {
+      try {
+        logTokenEvent({
+          action: "VERIFY_INVALID",
+          token,
+          meta: { reason: "jwt_error" },
+        });
+      } catch {}
       return res.status(401).json({
         error: "Invalid token",
         message: "Your authentication token is invalid.",
@@ -223,21 +282,49 @@ router.post("/refreshToken", async (req, res) => {
       process.env.REFRESH_TOKEN_SECRET,
       { expiresIn: "7d" }
     );
+    const expDate = new Date(Date.now() + 15 * 60 * 1000);
     res.json({
       token: newToken,
       refreshToken: newRefreshToken,
-      expiresIn: "30min",
-      tokenExpiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      expiresIn: "15min",
+      tokenExpiresAt: expDate.toISOString(),
+      tokenExpiresAtFormatted: _formatManila(expDate),
+    });
+
+    // Log refresh events
+    logTokenEvent({
+      action: "REFRESH",
+      userId: user._id.toString(),
+      username: user.username,
+      token: newToken,
+      meta: { reason: "proactive_or_401" },
+    });
+    logTokenEvent({
+      action: "REFRESH",
+      userId: user._id.toString(),
+      username: user.username,
+      token: newRefreshToken,
+      meta: { reason: "refresh_rotated" },
     });
   } catch (err) {
     console.error("Token refresh error:", err);
 
     if (err instanceof jwt.TokenExpiredError) {
+      logTokenEvent({
+        action: "VERIFY_EXPIRED",
+        token,
+        meta: { reason: "refresh_token_expired" },
+      });
       return res.status(401).json({
         error: "Refresh Token Expired",
         message: "Your refresh token has expired. Please log in again.",
       });
     } else if (err instanceof jwt.JsonWebTokenError) {
+      logTokenEvent({
+        action: "VERIFY_INVALID",
+        token,
+        meta: { reason: "refresh_token_invalid" },
+      });
       return res.status(401).json({
         error: "Invalid Refresh Token",
         message: "Your refresh token is invalid.",
