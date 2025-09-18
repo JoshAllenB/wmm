@@ -616,7 +616,21 @@ const RenewalNoticeDataOverlay = forwardRef(
             positions.group1.top - 0.2
           }in; left: ${positions.group1.left - 0.2}in; width: ${
         positions.group1.width + 0.4
-      }in; height: ${positions.group1.lineSpacing * 2 + 0.4}in;">
+      }in; height: ${positions.group1.lineSpacing * 2 + 0.4}in; font-family: ${
+        positions.group1.fontFamily === "Times New Roman"
+          ? "'Times New Roman', Times, serif"
+          : positions.group1.fontFamily === "Courier New"
+          ? "'Courier New', Courier, monospace"
+          : positions.group1.fontFamily === "Calibri"
+          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+          : positions.group1.fontFamily === "Verdana"
+          ? "Verdana, Geneva, sans-serif"
+          : positions.group1.fontFamily === "Tahoma"
+          ? "Tahoma, Verdana, Segoe, sans-serif"
+          : "Arial, Helvetica, sans-serif"
+      }; font-size: ${positions.group1.fontSize}pt; font-weight: ${
+        positions.group1.fontWeight
+      };">
             <!-- Subscriber ID -->
             <div class="data-field" style="top: 0.2in; left: 0.2in;">
               <strong>${sampleSubscriber.id}</strong>
@@ -642,7 +656,21 @@ const RenewalNoticeDataOverlay = forwardRef(
             positions.group2.top - 0.2
           }in; left: ${positions.group2.left - 0.2}in; width: ${
         positions.group2.width + 0.4
-      }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in;">
+      }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in; font-family: ${
+        positions.group2.fontFamily === "Times New Roman"
+          ? "'Times New Roman', Times, serif"
+          : positions.group2.fontFamily === "Courier New"
+          ? "'Courier New', Courier, monospace"
+          : positions.group2.fontFamily === "Calibri"
+          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+          : positions.group2.fontFamily === "Verdana"
+          ? "Verdana, Geneva, sans-serif"
+          : positions.group2.fontFamily === "Tahoma"
+          ? "Tahoma, Verdana, Segoe, sans-serif"
+          : "Arial, Helvetica, sans-serif"
+      }; font-size: ${positions.group2.fontSize}pt; font-weight: ${
+        positions.group2.fontWeight
+      };">
             <!-- ID header section with ID and status -->
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group2.width
@@ -741,17 +769,53 @@ const RenewalNoticeDataOverlay = forwardRef(
             z-index: 1000;
           }
           .group1-field {
-            font-family: ${positions.group1.fontFamily}, sans-serif;
+            font-family: ${
+              positions.group1.fontFamily === "Times New Roman"
+                ? "'Times New Roman', Times, serif"
+                : positions.group1.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group1.fontFamily === "Calibri"
+                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                : positions.group1.fontFamily === "Verdana"
+                ? "Verdana, Geneva, sans-serif"
+                : positions.group1.fontFamily === "Tahoma"
+                ? "Tahoma, Verdana, Segoe, sans-serif"
+                : "Arial, Helvetica, sans-serif"
+            };
             font-size: ${positions.group1.fontSize}pt;
             font-weight: ${positions.group1.fontWeight};
           }
           .group2-field {
-            font-family: ${positions.group2.fontFamily}, sans-serif;
+            font-family: ${
+              positions.group2.fontFamily === "Times New Roman"
+                ? "'Times New Roman', Times, serif"
+                : positions.group2.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group2.fontFamily === "Calibri"
+                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                : positions.group2.fontFamily === "Verdana"
+                ? "Verdana, Geneva, sans-serif"
+                : positions.group2.fontFamily === "Tahoma"
+                ? "Tahoma, Verdana, Segoe, sans-serif"
+                : "Arial, Helvetica, sans-serif"
+            };
             font-size: ${positions.group2.fontSize}pt;
             font-weight: ${positions.group2.fontWeight};
           }
           .group3-field {
-            font-family: ${positions.group3.fontFamily}, sans-serif;
+            font-family: ${
+              positions.group3.fontFamily === "Times New Roman"
+                ? "'Times New Roman', Times, serif"
+                : positions.group3.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group3.fontFamily === "Calibri"
+                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                : positions.group3.fontFamily === "Verdana"
+                ? "Verdana, Geneva, sans-serif"
+                : positions.group3.fontFamily === "Tahoma"
+                ? "Tahoma, Verdana, Segoe, sans-serif"
+                : "Arial, Helvetica, sans-serif"
+            };
             font-size: ${positions.group3.fontSize}pt;
             font-weight: ${positions.group3.fontWeight};
           }
@@ -805,7 +869,9 @@ const RenewalNoticeDataOverlay = forwardRef(
       <body>
         <div class="print-controls" style="padding: 20px; background: #f0f0f0; margin-bottom: 20px;">
           <h3>Renewal Notice Data</h3>
-          <p>Printing <strong>${filteredSubscribers.length}</strong> subscriber(s). Each subscriber will print on a separate page.</p>
+          <p>Printing <strong>${
+            filteredSubscribers.length
+          }</strong> subscriber(s). Each subscriber will print on a separate page.</p>
           <button onclick="window.print()">Print Again</button>
           <button onclick="window.close()">Close Window</button>
         </div>
@@ -1526,6 +1592,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               className="w-full px-2 py-1 border rounded text-sm"
                             >
                               <option value="Arial">Arial</option>
+                              <option value="Calibri">Calibri</option>
                               <option value="Times New Roman">
                                 Times New Roman
                               </option>
@@ -1673,6 +1740,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               className="w-full px-2 py-1 border rounded text-sm"
                             >
                               <option value="Arial">Arial</option>
+                              <option value="Calibri">Calibri</option>
                               <option value="Times New Roman">
                                 Times New Roman
                               </option>
@@ -1820,6 +1888,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               className="w-full px-2 py-1 border rounded text-sm"
                             >
                               <option value="Arial">Arial</option>
+                              <option value="Calibri">Calibri</option>
                               <option value="Times New Roman">
                                 Times New Roman
                               </option>
