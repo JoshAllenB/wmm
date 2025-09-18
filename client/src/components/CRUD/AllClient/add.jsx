@@ -131,6 +131,7 @@ const Add = ({
   const [areaData, setAreaData] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [groups, setGroups] = useState([]);
@@ -909,6 +910,10 @@ const Add = ({
 
       return updated;
     });
+    // Clear any previous validation error upon changes
+    if (validationError) {
+      setValidationError("");
+    }
   };
 
   const handleRenewDateToday = () => {
@@ -965,6 +970,98 @@ const Add = ({
     }
 
     e.preventDefault();
+    setValidationError("");
+
+    // Validate subscription data before showing confirmation
+    // Require either Payment Amount or Masses when a subscription type is selected
+    const subscriptionSelected =
+      subscriptionType && subscriptionType !== "None";
+    const userCanSubmitSubscription = hasRole("WMM");
+
+    if (userCanSubmitSubscription && subscriptionSelected) {
+      // If user selected a subscription, ensure required fields are present
+      const hasAnySubscriptionData = checkSubscriptionData(
+        formData,
+        roleSpecificData
+      );
+
+      if (!hasAnySubscriptionData) {
+        setValidationError(
+          "Please complete the required subscription fields before submitting."
+        );
+        return;
+      }
+
+      const hasAmount = Boolean(
+        roleSpecificData?.paymtamt &&
+          String(roleSpecificData.paymtamt).trim() !== ""
+      );
+      const hasMasses = Boolean(
+        roleSpecificData?.paymtmasses &&
+          String(roleSpecificData.paymtmasses).trim() !== ""
+      );
+
+      if (!hasAmount && !hasMasses) {
+        setValidationError(
+          "Please provide either Payment Amount or Masses for the subscription."
+        );
+        return;
+      }
+
+      // Additional required fields: Start, End, Duration, Subclass
+      let startPresent = false;
+      let endPresent = false;
+      let durationPresent = false;
+      let subclassPresent = false;
+
+      if (subscriptionType === "WMM") {
+        startPresent = Boolean(
+          roleSpecificData?.subsdate &&
+            String(roleSpecificData.subsdate).trim() !== ""
+        );
+        endPresent = Boolean(
+          roleSpecificData?.enddate &&
+            String(roleSpecificData.enddate).trim() !== ""
+        );
+        durationPresent =
+          String(roleSpecificData?.subsyear ?? "")
+            .toString()
+            .trim() !== "";
+        subclassPresent = Boolean(
+          roleSpecificData?.subsclass &&
+            String(roleSpecificData.subsclass).trim() !== ""
+        );
+      } else {
+        startPresent = Boolean(
+          formData?.subscriptionStart &&
+            String(formData.subscriptionStart).trim() !== ""
+        );
+        endPresent = Boolean(
+          formData?.subscriptionEnd &&
+            String(formData.subscriptionEnd).trim() !== ""
+        );
+        durationPresent = Boolean(
+          formData?.subscriptionFreq &&
+            String(formData.subscriptionFreq).trim() !== ""
+        );
+        subclassPresent = Boolean(
+          formData?.subsclass && String(formData.subsclass).trim() !== ""
+        );
+      }
+
+      if (
+        !startPresent ||
+        !endPresent ||
+        !durationPresent ||
+        !subclassPresent
+      ) {
+        setValidationError(
+          "Subscription Start, End, Duration, and Subclass are required."
+        );
+        return;
+      }
+    }
+
     setShowConfirmation(true);
   };
 
@@ -2377,6 +2474,12 @@ const Add = ({
                               months={months}
                             />
 
+                            {/* Helper note about required subscription fields */}
+                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
+                              Either Payment Amount or Masses is required to
+                              proceed.
+                            </p>
+
                             {/* Subscription Type Specific Fields */}
                             {subscriptionType === "WMM" && (
                               <WMMModule
@@ -2408,6 +2511,15 @@ const Add = ({
                       </div>
                     )}
                   </div>
+
+                  {/* Global validation error message */}
+                  {validationError && (
+                    <div className="w-full mt-4">
+                      <div className="text-red-700 bg-red-50 border border-red-200 rounded px-4 py-3">
+                        {validationError}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
                     <Button

@@ -233,6 +233,7 @@ const Edit = ({
   });
   const [showModal, setShowModal] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const [renewalType, setRenewalType] = useState("current");
   const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
@@ -1361,6 +1362,7 @@ const Edit = ({
       };
       return newData;
     });
+    if (validationError) setValidationError("");
   };
 
   // Update handleRoleSpecificChange to ensure values are never undefined
@@ -1461,6 +1463,7 @@ const Edit = ({
 
       return newData;
     });
+    if (validationError) setValidationError("");
   };
 
   // Update handleSelectedSubscriptionChange to ensure values are never undefined
@@ -1482,6 +1485,7 @@ const Edit = ({
       ...prev,
       [field]: cleanDateInput(value),
     }));
+    if (validationError) setValidationError("");
   };
 
   // In Add mode, keep calamt synced to unit price; do not auto-set paymtamt
@@ -3535,6 +3539,7 @@ const Edit = ({
     }
 
     e.preventDefault();
+    setValidationError("");
 
     // Show confirmation dialog for edit mode
     if (mode === "edit") {
@@ -3614,11 +3619,197 @@ const Edit = ({
         return;
       }
 
+      // Enforce subscription validation only if user touched subscription fields
+      const subscriptionSelected =
+        formData.subscriptionType && formData.subscriptionType !== "None";
+      const userCanSubmitSubscription = hasRole("WMM");
+
+      // Detect if any required subscription fields were touched
+      const requiredTouchFields = new Set([
+        "subsdate",
+        "subsdateMonth",
+        "subsdateDay",
+        "subsdateYear",
+        "enddate",
+        "enddateMonth",
+        "enddateDay",
+        "enddateYear",
+        "subsyear",
+        "subscriptionStart",
+        "subscriptionEnd",
+        "subscriptionFreq",
+        "subsclass",
+        "paymtamt",
+        "paymtmasses",
+      ]);
+      const anyRequiredTouched = Array.from(
+        dirtySubscriptionFieldsRef.current || []
+      ).some((f) => requiredTouchFields.has(f));
+
+      if (
+        userCanSubmitSubscription &&
+        subscriptionSelected &&
+        anyRequiredTouched
+      ) {
+        // Use existing data presence check
+        const hasAnySubscriptionData = checkSubscriptionData(
+          formData,
+          roleSpecificData
+        );
+
+        if (!hasAnySubscriptionData) {
+          setValidationError(
+            "Please complete the required subscription fields before submitting."
+          );
+          return;
+        }
+
+        const dataSource =
+          roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+
+        const hasAmount = Boolean(
+          dataSource?.paymtamt !== undefined &&
+            String(dataSource.paymtamt).trim() !== ""
+        );
+        const hasMasses = Boolean(
+          dataSource?.paymtmasses !== undefined &&
+            String(dataSource.paymtmasses).trim() !== ""
+        );
+
+        if (!hasAmount && !hasMasses) {
+          setValidationError(
+            "Please provide either Payment Amount or Masses for the subscription."
+          );
+          return;
+        }
+
+        // Additional required fields: Start, End, Duration, Subclass
+        const startPresent = Boolean(
+          dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""
+        );
+        const endPresent = Boolean(
+          dataSource?.enddate && String(dataSource.enddate).trim() !== ""
+        );
+        const durationPresent = Boolean(
+          (dataSource?.subsyear !== undefined &&
+            String(dataSource.subsyear).trim() !== "") ||
+            (formData?.subscriptionFreq &&
+              String(formData.subscriptionFreq).trim() !== "")
+        );
+        const subclassPresent = Boolean(
+          (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
+            (dataSource?.subsclass &&
+              String(dataSource.subsclass).trim() !== "")
+        );
+
+        if (
+          !startPresent ||
+          !endPresent ||
+          !durationPresent ||
+          !subclassPresent
+        ) {
+          setValidationError(
+            "Subscription Start, End, Duration, and Subclass are required."
+          );
+          return;
+        }
+      }
+
       setShowConfirmation(true);
       return;
     }
 
     // For add mode, proceed with submission
+    // Apply subscription validation only if user touched subscription fields
+    const subscriptionSelected =
+      formData.subscriptionType && formData.subscriptionType !== "None";
+    const userCanSubmitSubscription = hasRole("WMM");
+    const requiredTouchFields = new Set([
+      "subsdate",
+      "subsdateMonth",
+      "subsdateDay",
+      "subsdateYear",
+      "enddate",
+      "enddateMonth",
+      "enddateDay",
+      "enddateYear",
+      "subsyear",
+      "subscriptionStart",
+      "subscriptionEnd",
+      "subscriptionFreq",
+      "subsclass",
+      "paymtamt",
+      "paymtmasses",
+    ]);
+    const anyRequiredTouched = Array.from(
+      dirtySubscriptionFieldsRef.current || []
+    ).some((f) => requiredTouchFields.has(f));
+
+    if (
+      userCanSubmitSubscription &&
+      subscriptionSelected &&
+      anyRequiredTouched
+    ) {
+      const hasAnySubscriptionData = checkSubscriptionData(
+        formData,
+        roleSpecificData
+      );
+
+      if (!hasAnySubscriptionData) {
+        setValidationError(
+          "Please complete the required subscription fields before submitting."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      const dataSource =
+        roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+      const hasAmount = Boolean(
+        dataSource?.paymtamt !== undefined &&
+          String(dataSource.paymtamt).trim() !== ""
+      );
+      const hasMasses = Boolean(
+        dataSource?.paymtmasses !== undefined &&
+          String(dataSource.paymtmasses).trim() !== ""
+      );
+      if (!hasAmount && !hasMasses) {
+        setValidationError(
+          "Please provide either Payment Amount or Masses for the subscription."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      const startPresent = Boolean(
+        dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""
+      );
+      const endPresent = Boolean(
+        dataSource?.enddate && String(dataSource.enddate).trim() !== ""
+      );
+      const durationPresent = Boolean(
+        (dataSource?.subsyear !== undefined &&
+          String(dataSource.subsyear).trim() !== "") ||
+          (formData?.subscriptionFreq &&
+            String(formData.subscriptionFreq).trim() !== "")
+      );
+      const subclassPresent = Boolean(
+        (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
+          (dataSource?.subsclass && String(dataSource.subsclass).trim() !== "")
+      );
+      if (
+        !startPresent ||
+        !endPresent ||
+        !durationPresent ||
+        !subclassPresent
+      ) {
+        setValidationError(
+          "Subscription Start, End, Duration, and Subclass are required."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    }
     // Prevent multiple submissions
     if (isSubmitting) {
       return;
@@ -4645,6 +4836,11 @@ const Edit = ({
                       handleRoleSpecificChange={handleRoleSpecificChange}
                       months={months}
                     />
+
+                    {/* Helper note about required subscription fields */}
+                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
+                      Either Payment Amount or Masses is required to proceed.
+                    </p>
 
                     {/* Subscription Type Specific Fields */}
                     {formData.subscriptionType === "WMM" && (
@@ -7137,6 +7333,15 @@ const Edit = ({
               </div>
             )}
           </div>
+
+          {/* Global validation error message */}
+          {validationError && (
+            <div className="w-full mt-4">
+              <div className="text-red-700 bg-red-50 border border-red-200 rounded px-4 py-3">
+                {validationError}
+              </div>
+            </div>
+          )}
 
           <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
             <Button
