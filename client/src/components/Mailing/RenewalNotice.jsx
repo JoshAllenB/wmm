@@ -1321,9 +1321,9 @@ const RenewalNoticeDataOverlay = forwardRef(
           {/* Reorganized to two-column layout with config on left, preview on right */}
           <div className="flex flex-col md:flex-row w-full gap-4">
             {/* Left side: Configuration */}
-            <div className="w-full md:w-2/5">
+            <div className="w-full md:w-2/5 flex flex-col">
               {/* Range Selector */}
-              <div className="mb-4 border rounded-lg p-3 bg-gray-50">
+              <div className="order-3 mb-4 border rounded-lg p-3 bg-gray-50">
                 <div className="mb-2 text-sm font-medium">Range</div>
                 <RangeSelector
                   startClientId={localStartId}
@@ -1356,7 +1356,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                 </div>
               </div>
               {/* Template controls */}
-              <div className="mb-4 border rounded-lg p-3 bg-gray-50">
+              <div className="order-1 mb-4 border rounded-lg p-3 bg-gray-50">
                 <div className="mb-2 text-sm font-medium">Templates</div>
                 <div className="flex gap-2 mb-2">
                   <select
@@ -1451,7 +1451,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                 </div>
               </div>
               {(showConfig || useSharedConfig) && !useSharedConfig && (
-                <div className="mb-6 border rounded-lg p-4 bg-gray-50">
+                <div className="order-2 mb-6 border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="font-medium">Position Configuration</h4>
                   </div>
