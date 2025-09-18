@@ -7269,6 +7269,7 @@ const Edit = ({
           hrgData={hrgData}
           fomData={fomData}
           calData={calData}
+          mode="edit"
           isEditMode={mode === "edit"}
           updateType={updateType}
           previewClientDiff={previewClientDiff}

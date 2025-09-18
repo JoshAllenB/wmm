@@ -16,7 +16,8 @@ const ConfirmationSummaryDialog = ({
   hrgData,
   fomData,
   calData,
-  isEditMode = false,
+  mode = "add", // "add" or "edit" - determines behavior
+  isEditMode = false, // Legacy prop for backward compatibility
   updateType = "all", // Always "all" with smart filtering
   previewClientDiff = null,
   previewNoSubscriptionIncluded = false,
@@ -32,6 +33,11 @@ const ConfirmationSummaryDialog = ({
   const { toast } = useToast();
 
   if (!showConfirmation) return null;
+
+  // Determine the actual mode - prioritize mode prop over isEditMode for clarity
+  const actualMode = mode || (isEditMode ? "edit" : "add");
+  const isAddMode = actualMode === "add";
+  const isEditModeActual = actualMode === "edit";
 
   // Helper function to format date from parts
   const formatDateFromParts = (month, day, year) => {
@@ -85,7 +91,16 @@ const ConfirmationSummaryDialog = ({
   ) => {
     if (!subscriptionType || subscriptionType === "None") return false;
 
-    // Check for meaningful subscription fields
+    // For add mode, be more lenient - show if subscription type is selected and not "None"
+    if (isAddMode) {
+      // If subscription type is not "None", show the subscription section
+      if (subscriptionType && subscriptionType !== "None") {
+        return true;
+      }
+      return false;
+    }
+
+    // For edit mode, use the original strict logic
     const hasStartDate =
       formData.subStartYear && formData.subStartMonth && formData.subStartDay;
     const hasEndDate =
@@ -135,7 +150,43 @@ const ConfirmationSummaryDialog = ({
     const userHasRole = hasRole(roleName);
     if (!userHasRole) return false;
 
-    // Also check if the role data is meaningful
+    // For add mode, be more lenient - show if any data exists
+    if (isAddMode) {
+      switch (roleName) {
+        case "HRG":
+          return Object.values(hrgData).some(
+            (value) =>
+              value !== null &&
+              value !== undefined &&
+              (typeof value !== "string" || value.trim() !== "")
+          );
+        case "FOM":
+          return Object.values(fomData).some(
+            (value) =>
+              value !== null &&
+              value !== undefined &&
+              (typeof value !== "string" || value.trim() !== "")
+          );
+        case "CAL":
+          return Object.values(calData).some(
+            (value) =>
+              value !== null &&
+              value !== undefined &&
+              (typeof value !== "string" || value.trim() !== "")
+          );
+        case "WMM":
+          return Object.values(roleSpecificData).some(
+            (value) =>
+              value !== null &&
+              value !== undefined &&
+              (typeof value !== "string" || value.trim() !== "")
+          );
+        default:
+          return false;
+      }
+    }
+
+    // For edit mode, use the original strict logic
     switch (roleName) {
       case "HRG":
         return hasRoleData(hrgData);
@@ -277,7 +328,7 @@ const ConfirmationSummaryDialog = ({
       // If we reach here, the submission was successful
       toast({
         title: "Success",
-        description: isEditMode
+        description: isEditModeActual
           ? "Client updated successfully!"
           : "Client added successfully!",
       });
@@ -291,7 +342,7 @@ const ConfirmationSummaryDialog = ({
       // Handle error case
       toast({
         title: "Error",
-        description: isEditMode
+        description: isEditModeActual
           ? "Failed to update client. Please try again."
           : "Failed to add client. Please try again.",
         variant: "destructive",
@@ -304,16 +355,16 @@ const ConfirmationSummaryDialog = ({
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white p-6 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h3 className="text-xl font-semibold mb-4">
-          {isEditMode ? "Confirm Update" : "Confirm Submission"}
+          {isEditModeActual ? "Confirm Update" : "Confirm Submission"}
         </h3>
         <p className="mb-6 text-gray-600">
-          {isEditMode
+          {isEditModeActual
             ? "Please review the information below and select what to update."
             : "Please review the information below before submitting."}
         </p>
 
-        {/* Warning for no subscription data */}
-        {previewNoSubscriptionIncluded && (
+        {/* Warning for no subscription data - only show in edit mode */}
+        {isEditModeActual && previewNoSubscriptionIncluded && (
           <div className="mb-6 p-4 bg-orange-50 rounded-lg border border-orange-200">
             <div className="flex items-center">
               <svg
@@ -340,8 +391,8 @@ const ConfirmationSummaryDialog = ({
 
         {/* Update Type Selection for Edit Mode */}
 
-        {/* Subscription Validation Warnings */}
-        {subscriptionValidation.hasWarnings && (
+        {/* Subscription Validation Warnings - only show in edit mode */}
+        {isEditModeActual && subscriptionValidation.hasWarnings && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <div className="flex items-start">
               <div className="flex-shrink-0">
@@ -375,8 +426,9 @@ const ConfirmationSummaryDialog = ({
           </div>
         )}
 
-        {/* Subscription Validation Info */}
-        {!subscriptionValidation.isSubscriptionValid &&
+        {/* Subscription Validation Info - only show in edit mode */}
+        {isEditModeActual &&
+          !subscriptionValidation.isSubscriptionValid &&
           subscriptionValidation.hasWarnings && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -411,8 +463,8 @@ const ConfirmationSummaryDialog = ({
         <div className="space-y-4">
           {/* Personal Information */}
           <SectionHeader title="Personal Information" />
-          {previewClientDiff ? (
-            // Show only changed fields when we have a diff
+          {isEditModeActual && previewClientDiff ? (
+            // Show only changed fields when we have a diff (edit mode)
             <>
               {previewClientDiff.title !== undefined && (
                 <FieldDisplay
@@ -486,24 +538,60 @@ const ConfirmationSummaryDialog = ({
               )}
             </>
           ) : (
-            // Show all fields when no diff (add mode)
+            // Show all available fields (add mode or edit mode without diff)
             <>
-              <FieldDisplay label="Title" value={formData.title} />
-              <FieldDisplay label="First Name" value={formData.fname} />
-              <FieldDisplay label="Middle Name" value={formData.mname} />
-              <FieldDisplay label="Last Name" value={formData.lname} />
-              <FieldDisplay label="Suffix" value={formData.sname} />
-              <FieldDisplay label="Birth Date" value={birthDate} />
-              <FieldDisplay label="Company" value={formData.company} />
-              <FieldDisplay label="Type" value={formData.type} />
-              <FieldDisplay label="Group" value={formData.group} />
+              <FieldDisplay
+                label="Title"
+                value={formData.title}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="First Name"
+                value={formData.fname}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Middle Name"
+                value={formData.mname}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Last Name"
+                value={formData.lname}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Suffix"
+                value={formData.sname}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Birth Date"
+                value={birthDate}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Company"
+                value={formData.company}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Type"
+                value={formData.type}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Group"
+                value={formData.group}
+                showIfEmpty={false}
+              />
             </>
           )}
 
           {/* Contact Information */}
           <SectionHeader title="Contact Information" />
-          {previewClientDiff ? (
-            // Show only changed fields when we have a diff
+          {isEditModeActual && previewClientDiff ? (
+            // Show only changed fields when we have a diff (edit mode)
             <>
               {previewClientDiff.contactnos !== undefined && (
                 <FieldDisplay
@@ -547,25 +635,47 @@ const ConfirmationSummaryDialog = ({
               )}
             </>
           ) : (
-            // Show all fields when no diff (add mode)
+            // Show all available fields (add mode or edit mode without diff)
             <>
               <FieldDisplay
                 label="Contact Numbers"
                 value={formData.contactnos}
+                showIfEmpty={false}
               />
-              <FieldDisplay label="Cell Number" value={formData.cellno} />
-              <FieldDisplay label="Office Number" value={formData.ofcno} />
-              <FieldDisplay label="Email" value={formData.email} />
-              <FieldDisplay label="Remarks" value={formData.remarks} />
+              <FieldDisplay
+                label="Cell Number"
+                value={formData.cellno}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Office Number"
+                value={formData.ofcno}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Email"
+                value={formData.email}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Remarks"
+                value={formData.remarks}
+                showIfEmpty={false}
+              />
             </>
           )}
 
-          {/* Address Information - Only show if there are address changes */}
-          {hasAddressContent() && (
+          {/* Address Information - Show if there are address changes (edit mode) or if address data exists (add mode) */}
+          {(isEditModeActual
+            ? hasAddressContent()
+            : combinedAddress ||
+              addressData.housestreet ||
+              addressData.subdivision ||
+              addressData.barangay) && (
             <>
               <SectionHeader title="Address Information" />
-              {previewClientDiff ? (
-                // Show only changed fields when we have a diff
+              {isEditModeActual && previewClientDiff ? (
+                // Show only changed fields when we have a diff (edit mode)
                 <>
                   {previewClientDiff.housestreet !== undefined && (
                     <FieldDisplay
@@ -628,28 +738,37 @@ const ConfirmationSummaryDialog = ({
                   )}
                 </>
               ) : (
-                // Show all fields when no diff (add mode)
+                // Show all available fields (add mode or edit mode without diff)
                 <>
                   <FieldDisplay
                     label="House/Street"
                     value={addressData.housestreet}
+                    showIfEmpty={false}
                   />
                   <FieldDisplay
                     label="Subdivision"
                     value={addressData.subdivision}
+                    showIfEmpty={false}
                   />
-                  <FieldDisplay label="Barangay" value={addressData.barangay} />
+                  <FieldDisplay
+                    label="Barangay"
+                    value={addressData.barangay}
+                    showIfEmpty={false}
+                  />
                   <FieldDisplay
                     label="Area/City"
                     value={formData.area || areaData.city}
+                    showIfEmpty={false}
                   />
                   <FieldDisplay
                     label="Zipcode"
                     value={formData.zipcode || areaData.zipcode}
+                    showIfEmpty={false}
                   />
                   <FieldDisplay
                     label="Area Code"
                     value={formData.acode || areaData.acode}
+                    showIfEmpty={false}
                   />
 
                   {/* Full Address Preview */}
@@ -666,7 +785,7 @@ const ConfirmationSummaryDialog = ({
             </>
           )}
 
-          {/* Subscription Information - Only show if subscriptionType exists and has meaningful data */}
+          {/* Subscription Information - Show if subscriptionType exists and has meaningful data */}
           {hasSubscriptionData(
             subscriptionType,
             formData,
@@ -678,11 +797,13 @@ const ConfirmationSummaryDialog = ({
                 label="Subscription Class"
                 value={formData.subsclass}
                 required={subscriptionType === "WMM"}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Start Date"
                 value={startDate}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="End Date"
@@ -698,6 +819,7 @@ const ConfirmationSummaryDialog = ({
                     : ""
                 }
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Copies"
@@ -734,6 +856,7 @@ const ConfirmationSummaryDialog = ({
                   <FieldDisplay
                     label="Remarks"
                     value={roleSpecificData.remarks}
+                    showIfEmpty={false}
                   />
                 </>
               )}
@@ -744,6 +867,7 @@ const ConfirmationSummaryDialog = ({
                   label="Referral ID"
                   value={formData.referralid}
                   required={true}
+                  showIfEmpty={false}
                 />
               )}
             </>
@@ -758,11 +882,13 @@ const ConfirmationSummaryDialog = ({
                 label="Received Date"
                 value={hrgData.recvdate}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Campaign Date"
                 value={hrgData.campaigndate}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
@@ -785,6 +911,7 @@ const ConfirmationSummaryDialog = ({
               <FieldDisplay
                 label="Unsubscribe"
                 value={hrgData.unsubscribe ? "Yes" : "No"}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Remarks"
@@ -802,6 +929,7 @@ const ConfirmationSummaryDialog = ({
                 label="Received Date"
                 value={fomData.recvdate}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
@@ -824,6 +952,7 @@ const ConfirmationSummaryDialog = ({
               <FieldDisplay
                 label="Unsubscribe"
                 value={fomData.unsubscribe ? "Yes" : "No"}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Remarks"
@@ -841,48 +970,61 @@ const ConfirmationSummaryDialog = ({
                 label="Received Date"
                 value={calData.recvdate}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Type"
                 value={calData.caltype}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Quantity"
                 value={calData.calqty}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Unit Price"
                 value={calData.calunit}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Total Amount"
                 value={calData.calamt}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
                 value={calData.paymtref}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Amount"
                 value={calData.paymtamt}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Form"
                 value={calData.paymtform}
                 required={true}
+                showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Date"
                 value={calData.paymtdate}
                 required={true}
+                showIfEmpty={false}
               />
-              <FieldDisplay label="Remarks" value={calData.remarks} />
+              <FieldDisplay
+                label="Remarks"
+                value={calData.remarks}
+                showIfEmpty={false}
+              />
             </>
           )}
         </div>
@@ -900,7 +1042,7 @@ const ConfirmationSummaryDialog = ({
             onClick={handleSubmitWithFeedback}
             className="px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md text-base"
           >
-            {isEditMode ? "Confirm Update" : "Confirm Submission"}
+            {isEditModeActual ? "Confirm Update" : "Confirm Submission"}
           </button>
         </div>
       </div>

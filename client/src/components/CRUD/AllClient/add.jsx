@@ -2462,6 +2462,8 @@ const Add = ({
               hrgData={hrgData}
               fomData={fomData}
               calData={calData}
+              mode="add"
+              hasRole={hasRole}
             />
           )}
         </Modal>
