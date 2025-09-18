@@ -141,12 +141,6 @@ export const getFullName = (data) => {
   const mname = data.mname || "";
   const lname = data.lname || "";
   const sname = data.sname || "";
-  const company = data.company || "";
-
-  if (company) {
-    return company;
-  }
-
   return [title, fname, mname, lname, sname]
     .filter((part) => part && part.trim())
     .join(" ");
@@ -297,16 +291,16 @@ export const generateLabelContent = (
   const fullName = getFullName(data);
   const company = data.company || "";
 
-  if (fullName && company && fullName !== company) {
-    // Both name and company exist and they're different
+  if (fullName && company) {
+    // Always show Fullname then Company when both exist
     nameLines.push(fullName);
     nameLines.push(company);
-  } else {
-    // Either name or company or neither, or they're the same
-    const displayName = fullName || company;
-    if (displayName) {
-      nameLines.push(displayName);
-    }
+  } else if (!fullName && company) {
+    // No fullname, show company only
+    nameLines.push(company);
+  } else if (fullName && !company) {
+    // Fullname only
+    nameLines.push(fullName);
   }
 
   // Clean up address by removing empty lines and extra whitespace while preserving valid line breaks
@@ -423,18 +417,15 @@ const generateLabelTextContent = (
   // 1. If both name and company exist and are different: name, then company
   // 2. If no name: company only
   // 3. If no company: name only
-  if (fullName && company && fullName !== company) {
-    // Both name and company exist and they're different
+  if (fullName && company) {
+    // Always show Fullname then Company when both exist
     content += `${fullName}\r\n`;
     content += `${company}\r\n`;
   } else if (!fullName && company) {
-    // No name, but company exists
+    // Company only
     content += `${company}\r\n`;
   } else if (fullName && !company) {
-    // Name exists, but no company
-    content += `${fullName}\r\n`;
-  } else if (fullName && company && fullName === company) {
-    // Name and company are the same, show only once
+    // Fullname only
     content += `${fullName}\r\n`;
   }
 
