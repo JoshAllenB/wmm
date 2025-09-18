@@ -150,10 +150,6 @@ const Mailing = ({
   const [documentGeneratorOpen, setDocumentGeneratorOpen] = useState(false);
   const [csvExportOpen, setCsvExportOpen] = useState(false);
 
-  // Add state for skipped data handling
-  const [skippedData, setSkippedData] = useState([]);
-  const [showSkippedData, setShowSkippedData] = useState(false);
-
   // Add new state for loading indicators
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
   const [recordCounts, setRecordCounts] = useState(null);
@@ -198,15 +194,6 @@ const Mailing = ({
   // Callback to handle printer selection changes
   const handlePrinterChange = (printerName) => {
     setSelectedPrinter(printerName);
-  };
-
-  // Function to handle skipped data updates
-  const handleSkippedDataUpdate = (skippedRecords) => {
-    setSkippedData(skippedRecords);
-    // If there are skipped records, automatically show them
-    if (skippedRecords && skippedRecords.length > 0) {
-      setShowSkippedData(true);
-    }
   };
 
   // Function to handle opening document generator
@@ -1544,7 +1531,6 @@ const Mailing = ({
             allData={allData}
             useAllData={useAllData}
             setUseAllData={setUseAllData}
-            onSkippedDataUpdate={handleSkippedDataUpdate}
             onRefreshAllData={refreshAllData}
           />
         );
@@ -2132,7 +2118,6 @@ const Mailing = ({
           allData={allData}
           useAllData={useAllData}
           setUseAllData={setUseAllData}
-          onSkippedDataUpdate={handleSkippedDataUpdate}
           onRefreshAllData={refreshAllData}
           isOpen={isOpen}
           onClose={handleClose}
@@ -2160,59 +2145,6 @@ const Mailing = ({
           onClose={handleClose}
           subscriptionType={subscriptionType}
         />
-      )}
-
-      {/* Display skipped data information */}
-      {skippedData.length > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div className="bg-yellow-50 rounded-lg shadow-lg border border-yellow-200 p-4 max-w-md">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-yellow-800">
-                Records Not Being Printed ({skippedData.length})
-              </h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowSkippedData(!showSkippedData)}
-                className="text-yellow-800 hover:text-yellow-900"
-              >
-                {showSkippedData ? "Hide Details" : "Show Details"}
-              </Button>
-            </div>
-
-            {showSkippedData && (
-              <ScrollArea className="h-[200px] w-full rounded border border-yellow-200 bg-white">
-                <div className="p-4">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left border-b border-yellow-200">
-                        <th className="pb-2">ID</th>
-                        <th className="pb-2">Name/Company</th>
-                        <th className="pb-2">Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {skippedData.map((record, index) => (
-                        <tr
-                          key={index}
-                          className="border-b border-yellow-100 last:border-0"
-                        >
-                          <td className="py-2">{record.id}</td>
-                          <td className="py-2">
-                            {record.name || record.company || "N/A"}
-                          </td>
-                          <td className="py-2 text-yellow-700">
-                            {record.reason}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-        </div>
       )}
 
       {/* CSV Export Modal */}
