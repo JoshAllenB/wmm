@@ -371,6 +371,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     });
   }
 
+  // User filter is now handled in service filtering section based on user role and active services
   // Add basic text search filter
   if (filter) {
     // Check if it's a payment reference search
@@ -620,6 +621,11 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
 
         // Use aggregation to get the most recent record for each client based on adddate
         const pipeline = [
+          // Add user filter if specified
+          ...(advancedFilterData.userId
+            ? [{ $match: { adduser: advancedFilterData.userId } }]
+            : []),
+
           // Convert adddate string to Date for proper sorting
           {
             $addFields: {
@@ -1646,6 +1652,68 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
     }
   }
 
+  // Handle user role-based filtering when no services are explicitly selected
+  if (!advancedFilterData.services && advancedFilterData.userId) {
+    try {
+      const username = advancedFilterData.userId;
+      console.log("🔍 User role-based filtering (no services selected):", {
+        username: username,
+      });
+
+      // Check if user has specific role-based access
+      // This would need to be determined based on user roles/permissions
+      // For now, we'll check all service models for this user
+      const WmmModel = await getModelInstance("WmmModel");
+      const PromoModel = await getModelInstance("PromoModel");
+      const ComplimentaryModel = await getModelInstance("ComplimentaryModel");
+      const FomModel = await getModelInstance("FomModel");
+      const HrgModel = await getModelInstance("HrgModel");
+      const CalModel = await getModelInstance("CalModel");
+
+      const userQuery = { adduser: username };
+
+      // Search across all service models for this user
+      const [
+        wmmClients,
+        promoClients,
+        compClients,
+        fomClients,
+        hrgClients,
+        calClients,
+      ] = await Promise.all([
+        WmmModel.find(userQuery).distinct("clientid"),
+        PromoModel.find(userQuery).distinct("clientid"),
+        ComplimentaryModel.find(userQuery).distinct("clientid"),
+        FomModel.find(userQuery).distinct("clientid"),
+        HrgModel.find(userQuery).distinct("clientid"),
+        CalModel.find(userQuery).distinct("clientid"),
+      ]);
+
+      // Combine all unique client IDs
+      const allUserClients = new Set(
+        [
+          ...wmmClients,
+          ...promoClients,
+          ...compClients,
+          ...fomClients,
+          ...hrgClients,
+          ...calClients,
+        ]
+          .map((id) => Number(id))
+          .filter((id) => !isNaN(id))
+      );
+
+      if (allUserClients.size > 0) {
+        baseFilter.push({ id: { $in: Array.from(allUserClients) } });
+      } else {
+        baseFilter.push({ id: -1 }); // No matches
+      }
+    } catch (error) {
+      console.error("Error in user role-based filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
+
   // Handle service filtering
   if (advancedFilterData.services) {
     try {
@@ -1716,6 +1784,12 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
         // Get clients for this service with subscription status
         let query = {};
+
+        // Add user filter if specified
+        if (advancedFilterData.userId) {
+          const username = advancedFilterData.userId;
+          query.adduser = username;
+        }
 
         // Only apply subscription status filter if there are other filters
         if (
@@ -2875,6 +2949,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               $regex: advancedFilterData.adddate_regex,
               $options: "i",
             },
+            // Add user filter if specified
+            ...(advancedFilterData.userId && {
+              adduser: advancedFilterData.userId,
+            }),
           },
         },
         {
@@ -2985,6 +3063,12 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       // Create pipelines for all models with date range filtering
       const createDateRangePipeline = (dateField, subscriptionType = "WMM") => {
         const basePipeline = createDatePipeline(dateField, subscriptionType);
+
+        // Add user filter if specified
+        if (advancedFilterData.userId) {
+          const username = advancedFilterData.userId;
+          basePipeline.push({ $match: { adduser: username } });
+        }
 
         // Add date range filtering
         const dateConditions = {};

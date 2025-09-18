@@ -6,6 +6,7 @@ import {
   fetchAreas,
   fetchTypes,
   fetchUsers,
+  fetchAddUsers,
 } from "../Table/Data/utilData";
 import { useUser } from "../../utils/Hooks/userProvider";
 import {
@@ -238,6 +239,7 @@ const AdvancedFilter = ({
   const [areas, setAreas] = useState([]);
   const [types, setTypes] = useState([]);
   const [users, setUsers] = useState([]);
+  const [addUsers, setAddUsers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isClientInfoOpen, setIsClientInfoOpen] = useState(false);
 
@@ -245,12 +247,13 @@ const AdvancedFilter = ({
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [subclassesData, areasData, typesData, usersData] =
+        const [subclassesData, areasData, typesData, usersData, addUsersData] =
           await Promise.all([
             fetchSubclasses(),
             fetchAreas(),
             fetchTypes(),
             fetchUsers(),
+            fetchAddUsers(),
           ]);
         setSubclasses(subclassesData);
         setAreas(areasData);
@@ -258,8 +261,11 @@ const AdvancedFilter = ({
 
         // Check if users exist in the response and set them properly
         const receivedUsers = usersData?.users || [];
-
         setUsers(receivedUsers);
+
+        // Set addusers from API response
+        const receivedAddUsers = addUsersData?.addusers || [];
+        setAddUsers(receivedAddUsers);
 
         // Set current user from API response
         if (usersData?.currentUser) {
@@ -1885,6 +1891,17 @@ const AdvancedFilter = ({
                       handleClientIdFilterTypeChange={
                         handleClientIdFilterTypeChange
                       }
+                      hasRole={hasRole}
+                      subscriptionType={subscriptionType}
+                    />
+
+                    <UserFilter
+                      filterData={filterData}
+                      handleChange={handleChange}
+                      users={users}
+                      addUsers={addUsers}
+                      currentUser={currentUser}
+                      hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
                       hasRole={hasRole}
                       subscriptionType={subscriptionType}
                     />

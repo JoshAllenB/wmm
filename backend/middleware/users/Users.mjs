@@ -4,6 +4,7 @@ import { Role } from "../../models/userControl/role.mjs";
 import { checkRole } from "./checkRole.mjs";
 import { verifyToken } from "../../userAuth/verifyToken.mjs";
 import { isUserActive } from "../../userAuth/login.mjs";
+import ClientModel from "../../models/clients.mjs";
 
 const router = express.Router();
 
@@ -173,5 +174,20 @@ router.put(
     }
   }
 );
+
+// Get all unique adduser values from clients collection
+router.get("/addusers", verifyToken, async (req, res) => {
+  try {
+    // Get all unique adduser values from clients collection
+    const addusers = await ClientModel.distinct("adduser", {
+      adduser: { $exists: true, $ne: null, $ne: "" },
+    });
+
+    res.status(200).json({ addusers });
+  } catch (error) {
+    console.error("Error fetching addusers:", error);
+    res.status(500).json({ error: "Failed to fetch addusers" });
+  }
+});
 
 export default router;

@@ -69,6 +69,18 @@ export const fetchUsers = async () => {
   }
 };
 
+export const fetchAddUsers = async () => {
+  try {
+    const response = await axios.get(
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users/addusers`
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching addusers:", error);
+    return { addusers: [] }; // Return empty array to prevent errors
+  }
+};
+
 export const fetchPrintTemplates = async () => {
   try {
     const response = await axios.get(
