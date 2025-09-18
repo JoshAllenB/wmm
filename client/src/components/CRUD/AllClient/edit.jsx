@@ -1,6 +1,7 @@
 import { useUser } from "../../../utils/Hooks/userProvider";
 import { roleConfigs } from "../../../utils/roleConfigs";
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
@@ -185,6 +186,14 @@ const Edit = ({
   const [isEditingCombinedAddress, setIsEditingCombinedAddress] =
     useState(false);
   const [selectedCity, setSelectedCity] = useState("");
+  // Guard to prevent re-initializing client fields after first load
+  const hasClientDataInitializedRef = useRef(false);
+  // Hold the initial snapshot of client data for diffing on submit
+  const initialClientSnapshotRef = useRef(null);
+  // Track which client fields the user has modified (for potential future use)
+  const dirtyClientFieldsRef = useRef(new Set());
+  // Track subscription/role fields touched to avoid saving untouched defaults
+  const dirtySubscriptionFieldsRef = useRef(new Set());
   const [roleSpecificData, setRoleSpecificData] = useState({
     recvdate: "",
     recvdateMonth: "",
@@ -299,30 +308,60 @@ const Edit = ({
     paymtref: "",
   });
 
-  // Add validation function for new subscription data
-  const validateNewSubscription = (data) => {
+  // Enhanced validation function for subscription data
+  const validateNewSubscription = (data, subscriptionType) => {
     const errors = {};
+    const warnings = {};
 
-    if (!data.subsdate) {
-      errors.subsdate = "Subscription start date is required";
-    }
+    // Check if subscription data is complete enough to be valid
+    const hasMinimalData = data.subsdate && data.enddate && data.subsclass;
 
-    if (!data.enddate) {
-      errors.enddate = "Subscription end date is required";
-    }
+    if (!hasMinimalData) {
+      // If no minimal data, show warning but don't block submission
+      warnings.incomplete =
+        "Subscription data is incomplete and will not be saved";
+    } else {
+      // Additional validation for specific subscription types when data exists
+      if (subscriptionType === "WMM") {
+        if (!data.copies || data.copies < 1) {
+          warnings.copies = "Number of copies should be specified";
+        }
+        if (!data.paymtref && !data.paymtamt) {
+          warnings.payment = "Payment information is recommended";
+        }
+      }
 
-    if (!data.subsclass) {
-      errors.subsclass = "Subscription class is required";
+      if (subscriptionType === "Promo") {
+        if (!data.donorid) {
+          warnings.donorid =
+            "Donor ID is recommended for promotional subscriptions";
+        }
+      }
     }
 
     return {
-      isValid: Object.keys(errors).length === 0,
+      isValid: true, // Always allow submission, just show warnings
+      hasWarnings: Object.keys(warnings).length > 0,
+      isSubscriptionValid: hasMinimalData, // Track if subscription data is valid for backend
       errors,
+      warnings,
     };
   };
 
   // Add state for validation errors
   const [validationErrors, setValidationErrors] = useState({});
+  // Preview state for confirmation dialog
+  const [previewClientDiff, setPreviewClientDiff] = useState(null);
+  const [previewNoSubscriptionIncluded, setPreviewNoSubscriptionIncluded] =
+    useState(false);
+  // Subscription validation state
+  const [subscriptionValidation, setSubscriptionValidation] = useState({
+    errors: {},
+    warnings: {},
+    isValid: true,
+    hasWarnings: false,
+    isSubscriptionValid: false,
+  });
 
   // After the state declarations, around line 50-60, add these new state variables:
   const [hrgRecords, setHrgRecords] = useState([]);
@@ -437,13 +476,8 @@ const Edit = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Add state to control what type of update to perform
-  const [updateType, setUpdateType] = useState("all"); // "all", "clientOnly", "subscriptionOnly", "roleOnly"
-
-  // Handle update type change
-  const handleUpdateTypeChange = (newUpdateType) => {
-    setUpdateType(newUpdateType);
-  };
+  // Always use "all" mode with smart filtering - no user choice needed
+  const [updateType] = useState("all"); // Smart filtering handles what gets updated
 
   // Helper function to check if subscription data exists
   const hasSubscriptionData = (data, type) => {
@@ -610,11 +644,8 @@ const Edit = ({
       }
 
       // Initialize client information fields with values from rowData
-      setFormData((prev) => {
-        // Only update if this is the initial load (when formData is empty or has default values)
-        const isInitialLoad = !prev.lname && !prev.fname && !prev.company;
-
-        if (isInitialLoad) {
+      if (!hasClientDataInitializedRef.current) {
+        setFormData((prev) => {
           const newData = {
             ...prev,
             lname: rowData.lname || "",
@@ -645,14 +676,20 @@ const Edit = ({
             rts: rowData.rts || false, // Add RTS field
             rtsCount: rowData.rtsCount || 0, // Add RTS count field
             rtsMaxReached: rowData.rtsMaxReached || false, // Add RTS max reached field
-            // Respect manual user selection; only set detected type if user hasn't chosen
             subscriptionType: hasUserSelectedSubscriptionType
               ? prev.subscriptionType
               : subscriptionType,
           };
+          // Set initial snapshot for diffing later
+          initialClientSnapshotRef.current = {
+            ...newData,
+          };
+          hasClientDataInitializedRef.current = true;
           return newData;
-        } else {
-          // If form already has data, only update subscription type if it hasn't been set
+        });
+      } else {
+        // After initialization, avoid overwriting any client fields; only reconcile subscriptionType if needed
+        setFormData((prev) => {
           if (!prev.subscriptionType || prev.subscriptionType === "None") {
             return {
               ...prev,
@@ -661,9 +698,9 @@ const Edit = ({
                 : subscriptionType,
             };
           }
-          return prev; // Don't update anything if form already has data
-        }
-      });
+          return prev;
+        });
+      }
 
       // Update addressData state with parsed address components
       setAddressData({
@@ -1225,6 +1262,26 @@ const Edit = ({
   const handleChange = async (e) => {
     const { name, value } = e.target;
     const safeValue = value ?? ""; // Ensure value is never undefined
+    // Mark field as dirty
+    dirtyClientFieldsRef.current.add(name);
+    // Track subscription-related field touches
+    const subscriptionRelatedFields = new Set([
+      "subStartMonth",
+      "subStartDay",
+      "subStartYear",
+      "subEndMonth",
+      "subEndDay",
+      "subEndYear",
+      "subscriptionStart",
+      "subscriptionEnd",
+      "subscriptionFreq",
+      "subsclass",
+      "referralid",
+      "copies",
+    ]);
+    if (subscriptionRelatedFields.has(name)) {
+      dirtySubscriptionFieldsRef.current.add(name);
+    }
 
     // Handle bdate parts
     if (name === "bdateMonth" || name === "bdateDay" || name === "bdateYear") {
@@ -1310,6 +1367,8 @@ const Edit = ({
   const handleRoleSpecificChange = (e) => {
     const { name, value, type, checked } = e.target;
     const safeValue = type === "checkbox" ? checked : value ?? "";
+    // Track that user touched subscription/role fields
+    dirtySubscriptionFieldsRef.current.add(name);
 
     setRoleSpecificData((prev) => {
       // Clean trailing spaces from date input fields
@@ -1417,6 +1476,8 @@ const Edit = ({
 
   // Helper function to handle newRoleData changes with trailing space cleaning
   const handleNewRoleDataChange = (field, value) => {
+    // Track that user touched subscription/role fields
+    dirtySubscriptionFieldsRef.current.add(field);
     setNewRoleData((prev) => ({
       ...prev,
       [field]: cleanDateInput(value),
@@ -1636,6 +1697,7 @@ const Edit = ({
       );
       setCombinedAddress(formattedAddress || "");
 
+      dirtyClientFieldsRef.current.add(type);
       setFormData((prev) => ({
         ...prev,
         address: formattedAddress || "",
@@ -1666,6 +1728,7 @@ const Edit = ({
           zipcode: safeValue,
         }));
 
+        dirtyClientFieldsRef.current.add("zipcode");
         setFormData((prev) => ({
           ...prev,
           zipcode: safeValue ? parseInt(safeValue) : "", // Allow empty string
@@ -1673,6 +1736,7 @@ const Edit = ({
       } else if (field === "city") {
         // Ensure we store the complete city name
         const upperValue = safeValue.toUpperCase();
+        dirtyClientFieldsRef.current.add("area");
         setFormData((prev) => ({
           ...prev,
           area: upperValue,
@@ -1689,6 +1753,7 @@ const Edit = ({
           address: formattedAddress,
         }));
       } else if (field === "acode") {
+        dirtyClientFieldsRef.current.add("acode");
         setFormData((prev) => ({
           ...prev,
           acode: safeValue,
@@ -1753,6 +1818,12 @@ const Edit = ({
       const zipcode = zipMatch ? zipMatch[0] : "";
       const city = lastLine.replace(zipcode, "").trim();
 
+      dirtyClientFieldsRef.current.add("address");
+      dirtyClientFieldsRef.current.add("housestreet");
+      dirtyClientFieldsRef.current.add("subdivision");
+      dirtyClientFieldsRef.current.add("barangay");
+      dirtyClientFieldsRef.current.add("zipcode");
+      dirtyClientFieldsRef.current.add("area");
       return {
         ...prev,
         address: value,
@@ -2540,6 +2611,19 @@ const Edit = ({
           : "",
     }));
 
+    // Mark core subscription keys as dirty on explicit selection
+    [
+      "subscriptionStart",
+      "subscriptionEnd",
+      "subStartMonth",
+      "subStartDay",
+      "subStartYear",
+      "subEndMonth",
+      "subEndDay",
+      "subEndYear",
+      "subsclass",
+    ].forEach((k) => dirtySubscriptionFieldsRef.current.add(k));
+
     // Calculate and set subscription frequency if dates are valid
     if (subscription.subsdate && subscription.enddate) {
       const startDate = parseDate(subscription.subsdate);
@@ -2620,6 +2704,47 @@ const Edit = ({
       }
     }
     return result;
+  };
+
+  // Compute shallow diff of client fields for selective save
+  const computeClientDiff = (previousData, currentData) => {
+    if (!previousData) return { ...currentData };
+    const diff = {};
+    const allKeys = new Set([
+      ...Object.keys(previousData || {}),
+      ...Object.keys(currentData || {}),
+    ]);
+    allKeys.forEach((key) => {
+      const prevVal = previousData[key];
+      const currVal = currentData[key];
+      // Treat empty string/undefined/null as empty for comparison except booleans and numbers
+      const normalizedPrev = prevVal === undefined ? "" : prevVal;
+      const normalizedCurr = currVal === undefined ? "" : currVal;
+      const changed =
+        typeof normalizedPrev === "object" || typeof normalizedCurr === "object"
+          ? JSON.stringify(normalizedPrev) !== JSON.stringify(normalizedCurr)
+          : normalizedPrev !== normalizedCurr;
+      if (changed) {
+        // For clears, set null or false/0 accordingly
+        if (
+          normalizedCurr === "" ||
+          normalizedCurr === null ||
+          (key === "zipcode" &&
+            (normalizedCurr === 0 || normalizedCurr === "0"))
+        ) {
+          if (key === "spack" || key === "rts" || key === "rtsMaxReached") {
+            diff[key] = false;
+          } else if (key === "rtsCount") {
+            diff[key] = 0;
+          } else {
+            diff[key] = null;
+          }
+        } else {
+          diff[key] = currVal;
+        }
+      }
+    });
+    return diff;
   };
 
   // Determine which client fields were cleared by the user so we can send nulls to backend
@@ -2758,16 +2883,22 @@ const Edit = ({
     if (!data.clientData) {
       errors.push("Client data is missing");
     } else {
+      // Validate against effective data (initial snapshot + changes) to support diff-only submissions
+      const effectiveClient = {
+        ...(initialClientSnapshotRef.current || {}),
+        ...(rowData || {}),
+        ...data.clientData,
+      };
       // Be lenient: if company is provided, allow missing first/last name
       const hasFirstName =
-        typeof data.clientData.fname === "string" &&
-        data.clientData.fname.trim() !== "";
+        typeof effectiveClient.fname === "string" &&
+        effectiveClient.fname.trim() !== "";
       const hasLastName =
-        typeof data.clientData.lname === "string" &&
-        data.clientData.lname.trim() !== "";
+        typeof effectiveClient.lname === "string" &&
+        effectiveClient.lname.trim() !== "";
       const hasCompany =
-        typeof data.clientData.company === "string" &&
-        data.clientData.company.trim() !== "";
+        typeof effectiveClient.company === "string" &&
+        effectiveClient.company.trim() !== "";
 
       if (!hasCompany) {
         if (!hasFirstName) errors.push("First name is required");
@@ -2887,10 +3018,8 @@ const Edit = ({
       ...areaData,
     };
 
-    // Clean the client data by removing empty fields, then add explicit nulls for cleared fields
-    const clientData = removeEmptyFields(baseClientData);
-    const clearedFields = getClearedClientFields(rowData, baseClientData);
-    const clientDataWithClears = { ...clientData, ...clearedFields };
+    // Use the already computed client diff from handleSubmit
+    const clientDataWithClears = previewClientDiff || {};
 
     // Determine the API endpoint based on mode
     const endpoint =
@@ -2946,8 +3075,9 @@ const Edit = ({
                   </span>
                 </p>
                 <p>
-                  Name: {clientData.fname} {clientData.lname}
-                  {clientData.company}
+                  Name: {clientDataWithClears.fname}{" "}
+                  {clientDataWithClears.lname}
+                  {clientDataWithClears.company}
                 </p>
                 <p className="text-sm text-green-600 mt-1">
                   ✓ Client information updated (no role data changed)
@@ -2986,17 +3116,35 @@ const Edit = ({
       }
     }
 
-    // Use modular subscription data check
+    // Use modular subscription data check with additional safeguards
     const hasSubscriptionData = () => {
-      return checkSubscriptionData(formData, roleSpecificData);
+      const dataSource =
+        roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+      const subsdateValid =
+        !!dataSource.subsdate ||
+        (formData.subStartMonth &&
+          formData.subStartDay &&
+          formData.subStartYear);
+      const enddateValid =
+        !!dataSource.enddate ||
+        (formData.subEndMonth && formData.subEndDay && formData.subEndYear);
+      const subclassValid = !!(formData.subsclass || dataSource.subsclass);
+      const minimalValid = subsdateValid && enddateValid && subclassValid;
+      const touched = dirtySubscriptionFieldsRef.current.size > 0;
+      return (
+        touched &&
+        minimalValid &&
+        checkSubscriptionData(formData, roleSpecificData)
+      );
     };
 
-    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it
+    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it AND subscription data is valid
     if (
       (updateType === "all" || updateType === "subscriptionOnly") &&
       hasRole("WMM") &&
       selectedRole === "WMM" &&
-      hasSubscriptionData()
+      hasSubscriptionData() &&
+      subscriptionValidation.isSubscriptionValid
     ) {
       // Use modular subscription-specific data function
       const getSubscriptionSpecificData = () => {
@@ -3270,6 +3418,10 @@ const Edit = ({
       return "";
     };
 
+    const willSaveSubscription = roleSubmissions.some((r) =>
+      ["WMM", "PROMO", "COMP"].includes(r.roleType)
+    );
+    setPreviewNoSubscriptionIncluded(!willSaveSubscription);
     const submissionData = {
       clientData: {
         ...clientDataWithClears,
@@ -3283,6 +3435,7 @@ const Edit = ({
         month: "short",
         year: "numeric",
       }),
+      noSubscriptionIncluded: !willSaveSubscription,
     };
 
     try {
@@ -3310,8 +3463,8 @@ const Edit = ({
                 </p>
               )}
               <p>
-                Name: {clientData.fname} {clientData.lname}
-                {clientData.company}
+                Name: {clientDataWithClears.fname} {clientDataWithClears.lname}
+                {clientDataWithClears.company}
               </p>
               <p className="text-sm text-green-600 mt-1">
                 ✓ All role data saved successfully
@@ -3385,6 +3538,82 @@ const Edit = ({
 
     // Show confirmation dialog for edit mode
     if (mode === "edit") {
+      // Compute client diff against initial snapshot to show in confirmation dialog
+      const formatBdate = () => {
+        if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
+          // Clean trailing spaces before formatting
+          const month = cleanDateInput(formData.bdateMonth);
+          const day = cleanDateInput(formData.bdateDay);
+          const year = cleanDateInput(formData.bdateYear);
+          return `${month}/${day}/${year}`;
+        }
+        return formData.bdate || "";
+      };
+
+      // Prepare base client data
+      const baseClientData = {
+        ...formData,
+        bdate: formatBdate(),
+        address: combinedAddress,
+        ...areaData,
+      };
+
+      // Compute client diff against initial snapshot to only show changed fields
+      const initialSnapshot = initialClientSnapshotRef.current || rowData || {};
+      const clientDataWithClears = computeClientDiff(
+        initialSnapshot,
+        baseClientData
+      );
+      setPreviewClientDiff(clientDataWithClears);
+
+      // Check if there are any meaningful changes
+      const hasClientChanges = Object.keys(clientDataWithClears).length > 0;
+
+      // Validate subscription data if applicable
+      let hasSubscriptionChanges = false;
+      if (
+        (updateType === "all" || updateType === "subscriptionOnly") &&
+        hasRole("WMM") &&
+        selectedRole === "WMM" &&
+        checkSubscriptionData(formData, roleSpecificData)
+      ) {
+        const subscriptionData = getSubscriptionData(
+          formData.subscriptionType,
+          formData,
+          {
+            ...roleSpecificData,
+            subsclass: formData.subsclass || roleSpecificData.subsclass || "",
+          }
+        );
+
+        const validation = validateNewSubscription(
+          subscriptionData,
+          formData.subscriptionType
+        );
+        setSubscriptionValidation(validation);
+        hasSubscriptionChanges = validation.isSubscriptionValid;
+      } else {
+        // Reset validation if no subscription data
+        setSubscriptionValidation({
+          errors: {},
+          warnings: {},
+          isValid: true,
+          hasWarnings: false,
+          isSubscriptionValid: false,
+        });
+      }
+
+      // Check if there are any changes to save
+      if (!hasClientChanges && !hasSubscriptionChanges) {
+        // No changes detected, show a message and return
+        toast({
+          title: "No Changes",
+          description: "No changes were detected. Nothing to save.",
+          variant: "default",
+        });
+        return;
+      }
+
       setShowConfirmation(true);
       return;
     }
@@ -3719,6 +3948,9 @@ const Edit = ({
       return "";
     };
 
+    const willSaveSubscription = roleSubmissions.some((r) =>
+      ["WMM", "PROMO", "COMP"].includes(r.roleType)
+    );
     const submissionData = {
       clientData: {
         ...clientDataWithClears,
@@ -3732,6 +3964,7 @@ const Edit = ({
         month: "short",
         year: "numeric",
       }),
+      noSubscriptionIncluded: !willSaveSubscription,
     };
 
     try {
@@ -3759,8 +3992,8 @@ const Edit = ({
                 </p>
               )}
               <p>
-                Name: {clientData.fname} {clientData.lname}
-                {clientData.company}
+                Name: {clientDataWithClears.fname} {clientDataWithClears.lname}
+                {clientDataWithClears.company}
               </p>
               <p className="text-sm text-green-600 mt-1">
                 ✓ All role data saved successfully
@@ -7037,8 +7270,12 @@ const Edit = ({
           fomData={fomData}
           calData={calData}
           isEditMode={mode === "edit"}
-          onUpdateTypeChange={handleUpdateTypeChange}
           updateType={updateType}
+          previewClientDiff={previewClientDiff}
+          previewNoSubscriptionIncluded={previewNoSubscriptionIncluded}
+          subscriptionValidation={subscriptionValidation}
+          hasRole={hasRole}
+          originalData={rowData}
         />
       )}
     </>
