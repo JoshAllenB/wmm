@@ -957,19 +957,6 @@ export async function checkDuplicates({
     };
 
     clients = await ClientModel.aggregate(pipeline, options);
-
-    // Debug logging
-    console.log("🗄️ Database query results:", {
-      totalFound: clients.length,
-      sampleResults: clients.slice(0, 3).map((c) => ({
-        id: c.id,
-        fname: c.fname,
-        lname: c.lname,
-        totalScore: c.totalScore,
-        fnameMatch: c.fnameMatch,
-        lnameMatch: c.lnameMatch,
-      })),
-    });
   } catch (dbError) {
     console.error("Database error during client search:", dbError);
     return {
@@ -1059,17 +1046,6 @@ export async function checkDuplicates({
   const categorizeResults = (clients) => {
     if (clients.length === 0) return { matches: [], categories: {} };
 
-    // Debug logging
-    console.log("🔍 Categorizing results:", {
-      totalClients: clients.length,
-      clientScores: clients.map((c) => ({
-        id: c.id,
-        fname: c.fname,
-        lname: c.lname,
-        totalScore: c.totalScore,
-      })),
-    });
-
     // Define match quality thresholds
     const HIGH_MATCH_THRESHOLD = 35; // Multiple strong field matches
     const MEDIUM_MATCH_THRESHOLD = 25; // Several field matches
@@ -1126,20 +1102,6 @@ export async function checkDuplicates({
         low: LOW_MATCH_THRESHOLD,
       },
     };
-
-    // Debug logging
-    console.log("📊 Categorization results:", {
-      highMatches: highMatches.length,
-      mediumMatches: mediumMatches.length,
-      lowMatches: lowMatches.length,
-      finalMatches: finalMatches.length,
-      finalMatchScores: finalMatches.map((m) => ({
-        id: m.id,
-        fname: m.fname,
-        lname: m.lname,
-        totalScore: m.totalScore,
-      })),
-    });
 
     return {
       matches: finalMatches,
