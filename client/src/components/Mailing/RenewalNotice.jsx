@@ -260,6 +260,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         middleName: original.mname || "",
         lastName: original.lname || "",
         company: original.company || "",
+        address: original.address || original.address1 || "",
         address1: original.address1 || original.address || "",
         address2: original.address2 || "",
         address3: original.address3 || "",
@@ -672,21 +673,14 @@ const RenewalNoticeDataOverlay = forwardRef(
                   : ""
               }
               ${
-                sampleSubscriber.address1
-                  ? `${sampleSubscriber.address1}<br>`
+                sampleSubscriber.address
+                  ? sampleSubscriber.address
+                      .split("\n")
+                      .map((line) => line.trim())
+                      .filter((line) => line.length > 0)
+                      .join("<br>")
                   : ""
               }
-              ${
-                sampleSubscriber.address2
-                  ? `${sampleSubscriber.address2}<br>`
-                  : ""
-              }
-              ${
-                sampleSubscriber.address3
-                  ? `${sampleSubscriber.address3}<br>`
-                  : ""
-              }
-              ${sampleSubscriber.address4 ? `${sampleSubscriber.address4}` : ""}
             </div>
           </div>
         </div>
@@ -853,35 +847,16 @@ const RenewalNoticeDataOverlay = forwardRef(
             positions.group2.top + positions.group2.lineSpacing * 2;
         }
 
-        // Calculate actual address line positions
-        const addressLines = [];
-        const processAddress = (addr) => {
-          if (!addr) return null;
-          return addr
-            .split("\n")
-            .map((line) => line.trim())
-            .filter((line) => line.length > 0)
-            .join("\n");
-        };
-
-        const address1 = processAddress(subscriber.address1);
-        const address2 = processAddress(subscriber.address2);
-        const address3 = processAddress(subscriber.address3);
-        const address4 = processAddress(subscriber.address4);
-
-        if (address1) addressLines.push(address1);
-        if (address2) addressLines.push(address2);
-        if (address3) addressLines.push(address3);
-        if (address4) addressLines.push(address4);
-
-        // Join all address lines into a single string with line breaks
-        const fullAddress = addressLines.join("\n");
-
-        // Split the full address into lines for display
-        const displayLines = fullAddress.split("\n");
+        // Process address using PrintGenerator pattern
+        const addressLines = subscriber.address
+          ? subscriber.address
+              .split("\n")
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0)
+          : [];
 
         // Adjust addressStartPosition based on number of display lines
-        const addressLinePositions = displayLines.map((_, index) => ({
+        const addressLinePositions = addressLines.map((_, index) => ({
           top: addressStartPosition + positions.group2.lineSpacing * index,
         }));
 
@@ -950,49 +925,17 @@ const RenewalNoticeDataOverlay = forwardRef(
         }
 
         // Add address fields with adjusted positions
-        if (subscriber.address1) {
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${addressStartPosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
-            ${subscriber.address1}
-          </div>
-        `;
-        }
-
-        if (subscriber.address2) {
+        addressLines.forEach((line, index) => {
           overlayHTML += `
           <div class="data-field group2-field" style="top: ${
-            addressStartPosition + positions.group2.lineSpacing
+            addressStartPosition + positions.group2.lineSpacing * index
           }in; left: ${positions.group2.left}in; width: ${
             positions.group2.width
           }in;">
-            ${subscriber.address2}
+            ${line}
           </div>
         `;
-        }
-
-        if (subscriber.address3) {
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${
-            addressStartPosition + positions.group2.lineSpacing * 2
-          }in; left: ${positions.group2.left}in; width: ${
-            positions.group2.width
-          }in;">
-            ${subscriber.address3}
-          </div>
-        `;
-        }
-
-        if (subscriber.address4) {
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${
-            addressStartPosition + positions.group2.lineSpacing * 3
-          }in; left: ${positions.group2.left}in; width: ${
-            positions.group2.width
-          }in;">
-            ${subscriber.address4}
-          </div>
-        `;
-        }
+        });
 
         // Add Group 3: Sucat Reminder Text
         overlayHTML += `
@@ -2102,43 +2045,16 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 positions.group2.lineSpacing * 2;
                             }
 
-                            // Calculate actual address line positions
-                            const addressLines = [];
-                            const processAddress = (addr) => {
-                              if (!addr) return null;
-                              return addr
-                                .split("\n")
-                                .map((line) => line.trim())
-                                .filter((line) => line.length > 0)
-                                .join("\n");
-                            };
-
-                            const address1 = processAddress(
-                              subscriber.address1
-                            );
-                            const address2 = processAddress(
-                              subscriber.address2
-                            );
-                            const address3 = processAddress(
-                              subscriber.address3
-                            );
-                            const address4 = processAddress(
-                              subscriber.address4
-                            );
-
-                            if (address1) addressLines.push(address1);
-                            if (address2) addressLines.push(address2);
-                            if (address3) addressLines.push(address3);
-                            if (address4) addressLines.push(address4);
-
-                            // Join all address lines into a single string with line breaks
-                            const fullAddress = addressLines.join("\n");
-
-                            // Split the full address into lines for display
-                            const displayLines = fullAddress.split("\n");
+                            // Process address using PrintGenerator pattern
+                            const addressLines = subscriber.address
+                              ? subscriber.address
+                                  .split("\n")
+                                  .map((line) => line.trim())
+                                  .filter((line) => line.length > 0)
+                              : [];
 
                             // Adjust addressStartPosition based on number of display lines
-                            const addressLinePositions = displayLines.map(
+                            const addressLinePositions = addressLines.map(
                               (_, index) => ({
                                 top:
                                   addressStartPosition +
@@ -2300,7 +2216,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                     )}
 
                                   {/* Address fields with adjusted positions */}
-                                  {displayLines.map((line, index) => (
+                                  {addressLines.map((line, index) => (
                                     <div
                                       key={`address-line-${index}`}
                                       style={{

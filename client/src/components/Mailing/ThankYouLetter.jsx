@@ -250,6 +250,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         middleName: original.mname || "",
         lastName: original.lname || "",
         company: original.company || "",
+        address: original.address || original.address1 || "",
         address1: original.address1 || original.address || "",
         address2: original.address2 || "",
         address3: original.address3 || "",
@@ -665,47 +666,12 @@ const ThankYouLetterDataOverlay = forwardRef(
                   : ""
               }
               ${
-                sampleSubscriber.address1
-                  ? sampleSubscriber.address1
+                sampleSubscriber.address
+                  ? sampleSubscriber.address
                       .split("\n")
-                      .map(
-                        (line, i, arr) =>
-                          `${line}${i < arr.length - 1 ? "<br>" : ""}`
-                      )
-                      .join("") + "<br>"
-                  : ""
-              }
-              ${
-                sampleSubscriber.address2
-                  ? sampleSubscriber.address2
-                      .split("\n")
-                      .map(
-                        (line, i, arr) =>
-                          `${line}${i < arr.length - 1 ? "<br>" : ""}`
-                      )
-                      .join("") + "<br>"
-                  : ""
-              }
-              ${
-                sampleSubscriber.address3
-                  ? sampleSubscriber.address3
-                      .split("\n")
-                      .map(
-                        (line, i, arr) =>
-                          `${line}${i < arr.length - 1 ? "<br>" : ""}`
-                      )
-                      .join("") + "<br>"
-                  : ""
-              }
-              ${
-                sampleSubscriber.address4
-                  ? sampleSubscriber.address4
-                      .split("\n")
-                      .map(
-                        (line, i, arr) =>
-                          `${line}${i < arr.length - 1 ? "<br>" : ""}`
-                      )
-                      .join("")
+                      .map((line) => line.trim())
+                      .filter((line) => line.length > 0)
+                      .join("<br>")
                   : ""
               }
             </div>
@@ -894,10 +860,15 @@ const ThankYouLetterDataOverlay = forwardRef(
           subscriber.middleName
         } ${subscriber.lastName}
             ${subscriber.company ? `<br>${subscriber.company}` : ""}
-            ${subscriber.address1 ? `<br>${subscriber.address1}` : ""}
-            ${subscriber.address2 ? `<br>${subscriber.address2}` : ""}
-            ${subscriber.address3 ? `<br>${subscriber.address3}` : ""}
-            ${subscriber.address4 ? `<br>${subscriber.address4}` : ""}
+            ${
+              subscriber.address
+                ? `<br>${subscriber.address
+                    .split("\n")
+                    .map((line) => line.trim())
+                    .filter((line) => line.length > 0)
+                    .join("<br>")}`
+                : ""
+            }
           </div>
           
           <!-- Group 3: Greeting -->
@@ -1996,17 +1967,12 @@ const ThankYouLetterDataOverlay = forwardRef(
                                     {subscriber.company
                                       ? `\n${subscriber.company}`
                                       : ""}
-                                    {subscriber.address1
-                                      ? `\n${subscriber.address1}`
-                                      : ""}
-                                    {subscriber.address2
-                                      ? `\n${subscriber.address2}`
-                                      : ""}
-                                    {subscriber.address3
-                                      ? `\n${subscriber.address3}`
-                                      : ""}
-                                    {subscriber.address4
-                                      ? `\n${subscriber.address4}`
+                                    {subscriber.address
+                                      ? `\n${subscriber.address
+                                          .split("\n")
+                                          .map((line) => line.trim())
+                                          .filter((line) => line.length > 0)
+                                          .join("\n")}`
                                       : ""}
                                   </div>
                                 </div>
