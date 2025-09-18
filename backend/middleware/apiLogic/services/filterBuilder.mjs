@@ -2287,25 +2287,258 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
       const SubscriptionModel = await getSubscriptionModel(subscriptionType);
 
-      // Build pipeline to get the most recent subscription for each client
-      const pipeline = [
-        // Always normalize subsdate so we can reliably sort by date across models
-        ...createDatePipeline("subsdate", subscriptionType),
-      ];
+      // Check if Active/Expiry date ranges are also applied
+      const hasActiveExpiryDates =
+        advancedFilterData.wmmActiveFromDate ||
+        advancedFilterData.wmmActiveToDate ||
+        advancedFilterData.wmmExpiringFromDate ||
+        advancedFilterData.wmmExpiringToDate;
 
-      // Sort by clientid and normalized date to get the most recent record per client
-      pipeline.push({ $sort: { clientid: 1, normalizedDate: -1 } });
+      let pipeline;
 
-      // Group by clientid and take the first (most recent) record
-      pipeline.push({
-        $group: {
-          _id: "$clientid",
-          latestRecord: { $first: "$$ROOT" },
-        },
-      });
+      if (hasActiveExpiryDates) {
+        // When date ranges are applied, we need to check payment type within those date ranges
+        // Build Active constraints (subsdate)
+        let activeFrom = null,
+          activeTo = null;
+        if (advancedFilterData.wmmActiveFromDate) {
+          activeFrom = getMonthRange(
+            advancedFilterData.wmmActiveFromDate
+          ).start;
+        }
+        if (advancedFilterData.wmmActiveToDate) {
+          activeTo = getMonthRange(advancedFilterData.wmmActiveToDate).end;
+        }
 
-      // Replace root with the latest record
-      pipeline.push({ $replaceRoot: { newRoot: "$latestRecord" } });
+        // Build Expiry constraints (enddate)
+        let expiryFrom = null,
+          expiryTo = null;
+        if (advancedFilterData.wmmExpiringFromDate) {
+          expiryFrom = getMonthRange(
+            advancedFilterData.wmmExpiringFromDate
+          ).start;
+        }
+        if (advancedFilterData.wmmExpiringToDate) {
+          expiryTo = getMonthRange(advancedFilterData.wmmExpiringToDate).end;
+        }
+
+        // Build helper expression to normalize a date field depending on subscription type
+        const buildNormalizeExpr = (fieldName) => {
+          return subscriptionType === "Promo"
+            ? {
+                $let: {
+                  vars: {
+                    datePart: {
+                      $cond: {
+                        if: {
+                          $regexMatch: { input: `$${fieldName}`, regex: " " },
+                        },
+                        then: {
+                          $arrayElemAt: [{ $split: [`$${fieldName}`, " "] }, 0],
+                        },
+                        else: `$${fieldName}`,
+                      },
+                    },
+                  },
+                  in: {
+                    $cond: {
+                      if: { $regexMatch: { input: "$$datePart", regex: "/" } },
+                      then: {
+                        $let: {
+                          vars: {
+                            parts: { $split: ["$$datePart", "/"] },
+                            year: {
+                              $arrayElemAt: [
+                                { $split: ["$$datePart", "/"] },
+                                2,
+                              ],
+                            },
+                            month: {
+                              $toString: {
+                                $cond: {
+                                  if: {
+                                    $lt: [
+                                      {
+                                        $strLenBytes: {
+                                          $arrayElemAt: [
+                                            { $split: ["$$datePart", "/"] },
+                                            0,
+                                          ],
+                                        },
+                                      },
+                                      2,
+                                    ],
+                                  },
+                                  then: {
+                                    $concat: [
+                                      "0",
+                                      {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          0,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  else: {
+                                    $arrayElemAt: [
+                                      { $split: ["$$datePart", "/"] },
+                                      0,
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                            day: {
+                              $toString: {
+                                $cond: {
+                                  if: {
+                                    $lt: [
+                                      {
+                                        $strLenBytes: {
+                                          $arrayElemAt: [
+                                            { $split: ["$$datePart", "/"] },
+                                            1,
+                                          ],
+                                        },
+                                      },
+                                      2,
+                                    ],
+                                  },
+                                  then: {
+                                    $concat: [
+                                      "0",
+                                      {
+                                        $arrayElemAt: [
+                                          { $split: ["$$datePart", "/"] },
+                                          1,
+                                        ],
+                                      },
+                                    ],
+                                  },
+                                  else: {
+                                    $arrayElemAt: [
+                                      { $split: ["$$datePart", "/"] },
+                                      1,
+                                    ],
+                                  },
+                                },
+                              },
+                            },
+                          },
+                          in: {
+                            $dateFromString: {
+                              dateString: {
+                                $concat: [
+                                  "$$year",
+                                  "-",
+                                  "$$month",
+                                  "-",
+                                  "$$day",
+                                ],
+                              },
+                              format: "%Y-%m-%d",
+                              timezone: "UTC",
+                              onError: null,
+                              onNull: null,
+                            },
+                          },
+                        },
+                      },
+                      else: {
+                        $dateFromString: {
+                          dateString: "$$datePart",
+                          format: "%Y-%m-%d",
+                          timezone: "UTC",
+                          onError: null,
+                          onNull: null,
+                        },
+                      },
+                    },
+                  },
+                },
+              }
+            : {
+                $let: {
+                  vars: {
+                    datePart: {
+                      $cond: {
+                        if: {
+                          $regexMatch: { input: `$${fieldName}`, regex: " " },
+                        },
+                        then: {
+                          $arrayElemAt: [{ $split: [`$${fieldName}`, " "] }, 0],
+                        },
+                        else: `$${fieldName}`,
+                      },
+                    },
+                  },
+                  in: {
+                    $dateFromString: {
+                      dateString: "$$datePart",
+                      format: "%Y-%m-%d",
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null,
+                    },
+                  },
+                },
+              };
+        };
+
+        pipeline = [
+          {
+            $match: {
+              subsdate: { $exists: true, $ne: null },
+              enddate: { $exists: true, $ne: null },
+            },
+          },
+          {
+            $addFields: {
+              subsNorm: buildNormalizeExpr("subsdate"),
+              endNorm: buildNormalizeExpr("enddate"),
+            },
+          },
+          { $match: { subsNorm: { $ne: null }, endNorm: { $ne: null } } },
+        ];
+
+        // Add date range constraints
+        const rangeMatch = {};
+        if (activeFrom || activeTo) {
+          rangeMatch.subsNorm = {};
+          if (activeFrom) rangeMatch.subsNorm.$gte = activeFrom;
+          if (activeTo) rangeMatch.subsNorm.$lte = activeTo;
+        }
+        if (expiryFrom || expiryTo) {
+          rangeMatch.endNorm = {};
+          if (expiryFrom) rangeMatch.endNorm.$gte = expiryFrom;
+          if (expiryTo) rangeMatch.endNorm.$lte = expiryTo;
+        }
+
+        if (Object.keys(rangeMatch).length > 0) {
+          pipeline.push({ $match: rangeMatch });
+        }
+      } else {
+        // When no date ranges are applied, use the original logic (most recent record)
+        pipeline = [
+          // Always normalize subsdate so we can reliably sort by date across models
+          ...createDatePipeline("subsdate", subscriptionType),
+        ];
+
+        // Sort by clientid and normalized date to get the most recent record per client
+        pipeline.push({ $sort: { clientid: 1, normalizedDate: -1 } });
+
+        // Group by clientid and take the first (most recent) record
+        pipeline.push({
+          $group: {
+            _id: "$clientid",
+            latestRecord: { $first: "$$ROOT" },
+          },
+        });
+
+        // Replace root with the latest record
+        pipeline.push({ $replaceRoot: { newRoot: "$latestRecord" } });
+      }
 
       // Add payment type filter using improved logic
       // Build conditions for mass payments and cash payments, then apply based on selected flags
@@ -2338,9 +2571,11 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         pipeline.push({ $match: cashPaymentCondition });
       }
 
-      // Project only the clientid for the final result
+      // Group by clientid to get unique clients
       pipeline.push({
-        $project: { clientid: 1 },
+        $group: {
+          _id: "$clientid",
+        },
       });
 
       const clientsWithPaymentType = await SubscriptionModel.aggregate(
@@ -2348,15 +2583,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       );
 
       const validClientIds = clientsWithPaymentType
-        .map((doc) => parseInt(doc.clientid))
+        .map((doc) => parseInt(doc._id))
         .filter((id) => !isNaN(id));
-
-      // Summarize result alongside presence of other filters
-      try {
-        const alongsideOtherFilters = baseFilter.length > 0;
-      } catch (_) {
-        // best-effort logging only
-      }
 
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
@@ -2834,12 +3062,16 @@ async function addDateFilters(baseFilter, advancedFilterData) {
     }
   }
   // Combined WMM Active/Expiry filter (works together across any of From/To)
+  // Skip this if payment type filters are also applied, as they handle the date constraints
+  const hasPaymentTypeFilters =
+    advancedFilterData.massPaid || advancedFilterData.cashPaid;
   if (
     (advancedFilterData.wmmActiveFromDate ||
       advancedFilterData.wmmActiveToDate ||
       advancedFilterData.wmmExpiringFromDate ||
       advancedFilterData.wmmExpiringToDate) &&
-    !combinedActiveExpiryHandled
+    !combinedActiveExpiryHandled &&
+    !hasPaymentTypeFilters
   ) {
     try {
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
