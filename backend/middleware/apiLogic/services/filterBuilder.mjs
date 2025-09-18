@@ -2640,9 +2640,28 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           },
         });
       } else if (massPaidSelected) {
+        // Mass paid only: include mass payments and explicitly exclude cash payments
         pipeline.push({ $match: massPaymentCondition });
+        pipeline.push({
+          $match: {
+            $expr: {
+              $lte: [{ $toDouble: { $ifNull: ["$paymtamt", 0] } }, 0],
+            },
+          },
+        });
       } else if (cashPaidSelected) {
+        // Cash paid only: include cash payments and explicitly exclude mass payments
         pipeline.push({ $match: cashPaymentCondition });
+        pipeline.push({
+          $match: {
+            $or: [
+              { paymtmasses: { $exists: false } },
+              { paymtmasses: null },
+              { paymtmasses: "" },
+              { paymtmasses: 0 },
+            ],
+          },
+        });
       }
 
       // Group by clientid to get unique clients
