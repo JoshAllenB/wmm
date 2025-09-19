@@ -346,15 +346,19 @@ const LabelItem = ({
       }}
     >
       <p style={commonParagraphStyle}>
-        {formatClientIdWithType(rowData.id, rowSubscriptionType)}
-        {!shouldHideExpiryAndCopies &&
+        {
+          isSpecialRole
+            ? (
+                isCMCGroup
+                  ? `${formatClientId(rowData.id)} - CMC`
+                  : `${formatClientId(rowData.id)}`
+              ) + (rowData.acode ? `/${rowData.acode}` : "")
+            : `${formatClientIdWithType(rowData.id, rowSubscriptionType)}$${"{"}`.slice(0,-2) /* placeholder to avoid template confusion */
+        }
+        {!isSpecialRole && !shouldHideExpiryAndCopies &&
           ` - ${enddate} - ${copies}cps/${rowData.acode || ""}`}
-        {shouldHideExpiryAndCopies &&
-          (isSpecialRole && isCMCGroup
-            ? `/${group}/${rowData.acode || ""}`
-            : rowData.acode
-            ? `/${rowData.acode}`
-            : "")}
+        {!isSpecialRole && shouldHideExpiryAndCopies &&
+          (rowData.acode ? `/${rowData.acode}` : "")}
       </p>
       <p style={commonParagraphStyle}>{getFullName(rowData)}</p>
       <p

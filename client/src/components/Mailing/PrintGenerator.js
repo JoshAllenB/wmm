@@ -265,28 +265,35 @@ export const generateLabelContent = (
   }
 
   // Check if user role should hide expiry and copies
-  const shouldHideExpiryAndCopies =
-    ["HRG", "FOM", "CAL"].some((role) => userRole?.includes(role)) ||
-    subscriptionType === "Promo" ||
-    subscriptionType === "Complimentary";
-
   const isSpecialRole = ["HRG", "FOM", "CAL"].some((role) =>
     userRole?.includes(role)
   );
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
-  const idTypeCode = getSubscriptionTypeCode(
-    data.subscriptionType || subscriptionType
-  );
-  const idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
-  const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
-    : isSpecialRole && isCMCGroup
-    ? `/${group}/${data.acode || ""}`
-    : data.acode
-    ? `/${data.acode}`
-    : "";
+  // Build ID line and trailing info
+  let idLine;
+  let expiryAndCopies;
+
+  if (isSpecialRole) {
+    // For HRG/FOM/CAL: only ClientID/areacode; if CMC group then "ClientID - CMC / areacode"
+    idLine = isCMCGroup
+      ? `${formatClientId(data.id)} - CMC`
+      : `${formatClientId(data.id)}`;
+    expiryAndCopies = data.acode ? `/${data.acode}` : "";
+  } else {
+    const shouldHideExpiryAndCopies =
+      subscriptionType === "Promo" || subscriptionType === "Complimentary";
+    const idTypeCode = getSubscriptionTypeCode(
+      data.subscriptionType || subscriptionType
+    );
+    idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
+    expiryAndCopies = !shouldHideExpiryAndCopies
+      ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+      : data.acode
+      ? `/${data.acode}`
+      : "";
+  }
 
   // Handle name and company display
   let nameLines = [];
@@ -368,29 +375,34 @@ const generateLabelTextContent = (
   }
 
   // ID line with expiry and copies logic
-  const idTypeCode = getSubscriptionTypeCode(
-    data.subscriptionType || subscriptionType
-  );
-  const idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
-
-  const shouldHideExpiryAndCopies =
-    ["HRG", "FOM", "CAL"].some((role) => userRole?.includes(role)) ||
-    subscriptionType === "Promo" ||
-    subscriptionType === "Complimentary";
-
   const isSpecialRole = ["HRG", "FOM", "CAL"].some((role) =>
     userRole?.includes(role)
   );
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
 
-  const expiryAndCopies = !shouldHideExpiryAndCopies
-    ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
-    : isSpecialRole && isCMCGroup
-    ? `/${group}/${data.acode || ""}`
-    : data.acode
-    ? `/${data.acode}`
-    : "";
+  let idLine;
+  let expiryAndCopies;
+
+  if (isSpecialRole) {
+    idLine = isCMCGroup
+      ? `${formatClientId(data.id)} - CMC`
+      : `${formatClientId(data.id)}`;
+    expiryAndCopies = data.acode ? `/${data.acode}` : "";
+  } else {
+    const idTypeCode = getSubscriptionTypeCode(
+      data.subscriptionType || subscriptionType
+    );
+    idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
+
+    const shouldHideExpiryAndCopies =
+      subscriptionType === "Promo" || subscriptionType === "Complimentary";
+    expiryAndCopies = !shouldHideExpiryAndCopies
+      ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
+      : data.acode
+      ? `/${data.acode}`
+      : "";
+  }
 
   // Name and company
   const fullName = getFullName(data);
