@@ -40,6 +40,9 @@ const TemplateSaver = ({
   // External triggers
   triggerUpdate,
   triggerDelete,
+
+  // UI state
+  showInputs,
 }) => {
   const [templateName, setTemplateName] = useState("");
   const [description, setDescription] = useState("");
@@ -52,6 +55,11 @@ const TemplateSaver = ({
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateTemplate, setDuplicateTemplate] = useState(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
+  // New UX states
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [changeSummary, setChangeSummary] = useState([]);
 
   // Update department when userRole changes
   useEffect(() => {
@@ -127,6 +135,106 @@ const TemplateSaver = ({
     }
   };
 
+  // Build current layout state object (for change comparison and saving)
+  const buildUnifiedLayout = () => {
+    return {
+      fontSize,
+      leftPosition,
+      topPosition,
+      columnWidth,
+      labelHeight,
+      horizontalSpacing,
+      rowSpacing,
+      paperWidth,
+      paperHeight,
+      rowsPerPage,
+      columnsPerPage,
+      labelWidthIn: labelAdjustments?.labelWidthIn ?? undefined,
+      topMargin: labelAdjustments?.topMargin ?? undefined,
+      rowSpacingLines: labelAdjustments?.rowSpacing ?? undefined,
+      col2X: labelAdjustments?.col2X ?? undefined,
+    };
+  };
+
+  // Compute a friendly change summary between selectedTemplate and current form values
+  const computeChangeSummary = () => {
+    if (!selectedTemplate) return [];
+    const before = {
+      name: selectedTemplate.name,
+      description: selectedTemplate.description || "",
+      department: selectedTemplate.department || "",
+      layout: selectedTemplate.layout || {},
+      selectedFields: Array.isArray(selectedTemplate.selectedFields)
+        ? selectedTemplate.selectedFields
+        : [],
+      selectedPrinter: selectedTemplate.selectedPrinter || "",
+    };
+    const after = {
+      name: templateName.trim(),
+      description: description.trim(),
+      department,
+      layout: buildUnifiedLayout(),
+      selectedFields: selectedFields || [],
+      selectedPrinter: selectedPrinter || "",
+    };
+
+    const changes = [];
+
+    // Simple fields
+    ["name", "description", "department", "selectedPrinter"].forEach((key) => {
+      if ((before[key] || "") !== (after[key] || "")) {
+        changes.push({
+          label: key,
+          before: before[key] || "—",
+          after: after[key] || "—",
+        });
+      }
+    });
+
+    // selectedFields comparison
+    const beforeFields = (before.selectedFields || []).slice().sort();
+    const afterFields = (after.selectedFields || []).slice().sort();
+    if (JSON.stringify(beforeFields) !== JSON.stringify(afterFields)) {
+      changes.push({
+        label: "selectedFields",
+        before: beforeFields.join(", ") || "—",
+        after: afterFields.join(", ") || "—",
+      });
+    }
+
+    // layout keys to compare
+    const layoutKeys = [
+      "fontSize",
+      "leftPosition",
+      "topPosition",
+      "columnWidth",
+      "labelHeight",
+      "horizontalSpacing",
+      "rowSpacing",
+      "paperWidth",
+      "paperHeight",
+      "rowsPerPage",
+      "columnsPerPage",
+      "labelWidthIn",
+      "topMargin",
+      "rowSpacingLines",
+      "col2X",
+    ];
+    layoutKeys.forEach((k) => {
+      const beforeVal = before.layout?.[k];
+      const afterVal = after.layout?.[k];
+      if (beforeVal !== afterVal) {
+        changes.push({
+          label: `layout.${k}`,
+          before: beforeVal ?? "—",
+          after: afterVal ?? "—",
+        });
+      }
+    });
+
+    return changes;
+  };
+
   // Handle template save/update
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) {
@@ -167,7 +275,10 @@ const TemplateSaver = ({
         }
       }
 
-      await performSave();
+      // Show review modal with changes before saving
+      const changes = computeChangeSummary();
+      setChangeSummary(changes);
+      setShowReviewModal(true);
       return;
     }
 
@@ -202,27 +313,7 @@ const TemplateSaver = ({
 
     try {
       // Save ONLY mailing label configuration in this component
-      const unifiedLayout = {
-        // Mailing label layout
-        fontSize,
-        leftPosition,
-        topPosition,
-        columnWidth,
-        labelHeight,
-        horizontalSpacing,
-        rowSpacing,
-        // Paper/page layout
-        paperWidth,
-        paperHeight,
-        rowsPerPage,
-        columnsPerPage,
-        // Raw printer specific adjustments (persisted for 'standard' previewType)
-        // These align with how templates are read in mailing.jsx
-        labelWidthIn: labelAdjustments?.labelWidthIn ?? undefined,
-        topMargin: labelAdjustments?.topMargin ?? undefined,
-        rowSpacingLines: labelAdjustments?.rowSpacing ?? undefined,
-        col2X: labelAdjustments?.col2X ?? undefined,
-      };
+      const unifiedLayout = buildUnifiedLayout();
 
       const templateData = {
         name: templateName.trim(),
@@ -275,6 +366,8 @@ const TemplateSaver = ({
       setDescription("");
       setShowForm(false);
       setIsUpdating(false);
+      setShowReviewModal(false);
+      setChangeSummary([]);
 
       if (onClose) {
         onClose();
@@ -300,6 +393,7 @@ const TemplateSaver = ({
       return;
     }
 
+    setDeleteConfirmText("");
     setShowDeleteModal(true);
   };
 
@@ -394,23 +488,7 @@ const TemplateSaver = ({
 
     try {
       // Update the existing template with new settings
-      const unifiedLayout = {
-        fontSize,
-        leftPosition,
-        topPosition,
-        columnWidth,
-        labelHeight,
-        horizontalSpacing,
-        rowSpacing,
-        paperWidth,
-        paperHeight,
-        rowsPerPage,
-        columnsPerPage,
-        labelWidthIn: labelAdjustments?.labelWidthIn ?? undefined,
-        topMargin: labelAdjustments?.topMargin ?? undefined,
-        rowSpacingLines: labelAdjustments?.rowSpacing ?? undefined,
-        col2X: labelAdjustments?.col2X ?? undefined,
-      };
+      const unifiedLayout = buildUnifiedLayout();
 
       const templateData = {
         name: templateName.trim(),
@@ -476,39 +554,90 @@ const TemplateSaver = ({
   if (!showForm) {
     return (
       <>
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {/* Save New Template Button */}
           <Button
             onClick={handleSaveClick}
-            variant="secondary"
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
-            Save Current Settings as Template
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            Save Current Settings as New Template
           </Button>
 
-          {selectedTemplate && (
-            <div className="flex gap-2">
-              <Button
-                onClick={handleUpdateClick}
-                variant="outline"
-                className="flex-1"
-              >
-                Update Selected Template
-              </Button>
-              <Button
-                onClick={handleDeleteTemplate}
-                variant="destructive"
-                disabled={isDeleting}
-                className="flex-1"
-              >
-                {isDeleting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Deleting...</span>
-                  </div>
-                ) : (
-                  "Delete Template"
-                )}
-              </Button>
+          {/* Template Management Section - Only show if a template is selected AND raw printer config is visible */}
+          {selectedTemplate && showInputs && (
+            <div className="border-t pt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">
+                  Managing:{" "}
+                  <span className="text-blue-600">{selectedTemplate.name}</span>
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleUpdateClick}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Update Template
+                </Button>
+                <Button
+                  onClick={handleDeleteTemplate}
+                  variant="destructive"
+                  disabled={isDeleting}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isDeleting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Deleting...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                      Delete Template
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           )}
         </div>
@@ -539,13 +668,40 @@ const TemplateSaver = ({
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   Delete Template
                 </h3>
-                <p className="text-sm text-gray-500 mb-6">
-                  Are you sure you want to delete the template{" "}
+                <p className="text-sm text-gray-500 mb-3">
+                  This will permanently delete{" "}
                   <span className="font-medium text-gray-900">
                     "{selectedTemplate?.name}"
                   </span>
-                  ? This action cannot be undone.
+                  . This action cannot be undone.
                 </p>
+
+                {/* Details */}
+                <div className="bg-gray-50 p-3 rounded-md text-left mb-4">
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <div>Department: {selectedTemplate?.department || "—"}</div>
+                    <div>
+                      Description: {selectedTemplate?.description || "—"}
+                    </div>
+                    <div>
+                      Printer: {selectedTemplate?.selectedPrinter || "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Type to confirm */}
+                <div className="text-left mb-4">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Type the template name to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder={selectedTemplate?.name}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                  />
+                </div>
 
                 <div className="flex gap-3 justify-center">
                   <Button
@@ -559,7 +715,11 @@ const TemplateSaver = ({
                   <Button
                     onClick={confirmDeleteTemplate}
                     variant="destructive"
-                    disabled={isDeleting}
+                    disabled={
+                      isDeleting ||
+                      deleteConfirmText.trim() !==
+                        (selectedTemplate?.name || "").trim()
+                    }
                     className="px-4 py-2"
                   >
                     {isDeleting ? (
@@ -583,9 +743,16 @@ const TemplateSaver = ({
   return (
     <>
       <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <h4 className="font-medium mb-3 text-gray-800">
-          {isUpdating ? "Update Template" : "Save Template"}
-        </h4>
+        <div className="flex items-center gap-2 mb-4">
+          <div
+            className={`w-3 h-3 rounded-full ${
+              isUpdating ? "bg-blue-500" : "bg-green-500"
+            }`}
+          ></div>
+          <h4 className="font-medium text-gray-800">
+            {isUpdating ? "Update Template" : "Save New Template"}
+          </h4>
+        </div>
 
         <div className="space-y-3">
           {/* Template Name */}
@@ -666,7 +833,11 @@ const TemplateSaver = ({
                 !templateName.trim() ||
                 !department
               }
-              className="flex-1"
+              className={`flex-1 ${
+                isUpdating
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-green-600 hover:bg-green-700 text-white"
+              }`}
             >
               {isCheckingDuplicate ? (
                 <div className="flex items-center gap-2">
@@ -679,24 +850,67 @@ const TemplateSaver = ({
                   <span>{isUpdating ? "Updating..." : "Saving..."}</span>
                 </div>
               ) : isUpdating ? (
-                "Update Template"
+                <>
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Review & Update
+                </>
               ) : (
-                "Save Template"
+                <>
+                  <svg
+                    className="w-4 h-4 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                  Save Template
+                </>
               )}
             </Button>
             <Button
               onClick={handleCancel}
               variant="outline"
               disabled={isSaving}
-              className="flex-1"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50"
             >
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
               Cancel
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (when editing form is open) */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
@@ -722,13 +936,34 @@ const TemplateSaver = ({
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 Delete Template
               </h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Are you sure you want to delete the template{" "}
+              <p className="text-sm text-gray-500 mb-3">
+                This will permanently delete{" "}
                 <span className="font-medium text-gray-900">
                   "{selectedTemplate?.name}"
                 </span>
-                ? This action cannot be undone.
+                . This action cannot be undone.
               </p>
+
+              <div className="bg-gray-50 p-3 rounded-md text-left mb-4">
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div>Department: {selectedTemplate?.department || "—"}</div>
+                  <div>Description: {selectedTemplate?.description || "—"}</div>
+                  <div>Printer: {selectedTemplate?.selectedPrinter || "—"}</div>
+                </div>
+              </div>
+
+              <div className="text-left mb-4">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Type the template name to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder={selectedTemplate?.name}
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                />
+              </div>
 
               <div className="flex gap-3 justify-center">
                 <Button
@@ -742,7 +977,11 @@ const TemplateSaver = ({
                 <Button
                   onClick={confirmDeleteTemplate}
                   variant="destructive"
-                  disabled={isDeleting}
+                  disabled={
+                    isDeleting ||
+                    deleteConfirmText.trim() !==
+                      (selectedTemplate?.name || "").trim()
+                  }
                   className="px-4 py-2"
                 >
                   {isDeleting ? (
@@ -868,6 +1107,84 @@ const TemplateSaver = ({
                   Cancel
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Changes Modal (for Update) */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-xl w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">
+              Review Changes
+            </h3>
+            <p className="text-sm text-gray-600 mb-4 text-center">
+              You're about to update "{selectedTemplate?.name}". Please review
+              the changes below.
+            </p>
+
+            <div className="max-h-80 overflow-auto border rounded-md">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-left">
+                    <th className="px-3 py-2 w-1/3">Field</th>
+                    <th className="px-3 py-2">From</th>
+                    <th className="px-3 py-2">To</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(changeSummary.length > 0
+                    ? changeSummary
+                    : [
+                        {
+                          label: "No changes detected",
+                          before: "—",
+                          after: "—",
+                        },
+                      ]
+                  ).map((c, idx) => (
+                    <tr
+                      key={idx}
+                      className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="px-3 py-2 font-medium text-gray-700">
+                        {c.label}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600 break-all">
+                        {String(c.before)}
+                      </td>
+                      <td className="px-3 py-2 text-gray-900 break-all">
+                        {String(c.after)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-2 justify-end mt-4">
+              <Button
+                onClick={() => setShowReviewModal(false)}
+                variant="outline"
+                className="px-4"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={performSave}
+                disabled={isSaving}
+                className="px-4"
+              >
+                {isSaving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Updating...</span>
+                  </div>
+                ) : (
+                  "Confirm Update"
+                )}
+              </Button>
             </div>
           </div>
         </div>
