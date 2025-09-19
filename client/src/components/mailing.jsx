@@ -316,7 +316,14 @@ const Mailing = ({
       }).length;
     }
     return 0;
-  }, [table, dataSource, availableRows, startClientId, endClientId, afterSpecifiedStart]);
+  }, [
+    table,
+    dataSource,
+    availableRows,
+    startClientId,
+    endClientId,
+    afterSpecifiedStart,
+  ]);
 
   // Remove the automatic useEffect for ID range
   // Add function to set range from selection
@@ -1939,6 +1946,7 @@ const Mailing = ({
                       onTemplateDeleted={handleTemplateDeleted}
                       triggerUpdate={triggerTemplateUpdate}
                       triggerDelete={triggerTemplateDelete}
+                      showInputs={showInputs}
                     />
                   </div>
 
@@ -1995,16 +2003,6 @@ const Mailing = ({
                       isLoading={isLoading}
                       onTemplateSelect={handleTemplateSelect}
                       userRole={userRole}
-                      onTemplateUpdate={(template) => {
-                        // Set the selected template and trigger update
-                        setSelectedTemplate(template);
-                        setTriggerTemplateUpdate(true);
-                      }}
-                      onTemplateDelete={(template) => {
-                        // Set the selected template and trigger delete
-                        setSelectedTemplate(template);
-                        setTriggerTemplateDelete(true);
-                      }}
                     />
                   </div>
 
@@ -2015,8 +2013,8 @@ const Mailing = ({
                       setStartClientId={setStartClientId}
                       endClientId={endClientId}
                       setEndClientId={setEndClientId}
-                    afterSpecifiedStart={afterSpecifiedStart}
-                    setAfterSpecifiedStart={setAfterSpecifiedStart}
+                      afterSpecifiedStart={afterSpecifiedStart}
+                      setAfterSpecifiedStart={setAfterSpecifiedStart}
                       startPosition={startPosition}
                       setStartPosition={setStartPosition}
                       availableRows={effectiveRows}
