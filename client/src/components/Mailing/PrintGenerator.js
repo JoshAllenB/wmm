@@ -190,7 +190,7 @@ export const getContactNumber = (data) => {
 import { formatClientId, getSubscriptionTypeCode } from "../../utils/clientId";
 
 // Common function to filter rows based on start/end Client IDs
-const filterRowsByClientId = (rows, startClientId, endClientId) => {
+const filterRowsByClientId = (rows, startClientId, endClientId, afterSpecifiedStart = false) => {
   return rows.filter((row) => {
     const clientId = row?.original?.id?.toString();
     if (!clientId) return false;
@@ -216,7 +216,9 @@ const filterRowsByClientId = (rows, startClientId, endClientId) => {
     }
 
     const isAfterStart = numericStartId
-      ? numericClientId >= numericStartId
+      ? afterSpecifiedStart
+        ? numericClientId > numericStartId
+        : numericClientId >= numericStartId
       : true;
     const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
     return isAfterStart && isBeforeEnd;
@@ -458,10 +460,16 @@ export const generatePrintHTML = (
   userRole,
   subscriptionType,
   rowsPerPage = 3,
-  columnsPerPage = 2
+  columnsPerPage = 2,
+  afterSpecifiedStart = false
 ) => {
   // Filter rows based on start/end Client IDs
-  const filteredRows = filterRowsByClientId(rows, startClientId, endClientId);
+  const filteredRows = filterRowsByClientId(
+    rows,
+    startClientId,
+    endClientId,
+    afterSpecifiedStart
+  );
 
   if (filteredRows.length === 0) {
     return `
@@ -637,7 +645,8 @@ export const generateCp850RawPrintContent = (
   columnsPerPage = 2, // Always default to 2 columns
   isPrintJobResumed = false,
   useCp850Encoding = true, // Enable CP850 encoding for special characters
-  labelAdjustments // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
+  labelAdjustments, // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
+  afterSpecifiedStart = false
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -662,7 +671,9 @@ export const generateCp850RawPrintContent = (
     }
 
     const isAfterStart = numericStartId
-      ? numericClientId >= numericStartId
+      ? afterSpecifiedStart
+        ? numericClientId > numericStartId
+        : numericClientId >= numericStartId
       : true;
     const isBeforeEnd = numericEndId ? numericClientId <= numericEndId : true;
     return isAfterStart && isBeforeEnd;

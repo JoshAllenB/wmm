@@ -8,6 +8,8 @@ const RangeSelector = ({
   setStartClientId,
   endClientId,
   setEndClientId,
+  afterSpecifiedStart = false,
+  setAfterSpecifiedStart = () => {},
   startPosition,
   setStartPosition,
   availableRows,
@@ -25,6 +27,7 @@ const RangeSelector = ({
           onClick={() => {
             setStartClientId("");
             setEndClientId("");
+            setAfterSpecifiedStart(false);
           }}
           className="flex-1"
         >
@@ -51,6 +54,18 @@ const RangeSelector = ({
             onChange={(e) => setStartClientId(e.target.value)}
             placeholder="Start ID"
           />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              id="afterSpecifiedId"
+              checked={!!afterSpecifiedStart}
+              onChange={(e) => {
+                const next = !!e.target.checked;
+                setAfterSpecifiedStart(() => next);
+              }}
+            />
+            After Specified ID
+          </label>
         </div>
 
         <div className="flex flex-col gap-2">

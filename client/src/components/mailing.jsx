@@ -113,6 +113,7 @@ const Mailing = ({
   const [startClientId, setStartClientId] = useState("");
   const [endClientId, setEndClientId] = useState("");
   const [startPosition, setStartPosition] = useState("left");
+  const [afterSpecifiedStart, setAfterSpecifiedStart] = useState(false);
 
   // Add paper size state (default to US Letter)
   const [paperWidth, setPaperWidth] = useState(215.9); // 8.5" in mm
@@ -305,13 +306,17 @@ const Mailing = ({
 
         const trimmedStartId = startClientId?.trim();
         const trimmedEndId = endClientId?.trim();
-        const isAfterStart = trimmedStartId ? clientId >= trimmedStartId : true;
+        const isAfterStart = trimmedStartId
+          ? afterSpecifiedStart
+            ? clientId > trimmedStartId
+            : clientId >= trimmedStartId
+          : true;
         const isBeforeEnd = trimmedEndId ? clientId <= trimmedEndId : true;
         return isAfterStart && isBeforeEnd;
       }).length;
     }
     return 0;
-  }, [table, dataSource, availableRows, startClientId, endClientId]);
+  }, [table, dataSource, availableRows, startClientId, endClientId, afterSpecifiedStart]);
 
   // Remove the automatic useEffect for ID range
   // Add function to set range from selection
@@ -900,7 +905,8 @@ const Mailing = ({
         2, // Always use 2 columns for raw
         false, // isPrintJobResumed
         true, // useCp850Encoding
-        labelAdjustments // Pass label adjustments
+        labelAdjustments, // Pass label adjustments
+        afterSpecifiedStart
       );
 
       // Use printer from template if available, otherwise use selected printer
@@ -2009,6 +2015,8 @@ const Mailing = ({
                       setStartClientId={setStartClientId}
                       endClientId={endClientId}
                       setEndClientId={setEndClientId}
+                    afterSpecifiedStart={afterSpecifiedStart}
+                    setAfterSpecifiedStart={setAfterSpecifiedStart}
                       startPosition={startPosition}
                       setStartPosition={setStartPosition}
                       availableRows={effectiveRows}

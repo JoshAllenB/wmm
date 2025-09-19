@@ -386,7 +386,7 @@ const RawPrinterControls = ({
   endClientId,
   startPosition,
   rows,
-  selectedFields,
+  selectedFields = [],
   userRole,
   subscriptionType,
   rowsPerPage = 3,

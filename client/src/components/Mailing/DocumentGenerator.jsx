@@ -26,6 +26,8 @@ const DocumentGenerator = ({
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [renewalNoticeConfig, setRenewalNoticeConfig] = useState(null);
   const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
+  const [skippedData, setSkippedData] = useState([]);
+  const [showSkippedData, setShowSkippedData] = useState(false);
 
   const [isLoadingAllRecords, setIsLoadingAllRecords] = useState(false);
 

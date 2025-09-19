@@ -278,6 +278,8 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [localStartId, setLocalStartId] = useState("");
     const [localEndId, setLocalEndId] = useState("");
     const [localStartPosition, setLocalStartPosition] = useState("left");
+    const [afterSpecifiedStart, setAfterSpecifiedStart] = useState(false);
+
 
     // Derive effective IDs: prefer local if set, else props
     const effectiveStartId =
@@ -345,7 +347,9 @@ const RenewalNoticeDataOverlay = forwardRef(
           }
 
           const isAfterStart = numericStartId
-            ? numericClientId >= numericStartId
+            ? afterSpecifiedStart
+              ? numericClientId > numericStartId
+              : numericClientId >= numericStartId
             : true;
           const isBeforeEnd = numericEndId
             ? numericClientId <= numericEndId
@@ -1330,6 +1334,8 @@ const RenewalNoticeDataOverlay = forwardRef(
                   setStartClientId={setLocalStartId}
                   endClientId={localEndId}
                   setEndClientId={setLocalEndId}
+                  afterSpecifiedStart={afterSpecifiedStart}
+                  setAfterSpecifiedStart={setAfterSpecifiedStart}
                   startPosition={localStartPosition}
                   setStartPosition={setLocalStartPosition}
                   availableRows={availableRows}
