@@ -139,7 +139,7 @@ const DateRangeFilter = ({
                   name="wmmActiveFromMonth"
                   value={filterData.wmmActiveFromMonth}
                   onChange={handleChange}
-                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Month</option>
                   {monthOptions}
@@ -152,7 +152,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmActiveFromDay}
                 onChange={handleChange}
                 placeholder="DD"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="2"
               />
               <input
@@ -162,7 +162,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmActiveFromYear}
                 onChange={handleChange}
                 placeholder="YYYY"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="4"
               />
             </div>
@@ -178,7 +178,7 @@ const DateRangeFilter = ({
                   name="wmmActiveToMonth"
                   value={filterData.wmmActiveToMonth}
                   onChange={handleChange}
-                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Month</option>
                   {monthOptions}
@@ -191,7 +191,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmActiveToDay}
                 onChange={handleChange}
                 placeholder="DD"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="2"
               />
               <input
@@ -201,7 +201,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmActiveToYear}
                 onChange={handleChange}
                 placeholder="YYYY"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="4"
               />
             </div>
@@ -289,7 +289,7 @@ const DateRangeFilter = ({
                   name="wmmExpiringFromMonth"
                   value={filterData.wmmExpiringFromMonth}
                   onChange={handleChange}
-                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Month</option>
                   {monthOptions}
@@ -302,7 +302,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmExpiringFromDay}
                 onChange={handleChange}
                 placeholder="DD"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="2"
               />
               <input
@@ -312,7 +312,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmExpiringFromYear}
                 onChange={handleChange}
                 placeholder="YYYY"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="4"
               />
             </div>
@@ -328,7 +328,7 @@ const DateRangeFilter = ({
                   name="wmmExpiringToMonth"
                   value={filterData.wmmExpiringToMonth}
                   onChange={handleChange}
-                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 >
                   <option value="">Month</option>
                   {monthOptions}
@@ -341,7 +341,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmExpiringToDay}
                 onChange={handleChange}
                 placeholder="DD"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="2"
               />
               <input
@@ -351,7 +351,7 @@ const DateRangeFilter = ({
                 value={filterData.wmmExpiringToYear}
                 onChange={handleChange}
                 placeholder="YYYY"
-                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-blue-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className="w-full p-2 text-base font-bold border-[2px] rounded-md border-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                 maxLength="4"
               />
             </div>
