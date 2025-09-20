@@ -19,14 +19,12 @@ class BackupNotificationService {
    */
   initialize(webSocketService) {
     if (this.isInitialized) {
-      console.log("Backup notification service already initialized, skipping");
       return;
     }
 
     this.webSocketService = webSocketService;
     this.setupEventHandlers();
     this.isInitialized = true;
-    console.log("Backup notification service initialized successfully");
   }
 
   /**
@@ -35,25 +33,21 @@ class BackupNotificationService {
   setupEventHandlers() {
     // Handle backup started event
     this.eventHandlers.set("backup-started", (data) => {
-      console.log("Backup started event received", data);
       this.handleBackupStarted(data);
     });
 
     // Handle backup completed event
     this.eventHandlers.set("backup-completed", (data) => {
-      console.log("Backup completed event received", data);
       this.handleBackupCompleted(data);
     });
 
     // Handle backup error event
     this.eventHandlers.set("backup-error", (data) => {
-      console.log("Backup error event received", data);
       this.handleBackupError(data);
     });
 
     // Subscribe to all backup events
     this.eventHandlers.forEach((handler, event) => {
-      console.log("Subscribing to event", event);
       this.webSocketService.subscribe(event, handler);
     });
   }
@@ -63,7 +57,6 @@ class BackupNotificationService {
    * @param {Object} data - Event data
    */
   handleBackupStarted(data) {
-    console.log("Handling backup started event", data);
     toast({
       title: "🔄 Backup Started",
       description: data.message || "Automatic backup is in progress...",
@@ -113,7 +106,6 @@ class BackupNotificationService {
     this.eventHandlers.clear();
     this.isInitialized = false;
     this.webSocketService = null;
-    console.log("Backup notification service destroyed successfully");
   }
 }
 

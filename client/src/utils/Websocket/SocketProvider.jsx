@@ -106,7 +106,6 @@ export const SocketProvider = ({ children }) => {
 
       // Initialize backup notification service
       backupNotificationService.initialize(webSocketService);
-      console.log("Backup notification service initialized");
 
       return () => {
         events.forEach((event) => {
@@ -114,7 +113,6 @@ export const SocketProvider = ({ children }) => {
         });
         // Cleanup backup notification service
         backupNotificationService.destroy();
-        console.log("Backup notification service destroyed");
       };
     }
   }, [connectionStatus.connected]);
