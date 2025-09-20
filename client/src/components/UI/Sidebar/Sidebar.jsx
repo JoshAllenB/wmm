@@ -77,6 +77,12 @@ export default function MenuSidebar({
     return hasRole("WMM") || hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
   };
 
+  const hasDonorAccess = () => {
+    // Users with WMM role can access donors
+    // Users with only Admin or only Accounting roles cannot access donors
+    return hasRole("WMM");
+  };
+
   useEffect(() => {
     if (location.pathname === "/" || location.pathname === "/login") {
       if (hasClientManagementRole()) {
@@ -194,14 +200,16 @@ export default function MenuSidebar({
             >
               All Clients
             </MenuItem>
-            <MenuItem
-              icon={<VolunteerActivismIcon />}
-              component={<Link to="/donor" />}
-              onClick={() => handleSelect("Donor")}
-              active={selected === "Donor"}
-            >
-              Donor List
-            </MenuItem>
+            {hasDonorAccess() && (
+              <MenuItem
+                icon={<VolunteerActivismIcon />}
+                component={<Link to="/donor" />}
+                onClick={() => handleSelect("Donor")}
+                active={selected === "Donor"}
+              >
+                Donor List
+              </MenuItem>
+            )}
 
             {hasRole("Accounting") && (
               <MenuItem
