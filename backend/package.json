@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "version": "node ../scripts/write-version.mjs"
+    "version": "node ../scripts/write-version.mjs",
+    "backup:test": "node test-backup.mjs",
+    "backup:create": "node utils/backup-manager.mjs create",
+    "backup:list": "node utils/backup-manager.mjs list",
+    "backup:cleanup": "node utils/backup-manager.mjs cleanup",
+    "backup:status": "node utils/backup-manager.mjs status"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +22,7 @@
     "bcryptjs": "^2.4.3",
     "chalk": "^4.1.2",
     "cli-progress": "^3.12.0",
+    "commander": "^12.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "escpos": "^3.0.0-alpha.6",
@@ -27,6 +33,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.3.2",
     "node-cache": "^5.1.2",
+    "node-cron": "^4.2.1",
     "nodemon": "^3.1.0",
     "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5",

@@ -23,6 +23,8 @@ import clientLogsRoutes from "./middleware/users/clientLogs.mjs";
 import accountingRoutes from "./middleware/accounting/api.mjs";
 import donorRoute from "./middleware/donorData/api.mjs";
 import printQueueRoutes from "./middleware/printQueue.mjs";
+import backupRoutes from "./middleware/backup/backup.mjs";
+import { initializeBackupService } from "./utils/database-backup.mjs";
 
 dotenv.config();
 
@@ -82,6 +84,7 @@ app.use("/data-export", attachIO, dataExportRoutes);
 app.use("/client-logs", attachIO, clientLogsRoutes);
 app.use("/accounting", attachIO, accountingRoutes);
 app.use("/donor-data", attachIO, donorRoute);
+app.use("/api/backup", attachIO, backupRoutes);
 
 app.use(
   express.static(path.join(__dirname, "../client/dist"), {
@@ -99,6 +102,10 @@ app.get("*", (req, res) => {
 const PORT = process.env.SERVER_PORT;
 const IP = process.env.SERVER_IP;
 
+// Initialize backup service
+initializeBackupService();
+
 server.listen(PORT, IP, () => {
   console.log(`Server is running on http://${IP}:${PORT}`);
+  console.log(`Database backup service initialized`);
 });
