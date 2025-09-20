@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useSocket } from "../../utils/Websocket/useSocket";
 import { Link2, Link2Off } from "lucide-react";
 
@@ -12,6 +12,27 @@ const ConnectionStatus = ({ showDetails = false }) => {
     getReconnectAttempts,
     getMaxReconnectAttempts,
   } = useSocket();
+
+  const [versionData, setVersionData] = useState(null);
+  const [isLoadingVersion, setIsLoadingVersion] = useState(true);
+
+  useEffect(() => {
+    const loadVersionData = async () => {
+      try {
+        const response = await fetch("/version.json");
+        if (response.ok) {
+          const data = await response.json();
+          setVersionData(data);
+        }
+      } catch (error) {
+        console.warn("Could not load version data:", error);
+      } finally {
+        setIsLoadingVersion(false);
+      }
+    };
+
+    loadVersionData();
+  }, []);
 
   const getStatusColor = () => {
     if (connected) return "text-green-600";
@@ -52,6 +73,12 @@ const ConnectionStatus = ({ showDetails = false }) => {
             }`}
           ></div>
         </div>
+        {/* Version info - only show when sidebar is expanded */}
+        {!isLoadingVersion && versionData && showDetails && (
+          <div className="ml-3 text-xs text-gray-500 opacity-60">
+            v{versionData.version} {versionData.commit}
+          </div>
+        )}
       </div>
     );
   }
@@ -141,6 +168,14 @@ const ConnectionStatus = ({ showDetails = false }) => {
             <span>ID:</span>
             <span className="font-mono text-xs truncate max-w-20">
               {connectionStatus.connectionId.slice(-8)}
+            </span>
+          </div>
+        )}
+        {!isLoadingVersion && versionData && (
+          <div className="flex justify-between">
+            <span>Version:</span>
+            <span className="font-bold text-xs">
+              v{versionData.version} {versionData.commit}
             </span>
           </div>
         )}

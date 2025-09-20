@@ -19,7 +19,6 @@ import { SocketProvider } from "../utils/Websocket/SocketProvider";
 import Modal from "./modal";
 import { Toaster } from "../components/UI/ShadCN/toaster";
 import { UserProvider } from "../utils/Hooks/userProvider.jsx";
-import Footer from "./UI/Footer";
 
 const App = () => {
   const [isSidebar, setIsSidebar] = useState(true);
@@ -165,7 +164,6 @@ const App = () => {
                   {memoizedErrorModal}
                   {memoizedRoutes}
                 </div>
-                {isLoggedIn && <Footer />}
               </div>
             </BrowserRouter>
             <Toaster />
