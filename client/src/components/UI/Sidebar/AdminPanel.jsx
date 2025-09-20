@@ -17,6 +17,7 @@ import {
 import userService from "../../../services/userService";
 import { toast } from "react-hot-toast";
 import LogsView from "../Logs/LogsView";
+import BackupManager from "../Backup/BackupManager";
 
 const AdminPanel = () => {
   const [users, setUsers] = useState([]);
@@ -39,7 +40,7 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("users");
   const [dataInitialized, setDataInitialized] = useState({
     users: false,
-    roles: false
+    roles: false,
   });
   const [selectedRole, setSelectedRole] = useState(null);
   const [showEditRoleModal, setShowEditRoleModal] = useState(false);
@@ -51,25 +52,29 @@ const AdminPanel = () => {
       setError(null);
       try {
         const response = await userService.getRoles();
-        
+
         // Ensure we have an array of roles
         let rolesArray = [];
         if (Array.isArray(response)) {
           rolesArray = response;
         } else if (response?.roles && Array.isArray(response.roles)) {
           rolesArray = response.roles;
-        } else if (response?.data?.roles && Array.isArray(response.data.roles)) {
+        } else if (
+          response?.data?.roles &&
+          Array.isArray(response.data.roles)
+        ) {
           rolesArray = response.data.roles;
-        } else if (typeof response === 'object' && response !== null) {
+        } else if (typeof response === "object" && response !== null) {
           rolesArray = [response];
         }
-        
+
         setRoles(rolesArray);
-        setDataInitialized(prev => ({ ...prev, roles: true }));
+        setDataInitialized((prev) => ({ ...prev, roles: true }));
         return rolesArray;
       } catch (err) {
         console.error("Error fetching roles:", err);
-        const errorMessage = err.response?.data?.error || err.message || "Failed to load roles";
+        const errorMessage =
+          err.response?.data?.error || err.message || "Failed to load roles";
         setError(errorMessage);
         toast.error(errorMessage);
         return [];
@@ -87,14 +92,22 @@ const AdminPanel = () => {
       setError(null);
       try {
         const response = await userService.getUsers();
-        const fetchedUsers = Array.isArray(response) ? response : response.data || [];
+        const fetchedUsers = Array.isArray(response)
+          ? response
+          : response.data || [];
         setUsers(fetchedUsers);
         setFilteredUsers(fetchedUsers);
 
         // Calculate stats
-        const activeUsers = fetchedUsers.filter((user) => user.status === "Active").length;
-        const inactiveUsers = fetchedUsers.filter((user) => user.status === "Inactive").length;
-        const loggedOffUsers = fetchedUsers.filter((user) => user.status === "Logged Off").length;
+        const activeUsers = fetchedUsers.filter(
+          (user) => user.status === "Active"
+        ).length;
+        const inactiveUsers = fetchedUsers.filter(
+          (user) => user.status === "Inactive"
+        ).length;
+        const loggedOffUsers = fetchedUsers.filter(
+          (user) => user.status === "Logged Off"
+        ).length;
 
         setStats({
           totalUsers: fetchedUsers.length,
@@ -103,7 +116,7 @@ const AdminPanel = () => {
           loggedOffUsers,
         });
 
-        setDataInitialized(prev => ({ ...prev, users: true }));
+        setDataInitialized((prev) => ({ ...prev, users: true }));
         return fetchedUsers;
       } catch (err) {
         console.error("Error fetching users:", err);
@@ -144,8 +157,10 @@ const AdminPanel = () => {
   }, [searchTerm, statusFilter, users]);
 
   const handleDeleteSuccess = useCallback((deletedUserId) => {
-    setUsers((prevUsers) => prevUsers.filter((user) => user._id !== deletedUserId));
-    setDataInitialized(prev => ({ ...prev, users: false }));
+    setUsers((prevUsers) =>
+      prevUsers.filter((user) => user._id !== deletedUserId)
+    );
+    setDataInitialized((prev) => ({ ...prev, users: false }));
     toast.success("User deleted successfully");
   }, []);
 
@@ -170,8 +185,10 @@ const AdminPanel = () => {
   }, []);
 
   const handleRoleDeleteSuccess = useCallback((deletedRoleId) => {
-    setRoles((prevRoles) => prevRoles.filter((role) => role._id !== deletedRoleId));
-    setDataInitialized(prev => ({ ...prev, roles: false }));
+    setRoles((prevRoles) =>
+      prevRoles.filter((role) => role._id !== deletedRoleId)
+    );
+    setDataInitialized((prev) => ({ ...prev, roles: false }));
   }, []);
 
   return (
@@ -207,6 +224,16 @@ const AdminPanel = () => {
           onClick={() => setActiveTab("logs")}
         >
           Activity Logs
+        </button>
+        <button
+          className={`px-4 py-2 ${
+            activeTab === "backup"
+              ? "border-b-2 border-blue-500 text-blue-600"
+              : "text-gray-600 hover:text-blue-500"
+          }`}
+          onClick={() => setActiveTab("backup")}
+        >
+          Database Backup
         </button>
       </div>
 
@@ -296,9 +323,13 @@ const AdminPanel = () => {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Roles</h2>
-            <AddRole onRoleAdded={() => setDataInitialized(prev => ({ ...prev, roles: false }))} />
+            <AddRole
+              onRoleAdded={() =>
+                setDataInitialized((prev) => ({ ...prev, roles: false }))
+              }
+            />
           </div>
-          
+
           {error ? (
             <div
               className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative mb-4"
@@ -331,6 +362,8 @@ const AdminPanel = () => {
             />
           )}
         </div>
+      ) : activeTab === "backup" ? (
+        <BackupManager />
       ) : (
         <LogsView />
       )}

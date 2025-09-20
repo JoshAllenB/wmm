@@ -11,6 +11,7 @@ import Donor from "./UI/Sidebar/Donor";
 import Area from "./UI/Sidebar/Area";
 import GroupManagement from "./CRUD/Group";
 import DataExport from "../components/DataExport";
+import BackupPage from "./UI/Backup/BackupPage";
 import validateToken from "../utils/Token/validateToken";
 import { syncTokens } from "../utils/Token/tokenStorage";
 import ActivityMonitor from "../utils/ActivityMonitor";
@@ -107,6 +108,12 @@ const App = () => {
           path="/data-export"
           element={
             isLoggedIn ? <DataExport /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/backup"
+          element={
+            isLoggedIn ? <BackupPage /> : <Navigate to="/login" replace />
           }
         />
       </Routes>

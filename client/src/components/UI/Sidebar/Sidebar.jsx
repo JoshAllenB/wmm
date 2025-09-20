@@ -16,6 +16,7 @@ import ListIcon from "@mui/icons-material/List";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import DownloadIcon from "@mui/icons-material/Download";
 import PeopleIcon from "@mui/icons-material/People";
+import BackupIcon from "@mui/icons-material/Backup";
 import AccountCircleSharpIcon from "@mui/icons-material/AccountCircleSharp";
 import VolunteerActivismIcon from "@mui/icons-material/VolunteerActivism";
 import { useUser } from "../../../utils/Hooks/userProvider";
@@ -72,6 +73,10 @@ export default function MenuSidebar({
     return hasRole("WMM") || hasRole("HRG") || hasRole("CAL");
   };
 
+  const hasBackupAccess = () => {
+    return hasRole("WMM") || hasRole("HRG") || hasRole("FOM") || hasRole("CAL");
+  };
+
   useEffect(() => {
     if (location.pathname === "/" || location.pathname === "/login") {
       if (hasClientManagementRole()) {
@@ -95,6 +100,7 @@ export default function MenuSidebar({
         "/area": "Area",
         "/group": "Group",
         "/data-export": "Data Export",
+        "/backup": "Backup",
       };
       setSelected(pathToSelected[location.pathname] || "Dashboard");
     }
@@ -227,6 +233,17 @@ export default function MenuSidebar({
                 active={selected === "Data Export"}
               >
                 Data Export
+              </MenuItem>
+            )}
+
+            {hasBackupAccess() && (
+              <MenuItem
+                icon={<BackupIcon />}
+                component={<Link to="/backup" />}
+                onClick={() => handleSelect("Backup")}
+                active={selected === "Backup"}
+              >
+                Backup
               </MenuItem>
             )}
 
