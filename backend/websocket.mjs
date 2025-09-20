@@ -62,10 +62,51 @@ const initWebSocket = (io) => {
   io.engine.pingInterval = 25000;
 
   io.on("connection", (socket) => {
-    const { userId, username, sessionId, connectionId, reconnectAttempt } =
-      socket.handshake.query;
+    const {
+      userId,
+      username,
+      sessionId,
+      connectionId,
+      reconnectAttempt,
+      isBackupManager,
+    } = socket.handshake.query;
 
-    // Validate connection data
+    // Special handling for backup manager connections
+    if (isBackupManager === "true") {
+
+      // Handle backup events from backup manager
+      socket.on("backup-started", (data) => {
+        console.log(
+          "[Socket] Backup started event received from backup manager:",
+          data
+        );
+        io.emit("backup-started", data);
+      });
+
+      socket.on("backup-completed", (data) => {
+        console.log(
+          "[Socket] Backup completed event received from backup manager:",
+          data
+        );
+        io.emit("backup-completed", data);
+      });
+
+      socket.on("backup-error", (data) => {
+        console.log(
+          "[Socket] Backup error event received from backup manager:",
+          data
+        );
+        io.emit("backup-error", data);
+      });
+
+      socket.on("disconnect", () => {
+        console.log("[Socket] Backup manager disconnected");
+      });
+
+      return;
+    }
+
+    // Validate connection data for regular users
     if (
       !sessionId ||
       !userId ||
