@@ -2,6 +2,7 @@ import { useEffect, useState, useContext, useCallback } from "react";
 import { SocketContext } from "./SocketContext";
 import { webSocketService } from "../../services/WebSocketService";
 import { useUser } from "../Hooks/userProvider";
+import backupNotificationService from "../../services/BackupNotificationService";
 
 export const SocketProvider = ({ children }) => {
   const [socketData, setSocketData] = useState(null);
@@ -103,10 +104,17 @@ export const SocketProvider = ({ children }) => {
         webSocketService.subscribe(event, handleSocketData);
       });
 
+      // Initialize backup notification service
+      backupNotificationService.initialize(webSocketService);
+      console.log("Backup notification service initialized");
+
       return () => {
         events.forEach((event) => {
           webSocketService.unsubscribe(event, handleSocketData);
         });
+        // Cleanup backup notification service
+        backupNotificationService.destroy();
+        console.log("Backup notification service destroyed");
       };
     }
   }, [connectionStatus.connected]);
