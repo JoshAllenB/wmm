@@ -46,6 +46,21 @@ class BackupNotificationService {
       this.handleBackupError(data);
     });
 
+    // Handle restore started event
+    this.eventHandlers.set("restore-started", (data) => {
+      this.handleRestoreStarted(data);
+    });
+
+    // Handle restore completed event
+    this.eventHandlers.set("restore-completed", (data) => {
+      this.handleRestoreCompleted(data);
+    });
+
+    // Handle restore error event
+    this.eventHandlers.set("restore-error", (data) => {
+      this.handleRestoreError(data);
+    });
+
     // Subscribe to all backup events
     this.eventHandlers.forEach((handler, event) => {
       this.webSocketService.subscribe(event, handler);
@@ -61,6 +76,12 @@ class BackupNotificationService {
       title: "🔄 Backup Started",
       description: data.message || "Automatic backup is in progress...",
       duration: 3000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          <span className="text-xs text-gray-500">Processing...</span>
+        </div>
+      ),
     });
   }
 
@@ -78,6 +99,12 @@ class BackupNotificationService {
       title: "✅ Backup Completed",
       description: `${successMessage} (${data.sizeFormatted})`,
       duration: 5000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-gray-500">Ready</span>
+        </div>
+      ),
     });
   }
 
@@ -86,11 +113,78 @@ class BackupNotificationService {
    * @param {Object} data - Event data
    */
   handleBackupError(data) {
+    console.error("❌ Backup error via WebSocket:", data);
+
     toast({
       title: "❌ Backup Failed",
       description: data.error || "An error occurred during automatic backup",
       variant: "destructive",
       duration: 7000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-gray-500">Error</span>
+        </div>
+      ),
+    });
+  }
+
+  /**
+   * Handle restore started event
+   * @param {Object} data - Event data
+   */
+  handleRestoreStarted(data) {
+    toast({
+      title: "🔄 Restore Started",
+      description: data.message || "Database restore is in progress...",
+      duration: 3000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
+          <span className="text-xs text-gray-500">Restoring...</span>
+        </div>
+      ),
+    });
+  }
+
+  /**
+   * Handle restore completed event
+   * @param {Object} data - Event data
+   */
+  handleRestoreCompleted(data) {
+    const successMessage = data.message || "Database restored successfully";
+
+    toast({
+      title: "✅ Restore Completed",
+      description: successMessage,
+      duration: 5000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-gray-500">Ready</span>
+        </div>
+      ),
+    });
+  }
+
+  /**
+   * Handle restore error event
+   * @param {Object} data - Event data
+   */
+  handleRestoreError(data) {
+    console.error("❌ Restore error via WebSocket:", data);
+
+    toast({
+      title: "❌ Restore Failed",
+      description: data.error || "An error occurred during database restore",
+      variant: "destructive",
+      duration: 7000,
+      action: (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-gray-500">Error</span>
+        </div>
+      ),
     });
   }
 
