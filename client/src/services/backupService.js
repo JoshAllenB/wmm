@@ -213,6 +213,86 @@ const backupService = {
       throw error;
     }
   },
+
+  // Restore database(s) from backup
+  restoreFromBackup: async (backupId, options = {}) => {
+    try {
+      const response = await apiClient.post(
+        `/api/backup/restore/${backupId}`,
+        options
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error restoring from backup:", error);
+      throw error;
+    }
+  },
+
+  // Restore a specific database from backup
+  restoreDatabase: async (backupId, database, options = {}) => {
+    try {
+      const response = await apiClient.post(
+        `/api/backup/restore-database/${backupId}`,
+        {
+          database,
+          ...options,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error restoring database:", error);
+      throw error;
+    }
+  },
+
+  // Restore all databases from a full backup
+  restoreFullBackup: async (backupId, options = {}) => {
+    try {
+      const response = await apiClient.post(
+        `/api/backup/restore-full/${backupId}`,
+        options
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error restoring full backup:", error);
+      throw error;
+    }
+  },
+
+  // Validate a backup for restore operations
+  validateBackup: async (backupId, database = null) => {
+    try {
+      const params = database ? { database } : {};
+      const response = await apiClient.get(`/api/backup/validate/${backupId}`, {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error validating backup:", error);
+      throw error;
+    }
+  },
+
+  // Perform comprehensive safety validation before restore
+  safetyCheck: async (backupId, database = null, options = {}) => {
+    try {
+      const params = {
+        ...(database ? { database } : {}),
+        ...(options.skipConfirmation ? { skipConfirmation: true } : {}),
+        ...(options.force ? { force: true } : {}),
+      };
+      const response = await apiClient.get(
+        `/api/backup/safety-check/${backupId}`,
+        {
+          params,
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Error performing safety check:", error);
+      throw error;
+    }
+  },
 };
 
 export default backupService;

@@ -30,6 +30,11 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
+  RotateCcw,
+  Shield,
+  Upload,
+  Info,
+  AlertTriangle,
 } from "lucide-react";
 
 const UserBackup = () => {
@@ -43,6 +48,19 @@ const UserBackup = () => {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Restore-related state
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showSafetyCheckDialog, setShowSafetyCheckDialog] = useState(false);
+  const [backupToRestore, setBackupToRestore] = useState(null);
+  const [restoreOptions, setRestoreOptions] = useState({
+    drop: false,
+  });
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isSafetyChecking, setIsSafetyChecking] = useState(false);
+  const [safetyValidation, setSafetyValidation] = useState(null);
+  const [restoreProgress, setRestoreProgress] = useState(0);
+  const [restoreStatus, setRestoreStatus] = useState("");
 
   // Fetch backup list
   const fetchBackups = useCallback(async () => {
@@ -129,6 +147,161 @@ const UserBackup = () => {
     }
   };
 
+  // Restore backup functions
+  const handleRestoreBackup = (backup) => {
+    setBackupToRestore(backup);
+    setRestoreOptions({
+      drop: false,
+    });
+    setShowRestoreDialog(true);
+  };
+
+  const handleSafetyCheck = async () => {
+    if (!backupToRestore) return;
+
+    setIsSafetyChecking(true);
+    setError(null);
+
+    try {
+      const validation = await backupService.safetyCheck(backupToRestore.id);
+
+      setSafetyValidation(validation);
+      setShowSafetyCheckDialog(true);
+    } catch (err) {
+      console.error("Error performing safety check:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to perform safety check";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSafetyChecking(false);
+    }
+  };
+
+  const confirmRestore = async () => {
+    if (!backupToRestore) return;
+
+    setIsRestoring(true);
+    setError(null);
+    setRestoreProgress(0);
+    setRestoreStatus("Initializing restore...");
+
+    // Simulate progress updates with status messages
+    const progressInterval = setInterval(() => {
+      setRestoreProgress((prev) => {
+        if (prev >= 90) return prev; // Don't go to 100% until completion
+
+        // Update status based on progress
+        if (prev < 20) {
+          setRestoreStatus("Connecting to database...");
+        } else if (prev < 40) {
+          setRestoreStatus("Preparing restore operation...");
+        } else if (prev < 60) {
+          setRestoreStatus("Restoring collections...");
+        } else if (prev < 80) {
+          setRestoreStatus("Restoring indexes...");
+        } else {
+          setRestoreStatus("Finalizing restore...");
+        }
+
+        return prev + Math.random() * 15;
+      });
+    }, 500);
+
+    try {
+      const result = await backupService.restoreFullBackup(backupToRestore.id, {
+        ...restoreOptions,
+        skipSafetyCheck: true, // Skip safety check since we already validated
+      });
+
+      setRestoreProgress(100);
+      setRestoreStatus("Restore completed successfully!");
+
+      toast.success("Database restored successfully!");
+      setShowRestoreDialog(false);
+      setShowSafetyCheckDialog(false);
+      setBackupToRestore(null);
+      setSafetyValidation(null);
+      await fetchBackups(); // Refresh the list
+    } catch (err) {
+      console.error("❌ Restore failed:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to restore backup";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      clearInterval(progressInterval);
+      setIsRestoring(false);
+      setRestoreProgress(0);
+      setRestoreStatus("");
+    }
+  };
+
+  const forceRestore = async () => {
+    if (!backupToRestore) return;
+
+    setIsRestoring(true);
+    setError(null);
+    setRestoreProgress(0);
+    setRestoreStatus("Initializing force restore...");
+
+    // Simulate progress updates with status messages
+    const progressInterval = setInterval(() => {
+      setRestoreProgress((prev) => {
+        if (prev >= 90) return prev; // Don't go to 100% until completion
+
+        // Update status based on progress
+        if (prev < 20) {
+          setRestoreStatus("Connecting to database...");
+        } else if (prev < 40) {
+          setRestoreStatus("Preparing force restore operation...");
+        } else if (prev < 60) {
+          setRestoreStatus("Force restoring collections...");
+        } else if (prev < 80) {
+          setRestoreStatus("Restoring indexes...");
+        } else {
+          setRestoreStatus("Finalizing force restore...");
+        }
+
+        return prev + Math.random() * 15;
+      });
+    }, 500);
+
+    try {
+      const result = await backupService.restoreFullBackup(backupToRestore.id, {
+        ...restoreOptions,
+        force: true,
+      });
+
+      setRestoreProgress(100);
+      setRestoreStatus("Force restore completed successfully!");
+
+      toast.success("Database restored successfully!");
+      setShowRestoreDialog(false);
+      setShowSafetyCheckDialog(false);
+      setBackupToRestore(null);
+      setSafetyValidation(null);
+      await fetchBackups(); // Refresh the list
+    } catch (err) {
+      console.error("❌ Force restore failed:", err);
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to restore backup";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      clearInterval(progressInterval);
+      setIsRestoring(false);
+      setRestoreProgress(0);
+      setRestoreStatus("");
+    }
+  };
+
   // Format file size
   const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return "0 Bytes";
@@ -188,7 +361,9 @@ const UserBackup = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Database Backup</h2>
-          <p className="text-gray-600">Create and download database backups</p>
+          <p className="text-gray-600">
+            Create, download, and restore database backups
+          </p>
         </div>
         <div className="flex space-x-2">
           <Button
@@ -311,14 +486,25 @@ const UserBackup = () => {
                     <TableCell>{formatDate(backup.timestamp)}</TableCell>
                     <TableCell>{getAge(backup.timestamp)}</TableCell>
                     <TableCell>
-                      <Button
-                        onClick={() => handleDownloadBackup(backup)}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download
-                      </Button>
+                      <div className="flex space-x-2">
+                        <Button
+                          onClick={() => handleDownloadBackup(backup)}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download
+                        </Button>
+                        <Button
+                          onClick={() => handleRestoreBackup(backup)}
+                          size="sm"
+                          variant="outline"
+                          className="text-blue-600 hover:text-blue-700"
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Restore
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -389,6 +575,292 @@ const UserBackup = () => {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore Dialog */}
+      <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <RotateCcw className="h-5 w-5 text-blue-500 mr-2" />
+              Restore Database
+            </DialogTitle>
+            <DialogDescription>
+              Restore your database from backup. This will restore all your
+              data.
+              <br />
+              <span className="text-sm text-blue-600">
+                💡 Use "Safety Check" to validate before restore, or "Force
+                Restore" to skip validation.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {backupToRestore && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center">
+                  <Database className="h-5 w-5 text-blue-500 mr-2" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">
+                      Backup ID: {backupToRestore.id}
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      Type: {backupToRestore.type} • Size:{" "}
+                      {backupToRestore.sizeFormatted}
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      Created: {formatDate(backupToRestore.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="dropCollections"
+                  checked={restoreOptions.drop}
+                  onChange={(e) =>
+                    setRestoreOptions({
+                      ...restoreOptions,
+                      drop: e.target.checked,
+                    })
+                  }
+                  className="rounded border-gray-300"
+                />
+                <label
+                  htmlFor="dropCollections"
+                  className="text-sm font-medium"
+                >
+                  Drop existing collections before restore
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">
+                ⚠️ This will delete all existing data before restoring from
+                backup.
+              </p>
+            </div>
+
+            {isRestoring && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>{restoreStatus || "Restoring database..."}</span>
+                  <span>{Math.round(restoreProgress)}%</span>
+                </div>
+                <Progress value={restoreProgress} className="w-full" />
+                {restoreStatus && (
+                  <p className="text-xs text-gray-600">{restoreStatus}</p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRestoreDialog(false)}
+              disabled={isRestoring}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSafetyCheck}
+              disabled={isRestoring || isSafetyChecking}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isSafetyChecking ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Checking Safety...
+                </>
+              ) : (
+                <>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Safety Check
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={forceRestore}
+              disabled={isRestoring || isSafetyChecking}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {isRestoring ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Force Restore
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Safety Check Dialog */}
+      <Dialog
+        open={showSafetyCheckDialog}
+        onOpenChange={setShowSafetyCheckDialog}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Shield className="h-5 w-5 text-yellow-500 mr-2" />
+              Safety Validation Results
+            </DialogTitle>
+            <DialogDescription>
+              Review the safety validation results before proceeding with
+              restore.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {safetyValidation?.validation?.safetyChecks && (
+              <div className="space-y-4">
+                {/* Overall Status */}
+                <div
+                  className={`p-4 rounded-lg border ${
+                    safetyValidation.validation.safetyChecks.overallStatus ===
+                    "error"
+                      ? "bg-red-50 border-red-200"
+                      : safetyValidation.validation.safetyChecks
+                          .overallStatus === "warning"
+                      ? "bg-yellow-50 border-yellow-200"
+                      : "bg-green-50 border-green-200"
+                  }`}
+                >
+                  <div className="flex items-center">
+                    {safetyValidation.validation.safetyChecks.overallStatus ===
+                    "error" ? (
+                      <XCircle className="h-5 w-5 text-red-500 mr-2" />
+                    ) : safetyValidation.validation.safetyChecks
+                        .overallStatus === "warning" ? (
+                      <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
+                    ) : (
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                    )}
+                    <div>
+                      <p className="font-medium">
+                        {safetyValidation.validation.safetyChecks
+                          .overallStatus === "error"
+                          ? "❌ ERROR: Cannot proceed with restore"
+                          : safetyValidation.validation.safetyChecks
+                              .overallStatus === "warning"
+                          ? "⚠️ WARNING: Restore may overwrite existing data"
+                          : "✅ SAFE: Restore appears safe to proceed"}
+                      </p>
+                      {safetyValidation.validation.safetyChecks.warnings
+                        ?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium">Warnings:</p>
+                          <ul className="text-sm list-disc list-inside">
+                            {safetyValidation.validation.safetyChecks.warnings.map(
+                              (warning, index) => (
+                                <li key={index}>{warning}</li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Database Details */}
+                <div className="space-y-3">
+                  <h4 className="font-medium">Database Status:</h4>
+                  {Object.values(
+                    safetyValidation.validation.safetyChecks.databases
+                  ).map((dbCheck) => (
+                    <div
+                      key={dbCheck.database}
+                      className="p-3 border rounded-lg"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Database className="h-4 w-4 text-blue-500 mr-2" />
+                          <span className="font-medium">
+                            {dbCheck.database}
+                          </span>
+                        </div>
+                        <div
+                          className={`px-2 py-1 rounded text-xs ${
+                            dbCheck.status === "error"
+                              ? "bg-red-100 text-red-800"
+                              : dbCheck.status === "warning"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {dbCheck.status}
+                        </div>
+                      </div>
+                      <div className="mt-2 text-sm text-gray-600">
+                        <p>Collections: {dbCheck.collections}</p>
+                        <p>Empty: {dbCheck.isEmpty ? "Yes" : "No"}</p>
+                        {dbCheck.lastModified && (
+                          <p>
+                            Last Modified:{" "}
+                            {Math.floor(
+                              (new Date() - new Date(dbCheck.lastModified)) /
+                                (1000 * 60 * 60)
+                            )}
+                            h ago
+                          </p>
+                        )}
+                      </div>
+                      {dbCheck.warnings?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-yellow-700">
+                            Warnings:
+                          </p>
+                          <ul className="text-xs text-yellow-600 list-disc list-inside">
+                            {dbCheck.warnings.map((warning, index) => (
+                              <li key={index}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSafetyCheckDialog(false)}
+              disabled={isRestoring}
+            >
+              Cancel
+            </Button>
+            {safetyValidation?.validation?.safetyChecks?.overallStatus !==
+              "error" && (
+              <Button
+                onClick={confirmRestore}
+                disabled={isRestoring}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {isRestoring ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Restoring...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Proceed with Restore
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
