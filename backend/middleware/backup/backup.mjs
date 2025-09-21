@@ -11,6 +11,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import multer from "multer";
 import {
   createFullBackup,
   createDatabaseBackup,
@@ -25,6 +26,41 @@ import {
 } from "../../utils/database-backup.mjs";
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(CONFIG.BACKUP_BASE_PATH, "uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const timestamp = Date.now();
+    const originalName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_");
+    cb(null, `uploaded_${timestamp}_${originalName}`);
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Only allow zip files
+    if (
+      file.mimetype === "application/zip" ||
+      file.originalname.toLowerCase().endsWith(".zip")
+    ) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only ZIP files are allowed for backup uploads"), false);
+    }
+  },
+});
 
 // Middleware to log backup API requests
 const logRequest = (req, res, next) => {
@@ -795,6 +831,93 @@ router.get("/safety-check/:backupId", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to perform safety check",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/upload
+ * @desc Upload a backup file (.zip) to restore from
+ */
+router.post("/upload", upload.single("backupFile"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "No backup file provided",
+        message: "Please select a ZIP file to upload",
+      });
+    }
+
+    const uploadedFile = req.file;
+    const { backupName, description } = req.body;
+
+    // Validate the uploaded file
+    if (!uploadedFile.originalname.toLowerCase().endsWith(".zip")) {
+      // Clean up the uploaded file
+      fs.unlinkSync(uploadedFile.path);
+      return res.status(400).json({
+        success: false,
+        error: "Invalid file type",
+        message: "Only ZIP files are allowed for backup uploads",
+      });
+    }
+
+    // Generate a backup ID for the uploaded file
+    const backupId = `uploaded_${Date.now()}`;
+    const backupDir = path.join(CONFIG.BACKUP_BASE_PATH, backupId);
+
+    // Create backup directory
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    // Move the uploaded file to the backup directory
+    const finalBackupPath = path.join(backupDir, "backup.zip");
+    fs.renameSync(uploadedFile.path, finalBackupPath);
+
+    // Create backup metadata
+    const backupMetadata = {
+      id: backupId,
+      type: "uploaded",
+      timestamp: new Date().toISOString(),
+      size: uploadedFile.size,
+      sizeFormatted: formatBytes(uploadedFile.size),
+      originalName: uploadedFile.originalname,
+      backupName: backupName || uploadedFile.originalname,
+      description: description || "Uploaded backup file",
+      path: backupDir,
+      filePath: finalBackupPath,
+      uploaded: true,
+    };
+
+    // Save metadata to a JSON file
+    const metadataPath = path.join(backupDir, "metadata.json");
+    fs.writeFileSync(metadataPath, JSON.stringify(backupMetadata, null, 2));
+
+    console.log(`[Backup API] Backup uploaded successfully: ${backupId}`);
+
+    res.json({
+      success: true,
+      message: "Backup uploaded successfully",
+      backup: backupMetadata,
+    });
+  } catch (error) {
+    console.error("Error uploading backup:", error);
+
+    // Clean up uploaded file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error("Error cleaning up uploaded file:", cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to upload backup",
       message: error.message,
     });
   }

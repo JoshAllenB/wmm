@@ -18,6 +18,7 @@ import { fileURLToPath } from "url";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
 import { createGzip } from "zlib";
+import yauzl from "yauzl";
 import archiver from "archiver";
 import { EventEmitter } from "events";
 
@@ -286,7 +287,7 @@ async function createDatabaseBackup(database, type = "manual", options = {}) {
     })
     .slice(0, 5)
     .replace(":", "-"); // HH-MM
-  const backupId = `${database}_${type}_${dateStr}_${timeStr}`;
+  const backupId = `wmm_backup(${dateStr}_${timeStr})_${database}`;
 
   try {
     // Emit backup start event to all connected clients
@@ -390,7 +391,7 @@ async function createFullBackup(type = "manual", options = {}) {
     })
     .slice(0, 5)
     .replace(":", "-"); // HH-MM
-  const backupId = `full_${type}_${dateStr}_${timeStr}`;
+  const backupId = `wmm_backup(${dateStr}_${timeStr})`;
 
   try {
     // Emit backup start event to all connected clients
@@ -594,31 +595,82 @@ function listBackups() {
       .readdirSync(backupDir)
       .filter((item) => {
         const itemPath = path.join(backupDir, item);
-        return fs.statSync(itemPath).isDirectory();
+        return fs.statSync(itemPath).isDirectory() && item !== "uploads";
       })
       .map((backupId) => {
         const backupPath = path.join(backupDir, backupId);
         const stats = fs.statSync(backupPath);
         const size = getDirectorySize(backupPath);
 
-        // Parse backup info from directory name
-        const parts = backupId.split("_");
-        const type = parts[1] || "unknown";
+        // Check if this is an uploaded backup with metadata
+        const metadataPath = path.join(backupPath, "metadata.json");
+        if (fs.existsSync(metadataPath)) {
+          try {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+            return {
+              id: metadata.id,
+              type: metadata.type,
+              timestamp: new Date(metadata.timestamp),
+              size: metadata.size,
+              sizeFormatted: metadata.sizeFormatted,
+              path: metadata.path,
+              filePath: metadata.filePath,
+              originalName: metadata.originalName,
+              backupName: metadata.backupName,
+              description: metadata.description,
+              uploaded: metadata.uploaded,
+            };
+          } catch (error) {
+            console.error(
+              `Error reading metadata for backup ${backupId}:`,
+              error
+            );
+          }
+        }
 
-        // Try to parse timestamp from new format (database_type_YYYY-MM-DD_HH-MM)
-        let timestamp;
-        if (
-          parts.length >= 4 &&
-          parts[2].match(/^\d{4}-\d{2}-\d{2}$/) &&
-          parts[3].match(/^\d{2}-\d{2}$/)
-        ) {
-          // New format: database_type_YYYY-MM-DD_HH-MM
-          const dateStr = parts[2];
-          const timeStr = parts[3].replace("-", ":");
-          timestamp = new Date(`${dateStr}T${timeStr}:00`);
+        // Parse backup info from directory name for regular backups
+        let type = "unknown";
+        let timestamp = new Date();
+
+        // Check for new wmm_backup format: wmm_backup(yyyy-mm-dd_HH-MM) or wmm_backup(yyyy-mm-dd_HH-MM)_database
+        if (backupId.startsWith("wmm_backup(") && backupId.includes(")")) {
+          const match = backupId.match(
+            /wmm_backup\((\d{4}-\d{2}-\d{2})_(\d{2}-\d{2})\)(?:_(.+))?/
+          );
+          if (match) {
+            const dateStr = match[1]; // yyyy-mm-dd
+            const timeStr = match[2]; // HH-MM
+            const database = match[3]; // optional database name
+
+            // Parse yyyy-mm-dd_HH-MM
+            const timeForDate = timeStr.replace("-", ":");
+            timestamp = new Date(`${dateStr}T${timeForDate}:00`);
+
+            if (database) {
+              type = "database";
+            } else {
+              type = "full";
+            }
+          }
         } else {
-          // Fallback to old format (timestamp)
-          timestamp = new Date(parseInt(parts[parts.length - 1]) || 0);
+          // Fallback to old format parsing
+          const parts = backupId.split("_");
+          type = parts[1] || "unknown";
+
+          // Try to parse timestamp from old format (database_type_YYYY-MM-DD_HH-MM)
+          if (
+            parts.length >= 4 &&
+            parts[2].match(/^\d{4}-\d{2}-\d{2}$/) &&
+            parts[3].match(/^\d{2}-\d{2}$/)
+          ) {
+            // Old format: database_type_YYYY-MM-DD_HH-MM
+            const dateStr = parts[2];
+            const timeStr = parts[3].replace("-", ":");
+            timestamp = new Date(`${dateStr}T${timeStr}:00`);
+          } else {
+            // Fallback to timestamp format
+            timestamp = new Date(parseInt(parts[parts.length - 1]) || 0);
+          }
         }
 
         return {
@@ -900,6 +952,65 @@ async function executeMongorestore(database, backupPath, options = {}) {
   }
 }
 
+// Extract ZIP file to directory
+async function extractZipFile(zipPath, extractPath) {
+  return new Promise((resolve, reject) => {
+    yauzl.open(zipPath, { lazyEntries: true }, (err, zipfile) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      zipfile.readEntry();
+      zipfile.on("entry", (entry) => {
+        if (/\/$/.test(entry.fileName)) {
+          // Directory entry
+          const dirPath = path.join(extractPath, entry.fileName);
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+          zipfile.readEntry();
+        } else {
+          // File entry
+          zipfile.openReadStream(entry, (err, readStream) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+
+            const filePath = path.join(extractPath, entry.fileName);
+            const dirPath = path.dirname(filePath);
+
+            // Ensure directory exists
+            if (!fs.existsSync(dirPath)) {
+              fs.mkdirSync(dirPath, { recursive: true });
+            }
+
+            const writeStream = createWriteStream(filePath);
+            readStream.pipe(writeStream);
+
+            writeStream.on("close", () => {
+              zipfile.readEntry();
+            });
+
+            writeStream.on("error", (err) => {
+              reject(err);
+            });
+          });
+        }
+      });
+
+      zipfile.on("end", () => {
+        resolve();
+      });
+
+      zipfile.on("error", (err) => {
+        reject(err);
+      });
+    });
+  });
+}
+
 // Restore database from backup
 async function restoreDatabaseFromBackup(backupId, database, options = {}) {
   const {
@@ -917,9 +1028,56 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
       throw new Error(`Backup ${backupId} not found`);
     }
 
+    let actualBackupPath = backup.path;
+    let isExtracted = false;
+
+    // Check if this is an uploaded backup (ZIP file)
+    if (backup.uploaded && backup.filePath) {
+      const zipPath = backup.filePath;
+      if (fs.existsSync(zipPath)) {
+        // Create extraction directory
+        const extractPath = path.join(backup.path, "extracted");
+        if (!fs.existsSync(extractPath)) {
+          fs.mkdirSync(extractPath, { recursive: true });
+        }
+
+        // Extract the ZIP file
+        log(`Extracting uploaded backup ZIP file: ${zipPath}`);
+        await extractZipFile(zipPath, extractPath);
+        actualBackupPath = extractPath;
+        isExtracted = true;
+        log(`ZIP file extracted to: ${extractPath}`);
+      } else {
+        throw new Error(`Uploaded backup file not found: ${zipPath}`);
+      }
+    }
+
+    // For uploaded backups, check if there's a nested directory structure
+    let basePath = actualBackupPath;
+    if (isExtracted) {
+      // Look for a subdirectory that might contain the actual backup
+      const extractedContents = fs.readdirSync(actualBackupPath);
+      const backupSubdir = extractedContents.find((item) => {
+        const itemPath = path.join(actualBackupPath, item);
+        return (
+          fs.statSync(itemPath).isDirectory() &&
+          (item.startsWith("full_") ||
+            item.startsWith("database_") ||
+            item.includes("backup"))
+        );
+      });
+
+      if (backupSubdir) {
+        basePath = path.join(actualBackupPath, backupSubdir);
+        log(
+          `Found nested backup directory: ${backupSubdir}, using base path: ${basePath}`
+        );
+      }
+    }
+
     // Check if backup contains the specified database
-    const backupPath = path.join(backup.path, database);
-    if (!fs.existsSync(backupPath)) {
+    const databasePath = path.join(basePath, database);
+    if (!fs.existsSync(databasePath)) {
       throw new Error(`Database ${database} not found in backup ${backupId}`);
     }
 
@@ -933,11 +1091,26 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
     });
 
     // Execute mongorestore
-    const result = await executeMongorestore(database, backupPath, {
+    const result = await executeMongorestore(database, databasePath, {
       drop,
       excludeCollections,
       includeCollections,
     });
+
+    // Clean up extracted files if this was an uploaded backup
+    if (isExtracted) {
+      try {
+        const extractPath = path.join(backup.path, "extracted");
+        if (fs.existsSync(extractPath)) {
+          fs.rmSync(extractPath, { recursive: true, force: true });
+          log(`Cleaned up extracted files from: ${extractPath}`);
+        }
+      } catch (cleanupError) {
+        log(
+          `Warning: Failed to clean up extracted files: ${cleanupError.message}`
+        );
+      }
+    }
 
     log(`Database restored successfully`, {
       database,
@@ -962,6 +1135,21 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
       result,
     };
   } catch (error) {
+    // Clean up extracted files if this was an uploaded backup (even on error)
+    if (isExtracted) {
+      try {
+        const extractPath = path.join(backup.path, "extracted");
+        if (fs.existsSync(extractPath)) {
+          fs.rmSync(extractPath, { recursive: true, force: true });
+          log(`Cleaned up extracted files after error from: ${extractPath}`);
+        }
+      } catch (cleanupError) {
+        log(
+          `Warning: Failed to clean up extracted files after error: ${cleanupError.message}`
+        );
+      }
+    }
+
     log(`Database restore failed`, {
       database,
       backupId,
@@ -999,8 +1187,55 @@ async function restoreFullBackup(backupId, options = {}) {
       throw new Error(`Backup ${backupId} not found`);
     }
 
+    let actualBackupPath = backup.path;
+    let isExtracted = false;
+
+    // Check if this is an uploaded backup (ZIP file)
+    if (backup.uploaded && backup.filePath) {
+      const zipPath = backup.filePath;
+      if (fs.existsSync(zipPath)) {
+        // Create extraction directory
+        const extractPath = path.join(backup.path, "extracted");
+        if (!fs.existsSync(extractPath)) {
+          fs.mkdirSync(extractPath, { recursive: true });
+        }
+
+        // Extract the ZIP file
+        log(`Extracting uploaded backup ZIP file: ${zipPath}`);
+        await extractZipFile(zipPath, extractPath);
+        actualBackupPath = extractPath;
+        isExtracted = true;
+        log(`ZIP file extracted to: ${extractPath}`);
+      } else {
+        throw new Error(`Uploaded backup file not found: ${zipPath}`);
+      }
+    }
+
+    // For uploaded backups, check if there's a nested directory structure
+    let basePath = actualBackupPath;
+    if (isExtracted) {
+      // Look for a subdirectory that might contain the actual backup
+      const extractedContents = fs.readdirSync(actualBackupPath);
+      const backupSubdir = extractedContents.find((item) => {
+        const itemPath = path.join(actualBackupPath, item);
+        return (
+          fs.statSync(itemPath).isDirectory() &&
+          (item.startsWith("full_") ||
+            item.startsWith("database_") ||
+            item.includes("backup"))
+        );
+      });
+
+      if (backupSubdir) {
+        basePath = path.join(actualBackupPath, backupSubdir);
+        log(
+          `Found nested backup directory: ${backupSubdir}, using base path: ${basePath}`
+        );
+      }
+    }
+
     // Check if this is a full backup by looking for metadata file
-    const metadataPath = path.join(backup.path, "backup_metadata.json");
+    const metadataPath = path.join(basePath, "backup_metadata.json");
     let metadata = null;
     if (fs.existsSync(metadataPath)) {
       try {
@@ -1028,7 +1263,7 @@ async function restoreFullBackup(backupId, options = {}) {
 
     for (const database of databasesToRestore) {
       try {
-        const databasePath = path.join(backup.path, database);
+        const databasePath = path.join(basePath, database);
         if (!fs.existsSync(databasePath)) {
           results.push({
             database,
@@ -1066,6 +1301,21 @@ async function restoreFullBackup(backupId, options = {}) {
       results,
     });
 
+    // Clean up extracted files if this was an uploaded backup
+    if (isExtracted) {
+      try {
+        const extractPath = path.join(backup.path, "extracted");
+        if (fs.existsSync(extractPath)) {
+          fs.rmSync(extractPath, { recursive: true, force: true });
+          log(`Cleaned up extracted files from: ${extractPath}`);
+        }
+      } catch (cleanupError) {
+        log(
+          `Warning: Failed to clean up extracted files: ${cleanupError.message}`
+        );
+      }
+    }
+
     // Emit restore completion event
     emitBackupEvent("restore-completed", {
       type: "manual",
@@ -1084,6 +1334,21 @@ async function restoreFullBackup(backupId, options = {}) {
       totalDatabases: databasesToRestore.length,
     };
   } catch (error) {
+    // Clean up extracted files if this was an uploaded backup (even on error)
+    if (isExtracted) {
+      try {
+        const extractPath = path.join(backup.path, "extracted");
+        if (fs.existsSync(extractPath)) {
+          fs.rmSync(extractPath, { recursive: true, force: true });
+          log(`Cleaned up extracted files after error from: ${extractPath}`);
+        }
+      } catch (cleanupError) {
+        log(
+          `Warning: Failed to clean up extracted files after error: ${cleanupError.message}`
+        );
+      }
+    }
+
     log(`Full backup restore failed`, {
       backupId,
       error: error.message,
@@ -1322,6 +1587,23 @@ function validateBackupForRestore(backupId, database = null) {
     return {
       valid: false,
       error: `Backup ${backupId} not found`,
+    };
+  }
+
+  // For uploaded backups, we need to check if the ZIP file exists
+  if (backup.uploaded && backup.filePath) {
+    if (!fs.existsSync(backup.filePath)) {
+      return {
+        valid: false,
+        error: `Uploaded backup file not found: ${backup.filePath}`,
+      };
+    }
+
+    // For uploaded backups, we can't easily validate the contents without extracting
+    // So we'll assume it's valid if the file exists and let the restore function handle extraction
+    return {
+      valid: true,
+      backup,
     };
   }
 
