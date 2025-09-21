@@ -293,6 +293,48 @@ const backupService = {
       throw error;
     }
   },
+
+  // Upload a backup file
+  uploadBackup: async (
+    file,
+    backupName = null,
+    description = null,
+    onProgress = null
+  ) => {
+    try {
+      const formData = new FormData();
+      formData.append("backupFile", file);
+      if (backupName) {
+        formData.append("backupName", backupName);
+      }
+      if (description) {
+        formData.append("description", description);
+      }
+
+      const response = await apiClient.post("/api/backup/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress: (progressEvent) => {
+          if (onProgress && progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            onProgress(
+              percentCompleted,
+              progressEvent.loaded,
+              progressEvent.total
+            );
+          }
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Error uploading backup:", error);
+      throw error;
+    }
+  },
 };
 
 export default backupService;

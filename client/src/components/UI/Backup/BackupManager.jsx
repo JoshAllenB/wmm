@@ -83,6 +83,15 @@ const BackupManager = () => {
   const [restoreProgress, setRestoreProgress] = useState(0);
   const [restoreStatus, setRestoreStatus] = useState("");
 
+  // Upload-related state
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadBackupName, setUploadBackupName] = useState("");
+  const [uploadDescription, setUploadDescription] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState("");
+
   // Fetch backup status and list
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -444,6 +453,75 @@ const BackupManager = () => {
     }
   };
 
+  // Upload backup functions
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.name.toLowerCase().endsWith(".zip")) {
+        toast.error("Please select a ZIP file");
+        return;
+      }
+
+      // Validate file size (500MB limit)
+      const maxSize = 500 * 1024 * 1024; // 500MB
+      if (file.size > maxSize) {
+        toast.error("File size must be less than 500MB");
+        return;
+      }
+
+      setUploadFile(file);
+      setUploadBackupName(file.name.replace(".zip", ""));
+    }
+  };
+
+  const handleUploadBackup = async () => {
+    if (!uploadFile) return;
+
+    setIsUploading(true);
+    setError(null);
+    setUploadProgress(0);
+    setUploadStatus("Preparing upload...");
+
+    try {
+      const result = await backupService.uploadBackup(
+        uploadFile,
+        uploadBackupName || null,
+        uploadDescription || null,
+        (progress, loaded, total) => {
+          setUploadProgress(progress);
+          if (progress < 20) {
+            setUploadStatus("Uploading file...");
+          } else if (progress < 80) {
+            setUploadStatus("Processing backup...");
+          } else {
+            setUploadStatus("Finalizing upload...");
+          }
+        }
+      );
+
+      setUploadProgress(100);
+      setUploadStatus("Upload completed successfully!");
+
+      toast.success("Backup uploaded successfully!");
+      setShowUploadDialog(false);
+      setUploadFile(null);
+      setUploadBackupName("");
+      setUploadDescription("");
+      await fetchData(); // Refresh the list
+    } catch (err) {
+      console.error("❌ Upload failed:", err);
+      const errorMessage =
+        err.response?.data?.message || err.message || "Failed to upload backup";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStatus("");
+    }
+  };
+
   // Format file size
   const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return "0 Bytes";
@@ -483,6 +561,8 @@ const BackupManager = () => {
         return <Clock className="h-4 w-4 text-green-500" />;
       case "test":
         return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+      case "uploaded":
+        return <Upload className="h-4 w-4 text-purple-500" />;
       default:
         return <FileText className="h-4 w-4 text-gray-500" />;
     }
@@ -521,6 +601,112 @@ const BackupManager = () => {
             />
             Refresh
           </Button>
+          <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Backup
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload Backup File</DialogTitle>
+                <DialogDescription>
+                  Upload a previously downloaded backup file (.zip) to restore
+                  from.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Backup File</label>
+                  <input
+                    type="file"
+                    accept=".zip"
+                    onChange={handleFileSelect}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isUploading}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Only ZIP files are allowed. Maximum size: 500MB
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">
+                    Backup Name (Optional)
+                  </label>
+                  <Input
+                    value={uploadBackupName}
+                    onChange={(e) => setUploadBackupName(e.target.value)}
+                    placeholder="Enter a name for this backup"
+                    disabled={isUploading}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">
+                    Description (Optional)
+                  </label>
+                  <Input
+                    value={uploadDescription}
+                    onChange={(e) => setUploadDescription(e.target.value)}
+                    placeholder="Enter a description for this backup"
+                    disabled={isUploading}
+                  />
+                </div>
+                {uploadFile && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <FileText className="h-5 w-5 text-blue-500 mr-2" />
+                      <div>
+                        <p className="text-sm font-medium text-blue-900">
+                          Selected: {uploadFile.name}
+                        </p>
+                        <p className="text-sm text-blue-700">
+                          Size: {formatBytes(uploadFile.size)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {isUploading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>{uploadStatus || "Uploading..."}</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <Progress value={uploadProgress} className="w-full" />
+                    {uploadStatus && (
+                      <p className="text-xs text-gray-600">{uploadStatus}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowUploadDialog(false)}
+                  disabled={isUploading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUploadBackup}
+                  disabled={isUploading || !uploadFile}
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Backup
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -705,7 +891,9 @@ const BackupManager = () => {
             <div className="text-center py-8 text-gray-500">
               <Database className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>No backups available</p>
-              <p className="text-sm">Create your first backup to get started</p>
+              <p className="text-sm">
+                Create your first backup or upload an existing backup file
+              </p>
             </div>
           ) : (
             <Table>
@@ -728,7 +916,14 @@ const BackupManager = () => {
                     <TableCell>
                       <div className="flex items-center">
                         {getStatusIcon(backup.type)}
-                        <span className="ml-2 capitalize">{backup.type}</span>
+                        <div className="ml-2">
+                          <span className="capitalize">{backup.type}</span>
+                          {backup.uploaded && backup.originalName && (
+                            <div className="text-xs text-gray-500">
+                              {backup.originalName}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>{backup.sizeFormatted}</TableCell>
