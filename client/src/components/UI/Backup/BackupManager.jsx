@@ -53,6 +53,8 @@ const BackupManager = () => {
   const [status, setStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
+  const [backupProgress, setBackupProgress] = useState(0);
+  const [backupStatus, setBackupStatus] = useState("");
   const [selectedDatabase, setSelectedDatabase] = useState("all");
   const [backupType, setBackupType] = useState("manual");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -110,6 +112,30 @@ const BackupManager = () => {
   const handleCreateBackup = async () => {
     setIsCreatingBackup(true);
     setError(null);
+    setBackupProgress(0);
+    setBackupStatus("Initializing backup...");
+
+    // Simulate progress updates with status messages
+    const progressInterval = setInterval(() => {
+      setBackupProgress((prev) => {
+        if (prev >= 90) return prev; // Don't go to 100% until completion
+
+        // Update status based on progress
+        if (prev < 20) {
+          setBackupStatus("Connecting to database...");
+        } else if (prev < 40) {
+          setBackupStatus("Preparing backup operation...");
+        } else if (prev < 60) {
+          setBackupStatus("Dumping collections...");
+        } else if (prev < 80) {
+          setBackupStatus("Compressing backup...");
+        } else {
+          setBackupStatus("Finalizing backup...");
+        }
+
+        return prev + Math.random() * 15;
+      });
+    }, 500);
 
     try {
       let result;
@@ -123,17 +149,23 @@ const BackupManager = () => {
         });
       }
 
+      setBackupProgress(100);
+      setBackupStatus("Backup created successfully!");
+
       toast.success("Backup created successfully!");
       setShowCreateDialog(false);
       await fetchData(); // Refresh the list
     } catch (err) {
-      console.error("Error creating backup:", err);
+      console.error("❌ Backup creation failed:", err);
       const errorMessage =
         err.response?.data?.message || err.message || "Failed to create backup";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
+      clearInterval(progressInterval);
       setIsCreatingBackup(false);
+      setBackupProgress(0);
+      setBackupStatus("");
     }
   };
 
@@ -537,6 +569,20 @@ const BackupManager = () => {
                   </Select>
                 </div>
               </div>
+
+              {isCreatingBackup && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{backupStatus || "Creating backup..."}</span>
+                    <span>{Math.round(backupProgress)}%</span>
+                  </div>
+                  <Progress value={backupProgress} className="w-full" />
+                  {backupStatus && (
+                    <p className="text-xs text-gray-600">{backupStatus}</p>
+                  )}
+                </div>
+              )}
+
               <DialogFooter>
                 <Button
                   variant="outline"

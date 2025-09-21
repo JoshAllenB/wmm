@@ -2,7 +2,7 @@ import { useEffect, useState, useContext, useCallback } from "react";
 import { SocketContext } from "./SocketContext";
 import { webSocketService } from "../../services/WebSocketService";
 import { useUser } from "../Hooks/userProvider";
-import backupNotificationService from "../../services/BackupNotificationService";
+import backupNotificationService from "../../services/BackupNotificationService.jsx";
 
 export const SocketProvider = ({ children }) => {
   const [socketData, setSocketData] = useState(null);
