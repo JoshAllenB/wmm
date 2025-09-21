@@ -36,13 +36,11 @@ function emitBackupEvent(eventName, data) {
   } else {
     // Fallback to event emitter (when running standalone)
     backupEventEmitter.emit(eventName, data);
-    console.log(`[Backup Event] ${eventName}:`, data);
 
     // Add a small delay to ensure WebSocket connection is ready
     if (eventName === "backup-started") {
       setTimeout(() => {
         backupEventEmitter.emit(eventName, data);
-        console.log(`[Backup Event] ${eventName} (retry):`, data);
       }, 1000);
     }
   }
@@ -327,11 +325,6 @@ async function createDatabaseBackup(database, type = "manual", options = {}) {
 
     // Get backup size
     const backupSize = getDirectorySize(backupDir);
-    console.log(
-      `[Backup] Calculated size for ${database}: ${formatBytes(
-        backupSize
-      )} (${backupSize} bytes)`
-    );
 
     const backupInfo = {
       id: backupId,
@@ -477,11 +470,6 @@ async function createFullBackup(type = "manual", options = {}) {
       JSON.stringify(metadata, null, 2)
     );
 
-    console.log(
-      `[Backup] Full backup total size: ${formatBytes(
-        totalSize
-      )} (${totalSize} bytes)`
-    );
     log(`Consolidated backup completed`, {
       successCount,
       totalDatabases: CONFIG.MONGODB_DATABASES.length,
@@ -831,6 +819,546 @@ function initializeBackupService() {
   });
 }
 
+// Execute mongorestore command
+async function executeMongorestore(database, backupPath, options = {}) {
+  const {
+    drop = false,
+    excludeCollections = [],
+    includeCollections = [],
+  } = options;
+
+  // Get MongoDB URI options (primary and fallback)
+  const uriOptions = fixMongoDBURI(CONFIG.MONGODB_URI);
+
+  // Try primary URI first, then fallback if it fails
+  const urisToTry = [uriOptions.primary, uriOptions.fallback];
+
+  for (let i = 0; i < urisToTry.length; i++) {
+    const uri = urisToTry[i];
+    const isFallback = i > 0;
+
+    // Test connection first (skip for fallback if primary test passed)
+    if (i === 0 || (i === 1 && urisToTry[0] !== urisToTry[1])) {
+      const connectionTest = await testMongoDBConnection(uri, database);
+      if (!connectionTest.success) {
+        if (i === urisToTry.length - 1) {
+          throw new Error(
+            `MongoDB connection failed for all URIs. Last error: ${
+              connectionTest.error || "Connection test failed"
+            }`
+          );
+        }
+        continue;
+      }
+    }
+
+    let command = `mongorestore --uri="${uri}/${database}" "${backupPath}" --quiet`;
+
+    // Add gzip option if backup files are compressed
+    if (CONFIG.COMPRESSION) {
+      command += " --gzip";
+    }
+
+    // Add drop option if specified
+    if (drop) {
+      command += " --drop";
+    }
+
+    // Add collection filters
+    if (excludeCollections.length > 0) {
+      excludeCollections.forEach((collection) => {
+        command += ` --excludeCollection="${collection}"`;
+      });
+    }
+
+    if (includeCollections.length > 0) {
+      includeCollections.forEach((collection) => {
+        command += ` --collection="${collection}"`;
+      });
+    }
+
+    // Execute mongorestore command
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        maxBuffer: 1024 * 1024 * 50, // 50MB buffer
+        timeout: 300000, // 5 minutes timeout
+      });
+      return {
+        success: true,
+        stdout,
+        stderr,
+        uri: uri.replace(/\/\/.*@/, "//***@"),
+      };
+    } catch (error) {
+      // If this is the last attempt, throw the error
+      if (i === urisToTry.length - 1) {
+        throw new Error(
+          `Mongorestore failed for ${database} after ${urisToTry.length} attempts. Last error: ${error.message}`
+        );
+      }
+    }
+  }
+}
+
+// Restore database from backup
+async function restoreDatabaseFromBackup(backupId, database, options = {}) {
+  const {
+    drop = false,
+    excludeCollections = [],
+    includeCollections = [],
+  } = options;
+
+  try {
+    // Find the backup
+    const backups = listBackups();
+    const backup = backups.find((b) => b.id === backupId);
+
+    if (!backup) {
+      throw new Error(`Backup ${backupId} not found`);
+    }
+
+    // Check if backup contains the specified database
+    const backupPath = path.join(backup.path, database);
+    if (!fs.existsSync(backupPath)) {
+      throw new Error(`Database ${database} not found in backup ${backupId}`);
+    }
+
+    // Emit restore start event
+    emitBackupEvent("restore-started", {
+      type: "manual",
+      message: `Restore started for ${database} from backup ${backupId}`,
+      database: database,
+      backupId: backupId,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Execute mongorestore
+    const result = await executeMongorestore(database, backupPath, {
+      drop,
+      excludeCollections,
+      includeCollections,
+    });
+
+    log(`Database restored successfully`, {
+      database,
+      backupId,
+      drop,
+      result: result.success,
+    });
+
+    // Emit restore completion event
+    emitBackupEvent("restore-completed", {
+      type: "manual",
+      message: `Restore completed for ${database} from backup ${backupId}`,
+      database: database,
+      backupId: backupId,
+      timestamp: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      database,
+      backupId,
+      result,
+    };
+  } catch (error) {
+    log(`Database restore failed`, {
+      database,
+      backupId,
+      error: error.message,
+    });
+
+    // Emit restore error event
+    emitBackupEvent("restore-error", {
+      type: "manual",
+      message: `Restore failed for ${database} from backup ${backupId}`,
+      database: database,
+      backupId: backupId,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+
+    throw error;
+  }
+}
+
+// Restore all databases from a full backup
+async function restoreFullBackup(backupId, options = {}) {
+  const {
+    drop = false,
+    excludeCollections = [],
+    includeCollections = [],
+  } = options;
+
+  try {
+    // Find the backup
+    const backups = listBackups();
+    const backup = backups.find((b) => b.id === backupId);
+
+    if (!backup) {
+      throw new Error(`Backup ${backupId} not found`);
+    }
+
+    // Check if this is a full backup by looking for metadata file
+    const metadataPath = path.join(backup.path, "backup_metadata.json");
+    let metadata = null;
+    if (fs.existsSync(metadataPath)) {
+      try {
+        metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+      } catch (error) {
+        // Metadata file exists but couldn't be parsed
+      }
+    }
+
+    // Emit restore start event
+    emitBackupEvent("restore-started", {
+      type: "manual",
+      message: `Full restore started from backup ${backupId}`,
+      backupId: backupId,
+      timestamp: new Date().toISOString(),
+    });
+
+    const results = [];
+    let successCount = 0;
+
+    // Get list of databases to restore
+    const databasesToRestore = metadata
+      ? metadata.databases
+      : CONFIG.MONGODB_DATABASES;
+
+    for (const database of databasesToRestore) {
+      try {
+        const databasePath = path.join(backup.path, database);
+        if (!fs.existsSync(databasePath)) {
+          results.push({
+            database,
+            success: false,
+            error: `Database ${database} not found in backup`,
+          });
+          continue;
+        }
+
+        const result = await executeMongorestore(database, databasePath, {
+          drop,
+          excludeCollections,
+          includeCollections,
+        });
+
+        results.push({
+          database,
+          success: true,
+          result,
+        });
+        successCount++;
+      } catch (error) {
+        results.push({
+          database,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    log(`Full backup restore completed`, {
+      backupId,
+      successCount,
+      totalDatabases: databasesToRestore.length,
+      results,
+    });
+
+    // Emit restore completion event
+    emitBackupEvent("restore-completed", {
+      type: "manual",
+      message: `Full restore completed from backup ${backupId}`,
+      backupId: backupId,
+      successCount: successCount,
+      totalDatabases: databasesToRestore.length,
+      timestamp: new Date().toISOString(),
+    });
+
+    return {
+      success: true,
+      backupId,
+      results,
+      successCount,
+      totalDatabases: databasesToRestore.length,
+    };
+  } catch (error) {
+    log(`Full backup restore failed`, {
+      backupId,
+      error: error.message,
+    });
+
+    // Emit restore error event
+    emitBackupEvent("restore-error", {
+      type: "manual",
+      message: `Full restore failed from backup ${backupId}`,
+      backupId: backupId,
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
+
+    throw error;
+  }
+}
+
+// Check if database is empty
+async function isDatabaseEmpty(database) {
+  try {
+    const uriOptions = fixMongoDBURI(CONFIG.MONGODB_URI);
+    const uri = uriOptions.primary;
+
+    const command = `mongosh --quiet --eval "db.stats().collections" "${uri}/${database}"`;
+    const { stdout, stderr } = await execAsync(command, { timeout: 10000 });
+
+    // If collections count is 0, database is empty
+    const collectionsCount = parseInt(stdout.trim());
+    return collectionsCount === 0;
+  } catch (error) {
+    // If we can't connect or check, assume it's not empty for safety
+    return false;
+  }
+}
+
+// Get database collection count and last modified date
+async function getDatabaseInfo(database) {
+  try {
+    const uriOptions = fixMongoDBURI(CONFIG.MONGODB_URI);
+    const uri = uriOptions.primary;
+
+    // Get collection count and list of collections
+    const command = `mongosh --quiet --eval "JSON.stringify({collections: db.stats().collections, collectionNames: db.getCollectionNames()})" "${uri}/${database}"`;
+    const { stdout, stderr } = await execAsync(command, { timeout: 10000 });
+
+    try {
+      const result = JSON.parse(stdout.trim());
+      // Ensure collections is a number, not an object
+      const collections =
+        typeof result.collections === "number" ? result.collections : 0;
+      const collectionNames = result.collectionNames || [];
+
+      // If there are collections, get the last modified date from the first collection
+      let lastModified = null;
+      if (collectionNames.length > 0) {
+        try {
+          const lastModCommand = `mongosh --quiet --eval "try { const stats = db.${collectionNames[0]}.stats(); JSON.stringify({lastMod: stats.lastMod}) } catch(e) { JSON.stringify({error: e.message}) }" "${uri}/${database}"`;
+          const { stdout: lastModStdout } = await execAsync(lastModCommand, {
+            timeout: 5000,
+          });
+          const lastModResult = JSON.parse(lastModStdout.trim());
+          if (
+            lastModResult &&
+            lastModResult.lastMod &&
+            lastModResult.lastMod.$date
+          ) {
+            lastModified = new Date(lastModResult.lastMod.$date);
+          }
+        } catch (lastModError) {
+          // If we can't get last modified, continue without it
+          console.warn(
+            `Could not get last modified date for ${database}:`,
+            lastModError.message
+          );
+        }
+      }
+
+      return {
+        success: true,
+        collections,
+        lastModified,
+      };
+    } catch (parseError) {
+      return {
+        success: false,
+        error: "Failed to parse database info",
+        collections: 0,
+        lastModified: null,
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      collections: 0,
+      lastModified: null,
+    };
+  }
+}
+
+// Compare backup age with database last modified date
+function compareBackupAgeWithDatabase(backupTimestamp, databaseLastModified) {
+  if (!databaseLastModified) {
+    return {
+      comparison: "unknown",
+      message: "Cannot determine database last modified date",
+      isBackupOlder: false,
+    };
+  }
+
+  const backupAge = new Date() - backupTimestamp;
+  const dbAge = new Date() - databaseLastModified;
+  const isBackupOlder = backupTimestamp < databaseLastModified;
+
+  const backupAgeHours = Math.floor(backupAge / (1000 * 60 * 60));
+  const dbAgeHours = Math.floor(dbAge / (1000 * 60 * 60));
+
+  let comparison = "unknown";
+  let message = "";
+
+  if (isBackupOlder) {
+    comparison = "backup_older";
+    message = `Backup is ${backupAgeHours}h old, but database was modified ${dbAgeHours}h ago. Restoring will overwrite newer data.`;
+  } else {
+    comparison = "backup_newer";
+    message = `Backup is ${backupAgeHours}h old, database was modified ${dbAgeHours}h ago. Backup appears to be newer.`;
+  }
+
+  return {
+    comparison,
+    message,
+    isBackupOlder,
+    backupAgeHours,
+    dbAgeHours,
+  };
+}
+
+// Comprehensive restore validation with safety checks
+async function validateRestoreWithSafety(
+  backupId,
+  database = null,
+  options = {}
+) {
+  const { skipConfirmation = false, force = false } = options;
+
+  try {
+    // First, do basic backup validation
+    const basicValidation = validateBackupForRestore(backupId, database);
+    if (!basicValidation.valid) {
+      return {
+        ...basicValidation,
+        safetyChecks: null,
+        requiresConfirmation: false,
+      };
+    }
+
+    const backup = basicValidation.backup;
+    const databasesToCheck = database ? [database] : CONFIG.MONGODB_DATABASES;
+
+    const safetyChecks = {
+      databases: {},
+      overallStatus: "safe",
+      warnings: [],
+      requiresConfirmation: false,
+    };
+
+    // Check each database
+    for (const db of databasesToCheck) {
+      const dbInfo = await getDatabaseInfo(db);
+      const isEmpty = await isDatabaseEmpty(db);
+
+      const dbCheck = {
+        database: db,
+        isEmpty,
+        collections: dbInfo.collections,
+        lastModified: dbInfo.lastModified,
+        status: "safe",
+        warnings: [],
+      };
+
+      if (!dbInfo.success) {
+        dbCheck.status = "error";
+        dbCheck.warnings.push(`Cannot check database state: ${dbInfo.error}`);
+        safetyChecks.overallStatus = "error";
+      } else if (!isEmpty) {
+        // Database is not empty, check if backup is older
+        const ageComparison = compareBackupAgeWithDatabase(
+          backup.timestamp,
+          dbInfo.lastModified
+        );
+
+        if (ageComparison.isBackupOlder) {
+          dbCheck.status = "warning";
+          dbCheck.warnings.push(ageComparison.message);
+          safetyChecks.overallStatus = "warning";
+          safetyChecks.requiresConfirmation = true;
+        } else {
+          dbCheck.warnings.push(ageComparison.message);
+        }
+      }
+
+      safetyChecks.databases[db] = dbCheck;
+    }
+
+    // Add overall warnings
+    if (safetyChecks.overallStatus === "warning") {
+      safetyChecks.warnings.push(
+        "Some databases contain data that may be overwritten by an older backup"
+      );
+    }
+
+    return {
+      valid: true,
+      backup,
+      safetyChecks,
+      requiresConfirmation:
+        safetyChecks.requiresConfirmation && !skipConfirmation && !force,
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      error: `Safety validation failed: ${error.message}`,
+      safetyChecks: null,
+      requiresConfirmation: false,
+    };
+  }
+}
+
+// Validate backup before restore (legacy function for backward compatibility)
+function validateBackupForRestore(backupId, database = null) {
+  const backups = listBackups();
+  const backup = backups.find((b) => b.id === backupId);
+
+  if (!backup) {
+    return {
+      valid: false,
+      error: `Backup ${backupId} not found`,
+    };
+  }
+
+  if (database) {
+    // Check if specific database exists in backup
+    const databasePath = path.join(backup.path, database);
+    if (!fs.existsSync(databasePath)) {
+      return {
+        valid: false,
+        error: `Database ${database} not found in backup ${backupId}`,
+      };
+    }
+  } else {
+    // Check if this is a full backup
+    const metadataPath = path.join(backup.path, "backup_metadata.json");
+    if (!fs.existsSync(metadataPath)) {
+      // Check if backup contains any of the configured databases
+      const hasAnyDatabase = CONFIG.MONGODB_DATABASES.some((db) => {
+        const dbPath = path.join(backup.path, db);
+        return fs.existsSync(dbPath);
+      });
+
+      if (!hasAnyDatabase) {
+        return {
+          valid: false,
+          error: `No valid databases found in backup ${backupId}`,
+        };
+      }
+    }
+  }
+
+  return {
+    valid: true,
+    backup,
+  };
+}
+
 // Export functions
 export {
   createDatabaseBackup,
@@ -838,6 +1366,13 @@ export {
   listBackups,
   cleanupOldBackups,
   createBackupArchive,
+  restoreDatabaseFromBackup,
+  restoreFullBackup,
+  validateBackupForRestore,
+  validateRestoreWithSafety,
+  isDatabaseEmpty,
+  getDatabaseInfo,
+  compareBackupAgeWithDatabase,
   startAutosave,
   stopAutosave,
   initializeBackupService,
@@ -852,7 +1387,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Run a test backup
   createFullBackup("test")
     .then((result) => {
-      console.log("Test backup completed");
       process.exit(0);
     })
     .catch((error) => {

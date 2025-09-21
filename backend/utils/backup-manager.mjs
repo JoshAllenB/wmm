@@ -14,6 +14,10 @@ import {
   listBackups,
   cleanupOldBackups,
   createBackupArchive,
+  restoreDatabaseFromBackup,
+  restoreFullBackup,
+  validateBackupForRestore,
+  validateRestoreWithSafety,
   initializeBackupService,
   CONFIG,
   backupEventEmitter,
@@ -22,6 +26,7 @@ import { program } from "commander";
 import fs from "fs";
 import path from "path";
 import { io } from "socket.io-client";
+import readline from "readline";
 
 // Initialize commander
 program
@@ -241,6 +246,162 @@ program
     }
   });
 
+// Restore command
+program
+  .command("restore <backupId>")
+  .description("Restore database(s) from a backup")
+  .option(
+    "-d, --database <database>",
+    "Specific database to restore (wmm_client or wmm_user)"
+  )
+  .option("--drop", "Drop existing collections before restore")
+  .option(
+    "--exclude-collections <collections>",
+    "Comma-separated list of collections to exclude"
+  )
+  .option(
+    "--include-collections <collections>",
+    "Comma-separated list of collections to include"
+  )
+  .option("--force", "Skip safety validation and confirmation prompts")
+  .option(
+    "--skip-confirmation",
+    "Skip confirmation prompts but still show safety warnings"
+  )
+  .action(async (backupId, options) => {
+    try {
+      // Perform comprehensive safety validation
+      const validation = await validateRestoreWithSafety(
+        backupId,
+        options.database,
+        {
+          skipConfirmation: options.skipConfirmation,
+          force: options.force,
+        }
+      );
+
+      if (!validation.valid) {
+        console.error(`❌ Validation failed: ${validation.error}`);
+        process.exit(1);
+      }
+
+      // Display safety warnings and get confirmation if needed
+      if (!options.force) {
+        const confirmed = await displaySafetyWarningsAndConfirm(validation);
+        if (!confirmed) {
+          process.exit(0);
+        }
+      }
+
+      // Parse collection filters
+      const excludeCollections = options.excludeCollections
+        ? options.excludeCollections.split(",").map((c) => c.trim())
+        : [];
+      const includeCollections = options.includeCollections
+        ? options.includeCollections.split(",").map((c) => c.trim())
+        : [];
+
+      let result;
+      if (options.database) {
+        if (!CONFIG.MONGODB_DATABASES.includes(options.database)) {
+          console.error(
+            `Error: Database '${
+              options.database
+            }' is not in the configured list: ${CONFIG.MONGODB_DATABASES.join(
+              ", "
+            )}`
+          );
+          process.exit(1);
+        }
+        result = await restoreDatabaseFromBackup(backupId, options.database, {
+          drop: options.drop,
+          excludeCollections,
+          includeCollections,
+        });
+        console.log(
+          `✅ Database ${options.database} restored from backup ${backupId}`
+        );
+      } else {
+        result = await restoreFullBackup(backupId, {
+          drop: options.drop,
+          excludeCollections,
+          includeCollections,
+        });
+        console.log(
+          `✅ Full backup restored from ${backupId} (${result.successCount}/${result.totalDatabases} databases)`
+        );
+      }
+    } catch (error) {
+      console.error("❌ Restore failed:", error.message);
+      process.exit(1);
+    }
+  });
+
+// Validate command
+program
+  .command("validate <backupId>")
+  .description("Validate a backup for restore operations")
+  .option("-d, --database <database>", "Specific database to validate")
+  .action(async (backupId, options) => {
+    try {
+      const validation = validateBackupForRestore(backupId, options.database);
+
+      if (validation.valid) {
+        console.log(`✓ Backup ${backupId} is valid for restore`);
+        if (options.database) {
+          console.log(`  Database: ${options.database}`);
+        } else {
+          console.log(`  Type: Full backup`);
+        }
+      } else {
+        console.error(`✗ Backup validation failed: ${validation.error}`);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error("Validation failed:", error.message);
+      process.exit(1);
+    }
+  });
+
+// Safety check command
+program
+  .command("safety-check <backupId>")
+  .description("Perform comprehensive safety validation before restore")
+  .option("-d, --database <database>", "Specific database to check")
+  .option("--force", "Skip confirmation prompts")
+  .action(async (backupId, options) => {
+    try {
+      const validation = await validateRestoreWithSafety(
+        backupId,
+        options.database,
+        {
+          skipConfirmation: options.force,
+          force: false,
+        }
+      );
+
+      if (!validation.valid) {
+        console.error(`❌ Validation failed: ${validation.error}`);
+        process.exit(1);
+      }
+
+      // Display safety information
+      const confirmed = await displaySafetyWarningsAndConfirm(validation);
+
+      if (confirmed) {
+        console.log(
+          "\n✅ Safety validation passed. You can proceed with restore."
+        );
+      } else {
+        console.log("\n❌ Safety validation failed or was cancelled.");
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error("❌ Safety check failed:", error.message);
+      process.exit(1);
+    }
+  });
+
 // Helper functions
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -252,6 +413,100 @@ function formatBytes(bytes, decimals = 2) {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+}
+
+// Create confirmation prompt
+function createConfirmationPrompt(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase().trim());
+    });
+  });
+}
+
+// Display safety warnings and get confirmation
+async function displaySafetyWarningsAndConfirm(validation) {
+  if (!validation.safetyChecks) {
+    return true;
+  }
+
+  const { safetyChecks } = validation;
+
+  console.log("\n" + "=".repeat(60));
+  console.log("🔍 RESTORE SAFETY VALIDATION");
+  console.log("=".repeat(60));
+
+  // Display overall status
+  if (safetyChecks.overallStatus === "error") {
+    console.log(
+      "❌ ERROR: Cannot proceed with restore due to validation errors"
+    );
+    return false;
+  } else if (safetyChecks.overallStatus === "warning") {
+    console.log("⚠️  WARNING: Restore may overwrite existing data");
+  } else {
+    console.log("✅ SAFE: Restore appears safe to proceed");
+  }
+
+  console.log();
+
+  // Display database-specific information
+  Object.values(safetyChecks.databases).forEach((dbCheck) => {
+    console.log(`📊 Database: ${dbCheck.database}`);
+    console.log(`   Collections: ${dbCheck.collections}`);
+    console.log(`   Empty: ${dbCheck.isEmpty ? "Yes" : "No"}`);
+
+    if (dbCheck.lastModified) {
+      const age = Math.floor(
+        (new Date() - dbCheck.lastModified) / (1000 * 60 * 60)
+      );
+      console.log(`   Last Modified: ${age}h ago`);
+    }
+
+    if (dbCheck.warnings.length > 0) {
+      console.log(`   Warnings:`);
+      dbCheck.warnings.forEach((warning) => {
+        console.log(`     - ${warning}`);
+      });
+    }
+    console.log();
+  });
+
+  // Display overall warnings
+  if (safetyChecks.warnings.length > 0) {
+    console.log("⚠️  Overall Warnings:");
+    safetyChecks.warnings.forEach((warning) => {
+      console.log(`   - ${warning}`);
+    });
+    console.log();
+  }
+
+  if (validation.requiresConfirmation) {
+    console.log("🚨 CONFIRMATION REQUIRED");
+    console.log("This restore operation may overwrite existing data.");
+    console.log("Please review the information above carefully.");
+    console.log();
+
+    const answer = await createConfirmationPrompt(
+      "Do you want to proceed with the restore? (yes/no): "
+    );
+
+    if (answer === "yes" || answer === "y") {
+      console.log("✅ Confirmed. Proceeding with restore...");
+      return true;
+    } else {
+      console.log("❌ Restore cancelled by user.");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function getAge(timestamp) {
@@ -285,43 +540,33 @@ function setupWebSocketForwarding() {
     let isConnected = false;
 
     socket.on("connect", () => {
-      console.log(`[Backup Manager] Connected to main server at ${serverUrl}`);
       isConnected = true;
 
       // Forward backup events to the main server
       backupEventEmitter.on("backup-started", (data) => {
         if (isConnected) {
-          console.log("[Backup Manager] Forwarding backup-started event");
           socket.emit("backup-started", data);
         }
       });
 
       backupEventEmitter.on("backup-completed", (data) => {
         if (isConnected) {
-          console.log("[Backup Manager] Forwarding backup-completed event");
           socket.emit("backup-completed", data);
         }
       });
 
       backupEventEmitter.on("backup-error", (data) => {
         if (isConnected) {
-          console.log("[Backup Manager] Forwarding backup-error event");
           socket.emit("backup-error", data);
         }
       });
     });
 
     socket.on("disconnect", () => {
-      console.log("[Backup Manager] Disconnected from main server");
       isConnected = false;
     });
 
     socket.on("connect_error", (error) => {
-      console.log(
-        "[Backup Manager] Failed to connect to main server:",
-        error.message
-      );
-      console.log("[Backup Manager] Backup events will only be logged locally");
       isConnected = false;
     });
 
@@ -339,11 +584,6 @@ function setupWebSocketForwarding() {
 
     return socket;
   } catch (error) {
-    console.log(
-      "[Backup Manager] Failed to setup WebSocket connection:",
-      error.message
-    );
-    console.log("[Backup Manager] Backup events will only be logged locally");
     return null;
   }
 }
@@ -362,7 +602,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   // Wait for connection before parsing commands
   if (globalSocket) {
     globalSocket.on("connect", () => {
-      console.log("[Backup Manager] Ready to process commands");
+      // Connection established
     });
   }
 

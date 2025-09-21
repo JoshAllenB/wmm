@@ -17,6 +17,10 @@ import {
   listBackups,
   cleanupOldBackups,
   createBackupArchive,
+  restoreDatabaseFromBackup,
+  restoreFullBackup,
+  validateBackupForRestore,
+  validateRestoreWithSafety,
   CONFIG,
 } from "../../utils/database-backup.mjs";
 
@@ -477,6 +481,320 @@ router.get("/info/:backupId", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to get backup information",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/restore/:backupId
+ * @desc Restore database(s) from a backup
+ */
+router.post("/restore/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const {
+      database,
+      drop = false,
+      excludeCollections = [],
+      includeCollections = [],
+      skipSafetyCheck = false,
+      force = false,
+    } = req.body;
+
+    if (!backupId) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup ID is required",
+      });
+    }
+
+    // Perform safety validation unless skipped
+    if (!skipSafetyCheck && !force) {
+      const safetyValidation = await validateRestoreWithSafety(
+        backupId,
+        database,
+        {
+          skipConfirmation: true,
+          force: false,
+        }
+      );
+
+      if (!safetyValidation.valid) {
+        return res.status(400).json({
+          success: false,
+          error: safetyValidation.error,
+          safetyChecks: safetyValidation.safetyChecks,
+        });
+      }
+
+      // Check if confirmation is required
+      if (safetyValidation.requiresConfirmation) {
+        return res.status(400).json({
+          success: false,
+          error: "Safety validation requires confirmation",
+          message:
+            "This restore operation may overwrite existing data. Please confirm before proceeding.",
+          safetyChecks: safetyValidation.safetyChecks,
+          requiresConfirmation: true,
+        });
+      }
+    }
+
+    let result;
+    if (database) {
+      // Restore specific database
+      if (!CONFIG.MONGODB_DATABASES.includes(database)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid database",
+          message: `Database '${database}' is not in the configured list: ${CONFIG.MONGODB_DATABASES.join(
+            ", "
+          )}`,
+        });
+      }
+      result = await restoreDatabaseFromBackup(backupId, database, {
+        drop,
+        excludeCollections,
+        includeCollections,
+      });
+    } else {
+      // Restore all databases
+      result = await restoreFullBackup(backupId, {
+        drop,
+        excludeCollections,
+        includeCollections,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: database
+        ? `Database ${database} restored successfully from backup ${backupId}`
+        : `All databases restored successfully from backup ${backupId}`,
+      restore: result,
+    });
+  } catch (error) {
+    console.error("Error restoring from backup:", error);
+
+    // Provide more specific error messages based on error type
+    let errorMessage = "Failed to restore from backup";
+    let statusCode = 500;
+
+    if (error.message.includes("MongoDB connection failed")) {
+      errorMessage =
+        "MongoDB connection failed. Please check if MongoDB is running and accessible.";
+      statusCode = 503; // Service Unavailable
+    } else if (error.message.includes("server selection timeout")) {
+      errorMessage =
+        "MongoDB server is not responding. Please check if MongoDB is running.";
+      statusCode = 503;
+    } else if (error.message.includes("replicaSet")) {
+      errorMessage =
+        "MongoDB replica set configuration issue. Please check your MongoDB setup.";
+      statusCode = 503;
+    } else if (error.message.includes("authentication failed")) {
+      errorMessage =
+        "MongoDB authentication failed. Please check your credentials.";
+      statusCode = 401;
+    } else if (error.message.includes("permission denied")) {
+      errorMessage =
+        "Insufficient permissions to access MongoDB. Please check your user privileges.";
+      statusCode = 403;
+    } else if (error.message.includes("not found")) {
+      errorMessage = error.message;
+      statusCode = 404;
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: errorMessage,
+      message: error.message,
+      details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/restore-database/:backupId
+ * @desc Restore a specific database from a backup
+ */
+router.post("/restore-database/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const {
+      database,
+      drop = false,
+      excludeCollections = [],
+      includeCollections = [],
+    } = req.body;
+
+    if (!backupId) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup ID is required",
+      });
+    }
+
+    if (!database) {
+      return res.status(400).json({
+        success: false,
+        error: "Database name is required",
+      });
+    }
+
+    if (!CONFIG.MONGODB_DATABASES.includes(database)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid database",
+        message: `Database '${database}' is not in the configured list: ${CONFIG.MONGODB_DATABASES.join(
+          ", "
+        )}`,
+      });
+    }
+
+    // Validate backup before restore
+    const validation = validateBackupForRestore(backupId, database);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+    }
+
+    const result = await restoreDatabaseFromBackup(backupId, database, {
+      drop,
+      excludeCollections,
+      includeCollections,
+    });
+
+    res.json({
+      success: true,
+      message: `Database ${database} restored successfully from backup ${backupId}`,
+      restore: result,
+    });
+  } catch (error) {
+    console.error("Error restoring database from backup:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to restore database from backup",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/restore-full/:backupId
+ * @desc Restore all databases from a full backup
+ */
+router.post("/restore-full/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const {
+      drop = false,
+      excludeCollections = [],
+      includeCollections = [],
+    } = req.body;
+
+    if (!backupId) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup ID is required",
+      });
+    }
+
+    // Validate backup before restore
+    const validation = validateBackupForRestore(backupId);
+    if (!validation.valid) {
+      return res.status(400).json({
+        success: false,
+        error: validation.error,
+      });
+    }
+
+    const result = await restoreFullBackup(backupId, {
+      drop,
+      excludeCollections,
+      includeCollections,
+    });
+
+    res.json({
+      success: true,
+      message: `All databases restored successfully from backup ${backupId}`,
+      restore: result,
+    });
+  } catch (error) {
+    console.error("Error restoring full backup:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to restore full backup",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route GET /api/backup/validate/:backupId
+ * @desc Validate a backup for restore operations
+ */
+router.get("/validate/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const { database } = req.query;
+
+    if (!backupId) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup ID is required",
+      });
+    }
+
+    const validation = validateBackupForRestore(backupId, database);
+
+    res.json({
+      success: true,
+      validation,
+    });
+  } catch (error) {
+    console.error("Error validating backup:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to validate backup",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route GET /api/backup/safety-check/:backupId
+ * @desc Perform comprehensive safety validation before restore
+ */
+router.get("/safety-check/:backupId", async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const { database, skipConfirmation = false, force = false } = req.query;
+
+    if (!backupId) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup ID is required",
+      });
+    }
+
+    const validation = await validateRestoreWithSafety(backupId, database, {
+      skipConfirmation: skipConfirmation === "true",
+      force: force === "true",
+    });
+
+    res.json({
+      success: validation.valid,
+      validation,
+    });
+  } catch (error) {
+    console.error("Error performing safety check:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to perform safety check",
       message: error.message,
     });
   }
