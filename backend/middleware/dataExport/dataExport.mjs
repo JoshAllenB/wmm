@@ -9,6 +9,7 @@ import {
 } from "./logic/hrgDataExport.mjs";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { fileURLToPath } from "url";
 
 const router = express.Router();
@@ -17,10 +18,40 @@ const __dirname = path.dirname(__filename);
 
 /**
  * Get the temporary directory path for data export files
+ * Works on both Windows (native) and WSL2
  * @returns {string} The path to temporary DataExport folder
  */
 function getDataExportPath() {
-  const tempDir = path.join(__dirname, "..", "..", "temp", "DataExport");
+  let tempDir;
+
+  // Check if we're on Windows (native)
+  if (process.platform === "win32") {
+    // Native Windows - use Windows temp directory
+    tempDir = path.join(os.tmpdir(), "wmm_dataexport");
+  } else if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+    // WSL environment - try Windows temp directory first, fallback to Linux temp
+    const homeDir = os.homedir();
+    const username = homeDir.split("/").pop();
+    const windowsTempDir = `/mnt/c/Users/${username}/AppData/Local/Temp/wmm_dataexport`;
+
+    // Try to create Windows temp directory first
+    try {
+      if (!fs.existsSync(windowsTempDir)) {
+        fs.mkdirSync(windowsTempDir, { recursive: true });
+      }
+      tempDir = windowsTempDir;
+    } catch (error) {
+      console.warn(
+        "Cannot access Windows temp directory, falling back to Linux temp:",
+        error.message
+      );
+      // Fallback to Linux temp directory
+      tempDir = path.join(os.tmpdir(), "wmm_dataexport");
+    }
+  } else {
+    // Linux/macOS - use system temp directory
+    tempDir = path.join(os.tmpdir(), "wmm_dataexport");
+  }
 
   // Ensure the directory exists
   try {

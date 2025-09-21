@@ -688,26 +688,38 @@ const reportConfig = {
 
 /**
  * Determines the default output path based on the current environment
- * Works on both Windows WSL and native Ubuntu
+ * Works on both Windows (native) and WSL2
  * @returns {string} The default path for saving reports
  */
 function getDefaultOutputPath() {
-  const homeDir = os.homedir();
-  const isWSL = os.release().toLowerCase().includes("microsoft");
+  // Check if we're on Windows (native)
+  if (process.platform === "win32") {
+    // Native Windows - use Windows Documents folder
+    const homeDir = os.homedir();
+    return path.join(homeDir, "Documents", "WMM Reports");
+  }
 
-  if (isWSL) {
-    // We're in WSL, try to use the Windows Documents folder if possible
+  // Check if we're in WSL environment
+  if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+    // WSL environment - try to use Windows Documents folder accessible from WSL
+    const homeDir = os.homedir();
     const username = homeDir.split("/").pop();
+
+    // Try Windows Documents folder first
+    const windowsDocsPath = `/mnt/c/Users/${username}/Documents/WMM Reports`;
     if (fs.existsSync("/mnt/c/Users/" + username + "/Documents")) {
-      return `/mnt/c/Users/${username}/Documents/WMM Reports`;
-    } else if (fs.existsSync("/mnt/d")) {
-      // Fallback to D drive if it exists (common external drive)
+      return windowsDocsPath;
+    }
+
+    // Fallback to D drive if it exists (common external drive)
+    if (fs.existsSync("/mnt/d")) {
       return `/mnt/d/WMM Reports`;
     }
   }
 
-  // Default for native Ubuntu or fallback if WSL paths aren't available
-  return `${homeDir}/WMM_Reports`;
+  // Linux/macOS - use home directory
+  const homeDir = os.homedir();
+  return path.join(homeDir, "WMM_Reports");
 }
 
 // Function to generate an Excel file from the report data

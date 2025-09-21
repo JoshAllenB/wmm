@@ -27,14 +27,20 @@ import {
 
 const router = express.Router();
 
-// Configure multer for file uploads
+// Configure multer for file uploads with cross-platform path support
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    // Use the backup base path which is already configured for cross-platform compatibility
     const uploadDir = path.join(CONFIG.BACKUP_BASE_PATH, "uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      cb(null, uploadDir);
+    } catch (error) {
+      console.error("Error creating upload directory:", error);
+      cb(error, null);
     }
-    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     // Generate unique filename with timestamp

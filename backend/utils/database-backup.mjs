@@ -55,7 +55,7 @@ const CONFIG = {
 
   // Backup paths
   BACKUP_BASE_PATH: process.env.BACKUP_PATH || getDefaultBackupPath(),
-  TEMP_BACKUP_PATH: path.join(process.cwd(), "temp", "backups"),
+  TEMP_BACKUP_PATH: getDefaultTempPath(),
 
   // Backup settings
   MAX_BACKUPS: parseInt(process.env.MAX_BACKUPS) || 10,
@@ -99,20 +99,41 @@ function log(message, data = null) {
 
 // Get default backup path based on environment
 function getDefaultBackupPath() {
-  // Check if we're in WSL environment
-  if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
-    // WSL environment - use simple Windows directory structure
-    return `/mnt/c/mongo_backups`;
+  // Check if we're on Windows (native)
+  if (process.platform === "win32") {
+    // Native Windows - use Windows-style path
+    return `C:\\mongo_backups`;
   }
 
-  // Check if we're on Windows
-  if (process.platform === "win32") {
-    return `C:\\mongo_backups`;
+  // Check if we're in WSL environment
+  if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+    // WSL environment - use Windows directory structure accessible from WSL
+    return `/mnt/c/mongo_backups`;
   }
 
   // Linux/macOS - use home directory
   const homeDir = os.homedir();
   return path.join(homeDir, "mongo_backups");
+}
+
+// Get default temporary path based on environment
+function getDefaultTempPath() {
+  // Check if we're on Windows (native)
+  if (process.platform === "win32") {
+    // Native Windows - use Windows temp directory
+    return path.join(os.tmpdir(), "wmm_backups");
+  }
+
+  // Check if we're in WSL environment
+  if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+    // WSL environment - use Windows temp directory accessible from WSL
+    const homeDir = os.homedir();
+    const username = homeDir.split("/").pop();
+    return `/mnt/c/Users/${username}/AppData/Local/Temp/wmm_backups`;
+  }
+
+  // Linux/macOS - use system temp directory
+  return path.join(os.tmpdir(), "wmm_backups");
 }
 
 // Fix MongoDB URI for backup operations
