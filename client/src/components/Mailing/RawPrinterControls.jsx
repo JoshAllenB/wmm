@@ -638,33 +638,62 @@ const RawPrinterControls = ({
           Label Adjustments
         </h5>
 
-        {/* Cell Number Toggle */}
-        <div className="mb-3 p-3 bg-white rounded border">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="cellno-toggle"
-              checked={selectedFields.includes("cellno")}
-              onCheckedChange={(checked) => {
-                const newSelectedFields = checked
-                  ? [...selectedFields.filter((f) => f !== "cellno"), "cellno"]
-                  : selectedFields.filter((f) => f !== "cellno");
-                // Update selectedFields in parent component
-                if (setSelectedFields) {
-                  setSelectedFields(newSelectedFields);
-                }
-              }}
-            />
-            <label
-              htmlFor="cellno-toggle"
-              className="text-sm font-medium text-gray-700"
-            >
-              Include Cell Numbers
-            </label>
+        {/* CP and Tel toggles side-by-side for compact layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          {/* CP Number Toggle */}
+          <div className="p-3 bg-white rounded border">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="cpno-toggle"
+                checked={selectedFields.includes("cpno")}
+                onCheckedChange={(checked) => {
+                  const newSelectedFields = checked
+                    ? [...selectedFields.filter((f) => f !== "cpno"), "cpno"]
+                    : selectedFields.filter((f) => f !== "cpno");
+                  if (setSelectedFields) {
+                    setSelectedFields(newSelectedFields);
+                  }
+                }}
+              />
+              <label
+                htmlFor="cpno-toggle"
+                className="text-sm font-medium text-gray-700"
+              >
+                Include CP no.
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              When checked, prints CP number (from cell number only).
+            </p>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            When checked, contact information (cell and office numbers) will be
-            included in the printed labels.
-          </p>
+
+          {/* Tel Number Toggle */}
+          <div className="p-3 bg-white rounded border">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="telno-toggle"
+                checked={selectedFields.includes("telno")}
+                onCheckedChange={(checked) => {
+                  const newSelectedFields = checked
+                    ? [...selectedFields.filter((f) => f !== "telno"), "telno"]
+                    : selectedFields.filter((f) => f !== "telno");
+                  if (setSelectedFields) {
+                    setSelectedFields(newSelectedFields);
+                  }
+                }}
+              />
+              <label
+                htmlFor="telno-toggle"
+                className="text-sm font-medium text-gray-700"
+              >
+                Include Tel no.
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              When checked, prints Tel number (prefers contact no., falls back
+              to office no.).
+            </p>
+          </div>
         </div>
 
         {/* Adjustment Controls */}

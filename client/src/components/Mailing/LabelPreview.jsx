@@ -68,6 +68,43 @@ const getContactNumber = (row) => {
   return "";
 };
 
+const getCellNumber = (row) => {
+  const clean = (n) => {
+    if (!n) return "";
+    const s = String(n);
+    const m = s.match(/^[\d\s\-\+\.]+/);
+    if (!m) return "";
+    let v = m[0]
+      .replace(/\s+/g, " ")
+      .replace(/-+/g, "-")
+      .replace(/\.+/g, ".")
+      .trim();
+    v = v.replace(/[\-\s\.]+$/, "");
+    return v;
+  };
+  return clean(row.cellno) || "";
+};
+
+const getTelephoneNumber = (row) => {
+  const clean = (n) => {
+    if (!n) return "";
+    const s = String(n);
+    const m = s.match(/^[\d\s\-\+\.]+/);
+    if (!m) return "";
+    let v = m[0]
+      .replace(/\s+/g, " ")
+      .replace(/-+/g, "-")
+      .replace(/\.+/g, ".")
+      .trim();
+    v = v.replace(/[\-\s\.]+$/, "");
+    return v;
+  };
+  const contact = clean(row.contactnos);
+  if (contact) return contact;
+  const office = clean(row.officeno || row.ofcno);
+  return office || "";
+};
+
 const LabelPreview = ({
   isLoading,
   selectedTemplate,
@@ -348,16 +385,23 @@ const LabelItem = ({
       <p style={commonParagraphStyle}>
         {
           isSpecialRole
-            ? (
-                isCMCGroup
-                  ? `${formatClientId(rowData.id)} - CMC`
-                  : `${formatClientId(rowData.id)}`
-              ) + (rowData.acode ? `/${rowData.acode}` : "")
-            : `${formatClientIdWithType(rowData.id, rowSubscriptionType)}$${"{"}`.slice(0,-2) /* placeholder to avoid template confusion */
+            ? (isCMCGroup
+                ? `${formatClientId(rowData.id)} - CMC`
+                : `${formatClientId(rowData.id)}`) +
+              (rowData.acode ? `/${rowData.acode}` : "")
+            : `${formatClientIdWithType(
+                rowData.id,
+                rowSubscriptionType
+              )}$${"{"}`.slice(
+                0,
+                -2
+              ) /* placeholder to avoid template confusion */
         }
-        {!isSpecialRole && !shouldHideExpiryAndCopies &&
+        {!isSpecialRole &&
+          !shouldHideExpiryAndCopies &&
           ` - ${enddate} - ${copies}cps/${rowData.acode || ""}`}
-        {!isSpecialRole && shouldHideExpiryAndCopies &&
+        {!isSpecialRole &&
+          shouldHideExpiryAndCopies &&
           (rowData.acode ? `/${rowData.acode}` : "")}
       </p>
       <p style={commonParagraphStyle}>{getFullName(rowData)}</p>
@@ -374,8 +418,16 @@ const LabelItem = ({
           </React.Fragment>
         ))}
       </p>
-      {selectedFields.includes("cellno") && (
-        <p style={commonParagraphStyle}>Cell# {getContactNumber(rowData)}</p>
+      {(selectedFields.includes("cpno") ||
+        selectedFields.includes("telno")) && (
+        <>
+          {selectedFields.includes("cpno") && (
+            <p style={commonParagraphStyle}>{getCellNumber(rowData)}</p>
+          )}
+          {selectedFields.includes("telno") && (
+            <p style={commonParagraphStyle}>{getTelephoneNumber(rowData)}</p>
+          )}
+        </>
       )}
     </div>
   );

@@ -197,6 +197,19 @@ export const getContactNumber = (data) => {
 
   return unique.join(" / ");
 };
+
+// Extract CP number exclusively from cell number
+export const getCellNumber = (data) => {
+  return cleanPhoneNumber(data?.cellno) || "";
+};
+
+// Extract Tel number: prefer contact number; if missing, fallback to office number
+export const getTelephoneNumber = (data) => {
+  const primary = cleanPhoneNumber(data?.contactnos);
+  if (primary) return primary;
+  const office = cleanPhoneNumber(data?.officeno || data?.ofcno);
+  return office || "";
+};
 import { formatClientId, getSubscriptionTypeCode } from "../../utils/clientId";
 
 // Common function to filter rows based on start/end Client IDs
@@ -335,7 +348,8 @@ export const generateLabelContent = (
         .filter((line) => line.length > 0)
         .join("<br />")
     : "";
-  const contact = fields.includes("cellno") ? getContactNumber(data) : "";
+  const cpNumber = fields.includes("cpno") ? getCellNumber(data) : "";
+  const telNumber = fields.includes("telno") ? getTelephoneNumber(data) : "";
 
   // Build content with consistent spacing
   const commonStyle = "margin: 0; padding: 0;";
@@ -351,7 +365,8 @@ export const generateLabelContent = (
           ? `<p class="multiline" style="${commonStyle}">${address}</p>`
           : ""
       }
-      ${contact ? `<p style="${commonStyle}">${contact}</p>` : ""}
+      ${cpNumber ? `<p style="${commonStyle}">${cpNumber}</p>` : ""}
+      ${telNumber ? `<p style="${commonStyle}">${telNumber}</p>` : ""}
     </div>
   `;
 };
@@ -431,9 +446,10 @@ const generateLabelTextContent = (
         .filter((line) => line.length > 0) // Keep only non-empty lines
     : [];
 
-  // Contact info - only include if cellno is selected
-  const contact = selectedFields.includes("cellno")
-    ? getContactNumber(data)
+  // CP and Tel numbers controlled independently
+  const cpNumber = selectedFields.includes("cpno") ? getCellNumber(data) : "";
+  const telNumber = selectedFields.includes("telno")
+    ? getTelephoneNumber(data)
     : "";
 
   // Build content with clear line breaks according to specified format
@@ -463,8 +479,9 @@ const generateLabelTextContent = (
     content += `${line}\r\n`;
   });
 
-  // Contact info
-  if (contact) content += `${contact}\r\n`;
+  // CP and Tel lines (CP first), no prefixes
+  if (cpNumber) content += `${cpNumber}\r\n`;
+  if (telNumber) content += `${telNumber}\r\n`;
 
   return content;
 };
