@@ -179,18 +179,33 @@ const cleanPhoneNumber = (phoneNumber) => {
 };
 
 export const getContactNumber = (data) => {
-  const cellno = cleanPhoneNumber(data.cellno);
-  const officeno = cleanPhoneNumber(data.officeno);
+  // Collect possible contact sources: cell, office (two possible keys), and other contact numbers
+  const candidates = [
+    data?.cellno,
+    data?.officeno,
+    data?.ofcno,
+    data?.contactnos,
+  ];
 
-  if (cellno || officeno) {
-    return [cellno, officeno].filter((num) => num).join(" / ");
-  }
-  return "";
+  // Clean, dedupe, and join
+  const cleaned = candidates
+    .map((val) => cleanPhoneNumber(val))
+    .filter((val) => !!val);
+
+  // Deduplicate while preserving order
+  const unique = Array.from(new Set(cleaned));
+
+  return unique.join(" / ");
 };
 import { formatClientId, getSubscriptionTypeCode } from "../../utils/clientId";
 
 // Common function to filter rows based on start/end Client IDs
-const filterRowsByClientId = (rows, startClientId, endClientId, afterSpecifiedStart = false) => {
+const filterRowsByClientId = (
+  rows,
+  startClientId,
+  endClientId,
+  afterSpecifiedStart = false
+) => {
   return rows.filter((row) => {
     const clientId = row?.original?.id?.toString();
     if (!clientId) return false;
