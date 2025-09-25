@@ -269,108 +269,6 @@ const getSubscriptionData = (data, subscriptionType) => {
   return subscriptionData?.records?.[0] || subscriptionData || {};
 };
 
-// Common function to generate label content (HTML version)
-export const generateLabelContent = (
-  data,
-  selectedFields = [],
-  userRole,
-  subscriptionType
-) => {
-  if (!data) return "";
-
-  // Ensure selectedFields is always an array
-  const fields = Array.isArray(selectedFields) ? selectedFields : [];
-
-  const subscription = getSubscriptionData(data, subscriptionType);
-  const copies = subscription.copies ?? "N/A";
-  let enddate = "N/A";
-
-  if (subscription.enddate) {
-    const date = new Date(subscription.enddate);
-    if (!isNaN(date.getTime())) {
-      enddate = date.toLocaleDateString();
-    }
-  }
-
-  // Check if user role should hide expiry and copies
-  const isSpecialRole = ["HRG", "FOM", "CAL"].some((role) =>
-    userRole?.includes(role)
-  );
-  const group = (data.group || "").toUpperCase();
-  const isCMCGroup = group === "CMC" || group.includes("CMC");
-
-  // Build ID line and trailing info
-  let idLine;
-  let expiryAndCopies;
-
-  if (isSpecialRole) {
-    // For HRG/FOM/CAL: only ClientID/areacode; if CMC group then "ClientID - CMC / areacode"
-    idLine = isCMCGroup
-      ? `${formatClientId(data.id)} - CMC`
-      : `${formatClientId(data.id)}`;
-    expiryAndCopies = data.acode ? `/${data.acode}` : "";
-  } else {
-    const shouldHideExpiryAndCopies =
-      subscriptionType === "Promo" || subscriptionType === "Complimentary";
-    const idTypeCode = getSubscriptionTypeCode(
-      data.subscriptionType || subscriptionType
-    );
-    idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
-    expiryAndCopies = !shouldHideExpiryAndCopies
-      ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
-      : data.acode
-      ? `/${data.acode}`
-      : "";
-  }
-
-  // Handle name and company display
-  let nameLines = [];
-  const fullName = getFullName(data);
-  const company = data.company || "";
-
-  if (fullName && company) {
-    // Always show Fullname then Company when both exist
-    nameLines.push(fullName);
-    nameLines.push(company);
-  } else if (!fullName && company) {
-    // No fullname, show company only
-    nameLines.push(company);
-  } else if (fullName && !company) {
-    // Fullname only
-    nameLines.push(fullName);
-  }
-
-  // Clean up address by removing empty lines and extra whitespace while preserving valid line breaks
-  const address = data.address
-    ? data.address
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.length > 0)
-        .join("<br />")
-    : "";
-  const cpNumber = fields.includes("cpno") ? getCellNumber(data) : "";
-  const telNumber = fields.includes("telno") ? getTelephoneNumber(data) : "";
-
-  // Build content with consistent spacing
-  const commonStyle = "margin: 0; padding: 0;";
-
-  return `
-    <div>
-      <p style="${commonStyle}">${idLine}${expiryAndCopies}</p>
-      ${nameLines
-        .map((line) => `<p style="${commonStyle}">${line}</p>`)
-        .join("")}
-      ${
-        address
-          ? `<p class="multiline" style="${commonStyle}">${address}</p>`
-          : ""
-      }
-      ${cpNumber ? `<p style="${commonStyle}">${cpNumber}</p>` : ""}
-      ${telNumber ? `<p style="${commonStyle}">${telNumber}</p>` : ""}
-    </div>
-  `;
-};
-
 // Modified label text generator to ensure proper line breaks
 const generateLabelTextContent = (
   data,
@@ -484,189 +382,6 @@ const generateLabelTextContent = (
   return content;
 };
 
-// Main HTML generation function
-export const generatePrintHTML = (
-  startClientId,
-  endClientId,
-  startPosition,
-  rows,
-  template,
-  leftPosition, // Expected in pixels
-  topPosition, // Expected in pixels
-  columnWidth, // Expected in pixels
-  horizontalSpacing, // Expected in pixels
-  rowSpacing, // Expected in pixels
-  fontSize, // Expected in points (pt)
-  labelHeight, // Expected in pixels
-  selectedFields,
-  userRole,
-  subscriptionType,
-  rowsPerPage = 3,
-  columnsPerPage = 2,
-  afterSpecifiedStart = false
-) => {
-  // Filter rows based on start/end Client IDs
-  const filteredRows = filterRowsByClientId(
-    rows,
-    startClientId,
-    endClientId,
-    afterSpecifiedStart
-  );
-
-  if (filteredRows.length === 0) {
-    return `
-      <html>
-        <head>
-          <title>No Labels to Print</title>
-          <style>
-            body { padding: 20px; }
-          </style>
-        </head>
-        <body>
-          <h1>No labels found</h1>
-          <p>Please check your selection and ID range if specified.</p>
-        </body>
-      </html>
-    `;
-  }
-
-  // Calculate the number of labels per page using the dynamic configuration
-  const labelsPerPage = rowsPerPage * columnsPerPage;
-  const totalPages = Math.ceil(filteredRows.length / labelsPerPage);
-
-  // Create HTML content with more robust styling
-  let html = `
-    <html>
-      <head>
-        <title>Mailing Labels</title>
-        <style>
-          @font-face {
-            font-family: 'Quaxiculo';
-            src: url('data:font/woff;base64,UklGRqQGAABXQVZFZm10IBAAAAABAAAAEAAAAAABAAgAZGF0YYAGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-            font-weight: normal;
-            font-style: normal;
-          }
-          @page {
-            size: letter;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            position: relative;
-            font-family: 'Quaxiculo', 'LQMATRIX EliteQ LQN', Arial, sans-serif;
-            font-size: ${fontSize}pt;
-          }
-          .page {
-            width: 8.5in;
-            height: 11in;
-            position: relative;
-            page-break-after: always;
-          }
-          .page:last-child {
-            page-break-after: auto;
-          }
-          .label-container {
-            position: absolute;
-            width: ${columnWidth}px;
-            height: ${labelHeight}px;
-            overflow: hidden;
-            box-sizing: border-box;
-            border: 1px solid #ddd; /* Visual border for debugging */
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: flex-start;
-            padding: 2px;
-          }
-          .label-content {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            justify-content: flex-start;
-          }
-          .label-content p {
-            margin: 0;
-            padding: 0;
-            line-height: 1.1; /* Tighter line spacing */
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            flex-shrink: 0;
-            font-size: ${fontSize}pt;
-          }
-          .label-content p.multiline {
-            white-space: normal;
-            display: -webkit-box;
-            -webkit-line-clamp: 4; /* Limit address to 4 lines */
-            -webkit-box-orient: vertical;
-          }
-          @media print {
-            body { margin: 0; }
-            .page { page-break-after: always; }
-            .label-container { border: none; } /* Remove borders for printing */
-          }
-        </style>
-      </head>
-      <body>
-  `;
-
-  // Process each page
-  for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
-    html += '<div class="page">';
-
-    // Process labels for this page
-    const startIndex = pageIndex * labelsPerPage;
-    const endIndex = Math.min(startIndex + labelsPerPage, filteredRows.length);
-
-    for (let i = startIndex; i < endIndex; i++) {
-      const row = filteredRows[i];
-      const data = row.original;
-
-      // Calculate position - now with more precise spacing for 2-column layout
-      const positionInPage = i % labelsPerPage;
-      const column = positionInPage % columnsPerPage; // 0 = left, 1 = right
-      const rowInPage = Math.floor(positionInPage / columnsPerPage);
-
-      const startFromRight =
-        startPosition === "right" && pageIndex === 0 && i === startIndex;
-      const effectiveColumn = startFromRight ? columnsPerPage - 1 : column;
-
-      // Calculate positions using pixel values directly
-      // Each label gets its own container with exact width and height
-      const xPos =
-        leftPosition + effectiveColumn * (columnWidth + horizontalSpacing);
-      const yPos = topPosition + rowInPage * (labelHeight + rowSpacing);
-
-      // Generate label content
-      const content = generateLabelContent(
-        data,
-        selectedFields,
-        userRole,
-        data.subscriptionType || subscriptionType
-      );
-
-      // Wrap content in a container with strict width and height control
-      html += `
-        <div class="label-container" style="left: ${xPos}px; top: ${yPos}px;">
-          <div class="label-content">${content}</div>
-        </div>
-      `;
-    }
-
-    html += "</div>";
-  }
-
-  html += `
-      </body>
-    </html>
-  `;
-
-  return html;
-};
-
 // Generate CP850-compatible raw print content using new ESC/P positioning logic
 export const generateCp850RawPrintContent = (
   startClientId,
@@ -688,7 +403,8 @@ export const generateCp850RawPrintContent = (
   isPrintJobResumed = false,
   useCp850Encoding = true, // Enable CP850 encoding for special characters
   labelAdjustments, // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
-  afterSpecifiedStart = false
+  afterSpecifiedStart = false,
+  appendToQueue = false // When true, bypass top margin and auto-compute start column based on last job
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -795,7 +511,7 @@ export const generateCp850RawPrintContent = (
   rawCommands.push(0x1b, 0x4a, 0x08); // ESC J 8
 
   // Apply top margin only for first row of first page and only if not a resumed job
-  if (!isPrintJobResumed) {
+  if (!isPrintJobResumed && !appendToQueue) {
     // 1 inch top margin = 6 lines at 6 LPI (default 4 lines used here)
     const topMarginLines = effectiveTopMarginLines;
     for (let i = 0; i < topMarginLines; i++) {
@@ -811,9 +527,26 @@ export const generateCp850RawPrintContent = (
   const labelWidthDots = inchesToDotsH(effectiveLabelWidthIn); // default 3.5 inches = 420 dots at 120 DPI
   const maxCharsPerCol = Math.floor(labelWidthDots / charWidthDots);
 
+  // Determine effective start position
+  // If appending, compute based on persisted counter parity
+  let effectiveStartPosition = startPosition;
+  if (appendToQueue) {
+    let labelsPrintedSoFar = 0;
+    try {
+      const raw = window?.localStorage?.getItem(
+        "wmm.continuousPrint.labelsPrinted"
+      );
+      const num = parseInt(raw, 10);
+      labelsPrintedSoFar = Number.isFinite(num) ? num : 0;
+    } catch (e) {
+      labelsPrintedSoFar = 0;
+    }
+    effectiveStartPosition = labelsPrintedSoFar % 2 === 1 ? "right" : "left";
+  }
+
   // Process all rows sequentially
   // If starting from right, first row consumes only 1 item on the right column
-  const startFromRightMode = startPosition === "right";
+  const startFromRightMode = effectiveStartPosition === "right";
   const totalRows = startFromRightMode
     ? Math.ceil((filteredRows.length + 1) / columnsPerPage)
     : Math.ceil(filteredRows.length / columnsPerPage);
@@ -960,6 +693,22 @@ export const generateCp850RawPrintContent = (
   rawCommands.push(0x1b, 0x40); // Reset printer
   rawCommands.push(0x0d, 0x0a); // Final line ending
 
+  // If appending, update the persisted counter by labels we just prepared
+  if (appendToQueue) {
+    const incrementBy = filteredRows.length;
+    try {
+      const key = "wmm.continuousPrint.labelsPrinted";
+      const raw = window?.localStorage?.getItem(key);
+      const current = Number.isFinite(parseInt(raw, 10))
+        ? parseInt(raw, 10)
+        : 0;
+      const next = Math.max(0, current + Math.max(0, incrementBy | 0));
+      window?.localStorage?.setItem(key, String(next));
+    } catch (e) {
+      // ignore storage errors
+    }
+  }
+
   return rawCommands;
 };
 
@@ -1051,6 +800,86 @@ export const generateStickerLabelRawPrintContent = (
   raw.push(0x0d, 0x0a);
 
   return raw;
+};
+
+// === Continuous/Append Printing Helpers ===
+// Persist a running counter of labels printed so far, so that subsequent jobs
+// can compute the correct column start without re-applying top margin.
+const CONTINUOUS_PRINT_COUNTER_KEY = "wmm.continuousPrint.labelsPrinted";
+
+const readIntFromLocalStorage = (key, fallback = 0) => {
+  try {
+    const raw = window?.localStorage?.getItem(key);
+    const num = parseInt(raw, 10);
+    return Number.isFinite(num) ? num : fallback;
+  } catch (e) {
+    return fallback;
+  }
+};
+
+const writeIntToLocalStorage = (key, value) => {
+  try {
+    window?.localStorage?.setItem(key, String(Math.max(0, value | 0)));
+  } catch (e) {
+    // ignore storage errors
+  }
+};
+
+// Get current total labels printed in the ongoing sheet/session
+export const getContinuousPrintCounter = () => {
+  return readIntFromLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, 0);
+};
+
+// Set total labels printed counter
+export const setContinuousPrintCounter = (value) => {
+  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, value);
+};
+
+// Reset counter when starting a brand new sheet
+export const resetContinuousPrintCounter = () => {
+  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, 0);
+};
+
+// Increment counter by the number of labels actually printed in a batch
+export const incrementContinuousPrintCounterBy = (count) => {
+  const current = getContinuousPrintCounter();
+  const next = current + Math.max(0, count | 0);
+  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, next);
+  return next;
+};
+
+// Compute the correct start position for an appended job based on parity
+// Even total → last ended on right → next starts on left
+// Odd total → last ended on left → next starts on right
+export const computeAppendStartPosition = (labelsPrintedSoFar) => {
+  return labelsPrintedSoFar % 2 === 1 ? "right" : "left";
+};
+
+// Prepare options for an appended job (skip top margin, set start column)
+export const prepareAppendJobOptions = () => {
+  const counter = getContinuousPrintCounter();
+  return {
+    isPrintJobResumed: true,
+    startPosition: computeAppendStartPosition(counter),
+    labelsPrintedSoFar: counter,
+  };
+};
+
+// Utility: count how many labels would be printed for a given client ID range.
+// This mirrors the filtering logic used by the raw generator.
+export const countLabelsForRange = (
+  rows,
+  startClientId,
+  endClientId,
+  afterSpecifiedStart = false
+) => {
+  const filtered = filterRowsByClientId(
+    Array.isArray(rows) ? rows : [],
+    startClientId,
+    endClientId,
+    afterSpecifiedStart
+  );
+  return filtered.length;
 };
 
 // Diagnostic function to check printer status and identify issues

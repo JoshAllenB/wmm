@@ -397,6 +397,7 @@ const RawPrinterControls = ({
   setSelectedFields, // Callback to update selectedFields in parent
   onPrinterChange, // Callback to notify parent of printer selection changes
   selectedPrinter: externalSelectedPrinter, // External selected printer from template
+  onChoosePrintMode, // Optional callback: (mode) => void; mode: 'new' | 'queue'
 }) => {
   const [selectedPrinter, setSelectedPrinter] = useState(
     externalSelectedPrinter || ""

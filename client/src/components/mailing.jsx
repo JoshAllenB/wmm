@@ -27,11 +27,9 @@ import RawPrinterControls from "./Mailing/RawPrinterControls";
 
 // Import utility functions
 import {
-  generatePrintHTML,
   generateChecklistHTML,
   generateCp850RawPrintContent,
   printWithJsPrintManager,
-  diagnosePrinterIssues,
 } from "./Mailing/PrintGenerator";
 
 // Import print queue functions
@@ -168,6 +166,7 @@ const Mailing = ({
 
   // State for selected printer
   const [selectedPrinter, setSelectedPrinter] = useState("");
+  const [isPrintModeModalOpen, setIsPrintModeModalOpen] = useState(false);
 
   // State for checklist title
   const [checklistTitle, setChecklistTitle] = useState("Mailing Checklist");
@@ -682,92 +681,10 @@ const Mailing = ({
     });
   };
 
-  // Handle print with range
-  const handlePrintWithRange = async () => {
-    let templateToUse = selectedTemplate;
-    if (!templateToUse) {
-      templateToUse = {
-        name: "Default Template",
-        layout: {
-          fontSize,
-          leftPosition: mmToPx(leftPosition),
-          topPosition: mmToPx(topPosition),
-          columnWidth: mmToPx(columnWidth),
-          labelHeight: mmToPx(labelHeight),
-          horizontalSpacing: mmToPx(horizontalSpacing),
-        },
-        selectedFields: selectedFields || [],
-      };
-    }
-
-    // Determine which data to use - use effectiveRows (after duplicate removal)
-    let rowsToUse = effectiveRows;
-    if (useAllData) {
-      try {
-        const allData = await fetchAllData();
-        const allDataRows = allData.map((item) => ({ original: item }));
-        // Apply exclusions to all data as well
-        rowsToUse = allDataRows.filter(
-          (row) => !excludedIds.has(row?.original?.id?.toString())
-        );
-      } catch (error) {
-        console.error("Error fetching all data:", error);
-        toast({
-          title: "Error",
-          description:
-            "Failed to fetch all records. Using available rows instead.",
-          variant: "destructive",
-        });
-      }
-    }
-    // Generate print preview HTML (fallback when JSPrintManager isn't available)
-    // const htmlContent = generatePrintHTML(
-    //   startClientId,
-    //   endClientId,
-    //   startPosition,
-    //   rowsToUse,
-    //   templateToUse,
-    //   mmToPx(leftPosition),
-    //   mmToPx(topPosition),
-    //   mmToPx(columnWidth),
-    //   mmToPx(horizontalSpacing),
-    //   mmToPx(rowSpacing),
-    //   fontSize,
-    //   mmToPx(labelHeight),
-    //   templateToUse.selectedFields || selectedFields || [],
-    //   userRole,
-    //   subscriptionType, // Add subscription type here
-    //   rowsPerPage,
-    //   columnsPerPage
-    // );
-
-    const printWindow = window.open("", "_blank", "height=600,width=800");
-    if (printWindow) {
-      printWindow.document.write("<!DOCTYPE html>");
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      // Wait for resources to load before printing
-      printWindow.onload = () => {
-        try {
-          printWindow.print();
-          // Only close after printing is done or cancelled
-          printWindow.onafterprint = () => {
-            printWindow.close();
-          };
-        } catch (error) {
-          console.error("Print error:", error);
-          // Keep window open if print fails
-        }
-      };
-    } else {
-      alert(
-        "Could not open print window. Please check your pop-up blocker settings."
-      );
-    }
-  };
+  // Removed legacy HTML preview printing in favor of CP850/JSPM raw printing
 
   // Handle CP850-aware printing with JSPrintManager
-  const handleCp850PrintWithRange = async () => {
+  const handleCp850PrintWithRange = async (mode = "new") => {
     // Ensure JSPrintManager is connected before attempting to print
     const ensureJspmConnected = async (timeoutMs = 15000) => {
       if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
@@ -910,10 +827,11 @@ const Mailing = ({
         subscriptionType,
         rowsPerPage,
         2, // Always use 2 columns for raw
-        false, // isPrintJobResumed
+        mode === "queue", // isPrintJobResumed when appending
         true, // useCp850Encoding
         labelAdjustments, // Pass label adjustments
-        afterSpecifiedStart
+        afterSpecifiedStart,
+        mode === "queue" // appendToQueue
       );
 
       // Use printer from template if available, otherwise use selected printer
@@ -2090,7 +2008,7 @@ const Mailing = ({
                           isLoading={isLoading}
                           hasAvailableRows={effectiveRows.length > 0}
                           selectedTemplate={selectedTemplate}
-                          onPrintPreview={handleCp850PrintWithRange}
+                          onPrintPreview={() => setIsPrintModeModalOpen(true)}
                           queueLoading={queueLoading}
                         />
                       </div>
@@ -2114,6 +2032,53 @@ const Mailing = ({
           {renderContent()}
         </div>
       </Modal>
+
+      {/* Print Mode Modal moved from RawPrinterControls */}
+      {isPrintModeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setIsPrintModeModalOpen(false)}
+          />
+          <div className="relative bg-white rounded-lg shadow-lg w-full max-w-sm p-4">
+            <h6 className="text-sm font-semibold text-gray-800 mb-2">
+              Choose Print Mode
+            </h6>
+            <p className="text-xs text-gray-600 mb-4">
+              New Print starts at the top margin on a new sheet. Add to Queue
+              continues on the current sheet with proper spacing.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button
+                onClick={async () => {
+                  setIsPrintModeModalOpen(false);
+                  await handleCp850PrintWithRange("new");
+                }}
+                className="w-full bg-green-600 text-white hover:bg-green-700"
+              >
+                New Print
+              </Button>
+              <Button
+                onClick={async () => {
+                  setIsPrintModeModalOpen(false);
+                  await handleCp850PrintWithRange("queue");
+                }}
+                variant="secondary"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Add to Queue
+              </Button>
+              <Button
+                onClick={() => setIsPrintModeModalOpen(false)}
+                variant="ghost"
+                className="w-full text-gray-700 hover:bg-gray-100"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document Generator Modal */}
       {currentAction === "document" && (
