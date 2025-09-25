@@ -1634,6 +1634,50 @@ const Add = ({
     });
   };
 
+  // Color helpers for role-specific UI accents
+  const getRoleSelectedClasses = (role) => {
+    switch (role) {
+      case "HRG":
+        // Lilac
+        return "bg-[#C0ABFF] text-black shadow-md";
+      case "FOM":
+        // Greens
+        return "bg-[#8AFF8A] text-black shadow-md";
+      case "CAL":
+        // Light blue
+        return "bg-[#93C5FD] text-black shadow-md";
+      default:
+        return "bg-blue-600 text-white shadow-md";
+    }
+  };
+
+  const getRoleHeaderClasses = (role) => {
+    switch (role) {
+      case "HRG":
+        return "bg-[#9473FF] text-white";
+      case "FOM":
+        return "bg-[#8AFF8A] text-black";
+      case "CAL":
+        // Light blue
+        return "bg-[#93C5FD] text-black shadow-md";
+      default:
+        return "bg-blue-600 text-white";
+    }
+  };
+
+  const getRoleFullName = (role) => {
+    switch (role) {
+      case "HRG":
+        return "Holy Redeemer Guild";
+      case "FOM":
+        return "Friends of the Mission";
+      case "CAL":
+        return "Calendar";
+      default:
+        return role;
+    }
+  };
+
   return (
     <div className="relative">
       <Button
@@ -2108,7 +2152,7 @@ const Add = ({
                                 type="button"
                                 className={`flex-1 py-2.5 text-sm font-medium text-center ${
                                   selectedRole === "HRG"
-                                    ? "bg-blue-600 text-white shadow-md"
+                                    ? getRoleSelectedClasses("HRG")
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                 } transition-colors`}
                                 onClick={() => handleRoleToggle("HRG")}
@@ -2119,7 +2163,7 @@ const Add = ({
                                 type="button"
                                 className={`flex-1 py-2.5 text-sm font-medium text-center ${
                                   selectedRole === "FOM"
-                                    ? "bg-blue-600 text-white shadow-md"
+                                    ? getRoleSelectedClasses("FOM")
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                 } transition-colors`}
                                 onClick={() => handleRoleToggle("FOM")}
@@ -2130,7 +2174,7 @@ const Add = ({
                                 type="button"
                                 className={`flex-1 py-2.5 text-sm font-medium text-center ${
                                   selectedRole === "CAL"
-                                    ? "bg-blue-600 text-white shadow-md"
+                                    ? getRoleSelectedClasses("CAL")
                                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                                 } transition-colors`}
                                 onClick={() => handleRoleToggle("CAL")}
@@ -2139,13 +2183,20 @@ const Add = ({
                               </button>
                             </div>
                           </div>
+                          {/* Active role header similar to Subscription Type */}
+                          <div className="mb-4">
+                            <h2
+                              className={`${getRoleHeaderClasses(
+                                selectedRole
+                              )} p-2 font-bold text-center text-xl md:text-2xl rounded`}
+                            >
+                              {getRoleFullName(selectedRole)}
+                            </h2>
+                          </div>
                           <div className="flex flex-col gap-5">
                             <div className="flex flex-col gap-4 mb-2 p-2 w-full">
                               {selectedRole === "HRG" && (
                                 <div className="w-full">
-                                  <h1 className="text-black mb-2 font-bold text-lg">
-                                    HRG Add
-                                  </h1>
                                   <InputField
                                     label="Received Date:"
                                     id="recvdate"
@@ -2232,9 +2283,6 @@ const Add = ({
                               )}
                               {selectedRole === "FOM" && (
                                 <div className="w-full">
-                                  <h1 className="text-black mb-2 font-bold text-lg">
-                                    FOM Add
-                                  </h1>
                                   <InputField
                                     label="Received Date:"
                                     id="recvdate"
@@ -2312,9 +2360,6 @@ const Add = ({
                               )}
                               {selectedRole === "CAL" && (
                                 <div className="w-full">
-                                  <h1 className="text-black mb-2 font-bold text-lg">
-                                    CAL Add
-                                  </h1>
                                   <div className="grid grid-cols-2 gap-4 w-full">
                                     <div className="w-full">
                                       <InputField

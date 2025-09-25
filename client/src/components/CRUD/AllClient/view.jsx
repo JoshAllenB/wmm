@@ -565,6 +565,33 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Role color helpers to align with Add/Edit UI
+  const getRoleHeaderClasses = (role) => {
+    switch (role) {
+      case "HRG":
+        return "bg-[#C0ABFF] text-black";
+      case "FOM":
+        return "bg-[#8AFF8A] text-black";
+      case "CAL":
+        return "bg-[#93C5FD] text-black";
+      default:
+        return "bg-blue-600 text-white";
+    }
+  };
+
+  const getRoleFullName = (role) => {
+    switch (role) {
+      case "HRG":
+        return "Holy Redeemer Guild";
+      case "FOM":
+        return "Friends of the Mission";
+      case "CAL":
+        return "Calendar";
+      default:
+        return role;
+    }
+  };
+
   // Function to get subscription type styles
   const getSubscriptionTypeStyles = (type) => {
     switch (type) {
@@ -791,10 +818,48 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return dateB - dateA;
     });
 
+    // Support filtered records like in the table view
+    const filteredRecords =
+      hrgData.filteredRecords || hrgData.matchedRecords || null;
+    const isShowingFilteredRecords =
+      filteredRecords &&
+      Array.isArray(filteredRecords) &&
+      filteredRecords.length > 0;
+    const recordsToDisplay = isShowingFilteredRecords
+      ? [...filteredRecords].sort((a, b) => {
+          const dateA = new Date(a.recvdate || 0);
+          const dateB = new Date(b.recvdate || 0);
+          return dateB - dateA;
+        })
+      : sortedHrgData;
+
+    // Latest status header (Active/Unsubscribed) similar to clientColumn
+    const latestRecord = recordsToDisplay[0];
+    const latestStatus = formData.subscriptionStatusOverride
+      ? formData.subscriptionStatusOverride === "active"
+        ? "Active"
+        : "Unsubscribed"
+      : latestRecord && latestRecord.unsubscribe
+      ? "Unsubscribed"
+      : "Active";
+    const statusColor =
+      latestStatus === "Active" ? "text-green-600" : "text-red-600";
+    const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
-          {sortedHrgData.map((record, index) => {
+          {isShowingFilteredRecords && (
+            <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+              🔍 Showing filtered records ({recordsToDisplay.length} of{" "}
+              {(hrgData.records || []).length})
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={statusColor}>{statusIcon}</span>
+            <span className={statusColor}>{latestStatus}</span>
+          </div>
+          {recordsToDisplay.map((record, index) => {
             // Skip rendering if record is empty or not an object
             if (!record || typeof record !== "object") {
               return null;
@@ -848,10 +913,48 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       return dateB - dateA;
     });
 
+    // Support filtered records like in the table view
+    const filteredRecords =
+      fomData.filteredRecords || fomData.matchedRecords || null;
+    const isShowingFilteredRecords =
+      filteredRecords &&
+      Array.isArray(filteredRecords) &&
+      filteredRecords.length > 0;
+    const recordsToDisplay = isShowingFilteredRecords
+      ? [...filteredRecords].sort((a, b) => {
+          const dateA = new Date(a.recvdate || 0);
+          const dateB = new Date(b.recvdate || 0);
+          return dateB - dateA;
+        })
+      : sortedFomData;
+
+    // Latest status header (Active/Unsubscribed) similar to clientColumn
+    const latestRecord = recordsToDisplay[0];
+    const latestStatus = formData.subscriptionStatusOverride
+      ? formData.subscriptionStatusOverride === "active"
+        ? "Active"
+        : "Unsubscribed"
+      : latestRecord && latestRecord.unsubscribe
+      ? "Unsubscribed"
+      : "Active";
+    const statusColor =
+      latestStatus === "Active" ? "text-green-600" : "text-red-600";
+    const statusIcon = latestStatus === "Active" ? "🟢" : "🔴";
+
     return (
       <div className="flex flex-col mb-2 p-2">
         <div className="flex flex-col space-y-2 overflow-auto h-[150px] w-full">
-          {sortedFomData.map((record, index) => {
+          {isShowingFilteredRecords && (
+            <div className="mb-2 p-1 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-medium">
+              🔍 Showing filtered records ({recordsToDisplay.length} of{" "}
+              {(fomData.records || []).length})
+            </div>
+          )}
+          <div className="flex items-center gap-2 mb-2">
+            <span className={statusColor}>{statusIcon}</span>
+            <span className={statusColor}>{latestStatus}</span>
+          </div>
+          {recordsToDisplay.map((record, index) => {
             // Skip rendering if record is empty or not an object
             if (!record || typeof record !== "object") {
               return null;
@@ -1112,8 +1215,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {/* HRG Data Card */}
                     {hrgData.records?.length > 0 && (
                       <div>
-                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                          HRG Data
+                        <h2
+                          className={`${getRoleHeaderClasses(
+                            "HRG"
+                          )} p-2 font-bold text-center text-lg rounded mb-4`}
+                        >
+                          {getRoleFullName("HRG")}
                         </h2>
                         {renderHrgData()}
                       </div>
@@ -1122,8 +1229,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {/* FOM Data Card */}
                     {fomData.records?.length > 0 && (
                       <div>
-                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                          FOM Data
+                        <h2
+                          className={`${getRoleHeaderClasses(
+                            "FOM"
+                          )} p-2 font-bold text-center text-lg rounded mb-4`}
+                        >
+                          {getRoleFullName("FOM")}
                         </h2>
                         {renderFomData()}
                       </div>
@@ -1132,8 +1243,12 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {/* CAL Data Card */}
                     {calData.records?.length > 0 && (
                       <div>
-                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                          CAL Data
+                        <h2
+                          className={`${getRoleHeaderClasses(
+                            "CAL"
+                          )} p-2 font-bold text-center text-lg rounded mb-4`}
+                        >
+                          {getRoleFullName("CAL")}
                         </h2>
                         {renderCalData()}
                       </div>

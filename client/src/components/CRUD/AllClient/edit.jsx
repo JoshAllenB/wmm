@@ -2878,6 +2878,46 @@ const Edit = ({
     return Number.isFinite(total) ? total.toFixed(2) : "0.00";
   };
 
+  // Color helpers for role-specific UI accents (align with Add UI)
+  const getRoleSelectedClasses = (role) => {
+    switch (role) {
+      case "HRG":
+        return "bg-[#C0ABFF] text-black shadow-md";
+      case "FOM":
+        return "bg-[#8AFF8A] text-black";
+      case "CAL":
+        return "bg-[#93C5FD] text-black shadow-md";
+      default:
+        return "bg-blue-600 text-white shadow-md";
+    }
+  };
+
+  const getRoleHeaderClasses = (role) => {
+    switch (role) {
+      case "HRG":
+        return "bg-[#C0ABFF] text-black";
+      case "FOM":
+        return "bg-[#8AFF8A] text-black";
+      case "CAL":
+        return "bg-[#93C5FD] text-black shadow-md";
+      default:
+        return "bg-blue-600 text-white";
+    }
+  };
+
+  const getRoleFullName = (role) => {
+    switch (role) {
+      case "HRG":
+        return "Holy Redeemer Guild";
+      case "FOM":
+        return "Friends of the Mission";
+      case "CAL":
+        return "Calendar";
+      default:
+        return role;
+    }
+  };
+
   // Update the handleSubmit function to handle both edit and add modes
   // Data validation function to catch common issues before submission
   const validateSubmissionData = (data) => {
@@ -4879,16 +4919,62 @@ const Edit = ({
                 </h2>
 
                 {/* Role toggle buttons */}
-                {(hasRole("HRG") ||
-                  hasRole("FOM") ||
-                  hasRole("CAL") ||
-                  hasRole("WMM")) && (
-                  <RoleToggleModule
-                    hasRole={hasRole}
-                    selectedRole={selectedRole}
-                    handleRoleToggle={handleRoleToggle}
-                  />
+                {(hasRole("HRG") || hasRole("FOM") || hasRole("CAL")) && (
+                  <div className="flex mb-4 mt-2">
+                    <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
+                      {hasRole("HRG") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "HRG"
+                              ? getRoleSelectedClasses("HRG")
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("HRG")}
+                        >
+                          HRG
+                        </button>
+                      )}
+                      {hasRole("FOM") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "FOM"
+                              ? getRoleSelectedClasses("FOM")
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("FOM")}
+                        >
+                          FOM
+                        </button>
+                      )}
+                      {hasRole("CAL") && (
+                        <button
+                          type="button"
+                          className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                            selectedRole === "CAL"
+                              ? getRoleSelectedClasses("CAL")
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          } transition-colors`}
+                          onClick={() => handleRoleToggle("CAL")}
+                        >
+                          CAL
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
+
+                {/* Active role header similar to Add UI */}
+                <div className="mb-4">
+                  <h2
+                    className={`${getRoleHeaderClasses(
+                      selectedRole
+                    )} p-2 font-bold text-center text-xl md:text-2xl rounded`}
+                  >
+                    {getRoleFullName(selectedRole)}
+                  </h2>
+                </div>
 
                 {/* Mode toggle - Edit existing or Add new */}
                 <div className="mb-4">
