@@ -11,7 +11,11 @@
     "version": "node ../scripts/write-version.mjs",
     "version:patch": "node ../scripts/bump-version.mjs patch",
     "version:minor": "node ../scripts/bump-version.mjs minor",
-    "version:major": "node ../scripts/bump-version.mjs major"
+    "version:major": "node ../scripts/bump-version.mjs major",
+    "ws:test:steady": "node scripts/ws-simulator.mjs --users=5 --duration=30000 --scenario=steady",
+    "ws:test:churn": "node scripts/ws-simulator.mjs --users=10 --duration=60000 --scenario=churn",
+    "ws:test:transfer": "node scripts/ws-simulator.mjs --users=6 --duration=45000 --scenario=session-transfer",
+    "ws:test:all": "node scripts/ws-simulator.mjs --users=10 --duration=60000 --scenario=all"
   },
   "dependencies": {
     "@emotion/react": "^11.11.4",
