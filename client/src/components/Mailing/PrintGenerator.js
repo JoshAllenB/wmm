@@ -429,9 +429,7 @@ const generateLabelTextContent = (
       subscriptionType === "Promo" || subscriptionType === "Complimentary";
     expiryAndCopies = !shouldHideExpiryAndCopies
       ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
-      : data.acode
-      ? `/${data.acode}`
-      : "";
+      : ` - ${copies}cps/${data.acode || ""}`;
   }
 
   // Name and company
