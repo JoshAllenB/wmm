@@ -59,13 +59,8 @@ export const SocketProvider = ({ children }) => {
       };
 
       const handleDisconnect = () => {
+        // Let WebSocketService manage reconnection to avoid duplicate connects
         updateConnectionStatus();
-        // Auto-reconnect on disconnect
-        setTimeout(() => {
-          if (!webSocketService.getConnectionStatus().connected) {
-            webSocketService.reconnectWithUserData(userData);
-          }
-        }, 2000);
       };
 
       // Add listeners for connection events

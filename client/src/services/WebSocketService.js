@@ -9,7 +9,7 @@ class WebSocketService {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 10; // Increased for better resilience
     this.isConnecting = false;
-    this.connectionQueue = [];
+    // Removed connectionQueue to avoid duplicate back-to-back connects
     this.connectionEstablished = false;
     this.pendingDataSync = false;
     this.reconnectTimer = null;
@@ -232,8 +232,12 @@ class WebSocketService {
       this.connectionTimeout = null;
     }
 
-    if (this.isConnecting) {
-      this.connectionQueue.push(options);
+    // If a connect is already in progress or we're connected, do nothing
+    if (
+      this.isConnecting ||
+      this.connectionState === "connecting" ||
+      this.connectionState === "connected"
+    ) {
       return;
     }
 
@@ -306,7 +310,7 @@ class WebSocketService {
       },
       reconnection: false, // We'll handle reconnection manually
       autoConnect: true,
-      forceNew: true,
+      // Avoid creating a brand new manager/socket each time to reduce churn
       timeout: 20000,
       pingTimeout: 30000,
       pingInterval: 25000,
@@ -357,11 +361,6 @@ class WebSocketService {
 
       // Request data sync after connection
       this.requestDataSync();
-
-      if (this.connectionQueue.length > 0) {
-        const nextOptions = this.connectionQueue.shift();
-        this.connect(nextOptions);
-      }
 
       this.resubscribeEvents();
     });
@@ -570,7 +569,6 @@ class WebSocketService {
       Array.isArray(userData.roles) &&
       userData.roles.length > 0
     ) {
-
       // Update session data
       this.sessionData.userId = userData.id;
       this.sessionData.username = userData.username;
