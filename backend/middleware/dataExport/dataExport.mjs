@@ -7,6 +7,10 @@ import {
   processHrgMonthlyReport,
   generateHrgExcelReport,
 } from "./logic/hrgDataExport.mjs";
+import {
+  processFomQuarterlyReport,
+  generateFomExcelReport,
+} from "./logic/fomDataExport.mjs";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -359,6 +363,141 @@ router.post("/generate-hrg", async (req, res) => {
   }
 });
 
+// Endpoint to trigger FOM quarterly data export
+router.post("/generate-fom-quarterly", async (req, res) => {
+  try {
+    const { year, reportDate, userId, username } = req.body;
+
+    if (!year || !reportDate || !userId || !username) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Missing required parameters: year, reportDate, userId, or username",
+      });
+    }
+
+    // Get the socket ID for this user
+    const socketId = global.socketIdMap.get(userId);
+
+    // Function to emit events to the specific user
+    const emitToUser = (event, data) => {
+      if (socketId) {
+        req.io.to(socketId).emit(event, data);
+      } else {
+        req.io.to(`user:${userId}`).emit(event, data);
+      }
+    };
+
+    // Notify the client that export has started
+    emitToUser(`export-started-${userId}`, {
+      status: "started",
+      message: "FOM quarterly data export process has started",
+      progress: 0,
+    });
+
+    // Process the data
+    emitToUser(`export-progress-${userId}`, {
+      status: "progress",
+      message: "Connecting to database...",
+      progress: 10,
+    });
+
+    const reportData = await processFomQuarterlyReport(
+      year,
+      reportDate,
+      req.io,
+      userId
+    );
+
+    emitToUser(`export-progress-${userId}`, {
+      status: "progress",
+      message: "Generating Excel report...",
+      progress: 80,
+    });
+
+    // Clean up old files before generating new ones
+    cleanupOldFiles();
+
+    // Generate the Excel report
+    const filename = `FOM_Quarterly_Report_${year}.xlsx`;
+    const dataExportDir = getDataExportPath();
+    const outputPath = path.join(dataExportDir, filename);
+
+    console.log("=== FOM QUARTERLY EXCEL GENERATION DEBUG ===");
+    console.log("DataExport directory:", dataExportDir);
+    console.log("Output path:", outputPath);
+    console.log("Directory exists:", fs.existsSync(dataExportDir));
+    console.log("Report data keys:", Object.keys(reportData));
+
+    try {
+      await generateFomExcelReport(reportData, outputPath);
+      console.log("✅ FOM Quarterly Excel generation completed successfully");
+    } catch (excelError) {
+      console.error("❌ FOM Quarterly Excel generation failed:", excelError);
+      throw excelError;
+    }
+
+    // Verify the file was created
+    if (!fs.existsSync(outputPath)) {
+      console.error("FOM Quarterly output file not found at path:", outputPath);
+      throw new Error("Failed to create export file");
+    }
+
+    const fileStats = fs.statSync(outputPath);
+    emitToUser(`export-progress-${userId}`, {
+      status: "progress",
+      message: "Finalizing report...",
+      progress: 90,
+    });
+
+    // Notify the client that export is complete
+    emitToUser(`export-complete-${userId}`, {
+      status: "complete",
+      message: "FOM quarterly data export process completed successfully",
+      filename: filename,
+      progress: 100,
+    });
+
+    // Return success response
+    res.status(200).json({
+      success: true,
+      message: "FOM quarterly data export process completed successfully",
+      filename: filename,
+    });
+  } catch (error) {
+    console.error("Error in FOM quarterly export process:", error);
+    console.error("Error stack:", error.stack);
+
+    // Get the socket ID for this user
+    const socketId = global.socketIdMap.get(req.body.userId);
+
+    // Notify the client about the error
+    if (req.body.userId) {
+      if (socketId) {
+        req.io.to(socketId).emit(`export-error-${req.body.userId}`, {
+          status: "error",
+          message: `Error: ${error.message}`,
+          progress: 0,
+        });
+      } else {
+        req.io
+          .to(`user:${req.body.userId}`)
+          .emit(`export-error-${req.body.userId}`, {
+            status: "error",
+            message: `Error: ${error.message}`,
+            progress: 0,
+          });
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: "Error generating FOM quarterly data export",
+      error: error.message,
+    });
+  }
+});
+
 // Download endpoint for WMM reports
 router.get("/download/:filename", (req, res) => {
   try {
@@ -467,6 +606,64 @@ router.get("/download-hrg/:filename", (req, res) => {
     });
   } catch (error) {
     console.error("Error in HRG download endpoint:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error downloading file",
+      error: error.message,
+    });
+  }
+});
+
+// Download endpoint for FOM quarterly reports
+router.get("/download-fom-quarterly/:filename", (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    // Validate filename to prevent directory traversal
+    if (
+      !filename ||
+      filename.includes("..") ||
+      filename.includes("/") ||
+      filename.includes("\\")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid filename",
+      });
+    }
+
+    const dataExportDir = getDataExportPath();
+    const filePath = path.join(dataExportDir, filename);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+    }
+
+    // Set appropriate headers for file download
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    // Stream the file to the client
+    res.sendFile(filePath, (err) => {
+      if (err) {
+        console.error("Error sending file:", err);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Error downloading file",
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error in FOM quarterly download endpoint:", error);
     res.status(500).json({
       success: false,
       message: "Error downloading file",

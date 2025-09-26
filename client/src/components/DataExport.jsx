@@ -16,6 +16,9 @@ const DataExport = () => {
   const [downloadFilename, setDownloadFilename] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // FOM-specific state
+  const [reportDate, setReportDate] = useState("");
+
   // Determine available export types based on user roles
   const availableExportTypes = React.useMemo(() => {
     const types = [];
@@ -25,6 +28,9 @@ const DataExport = () => {
     if (hasRole("HRG")) {
       types.push("HRG");
     }
+    if (hasRole("FOM")) {
+      types.push("FOM");
+    }
     return types;
   }, [hasRole]);
 
@@ -33,7 +39,7 @@ const DataExport = () => {
     if (availableExportTypes.length === 1) {
       setExportType(availableExportTypes[0]);
     } else if (availableExportTypes.length > 1) {
-      // Default to WMM if user has both roles
+      // Default to WMM if user has WMM role, otherwise first available
       setExportType(
         availableExportTypes.includes("WMM") ? "WMM" : availableExportTypes[0]
       );
@@ -42,6 +48,31 @@ const DataExport = () => {
       setError("You don't have permission to generate any reports");
     }
   }, [availableExportTypes]);
+
+  // Set default report date when FOM is selected
+  useEffect(() => {
+    if (exportType === "FOM" && !reportDate) {
+      const today = new Date();
+      const day = today.getDate();
+      const monthNames = [
+        "Jan.",
+        "Feb.",
+        "Mar.",
+        "Apr.",
+        "May",
+        "Jun.",
+        "Jul.",
+        "Aug.",
+        "Sep.",
+        "Oct.",
+        "Nov.",
+        "Dec.",
+      ];
+      const month = monthNames[today.getMonth()];
+      const year = today.getFullYear();
+      setReportDate(`${day} ${month} ${year}`);
+    }
+  }, [exportType, reportDate]);
 
   const monthNames = [
     "January",
@@ -100,19 +131,35 @@ const DataExport = () => {
       return;
     }
 
+    // Validate FOM-specific requirements
+    if (exportType === "FOM" && !reportDate.trim()) {
+      setError("Please enter a report date for FOM quarterly report");
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setError(null);
       setIsDownloading(false);
       setShowDownloadDialog(false);
       setDownloadFilename("");
-      await dataExportService.generateMonthlyReport(
-        month,
-        year,
-        userData.id,
-        userData.username,
-        exportType
-      );
+
+      if (exportType === "FOM") {
+        await dataExportService.generateFomQuarterlyReport(
+          year,
+          reportDate,
+          userData.id,
+          userData.username
+        );
+      } else {
+        await dataExportService.generateMonthlyReport(
+          month,
+          year,
+          userData.id,
+          userData.username,
+          exportType
+        );
+      }
     } catch (err) {
       setError(err.message || "Failed to generate report");
       setIsGenerating(false);
@@ -175,7 +222,9 @@ const DataExport = () => {
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">
-        Monthly Report Export
+        {exportType === "FOM"
+          ? "FOM Quarterly Report Export"
+          : "Monthly Report Export"}
       </h2>
 
       <div className="mb-6">
@@ -202,23 +251,25 @@ const DataExport = () => {
 
           {availableExportTypes.length > 0 ? (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Month
-                </label>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(parseInt(e.target.value))}
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isGenerating}
-                >
-                  {monthNames.map((name, index) => (
-                    <option key={index + 1} value={index + 1}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {exportType !== "FOM" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Month
+                  </label>
+                  <select
+                    value={month}
+                    onChange={(e) => setMonth(parseInt(e.target.value))}
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isGenerating}
+                  >
+                    {monthNames.map((name, index) => (
+                      <option key={index + 1} value={index + 1}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -237,6 +288,25 @@ const DataExport = () => {
                   ))}
                 </select>
               </div>
+
+              {exportType === "FOM" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Report Date
+                  </label>
+                  <input
+                    type="text"
+                    value={reportDate}
+                    onChange={(e) => setReportDate(e.target.value)}
+                    placeholder="e.g., 23 Sept. 2025"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isGenerating}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: Day Month Year (e.g., 23 Sept. 2025)
+                  </p>
+                </div>
+              )}
             </>
           ) : (
             <div className="col-span-3">
@@ -300,7 +370,8 @@ const DataExport = () => {
           <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-md">
             <p className="font-medium">✅ Report Generated Successfully!</p>
             <p className="mt-2">
-              Your {exportType} report is ready for download.
+              Your {exportType} {exportType === "FOM" ? "quarterly" : ""} report
+              is ready for download.
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -331,7 +402,11 @@ const DataExport = () => {
                         ? `http://${import.meta.env.VITE_IP_ADDRESS}:3001`
                         : "http://localhost:3001"
                     }/data-export/${
-                      exportType === "HRG" ? "download-hrg" : "download"
+                      exportType === "HRG"
+                        ? "download-hrg"
+                        : exportType === "FOM"
+                        ? "download-fom-quarterly"
+                        : "download"
                     }/${exportStatus.filename}`;
                     window.open(downloadUrl, "_blank");
                   }}
