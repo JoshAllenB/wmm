@@ -57,6 +57,8 @@ class DataExportService {
       const expectedPrefix =
         this.exportStatus.exportType === "HRG"
           ? "HRG_Monthly_Report"
+          : this.exportStatus.exportType === "FOM"
+          ? "FOM_Quarterly_Report"
           : "Monthly_Report";
 
       if (data.filename && !data.filename.startsWith(expectedPrefix)) {
@@ -174,6 +176,41 @@ class DataExportService {
     }
   }
 
+  // Generate FOM quarterly report
+  async generateFomQuarterlyReport(year, reportDate, userId, username) {
+    try {
+      // Update export type in status
+      this.updateExportStatus({
+        exportType: "FOM",
+      });
+
+      const response = await api.post("/data-export/generate-fom-quarterly", {
+        year,
+        reportDate,
+        userId,
+        username,
+      });
+
+      if (!response.data.success) {
+        throw new Error(
+          response.data.message || "Failed to generate FOM quarterly report"
+        );
+      }
+
+      return response.data;
+    } catch (error) {
+      // Reset export type on error
+      this.updateExportStatus({
+        exportType: null,
+      });
+      throw new Error(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to generate FOM quarterly report"
+      );
+    }
+  }
+
   // Download file using the backend download endpoint
   async downloadFile(filename, exportType) {
     try {
@@ -184,6 +221,9 @@ class DataExportService {
           break;
         case "WMM":
           downloadEndpoint = `/data-export/download/${filename}`;
+          break;
+        case "FOM":
+          downloadEndpoint = `/data-export/download-fom-quarterly/${filename}`;
           break;
         default:
           throw new Error("Invalid export type for download");
@@ -261,6 +301,9 @@ class DataExportService {
           break;
         case "WMM":
           downloadEndpoint = `/data-export/download/${originalFilename}`;
+          break;
+        case "FOM":
+          downloadEndpoint = `/data-export/download-fom-quarterly/${originalFilename}`;
           break;
         default:
           throw new Error("Invalid export type for download");
