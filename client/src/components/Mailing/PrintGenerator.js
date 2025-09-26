@@ -568,6 +568,16 @@ export const generateCp850RawPrintContent = (
     effectiveStartPosition = labelsPrintedSoFar % 2 === 1 ? "right" : "left";
   }
 
+  // When appending to the queue, if we need to start a NEW row (i.e., on the left
+  // column after the previous job ended on the right), feed the same spacing that
+  // we normally apply between rows so vertical alignment remains identical.
+  if (appendToQueue && effectiveStartPosition === "left") {
+    const rowSpacingLines = effectiveRowSpacingLines; // same as between label rows
+    for (let i = 0; i < rowSpacingLines; i++) {
+      rawCommands.push(0x0d, 0x0a);
+    }
+  }
+
   // Process all rows sequentially
   // If starting from right, first row consumes only 1 item on the right column
   const startFromRightMode = effectiveStartPosition === "right";
@@ -707,15 +717,6 @@ export const generateCp850RawPrintContent = (
       for (let i = 0; i < rowSpacingLines; i++) {
         rawCommands.push(0x0d, 0x0a);
       }
-    }
-  }
-
-  // Ensure final row spacing is applied after the last printed row
-  // so the paper advances beyond the final line of data
-  if (Array.isArray(filteredRows) && filteredRows.length > 0) {
-    const finalRowSpacingLines = effectiveRowSpacingLines;
-    for (let i = 0; i < finalRowSpacingLines; i++) {
-      rawCommands.push(0x0d, 0x0a);
     }
   }
 
