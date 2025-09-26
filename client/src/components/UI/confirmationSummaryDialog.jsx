@@ -320,11 +320,8 @@ const ConfirmationSummaryDialog = ({
 
   // Handle the confirmed submission with toast and modal closing
   const handleSubmitWithFeedback = async () => {
-    console.log("handleSubmitWithFeedback");
     try {
-      console.log("About to call handleConfirmedSubmit...");
       await handleConfirmedSubmit();
-      console.log("Submission successful");
       // If we reach here, the submission was successful
       toast({
         title: "Success",
