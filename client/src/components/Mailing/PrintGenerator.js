@@ -573,7 +573,7 @@ export const generateCp850RawPrintContent = (
   // we normally apply between rows so vertical alignment remains identical.
   if (appendToQueue && effectiveStartPosition === "left") {
     // Subtract 2 lines to compensate for extra feed observed when appending
-    const rowSpacingLines = Math.max(0, effectiveRowSpacingLines - 2);
+    const rowSpacingLines = Math.max(0, effectiveRowSpacingLines - 1);
     for (let i = 0; i < rowSpacingLines; i++) {
       rawCommands.push(0x0d, 0x0a);
     }
