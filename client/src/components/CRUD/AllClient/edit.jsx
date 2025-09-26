@@ -3725,16 +3725,20 @@ const Edit = ({
 
         // Additional required fields: Start, End, Duration, Subclass
         const startPresent = Boolean(
-          dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""
+          (formData?.subscriptionStart &&
+            String(formData.subscriptionStart).trim() !== "") ||
+            (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
         );
         const endPresent = Boolean(
-          dataSource?.enddate && String(dataSource.enddate).trim() !== ""
+          (formData?.subscriptionEnd &&
+            String(formData.subscriptionEnd).trim() !== "") ||
+            (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
         );
         const durationPresent = Boolean(
-          (dataSource?.subsyear !== undefined &&
-            String(dataSource.subsyear).trim() !== "") ||
-            (formData?.subscriptionFreq &&
-              String(formData.subscriptionFreq).trim() !== "")
+          (formData?.subscriptionFreq &&
+            String(formData.subscriptionFreq).trim() !== "") ||
+            (dataSource?.subsyear !== undefined &&
+              String(dataSource.subsyear).trim() !== "")
         );
         const subclassPresent = Boolean(
           (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
@@ -3822,16 +3826,20 @@ const Edit = ({
       }
 
       const startPresent = Boolean(
-        dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""
+        (formData?.subscriptionStart &&
+          String(formData.subscriptionStart).trim() !== "") ||
+          (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
       );
       const endPresent = Boolean(
-        dataSource?.enddate && String(dataSource.enddate).trim() !== ""
+        (formData?.subscriptionEnd &&
+          String(formData.subscriptionEnd).trim() !== "") ||
+          (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
       );
       const durationPresent = Boolean(
-        (dataSource?.subsyear !== undefined &&
-          String(dataSource.subsyear).trim() !== "") ||
-          (formData?.subscriptionFreq &&
-            String(formData.subscriptionFreq).trim() !== "")
+        (formData?.subscriptionFreq &&
+          String(formData.subscriptionFreq).trim() !== "") ||
+          (dataSource?.subsyear !== undefined &&
+            String(dataSource.subsyear).trim() !== "")
       );
       const subclassPresent = Boolean(
         (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
