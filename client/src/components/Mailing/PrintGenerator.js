@@ -178,19 +178,37 @@ const cleanPhoneNumber = (phoneNumber) => {
   return "";
 };
 
+// Preserve alphanumeric contact text (e.g., names + numbers) for Contact Nos.
+// Only normalize whitespace and trivial duplicates; do not strip letters/symbols
+const cleanContactText = (text) => {
+  if (text == null) return "";
+  const str = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  // Collapse internal whitespace; keep punctuation and letters as-is
+  let normalized = str.replace(/\s+/g, " ");
+  // Remove trailing spaces and trivial trailing separators
+  normalized = normalized.replace(/[\-\s\.\/,:;]+$/, "");
+  return normalized;
+};
+
 export const getContactNumber = (data) => {
   // Collect possible contact sources: cell, office (two possible keys), and other contact numbers
-  const candidates = [
-    data?.cellno,
-    data?.officeno,
-    data?.ofcno,
-    data?.contactnos,
-  ];
-
-  // Clean, dedupe, and join
-  const cleaned = candidates
-    .map((val) => cleanPhoneNumber(val))
-    .filter((val) => !!val);
+  const cleaned = [];
+  if (data?.cellno != null) {
+    const v = cleanContactText(data.cellno);
+    if (v) cleaned.push(v);
+  }
+  if (data?.officeno != null) {
+    const v = cleanContactText(data.officeno);
+    if (v) cleaned.push(v);
+  }
+  if (data?.ofcno != null) {
+    const v = cleanContactText(data.ofcno);
+    if (v) cleaned.push(v);
+  }
+  if (data?.contactnos != null) {
+    const v = cleanContactText(data.contactnos);
+    if (v) cleaned.push(v);
+  }
 
   // Deduplicate while preserving order
   const unique = Array.from(new Set(cleaned));
@@ -200,14 +218,15 @@ export const getContactNumber = (data) => {
 
 // Extract CP number exclusively from cell number
 export const getCellNumber = (data) => {
-  return cleanPhoneNumber(data?.cellno) || "";
+  return cleanContactText(data?.cellno) || "";
 };
 
 // Extract Tel number: prefer contact number; if missing, fallback to office number
 export const getTelephoneNumber = (data) => {
-  const primary = cleanPhoneNumber(data?.contactnos);
+  // For contactnos, preserve alphanumeric strings and symbols
+  const primary = cleanContactText(data?.contactnos);
   if (primary) return primary;
-  const office = cleanPhoneNumber(data?.officeno || data?.ofcno);
+  const office = cleanContactText(data?.officeno || data?.ofcno);
   return office || "";
 };
 import { formatClientId, getSubscriptionTypeCode } from "../../utils/clientId";
