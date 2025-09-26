@@ -104,21 +104,44 @@ function log(message, data = null) {
 
 // Get default backup path based on environment
 function getDefaultBackupPath() {
+  // Prefer non-system drive on Windows/WSL and name folder "DB Backup"
+  const targetFolderName = "DB Backup";
+
   // Check if we're on Windows (native)
   if (process.platform === "win32") {
-    // Native Windows - use Windows-style path
-    return `C:\\mongo_backups`;
+    // Probe drives D: through Z: and pick first available
+    const driveLetters = "DEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    for (const letter of driveLetters) {
+      try {
+        const root = `${letter}:\\`;
+        if (fs.existsSync(root)) {
+          return path.join(root, targetFolderName);
+        }
+      } catch (_) {}
+    }
+    // Fallback to C:\DB Backup if no other drive is available
+    return path.join("C:\\", targetFolderName);
   }
 
   // Check if we're in WSL environment
   if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
-    // WSL environment - use Windows directory structure accessible from WSL
-    return `/mnt/c/mongo_backups`;
+    // Probe /mnt/d .. /mnt/z
+    const driveLetters = "defghijklmnopqrstuvwxyz".split("");
+    for (const letter of driveLetters) {
+      try {
+        const root = `/mnt/${letter}`;
+        if (fs.existsSync(root)) {
+          return path.join(root, targetFolderName);
+        }
+      } catch (_) {}
+    }
+    // Fallback to /mnt/c/DB Backup
+    return path.join("/mnt/c", targetFolderName);
   }
 
   // Linux/macOS - use home directory
   const homeDir = os.homedir();
-  return path.join(homeDir, "mongo_backups");
+  return path.join(homeDir, targetFolderName);
 }
 
 // Get default temporary path based on environment
@@ -199,18 +222,93 @@ function getWindowsUsername() {
 
 // Initialize backup path - use environment variable, user setting, or default
 function initializeBackupPath() {
-  // Priority: 1. Environment variable, 2. User setting (if any), 3. Default
+  // Priority: 1. Environment variable, 2. Stored settings, 3. Auto default
   if (process.env.BACKUP_PATH) {
     CONFIG.BACKUP_BASE_PATH = process.env.BACKUP_PATH;
-  } else if (!CONFIG.BACKUP_BASE_PATH) {
-    // Only use default if no path is set at all
+  }
+  if (!CONFIG.BACKUP_BASE_PATH) {
     CONFIG.BACKUP_BASE_PATH = getDefaultBackupPath();
   }
 
-  // Ensure the directory exists
-  if (CONFIG.BACKUP_BASE_PATH) {
-    ensureDirectories();
+  // Always derive autosave path from base path
+  CONFIG.AUTOSAVE_BASE_PATH = path.join(CONFIG.BACKUP_BASE_PATH, "autosave");
+
+  ensureDirectories();
+}
+
+// Simple persistence to disk for backup settings
+const SETTINGS_FILE = path.join(process.cwd(), "backup-settings.json");
+
+function loadSettingsFromDisk() {
+  try {
+    if (!fs.existsSync(SETTINGS_FILE)) return;
+    const raw = fs.readFileSync(SETTINGS_FILE, "utf8");
+    const data = JSON.parse(raw);
+    if (data && typeof data === "object") {
+      if (data.backupPath) {
+        CONFIG.BACKUP_BASE_PATH = data.backupPath;
+      }
+      if (data.maxBackups) {
+        CONFIG.MAX_BACKUPS = parseInt(data.maxBackups) || CONFIG.MAX_BACKUPS;
+      }
+      if (typeof data.autosaveEnabled === "boolean") {
+        CONFIG.AUTOSAVE_ENABLED = data.autosaveEnabled;
+      }
+      if (data.autosaveSchedule) {
+        CONFIG.AUTOSAVE_SCHEDULE = data.autosaveSchedule;
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to load backup settings from disk:", e.message);
   }
+}
+
+function saveSettingsToDisk() {
+  try {
+    const selectedDrive = deriveSelectedDriveFromPath(CONFIG.BACKUP_BASE_PATH);
+    const data = {
+      backupPath: CONFIG.BACKUP_BASE_PATH,
+      selectedDrive,
+      autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+      autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+      maxBackups: CONFIG.MAX_BACKUPS,
+    };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.warn("Failed to save backup settings to disk:", e.message);
+  }
+}
+
+function deriveSelectedDriveFromPath(backupPath) {
+  try {
+    if (!backupPath) return null;
+    if (process.platform === "win32") {
+      const match = backupPath.match(/^([A-Za-z]):\\/);
+      return match ? match[1].toUpperCase() : null;
+    }
+    if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+      const match = backupPath.match(/^\/mnt\/([a-z])\//);
+      return match ? match[1].toUpperCase() : null;
+    }
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function pathForDriveLetter(letter) {
+  const targetFolderName = "DB Backup";
+  const upper = String(letter || "").toUpperCase();
+  const lower = upper.toLowerCase();
+  if (process.platform === "win32") {
+    return path.join(`${upper}:\\`, targetFolderName);
+  }
+  if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+    return path.join(`/mnt/${lower}`, targetFolderName);
+  }
+  // Non-Windows platforms don't use drive letters
+  const homeDir = os.homedir();
+  return path.join(homeDir, targetFolderName);
 }
 
 // Generate backup filename with timestamp
@@ -948,9 +1046,11 @@ function updateBackupConfig(userConfig) {
 
   if (userConfig.backupPath) {
     CONFIG.BACKUP_BASE_PATH = userConfig.backupPath;
-    // Set autosave path as a subfolder of the main backup path
+  }
+
+  // Always set autosave path from base path
+  if (CONFIG.BACKUP_BASE_PATH) {
     CONFIG.AUTOSAVE_BASE_PATH = path.join(CONFIG.BACKUP_BASE_PATH, "autosave");
-    ensureDirectories();
   }
 
   if (userConfig.autosaveEnabled !== undefined) {
@@ -964,6 +1064,9 @@ function updateBackupConfig(userConfig) {
   if (userConfig.maxBackups) {
     CONFIG.MAX_BACKUPS = userConfig.maxBackups;
   }
+
+  ensureDirectories();
+  saveSettingsToDisk();
 
   log(`Backup configuration updated`, {
     backupPath: CONFIG.BACKUP_BASE_PATH,
@@ -1085,7 +1188,20 @@ function restartAutosave() {
 
 // Initialize backup service
 function initializeBackupService() {
+  // Load persisted settings first, then compute paths
+  loadSettingsFromDisk();
   initializeBackupPath();
+  // Persist initial selection on first run so auto-selection happens once
+  try {
+    if (!fs.existsSync(SETTINGS_FILE)) {
+      saveSettingsToDisk();
+    } else {
+      // Ensure backupPath is persisted if missing
+      const raw = fs.readFileSync(SETTINGS_FILE, "utf8");
+      const data = JSON.parse(raw);
+      if (!data.backupPath) saveSettingsToDisk();
+    }
+  } catch (_) {}
   startAutosave();
   log(`Database backup service initialized`, {
     backupPath: CONFIG.BACKUP_BASE_PATH,

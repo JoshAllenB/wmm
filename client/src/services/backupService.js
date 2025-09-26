@@ -346,19 +346,6 @@ const backupService = {
       throw error;
     }
   },
-
-  // Validate backup path
-  validateBackupPath: async (path) => {
-    try {
-      const response = await apiClient.post("/api/backup/validate-path", {
-        path,
-      });
-      return response.data;
-    } catch (error) {
-      console.error("Error validating backup path:", error);
-      throw error;
-    }
-  },
 };
 
 export default backupService;

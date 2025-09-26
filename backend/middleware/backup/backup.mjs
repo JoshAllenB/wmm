@@ -27,6 +27,7 @@ import {
   getBackupConfig,
   migrateBackups,
   CONFIG,
+  // newly exported helpers
 } from "../../utils/database-backup.mjs";
 
 const router = express.Router();
@@ -159,51 +160,10 @@ router.get("/status", async (req, res) => {
  */
 router.post("/settings", async (req, res) => {
   try {
-    const {
-      backupPath,
-      autosaveEnabled,
-      autosaveSchedule,
-      maxBackups,
-      migrateExisting,
-    } = req.body;
+    const { autosaveEnabled, autosaveSchedule, maxBackups } = req.body;
 
-    // Validate required fields
-    if (!backupPath || typeof backupPath !== "string" || !backupPath.trim()) {
-      return res.status(400).json({
-        success: false,
-        error: "Backup path is required",
-      });
-    }
-
-    // Normalize and convert path format
-    const normalizedPath = normalizeBackupPath(backupPath.trim());
-    if (!normalizedPath) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid backup path format",
-      });
-    }
-
-    const oldBackupPath = CONFIG.BACKUP_BASE_PATH;
-    let migrationResult = null;
-
-    // Migrate existing backups if requested and path is changing
-    if (migrateExisting && oldBackupPath && oldBackupPath !== normalizedPath) {
-      try {
-        migrationResult = await migrateBackups(oldBackupPath, normalizedPath);
-        console.log("Migration result:", migrationResult);
-      } catch (migrationError) {
-        console.error("Migration failed:", migrationError);
-        migrationResult = {
-          success: false,
-          error: migrationError.message,
-        };
-      }
-    }
-
-    // Update configuration using the new function
+    // Only update autosave-related settings; ignore client-provided backupPath
     updateBackupConfig({
-      backupPath: normalizedPath,
       autosaveEnabled: Boolean(autosaveEnabled),
       autosaveSchedule: autosaveSchedule || "0 12 * * *",
       maxBackups: parseInt(maxBackups) || 10,
@@ -221,7 +181,6 @@ router.post("/settings", async (req, res) => {
       success: true,
       message: "Backup settings updated successfully",
       config: getBackupConfig(),
-      migration: migrationResult,
     });
   } catch (error) {
     console.error("Error updating backup settings:", error);
@@ -234,55 +193,76 @@ router.post("/settings", async (req, res) => {
 });
 
 /**
+ * @route POST /api/backup/change-drive
+ * @desc Change the drive letter used for backups (Windows/WSL only)
+ *       Body: { drive: "D" }
+ */
+router.post("/change-drive", async (req, res) => {
+  try {
+    const { drive } = req.body;
+    if (!drive || typeof drive !== "string" || drive.length !== 1) {
+      return res.status(400).json({
+        success: false,
+        error: "Provide a single drive letter, e.g. 'D'",
+      });
+    }
+
+    // Build new path for requested drive
+    const { default: utils } = await import("../../utils/database-backup.mjs");
+    // dynamic import won't expose named helpers directly; recreate minimal logic here
+    const upper = drive.toUpperCase();
+    let newPath;
+    if (process.platform === "win32") {
+      newPath = `${upper}:\\\\DB Backup`;
+    } else if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+      newPath = `/mnt/${upper.toLowerCase()}/DB Backup`;
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: "Drive letters are only supported on Windows/WSL",
+      });
+    }
+
+    // Apply and persist
+    updateBackupConfig({ backupPath: newPath });
+    const { restartAutosave } = await import("../../utils/database-backup.mjs");
+    restartAutosave();
+
+    res.json({
+      success: true,
+      message: `Backup drive changed to ${upper}:`,
+      config: getBackupConfig(),
+    });
+  } catch (error) {
+    console.error("Error changing backup drive:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to change backup drive",
+      message: error.message,
+    });
+  }
+});
+
+/**
  * @route POST /api/backup/validate-path
  * @desc Validate backup path accessibility
  */
+// Path validation no longer needed client-side; keep endpoint but always return current path
 router.post("/validate-path", async (req, res) => {
   try {
-    const { path } = req.body;
-
-    if (!path || typeof path !== "string" || !path.trim()) {
-      return res.json({
-        valid: false,
-        message: "Path is required",
-      });
-    }
-
-    const normalizedPath = normalizeBackupPath(path);
-    console.log(
-      "Path validation - Input:",
-      path,
-      "Normalized:",
-      normalizedPath
-    );
-
-    if (!normalizedPath) {
-      return res.json({
-        valid: false,
-        message: "Invalid path format. Please use a valid directory path.",
-      });
-    }
-
-    // Test if directory exists or can be created
+    const normalizedPath = CONFIG.BACKUP_BASE_PATH;
     try {
       if (!fs.existsSync(normalizedPath)) {
-        // Try to create the directory
         fs.mkdirSync(normalizedPath, { recursive: true });
       }
-
-      // Test write permissions
-      const testFilePath = normalizedPath + "/.test_write";
-      fs.writeFileSync(testFilePath, "test");
-      fs.unlinkSync(testFilePath);
-
       return res.json({
         valid: true,
-        message: `Path is valid and writable: ${normalizedPath}`,
+        message: `Current backup path is set to: ${normalizedPath}`,
       });
     } catch (error) {
       return res.json({
         valid: false,
-        message: `Path validation failed: ${error.message}`,
+        message: `Path check failed: ${error.message}`,
       });
     }
   } catch (error) {
