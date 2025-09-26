@@ -424,7 +424,8 @@ async function executeMongodump(database, outputPath, options = {}) {
       }
     }
 
-    let command = `mongodump --uri="${uri}/${database}" --out="${outputPath}"`;
+    const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
+    let command = `mongodump --uri="${uriNoTrailingSlash}/${database}" --out="${outputPath}"`;
 
     // Add compression if enabled
     if (compression) {
@@ -447,7 +448,7 @@ async function executeMongodump(database, outputPath, options = {}) {
     // Execute mongodump command
     log("Executing mongodump", {
       database,
-      uri: uri.replace(/\/\/.*@/, "//***@"),
+      uri: uriNoTrailingSlash.replace(/\/\/.*@/, "//***@"),
       out: outputPath,
       fallback: isFallback,
     });
@@ -1342,7 +1343,8 @@ async function executeMongorestore(database, backupPath, options = {}) {
       }
     }
 
-    let command = `mongorestore --uri="${uri}/${database}" "${backupPath}" --quiet`;
+    const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
+    let command = `mongorestore --uri="${uriNoTrailingSlash}/${database}" "${backupPath}" --quiet`;
 
     // Add gzip option if backup files are compressed
     if (CONFIG.COMPRESSION) {
