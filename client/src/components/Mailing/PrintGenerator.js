@@ -572,7 +572,8 @@ export const generateCp850RawPrintContent = (
   // column after the previous job ended on the right), feed the same spacing that
   // we normally apply between rows so vertical alignment remains identical.
   if (appendToQueue && effectiveStartPosition === "left") {
-    const rowSpacingLines = effectiveRowSpacingLines; // same as between label rows
+    // Subtract 2 lines to compensate for extra feed observed when appending
+    const rowSpacingLines = Math.max(0, effectiveRowSpacingLines - 2);
     for (let i = 0; i < rowSpacingLines; i++) {
       rawCommands.push(0x0d, 0x0a);
     }
