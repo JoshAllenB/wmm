@@ -157,6 +157,35 @@ export const useColumns = () => {
         return displayParts.join("<br>");
       },
       size: 200,
+      // Sort by last name, then first name; if last is missing, fall back to company; if both missing, use first name
+      sortingFn: (rowA, rowB) => {
+        const normalize = (val) => (val || "").toString().trim().toLowerCase();
+
+        const buildKeys = (row) => {
+          const last = normalize(row.original?.lname);
+          const first = normalize(row.original?.fname);
+          const company = normalize(row.original?.company);
+
+          // Prefer last name when available
+          if (last) {
+            return { last, first };
+          }
+
+          // If last name is missing, use company as primary key when present
+          if (company) {
+            return { last: company, first: "" };
+          }
+
+          // Fallback: use first name so rows without last/company don't float to top
+          return { last: first, first: "" };
+        };
+
+        const a = buildKeys(rowA);
+        const b = buildKeys(rowB);
+
+        if (a.last !== b.last) return a.last.localeCompare(b.last);
+        return a.first.localeCompare(b.first);
+      },
     },
     {
       id: "Address",
