@@ -47,6 +47,18 @@ function emitBackupEvent(eventName, data) {
   }
 }
 
+// Ensure mongodump is available on PATH
+async function ensureMongodumpAvailable() {
+  try {
+    await execAsync("mongodump --version");
+    return true;
+  } catch (error) {
+    throw new Error(
+      "mongodump is not available on PATH. Install MongoDB Database Tools and ensure 'mongodump' is on PATH."
+    );
+  }
+}
+
 // Configuration
 const CONFIG = {
   // MongoDB connection details
@@ -527,6 +539,8 @@ async function createFullBackup(type = "manual", options = {}) {
   const backupId = `wmm_backup(${dateStr}_${timeStr})`;
 
   try {
+    // Fail fast if mongodump is not available
+    await ensureMongodumpAvailable();
     // Emit backup start event to all connected clients
     emitBackupEvent("backup-started", {
       type: type,
@@ -586,7 +600,27 @@ async function createFullBackup(type = "manual", options = {}) {
       }
     }
 
-    const successCount = results.filter((r) => r.success !== false).length;
+    const successCount = results.filter((r) => r.success === true).length;
+
+    // If nothing succeeded, clean up and throw to signal API failure
+    if (successCount === 0) {
+      try {
+        if (fs.existsSync(consolidatedBackupDir)) {
+          fs.rmSync(consolidatedBackupDir, { recursive: true, force: true });
+        }
+      } catch (_) {}
+
+      emitBackupEvent("backup-error", {
+        type: type,
+        message:
+          "Backup failed: no databases were dumped. Check mongodump availability and MongoDB connectivity.",
+        timestamp: new Date().toISOString(),
+      });
+
+      throw new Error(
+        "No databases were backed up. Ensure mongodump is installed and on PATH, and MongoDB is reachable."
+      );
+    }
 
     // Create backup metadata file
     const metadata = {
