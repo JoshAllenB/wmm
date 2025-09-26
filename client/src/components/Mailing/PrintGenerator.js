@@ -1192,7 +1192,7 @@ export const generateChecklistHTML = (
                   .map(
                     (sub, index) => `
                   <li key=${index} class="text-left border-b border-gray-500 last:border-none pb-2 mb-2">
-                    ${sub.subsclass}: ${sub.enddate} - ${sub.enddate}, Cps: ${sub.copies}
+                    ${sub.subsclass}: ${sub.subsdate} - ${sub.enddate}, Cps: ${sub.copies}
                   </li>
                 `
                   )
