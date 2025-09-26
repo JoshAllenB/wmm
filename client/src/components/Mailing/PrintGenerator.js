@@ -710,6 +710,15 @@ export const generateCp850RawPrintContent = (
     }
   }
 
+  // Ensure final row spacing is applied after the last printed row
+  // so the paper advances beyond the final line of data
+  if (Array.isArray(filteredRows) && filteredRows.length > 0) {
+    const finalRowSpacingLines = effectiveRowSpacingLines;
+    for (let i = 0; i < finalRowSpacingLines; i++) {
+      rawCommands.push(0x0d, 0x0a);
+    }
+  }
+
   // Add final commands
   // rawCommands.push(0x0a); // Line feed
   rawCommands.push(0x0d); // Carriage return
