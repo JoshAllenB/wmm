@@ -36,6 +36,7 @@ import {
   Info,
   AlertTriangle,
 } from "lucide-react";
+import BackupSettings from "./BackupSettings";
 
 const UserBackup = () => {
   const [backups, setBackups] = useState([]);
@@ -489,6 +490,7 @@ const UserBackup = () => {
             />
             Refresh
           </Button>
+          <BackupSettings />
           <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
             <DialogTrigger asChild>
               <Button variant="outline">

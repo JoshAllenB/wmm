@@ -53,11 +53,12 @@ const CONFIG = {
   MONGODB_URI: process.env.MONGODB_URI || "mongodb://localhost:27017",
   MONGODB_DATABASES: ["wmm_client", "wmm_user"],
 
-  // Backup paths
-  BACKUP_BASE_PATH: process.env.BACKUP_PATH || getDefaultBackupPath(),
+  // Backup paths - will be set by user configuration or defaults
+  BACKUP_BASE_PATH: null, // Will be set by user or default
+  AUTOSAVE_BASE_PATH: null, // Will be set based on BACKUP_BASE_PATH
   TEMP_BACKUP_PATH: getDefaultTempPath(),
 
-  // Backup settings
+  // Backup settings - will be set by user configuration or defaults
   MAX_BACKUPS: parseInt(process.env.MAX_BACKUPS) || 10,
   COMPRESSION: process.env.BACKUP_COMPRESSION !== "false", // default true
   AUTOSAVE_ENABLED: process.env.AUTOSAVE_ENABLED !== "false", // default true
@@ -69,9 +70,13 @@ const CONFIG = {
 
 // Ensure backup directories exist
 function ensureDirectories() {
-  const dirs = [CONFIG.BACKUP_BASE_PATH, CONFIG.TEMP_BACKUP_PATH];
+  const dirs = [
+    CONFIG.BACKUP_BASE_PATH,
+    CONFIG.AUTOSAVE_BASE_PATH,
+    CONFIG.TEMP_BACKUP_PATH,
+  ];
   dirs.forEach((dir) => {
-    if (!fs.existsSync(dir)) {
+    if (dir && !fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
   });
@@ -192,11 +197,18 @@ function getWindowsUsername() {
   }
 }
 
-// Update backup path with actual username (for WSL compatibility)
-function updateBackupPath() {
-  // Only update if not explicitly set via environment
-  if (!process.env.BACKUP_PATH) {
+// Initialize backup path - use environment variable, user setting, or default
+function initializeBackupPath() {
+  // Priority: 1. Environment variable, 2. User setting (if any), 3. Default
+  if (process.env.BACKUP_PATH) {
+    CONFIG.BACKUP_BASE_PATH = process.env.BACKUP_PATH;
+  } else if (!CONFIG.BACKUP_BASE_PATH) {
+    // Only use default if no path is set at all
     CONFIG.BACKUP_BASE_PATH = getDefaultBackupPath();
+  }
+
+  // Ensure the directory exists
+  if (CONFIG.BACKUP_BASE_PATH) {
     ensureDirectories();
   }
 }
@@ -326,8 +338,10 @@ async function createDatabaseBackup(database, type = "manual", options = {}) {
     // Execute mongodump
     await executeMongodump(database, tempDir, options);
 
-    // Create final backup directory
-    const backupDir = path.join(CONFIG.BACKUP_BASE_PATH, backupId);
+    // Create final backup directory (use autosave path for autosave backups)
+    const basePath =
+      type === "autosave" ? CONFIG.AUTOSAVE_BASE_PATH : CONFIG.BACKUP_BASE_PATH;
+    const backupDir = path.join(basePath, backupId);
     fs.mkdirSync(backupDir, { recursive: true });
 
     // Move backup files to final location
@@ -422,8 +436,10 @@ async function createFullBackup(type = "manual", options = {}) {
       timestamp: new Date().toISOString(),
     });
 
-    // Create consolidated backup directory
-    const consolidatedBackupDir = path.join(CONFIG.BACKUP_BASE_PATH, backupId);
+    // Create consolidated backup directory (use autosave path for autosave backups)
+    const basePath =
+      type === "autosave" ? CONFIG.AUTOSAVE_BASE_PATH : CONFIG.BACKUP_BASE_PATH;
+    const consolidatedBackupDir = path.join(basePath, backupId);
     fs.mkdirSync(consolidatedBackupDir, { recursive: true });
 
     const results = [];
@@ -607,108 +623,129 @@ function formatBytes(bytes, decimals = 2) {
 // List available backups
 function listBackups() {
   try {
-    const backupDir = CONFIG.BACKUP_BASE_PATH;
-    if (!fs.existsSync(backupDir)) {
-      return [];
+    const allBackups = [];
+
+    // Check main backup directory
+    if (CONFIG.BACKUP_BASE_PATH && fs.existsSync(CONFIG.BACKUP_BASE_PATH)) {
+      const mainBackups = fs
+        .readdirSync(CONFIG.BACKUP_BASE_PATH)
+        .filter((item) => {
+          const itemPath = path.join(CONFIG.BACKUP_BASE_PATH, item);
+          return (
+            fs.statSync(itemPath).isDirectory() &&
+            item !== "uploads" &&
+            item !== "autosave"
+          );
+        })
+        .map((backupId) => {
+          const backupPath = path.join(CONFIG.BACKUP_BASE_PATH, backupId);
+          return { ...getBackupInfo(backupId, backupPath), source: "manual" };
+        });
+      allBackups.push(...mainBackups);
     }
 
-    const backups = fs
-      .readdirSync(backupDir)
-      .filter((item) => {
-        const itemPath = path.join(backupDir, item);
-        return fs.statSync(itemPath).isDirectory() && item !== "uploads";
-      })
-      .map((backupId) => {
-        const backupPath = path.join(backupDir, backupId);
-        const stats = fs.statSync(backupPath);
-        const size = getDirectorySize(backupPath);
+    // Check autosave directory
+    if (CONFIG.AUTOSAVE_BASE_PATH && fs.existsSync(CONFIG.AUTOSAVE_BASE_PATH)) {
+      const autosaveBackups = fs
+        .readdirSync(CONFIG.AUTOSAVE_BASE_PATH)
+        .filter((item) => {
+          const itemPath = path.join(CONFIG.AUTOSAVE_BASE_PATH, item);
+          return fs.statSync(itemPath).isDirectory();
+        })
+        .map((backupId) => {
+          const backupPath = path.join(CONFIG.AUTOSAVE_BASE_PATH, backupId);
+          return { ...getBackupInfo(backupId, backupPath), source: "autosave" };
+        });
+      allBackups.push(...autosaveBackups);
+    }
 
-        // Check if this is an uploaded backup with metadata
-        const metadataPath = path.join(backupPath, "metadata.json");
-        if (fs.existsSync(metadataPath)) {
-          try {
-            const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
-            return {
-              id: metadata.id,
-              type: metadata.type,
-              timestamp: new Date(metadata.timestamp),
-              size: metadata.size,
-              sizeFormatted: metadata.sizeFormatted,
-              path: metadata.path,
-              filePath: metadata.filePath,
-              originalName: metadata.originalName,
-              backupName: metadata.backupName,
-              description: metadata.description,
-              uploaded: metadata.uploaded,
-            };
-          } catch (error) {
-            console.error(
-              `Error reading metadata for backup ${backupId}:`,
-              error
-            );
-          }
-        }
-
-        // Parse backup info from directory name for regular backups
-        let type = "unknown";
-        let timestamp = new Date();
-
-        // Check for new wmm_backup format: wmm_backup(yyyy-mm-dd_HH-MM) or wmm_backup(yyyy-mm-dd_HH-MM)_database
-        if (backupId.startsWith("wmm_backup(") && backupId.includes(")")) {
-          const match = backupId.match(
-            /wmm_backup\((\d{4}-\d{2}-\d{2})_(\d{2}-\d{2})\)(?:_(.+))?/
-          );
-          if (match) {
-            const dateStr = match[1]; // yyyy-mm-dd
-            const timeStr = match[2]; // HH-MM
-            const database = match[3]; // optional database name
-
-            // Parse yyyy-mm-dd_HH-MM
-            const timeForDate = timeStr.replace("-", ":");
-            timestamp = new Date(`${dateStr}T${timeForDate}:00`);
-
-            if (database) {
-              type = "database";
-            } else {
-              type = "full";
-            }
-          }
-        } else {
-          // Fallback to old format parsing
-          const parts = backupId.split("_");
-          type = parts[1] || "unknown";
-
-          // Try to parse timestamp from old format (database_type_YYYY-MM-DD_HH-MM)
-          if (
-            parts.length >= 4 &&
-            parts[2].match(/^\d{4}-\d{2}-\d{2}$/) &&
-            parts[3].match(/^\d{2}-\d{2}$/)
-          ) {
-            // Old format: database_type_YYYY-MM-DD_HH-MM
-            const dateStr = parts[2];
-            const timeStr = parts[3].replace("-", ":");
-            timestamp = new Date(`${dateStr}T${timeStr}:00`);
-          } else {
-            // Fallback to timestamp format
-            timestamp = new Date(parseInt(parts[parts.length - 1]) || 0);
-          }
-        }
-
-        return {
-          id: backupId,
-          type,
-          timestamp,
-          size,
-          sizeFormatted: formatBytes(size),
-          path: backupPath,
-        };
-      })
-      .sort((a, b) => b.timestamp - a.timestamp);
-
-    return backups;
+    return allBackups.sort((a, b) => b.timestamp - a.timestamp);
   } catch (error) {
     return [];
   }
+}
+
+// Helper function to get backup info
+function getBackupInfo(backupId, backupPath) {
+  const stats = fs.statSync(backupPath);
+  const size = getDirectorySize(backupPath);
+
+  // Check if this is an uploaded backup with metadata
+  const metadataPath = path.join(backupPath, "metadata.json");
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+      return {
+        id: metadata.id,
+        type: metadata.type,
+        timestamp: new Date(metadata.timestamp),
+        size: metadata.size,
+        sizeFormatted: metadata.sizeFormatted,
+        path: metadata.path,
+        filePath: metadata.filePath,
+        originalName: metadata.originalName,
+        backupName: metadata.backupName,
+        description: metadata.description,
+        uploaded: metadata.uploaded,
+      };
+    } catch (error) {
+      console.error(`Error reading metadata for backup ${backupId}:`, error);
+    }
+  }
+
+  // Parse backup info from directory name for regular backups
+  let type = "unknown";
+  let timestamp = new Date();
+
+  // Check for new wmm_backup format: wmm_backup(yyyy-mm-dd_HH-MM) or wmm_backup(yyyy-mm-dd_HH-MM)_database
+  if (backupId.startsWith("wmm_backup(") && backupId.includes(")")) {
+    const match = backupId.match(
+      /wmm_backup\((\d{4}-\d{2}-\d{2})_(\d{2}-\d{2})\)(?:_(.+))?/
+    );
+    if (match) {
+      const dateStr = match[1]; // yyyy-mm-dd
+      const timeStr = match[2]; // HH-MM
+      const database = match[3]; // optional database name
+
+      // Parse yyyy-mm-dd_HH-MM
+      const timeForDate = timeStr.replace("-", ":");
+      timestamp = new Date(`${dateStr}T${timeForDate}:00`);
+
+      if (database) {
+        type = "database";
+      } else {
+        type = "full";
+      }
+    }
+  } else {
+    // Fallback to old format parsing
+    const parts = backupId.split("_");
+    type = parts[1] || "unknown";
+
+    // Try to parse timestamp from old format (database_type_YYYY-MM-DD_HH-MM)
+    if (
+      parts.length >= 4 &&
+      parts[2].match(/^\d{4}-\d{2}-\d{2}$/) &&
+      parts[3].match(/^\d{2}-\d{2}$/)
+    ) {
+      // Old format: database_type_YYYY-MM-DD_HH-MM
+      const dateStr = parts[2];
+      const timeStr = parts[3].replace("-", ":");
+      timestamp = new Date(`${dateStr}T${timeStr}:00`);
+    } else {
+      // Fallback to timestamp format
+      timestamp = new Date(parseInt(parts[parts.length - 1]) || 0);
+    }
+  }
+
+  return {
+    id: backupId,
+    type,
+    timestamp,
+    size,
+    sizeFormatted: formatBytes(size),
+    path: backupPath,
+  };
 }
 
 // Clean up old backups
@@ -820,16 +857,38 @@ let autosaveJob = null;
 
 function startAutosave() {
   if (!CONFIG.AUTOSAVE_ENABLED) {
+    log("Autosave is disabled; not starting cron job", {
+      autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+      autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+      timezone: "Asia/Manila",
+    });
     return;
   }
 
   if (autosaveJob) {
+    log("Autosave cron job already running; skipping new schedule", {
+      autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+      timezone: "Asia/Manila",
+    });
     return;
   }
+
+  log("Scheduling autosave cron job", {
+    autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+    timezone: "Asia/Manila",
+    scheduledAt: new Date().toISOString(),
+  });
 
   autosaveJob = cron.schedule(
     CONFIG.AUTOSAVE_SCHEDULE,
     async () => {
+      // Debug log: cron tick fired
+      log("Autosave cron tick fired", {
+        autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+        timezone: "Asia/Manila",
+        firedAt: new Date().toISOString(),
+      });
       try {
         // Emit backup start event to all connected clients
         emitBackupEvent("backup-started", {
@@ -869,6 +928,11 @@ function startAutosave() {
       timezone: "Asia/Manila",
     }
   );
+
+  log("Autosave cron job scheduled successfully", {
+    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+    timezone: "Asia/Manila",
+  });
 }
 
 function stopAutosave() {
@@ -878,10 +942,150 @@ function stopAutosave() {
   }
 }
 
+// Update backup configuration from user settings
+function updateBackupConfig(userConfig) {
+  const oldBackupPath = CONFIG.BACKUP_BASE_PATH;
+
+  if (userConfig.backupPath) {
+    CONFIG.BACKUP_BASE_PATH = userConfig.backupPath;
+    // Set autosave path as a subfolder of the main backup path
+    CONFIG.AUTOSAVE_BASE_PATH = path.join(CONFIG.BACKUP_BASE_PATH, "autosave");
+    ensureDirectories();
+  }
+
+  if (userConfig.autosaveEnabled !== undefined) {
+    CONFIG.AUTOSAVE_ENABLED = userConfig.autosaveEnabled;
+  }
+
+  if (userConfig.autosaveSchedule) {
+    CONFIG.AUTOSAVE_SCHEDULE = userConfig.autosaveSchedule;
+  }
+
+  if (userConfig.maxBackups) {
+    CONFIG.MAX_BACKUPS = userConfig.maxBackups;
+  }
+
+  log(`Backup configuration updated`, {
+    backupPath: CONFIG.BACKUP_BASE_PATH,
+    autosavePath: CONFIG.AUTOSAVE_BASE_PATH,
+    autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+    maxBackups: CONFIG.MAX_BACKUPS,
+  });
+}
+
+// Get current backup configuration
+function getBackupConfig() {
+  return {
+    backupPath: CONFIG.BACKUP_BASE_PATH,
+    autosavePath: CONFIG.AUTOSAVE_BASE_PATH,
+    autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+    maxBackups: CONFIG.MAX_BACKUPS,
+    compression: CONFIG.COMPRESSION,
+    databases: CONFIG.MONGODB_DATABASES,
+  };
+}
+
+// Migrate backups from old path to new path
+async function migrateBackups(oldPath, newPath) {
+  try {
+    if (!oldPath || !newPath || oldPath === newPath) {
+      return { success: true, message: "No migration needed" };
+    }
+
+    if (!fs.existsSync(oldPath)) {
+      return { success: true, message: "Old backup path does not exist" };
+    }
+
+    // Ensure new directory exists
+    if (!fs.existsSync(newPath)) {
+      fs.mkdirSync(newPath, { recursive: true });
+    }
+
+    // Get list of backups from old path
+    const oldBackups = fs.readdirSync(oldPath).filter((item) => {
+      const itemPath = path.join(oldPath, item);
+      return fs.statSync(itemPath).isDirectory() && item !== "uploads";
+    });
+
+    if (oldBackups.length === 0) {
+      return { success: true, message: "No backups to migrate" };
+    }
+
+    let migratedCount = 0;
+    let errors = [];
+
+    // Migrate each backup
+    for (const backupId of oldBackups) {
+      try {
+        const sourcePath = path.join(oldPath, backupId);
+        const destPath = path.join(newPath, backupId);
+
+        // Copy the backup directory
+        await copyDirectory(sourcePath, destPath);
+        migratedCount++;
+
+        log(`Migrated backup: ${backupId}`, {
+          from: sourcePath,
+          to: destPath,
+        });
+      } catch (error) {
+        errors.push({ backupId, error: error.message });
+        log(`Failed to migrate backup: ${backupId}`, { error: error.message });
+      }
+    }
+
+    // Migrate uploads directory if it exists
+    const uploadsPath = path.join(oldPath, "uploads");
+    if (fs.existsSync(uploadsPath)) {
+      try {
+        const newUploadsPath = path.join(newPath, "uploads");
+        await copyDirectory(uploadsPath, newUploadsPath);
+        log(`Migrated uploads directory`, {
+          from: uploadsPath,
+          to: newUploadsPath,
+        });
+      } catch (error) {
+        errors.push({ item: "uploads", error: error.message });
+      }
+    }
+
+    return {
+      success: true,
+      message: `Migrated ${migratedCount} backups successfully`,
+      migratedCount,
+      totalBackups: oldBackups.length,
+      errors: errors.length > 0 ? errors : undefined,
+    };
+  } catch (error) {
+    log(`Migration failed`, { error: error.message });
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+// Restart autosave with new schedule
+function restartAutosave() {
+  // Stop existing autosave
+  if (autosaveJob) {
+    autosaveJob.stop();
+    autosaveJob = null;
+  }
+
+  // Start new autosave with updated configuration
+  startAutosave();
+  log(`Autosave restarted with new configuration`, {
+    autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
+    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
+  });
+}
+
 // Initialize backup service
 function initializeBackupService() {
-  updateBackupPath();
-  ensureDirectories();
+  initializeBackupPath();
   startAutosave();
   log(`Database backup service initialized`, {
     backupPath: CONFIG.BACKUP_BASE_PATH,
@@ -1678,6 +1882,10 @@ export {
   compareBackupAgeWithDatabase,
   startAutosave,
   stopAutosave,
+  restartAutosave,
+  updateBackupConfig,
+  getBackupConfig,
+  migrateBackups,
   initializeBackupService,
   CONFIG,
   backupEventEmitter,

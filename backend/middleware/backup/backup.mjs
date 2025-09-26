@@ -11,6 +11,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import multer from "multer";
 import {
   createFullBackup,
@@ -22,10 +23,64 @@ import {
   restoreFullBackup,
   validateBackupForRestore,
   validateRestoreWithSafety,
+  updateBackupConfig,
+  getBackupConfig,
+  migrateBackups,
   CONFIG,
 } from "../../utils/database-backup.mjs";
 
 const router = express.Router();
+
+// Normalize backup path from user input to system-compatible format
+function normalizeBackupPath(userPath) {
+  if (!userPath || typeof userPath !== "string") {
+    return null;
+  }
+
+  let normalizedPath = userPath.trim();
+
+  // If it's just a folder name (no slashes), create a proper path
+  if (!normalizedPath.includes("/") && !normalizedPath.includes("\\")) {
+    // Check if we're in WSL environment
+    if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+      // In WSL, create a path in the Windows file system
+      normalizedPath = `/mnt/c/backups/${normalizedPath}`;
+    } else if (process.platform === "win32") {
+      // Native Windows
+      normalizedPath = `C:\\backups\\${normalizedPath}`;
+    } else {
+      // Linux/macOS
+      normalizedPath = path.join(os.homedir(), "backups", normalizedPath);
+    }
+  } else {
+    // Handle Windows paths in WSL environment
+    if (process.env.WSL_DISTRO_NAME || process.env.WSLENV) {
+      // Convert Windows-style paths to WSL format
+      if (normalizedPath.match(/^[A-Za-z]:\\/)) {
+        // C:\Users\... -> /mnt/c/Users/...
+        const drive = normalizedPath.charAt(0).toLowerCase();
+        normalizedPath = normalizedPath
+          .replace(/^[A-Za-z]:\\/, `/mnt/${drive}/`)
+          .replace(/\\/g, "/");
+      }
+    }
+
+    // Handle relative paths starting with ~
+    if (normalizedPath.startsWith("~/")) {
+      normalizedPath = path.join(os.homedir(), normalizedPath.slice(2));
+    }
+
+    // Ensure forward slashes for all paths
+    normalizedPath = normalizedPath.replace(/\\/g, "/");
+
+    // Validate the path format
+    if (normalizedPath.includes("\\") && !normalizedPath.startsWith("/mnt/")) {
+      return null;
+    }
+  }
+
+  return normalizedPath;
+}
 
 // Configure multer for file uploads with cross-platform path support
 const storage = multer.diskStorage({
@@ -68,18 +123,6 @@ const upload = multer({
   },
 });
 
-// Middleware to log backup API requests
-const logRequest = (req, res, next) => {
-  console.log(`[Backup API] ${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get("User-Agent"),
-    timestamp: new Date().toISOString(),
-  });
-  next();
-};
-
-router.use(logRequest);
-
 /**
  * @route GET /api/backup/status
  * @desc Get backup service status and configuration
@@ -88,18 +131,12 @@ router.get("/status", async (req, res) => {
   try {
     const backups = listBackups();
     const totalSize = backups.reduce((sum, backup) => sum + backup.size, 0);
+    const config = getBackupConfig();
 
     res.json({
       success: true,
       status: "running",
-      config: {
-        databases: CONFIG.MONGODB_DATABASES,
-        backupPath: CONFIG.BACKUP_BASE_PATH,
-        maxBackups: CONFIG.MAX_BACKUPS,
-        compression: CONFIG.COMPRESSION,
-        autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
-        autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-      },
+      config: config,
       stats: {
         totalBackups: backups.length,
         totalSize: totalSize,
@@ -111,6 +148,148 @@ router.get("/status", async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to get backup status",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/settings
+ * @desc Update backup settings
+ */
+router.post("/settings", async (req, res) => {
+  try {
+    const {
+      backupPath,
+      autosaveEnabled,
+      autosaveSchedule,
+      maxBackups,
+      migrateExisting,
+    } = req.body;
+
+    // Validate required fields
+    if (!backupPath || typeof backupPath !== "string" || !backupPath.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Backup path is required",
+      });
+    }
+
+    // Normalize and convert path format
+    const normalizedPath = normalizeBackupPath(backupPath.trim());
+    if (!normalizedPath) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid backup path format",
+      });
+    }
+
+    const oldBackupPath = CONFIG.BACKUP_BASE_PATH;
+    let migrationResult = null;
+
+    // Migrate existing backups if requested and path is changing
+    if (migrateExisting && oldBackupPath && oldBackupPath !== normalizedPath) {
+      try {
+        migrationResult = await migrateBackups(oldBackupPath, normalizedPath);
+        console.log("Migration result:", migrationResult);
+      } catch (migrationError) {
+        console.error("Migration failed:", migrationError);
+        migrationResult = {
+          success: false,
+          error: migrationError.message,
+        };
+      }
+    }
+
+    // Update configuration using the new function
+    updateBackupConfig({
+      backupPath: normalizedPath,
+      autosaveEnabled: Boolean(autosaveEnabled),
+      autosaveSchedule: autosaveSchedule || "0 12 * * *",
+      maxBackups: parseInt(maxBackups) || 10,
+    });
+
+    // Restart autosave if enabled
+    if (Boolean(autosaveEnabled)) {
+      const { restartAutosave } = await import(
+        "../../utils/database-backup.mjs"
+      );
+      restartAutosave();
+    }
+
+    res.json({
+      success: true,
+      message: "Backup settings updated successfully",
+      config: getBackupConfig(),
+      migration: migrationResult,
+    });
+  } catch (error) {
+    console.error("Error updating backup settings:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to update backup settings",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * @route POST /api/backup/validate-path
+ * @desc Validate backup path accessibility
+ */
+router.post("/validate-path", async (req, res) => {
+  try {
+    const { path } = req.body;
+
+    if (!path || typeof path !== "string" || !path.trim()) {
+      return res.json({
+        valid: false,
+        message: "Path is required",
+      });
+    }
+
+    const normalizedPath = normalizeBackupPath(path);
+    console.log(
+      "Path validation - Input:",
+      path,
+      "Normalized:",
+      normalizedPath
+    );
+
+    if (!normalizedPath) {
+      return res.json({
+        valid: false,
+        message: "Invalid path format. Please use a valid directory path.",
+      });
+    }
+
+    // Test if directory exists or can be created
+    try {
+      if (!fs.existsSync(normalizedPath)) {
+        // Try to create the directory
+        fs.mkdirSync(normalizedPath, { recursive: true });
+      }
+
+      // Test write permissions
+      const testFilePath = normalizedPath + "/.test_write";
+      fs.writeFileSync(testFilePath, "test");
+      fs.unlinkSync(testFilePath);
+
+      return res.json({
+        valid: true,
+        message: `Path is valid and writable: ${normalizedPath}`,
+      });
+    } catch (error) {
+      return res.json({
+        valid: false,
+        message: `Path validation failed: ${error.message}`,
+      });
+    }
+  } catch (error) {
+    console.error("Error validating backup path:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to validate backup path",
       message: error.message,
     });
   }
