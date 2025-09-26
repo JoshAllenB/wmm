@@ -47,6 +47,21 @@ function emitBackupEvent(eventName, data) {
   }
 }
 
+// Optionally prepend MongoDB tools bin to PATH for server-run environment
+function ensureToolsPathInEnv() {
+  try {
+    const toolsBin = process.env.MONGODB_TOOLS_BIN;
+    if (toolsBin && typeof toolsBin === "string" && toolsBin.trim().length > 0) {
+      const currentPath = process.env.PATH || process.env.Path || "";
+      if (!currentPath.toLowerCase().includes(toolsBin.trim().toLowerCase())) {
+        const separator = process.platform === "win32" ? ";" : ":";
+        process.env.PATH = `${toolsBin}${separator}${currentPath}`;
+        log("Prepended MongoDB tools to PATH", { toolsBin });
+      }
+    }
+  } catch (_) {}
+}
+
 // Ensure mongodump is available on PATH
 async function ensureMongodumpAvailable() {
   try {
@@ -57,6 +72,26 @@ async function ensureMongodumpAvailable() {
       "mongodump is not available on PATH. Install MongoDB Database Tools and ensure 'mongodump' is on PATH."
     );
   }
+}
+
+// Log diagnostics for mongodump resolution and PATH state
+async function logMongodumpDiagnostics(context = "startup") {
+  try {
+    const cmd = process.platform === "win32" ? "where mongodump" : "which mongodump";
+    let location = null;
+    try {
+      const { stdout } = await execAsync(cmd);
+      location = stdout.trim();
+    } catch (e) {
+      location = null;
+    }
+    log("Mongodump diagnostics", {
+      context,
+      toolsBin: process.env.MONGODB_TOOLS_BIN || null,
+      pathStart: (process.env.PATH || "").slice(0, 200),
+      mongodumpLocation: location,
+    });
+  } catch (_) {}
 }
 
 // Configuration
@@ -363,16 +398,29 @@ async function executeMongodump(database, outputPath, options = {}) {
 
     // Test connection first (skip for fallback if primary test passed)
     if (i === 0 || (i === 1 && urisToTry[0] !== urisToTry[1])) {
-      const connectionTest = await testMongoDBConnection(uri, database);
-      if (!connectionTest.success) {
-        if (i === urisToTry.length - 1) {
-          throw new Error(
-            `MongoDB connection failed for all URIs. Last error: ${
-              connectionTest.error || "Connection test failed"
-            }`
-          );
+      try {
+        const connectionTest = await testMongoDBConnection(uri, database);
+        if (!connectionTest.success) {
+          const errText = (connectionTest.error || "").toLowerCase();
+          const looksLikeMongoshMissing =
+            errText.includes("not found") ||
+            errText.includes("not recognized") ||
+            errText.includes("enoent");
+
+          // If mongosh is missing in this environment, proceed without preflight
+          if (!looksLikeMongoshMissing) {
+            if (i === urisToTry.length - 1) {
+              throw new Error(
+                `MongoDB connection failed for all URIs. Last error: ${
+                  connectionTest.error || "Connection test failed"
+                }`
+              );
+            }
+            continue;
+          }
         }
-        continue;
+      } catch (preflightError) {
+        // If preflight execution itself fails due to missing mongosh, proceed to try mongodump directly
       }
     }
 
@@ -397,6 +445,12 @@ async function executeMongodump(database, outputPath, options = {}) {
     }
 
     // Execute mongodump command
+    log("Executing mongodump", {
+      database,
+      uri: uri.replace(/\/\/.*@/, "//***@"),
+      out: outputPath,
+      fallback: isFallback,
+    });
 
     try {
       const { stdout, stderr } = await execAsync(command);
@@ -409,9 +463,10 @@ async function executeMongodump(database, outputPath, options = {}) {
     } catch (error) {
       // If this is the last attempt, throw the error
       if (i === urisToTry.length - 1) {
-        throw new Error(
-          `Mongodump failed for ${database} after ${urisToTry.length} attempts. Last error: ${error.message}`
-        );
+        const message =
+          `Mongodump failed for ${database} after ${urisToTry.length} attempts. Last error: ${error.message}`;
+        log("Mongodump error", { database, message });
+        throw new Error(message);
       }
     }
   }
@@ -604,6 +659,10 @@ async function createFullBackup(type = "manual", options = {}) {
 
     // If nothing succeeded, clean up and throw to signal API failure
     if (successCount === 0) {
+      // Extra diagnostics if nothing worked
+      try {
+        await logMongodumpDiagnostics("backup-failed");
+      } catch (_) {}
       try {
         if (fs.existsSync(consolidatedBackupDir)) {
           fs.rmSync(consolidatedBackupDir, { recursive: true, force: true });
@@ -1223,6 +1282,10 @@ function restartAutosave() {
 // Initialize backup service
 function initializeBackupService() {
   // Load persisted settings first, then compute paths
+  ensureToolsPathInEnv();
+  // Log diagnostics for PATH and mongodump location
+  // fire-and-forget; we don't need to await here
+  logMongodumpDiagnostics("startup");
   loadSettingsFromDisk();
   initializeBackupPath();
   // Persist initial selection on first run so auto-selection happens once
