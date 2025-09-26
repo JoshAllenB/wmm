@@ -376,8 +376,13 @@ const generateLabelTextContent = (
   });
 
   // CP and Tel lines (CP first), no prefixes
-  if (cpNumber) content += `${cpNumber}\r\n`;
-  if (telNumber) content += `${telNumber}\r\n`;
+  if (cpNumber && telNumber) {
+    content += `${cpNumber} ; ${telNumber}\r\n`;
+  } else if (cpNumber) {
+    content += `${cpNumber}\r\n`;
+  } else if (telNumber) {
+    content += `${telNumber}\r\n`;
+  }
 
   return content;
 };
