@@ -1173,11 +1173,72 @@ export const generateChecklistHTML = (
   date = null,
   activeFilters = []
 ) => {
-  console.log("activeFilters", activeFilters);
   // Use provided date or current date
   const displayDate = date
     ? new Date(date).toLocaleDateString()
     : new Date().toLocaleDateString();
+  const totalCount = Array.isArray(rowsToUse) ? rowsToUse.length : 0;
+
+  // Derive services when not explicitly provided on the row
+  const deriveServices = (data) => {
+    if (!data) return [];
+    const raw = data.services;
+    // If already an array, normalize to strings
+    if (Array.isArray(raw)) {
+      return Array.from(
+        new Set(
+          raw
+            .map((s) => (s == null ? "" : String(s).trim().toUpperCase()))
+            .filter(Boolean)
+        )
+      );
+    }
+    // If string, split on commas/whitespace/newlines
+    if (typeof raw === "string") {
+      const parts = raw
+        .split(/[\s,\n\r]+/)
+        .map((s) => s.trim().toUpperCase())
+        .filter(Boolean);
+      if (parts.length) return Array.from(new Set(parts));
+    }
+
+    // Fallback: infer from known keys present in data
+    const inferred = [];
+    const addIf = (label, ...keys) => {
+      for (const key of keys) {
+        if (key in data && data[key]) {
+          inferred.push(label);
+          return;
+        }
+        // also match keys that include the segment, e.g., wmmData
+        const found = Object.keys(data).some(
+          (k) => k.toLowerCase().includes(String(key).toLowerCase()) && data[k]
+        );
+        if (found) {
+          inferred.push(label);
+          return;
+        }
+      }
+    };
+
+    addIf("WMM", "wmm", "wmmData");
+    addIf("HRG", "hrg", "hrgData");
+    addIf("FOM", "fom", "fomData");
+    addIf("CAL", "cal", "calData");
+    addIf("DCS", "dcs", "dcsData");
+    addIf("PROMO", "promo", "promoData");
+    addIf("COMP", "comp", "compData", "complimentary", "complimentaryData");
+
+    // Also check subscriptionType hint
+    if (data.subscriptionType) {
+      const t = String(data.subscriptionType).toUpperCase();
+      if (["WMM", "HRG", "FOM", "CAL", "DCS", "PROMO", "COMP"].includes(t)) {
+        if (!inferred.includes(t)) inferred.push(t);
+      }
+    }
+
+    return Array.from(new Set(inferred));
+  };
 
   const checklistHtml = rowsToUse
     .map((row) => {
@@ -1217,9 +1278,11 @@ export const generateChecklistHTML = (
 
       // Add the ID as the first column
       const idColumn = `<td class="checklist-data" style="width: 50px; border-right: 1px solid #ccc;">${row.original.id}</td>`;
-      const servicesColumn = `<td class="checklist-data" style="width: 50px; border-right: 1px solid #ccc;">${row.original.services.join(
-        ", "
-      )}</td>`;
+      const servicesList = deriveServices(row.original);
+      const servicesHtml = servicesList.length
+        ? servicesList.map((s) => String(s)).join("<br>")
+        : "";
+      const servicesColumn = `<td class="checklist-data" style="text-align: center; width: 50px; border-right: 1px solid #ccc;">${servicesHtml}</td>`;
 
       // Combine Client Name, Address, and Contact Info into one column
       const clientName = columns
@@ -1235,7 +1298,7 @@ export const generateChecklistHTML = (
         ?.accessorFn(row.original);
 
       // Extract the type part from the clientName
-      const [namePart, typePart] = clientName.split("<br>");
+      const [namePart, typePart] = (clientName || "").split("<br>");
 
       // Combine the data
       const combinedData = [
@@ -1248,7 +1311,7 @@ export const generateChecklistHTML = (
         .join(", ");
 
       // Add the combined data as a single column
-      const combinedColumn = `<td class="checklist-data" style="width: 1000px; border-right: 1px solid #ccc;">${combinedData}</td>`;
+      const combinedColumn = `<td class="checklist-data" style="width: 600px; border-right: 1px solid #ccc;">${combinedData}</td>`;
 
       // Prepend the ID column and combined data column to the rowData
       rowData.unshift(servicesColumn);
@@ -1261,6 +1324,7 @@ export const generateChecklistHTML = (
   return `
   <html>
     <head>
+      <title></title>
       <style>
         body { font-family: Arial, sans-serif; }
         .checklist-header {
@@ -1302,7 +1366,7 @@ export const generateChecklistHTML = (
           padding: 8px;
           text-align: left;
           vertical-align: top;
-          font-size: 12px;
+          font-size: 10px;
         }
         .checklist-data ul {
           list-style-type: none;
@@ -1330,6 +1394,7 @@ export const generateChecklistHTML = (
       <table class="checklist">
         ${checklistHtml}
       </table>
+      <div class="checklist-total" style="text-align: left; font-size: 12px; margin-top: 8px; font-weight: bold;">Total: ${totalCount}</div>
       <script>
         window.print();
         window.close();
