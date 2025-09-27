@@ -51,16 +51,17 @@ router.get("/", verifyToken, checkRole(["Admin"]), async (req, res) => {
   try {
     const {
       page = 1,
-      limit = 50,
+      limit = 10,
       clientId,
       action,
       startDate,
       endDate,
+      userId,
     } = req.query;
 
     // Validate pagination parameters
     const validatedPage = Math.max(1, parseInt(page) || 1);
-    const validatedLimit = Math.max(1, Math.min(100, parseInt(limit) || 50));
+    const validatedLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
 
     // Build query
     const query = {};
@@ -72,6 +73,11 @@ router.get("/", verifyToken, checkRole(["Admin"]), async (req, res) => {
     if (action && action !== "all") {
       // Only add action to query if it's not 'all'
       query.action = action;
+    }
+
+    if (userId && userId !== "all") {
+      // Only add userId to query if it's not 'all'
+      query.userId = userId;
     }
 
     if (startDate || endDate) {

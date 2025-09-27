@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "../ShadCN/select";
 import logsService from "../../../services/logsService";
+import userService from "../../../services/userService";
 import { toast } from "react-hot-toast";
 import { io } from "socket.io-client";
 
@@ -18,14 +19,29 @@ const LogsView = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [users, setUsers] = useState([]);
+  const [goToPageInput, setGoToPageInput] = useState("");
+  const [pageSize, setPageSize] = useState(10);
   const [filters, setFilters] = useState({
     clientId: "",
     action: "all",
     startDate: "",
     endDate: "",
+    userId: "all",
   });
 
-  // Initialize socket connection
+  // Fetch users for filter dropdown
+  const fetchUsers = useCallback(async () => {
+    try {
+      const usersData = await userService.getUsers(1, 1000); // Get all users
+      setUsers(usersData);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      toast.error("Failed to fetch users");
+    }
+  }, []);
+
+  // Initialize socket connection and fetch users
   useEffect(() => {
     const socket = io(`http://${import.meta.env.VITE_IP_ADDRESS}:3001`);
 
@@ -38,16 +54,20 @@ const LogsView = () => {
       fetchLogs();
     });
 
+    // Fetch users on component mount
+    fetchUsers();
+
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [fetchUsers]);
 
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
       const response = await logsService.getAllLogs({
         page,
+        limit: pageSize,
         ...filters,
       });
 
@@ -59,16 +79,18 @@ const LogsView = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, pageSize, filters]);
 
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
   const handleFilterChange = (key, value) => {
-    if (key === "action" && value === "all") {
-      const { action, ...restFilters } = filters;
-      setFilters({ ...restFilters, action: "all" });
+    if ((key === "action" || key === "userId") && value === "all") {
+      setFilters((prev) => ({
+        ...prev,
+        [key]: "all",
+      }));
     } else {
       setFilters((prev) => ({
         ...prev,
@@ -76,6 +98,45 @@ const LogsView = () => {
       }));
     }
     setPage(1);
+  };
+
+  const handleGoToPage = () => {
+    const pageNumber = parseInt(goToPageInput);
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setPage(pageNumber);
+      setGoToPageInput("");
+    } else {
+      toast.error(`Please enter a page number between 1 and ${totalPages}`);
+    }
+  };
+
+  const handleGoToFirst = () => {
+    setPage(1);
+  };
+
+  const handleGoToLast = () => {
+    setPage(totalPages);
+  };
+
+  const handlePageInputChange = (e) => {
+    const value = e.target.value;
+    if (
+      value === "" ||
+      (Number.isInteger(Number(value)) && Number(value) > 0)
+    ) {
+      setGoToPageInput(value);
+    }
+  };
+
+  const handlePageInputKeyPress = (e) => {
+    if (e.key === "Enter") {
+      handleGoToPage();
+    }
+  };
+
+  const handlePageSizeChange = (value) => {
+    setPageSize(parseInt(value));
+    setPage(1); // Reset to first page when changing page size
   };
 
   const getActionColor = (action) => {
@@ -152,6 +213,23 @@ const LogsView = () => {
           </SelectContent>
         </Select>
 
+        <Select
+          value={filters.userId}
+          onValueChange={(value) => handleFilterChange("userId", value)}
+        >
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="Filter by user" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Users</SelectItem>
+            {users.map((user) => (
+              <SelectItem key={user._id} value={user._id}>
+                {user.username}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Input
           type="date"
           value={filters.startDate}
@@ -165,6 +243,22 @@ const LogsView = () => {
           onChange={(e) => handleFilterChange("endDate", e.target.value)}
           className="w-[150px]"
         />
+
+        <Select
+          value={pageSize.toString()}
+          onValueChange={handlePageSizeChange}
+        >
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Rows per page" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="5">5 rows</SelectItem>
+            <SelectItem value="10">10 rows</SelectItem>
+            <SelectItem value="25">25 rows</SelectItem>
+            <SelectItem value="50">50 rows</SelectItem>
+            <SelectItem value="100">100 rows</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {error && (
@@ -229,24 +323,74 @@ const LogsView = () => {
             )}
           </div>
 
-          <div className="flex justify-between items-center mt-4 pt-4 border-t">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="px-4 py-2 bg-gray-100 rounded-md disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="text-gray-600">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="px-4 py-2 bg-gray-100 rounded-md disabled:opacity-50"
-            >
-              Next
-            </button>
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-4 pt-4 border-t gap-4">
+            {/* Left side - Navigation buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleGoToFirst}
+                disabled={page === 1}
+                className="px-3 py-2 bg-blue-500 text-white hover:text-white rounded-md disabled:opacity-50 hover:bg-blue-600 transition-colors"
+                title="Go to first page"
+              >
+                ««
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50 hover:bg-blue-600 transition-colors"
+                title="Previous page"
+              >
+                ‹
+              </button>
+            </div>
+
+            {/* Center - Page info and go to page input */}
+            <div className="flex items-center gap-4">
+              <span className="text-gray-600 text-sm">
+                Page {page} of {totalPages} ({pageSize} rows per page)
+              </span>
+
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Go to:</span>
+                  <Input
+                    type="text"
+                    value={goToPageInput}
+                    onChange={handlePageInputChange}
+                    onKeyPress={handlePageInputKeyPress}
+                    placeholder="Page #"
+                    className="w-16 h-8 text-center text-sm"
+                  />
+                  <button
+                    onClick={handleGoToPage}
+                    disabled={!goToPageInput}
+                    className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 hover:bg-blue-600 transition-colors"
+                  >
+                    Go
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Right side - Navigation buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50 hover:bg-blue-600 transition-colors"
+                title="Next page"
+              >
+                ›
+              </button>
+              <button
+                onClick={handleGoToLast}
+                disabled={page === totalPages}
+                className="px-3 py-2 bg-blue-500 text-white rounded-md disabled:opacity-50 hover:bg-blue-600 transition-colors"
+                title="Go to last page"
+              >
+                »»
+              </button>
+            </div>
           </div>
         </div>
       )}
