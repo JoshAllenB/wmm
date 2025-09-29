@@ -32,6 +32,10 @@ import {
   printWithJsPrintManager,
 } from "./Mailing/PrintGenerator";
 
+// Import print queue components
+import { printQueueManager } from "./Mailing/PrintQueueManager";
+import PrintQueueUI from "./Mailing/PrintQueueUI";
+
 // Import print queue functions
 import {
   createPrintQueue,
@@ -176,6 +180,9 @@ const Mailing = ({
   const [triggerTemplateUpdate, setTriggerTemplateUpdate] = useState(false);
   const [triggerTemplateDelete, setTriggerTemplateDelete] = useState(false);
 
+  // Print queue state
+  const [showPrintQueue, setShowPrintQueue] = useState(false);
+
   // Print queue state - simplified
   const [queueDuplicates, setQueueDuplicates] = useState([]);
   const [printedDuplicates, setPrintedDuplicates] = useState([]);
@@ -194,6 +201,139 @@ const Mailing = ({
   // Callback to handle printer selection changes
   const handlePrinterChange = (printerName) => {
     setSelectedPrinter(printerName);
+  };
+
+  // Print callback for queue manager
+  const handleQueuePrintCallback = async (rawCommands, jobs) => {
+    // Ensure JSPrintManager is connected before attempting to print
+    const ensureJspmConnected = async (timeoutMs = 15000) => {
+      if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
+      try {
+        // Enable auto-reconnect and start if not already started
+        window.JSPM.JSPrintManager.auto_reconnect = true;
+        try {
+          await window.JSPM.JSPrintManager.start();
+        } catch (e) {
+          // start() may throw if already started; ignore
+        }
+
+        const isOpen = () =>
+          (window.JSPM.JSPrintManager.websocket_status ||
+            window.JSPM.JSPrintManager.WS?.status) ===
+          window.JSPM.WSStatus.Open;
+
+        if (isOpen()) return true;
+
+        // Wait until WS opens or timeout
+        return await new Promise((resolve) => {
+          let done = false;
+          const timer = setTimeout(() => {
+            if (!done) {
+              done = true;
+              resolve(false);
+            }
+          }, timeoutMs);
+
+          const prevHandler = window.JSPM.JSPrintManager.WS
+            ? window.JSPM.JSPrintManager.WS.onStatusChanged
+            : null;
+
+          if (window.JSPM.JSPrintManager.WS) {
+            window.JSPM.JSPrintManager.WS.onStatusChanged = (s) => {
+              if (s === window.JSPM.WSStatus.Open && !done) {
+                done = true;
+                clearTimeout(timer);
+                // restore any previous handler
+                window.JSPM.JSPrintManager.WS.onStatusChanged =
+                  prevHandler || null;
+                resolve(true);
+              }
+              // pass through to previous handler if it exists
+              if (typeof prevHandler === "function") prevHandler(s);
+            };
+          } else {
+            // No WS object exposed; resolve based on periodic check
+            const interval = setInterval(() => {
+              if (isOpen() && !done) {
+                done = true;
+                clearInterval(interval);
+                clearTimeout(timer);
+                resolve(true);
+              }
+            }, 200);
+          }
+        });
+      } catch (err) {
+        return false;
+      }
+    };
+
+    // Check JSPrintManager availability and connection
+    if (!window.JSPM || !window.JSPM.JSPrintManager) {
+      throw new Error("JSPrintManager not available");
+    }
+
+    // Try to establish the websocket connection if not yet open
+    const connected = await ensureJspmConnected(15000);
+    if (!connected) {
+      throw new Error(
+        "Could not establish JSPrintManager WebSocket connection. Ensure the client app is running and allowed."
+      );
+    }
+
+    // Use printer from template if available, otherwise use selected printer
+    const printerToUse =
+      selectedTemplate?.selectedPrinter || selectedPrinter || "";
+
+    await printWithJsPrintManager(
+      rawCommands,
+      printerToUse,
+      !printerToUse, // useDefaultPrinter = true only if no printer selected
+      {
+        setStatus: (status) => {
+          if (typeof status === "string" && status.includes("Error:")) {
+            toast({
+              title: "Print Error",
+              description: status,
+              variant: "destructive",
+            });
+          }
+        },
+        setPrintJobStatus: (status) => {
+          if (status === "failed" || status === "error") {
+            toast({
+              title: "Print Job Failed",
+              description: "Check console for detailed error information",
+              variant: "destructive",
+            });
+          }
+        },
+        addPrinterEvent: (event, data) => {
+          if (data?.error) console.error("Printer error details:", data);
+        },
+      }
+    );
+
+    // Record printed items for each job
+    try {
+      for (const job of jobs) {
+        const clientIds = job.rows
+          .map((r) => r.original?.id?.toString())
+          .filter(Boolean);
+
+        if (currentQueueId && clientIds.length > 0) {
+          await markQueuePrinted(currentQueueId, {
+            clientIds,
+            jobId: job.id,
+            printerName: printerToUse || undefined,
+            templateRefId: selectedTemplate?._id || undefined,
+            actionType: currentAction || "label",
+          });
+        }
+      }
+    } catch (recordErr) {
+      console.error("Failed to record printed items:", recordErr);
+    }
   };
 
   // Function to handle opening document generator
@@ -684,7 +824,7 @@ const Mailing = ({
   // Removed legacy HTML preview printing in favor of CP850/JSPM raw printing
 
   // Handle CP850-aware printing with JSPrintManager
-  const handleCp850PrintWithRange = async (mode = "new") => {
+  const handleCp850PrintWithRange = async (useQueue = false) => {
     // Ensure JSPrintManager is connected before attempting to print
     const ensureJspmConnected = async (timeoutMs = 15000) => {
       if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
@@ -785,6 +925,66 @@ const Mailing = ({
       }
     }
 
+    // If using queue mode, add to queue instead of printing immediately
+    if (useQueue) {
+      try {
+        const jobId = printQueueManager.addJob(rowsToUse, {
+          startClientId,
+          endClientId,
+          startPosition: printQueueManager.getNextStartPosition(),
+          template: templateToUse,
+          selectedFields: templateToUse.selectedFields || selectedFields || [],
+          userRole,
+          subscriptionType,
+          rowsPerPage,
+          columnsPerPage: 2,
+          useCp850Encoding: true,
+          labelAdjustments,
+          afterSpecifiedStart,
+          printerName: selectedTemplate?.selectedPrinter || selectedPrinter,
+          useDefaultPrinter: !(
+            selectedTemplate?.selectedPrinter || selectedPrinter
+          ),
+        });
+
+        toast({
+          title: "Added to Print Queue",
+          description: `Added ${rowsToUse.length} labels to print queue`,
+        });
+
+        // Record printed items for queue tracking
+        try {
+          const clientIds = rowsToUse
+            .map((r) => r.original.id?.toString())
+            .filter(Boolean);
+          if (currentQueueId && clientIds.length > 0) {
+            await markQueuePrinted(currentQueueId, {
+              clientIds,
+              jobId: jobId,
+              printerName:
+                selectedTemplate?.selectedPrinter ||
+                selectedPrinter ||
+                undefined,
+              templateRefId: selectedTemplate?._id || undefined,
+              actionType: currentAction || "label",
+            });
+          }
+        } catch (recordErr) {
+          console.error("Failed to record queued items:", recordErr);
+        }
+
+        return;
+      } catch (error) {
+        console.error("Error adding to queue:", error);
+        toast({
+          title: "Queue Error",
+          description: "Failed to add job to print queue",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Always use JSPrintManager raw printing. Do not fall back to HTML preview here.
     try {
       // Guard: Ensure JSPrintManager is available and ready
@@ -827,11 +1027,9 @@ const Mailing = ({
         subscriptionType,
         rowsPerPage,
         2, // Always use 2 columns for raw
-        mode === "queue", // isPrintJobResumed when appending
         true, // useCp850Encoding
         labelAdjustments, // Pass label adjustments
-        afterSpecifiedStart,
-        mode === "queue" // appendToQueue
+        afterSpecifiedStart
       );
 
       // Use printer from template if available, otherwise use selected printer
@@ -1567,8 +1765,8 @@ const Mailing = ({
                     </div>
                   </div>
 
-                  {/* Configuration Toggle and Checklist Button */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                  {/* Configuration Toggle and Action Buttons */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
                     <Button
                       onClick={toggleShowInputs}
                       variant="outline"
@@ -1589,6 +1787,15 @@ const Mailing = ({
                       className="w-full"
                     >
                       Print Checklist
+                    </Button>
+                    <Button
+                      onClick={() => setShowPrintQueue(!showPrintQueue)}
+                      variant={showPrintQueue ? "default" : "outline"}
+                      className={`w-full ${
+                        showPrintQueue ? "bg-blue-600 text-white" : ""
+                      }`}
+                    >
+                      {showPrintQueue ? "Hide Print Queue" : "Show Print Queue"}
                     </Button>
                   </div>
 
@@ -1913,6 +2120,29 @@ const Mailing = ({
                     </div>
                   )}
 
+                  {/* Print Queue UI - Only show for label mode */}
+                  {showPrintQueue && currentAction === "label" && (
+                    <div className="mb-6">
+                      <PrintQueueUI
+                        printQueueManager={printQueueManager}
+                        onPrintCallback={handleQueuePrintCallback}
+                        availableRows={effectiveRows}
+                        selectedTemplate={selectedTemplate}
+                        userRole={userRole}
+                        subscriptionType={subscriptionType}
+                        selectedFields={selectedFields}
+                        labelAdjustments={labelAdjustments}
+                        selectedPrinter={
+                          selectedTemplate?.selectedPrinter || selectedPrinter
+                        }
+                        startClientId={startClientId}
+                        endClientId={endClientId}
+                        startPosition={startPosition}
+                        afterSpecifiedStart={afterSpecifiedStart}
+                      />
+                    </div>
+                  )}
+
                   {/* Template Selector */}
                   <div className="mb-6">
                     <TemplateSelector
@@ -2045,28 +2275,31 @@ const Mailing = ({
               Choose Print Mode
             </h6>
             <p className="text-xs text-gray-600 mb-4">
-              New Print starts at the top margin on a new sheet. Add to Queue
-              continues on the current sheet with proper spacing.
+              <strong>Print Now:</strong> Prints immediately starting at the top
+              margin.
+              <br />
+              <strong>Add to Print Queue:</strong> Adds to the managed print
+              queue for batch printing.
             </p>
             <div className="flex flex-col gap-2">
               <Button
                 onClick={async () => {
                   setIsPrintModeModalOpen(false);
-                  await handleCp850PrintWithRange("new");
+                  await handleCp850PrintWithRange(false);
                 }}
                 className="w-full bg-green-600 text-white hover:bg-green-700"
               >
-                New Print
+                Print Now
               </Button>
               <Button
                 onClick={async () => {
                   setIsPrintModeModalOpen(false);
-                  await handleCp850PrintWithRange("queue");
+                  await handleCp850PrintWithRange(true);
                 }}
                 variant="secondary"
                 className="w-full bg-blue-600 text-white hover:bg-blue-700"
               >
-                Add to Queue
+                Add to Print Queue
               </Button>
               <Button
                 onClick={() => setIsPrintModeModalOpen(false)}

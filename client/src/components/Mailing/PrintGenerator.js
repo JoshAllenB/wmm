@@ -424,11 +424,9 @@ export const generateCp850RawPrintContent = (
   subscriptionType,
   rowsPerPage = 3,
   columnsPerPage = 2, // Always default to 2 columns
-  isPrintJobResumed = false,
   useCp850Encoding = true, // Enable CP850 encoding for special characters
   labelAdjustments, // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
-  afterSpecifiedStart = false,
-  appendToQueue = false // When true, bypass top margin and auto-compute start column based on last job
+  afterSpecifiedStart = false
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -534,16 +532,10 @@ export const generateCp850RawPrintContent = (
   // feed 8 dots = 1/720 inch per dot on LX-300+ (≈1/216")
   rawCommands.push(0x1b, 0x4a, 0x08); // ESC J 8
 
-  // Apply top margin only for first row of first page and only if not a resumed job
-  if (!isPrintJobResumed && !appendToQueue) {
-    // 1 inch top margin = 6 lines at 6 LPI (default 4 lines used here)
-    const topMarginLines = effectiveTopMarginLines;
-    for (let i = 0; i < topMarginLines; i++) {
-      rawCommands.push(0x0d, 0x0a);
-    }
-    // Top margin applied
-  } else {
-    // Top margin skipped for resumed print job
+  // Apply top margin for first row of first page
+  const topMarginLines = effectiveTopMarginLines;
+  for (let i = 0; i < topMarginLines; i++) {
+    rawCommands.push(0x0d, 0x0a);
   }
 
   // Calculate column widths for Elite 12 CPI
@@ -551,33 +543,8 @@ export const generateCp850RawPrintContent = (
   const labelWidthDots = inchesToDotsH(effectiveLabelWidthIn); // default 3.5 inches = 420 dots at 120 DPI
   const maxCharsPerCol = Math.floor(labelWidthDots / charWidthDots);
 
-  // Determine effective start position
-  // If appending, compute based on persisted counter parity
+  // Use the provided start position
   let effectiveStartPosition = startPosition;
-  if (appendToQueue) {
-    let labelsPrintedSoFar = 0;
-    try {
-      const raw = window?.localStorage?.getItem(
-        "wmm.continuousPrint.labelsPrinted"
-      );
-      const num = parseInt(raw, 10);
-      labelsPrintedSoFar = Number.isFinite(num) ? num : 0;
-    } catch (e) {
-      labelsPrintedSoFar = 0;
-    }
-    effectiveStartPosition = labelsPrintedSoFar % 2 === 1 ? "right" : "left";
-  }
-
-  // When appending to the queue, if we need to start a NEW row (i.e., on the left
-  // column after the previous job ended on the right), feed the same spacing that
-  // we normally apply between rows so vertical alignment remains identical.
-  if (appendToQueue && effectiveStartPosition === "left") {
-    // Subtract 2 lines to compensate for extra feed observed when appending
-    const rowSpacingLines = Math.max(0, effectiveRowSpacingLines - 1);
-    for (let i = 0; i < rowSpacingLines; i++) {
-      rawCommands.push(0x0d, 0x0a);
-    }
-  }
 
   // Process all rows sequentially
   // If starting from right, first row consumes only 1 item on the right column
@@ -728,22 +695,6 @@ export const generateCp850RawPrintContent = (
   rawCommands.push(0x1b, 0x40); // Reset printer
   rawCommands.push(0x0d, 0x0a); // Final line ending
 
-  // If appending, update the persisted counter by labels we just prepared
-  if (appendToQueue) {
-    const incrementBy = filteredRows.length;
-    try {
-      const key = "wmm.continuousPrint.labelsPrinted";
-      const raw = window?.localStorage?.getItem(key);
-      const current = Number.isFinite(parseInt(raw, 10))
-        ? parseInt(raw, 10)
-        : 0;
-      const next = Math.max(0, current + Math.max(0, incrementBy | 0));
-      window?.localStorage?.setItem(key, String(next));
-    } catch (e) {
-      // ignore storage errors
-    }
-  }
-
   return rawCommands;
 };
 
@@ -835,69 +786,6 @@ export const generateStickerLabelRawPrintContent = (
   raw.push(0x0d, 0x0a);
 
   return raw;
-};
-
-// === Continuous/Append Printing Helpers ===
-// Persist a running counter of labels printed so far, so that subsequent jobs
-// can compute the correct column start without re-applying top margin.
-const CONTINUOUS_PRINT_COUNTER_KEY = "wmm.continuousPrint.labelsPrinted";
-
-const readIntFromLocalStorage = (key, fallback = 0) => {
-  try {
-    const raw = window?.localStorage?.getItem(key);
-    const num = parseInt(raw, 10);
-    return Number.isFinite(num) ? num : fallback;
-  } catch (e) {
-    return fallback;
-  }
-};
-
-const writeIntToLocalStorage = (key, value) => {
-  try {
-    window?.localStorage?.setItem(key, String(Math.max(0, value | 0)));
-  } catch (e) {
-    // ignore storage errors
-  }
-};
-
-// Get current total labels printed in the ongoing sheet/session
-export const getContinuousPrintCounter = () => {
-  return readIntFromLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, 0);
-};
-
-// Set total labels printed counter
-export const setContinuousPrintCounter = (value) => {
-  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, value);
-};
-
-// Reset counter when starting a brand new sheet
-export const resetContinuousPrintCounter = () => {
-  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, 0);
-};
-
-// Increment counter by the number of labels actually printed in a batch
-export const incrementContinuousPrintCounterBy = (count) => {
-  const current = getContinuousPrintCounter();
-  const next = current + Math.max(0, count | 0);
-  writeIntToLocalStorage(CONTINUOUS_PRINT_COUNTER_KEY, next);
-  return next;
-};
-
-// Compute the correct start position for an appended job based on parity
-// Even total → last ended on right → next starts on left
-// Odd total → last ended on left → next starts on right
-export const computeAppendStartPosition = (labelsPrintedSoFar) => {
-  return labelsPrintedSoFar % 2 === 1 ? "right" : "left";
-};
-
-// Prepare options for an appended job (skip top margin, set start column)
-export const prepareAppendJobOptions = () => {
-  const counter = getContinuousPrintCounter();
-  return {
-    isPrintJobResumed: true,
-    startPosition: computeAppendStartPosition(counter),
-    labelsPrintedSoFar: counter,
-  };
 };
 
 // Utility: count how many labels would be printed for a given client ID range.
