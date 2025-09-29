@@ -32,6 +32,8 @@ const PrintQueueUI = ({
   endClientId = "",
   startPosition = "left",
   afterSpecifiedStart = false,
+  rowsPerPage = 3,
+  columnsPerPage = 2,
 }) => {
   const [queueStatus, setQueueStatus] = useState({
     jobCount: 0,
@@ -154,8 +156,10 @@ const PrintQueueUI = ({
         selectedFields,
         userRole,
         subscriptionType,
+        rowsPerPage,
+        columnsPerPage,
         labelAdjustments,
-        printerName: selectedPrinter,
+        printerName: selectedTemplate?.selectedPrinter || selectedPrinter,
         afterSpecifiedStart,
       });
 

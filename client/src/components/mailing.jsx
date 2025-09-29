@@ -2139,6 +2139,8 @@ const Mailing = ({
                         endClientId={endClientId}
                         startPosition={startPosition}
                         afterSpecifiedStart={afterSpecifiedStart}
+                        rowsPerPage={rowsPerPage}
+                        columnsPerPage={columnsPerPage}
                       />
                     </div>
                   )}

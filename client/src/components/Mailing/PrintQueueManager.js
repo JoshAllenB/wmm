@@ -11,9 +11,29 @@ class PrintQueueManager {
    * Add a new job to the queue (not sent to printer yet)
    */
   addJob(jobRows, options = {}) {
+    // Filter rows based on provided ID range selection from Mailing (if any)
+    const startId = (options.startClientId || "").toString().trim();
+    const endId = (options.endClientId || "").toString().trim();
+    const afterSpecifiedStart = !!options.afterSpecifiedStart;
+
+    let rowsToQueue = Array.isArray(jobRows) ? jobRows : [];
+    if (startId || endId) {
+      rowsToQueue = rowsToQueue.filter((row) => {
+        const clientId = row?.original?.id?.toString();
+        if (!clientId) return false;
+        const isAfterStart = startId
+          ? afterSpecifiedStart
+            ? clientId > startId
+            : clientId >= startId
+          : true;
+        const isBeforeEnd = endId ? clientId <= endId : true;
+        return isAfterStart && isBeforeEnd;
+      });
+    }
+
     const job = {
       id: Date.now() + Math.random(), // unique ID
-      rows: jobRows,
+      rows: rowsToQueue,
       options: {
         startClientId: options.startClientId || "",
         endClientId: options.endClientId || "",
@@ -37,7 +57,7 @@ class PrintQueueManager {
         ...options,
       },
       addedAt: new Date(),
-      labelCount: jobRows.length,
+      labelCount: rowsToQueue.length,
     };
 
     this.queue.push(job);
@@ -94,45 +114,46 @@ class PrintQueueManager {
       return [];
     }
 
-    let allCommands = [];
-    let isFirstJob = true;
-    let currentLabelsPrinted = 0; // Track labels printed so far in this combined job
+    // Use the first job's formatting/template/settings for the entire combined print
+    const firstJob = this.queue[0];
+    const baseOptions = firstJob.options || {};
 
-    for (const job of this.queue) {
-      const { rows, options } = job;
+    // Merge all rows in order into a single array (preserving job order)
+    const combinedRows = this.queue.flatMap((job) => job.rows || []);
 
-      // Calculate the actual start position for this job based on labels printed so far
-      const actualStartPosition =
-        currentLabelsPrinted % 2 === 1 ? "right" : "left";
+    // Determine the overall start position. Prefer the first job's recorded startPosition.
+    // If missing, default to "left".
+    const overallStartPosition = baseOptions.startPosition || "left";
 
-      const commands = generateCp850RawPrintContent(
-        options.startClientId,
-        options.endClientId,
-        actualStartPosition, // Use calculated position instead of stored position
-        rows,
-        options.template,
-        null, // leftPosition unused
-        null, // topPosition unused
-        null, // columnWidth unused
-        null, // horizontalSpacing unused
-        null, // rowSpacing unused
-        null, // labelHeight unused
-        options.selectedFields,
-        options.userRole,
-        options.subscriptionType,
-        options.rowsPerPage,
-        options.columnsPerPage,
-        options.useCp850Encoding,
-        options.labelAdjustments,
-        options.afterSpecifiedStart
-      );
+    // Generate a single set of commands for the entire combined dataset using first job's settings
+    const commands = generateCp850RawPrintContent(
+      baseOptions.startClientId || "",
+      baseOptions.endClientId || "",
+      overallStartPosition,
+      combinedRows,
+      baseOptions.template || null,
+      null, // leftPosition unused
+      null, // topPosition unused
+      null, // columnWidth unused
+      null, // horizontalSpacing unused
+      null, // rowSpacing unused
+      null, // labelHeight unused
+      baseOptions.selectedFields || [],
+      baseOptions.userRole || "",
+      baseOptions.subscriptionType || "WMM",
+      baseOptions.rowsPerPage || 3,
+      baseOptions.columnsPerPage || 2,
+      baseOptions.useCp850Encoding !== false,
+      baseOptions.labelAdjustments || {
+        labelWidthIn: 3.5,
+        topMargin: 4,
+        rowSpacing: 14,
+        col2X: 255,
+      },
+      baseOptions.afterSpecifiedStart || false
+    );
 
-      allCommands = allCommands.concat(commands);
-      currentLabelsPrinted += rows.length;
-      isFirstJob = false;
-    }
-
-    return allCommands;
+    return commands;
   }
 
   /**
