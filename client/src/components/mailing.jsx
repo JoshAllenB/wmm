@@ -824,7 +824,7 @@ const Mailing = ({
   // Removed legacy HTML preview printing in favor of CP850/JSPM raw printing
 
   // Handle CP850-aware printing with JSPrintManager
-  const handleCp850PrintWithRange = async (useQueue = false) => {
+  const handleCp850PrintWithRange = async (useQueue = false, skipTopMargin = false) => {
     // Ensure JSPrintManager is connected before attempting to print
     const ensureJspmConnected = async (timeoutMs = 15000) => {
       if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
@@ -1029,7 +1029,8 @@ const Mailing = ({
         2, // Always use 2 columns for raw
         true, // useCp850Encoding
         labelAdjustments, // Pass label adjustments
-        afterSpecifiedStart
+        afterSpecifiedStart,
+        skipTopMargin
       );
 
       // Use printer from template if available, otherwise use selected printer
@@ -2292,6 +2293,15 @@ const Mailing = ({
                 className="w-full bg-green-600 text-white hover:bg-green-700"
               >
                 Print Now
+              </Button>
+              <Button
+                onClick={async () => {
+                  setIsPrintModeModalOpen(false);
+                  await handleCp850PrintWithRange(false, true);
+                }}
+                className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                Print Now (Skip Top Margin)
               </Button>
               <Button
                 onClick={async () => {

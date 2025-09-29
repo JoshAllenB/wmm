@@ -426,7 +426,8 @@ export const generateCp850RawPrintContent = (
   columnsPerPage = 2, // Always default to 2 columns
   useCp850Encoding = true, // Enable CP850 encoding for special characters
   labelAdjustments, // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
-  afterSpecifiedStart = false
+  afterSpecifiedStart = false,
+  skipInitialTopMargin = false
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -527,15 +528,17 @@ export const generateCp850RawPrintContent = (
   // Set line spacing to 1/6 inch (6 LPI)
   rawCommands.push(0x1b, 0x32); // ESC 2 - Set line spacing to 1/6 inch
 
-  // Add initial spacing
-  // rawCommands.push(0x0d, 0x0a); // CRLF
-  // feed 8 dots = 1/720 inch per dot on LX-300+ (≈1/216")
-  rawCommands.push(0x1b, 0x4a, 0x08); // ESC J 8
+  // Initial spacing: only apply when NOT skipping top margin
+  if (!skipInitialTopMargin) {
+    // rawCommands.push(0x0d, 0x0a); // CRLF
+    // feed 8 dots = 1/720 inch per dot on LX-300+ (≈1/216")
+    rawCommands.push(0x1b, 0x4a, 0x08); // ESC J 8 subtle feed
 
-  // Apply top margin for first row of first page
-  const topMarginLines = effectiveTopMarginLines;
-  for (let i = 0; i < topMarginLines; i++) {
-    rawCommands.push(0x0d, 0x0a);
+    // Apply top margin for first row of first page
+    const topMarginLines = effectiveTopMarginLines;
+    for (let i = 0; i < topMarginLines; i++) {
+      rawCommands.push(0x0d, 0x0a);
+    }
   }
 
   // Calculate column widths for Elite 12 CPI
@@ -688,12 +691,19 @@ export const generateCp850RawPrintContent = (
     }
   }
 
+  // After the job completes, feed exactly the configured row spacing
+  // so the paper is aligned for the next set of data to be printed
+  {
+    const rowSpacingLines = effectiveRowSpacingLines;
+    for (let i = 0; i < rowSpacingLines; i++) {
+      rawCommands.push(0x0d, 0x0a);
+    }
+  }
+
   // Add final commands
-  // rawCommands.push(0x0a); // Line feed
-  rawCommands.push(0x0d); // Carriage return
-  // rawCommands.push(0x0c); // Form feed
+  // Do not add extra CR/LF here to avoid exceeding the intended final row spacing
+  // rawCommands.push(0x0c); // Form feed (intentionally not used)
   rawCommands.push(0x1b, 0x40); // Reset printer
-  rawCommands.push(0x0d, 0x0a); // Final line ending
 
   return rawCommands;
 };
