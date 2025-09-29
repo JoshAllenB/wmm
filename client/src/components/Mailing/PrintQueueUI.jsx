@@ -128,6 +128,15 @@ const PrintQueueUI = ({
     return () => clearInterval(interval);
   }, [printQueueManager]);
 
+  // Auto-attempt to connect to JSPrintManager on mount
+  useEffect(() => {
+    (async () => {
+      if (window.JSPM && window.JSPM.JSPrintManager) {
+        await ensureJspmConnected(15000);
+      }
+    })();
+  }, []);
+
   // Handle adding current selection to queue
   const handleAddCurrentSelection = async () => {
     if (availableRows.length === 0) {
@@ -305,8 +314,7 @@ const PrintQueueUI = ({
             onClick={handlePrintQueue}
             disabled={
               queueStatus.jobCount === 0 ||
-              queueStatus.isFlushing ||
-              jspmStatus !== "connected"
+              queueStatus.isFlushing
             }
             className="bg-green-600 text-white hover:bg-green-700"
           >
