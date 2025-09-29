@@ -45,6 +45,62 @@ const PrintQueueUI = ({
   const [newJobOptions, setNewJobOptions] = useState({});
   const [jspmStatus, setJspmStatus] = useState("unknown");
 
+  // Ensure JSPrintManager is connected (mirrors Print Preview flow)
+  const ensureJspmConnected = async (timeoutMs = 15000) => {
+    if (!window.JSPM || !window.JSPM.JSPrintManager) return false;
+    try {
+      window.JSPM.JSPrintManager.auto_reconnect = true;
+      try {
+        await window.JSPM.JSPrintManager.start();
+      } catch (e) {
+        // Already started; ignore
+      }
+
+      const isOpen = () =>
+        (window.JSPM.JSPrintManager.websocket_status ||
+          window.JSPM.JSPrintManager.WS?.status) === window.JSPM.WSStatus.Open;
+
+      if (isOpen()) return true;
+
+      return await new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+          if (!done) {
+            done = true;
+            resolve(false);
+          }
+        }, timeoutMs);
+
+        const prevHandler = window.JSPM.JSPrintManager.WS
+          ? window.JSPM.JSPrintManager.WS.onStatusChanged
+          : null;
+
+        if (window.JSPM.JSPrintManager.WS) {
+          window.JSPM.JSPrintManager.WS.onStatusChanged = (s) => {
+            if (s === window.JSPM.WSStatus.Open && !done) {
+              done = true;
+              clearTimeout(timer);
+              window.JSPM.JSPrintManager.WS.onStatusChanged = prevHandler || null;
+              resolve(true);
+            }
+            if (typeof prevHandler === "function") prevHandler(s);
+          };
+        } else {
+          const interval = setInterval(() => {
+            if (isOpen() && !done) {
+              done = true;
+              clearInterval(interval);
+              clearTimeout(timer);
+              resolve(true);
+            }
+          }, 200);
+        }
+      });
+    } catch (err) {
+      return false;
+    }
+  };
+
   // Update queue status and JSPrintManager status periodically
   useEffect(() => {
     const updateStatus = () => {
@@ -140,9 +196,16 @@ const PrintQueueUI = ({
       return;
     }
 
-    if (jspmStatus !== "connected") {
+    // Attempt to connect/start JSPrintManager like Print Preview flow
+    if (!window.JSPM || !window.JSPM.JSPrintManager) {
+      toast.error("JSPrintManager not available. Please install/start the client app.");
+      return;
+    }
+
+    const connected = await ensureJspmConnected(15000);
+    if (!connected) {
       toast.error(
-        "JSPrintManager is not connected. Please ensure the client app is running and connected."
+        "Could not establish JSPrintManager WebSocket connection. Ensure the client app is running and allowed."
       );
       return;
     }
