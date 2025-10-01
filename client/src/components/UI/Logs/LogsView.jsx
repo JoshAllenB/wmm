@@ -19,6 +19,7 @@ const LogsView = () => {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [users, setUsers] = useState([]);
   const [goToPageInput, setGoToPageInput] = useState("");
   const [pageSize, setPageSize] = useState(10);
@@ -28,7 +29,29 @@ const LogsView = () => {
     startDate: "",
     endDate: "",
     userId: "all",
+    timePeriod: "all",
   });
+
+  // Helper function to get date range based on time period
+  const getDateRange = (timePeriod) => {
+    const today = new Date();
+    const endDate = today.toISOString().split("T")[0]; // YYYY-MM-DD format
+
+    switch (timePeriod) {
+      case "today":
+        return { startDate: endDate, endDate };
+      case "lastWeek":
+        const lastWeek = new Date(today);
+        lastWeek.setDate(today.getDate() - 7);
+        return { startDate: lastWeek.toISOString().split("T")[0], endDate };
+      case "last30Days":
+        const last30Days = new Date(today);
+        last30Days.setDate(today.getDate() - 30);
+        return { startDate: last30Days.toISOString().split("T")[0], endDate };
+      default:
+        return { startDate: "", endDate: "" };
+    }
+  };
 
   // Fetch users for filter dropdown
   const fetchUsers = useCallback(async () => {
@@ -73,6 +96,7 @@ const LogsView = () => {
 
       setLogs(response.logs);
       setTotalPages(response.pagination.pages);
+      setTotalCount(response.pagination.total);
     } catch (err) {
       setError("Failed to fetch logs");
       toast.error("Failed to fetch logs");
@@ -90,6 +114,21 @@ const LogsView = () => {
       setFilters((prev) => ({
         ...prev,
         [key]: "all",
+      }));
+    } else if (key === "timePeriod") {
+      const dateRange = getDateRange(value);
+      setFilters((prev) => ({
+        ...prev,
+        timePeriod: value,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      }));
+    } else if (key === "startDate" || key === "endDate") {
+      // When manually changing dates, reset time period to "all"
+      setFilters((prev) => ({
+        ...prev,
+        [key]: value,
+        timePeriod: "all",
       }));
     } else {
       setFilters((prev) => ({
@@ -230,20 +269,38 @@ const LogsView = () => {
           </SelectContent>
         </Select>
 
-        <Input
-          type="date"
-          value={filters.startDate}
-          onChange={(e) => handleFilterChange("startDate", e.target.value)}
-          className="w-[150px]"
-        />
+        <Select
+          value={filters.timePeriod}
+          onValueChange={(value) => handleFilterChange("timePeriod", value)}
+        >
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Time period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="lastWeek">Last Week</SelectItem>
+            <SelectItem value="last30Days">Last 30 Days</SelectItem>
+          </SelectContent>
+        </Select>
 
-        <Input
-          type="date"
-          value={filters.endDate}
-          onChange={(e) => handleFilterChange("endDate", e.target.value)}
-          className="w-[150px]"
-        />
-
+        <div className="flex gap-2 bg-blue-100 px-2 rounded-md">
+          <Input
+            type="date"
+            value={filters.startDate}
+            onChange={(e) => handleFilterChange("startDate", e.target.value)}
+            className="w-[150px]"
+            placeholder="Start date"
+          />
+          <span className="self-center text-xl"> - </span>
+          <Input
+            type="date"
+            value={filters.endDate}
+            onChange={(e) => handleFilterChange("endDate", e.target.value)}
+            className="w-[150px]"
+            placeholder="End date"
+          />
+        </div>
         <Select
           value={pageSize.toString()}
           onValueChange={handlePageSizeChange}
@@ -273,6 +330,19 @@ const LogsView = () => {
         </div>
       ) : (
         <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Total count display */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">
+                Showing {logs.length} of {totalCount.toLocaleString()} logs
+              </span>
+              {totalCount > 0 && (
+                <span className="text-xs text-gray-500">
+                  {((logs.length / totalCount) * 100).toFixed(1)}% of total
+                </span>
+              )}
+            </div>
+          </div>
           {/* Scrollable logs container */}
           <div className="space-y-4 overflow-y-auto flex-1 pr-2">
             {logs.map((log) => (
@@ -348,6 +418,9 @@ const LogsView = () => {
             <div className="flex items-center gap-4">
               <span className="text-gray-600 text-sm">
                 Page {page} of {totalPages} ({pageSize} rows per page)
+              </span>
+              <span className="text-sm bg-blue-200 px-2 rounded-md">
+                Total: {totalCount.toLocaleString()} logs
               </span>
 
               {totalPages > 1 && (
