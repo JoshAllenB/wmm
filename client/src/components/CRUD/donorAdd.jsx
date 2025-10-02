@@ -82,6 +82,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
   const [filteredDonors, setFilteredDonors] = useState([]);
   const [isDonorAddActive, setIsDonorAddActive] = useState(false);
   const [isRefreshingDonors, setIsRefreshingDonors] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -475,6 +476,29 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
     }
 
     if (field === "acode") {
+      // Validate area code to prevent zipcode input
+      if (value && /^\d+$/.test(value)) {
+        console.warn("Area code must contain letters (e.g., NCR, CAR, R01)");
+        setValidationError(
+          "Area code must contain letters (e.g., NCR, CAR, R01)"
+        );
+        return;
+      }
+
+      // Validate area code is required
+      if (!value || value.trim() === "") {
+        setValidationError("Area code is required");
+        return;
+      }
+
+      // Clear validation error if area code is valid
+      if (
+        validationError.includes("Area code must contain letters") ||
+        validationError.includes("Area code is required")
+      ) {
+        setValidationError("");
+      }
+
       setFormData((prev) => {
         const newFormData = { ...prev, acode: value };
         // Check for duplicates when acode changes
@@ -705,9 +729,6 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
 
     const clientData = cleanFormData(rawClientData);
 
-    console.log("Raw client data:", rawClientData);
-    console.log("Cleaned client data:", clientData);
-
     try {
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
@@ -723,15 +744,10 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
         }
       );
 
-      console.log("Full response:", response);
-      console.log("Response data:", response.data);
-
-      console.log("Checking response.data.success:", response.data.success);
       if (response.data.success) {
         const newClientId = response.data.clientId;
         const clientName =
           formData.company || `${formData.fname} ${formData.lname}`.trim();
-        console.log("Success! Client ID:", newClientId);
 
         toast({
           title: "Donor Added Successfully",
@@ -786,9 +802,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
         }
 
         // Close the modal immediately after successful submission
-        console.log("About to close modal in 1 second");
         setTimeout(() => {
-          console.log("closing modal now");
           closeModal();
         }, 1000);
       } else {
@@ -890,7 +904,6 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                   setSearchTerm(`${donor.id} - ${donor.name}`);
                   if (onDonorSelect) {
                     onDonorSelect(donor.id);
-                    console.log("Donor selected:", donor.id);
                   }
                 }}
                 className="p-2 hover:bg-gray-100 cursor-pointer"
@@ -1216,6 +1229,15 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                   </div>
                 </div>
               </div>
+
+              {/* Global validation error message */}
+              {validationError && (
+                <div className="w-full mt-4">
+                  <div className="text-red-700 bg-red-50 border border-red-200 rounded px-4 py-3">
+                    {validationError}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
                 <Button

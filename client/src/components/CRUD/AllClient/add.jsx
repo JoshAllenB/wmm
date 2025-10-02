@@ -197,6 +197,7 @@ const Add = ({
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
   const [isEditingCombinedAddress, setIsEditingCombinedAddress] =
     useState(false);
+  const areaFormRef = useRef(null);
 
   useEffect(() => {
     const userRole = Object.keys(roleConfigs).find((role) => hasRole(role));
@@ -805,6 +806,23 @@ const Add = ({
 
   // Modify handleAreaChange to properly handle duplicate checking
   const handleAreaChange = (field, value) => {
+    // Validate area code to prevent zipcode input
+    if (field === "acode" && value && /^\d+$/.test(value)) {
+      console.warn("Area code must contain letters (e.g., NCR, CAR, R01)");
+      setValidationError(
+        "Area code must contain letters (e.g., NCR, CAR, R01)"
+      );
+      return;
+    }
+
+    // Clear validation error if area code is valid
+    if (
+      field === "acode" &&
+      validationError.includes("Area code must contain letters")
+    ) {
+      setValidationError("");
+    }
+
     // If changing acode field, immediately clear duplicates and show loading state
     if (field === "acode" && potentialDuplicates.length > 0) {
       immediatelyClearDuplicates();
@@ -972,6 +990,13 @@ const Add = ({
     e.preventDefault();
     setValidationError("");
 
+    // Validate area code is required
+    if (areaFormRef.current && !areaFormRef.current.isAreaCodeValid()) {
+      areaFormRef.current.validateAreaCode();
+      setValidationError("Area code is required");
+      return;
+    }
+
     // Validate subscription data before showing confirmation
     // Require either Payment Amount or Masses when a subscription type is selected
     const subscriptionSelected =
@@ -1119,6 +1144,12 @@ const Add = ({
   };
 
   const handleConfirmedSubmit = async () => {
+    // Final validation check for area code before submission
+    if (!areaData.acode || areaData.acode.trim() === "") {
+      setValidationError("Area code is required");
+      return;
+    }
+
     // Format birth date if all parts are present
     const formatBdate = () => {
       if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
@@ -2069,6 +2100,7 @@ const Add = ({
                         />
                         {areas && (
                           <AreaForm
+                            ref={areaFormRef}
                             onAreaChange={memoizedOnAreaChange}
                             initialAreaData={initialAreaData}
                             areas={areas}

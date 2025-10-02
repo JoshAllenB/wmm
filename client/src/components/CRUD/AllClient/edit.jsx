@@ -1719,6 +1719,30 @@ const Edit = ({
     // Allow empty string values to persist
     const safeValue = value === undefined ? "" : value;
 
+    // Validate area code to prevent zipcode input
+    if (field === "acode" && safeValue && /^\d+$/.test(safeValue)) {
+      console.warn("Area code must contain letters (e.g., NCR, CAR, R01)");
+      setValidationError(
+        "Area code must contain letters (e.g., NCR, CAR, R01)"
+      );
+      return;
+    }
+
+    // Validate area code is required
+    if (field === "acode" && (!safeValue || safeValue.trim() === "")) {
+      setValidationError("Area code is required");
+      return;
+    }
+
+    // Clear validation error if area code is valid
+    if (
+      field === "acode" &&
+      (validationError.includes("Area code must contain letters") ||
+        validationError.includes("Area code is required"))
+    ) {
+      setValidationError("");
+    }
+
     setAreaData((prevData) => {
       const newAreaData = {
         ...prevData,
@@ -2948,6 +2972,14 @@ const Edit = ({
         if (!hasFirstName) errors.push("First name is required");
         if (!hasLastName) errors.push("Last name is required");
       }
+
+      // Check for required area code
+      const hasAreaCode =
+        typeof effectiveClient.acode === "string" &&
+        effectiveClient.acode.trim() !== "";
+      if (!hasAreaCode) {
+        errors.push("Area code is required");
+      }
     }
 
     // Check for valid dates
@@ -3024,6 +3056,13 @@ const Edit = ({
   const handleConfirmedSubmit = async () => {
     // Prevent multiple submissions
     if (isSubmitting) {
+      return;
+    }
+
+    // Final validation check for area code before submission
+    if (!areaData.acode || areaData.acode.trim() === "") {
+      setValidationError("Area code is required");
+      setIsSubmitting(false);
       return;
     }
 
@@ -3580,6 +3619,12 @@ const Edit = ({
 
     e.preventDefault();
     setValidationError("");
+
+    // Validate area code is required
+    if (!areaData.acode || areaData.acode.trim() === "") {
+      setValidationError("Area code is required");
+      return;
+    }
 
     // Show confirmation dialog for edit mode
     if (mode === "edit") {
