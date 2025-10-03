@@ -1017,20 +1017,23 @@ const Add = ({
         return;
       }
 
-      const hasAmount = Boolean(
-        roleSpecificData?.paymtamt &&
-          String(roleSpecificData.paymtamt).trim() !== ""
-      );
-      const hasMasses = Boolean(
-        roleSpecificData?.paymtmasses &&
-          String(roleSpecificData.paymtmasses).trim() !== ""
-      );
-
-      if (!hasAmount && !hasMasses) {
-        setValidationError(
-          "Please provide either Payment Amount or Masses for the subscription."
+      // Require either Payment Amount or Masses only for WMM subscriptions
+      if (subscriptionType === "WMM") {
+        const hasAmount = Boolean(
+          roleSpecificData?.paymtamt &&
+            String(roleSpecificData.paymtamt).trim() !== ""
         );
-        return;
+        const hasMasses = Boolean(
+          roleSpecificData?.paymtmasses &&
+            String(roleSpecificData.paymtmasses).trim() !== ""
+        );
+
+        if (!hasAmount && !hasMasses) {
+          setValidationError(
+            "Please provide either Payment Amount or Masses for the subscription."
+          );
+          return;
+        }
       }
 
       // Additional required fields: Start, End, Duration, Subclass
@@ -1040,35 +1043,39 @@ const Add = ({
       let subclassPresent = false;
 
       if (subscriptionType === "WMM") {
+        // WMM now uses the common subStart*/subEnd* fields and subscriptionFreq
         startPresent = Boolean(
-          roleSpecificData?.subsdate &&
-            String(roleSpecificData.subsdate).trim() !== ""
+          formData?.subStartMonth &&
+            formData?.subStartDay &&
+            formData?.subStartYear
         );
         endPresent = Boolean(
-          roleSpecificData?.enddate &&
-            String(roleSpecificData.enddate).trim() !== ""
-        );
-        durationPresent =
-          String(roleSpecificData?.subsyear ?? "")
-            .toString()
-            .trim() !== "";
-        subclassPresent = Boolean(
-          roleSpecificData?.subsclass &&
-            String(roleSpecificData.subsclass).trim() !== ""
-        );
-      } else {
-        startPresent = Boolean(
-          formData?.subscriptionStart &&
-            String(formData.subscriptionStart).trim() !== ""
-        );
-        endPresent = Boolean(
-          formData?.subscriptionEnd &&
-            String(formData.subscriptionEnd).trim() !== ""
+          formData?.subEndMonth && formData?.subEndDay && formData?.subEndYear
         );
         durationPresent = Boolean(
           formData?.subscriptionFreq &&
             String(formData.subscriptionFreq).trim() !== ""
         );
+        // Subclass remains on roleSpecificData for WMM
+        subclassPresent = Boolean(
+          roleSpecificData?.subsclass &&
+            String(roleSpecificData.subsclass).trim() !== ""
+        );
+      } else {
+        // For non-WMM subscriptions, dates come from subStart*/subEnd* parts
+        startPresent = Boolean(
+          formData?.subStartMonth &&
+            formData?.subStartDay &&
+            formData?.subStartYear
+        );
+        endPresent = Boolean(
+          formData?.subEndMonth && formData?.subEndDay && formData?.subEndYear
+        );
+        durationPresent = Boolean(
+          formData?.subscriptionFreq &&
+            String(formData.subscriptionFreq).trim() !== ""
+        );
+        // Subclass for non-WMM is stored on formData
         subclassPresent = Boolean(
           formData?.subsclass && String(formData.subsclass).trim() !== ""
         );
