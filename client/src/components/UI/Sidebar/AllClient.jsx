@@ -463,7 +463,23 @@ const AllClient = () => {
           return null;
         }
 
-        setClientData(response.data);
+        // When Added Today filter is active, ensure Client ID is arranged newest to oldest
+        const pageData = Array.isArray(response.data) ? response.data : [];
+        const sortedPageData = addedToday
+          ? [...pageData].sort((a, b) => {
+              const aId = Number(a?.id);
+              const bId = Number(b?.id);
+              if (Number.isFinite(aId) && Number.isFinite(bId)) {
+                return bId - aId;
+              }
+              // Fallback: string compare descending
+              const aStr = String(a?.id ?? "");
+              const bStr = String(b?.id ?? "");
+              return bStr.localeCompare(aStr);
+            })
+          : pageData;
+
+        setClientData(sortedPageData);
         setTotalPages(response.totalPages || 0);
         setStats(
           response.stats || {
