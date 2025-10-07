@@ -162,19 +162,6 @@ async function processMonthlyDistribution(
         ClientModel.find({ adddate: { $regex: monthRegex } }).lean(),
       ]);
 
-    // Get subscriptions that started this month using proper date filtering
-    const subsStartedThisMonth = allSubscriptions.filter((sub) => {
-      try {
-        const subDate = new Date(sub.subsdate);
-        return subDate >= startOfMonth && subDate <= endOfMonth;
-      } catch (error) {
-        console.log(
-          chalk.red(`Error parsing date "${sub.subsdate}": ${error.message}`)
-        );
-        return false;
-      }
-    });
-
     sendProgressUpdate(
       `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions`
     );
@@ -339,30 +326,27 @@ async function processMonthlyDistribution(
       `✅ Processed ${processedCount} subscriptions (${skippedCount} skipped)`
     );
 
-    // Step 4: Process renewals vs new subscriptions and due for renewal
+    // Step 4: Process renewals vs new subscriptions based on adddate
     sendProgressUpdate(
-      "Processing new subscribers, renewals & due for renewal..."
+      "Processing new subscribers and renewals based on adddate..."
     );
 
     sendProgressUpdate(
       `✅ Found ${clientsAddedThisMonth.length} clients added this month`
-    );
-    sendProgressUpdate(
-      `✅ Found ${subsStartedThisMonth.length} subscriptions started this month`
     );
 
     // More efficient renewal detection using bulk operations
     const renewals = [];
     const newSubs = [];
 
-    // Get all client IDs with new subscriptions
-    const clientIdsWithNewSubs = subsStartedThisMonth.map(
-      (sub) => sub.clientid
+    // Get all client IDs with clients added this month
+    const clientIdsAddedThisMonth = clientsAddedThisMonth.map(
+      (client) => client.id
     );
 
     // Find all previous subscriptions for these clients in one query
     const allPreviousSubs = await WmmModel.find({
-      clientid: { $in: clientIdsWithNewSubs },
+      clientid: { $in: clientIdsAddedThisMonth },
       subsdate: { $lt: startOfMonth },
     }).lean();
 
@@ -375,35 +359,36 @@ async function processMonthlyDistribution(
       previousSubsByClient[sub.clientid].push(sub);
     }
 
-    // Determine renewals vs new subscriptions
-    for (const sub of subsStartedThisMonth) {
+    // Determine renewals vs new subscriptions based on clients added this month
+    for (const client of clientsAddedThisMonth) {
       try {
-        const subDate = new Date(sub.subsdate);
-        const prevSubs = previousSubsByClient[sub.clientid] || [];
+        const clientAddDate = new Date(client.adddate);
+        const prevSubs = previousSubsByClient[client.id] || [];
 
-        // Debug logging for first few subscriptions
+        // Debug logging for first few clients
         if (newSubs.length + renewals.length < 3) {
           console.log(
             chalk.cyan(
-              `Processing subscription ${sub.id} (${sub.subsdate}) - ${prevSubs.length} previous subs`
+              `Processing client ${client.id} (added ${client.adddate}) - ${prevSubs.length} previous subs`
             )
           );
         }
 
-        // Check if any previous subscription ended within 3 months (90 days)
+        // Check if any previous subscription ended within 3 months (90 days) of client add date
         const isRenewal = prevSubs.some((prevSub) => {
           try {
             const prevEndDate = new Date(prevSub.enddate);
-            const daysDiff = (subDate - prevEndDate) / (1000 * 60 * 60 * 24);
+            const daysDiff =
+              (clientAddDate - prevEndDate) / (1000 * 60 * 60 * 24);
             const isWithin90Days = daysDiff <= 90 && daysDiff >= 0;
 
-            // Debug logging for first few subscriptions
+            // Debug logging for first few clients
             if (newSubs.length + renewals.length < 3) {
               console.log(
                 chalk.cyan(
                   `  Checking previous sub ending ${
                     prevSub.enddate
-                  } (${daysDiff.toFixed(0)} days ago)`
+                  } (${daysDiff.toFixed(0)} days before add date)`
                 )
               );
             }
@@ -415,45 +400,19 @@ async function processMonthlyDistribution(
         });
 
         if (isRenewal) {
-          renewals.push(sub);
+          renewals.push(client);
           if (renewals.length <= 3) {
             console.log(chalk.green(`  -> RENEWAL`));
           }
         } else {
-          newSubs.push(sub);
+          newSubs.push(client);
           if (newSubs.length <= 3) {
             console.log(chalk.green(`  -> NEW SUBSCRIBER`));
           }
         }
       } catch (error) {
         console.error(
-          chalk.red(`❌ Error analyzing subscription ${sub.id}:`),
-          error.message
-        );
-      }
-    }
-
-    // Step 4.5: Calculate due for renewal
-    sendProgressUpdate("Calculating due for renewal...");
-
-    // Get all active subscriptions to check for due renewals
-    const dueForRenewal = [];
-
-    for (const sub of activeSubscriptions) {
-      try {
-        const endDate = new Date(sub.enddate);
-        const currentDate = new Date();
-
-        // Check if subscription ends within the current month or has already ended
-        const isDueForRenewal =
-          endDate <= endOfMonth && endDate >= startOfMonth;
-
-        if (isDueForRenewal) {
-          dueForRenewal.push(sub);
-        }
-      } catch (error) {
-        console.error(
-          chalk.red(`❌ Error checking due for renewal ${sub.id}:`),
+          chalk.red(`❌ Error analyzing client ${client.id}:`),
           error.message
         );
       }
@@ -615,7 +574,6 @@ async function processMonthlyDistribution(
       paidSubscribers,
       newSubscribers: newSubs.length,
       renewals: renewals.length,
-      dueForRenewal: dueForRenewal.length,
       complimentary: complimentaryResult,
       // These would be filled in manually or from another source
       consignments: {
@@ -625,9 +583,9 @@ async function processMonthlyDistribution(
         TOTAL: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
       },
       sales: {
+        CMC: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
         DCS: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
-        Cebu: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
-        "Mission Promotion/Sucat": { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
+        DELEGATE: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
         TOTAL: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
       },
       inStock: { LOCAL: 0, ABROAD: 0, TOTAL: 0 },
@@ -731,7 +689,7 @@ async function generateExcelReport(reportData, outputPath) {
 
   try {
     // Load the template
-    await workbook.xlsx.readFile("./Template/MonthlyReportTemplate.xlsx");
+    await workbook.xlsx.readFile("./Template/MonthlyDistributionTemplate.xlsx");
     console.log(chalk.green("✅ Template loaded successfully"));
 
     const worksheet = workbook.worksheets[0];
@@ -752,82 +710,263 @@ async function generateExcelReport(reportData, outputPath) {
       "DECEMBER",
     ];
 
-    // Update cell with month/year (cell A2)
+    // Update the issue date (cell A7)
     const monthName = monthNames[reportData.month - 1];
-    worksheet.getCell("A2").value = `${monthName} 1, ${reportData.year}`;
+    worksheet.getCell(
+      "A7"
+    ).value = `For the issue of ${monthName} ${reportData.year}`;
 
-    // Format and add the "For the issue of MONTH YEAR" text to Row 9
-    const issueText = `For the issue of ${monthName} ${reportData.year}`;
+    // Fill in paid subscribers (rows 15-21)
+    // Row 15: Priest and Religious
+    const priestData = reportData.paidSubscribers["Priest and Religious"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+      MASS: 0,
+    };
+    worksheet.getCell("F15").value = Number(priestData.MASS || 0);
+    worksheet.getCell("G15").value = Number(priestData.LOCAL || 0);
+    worksheet.getCell("H15").value = Number(priestData.ABROAD || 0);
+    worksheet.getCell("I15").value = Number(priestData.TOTAL || 0);
 
-    // Fill cells E9 to J9 with the issue text
-    for (let col = 5; col <= 10; col++) {
-      worksheet.getCell(9, col).value = issueText;
-    }
+    // Row 16: Lay Persons
+    const layData = reportData.paidSubscribers["Lay Person"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+      MASS: 0,
+    };
+    worksheet.getCell("F16").value = Number(layData.MASS || 0);
+    worksheet.getCell("G16").value = Number(layData.LOCAL || 0);
+    worksheet.getCell("H16").value = Number(layData.ABROAD || 0);
+    worksheet.getCell("I16").value = Number(layData.TOTAL || 0);
 
-    // Fill in paid subscribers (rows 14-21)
-    let row = 14;
-    for (const [category, data] of Object.entries(reportData.paidSubscribers)) {
-      if (category === "TOTAL") {
-        row = 21; // Skip to total row
-      }
-      if (row <= 21) {
-        // Use number values to avoid type issues
-        worksheet.getCell(`F${row}`).value = Number(data.MASS || 0);
-        worksheet.getCell(`G${row}`).value = Number(data.LOCAL || 0);
-        worksheet.getCell(`H${row}`).value = Number(data.ABROAD || 0);
-        worksheet.getCell(`I${row}`).value = Number(data.TOTAL || 0);
-      }
-      row++;
-    }
+    // Row 17: Schools/Libraries
+    const schoolData = reportData.paidSubscribers["Schools/Libraries"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G17").value = Number(schoolData.LOCAL || 0);
+    worksheet.getCell("H17").value = Number(schoolData.ABROAD || 0);
+    worksheet.getCell("I17").value = Number(schoolData.TOTAL || 0);
 
-    // Fill in new subscribers, renewals, and due for renewal (rows 25-27)
-    worksheet.getCell("I25").value = Number(reportData.newSubscribers || 0);
-    worksheet.getCell("I26").value = Number(reportData.renewals || 0);
-    worksheet.getCell("I27").value = Number(reportData.dueForRenewal || 0);
+    // Row 18: Campus Ministries
+    const campusData = reportData.paidSubscribers["Campus Ministries"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G18").value = Number(campusData.LOCAL || 0);
+    worksheet.getCell("H18").value = Number(campusData.ABROAD || 0);
+    worksheet.getCell("I18").value = Number(campusData.TOTAL || 0);
 
-    // Fill in complimentary (rows 51-58)
-    row = 51;
-    for (const [category, data] of Object.entries(reportData.complimentary)) {
-      if (category === "TOTAL") {
-        row = 58; // Skip to total row
-      }
-      if (row <= 58) {
-        worksheet.getCell(`G${row}`).value = Number(data.LOCAL || 0);
-        worksheet.getCell(`H${row}`).value = Number(data.ABROAD || 0);
-        worksheet.getCell(`I${row}`).value = Number(data.TOTAL || 0);
-      }
-      row++;
-    }
+    // Row 19: Paid by Others (GIFT Subscription)
+    const giftData = reportData.paidSubscribers["GIFT Subscription"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G19").value = Number(giftData.LOCAL || 0);
+    worksheet.getCell("H19").value = Number(giftData.ABROAD || 0);
+    worksheet.getCell("I19").value = Number(giftData.TOTAL || 0);
 
-    // Fill in consignments (rows 31-35)
-    row = 31;
-    for (const [category, data] of Object.entries(reportData.consignments)) {
-      if (category === "TOTAL") {
-        row = 35; // Skip to total row
-      }
-      worksheet.getCell(`G${row}`).value = Number(data.LOCAL || 0);
-      worksheet.getCell(`H${row}`).value = Number(data.ABROAD || 0);
-      worksheet.getCell(`I${row}`).value = Number(data.TOTAL || 0);
-      row++;
-    }
+    // Row 20: Unencoded MP (placeholder for now)
+    worksheet.getCell("G20").value = 0;
+    worksheet.getCell("H20").value = 0;
+    worksheet.getCell("I20").value = 0;
 
-    // Fill in sales (rows 40-44)
-    row = 40;
-    for (const [category, data] of Object.entries(reportData.sales)) {
-      if (category === "TOTAL") {
-        row = 44; // Skip to total row
-      }
-      worksheet.getCell(`G${row}`).value = Number(data.LOCAL || 0);
-      worksheet.getCell(`H${row}`).value = Number(data.ABROAD || 0);
-      worksheet.getCell(`I${row}`).value = Number(data.TOTAL || 0);
-      row++;
-    }
+    // Row 21: Total Paid Subscribers
+    const totalData = reportData.paidSubscribers["TOTAL"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+      MASS: 0,
+    };
+    worksheet.getCell("F21").value = Number(totalData.MASS || 0);
+    worksheet.getCell("G21").value = Number(totalData.LOCAL || 0);
+    worksheet.getCell("H21").value = Number(totalData.ABROAD || 0);
+    worksheet.getCell("I21").value = Number(totalData.TOTAL || 0);
 
-    // Fill in stock, total copies, and print run
-    worksheet.getCell("G61").value = Number(reportData.inStock.LOCAL || 0);
-    worksheet.getCell("H61").value = Number(reportData.inStock.ABROAD || 0);
-    worksheet.getCell("I61").value = Number(reportData.inStock.TOTAL || 0);
-    worksheet.getCell("I63").value = Number(reportData.printedCopies || 0);
+    // Fill in subscriber activity (rows 23-25)
+    // Row 23: NEW SUBSCRIBERS
+    worksheet.getCell("A23").value = `NEW SUBSCRIBERS for the month`;
+    worksheet.getCell("I23").value = Number(reportData.newSubscribers || 0);
+
+    // Row 24: RENEWALS
+    worksheet.getCell(
+      "A24"
+    ).value = `RENEWALS during the month of ${monthName.toUpperCase()} ${
+      reportData.year
+    }`;
+    worksheet.getCell("I24").value = Number(reportData.renewals || 0);
+
+    // Row 25: DUE FOR RENEWAL (placeholder for now)
+    worksheet.getCell(
+      "A25"
+    ).value = `DUE FOR RENEWAL for the mo. of ${monthName.toUpperCase()} ${
+      reportData.year
+    }`;
+    worksheet.getCell("I25").value = 0; // This would need to be calculated separately
+
+    // Fill in sales (rows 29-32)
+    // Row 29: CMC
+    const cmcData = reportData.sales.CMC || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
+    worksheet.getCell("G29").value = Number(cmcData.LOCAL || 0);
+    worksheet.getCell("H29").value = Number(cmcData.ABROAD || 0);
+    worksheet.getCell("I29").value = Number(cmcData.TOTAL || 0);
+
+    // Row 30: DCS (MP)
+    const dcsData = reportData.sales.DCS || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
+    worksheet.getCell("G30").value = Number(dcsData.LOCAL || 0);
+    worksheet.getCell("H30").value = Number(dcsData.ABROAD || 0);
+    worksheet.getCell("I30").value = Number(dcsData.TOTAL || 0);
+
+    // Row 31: DELEGATE
+    const delegateData = reportData.sales.DELEGATE || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G31").value = Number(delegateData.LOCAL || 0);
+    worksheet.getCell("H31").value = Number(delegateData.ABROAD || 0);
+    worksheet.getCell("I31").value = Number(delegateData.TOTAL || 0);
+
+    // Row 32: Total Sales
+    const totalSalesData = reportData.sales.TOTAL || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G32").value = Number(totalSalesData.LOCAL || 0);
+    worksheet.getCell("H32").value = Number(totalSalesData.ABROAD || 0);
+    worksheet.getCell("I32").value = Number(totalSalesData.TOTAL || 0);
+
+    // Row 33: TOTAL NUMBER OF COPIES SOLD
+    const totalSoldData = {
+      LOCAL:
+        (reportData.paidSubscribers.TOTAL?.LOCAL || 0) +
+        (totalSalesData.LOCAL || 0),
+      ABROAD:
+        (reportData.paidSubscribers.TOTAL?.ABROAD || 0) +
+        (totalSalesData.ABROAD || 0),
+      TOTAL:
+        (reportData.paidSubscribers.TOTAL?.TOTAL || 0) +
+        (totalSalesData.TOTAL || 0),
+    };
+    worksheet.getCell("G33").value = Number(totalSoldData.LOCAL);
+    worksheet.getCell("H33").value = Number(totalSoldData.ABROAD);
+    worksheet.getCell("I33").value = Number(totalSoldData.TOTAL);
+
+    // Fill in consignments (rows 37-40)
+    // Row 37: Schools
+    const schoolsData = reportData.consignments.Schools || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G37").value = Number(schoolsData.LOCAL || 0);
+    worksheet.getCell("H37").value = Number(schoolsData.ABROAD || 0);
+    worksheet.getCell("I37").value = Number(schoolsData.TOTAL || 0);
+
+    // Row 38: Bookstores
+    const bookstoresData = reportData.consignments.Bookstores || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G38").value = Number(bookstoresData.LOCAL || 0);
+    worksheet.getCell("H38").value = Number(bookstoresData.ABROAD || 0);
+    worksheet.getCell("I38").value = Number(bookstoresData.TOTAL || 0);
+
+    // Row 39: Religious Communities
+    const religiousData = reportData.consignments["Religious Communities"] || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G39").value = Number(religiousData.LOCAL || 0);
+    worksheet.getCell("H39").value = Number(religiousData.ABROAD || 0);
+    worksheet.getCell("I39").value = Number(religiousData.TOTAL || 0);
+
+    // Row 40: Total Consignments
+    const totalConsignmentsData = reportData.consignments.TOTAL || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G40").value = Number(totalConsignmentsData.LOCAL || 0);
+    worksheet.getCell("H40").value = Number(totalConsignmentsData.ABROAD || 0);
+    worksheet.getCell("I40").value = Number(totalConsignmentsData.TOTAL || 0);
+
+    // Fill in complimentary (rows 44-48)
+    // Row 44: Parishes
+    const parishesData = reportData.complimentary.Parishes || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G44").value = Number(parishesData.LOCAL || 0);
+    worksheet.getCell("H44").value = Number(parishesData.ABROAD || 0);
+    worksheet.getCell("I44").value = Number(parishesData.TOTAL || 0);
+
+    // Row 45: Various/Bishop/Religious/Campus M/Library/School
+    const variousData = reportData.complimentary[
+      "Various/Bishop/Religious/Campus M/Library/School"
+    ] || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
+    worksheet.getCell("G45").value = Number(variousData.LOCAL || 0);
+    worksheet.getCell("H45").value = Number(variousData.ABROAD || 0);
+    worksheet.getCell("I45").value = Number(variousData.TOTAL || 0);
+
+    // Row 46: Exchange
+    const exchangeData = reportData.complimentary.Exchange || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G46").value = Number(exchangeData.LOCAL || 0);
+    worksheet.getCell("H46").value = Number(exchangeData.ABROAD || 0);
+    worksheet.getCell("I46").value = Number(exchangeData.TOTAL || 0);
+
+    // Row 47: Gifts (MP/Editor/Administrator)
+    const giftsData = reportData.complimentary.Gifts || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G47").value = Number(giftsData.LOCAL || 0);
+    worksheet.getCell("H47").value = Number(giftsData.ABROAD || 0);
+    worksheet.getCell("I47").value = Number(giftsData.TOTAL || 0);
+
+    // Row 48: Total Complimentary
+    const totalComplimentaryData = reportData.complimentary.TOTAL || {
+      LOCAL: 0,
+      ABROAD: 0,
+      TOTAL: 0,
+    };
+    worksheet.getCell("G48").value = Number(totalComplimentaryData.LOCAL || 0);
+    worksheet.getCell("H48").value = Number(totalComplimentaryData.ABROAD || 0);
+    worksheet.getCell("I48").value = Number(totalComplimentaryData.TOTAL || 0);
+
+    // Fill in final summary (rows 50)
+    // Row 50: IN STOCK
+    worksheet.getCell("I50").value = Number(reportData.inStock.TOTAL || 0);
+
+    // Note: Rows 52 and 54 now use Excel formulas in the template
+    // Row 52: TOTAL NUMBER OF COPIES RELEASED (calculated by formula)
+    // Row 54: TOTAL NUMBER OF COPIES AVAILABLE (calculated by formula)
+
+    // Row 11: NUMBER OF COPIES PRINTED
+    worksheet.getCell("F11").value = Number(reportData.printedCopies || 0);
+
+    // Row 61: Current Date
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+    worksheet.getCell("A61").value = `Date: ${formattedDate}`;
 
     // Save the workbook with optimization options
     const options = {
