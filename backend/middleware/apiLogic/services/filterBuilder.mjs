@@ -371,7 +371,10 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     });
   }
 
-  // User filter is now handled in service filtering section based on user role and active services
+  // Always enforce user filter for Admin: filter by adduser if userId is set
+  if (advancedFilterData.userId) {
+    baseFilter.push({ adduser: advancedFilterData.userId });
+  }
   // Add basic text search filter
   if (filter) {
     // Check if it's a payment reference search
