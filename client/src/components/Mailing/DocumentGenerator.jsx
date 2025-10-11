@@ -22,7 +22,7 @@ const DocumentGenerator = ({
   onRefreshAllData,
   isOpen = false,
 }) => {
-  const [selectedDocument, setSelectedDocument] = useState("renewal");
+  const [selectedDocument, setSelectedDocument] = useState("thankyou");
   const [renewalNoticeConfig, setRenewalNoticeConfig] = useState(null);
   const [thankYouLetterConfig, setThankYouLetterConfig] = useState(null);
   const [skippedData, setSkippedData] = useState([]);
