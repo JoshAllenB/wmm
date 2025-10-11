@@ -684,6 +684,12 @@ const AllClient = () => {
     setSelectedRow(null);
   };
 
+  // Handle successful edit
+  const handleEditSuccess = () => {
+    setFiltering(""); // Reset search input
+    fetchData(page, pageSize, "", selectedGroup, advancedFilterData); // Refresh data
+  };
+
   // Update handleSearchChange function
   const handleSearchChange = (e) => {
     const value = e.target.value;
@@ -1621,6 +1627,7 @@ const AllClient = () => {
           rowData={selectedRow}
           onClose={handleViewClose}
           onDeleteSuccess={handleDeleteSuccess}
+          onEditSuccess={handleEditSuccess}
         />
       )}
 
