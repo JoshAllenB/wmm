@@ -288,7 +288,6 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
           },
         }
       );
-      console.log("Fetched all donors:", response.data);
       setDonors(response.data);
 
       // If we have a selectedDonorId, try to find and select that donor

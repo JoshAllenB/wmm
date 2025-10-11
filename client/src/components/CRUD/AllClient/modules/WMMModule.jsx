@@ -65,7 +65,6 @@ const WMMModule = ({
             <DonorAdd
               selectedDonorId={roleSpecificData.donorid}
               onDonorSelect={(donorId) => {
-                console.log("Donor ID selected:", donorId);
                 handleRoleSpecificChange({
                   target: {
                     name: "donorid",
