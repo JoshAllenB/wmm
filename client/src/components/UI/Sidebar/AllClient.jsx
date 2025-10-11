@@ -51,7 +51,7 @@ const AllClient = () => {
   const [clientData, setClientData] = useState([]);
   const [filtering, setFiltering] = useState("");
   const debouncedFiltering = useDebounce(filtering, 500); // Increased from 300 to 500ms
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(50);
   const [rowSelection, setRowSelection] = useState({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
