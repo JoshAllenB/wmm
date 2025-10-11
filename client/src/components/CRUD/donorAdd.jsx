@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useUser } from "../../utils/Hooks/userProvider";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { Button } from "../UI/ShadCN/button";
 import Modal from "../modal";
@@ -11,8 +11,65 @@ import { useToast } from "../UI/ShadCN/hooks/use-toast";
 import useDuplicateChecker from "./duplicateChecker/duplicateLogic";
 import { debounce } from "lodash";
 
-const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
+const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
   const { toast } = useToast();
+
+  // Effect to fetch and set selected donor when selectedDonorId changes
+  useEffect(() => {
+    const fetchSelectedDonor = async () => {
+      if (selectedDonorId) {
+        try {
+          const response = await axios.get(
+            `http://${
+              import.meta.env.VITE_IP_ADDRESS
+            }:3001/donor-data/donors/${selectedDonorId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }
+          );
+          if (response.data) {
+            const donor = response.data;
+            setSelectedDonor(donor);
+
+            // Construct donor name from parts if individual fields exist
+            let donorName;
+            if (donor.fname || donor.lname) {
+              donorName = [donor.fname, donor.mname, donor.lname, donor.sname]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+            } else {
+              // Use existing name field or fallback
+              donorName = donor.name || "Unknown Donor";
+            }
+
+            setSearchTerm(`${donor.id} - ${donorName}`);
+
+            // Update form data with donor details
+            setFormData((prevData) => ({
+              ...prevData,
+              ...donor,
+              bdate: donor.bdate || "",
+              cellno: donor.cellno || "",
+              ofcno: donor.ofcno || "",
+              spack: donor.spack || false,
+            }));
+          }
+        } catch (error) {
+          console.error("Error fetching donor:", error);
+          toast({
+            title: "Error",
+            description: "Failed to fetch donor details",
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    fetchSelectedDonor();
+  }, [selectedDonorId, toast]);
 
   // Duplicate checker hook
   const {
@@ -83,6 +140,111 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
   const [isDonorAddActive, setIsDonorAddActive] = useState(false);
   const [isRefreshingDonors, setIsRefreshingDonors] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [existingClients, setExistingClients] = useState([]);
+  const [clientSearchTerm, setClientSearchTerm] = useState("");
+  const [isSearchingClients, setIsSearchingClients] = useState(false);
+
+  // Debounce search for existing clients
+  const debouncedClientSearch = useRef(
+    debounce(async (term) => {
+      if (!term.trim()) {
+        setExistingClients([]);
+        return;
+      }
+      try {
+        setIsSearchingClients(true);
+        const response = await axios.get(
+          `http://${
+            import.meta.env.VITE_IP_ADDRESS
+          }:3001/donor-data/search-non-donors`,
+          {
+            params: { searchTerm: term },
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+            },
+          }
+        );
+        setExistingClients(response.data);
+      } catch (error) {
+        console.error("Error searching clients:", error);
+        toast({
+          title: "Error",
+          description: "Failed to search for clients",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSearchingClients(false);
+      }
+    }, 300)
+  ).current;
+
+  useEffect(() => {
+    debouncedClientSearch(clientSearchTerm);
+    return () => debouncedClientSearch.cancel();
+  }, [clientSearchTerm, debouncedClientSearch]);
+
+  const handleConvertClientToDonor = async (client) => {
+    try {
+      const response = await axios.post(
+        `http://${
+          import.meta.env.VITE_IP_ADDRESS
+        }:3001/donor-data/convert-to-donor`,
+        { clientId: client.id },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Success",
+          description: (
+            <div>
+              <p>Successfully converted client to donor:</p>
+              <p>
+                Client ID:{" "}
+                <span className="font-mono bg-gray-100 px-1 rounded">
+                  {client.id}
+                </span>
+              </p>
+              <p>Name: {client.name}</p>
+            </div>
+          ),
+          duration: 5000,
+        });
+
+        // Update donors list
+        await fetchDonors();
+
+        // Auto-select the newly added donor
+        const newDonor = {
+          id: client.id,
+          name: client.name,
+          ...client,
+        };
+        setSelectedDonor(newDonor);
+        setSearchTerm(`${client.id} - ${client.name}`);
+        if (onDonorSelect) {
+          onDonorSelect(client.id);
+        }
+
+        // Close the modal
+        setShowClientModal(false);
+        setClientSearchTerm("");
+      }
+    } catch (error) {
+      console.error("Error converting client to donor:", error);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.error || "Failed to convert client to donor",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     if (!searchTerm.trim()) {
@@ -115,7 +277,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
     { value: "12", name: "December" },
   ];
 
-  const fetchDonors = async () => {
+  const fetchDonors = useCallback(async () => {
     try {
       setIsRefreshingDonors(true);
       const response = await axios.get(
@@ -126,17 +288,29 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
           },
         }
       );
+      console.log("Fetched all donors:", response.data);
       setDonors(response.data);
+
+      // If we have a selectedDonorId, try to find and select that donor
+      if (selectedDonorId) {
+        const donor = response.data.find(
+          (d) => d.id === parseInt(selectedDonorId)
+        );
+        if (donor) {
+          setSelectedDonor(donor);
+          setSearchTerm(`${donor.id} - ${donor.name}`);
+        }
+      }
     } catch (error) {
       console.error("Error fetching donors:", error);
     } finally {
       setIsRefreshingDonors(false);
     }
-  };
+  }, [selectedDonorId]);
 
   useEffect(() => {
     fetchDonors();
-  }, []);
+  }, [fetchDonors, selectedDonorId]);
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -893,7 +1067,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
               filteredDonors.length === 0 &&
               searchTerm && (
                 <div className="p-2 text-sm text-gray-500 text-center">
-                  No donors found matching "{searchTerm}"
+                  No donors found matching &quot;{searchTerm}&quot;
                 </div>
               )}
             {filteredDonors.map((donor) => (
@@ -914,24 +1088,127 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
           </div>
         </div>
       </div>
-      <Button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.nativeEvent.stopImmediatePropagation();
-          // Return false to ensure no further propagation
-          openModal();
-          return false;
-        }}
-        onMouseDown={(e) => {
-          // Prevent any mousedown events from propagating
-          e.preventDefault();
-          e.stopPropagation();
-        }}
-        className="bg-blue-600 text-white hover:opacity-90 transition-opacity duration-200"
-      >
-        <span>Add New Donor</span>
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.nativeEvent.stopImmediatePropagation();
+            setShowClientModal(true);
+            return false;
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="bg-green-600 text-white hover:opacity-90 transition-opacity duration-200"
+        >
+          <span>Add From Clients</span>
+        </Button>
+        <Button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.nativeEvent.stopImmediatePropagation();
+            // Return false to ensure no further propagation
+            openModal();
+            return false;
+          }}
+          onMouseDown={(e) => {
+            // Prevent any mousedown events from propagating
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className="bg-blue-600 text-white hover:opacity-90 transition-opacity duration-200"
+        >
+          <span>Add New Donor</span>
+        </Button>
+      </div>
+
+      {/* Modal for selecting existing client */}
+      {showClientModal && (
+        <Modal
+          isOpen={showClientModal}
+          onClose={() => {
+            setShowClientModal(false);
+            setClientSearchTerm("");
+          }}
+          className="bg-white rounded-lg p-6 max-w-3xl w-full shadow-xl"
+        >
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2">Convert Client to Donor</h2>
+            <p className="text-gray-600">
+              Search for an existing client by ID or name to convert them to a
+              donor.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={clientSearchTerm}
+                onChange={(e) => setClientSearchTerm(e.target.value)}
+                placeholder="Search clients by ID or name..."
+                className="w-full px-4 py-2 border-2 rounded-md text-lg bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none"
+              />
+              {isSearchingClients && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                </div>
+              )}
+            </div>
+
+            <div className="border rounded-md max-h-[400px] overflow-y-auto">
+              {existingClients.length === 0 &&
+              clientSearchTerm &&
+              !isSearchingClients ? (
+                <div className="p-4 text-gray-500 text-center">
+                  No clients found matching &quot;{clientSearchTerm}&quot;
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {existingClients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="p-4 hover:bg-gray-50 cursor-pointer flex justify-between items-center"
+                      onClick={() => handleConvertClientToDonor(client)}
+                    >
+                      <div>
+                        <div className="font-medium">{client.name}</div>
+                        <div className="text-sm text-gray-500">
+                          ID: {client.id}
+                          {client.email && ` • ${client.email}`}
+                        </div>
+                        {client.address && (
+                          <div className="text-sm text-gray-500 mt-1">
+                            {client.address}
+                          </div>
+                        )}
+                      </div>
+                      <Button className="bg-green-100 text-green-800 hover:bg-green-200">
+                        Convert to Donor
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={() => {
+                setShowClientModal(false);
+                setClientSearchTerm("");
+              }}
+              className="bg-gray-200 text-gray-800 hover:bg-gray-300"
+            >
+              Close
+            </Button>
+          </div>
+        </Modal>
+      )}
 
       {showModal && (
         <Modal

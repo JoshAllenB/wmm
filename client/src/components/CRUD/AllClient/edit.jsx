@@ -680,6 +680,7 @@ const Edit = ({
             subscriptionType: hasUserSelectedSubscriptionType
               ? prev.subscriptionType
               : subscriptionType,
+            donorid: rowData.donorid || "",
           };
           // Set initial snapshot for diffing later
           initialClientSnapshotRef.current = {
@@ -898,7 +899,7 @@ const Edit = ({
         referralid: "",
       }));
 
-      // Reset role-specific data to empty/default values
+      // Initialize role-specific data with values from rowData where available
       setRoleSpecificData({
         recvdate: "",
         recvdateMonth: "",
@@ -919,16 +920,31 @@ const Edit = ({
         paymtmasses: 0,
         calendar: false,
         subsclass: "",
-        donorid: "",
+        donorid: rowData?.donorid || "",
       });
     }
-  }, [rowData, mode, subscriptionMode]);
+  }, [
+    rowData,
+    mode,
+    subscriptionMode,
+    hasRole,
+    hasUserSelectedSubscriptionType,
+    selectedRole,
+  ]);
 
   // Also update the WMM subscription data useEffect
   useEffect(() => {
     if (mode === "edit" && rowData && subscriptionMode === "edit") {
       // Get subscription type from formData (which is now properly set)
       const subscriptionType = formData.subscriptionType || "WMM";
+
+      // Set donor ID from rowData if available
+      if (rowData.donorid) {
+        setRoleSpecificData((prev) => ({
+          ...prev,
+          donorid: rowData.donorid,
+        }));
+      }
 
       // Get the appropriate subscription data based on type
       let subscriptionData;

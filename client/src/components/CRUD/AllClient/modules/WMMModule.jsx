@@ -63,6 +63,7 @@ const WMMModule = ({
           <label className="block text-black text-lg font-bold">Donor:</label>
           <div className="donor-add-container">
             <DonorAdd
+              selectedDonorId={roleSpecificData.donorid}
               onDonorSelect={(donorId) => {
                 console.log("Donor ID selected:", donorId);
                 handleRoleSpecificChange({

@@ -119,7 +119,10 @@ export const getSubscriptionSpecificData = (
       paymtref: roleSpecificData.paymtref || "",
       paymtamt: roleSpecificData.paymtamt || "",
       paymtmasses: roleSpecificData.paymtmasses || "",
-      donorid: roleSpecificData.donorid || "",
+      donorid:
+        typeof roleSpecificData.donorid === "object"
+          ? roleSpecificData.donorid._id || roleSpecificData.donorid.id
+          : roleSpecificData.donorid || "",
     };
   }
 };
@@ -153,7 +156,7 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
     (roleSpecificData.paymtmasses &&
       roleSpecificData.paymtmasses.trim() !== "");
   const hasDonorId =
-    roleSpecificData.donorid && roleSpecificData.donorid.trim() !== "";
+    roleSpecificData.donorid && String(roleSpecificData.donorid).trim() !== "";
   const hasReferralId =
     formData.referralid && formData.referralid.trim() !== "";
   const hasSubsclass =

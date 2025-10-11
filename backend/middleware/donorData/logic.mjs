@@ -1,4 +1,134 @@
-import { getModelInstance, ClientModel } from "../apiLogic/services/modelManager.mjs";
+import {
+  getModelInstance,
+  ClientModel,
+} from "../apiLogic/services/modelManager.mjs";
+
+export async function getDonorById(donorId) {
+  try {
+    const donor = await ClientModel.findOne(
+      { id: donorId, type: "DONOR" },
+      {
+        id: 1,
+        fname: 1,
+        mname: 1,
+        lname: 1,
+        sname: 1,
+        title: 1,
+        bdate: 1,
+        company: 1,
+        address: 1,
+        zipcode: 1,
+        area: 1,
+        acode: 1,
+        contactnos: 1,
+        cellno: 1,
+        ofcno: 1,
+        email: 1,
+        type: 1,
+        group: 1,
+        remarks: 1,
+        spack: 1,
+        _id: 0,
+      }
+    ).lean();
+
+    if (!donor) {
+      return null;
+    }
+
+    // Construct the name if it's not already present
+    if (!donor.name) {
+      donor.name = `${donor.fname || ""} ${donor.lname || ""}`.trim();
+    }
+
+    return donor;
+  } catch (error) {
+    console.error("Error in getDonorById:", error);
+    throw error;
+  }
+}
+
+export async function searchNonDonorClients(searchTerm = "") {
+  let searchConditions = {
+    // Make sure to only get clients that are not already donors
+    type: { $ne: "DONOR" },
+  };
+
+  // Add search by ID or name if searchTerm is provided
+  if (searchTerm) {
+    const trimmedTerm = searchTerm.trim();
+    // Check if search term is numeric (for ID search)
+    const isNumeric = !isNaN(trimmedTerm) && !isNaN(parseFloat(trimmedTerm));
+
+    const conditions = [
+      { fname: { $regex: trimmedTerm, $options: "i" } },
+      { lname: { $regex: trimmedTerm, $options: "i" } },
+      { company: { $regex: trimmedTerm, $options: "i" } },
+    ];
+
+    if (isNumeric) {
+      conditions.push({ id: parseInt(trimmedTerm) });
+    }
+
+    // Combine the type condition with the search conditions
+    searchConditions = {
+      type: { $ne: "DONOR" },
+      $or: conditions,
+    };
+  }
+
+  // Find matching clients
+  const clients = await ClientModel.find(searchConditions, {
+    id: 1,
+    clientid: "$id",
+    fname: 1,
+    lname: 1,
+    title: 1,
+    company: 1,
+    address: 1,
+    contactnos: 1,
+    email: 1,
+    _id: 0,
+  }).lean();
+
+  // Format client names
+  return clients.map((client) => ({
+    ...client,
+    name: `${client.fname || ""} ${
+      client.lname || client.company || ""
+    }`.trim(),
+  }));
+}
+
+export async function convertClientToDonor(clientId) {
+  // Update client type to DONOR
+  const result = await ClientModel.findOneAndUpdate(
+    { id: clientId, type: { $ne: "DONOR" } }, // Make sure it's not already a donor
+    { $set: { type: "DONOR" } },
+    { new: true }
+  );
+
+  if (!result) {
+    throw new Error("Client not found or is already a donor");
+  }
+
+  return {
+    success: true,
+    message: "Client successfully converted to donor",
+    donor: {
+      id: result.id,
+      name: `${result.fname || ""} ${
+        result.lname || result.company || ""
+      }`.trim(),
+      fname: result.fname,
+      lname: result.lname,
+      company: result.company,
+      address: result.address,
+      contactnos: result.contactnos,
+      email: result.email,
+    },
+  };
+}
 
 export async function getAllDonors() {
   // Use the type field to find clients with type "DONOR"
@@ -14,14 +144,14 @@ export async function getAllDonors() {
       address: 1,
       contactnos: 1,
       email: 1,
-      _id: 0
+      _id: 0,
     }
   ).lean();
 
   // Format donor names
-  return donors.map(donor => ({
+  return donors.map((donor) => ({
     ...donor,
-    name: `${donor.fname || ""} ${donor.lname || donor.company || ""}`.trim()
+    name: `${donor.fname || ""} ${donor.lname || donor.company || ""}`.trim(),
   }));
 }
 
@@ -35,42 +165,41 @@ export async function getDonorRecipientData({
   const WmmModel = await getModelInstance("WmmModel");
 
   // Build search conditions - use isDonor flag instead of complex aggregation
-  let searchConditions = [
-    { donorid: { $ne: 0 } },
-  ];
+  let searchConditions = [{ donorid: { $ne: 0 } }];
 
   // Add search functionality for donor name/company
   if (searchTerm && searchTerm.trim()) {
     const trimmedSearchTerm = searchTerm.trim();
-    
+
     // Build search conditions for donor lookup
     const donorSearchConditions = [];
-    
+
     // Check if search term is a number (for ID search)
-    const isNumeric = !isNaN(trimmedSearchTerm) && !isNaN(parseFloat(trimmedSearchTerm));
-    
+    const isNumeric =
+      !isNaN(trimmedSearchTerm) && !isNaN(parseFloat(trimmedSearchTerm));
+
     if (isNumeric) {
       // If numeric, search for exact ID match
       donorSearchConditions.push({ id: parseInt(trimmedSearchTerm) });
     }
-    
+
     // Always search in string fields (name and company)
     donorSearchConditions.push(
       { fname: { $regex: trimmedSearchTerm, $options: "i" } },
       { lname: { $regex: trimmedSearchTerm, $options: "i" } },
       { company: { $regex: trimmedSearchTerm, $options: "i" } }
     );
-    
-    // Get donor IDs that match the search term and are donors
-    const matchingDonors = await ClientModel.find({
-      $and: [
-        { type: "DONOR" },
-        { $or: donorSearchConditions }
-      ]
-    }, { id: 1 }).lean();
 
-    const matchingDonorIds = matchingDonors.map(donor => donor.id);
-    
+    // Get donor IDs that match the search term and are donors
+    const matchingDonors = await ClientModel.find(
+      {
+        $and: [{ type: "DONOR" }, { $or: donorSearchConditions }],
+      },
+      { id: 1 }
+    ).lean();
+
+    const matchingDonorIds = matchingDonors.map((donor) => donor.id);
+
     if (matchingDonorIds.length > 0) {
       searchConditions.push({ donorid: { $in: matchingDonorIds } });
     } else {
@@ -87,8 +216,8 @@ export async function getDonorRecipientData({
       { type: "DONOR" },
       { id: 1 }
     ).lean();
-    
-    const allDonorIds = allDonors.map(donor => donor.id);
+
+    const allDonorIds = allDonors.map((donor) => donor.id);
     searchConditions.push({ donorid: { $in: allDonorIds } });
   }
 
@@ -245,32 +374,32 @@ export async function getDonorRecipientData({
 export async function getDonorStatistics() {
   // Get donor count using type field
   const donorCount = await ClientModel.countDocuments({ type: "DONOR" });
-  
+
   // Get active donors (those with gift subscriptions)
   const WmmModel = await getModelInstance("WmmModel");
-  const activeDonorCount = await WmmModel.distinct("donorid", { 
-    donorid: { $ne: 0 } 
-  }).then(ids => ids.length);
-  
+  const activeDonorCount = await WmmModel.distinct("donorid", {
+    donorid: { $ne: 0 },
+  }).then((ids) => ids.length);
+
   // Get total gift subscriptions
-  const totalGiftSubscriptions = await WmmModel.countDocuments({ 
-    donorid: { $ne: 0 } 
+  const totalGiftSubscriptions = await WmmModel.countDocuments({
+    donorid: { $ne: 0 },
   });
-  
+
   // Get recent donors (last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+
   const recentDonors = await ClientModel.countDocuments({
     type: "DONOR",
-    adddate: { $gte: thirtyDaysAgo.toISOString() }
+    adddate: { $gte: thirtyDaysAgo.toISOString() },
   });
-  
+
   return {
     totalDonors: donorCount,
     activeDonors: activeDonorCount,
     totalGiftSubscriptions,
     recentDonors,
-    inactiveDonors: donorCount - activeDonorCount
+    inactiveDonors: donorCount - activeDonorCount,
   };
 }
