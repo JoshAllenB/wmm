@@ -28,7 +28,6 @@ const Area = () => {
         })),
       }));
 
-      console.log("Formatted Areas:", formattedAreas);
       setAreas(formattedAreas);
     } catch (error) {
       console.error("Error fetching areas:", error);
@@ -73,184 +72,128 @@ const Area = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
-          {/* Header Section */}
-          <div className="flex-shrink-0 mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  Area Management
-                </h1>
-                <p className="mt-2 text-gray-600">
-                  Manage geographical areas and their associated locations.
-                  Click on any row to edit area details.
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {areas.length}
-                  </div>
-                  <div className="text-sm text-gray-500">Total Areas</div>
-                </div>
-                <AddArea fetchAreas={fetchAndSetAreas} />
-              </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="max-w-7xl mx-auto w-full px-6 py-8 flex flex-col flex-1">
+        {/* Header Section */}
+        <header className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Area Management
+            </h1>
+            <p className="text-gray-600 text-sm mt-1">
+              Manage all area codes and their corresponding locations below.
+            </p>
+          </div>
+          <AddArea fetchAreas={fetchAndSetAreas} />
+        </header>
+
+        {/* Data Section */}
+        <section className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col flex-1">
+          {/* Section Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Areas Overview
+            </h2>
+            <div className="text-sm text-gray-500 space-x-2">
+              <span>Total Areas: {areas.length}</span>
+              <span>•</span>
+              <span>
+                Locations:{" "}
+                {areas.reduce(
+                  (total, area) => total + (area.locations?.length || 0),
+                  0
+                )}
+              </span>
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <div className="text-sm font-medium text-gray-500">
-                    Total Areas
-                  </div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {areas.length}
-                  </div>
-                </div>
+          {/* Main Content */}
+          <div className="p-6 overflow-y-auto flex-1">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12 text-gray-500">
+                <div className="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full mr-3"></div>
+                Loading areas...
               </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <div className="text-sm font-medium text-gray-500">
-                    Total Locations
-                  </div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {areas.reduce(
-                      (total, area) => total + (area.locations?.length || 0),
-                      0
-                    )}
-                  </div>
-                </div>
+            ) : areas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p className="text-lg font-medium">No areas found</p>
+                <p className="text-sm mt-1">Add a new area to get started.</p>
               </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-purple-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <div className="text-sm font-medium text-gray-500">
-                    Active Areas
-                  </div>
-                  <div className="text-2xl font-bold text-gray-900">
-                    {areas.filter((area) => area.locations?.length > 0).length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Data Table Section - Takes remaining space */}
-          <div className="flex-1 min-h-0 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-            <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Areas Overview
-                </h2>
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {areas.map((area, idx) => (
+                  <div
+                    key={area._id || idx}
+                    className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all"
+                    onClick={(e) => handleRowClick(e, { original: area })}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <span>Click any row to edit</span>
-                </div>
-              </div>
-            </div>
+                    {/* Area Header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                      <div className="flex items-center space-x-3">
+                        {/* Zone Tag */}
+                        <div className="flex flex-col items-center justify-center bg-blue-50 text-blue-700 rounded-lg p-2 font-semibold text-sm min-w-[70px]">
+                          <span className="text-base font-bold leading-none">
+                            {area.areaCode || "N/A"}
+                          </span>
+                        </div>
 
-            <div className="flex-1 min-h-0 overflow-hidden">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <span className="ml-3 text-gray-600">Loading areas...</span>
-                </div>
-              ) : (
-                <div className="h-full">
-                  <DataTable
-                    data={areas}
-                    columns={areaColumns}
-                    rowSelection={rowSelection}
-                    setRowSelection={setRowSelection}
-                    usePagination={false}
-                    enableRowClick={true}
-                    handleRowClick={handleRowClick}
-                    fetchFunction={fetchAreas}
-                  />
-                </div>
-              )}
-            </div>
+                        {/* Area Info */}
+                        <div>
+                          <h3 className="text-gray-800 font-semibold">
+                            Area Code: {area.areaCode}
+                          </h3>
+                          <p className="text-sm text-gray-500">
+                            {area.locations.length} Locations
+                          </p>
+                        </div>
+                      </div>
+
+                      <button className="text-gray-400 hover:text-blue-600 transition">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Locations */}
+                    <div className="max-h-56 overflow-y-auto p-4 space-y-3">
+                      {area.locations.map((loc, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 hover:bg-white hover:shadow-sm transition"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-800">
+                              {loc.name || "Unnamed Location"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {loc.zipcode && `📍 ${loc.zipcode}`}{" "}
+                              {loc.description && `– ${loc.description}`}
+                            </p>
+                          </div>
+                          <span className="text-xs text-gray-500 bg-gray-100 rounded-full px-2 py-1">
+                            #{i + 1}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Edit Modal */}

@@ -27,13 +27,7 @@ export const areaColumns = [
           {locations.length > 0 ? (
             <div className="space-y-3">
               {locations.map((location, index) => {
-                const parts = [
-                  location.name,
-                  location.zipcode ? ` - ${location.zipcode}` : "",
-                  location.description ? ` - ${location.description}` : "",
-                ]
-                  .filter(Boolean)
-                  .join("");
+
 
                 return (
                   <div
@@ -45,7 +39,7 @@ export const areaColumns = [
                         <div className="flex items-center space-x-2 mb-2">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                           <div className="font-medium text-gray-900 truncate">
-                            {location.name || "Unnamed Location"}
+                            {location.displayText || "Unnamed Location"}
                           </div>
                         </div>
 
