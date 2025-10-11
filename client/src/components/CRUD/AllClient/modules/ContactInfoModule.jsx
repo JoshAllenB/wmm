@@ -3,8 +3,8 @@ import InputField from "../../input.jsx";
 
 const ContactInfoModule = ({ formData, handleChange }) => {
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+    <div className="p-4">
+      <h2 className="text-black text-lg font-bold mb-4 border-b">
         Contact Information
       </h2>
       <div className="space-y-3">
@@ -43,6 +43,16 @@ const ContactInfoModule = ({ formData, handleChange }) => {
           onChange={handleChange}
           type="email"
           className="text-base"
+        />
+        <InputField
+          label="Remarks:"
+          id="remarks"
+          name="remarks"
+          value={formData.remarks || ""}
+          onChange={handleChange}
+          type="textarea"
+          uppercase={true}
+          className="w-full p-2 border rounded-md text-base"
         />
       </div>
     </div>

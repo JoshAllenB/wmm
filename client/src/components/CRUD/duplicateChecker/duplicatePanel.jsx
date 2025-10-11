@@ -22,7 +22,7 @@ const DuplicatePanel = ({
       ? potentialDuplicates.allMatches
       : matches;
   return (
-    <div className="border-l-0 lg:border-l border-gray-200 w-full lg:w-[500px] h-full max-h-[90vh] overflow-hidden bg-white shadow-md flex flex-col mt-0 lg:mt-0">
+    <div className="border-l-0 lg:border-l border-gray-200 w-full lg:w-[30vw] h-full max-h-[90vh] overflow-hidden bg-white shadow-md flex flex-col mt-0 lg:mt-0">
       <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-indigo-50 py-3 px-4 border-b border-gray-200 z-10">
         <div className="flex items-center justify-between">
           <div>

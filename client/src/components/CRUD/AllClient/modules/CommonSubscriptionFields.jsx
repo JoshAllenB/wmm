@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import InputField from "../../input.jsx";
 
 const CommonSubscriptionFields = ({
@@ -103,18 +103,18 @@ const CommonSubscriptionFields = ({
   return (
     <>
       {/* Start Date */}
-      <div className="mb-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div>
+        <label className="block text-lg font-medium mt-1">
           Subscription Start: <span className="text-red-500 ml-1">*</span>
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-1">
           <div className="relative">
             <select
               id="subStartMonth"
               name="subStartMonth"
               value={formData.subStartMonth || ""}
               onChange={handleChange}
-              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Month</option>
               {months.map((month) => (
@@ -131,7 +131,7 @@ const CommonSubscriptionFields = ({
             value={formData.subStartDay || ""}
             onChange={handleChange}
             placeholder="DD"
-            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full px-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="2"
           />
           <input
@@ -148,8 +148,8 @@ const CommonSubscriptionFields = ({
       </div>
 
       {/* Subscription Duration */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="mb-">
+        <label className="block text-lg font-medium mt-1">
           Subscription Duration: <span className="text-red-500 ml-1">*</span>
         </label>
         <select
@@ -157,7 +157,8 @@ const CommonSubscriptionFields = ({
           name="subscriptionFreq"
           value={formData.subscriptionFreq}
           onChange={handleChange}
-          className="w-full p-2 border rounded-md text-base"
+          className="w-full px-2 py-1.5 font-bold text-base border rounded-md border-gray-300 
+               focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
           <option value="">Select Subscription Duration</option>
           <option value="6">6 Months</option>
@@ -169,7 +170,7 @@ const CommonSubscriptionFields = ({
 
       {/* End Date */}
       <div className="mb-2">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-lg font-medium mt-1">
           Subscription End: <span className="text-red-500 ml-1">*</span>
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -179,7 +180,7 @@ const CommonSubscriptionFields = ({
               name="subEndMonth"
               value={formData.subEndMonth || ""}
               onChange={handleChange}
-              className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Month</option>
               {months.map((month) => (
@@ -196,7 +197,7 @@ const CommonSubscriptionFields = ({
             value={formData.subEndDay || ""}
             onChange={handleChange}
             placeholder="DD"
-            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="2"
           />
           <input
@@ -206,17 +207,17 @@ const CommonSubscriptionFields = ({
             value={formData.subEndYear || ""}
             onChange={handleChange}
             placeholder="YYYY"
-            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="4"
           />
         </div>
       </div>
 
       {/* Copies and Calendar */}
-      <div className="flex space-x-4 mb-4">
-        <div className="flex flex-row items-center justify-center gap-2">
-          <label className="block text-lg font-medium leading-6 text-black">
-            Copies: <span className="text-red-500 ml-1">*</span>
+      <div className="flex space-x-4">
+        <div className="flex flex-row items-center justify-center">
+          <label className="block text-lg font-medium text-black">
+            Copies:
           </label>
           <input
             id="copies"
@@ -225,10 +226,12 @@ const CommonSubscriptionFields = ({
             onChange={handleRoleSpecificChange}
             type="number"
             min="1"
-            className="block w-[80px] rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-2 ring-gray-300 placeholder:text-gray-300 focus:ring-3 p-3 text-base"
+            className="w-[50px] rounded-md border border-gray-300 px-2 
+                 text-gray-900 shadow-sm focus:ring-2 focus:ring-blue-300 text-base"
           />
+          <span className="text-red-500 ml-1">*</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           <label htmlFor="calendar" className="text-lg font-medium">
             Calendar Received:
           </label>
@@ -244,7 +247,7 @@ const CommonSubscriptionFields = ({
       </div>
 
       {/* Remarks field */}
-      <div className="mt-4">
+      <div>
         <InputField
           label="Remarks:"
           id="remarks"

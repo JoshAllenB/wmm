@@ -3,11 +3,11 @@ import InputField from "../../input.jsx";
 
 const GroupInfoModule = ({ formData, handleChange, types, groups }) => {
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+    <div className="p-4">
+      <h2 className="text-black text-lg font-bold mb-1 border-b">
         Group Information
       </h2>
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <div className="relative w-full">
           <label className="block text-black text-base mb-1">Type:</label>
           <select
@@ -43,17 +43,6 @@ const GroupInfoModule = ({ formData, handleChange, types, groups }) => {
             ))}
           </select>
         </div>
-
-        <InputField
-          label="Remarks:"
-          id="remarks"
-          name="remarks"
-          value={formData.remarks || ""}
-          onChange={handleChange}
-          type="textarea"
-          uppercase={true}
-          className="w-full p-2 border rounded-md text-base"
-        />
       </div>
     </div>
   );

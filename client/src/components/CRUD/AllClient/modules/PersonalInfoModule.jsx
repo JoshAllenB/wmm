@@ -14,11 +14,11 @@ const PersonalInfoModule = ({
         Personal Information
       </h2>
       <div className="space-y-3">
-        <div className="flex gap-4">
-          <div className="mb-4">
-            <label className="block text-black text-xl mb-1">
-              Special Package:
-            </label>
+        <div className="flex flex-col">
+          <div className="flex items-center">
+            <span className="text-black text-base font-bold">
+              Special Package (SPACK):
+            </span>
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -33,17 +33,14 @@ const PersonalInfoModule = ({
                     },
                   })
                 }
-                className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                className="ml-2 h-5 w-5 text-blue-600 rounded border-black focus:ring-blue-500"
               />
-              <label htmlFor="spack" className="ml-2 text-gray-700 text-base">
-                Mark as Special Package
-              </label>
             </div>
           </div>
-          <div className="mb-4">
-            <label className="block text-black text-xl mb-1">
+          <div className="flex items-center">
+            <span className="text-black text-base font-bold">
               Return to Sender (RTS):
-            </label>
+            </span>
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -78,22 +75,19 @@ const PersonalInfoModule = ({
                     },
                   });
                 }}
-                className="h-5 w-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
+                className="ml-2 h-5 w-5 text-blue-600 rounded border-black focus:ring-blue-500"
               />
-              <label htmlFor="rts" className="ml-2 text-gray-700 text-base">
-                Mark as Return to Sender
-                {formData.rtsCount > 0 && (
-                  <span
-                    className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                      formData.rtsMaxReached
-                        ? "bg-red-100 text-red-800"
-                        : "bg-orange-100 text-orange-800"
-                    }`}
-                  >
-                    {formData.rtsCount} RTS
-                  </span>
-                )}
-              </label>
+              {formData.rtsCount > 0 && (
+                <span
+                  className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                    formData.rtsMaxReached
+                      ? "bg-red-100 text-red-800"
+                      : "bg-orange-100 text-orange-800"
+                  }`}
+                >
+                  {formData.rtsCount} RTS
+                </span>
+              )}
             </div>
           </div>
         </div>

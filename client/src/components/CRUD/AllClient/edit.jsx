@@ -4733,15 +4733,15 @@ const Edit = ({
         // When rendered inside View component, just render the form without a modal
         <form onSubmit={handleSubmit} className="w-full">
           {/* Form Title */}
-          <div className="mb-6">
+          <div className="mb-2">
             <h2 className="text-2xl font-bold text-black">
               {mode === "edit"
-                ? `Edit Client - ID: ${rowData?.id}`
+                ? `Edit Client ID: ${rowData?.id}`
                 : "Add New Client"}
             </h2>
           </div>
           {/* Add form content here (fields, sections, etc.) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-3 gap-2">
             {/* Personal Information */}
             <PersonalInfoModule
               formData={formData}
@@ -4766,19 +4766,21 @@ const Edit = ({
               isEditingCombinedAddress={isEditingCombinedAddress}
             />
 
-            {/* Contact Information */}
-            <ContactInfoModule
-              formData={formData}
-              handleChange={handleChange}
-            />
+            <div className="flex flex-col border rounded-lg shadow-sm">
+              {/* Contact Information */}
+              <ContactInfoModule
+                formData={formData}
+                handleChange={handleChange}
+              />
 
-            {/* Group Information */}
-            <GroupInfoModule
-              formData={formData}
-              handleChange={handleChange}
-              types={types}
-              groups={groups}
-            />
+              {/* Group Information */}
+              <GroupInfoModule
+                formData={formData}
+                handleChange={handleChange}
+                types={types}
+                groups={groups}
+              />
+            </div>
 
             {/* WMM Subscription Information - Only show if user has WMM role */}
             {hasRole("WMM") && (
@@ -4929,12 +4931,6 @@ const Edit = ({
                       handleRoleSpecificChange={handleRoleSpecificChange}
                       months={months}
                     />
-
-                    {/* Helper note about required subscription fields */}
-                    <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
-                      Either Payment Amount or Masses is required to proceed.
-                    </p>
-
                     {/* Subscription Type Specific Fields */}
                     {formData.subscriptionType === "WMM" && (
                       <WMMModule

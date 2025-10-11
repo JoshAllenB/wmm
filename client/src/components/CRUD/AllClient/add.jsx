@@ -488,10 +488,6 @@ const Add = ({
     setShowConfirmation(false);
   };
 
-  // Moved to duplicateLogic.js
-
-  // Moved to duplicateLogic.js
-
   // Utility function to normalize year (2-digit to 4-digit)
   const normalizeYear = (year) => {
     if (year.length === 2) {
@@ -1755,11 +1751,11 @@ const Add = ({
                 <form
                   id="main-client-form"
                   onSubmit={handleSubmit}
-                  className="flex-1 p-4 overflow-y-auto lg:max-w-[calc(100%-380px)]"
+                  className="flex-1 mr-1 overflow-y-auto lg:max-w-[calc(100%-380px)]"
                 >
-                  <div className="mb-2 border-b pb-2">
+                  <div className="border-b">
                     <h1
-                      className={`${getSubscriptionTypeStyles()} p-2 text-center text-black text-3xl font-bold`}
+                      className={`${getSubscriptionTypeStyles()} p- text-center text-black text-3xl font-bold`}
                     >
                       Add Client{" "}
                       {subscriptionType === "HRG" ||
@@ -1770,307 +1766,243 @@ const Add = ({
                         ? ""
                         : ` ${subscriptionType}`}
                     </h1>
-                    <p className="text-gray-500 text-base">
-                      Fill in the details to add a new client
-                    </p>
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {/* Personal Information Card */}
-                    <div>
-                      <div className="">
-                        <div className="flex gap-4">
-                          <div className="mb-4">
-                            <label className="block text-black text-xl mb-1">
-                              Special Package:
-                            </label>
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id="spack"
-                                name="spack"
-                                checked={formData.spack || false}
-                                onChange={(e) =>
-                                  setFormData((prev) => ({
-                                    ...prev,
-                                    spack: e.target.checked,
-                                  }))
-                                }
-                                className="h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                              />
-                              <label
-                                htmlFor="spack"
-                                className="ml-2 text-gray-700 text-base"
-                              >
-                                Mark as Special Package
-                              </label>
-                            </div>
-                          </div>
-                          <div className="mb-4">
-                            <label className="block text-black text-xl mb-1">
-                              Return to Sender (RTS):
-                            </label>
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                id="rts"
-                                name="rts"
-                                checked={formData.rts || false}
-                                onChange={(e) => {
-                                  const isChecked = e.target.checked;
-                                  setFormData((prev) => {
-                                    const currentRtsCount = prev.rtsCount || 0;
-                                    const newRtsCount = isChecked
-                                      ? currentRtsCount + 1
-                                      : Math.max(0, currentRtsCount - 1);
-                                    return {
-                                      ...prev,
-                                      rts: isChecked,
-                                      rtsCount: newRtsCount,
-                                      rtsMaxReached: newRtsCount >= 3,
-                                    };
-                                  });
-                                }}
-                                className="h-5 w-5 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
-                              />
-                              <label
-                                htmlFor="rts"
-                                className="ml-2 text-gray-700 text-base"
-                              >
-                                Mark as Return to Sender
-                              </label>
-                            </div>
-                          </div>
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2 border-b border-gray-200">
+                        Personal Information
+                      </h3>
+
+                      {/* Checkbox Section */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-1 bg-gray-50 rounded-lg">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="spack"
+                            name="spack"
+                            checked={formData.spack || false}
+                            onChange={(e) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                spack: e.target.checked,
+                              }))
+                            }
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor="spack"
+                            className="ml-2 text-sm font-medium text-gray-700"
+                          >
+                            Special Package (SPACK)
+                          </label>
+                        </div>
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id="rts"
+                            name="rts"
+                            checked={formData.rts || false}
+                            onChange={(e) => {
+                              const isChecked = e.target.checked;
+                              setFormData((prev) => {
+                                const currentRtsCount = prev.rtsCount || 0;
+                                const newRtsCount = isChecked
+                                  ? currentRtsCount + 1
+                                  : Math.max(0, currentRtsCount - 1);
+                                return {
+                                  ...prev,
+                                  rts: isChecked,
+                                  rtsCount: newRtsCount,
+                                  rtsMaxReached: newRtsCount >= 3,
+                                };
+                              });
+                            }}
+                            className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <label
+                            htmlFor="rts"
+                            className="ml-2 text-sm font-medium text-gray-700"
+                          >
+                            Return to Sender (RTS)
+                            {formData.rtsCount > 0 && (
+                              <span className="ml-1 text-xs bg-red-100 text-red-800 px-1.5 py-0.5 rounded-full">
+                                {formData.rtsCount}/3
+                              </span>
+                            )}
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Name Fields */}
+                      <div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <InputField
+                            label="Title"
+                            id="title"
+                            name="title"
+                            value={formData.title}
+                            onChange={handleChange}
+                            uppercase={true}
+                            className="text-sm"
+                          />
+                          <InputField
+                            label="Suffix"
+                            id="sname"
+                            name="sname"
+                            value={formData.sname}
+                            onChange={handleChange}
+                            uppercase={true}
+                            className="text-sm"
+                            autoComplete="off"
+                          />
                         </div>
                         <InputField
-                          label="Title:"
-                          id="title"
-                          name="title"
-                          value={formData.title}
-                          onChange={handleChange}
-                          uppercase={true}
-                          className="text-base"
-                        />
-                        <InputField
-                          label="First Name:"
+                          label="First Name "
                           id="fname"
                           name="fname"
                           value={formData.fname}
                           onChange={handleChange}
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                           required={true}
                         />
                         <InputField
-                          label="Middle Name:"
+                          label="Middle Name"
                           id="mname"
                           name="mname"
                           value={formData.mname}
                           onChange={handleChange}
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                         />
+
                         <InputField
-                          label="Last Name:"
+                          label="Last Name *"
                           id="lname"
                           name="lname"
                           value={formData.lname}
                           onChange={handleChange}
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                           required={true}
                         />
-                        <InputField
-                          label="Suffix:"
-                          id="sname"
-                          name="sname"
-                          value={formData.sname}
-                          onChange={handleChange}
-                          uppercase={true}
-                          className="text-base"
-                          autoComplete="off"
-                        />
-                        <div className="mb-2">
-                          <label className="block text-black text-xl mb-1">
-                            Birth Date:
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="relative">
-                              <select
-                                id="bdateMonth"
-                                name="bdateMonth"
-                                value={formData.bdateMonth}
-                                onChange={handleChange}
-                                className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
-                              >
-                                <option value="">Month</option>
-                                {months.map((month) => (
-                                  <option key={month.value} value={month.value}>
-                                    {month.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <input
-                              type="text"
-                              id="bdateDay"
-                              name="bdateDay"
-                              value={formData.bdateDay}
-                              onChange={handleChange}
-                              placeholder="DD"
-                              className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
-                              autoComplete="off"
-                              maxLength="2"
-                            />
-                            <input
-                              type="text"
-                              id="bdateYear"
-                              name="bdateYear"
-                              value={formData.bdateYear}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (/^\d{0,4}$/.test(value)) {
-                                  handleChange(e);
-                                }
-                              }}
-                              placeholder="YYYY"
-                              className="w-full p-2 text-lg border-2 rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-200 transition-all duration-300"
-                              autoComplete="off"
-                              maxLength="4"
-                            />
-                          </div>
+                      </div>
+                      {/* Birth Date */}
+                      <div className="mt-1">
+                        <label className="block text- font-bold ">
+                          Birth Date
+                        </label>
+                        <div className="grid grid-cols-3 gap-3">
+                          <select
+                            id="bdateMonth"
+                            name="bdateMonth"
+                            value={formData.bdateMonth}
+                            onChange={handleChange}
+                            className="w-full px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                          >
+                            <option value="">Month</option>
+                            {months.map((month) => (
+                              <option key={month.value} value={month.value}>
+                                {month.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            id="bdateDay"
+                            name="bdateDay"
+                            value={formData.bdateDay}
+                            onChange={handleChange}
+                            placeholder="DD"
+                            className="w-full px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                            autoComplete="off"
+                            maxLength="2"
+                          />
+                          <input
+                            type="text"
+                            id="bdateYear"
+                            name="bdateYear"
+                            value={formData.bdateYear}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (/^\d{0,4}$/.test(value)) {
+                                handleChange(e);
+                              }
+                            }}
+                            placeholder="YYYY"
+                            className="w-full px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                            autoComplete="off"
+                            maxLength="4"
+                          />
                         </div>
-                        <InputField
-                          label="Company:"
-                          id="company"
-                          name="company"
-                          value={formData.company}
-                          onChange={handleChange}
-                          uppercase={true}
-                          className="text-base"
-                        />
-                        <div className="flex gap-2">
-                          <div className="relative w-full">
-                            <select
-                              id="type"
-                              name="type"
-                              value={formData.type}
-                              onChange={handleChange}
-                              className="
-                                w-full 
-                                p-2 
-                                pl-3 
-                                pr-8 
-                                border-2 
-                                rounded-md 
-                                text-xl 
-                                bg-white 
-                                appearance-none 
-                                cursor-pointer 
-                                border-gray-300 
-                                focus:border-blue-500 
-                                focus:ring-2 
-                                focus:ring-blue-200 
-                                focus:outline-none 
-                                relative 
-                                z-10
-                              "
-                            >
-                              <option value="">Select a type</option>
-                              {types.map((type) => (
-                                <option key={type.id} value={type.id}>
-                                  {type.id} - {type.name}
-                                </option>
-                              ))}
-                            </select>
-                            <div
-                              className="
-                              pointer-events-none 
-                              absolute 
-                              inset-y-0 
-                              right-0 
-                              flex 
-                              items-center 
-                              px-2 
-                              text-gray-700
-                            "
-                            >
-                              <svg
-                                className="fill-current h-4 w-4"
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                              </svg>
-                            </div>
-                          </div>
+                      </div>
+                      <InputField
+                        label="Company"
+                        id="company"
+                        name="company"
+                        value={formData.company}
+                        onChange={handleChange}
+                        uppercase={true}
+                        className="text-sm"
+                      />
 
-                          <div className="relative w-full">
-                            <select
-                              id="group"
-                              name="group"
-                              value={formData.group}
-                              onChange={handleChange}
-                              className="
-                                  w-full 
-                                  p-2 
-                                  pl-3 
-                                  pr-8 
-                                  border-2 
-                                  rounded-md 
-                                  text-xl 
-                                  bg-white 
-                                  appearance-none 
-                                  cursor-pointer 
-                                  border-gray-300 
-                                  focus:border-blue-500 
-                                  focus:ring-2 
-                                  focus:ring-blue-200 
-                                  focus:outline-none 
-                                  relative 
-                                  z-10
-                                "
-                            >
-                              <option value="">Select a group</option>
-                              {groups.map((group) => (
-                                <option key={group.id} value={group.id}>
-                                  {group.id} - {group.name}
-                                </option>
-                              ))}
-                            </select>
-                            <div
-                              className="
-                                pointer-events-none 
-                                absolute 
-                                inset-y-0 
-                                right-0 
-                                flex 
-                                items-center 
-                                px-2 
-                                text-gray-700
-                              "
-                            >
-                              <svg
-                                className="fill-current h-4 w-4"
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                              </svg>
-                            </div>
-                          </div>
+                      {/* Type and Group */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Type
+                          </label>
+                          <select
+                            id="type"
+                            name="type"
+                            value={formData.type}
+                            onChange={handleChange}
+                            className="w-full px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                          >
+                            <option value="">Select a type</option>
+                            {types.map((type) => (
+                              <option key={type.id} value={type.id}>
+                                {type.id} - {type.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Group
+                          </label>
+                          <select
+                            id="group"
+                            name="group"
+                            value={formData.group}
+                            onChange={handleChange}
+                            className="w-full px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                          >
+                            <option value="">Select a group</option>
+                            {groups.map((group) => (
+                              <option key={group.id} value={group.id}>
+                                {group.id} - {group.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
 
                     {/* Address Information Card */}
-                    <div>
-                      <div className="space-y-3">
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2 border-b border-gray-200">
+                        Address Information
+                      </h3>
+
+                      <div>
                         <InputField
-                          label="House/Building Number & Street Name:"
+                          label="House/Building Number & Street Name"
                           id="housestreet"
                           name="housestreet"
                           value={addressData.housestreet}
@@ -2078,11 +2010,12 @@ const Add = ({
                             handleAddressChange("housestreet", e.target.value)
                           }
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                         />
+
                         <InputField
-                          label="Subdivision/Compound Name:"
+                          label="Subdivision/Compound Name"
                           id="subdivision"
                           name="subdivision"
                           value={addressData.subdivision}
@@ -2090,11 +2023,12 @@ const Add = ({
                             handleAddressChange("subdivision", e.target.value)
                           }
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                         />
+
                         <InputField
-                          label="Barangay:"
+                          label="Barangay"
                           id="barangay"
                           name="barangay"
                           value={addressData.barangay}
@@ -2102,9 +2036,10 @@ const Add = ({
                             handleAddressChange("barangay", e.target.value)
                           }
                           uppercase={true}
-                          className="text-base"
+                          className="text-sm"
                           autoComplete="off"
                         />
+
                         {areas && (
                           <AreaForm
                             ref={areaFormRef}
@@ -2113,9 +2048,12 @@ const Add = ({
                             areas={areas}
                           />
                         )}
-                        <div className="mt-4">
+
+                        <div>
+                          <label className="block font-bold mt-2">
+                            Address Preview
+                          </label>
                           <InputField
-                            label="Address Preview:"
                             id="combinedAddress"
                             name="combinedAddress"
                             value={combinedAddress}
@@ -2123,479 +2061,484 @@ const Add = ({
                             onChange={handleCombinedAddressChange}
                             onFocus={handleCombinedAddressFocus}
                             onBlur={handleCombinedAddressBlur}
-                            className="w-full h-[160px] p-2 border rounded-md text-base whitespace-pre-line"
+                            className="w-full h-32 px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Contact Information Card */}
-                    <div>
-                      <div className="space-y-3">
-                        <InputField
-                          label="Contact Numbers:"
-                          id="contactnos"
-                          name="contactnos"
-                          value={formData.contactnos}
-                          onChange={handleChange}
-                          className="text-base"
-                        />
-                        <InputField
-                          label="Cell Number:"
-                          id="cellno"
-                          name="cellno"
-                          value={formData.cellno}
-                          onChange={handleChange}
-                          className="text-base"
-                        />
-                        <InputField
-                          label="Office Number:"
-                          id="ofcno"
-                          name="ofcno"
-                          value={formData.ofcno}
-                          onChange={handleChange}
-                          className="text-base"
-                        />
-                        <InputField
-                          label="Email:"
-                          id="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          type="email"
-                          className="text-base"
-                        />
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+                        Contact Information
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <InputField
+                            label="Contact Numbers"
+                            id="contactnos"
+                            name="contactnos"
+                            value={formData.contactnos}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+
+                          <InputField
+                            label="Cell Number"
+                            id="cellno"
+                            name="cellno"
+                            value={formData.cellno}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <InputField
+                            label="Office Number"
+                            id="ofcno"
+                            name="ofcno"
+                            value={formData.ofcno}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+
+                          <InputField
+                            label="Email"
+                            id="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            type="email"
+                            className="text-sm"
+                          />
+                        </div>
                       </div>
-                      <div className="mb-2">
+                      <div className="mt-6">
+                        <label className="block font-bold mb-1">Remarks</label>
                         <InputField
-                          className="w-full h-[160px] p-2 border rounded-md text-base"
-                          label="Remarks:"
                           id="remarks"
                           name="remarks"
                           value={formData.remarks}
                           onChange={handleChange}
                           type="textarea"
+                          className="w-full h-32 px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
                         />
                       </div>
                     </div>
-                    {/* Role-Specific Information Card */}
-                    {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
-                      <div className="p-4 border rounded-lg shadow-sm">
-                        <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-                          Role-Specific Information
-                        </h2>
-                        <div className="space-y-3">
-                          <div className="flex mb-4 mt-2">
-                            <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
-                              <button
-                                type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                                  selectedRole === "HRG"
-                                    ? getRoleSelectedClasses("HRG")
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                } transition-colors`}
-                                onClick={() => handleRoleToggle("HRG")}
-                              >
-                                HRG
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                                  selectedRole === "FOM"
-                                    ? getRoleSelectedClasses("FOM")
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                } transition-colors`}
-                                onClick={() => handleRoleToggle("FOM")}
-                              >
-                                FOM
-                              </button>
-                              <button
-                                type="button"
-                                className={`flex-1 py-2.5 text-sm font-medium text-center ${
-                                  selectedRole === "CAL"
-                                    ? getRoleSelectedClasses("CAL")
-                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                                } transition-colors`}
-                                onClick={() => handleRoleToggle("CAL")}
-                              >
-                                CAL
-                              </button>
+                    <div>
+                      {/* Role-Specific Information Card */}
+                      {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
+                        <div className="p-4 border rounded-lg shadow-sm">
+                          <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+                            Role-Specific Information
+                          </h2>
+                          <div className="space-y-3">
+                            <div className="flex mb-4 mt-2">
+                              <div className="flex w-full bg-gray-100 rounded-lg overflow-hidden">
+                                <button
+                                  type="button"
+                                  className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                    selectedRole === "HRG"
+                                      ? getRoleSelectedClasses("HRG")
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  } transition-colors`}
+                                  onClick={() => handleRoleToggle("HRG")}
+                                >
+                                  HRG
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                    selectedRole === "FOM"
+                                      ? getRoleSelectedClasses("FOM")
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  } transition-colors`}
+                                  onClick={() => handleRoleToggle("FOM")}
+                                >
+                                  FOM
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`flex-1 py-2.5 text-sm font-medium text-center ${
+                                    selectedRole === "CAL"
+                                      ? getRoleSelectedClasses("CAL")
+                                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                  } transition-colors`}
+                                  onClick={() => handleRoleToggle("CAL")}
+                                >
+                                  CAL
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          {/* Active role header similar to Subscription Type */}
-                          <div className="mb-4">
-                            <h2
-                              className={`${getRoleHeaderClasses(
-                                selectedRole
-                              )} p-2 font-bold text-center text-xl md:text-2xl rounded`}
-                            >
-                              {getRoleFullName(selectedRole)}
-                            </h2>
-                          </div>
-                          <div className="flex flex-col gap-5">
-                            <div className="flex flex-col gap-4 mb-2 p-2 w-full">
-                              {selectedRole === "HRG" && (
-                                <div className="w-full">
-                                  <InputField
-                                    label="Received Date:"
-                                    id="recvdate"
-                                    name="recvdate"
-                                    value={hrgData.recvdate}
-                                    onChange={handleHrgChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Campaign Date:"
-                                    id="campaigndate"
-                                    name="campaigndate"
-                                    value={hrgData.campaigndate}
-                                    onChange={handleHrgChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Reference:"
-                                    id="paymtref"
-                                    name="paymtref"
-                                    value={hrgData.paymtref}
-                                    onChange={handleHrgChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Amount:"
-                                    id="paymtamt"
-                                    name="paymtamt"
-                                    value={hrgData.paymtamt}
-                                    onChange={handleHrgChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Form:"
-                                    id="paymtform"
-                                    name="paymtform"
-                                    value={hrgData.paymtform}
-                                    onChange={handleHrgChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <div className="mb-2">
-                                    <label
-                                      htmlFor="unsubscribe"
-                                      className="text-black font-bold mr-2 text-base"
-                                    >
-                                      Unsubscribe:
-                                    </label>
-                                    <input
-                                      type="checkbox"
-                                      id="unsubscribe"
-                                      name="unsubscribe"
-                                      checked={hrgData.unsubscribe}
-                                      onChange={(e) =>
-                                        setHrgData((prev) => ({
-                                          ...prev,
-                                          unsubscribe: e.target.checked,
-                                        }))
-                                      }
-                                      className="text-base"
-                                    />
-                                  </div>
-                                  <div className="mb-2 w-full">
-                                    <label
-                                      htmlFor="remarks"
-                                      className="block text-black font-bold mb-1 text-base"
-                                    >
-                                      Remarks:
-                                    </label>
-                                    <textarea
-                                      id="remarks"
-                                      name="remarks"
-                                      value={hrgData.remarks || ""}
+                            {/* Active role header similar to Subscription Type */}
+                            <div className="mb-4">
+                              <h2
+                                className={`${getRoleHeaderClasses(
+                                  selectedRole
+                                )} p-2 font-bold text-center text-xl md:text-2xl rounded`}
+                              >
+                                {getRoleFullName(selectedRole)}
+                              </h2>
+                            </div>
+                            <div className="flex flex-col gap-5">
+                              <div className="flex flex-col gap-4 mb-2 p-2 w-full">
+                                {selectedRole === "HRG" && (
+                                  <div className="w-full">
+                                    <InputField
+                                      label="Received Date:"
+                                      id="recvdate"
+                                      name="recvdate"
+                                      value={hrgData.recvdate}
                                       onChange={handleHrgChange}
-                                      className="w-full p-2 border rounded-md text-base"
-                                      rows="3"
+                                      className="text-base w-full"
+                                      required={true}
                                     />
-                                  </div>
-                                </div>
-                              )}
-                              {selectedRole === "FOM" && (
-                                <div className="w-full">
-                                  <InputField
-                                    label="Received Date:"
-                                    id="recvdate"
-                                    name="recvdate"
-                                    value={fomData.recvdate}
-                                    onChange={handleFomChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Reference:"
-                                    id="paymtref"
-                                    name="paymtref"
-                                    value={fomData.paymtref}
-                                    onChange={handleFomChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Amount:"
-                                    id="paymtamt"
-                                    name="paymtamt"
-                                    value={fomData.paymtamt}
-                                    onChange={handleFomChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <InputField
-                                    label="Payment Form:"
-                                    id="paymtform"
-                                    name="paymtform"
-                                    value={fomData.paymtform}
-                                    onChange={handleFomChange}
-                                    className="text-base w-full"
-                                    required={true}
-                                  />
-                                  <div className="mb-2">
-                                    <label
-                                      htmlFor="unsubscribe"
-                                      className="text-black font-bold mr-2 text-base"
-                                    >
-                                      Unsubscribe:
-                                    </label>
-                                    <input
-                                      type="checkbox"
-                                      id="unsubscribe"
-                                      name="unsubscribe"
-                                      checked={fomData.unsubscribe}
-                                      onChange={(e) =>
-                                        setFomData((prev) => ({
-                                          ...prev,
-                                          unsubscribe: e.target.checked,
-                                        }))
-                                      }
-                                      className="text-base"
+                                    <InputField
+                                      label="Campaign Date:"
+                                      id="campaigndate"
+                                      name="campaigndate"
+                                      value={hrgData.campaigndate}
+                                      onChange={handleHrgChange}
+                                      className="text-base w-full"
+                                      required={true}
                                     />
+                                    <InputField
+                                      label="Payment Reference:"
+                                      id="paymtref"
+                                      name="paymtref"
+                                      value={hrgData.paymtref}
+                                      onChange={handleHrgChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <InputField
+                                      label="Payment Amount:"
+                                      id="paymtamt"
+                                      name="paymtamt"
+                                      value={hrgData.paymtamt}
+                                      onChange={handleHrgChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <InputField
+                                      label="Payment Form:"
+                                      id="paymtform"
+                                      name="paymtform"
+                                      value={hrgData.paymtform}
+                                      onChange={handleHrgChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <div className="mb-2">
+                                      <label
+                                        htmlFor="unsubscribe"
+                                        className="text-black font-bold mr-2 text-base"
+                                      >
+                                        Unsubscribe:
+                                      </label>
+                                      <input
+                                        type="checkbox"
+                                        id="unsubscribe"
+                                        name="unsubscribe"
+                                        checked={hrgData.unsubscribe}
+                                        onChange={(e) =>
+                                          setHrgData((prev) => ({
+                                            ...prev,
+                                            unsubscribe: e.target.checked,
+                                          }))
+                                        }
+                                        className="text-base"
+                                      />
+                                    </div>
+                                    <div className="mb-2 w-full">
+                                      <label
+                                        htmlFor="remarks"
+                                        className="block text-black font-bold mb-1 text-base"
+                                      >
+                                        Remarks:
+                                      </label>
+                                      <textarea
+                                        id="remarks"
+                                        name="remarks"
+                                        value={hrgData.remarks || ""}
+                                        onChange={handleHrgChange}
+                                        className="w-full p-2 border rounded-md text-base"
+                                        rows="3"
+                                      />
+                                    </div>
                                   </div>
-                                  <div className="mb-2 w-full">
-                                    <label
-                                      htmlFor="remarks"
-                                      className="block text-black font-bold mb-1 text-base"
-                                    >
-                                      Remarks:
-                                    </label>
-                                    <textarea
-                                      id="remarks"
-                                      name="remarks"
-                                      value={fomData.remarks || ""}
+                                )}
+                                {selectedRole === "FOM" && (
+                                  <div className="w-full">
+                                    <InputField
+                                      label="Received Date:"
+                                      id="recvdate"
+                                      name="recvdate"
+                                      value={fomData.recvdate}
                                       onChange={handleFomChange}
-                                      className="w-full p-2 border rounded-md text-base"
-                                      rows="3"
+                                      className="text-base w-full"
+                                      required={true}
                                     />
-                                  </div>
-                                </div>
-                              )}
-                              {selectedRole === "CAL" && (
-                                <div className="w-full">
-                                  <div className="grid grid-cols-2 gap-4 w-full">
-                                    <div className="w-full">
-                                      <InputField
-                                        label="Received Date:"
-                                        id="recvdate"
-                                        name="recvdate"
-                                        value={calData.recvdate}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Calendar Type:"
-                                        id="caltype"
-                                        name="caltype"
-                                        value={calData.caltype}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Calendar Quantity:"
-                                        id="calqty"
-                                        name="calqty"
-                                        value={calData.calqty}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Calendar Unit Price:"
-                                        id="calunit"
-                                        name="calunit"
-                                        value={calData.calunit}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Calendar Total Amount:"
-                                        id="calamt"
-                                        name="calamt"
-                                        value={calData.calamt}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                        readOnly={true}
+                                    <InputField
+                                      label="Payment Reference:"
+                                      id="paymtref"
+                                      name="paymtref"
+                                      value={fomData.paymtref}
+                                      onChange={handleFomChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <InputField
+                                      label="Payment Amount:"
+                                      id="paymtamt"
+                                      name="paymtamt"
+                                      value={fomData.paymtamt}
+                                      onChange={handleFomChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <InputField
+                                      label="Payment Form:"
+                                      id="paymtform"
+                                      name="paymtform"
+                                      value={fomData.paymtform}
+                                      onChange={handleFomChange}
+                                      className="text-base w-full"
+                                      required={true}
+                                    />
+                                    <div className="mb-2">
+                                      <label
+                                        htmlFor="unsubscribe"
+                                        className="text-black font-bold mr-2 text-base"
+                                      >
+                                        Unsubscribe:
+                                      </label>
+                                      <input
+                                        type="checkbox"
+                                        id="unsubscribe"
+                                        name="unsubscribe"
+                                        checked={fomData.unsubscribe}
+                                        onChange={(e) =>
+                                          setFomData((prev) => ({
+                                            ...prev,
+                                            unsubscribe: e.target.checked,
+                                          }))
+                                        }
+                                        className="text-base"
                                       />
                                     </div>
-                                    <div className="w-full">
-                                      <InputField
-                                        label="Payment Reference:"
-                                        id="paymtref"
-                                        name="paymtref"
-                                        value={calData.paymtref}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Payment Amount:"
-                                        id="paymtamt"
-                                        name="paymtamt"
-                                        value={calData.paymtamt}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Payment Form:"
-                                        id="paymtform"
-                                        name="paymtform"
-                                        value={calData.paymtform}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
-                                      />
-                                      <InputField
-                                        label="Payment Date:"
-                                        id="paymtdate"
-                                        name="paymtdate"
-                                        value={calData.paymtdate}
-                                        onChange={handleCalChange}
-                                        className="text-base w-full"
-                                        required={true}
+                                    <div className="mb-2 w-full">
+                                      <label
+                                        htmlFor="remarks"
+                                        className="block text-black font-bold mb-1 text-base"
+                                      >
+                                        Remarks:
+                                      </label>
+                                      <textarea
+                                        id="remarks"
+                                        name="remarks"
+                                        value={fomData.remarks || ""}
+                                        onChange={handleFomChange}
+                                        className="w-full p-2 border rounded-md text-base"
+                                        rows="3"
                                       />
                                     </div>
                                   </div>
-                                  <div className="mb-2 mt-2 w-full">
-                                    <label
-                                      htmlFor="remarks"
-                                      className="block text-black font-bold mb-1 text-base"
-                                    >
-                                      Remarks:
-                                    </label>
-                                    <textarea
-                                      id="remarks"
-                                      name="remarks"
-                                      value={calData.remarks || ""}
-                                      onChange={handleCalChange}
-                                      className="w-full p-2 border rounded-md text-base"
-                                      rows="3"
-                                    />
+                                )}
+                                {selectedRole === "CAL" && (
+                                  <div className="w-full">
+                                    <div className="grid grid-cols-2 gap-4 w-full">
+                                      <div className="w-full">
+                                        <InputField
+                                          label="Received Date:"
+                                          id="recvdate"
+                                          name="recvdate"
+                                          value={calData.recvdate}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Calendar Type:"
+                                          id="caltype"
+                                          name="caltype"
+                                          value={calData.caltype}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Calendar Quantity:"
+                                          id="calqty"
+                                          name="calqty"
+                                          value={calData.calqty}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Calendar Unit Price:"
+                                          id="calunit"
+                                          name="calunit"
+                                          value={calData.calunit}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Calendar Total Amount:"
+                                          id="calamt"
+                                          name="calamt"
+                                          value={calData.calamt}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                          readOnly={true}
+                                        />
+                                      </div>
+                                      <div className="w-full">
+                                        <InputField
+                                          label="Payment Reference:"
+                                          id="paymtref"
+                                          name="paymtref"
+                                          value={calData.paymtref}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Payment Amount:"
+                                          id="paymtamt"
+                                          name="paymtamt"
+                                          value={calData.paymtamt}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Payment Form:"
+                                          id="paymtform"
+                                          name="paymtform"
+                                          value={calData.paymtform}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                        <InputField
+                                          label="Payment Date:"
+                                          id="paymtdate"
+                                          name="paymtdate"
+                                          value={calData.paymtdate}
+                                          onChange={handleCalChange}
+                                          className="text-base w-full"
+                                          required={true}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="mb-2 mt-2 w-full">
+                                      <label
+                                        htmlFor="remarks"
+                                        className="block text-black font-bold mb-1 text-base"
+                                      >
+                                        Remarks:
+                                      </label>
+                                      <textarea
+                                        id="remarks"
+                                        name="remarks"
+                                        value={calData.remarks || ""}
+                                        onChange={handleCalChange}
+                                        className="w-full p-2 border rounded-md text-base"
+                                        rows="3"
+                                      />
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {hasRole("WMM") && (
-                      <div className="p-4 border rounded-lg shadow-sm">
-                        {/* Subscription Type Selector */}
-                        <SubscriptionTypeSelector
-                          subscriptionType={subscriptionType}
-                          setSubscriptionType={(newType) => {
-                            const newSubscriptionType = newType; // component passes string like "WMM"
-                            setSubscriptionType(newSubscriptionType);
-                            setFormData((prev) => ({
-                              ...prev,
-                              subscriptionType: newSubscriptionType,
-                            }));
-                          }}
-                          mode="add"
-                          hasSubscriptionData={() => false}
-                          rowData={null}
-                        />
+                      {hasRole("WMM") && (
+                        <div className="text-middle p-4 border rounded-lg shadow-sm">
+                          {/* Subscription Type Selector */}
+                          <SubscriptionTypeSelector
+                            subscriptionType={subscriptionType}
+                            setSubscriptionType={(newType) => {
+                              const newSubscriptionType = newType; // component passes string like "WMM"
+                              setSubscriptionType(newSubscriptionType);
+                              setFormData((prev) => ({
+                                ...prev,
+                                subscriptionType: newSubscriptionType,
+                              }));
+                            }}
+                            mode="add"
+                            hasSubscriptionData={() => false}
+                            rowData={null}
+                          />
 
-                        {subscriptionType === "None" ? (
-                          <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
-                            <p className="text-gray-500 text-lg mb-2">
-                              No subscription type selected
-                            </p>
-                            <p className="text-gray-400 text-sm">
-                              Please select a subscription type above to add
-                              subscription data
-                            </p>
-                          </div>
-                        ) : (
-                          <>
-                            <h2
-                              className={`${getSubscriptionTypeStyles()} p-2 font-bold text-center text-black`}
-                            >
-                              {subscriptionType} Subscription
-                            </h2>
+                          {subscriptionType === "None" ? (
+                            <div className="text-center p-4 border-2 border-dashed border-gray-300 rounded-lg">
+                              <p className="text-gray-500 text-lg mb-2">
+                                No subscription type selected
+                              </p>
+                              <p className="text-gray-400 text-sm">
+                                Please select a subscription type above to add
+                                subscription data
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              <h2
+                                className={`${getSubscriptionTypeStyles()}  font-bold text-center text-black`}
+                              >
+                                {subscriptionType} Subscription
+                              </h2>
 
-                            {/* Common subscription fields */}
-                            <CommonSubscriptionFields
-                              formData={formData}
-                              roleSpecificData={roleSpecificData}
-                              handleChange={handleChange}
-                              handleRoleSpecificChange={
-                                handleRoleSpecificChange
-                              }
-                              months={months}
-                            />
-
-                            {/* Helper note about required subscription fields */}
-                            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2 mt-2">
-                              Either Payment Amount or Masses is required to
-                              proceed.
-                            </p>
-
-                            {/* Subscription Type Specific Fields */}
-                            {subscriptionType === "WMM" && (
-                              <WMMModule
+                              {/* Common subscription fields */}
+                              <CommonSubscriptionFields
                                 formData={formData}
                                 roleSpecificData={roleSpecificData}
                                 handleChange={handleChange}
                                 handleRoleSpecificChange={
                                   handleRoleSpecificChange
                                 }
-                                handleNewDonorAdded={handleNewDonorAdded}
-                                subclasses={subclasses}
                                 months={months}
-                                subscriptionType={subscriptionType}
                               />
-                            )}
+                              {/* Subscription Type Specific Fields */}
+                              {subscriptionType === "WMM" && (
+                                <WMMModule
+                                  formData={formData}
+                                  roleSpecificData={roleSpecificData}
+                                  handleChange={handleChange}
+                                  handleRoleSpecificChange={
+                                    handleRoleSpecificChange
+                                  }
+                                  handleNewDonorAdded={handleNewDonorAdded}
+                                  subclasses={subclasses}
+                                  months={months}
+                                  subscriptionType={subscriptionType}
+                                />
+                              )}
 
-                            {subscriptionType === "Promo" && (
-                              <PromoModule
-                                formData={formData}
-                                handleChange={handleChange}
-                              />
-                            )}
+                              {subscriptionType === "Promo" && (
+                                <PromoModule
+                                  formData={formData}
+                                  handleChange={handleChange}
+                                />
+                              )}
 
-                            {subscriptionType === "Complimentary" && (
-                              <ComplimentaryModule />
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
+                              {subscriptionType === "Complimentary" && (
+                                <ComplimentaryModule />
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>{" "}
                   {/* Global validation error message */}
                   {validationError && (
                     <div className="w-full mt-4">
@@ -2604,7 +2547,6 @@ const Add = ({
                       </div>
                     </div>
                   )}
-
                   <div className="mt-8 pt-4 border-t flex flex-wrap justify-end gap-3">
                     <Button
                       type="button"

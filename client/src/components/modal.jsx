@@ -24,10 +24,10 @@ const Modal = ({ children, isOpen, onClose }) => {
       <div className="relative flex flex-col bg-white rounded-lg shadow-lg p-8 max-h-[90vh] overflow-y-auto">
         <Button
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+          className="z-50 absolute top-2 right-2 bg-red-500 text-white hover:text-gray-700"
         >
           <svg
-            className="h-6 w-6"
+            className="h-3 w-3"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"

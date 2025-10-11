@@ -859,7 +859,7 @@ const DonorAdd = ({ onDonorSelect, onNewDonorAdded }) => {
                 ? "Refreshing donors..."
                 : "Search by ID or name..."
             }
-            className={`w-full p-2 pl-3 pr-12 border-2 rounded-md text-xl bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none ${
+            className={`w-full px-2 border-2 rounded-md text-xl bg-white border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none ${
               isRefreshingDonors ? "opacity-75" : ""
             }`}
             disabled={isRefreshingDonors}

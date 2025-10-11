@@ -1,69 +1,35 @@
-import React from "react";
-
 const SubscriptionTypeSelector = ({
   subscriptionType,
   setSubscriptionType,
-  mode,
-  hasSubscriptionData,
-  rowData,
 }) => {
+  const options = [
+    { label: "None", value: "None", color: "gray" },
+    { label: "WMM", value: "WMM", color: "blue" },
+    { label: "Promo", value: "Promo", color: "emerald" },
+    { label: "Complimentary", value: "Complimentary", color: "purple" },
+  ];
+
   return (
-    <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Subscription Type:
-      </label>
-      <div className="flex bg-gray-100 rounded-lg p-1">
-        {/* Show None button - allows users to start fresh */}
-        <button
-          type="button"
-          onClick={() => setSubscriptionType("None")}
-          className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-            subscriptionType === "None"
-              ? "bg-gray-600 text-white shadow-sm"
-              : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-          }`}
-        >
-          None
-        </button>
-
-        {/* Always show WMM button - users should be able to choose any type */}
-        <button
-          type="button"
-          onClick={() => setSubscriptionType("WMM")}
-          className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-            subscriptionType === "WMM"
-              ? "bg-blue-600 text-white shadow-sm"
-              : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-          }`}
-        >
-          WMM
-        </button>
-
-        {/* Always show Promo button - users should be able to choose any type */}
-        <button
-          type="button"
-          onClick={() => setSubscriptionType("Promo")}
-          className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-            subscriptionType === "Promo"
-              ? "bg-emerald-600 text-white shadow-sm"
-              : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-          }`}
-        >
-          Promo
-        </button>
-
-        {/* Always show Complimentary button - users should be able to choose any type */}
-        <button
-          type="button"
-          onClick={() => setSubscriptionType("Complimentary")}
-          className={`px-3 py-1.5 text-base font-medium rounded-md transition-all duration-200 ${
-            subscriptionType === "Complimentary"
-              ? "bg-purple-600 text-white shadow-sm"
-              : "text-gray-600 hover:text-gray-800 hover:bg-gray-200"
-          }`}
-        >
-          Complimentary
-        </button>
+    <div>
+      <div className="flex justify-center w-full gap-2 bg-gray-100 rounded-lg p-2">
+        {options.map(({ label, value, color }) => {
+          const isActive = subscriptionType === value;
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSubscriptionType(value)}
+              className={`flex-1 text-base font-medium rounded-md px-3 py-2 transition-all duration-200 
+                ${
+                  isActive
+                    ? `bg-${color}-600 text-white shadow-sm`
+                    : `text-gray-700 hover:bg-${color}-100`
+                }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

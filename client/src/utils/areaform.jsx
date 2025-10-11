@@ -6,15 +6,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { fetchAreas } from "../components/Table/Data/utilData";
 import InputField from "../components/CRUD/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/UI/ShadCN/select";
 
 // Trie implementation
 const buildTrie = (locations) => {
@@ -476,19 +468,18 @@ const AreaForm = forwardRef(
 
     // Memoize the className to prevent unnecessary re-renders
     const areaCodeClassName = useMemo(() => {
-      return `text-base ${acodeError ? "border-red-500" : ""}`;
+      return `${acodeError ? "border-red-500" : ""}`;
     }, [acodeError]);
 
     return (
-      <div className="flex flex-col gap-3 text-lg">
+      <div className="flex flex-col">
         <div className="city-search-container relative">
           <InputField
-            label="City"
+            label="City | Province | Country"
             type="text"
             name="city"
             value={city}
             onChange={handleCityInputChange}
-            className="text-base"
             autoComplete="off"
             uppercase={true}
             aria-expanded={showCityResults}
@@ -505,7 +496,7 @@ const AreaForm = forwardRef(
               id="city-search-results"
               role="listbox"
               aria-label="City search results"
-              className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
+              className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg overflow-y-auto"
             >
               {citySearchResults.map((result, index) => (
                 <div
@@ -513,7 +504,7 @@ const AreaForm = forwardRef(
                   key={index}
                   role="option"
                   aria-selected={index === highlightedIndex}
-                  className={`px-4 py-2 cursor-pointer text-sm ${
+                  className={`cursor-pointer text-sm ${
                     index === highlightedIndex
                       ? "bg-gray-200"
                       : "hover:bg-gray-100"
@@ -528,7 +519,7 @@ const AreaForm = forwardRef(
             </div>
           )}
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2">
           <div className="area-search-container relative">
             <InputField
               label="Area Code"

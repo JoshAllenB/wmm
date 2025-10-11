@@ -46,8 +46,8 @@ const InputField = ({
   };
 
   return (
-    <div className="mb-2">
-      <label htmlFor={name} className="block text-black text-xl mb-1">
+    <div>
+      <label htmlFor={name} className="block text-black font-semibold">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -72,12 +72,12 @@ const InputField = ({
           onChange={handleInputChange}
           placeholder={placeholder}
           className={`
-            w-full p-2 text-lg border-2 rounded-md 
+            w-full px-2 font-bold border-2 rounded-md 
             border-gray-300 
             focus:border-blue-500 
             focus:outline-none 
-            focus:ring-4 
-            focus:ring-blue-200 
+            focus:ring-2
+            focus:ring-blue-500 
             transition-all 
             duration-300 
             ${className}
