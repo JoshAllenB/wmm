@@ -952,9 +952,6 @@ router.post("/print-dot-matrix", verifyToken, async (req, res) => {
         });
       });
 
-      // Process and print each label
-      console.log(`Processing ${data.length} labels for printing`);
-
       // Get the initialization and reset commands from the template
       const initCommand = labelTemplate.init || "";
       const resetCommand = labelTemplate.reset || "";
