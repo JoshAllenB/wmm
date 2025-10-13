@@ -394,8 +394,11 @@ const AllClient = () => {
           }
         }
 
-        // Use role-based services if no valid services provided
-        if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
+        // If a search term is present, do NOT restrict to just Promo/Comp/WMM services (search all)
+        if (filter && filter.trim().length > 0) {
+          // Remove strict services filtering; query all types (empty services array means no restriction)
+          filtersToUse.services = [];
+        } else if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
           filtersToUse.services = roleBasedServices;
         }
 
