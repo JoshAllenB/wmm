@@ -31,7 +31,7 @@ function getQuarter(date) {
  * @param {Object} io - Socket.io instance for real-time updates
  * @param {string} userId - User ID for targeted notifications
  */
-async function processFomQuarterlyReport(
+export async function processFomQuarterlyReport(
   year,
   reportDate,
   io = null,
@@ -256,263 +256,233 @@ async function processFomQuarterlyReport(
  * @param {Object} reportData - Processed FOM quarterly report data
  * @param {string} outputPath - Path to save the Excel file
  */
-async function generateFomExcelReport(reportData, outputPath) {
-  console.log(
-    chalk.bold(`\n----- GENERATING FOM QUARTERLY EXCEL REPORT -----`)
-  );
-  console.log(chalk.cyan(`Creating Excel workbook...`));
 
+export const generateFomExcelReport = async (reportData, savePath) => {
   const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("FOM Report");
 
-  try {
-    // Create a new worksheet
-    const worksheet = workbook.addWorksheet("FOM Quarterly Report");
+  // ================
+  // HEADER SECTION
+  // ================
+  worksheet.mergeCells("A1:G1");
+  worksheet.getCell("A1").value = `FOM DONATIONS YEAR ${reportData.year}`;
+  worksheet.getCell("A1").alignment = { horizontal: "center" };
+  worksheet.getCell("A1").font = { bold: true, size: 14 };
 
-    // Set up the report structure based on the image
-    // Title and header
-    worksheet.mergeCells("A1:H1");
-    worksheet.getCell("A1").value = `FOM DONATIONS YEAR ${reportData.year}`;
-    worksheet.getCell("A1").font = { bold: true, size: 14 };
-    worksheet.getCell("A1").alignment = { horizontal: "center" };
+  worksheet.mergeCells("A2:G2");
+  worksheet.getCell(
+    "A2"
+  ).value = `REPORT AS OF (${new Date().toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })})`;
+  worksheet.getCell("A2").alignment = { horizontal: "center" };
+  worksheet.getCell("A2").font = { italic: true, size: 11 };
 
-    worksheet.mergeCells("A2:H2");
-    worksheet.getCell("A2").value = `REPORT AS OF (${reportData.reportDate})`;
-    worksheet.getCell("A2").font = { bold: true };
-    worksheet.getCell("A2").alignment = { horizontal: "center" };
-
-    // Headers for donations section
-    worksheet.mergeCells("A4:A5");
-    worksheet.getCell("A4").value = "DONATION";
-    worksheet.getCell("A4").font = { bold: true };
-    worksheet.getCell("A4").alignment = {
-      horizontal: "center",
-      vertical: "middle",
+  // ================
+  // DONATIONS TABLE
+  // ================
+  const headers = ["AMOUNTS PHP", "QTY", "Q1", "Q2", "Q3", "Q4", "YEAR TOTAL"];
+  const headerRow = worksheet.addRow(headers);
+  headerRow.font = { bold: true };
+  headerRow.alignment = { horizontal: "center" };
+  headerRow.eachCell((cell) => {
+    cell.border = {
+      top: { style: "medium" },
+      bottom: { style: "medium" },
+      left: { style: "medium" },
+      right: { style: "medium" },
     };
+  });
 
-    worksheet.mergeCells("B4:B5");
-    worksheet.getCell("B4").value = "QTY";
-    worksheet.getCell("B4").font = { bold: true };
-    worksheet.getCell("B4").alignment = {
-      horizontal: "center",
-      vertical: "middle",
-    };
+  let currentRow = 4;
+  const predefinedAmounts = Object.keys(reportData.quarterlyData.predefined)
+    .map(Number)
+    .sort((a, b) => a - b);
 
-    // Quarter headers
-    const quarterHeaders = [
-      "1ST QUARTER",
-      "2ND QUARTER",
-      "3RD QUARTER",
-      "4TH QUARTER",
-    ];
-    const quarterColumns = ["C", "D", "E", "F"];
+  const val = (n) => (n && n !== 0 ? n : "");
 
-    quarterHeaders.forEach((header, index) => {
-      const col = quarterColumns[index];
-      worksheet.mergeCells(`${col}4:${col}5`);
-      worksheet.getCell(`${col}4`).value = header;
-      worksheet.getCell(`${col}4`).font = { bold: true };
-      worksheet.getCell(`${col}4`).alignment = {
-        horizontal: "center",
-        vertical: "middle",
+  // Predefined amounts
+  predefinedAmounts.forEach((amount) => {
+    const data = reportData.quarterlyData.predefined[amount];
+    const row = worksheet.addRow([
+      amount,
+      val(data.qty),
+      val(data.q1.amount),
+      val(data.q2.amount),
+      val(data.q3.amount),
+      val(data.q4.amount),
+      val(data.yearTotal.amount),
+    ]);
+    row.eachCell((cell, colNumber) => {
+      cell.alignment = { horizontal: "center" };
+      if (colNumber >= 3 && colNumber <= 7 && cell.value !== "")
+        cell.numFmt = "#,##0.00";
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
       };
     });
+    currentRow++;
+  });
 
-    // Year Total header
-    worksheet.mergeCells("G4:H4");
-    worksheet.getCell("G4").value = "YEAR TOTAL";
-    worksheet.getCell("G4").font = { bold: true };
-    worksheet.getCell("G4").alignment = { horizontal: "center" };
+  // Add an empty spacer row after A11 (before custom amounts)
+  worksheet.addRow([]);
+  currentRow++;
 
-    worksheet.mergeCells("G5:H5");
-    worksheet.getCell("G5").value = "";
-    worksheet.getCell("G5").font = { bold: true };
-    worksheet.getCell("G5").alignment = { horizontal: "center" };
+  // Custom donation amounts
+  const customAmounts = Object.keys(reportData.quarterlyData.custom)
+    .map(Number)
+    .sort((a, b) => a - b);
 
-    // Predefined amounts (rows 6-13)
-    const predefinedAmounts = [100, 500, 1000, 2000, 3000, 5000, 7000, 10000];
-    let currentRow = 6;
-
-    predefinedAmounts.forEach((amount) => {
-      const data = reportData.quarterlyData.predefined[amount];
-
-      worksheet.getCell(`A${currentRow}`).value = amount;
-      worksheet.getCell(`B${currentRow}`).value = data ? data.qty : 0;
-
-      // Quarter data
-      worksheet.getCell(`C${currentRow}`).value = data
-        ? data.q1.amount || ""
-        : "";
-      worksheet.getCell(`D${currentRow}`).value = data
-        ? data.q2.amount || ""
-        : "";
-      worksheet.getCell(`E${currentRow}`).value = data
-        ? data.q3.amount || ""
-        : "";
-      worksheet.getCell(`F${currentRow}`).value = data
-        ? data.q4.amount || ""
-        : "";
-
-      // Year total
-      worksheet.getCell(`G${currentRow}`).value = data
-        ? data.yearTotal.amount || ""
-        : "";
-
-      currentRow++;
+  customAmounts.forEach((amount) => {
+    const data = reportData.quarterlyData.custom[amount];
+    const row = worksheet.addRow([
+      amount,
+      val(data.qty),
+      val(data.q1.amount),
+      val(data.q2.amount),
+      val(data.q3.amount),
+      val(data.q4.amount),
+      val(data.yearTotal.amount),
+    ]);
+    row.eachCell((cell, colNumber) => {
+      cell.alignment = { horizontal: "center" };
+      if (colNumber >= 3 && colNumber <= 7 && cell.value !== "")
+        cell.numFmt = "#,##0.00";
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      };
     });
+    currentRow++;
+  });
 
-    // Custom amounts (starting from row 15)
-    const customAmounts = Object.keys(reportData.quarterlyData.custom)
-      .map((amount) => parseInt(amount))
-      .sort((a, b) => a - b);
+  // Totals row
+  const totalRow = worksheet.addRow([
+    "TOTAL",
+    reportData.quarterlyData.totals.yearTotal.qty,
+    val(reportData.quarterlyData.totals.q1.amount),
+    val(reportData.quarterlyData.totals.q2.amount),
+    val(reportData.quarterlyData.totals.q3.amount),
+    val(reportData.quarterlyData.totals.q4.amount),
+    val(reportData.quarterlyData.totals.yearTotal.amount),
+  ]);
 
-    currentRow = 15; // Start custom amounts from row 15
-    customAmounts.forEach((amount) => {
-      const data = reportData.quarterlyData.custom[amount];
-
-      worksheet.getCell(`A${currentRow}`).value = amount;
-      worksheet.getCell(`B${currentRow}`).value = data ? data.qty : 0;
-
-      // Quarter data
-      worksheet.getCell(`C${currentRow}`).value = data
-        ? data.q1.amount || ""
-        : "";
-      worksheet.getCell(`D${currentRow}`).value = data
-        ? data.q2.amount || ""
-        : "";
-      worksheet.getCell(`E${currentRow}`).value = data
-        ? data.q3.amount || ""
-        : "";
-      worksheet.getCell(`F${currentRow}`).value = data
-        ? data.q4.amount || ""
-        : "";
-
-      // Year total
-      worksheet.getCell(`G${currentRow}`).value = data
-        ? data.yearTotal.amount || ""
-        : "";
-
-      currentRow++;
-    });
-
-    // Summary row (after all data)
-    const summaryRow = currentRow + 1;
-    worksheet.getCell(`A${summaryRow}`).value = "TOTAL";
-    worksheet.getCell(`A${summaryRow}`).font = { bold: true };
-    worksheet.getCell(`B${summaryRow}`).value =
-      reportData.quarterlyData.totals.yearTotal.qty;
-    worksheet.getCell(`B${summaryRow}`).font = { bold: true };
-
-    // Quarter totals
-    worksheet.getCell(`C${summaryRow}`).value =
-      reportData.quarterlyData.totals.q1.amount;
-    worksheet.getCell(`C${summaryRow}`).font = { bold: true };
-    worksheet.getCell(`D${summaryRow}`).value =
-      reportData.quarterlyData.totals.q2.amount;
-    worksheet.getCell(`D${summaryRow}`).font = { bold: true };
-    worksheet.getCell(`E${summaryRow}`).value =
-      reportData.quarterlyData.totals.q3.amount;
-    worksheet.getCell(`E${summaryRow}`).font = { bold: true };
-    worksheet.getCell(`F${summaryRow}`).value =
-      reportData.quarterlyData.totals.q4.amount;
-    worksheet.getCell(`F${summaryRow}`).font = { bold: true };
-
-    // Year total
-    worksheet.getCell(`G${summaryRow}`).value =
-      reportData.quarterlyData.totals.yearTotal.amount;
-    worksheet.getCell(`G${summaryRow}`).font = { bold: true };
-
-    // Costs section (starting a few rows after summary)
-    const costsStartRow = summaryRow + 3;
-
-    // Cost headers
-    worksheet.mergeCells(`C${costsStartRow}:F${costsStartRow}`);
-    worksheet.getCell(`C${costsStartRow}`).value = "1st QUARTER";
-    worksheet.getCell(`C${costsStartRow}`).font = { bold: true };
-    worksheet.getCell(`C${costsStartRow}`).alignment = { horizontal: "center" };
-
-    worksheet.getCell(`D${costsStartRow}`).value = "2ND QUARTER";
-    worksheet.getCell(`D${costsStartRow}`).font = { bold: true };
-    worksheet.getCell(`D${costsStartRow}`).alignment = { horizontal: "center" };
-
-    worksheet.getCell(`E${costsStartRow}`).value = "3RD QUARTER";
-    worksheet.getCell(`E${costsStartRow}`).font = { bold: true };
-    worksheet.getCell(`E${costsStartRow}`).alignment = { horizontal: "center" };
-
-    worksheet.getCell(`F${costsStartRow}`).value = "4TH QUARTER";
-    worksheet.getCell(`F${costsStartRow}`).font = { bold: true };
-    worksheet.getCell(`F${costsStartRow}`).alignment = { horizontal: "center" };
-
-    worksheet.mergeCells(`G${costsStartRow}:H${costsStartRow}`);
-    worksheet.getCell(`G${costsStartRow}`).value = "TOTAL COST";
-    worksheet.getCell(`G${costsStartRow}`).font = { bold: true };
-    worksheet.getCell(`G${costsStartRow}`).alignment = { horizontal: "center" };
-
-    // Mailing Cost row
-    const mailingRow = costsStartRow + 1;
-    worksheet.getCell(`A${mailingRow}`).value = "MAILING COST";
-    worksheet.getCell(`C${mailingRow}`).value =
-      reportData.mailingCosts.q1.amount;
-    worksheet.getCell(`D${mailingRow}`).value =
-      reportData.mailingCosts.q2.amount;
-    worksheet.getCell(`E${mailingRow}`).value =
-      reportData.mailingCosts.q3.amount;
-    worksheet.getCell(`F${mailingRow}`).value =
-      reportData.mailingCosts.q4.amount;
-    worksheet.getCell(`G${mailingRow}`).value =
-      reportData.mailingCosts.total.amount;
-
-    // CPS SEND row
-    const cpsRow = mailingRow + 1;
-    worksheet.getCell(`A${cpsRow}`).value = "CPS SEND";
-    worksheet.getCell(`C${cpsRow}`).value = reportData.mailingCosts.q1.cpsSend;
-    worksheet.getCell(`D${cpsRow}`).value = reportData.mailingCosts.q2.cpsSend;
-    worksheet.getCell(`E${cpsRow}`).value = reportData.mailingCosts.q3.cpsSend;
-    worksheet.getCell(`F${cpsRow}`).value = reportData.mailingCosts.q4.cpsSend;
-    worksheet.getCell(`G${cpsRow}`).value =
-      reportData.mailingCosts.total.cpsSend;
-
-    // Format columns
-    worksheet.columns = [
-      { width: 15 }, // A - Donation
-      { width: 8 }, // B - QTY
-      { width: 12 }, // C - Q1
-      { width: 12 }, // D - Q2
-      { width: 12 }, // E - Q3
-      { width: 12 }, // F - Q4
-      { width: 12 }, // G - Year Total
-      { width: 12 }, // H - (merged with G)
-    ];
-
-    // Add light gray borders to data area
-    const dataRange = `A4:H${cpsRow}`;
-    for (let row = 4; row <= cpsRow; row++) {
-      for (let col = 1; col <= 8; col++) {
-        const cell = worksheet.getCell(row, col);
-        cell.border = {
-          top: { style: "thin", color: { argb: "FFCCCCCC" } },
-          left: { style: "thin", color: { argb: "FFCCCCCC" } },
-          bottom: { style: "thin", color: { argb: "FFCCCCCC" } },
-          right: { style: "thin", color: { argb: "FFCCCCCC" } },
-        };
-      }
-    }
-
-    // Save the workbook
-    console.log(chalk.cyan(`Saving Excel file to ${outputPath}...`));
-    await workbook.xlsx.writeFile(outputPath);
-    console.log(
-      chalk.green(`✅ FOM Quarterly Report saved successfully to ${outputPath}`)
-    );
-
-    return {
-      success: true,
-      path: outputPath,
-      data: reportData,
+  totalRow.font = { bold: true };
+  totalRow.eachCell((cell) => {
+    cell.alignment = { horizontal: "center" };
+    if (typeof cell.value === "number") cell.numFmt = "#,##0.00";
+    cell.border = {
+      top: { style: "medium" },
+      bottom: { style: "medium" },
+      left: { style: "medium" },
+      right: { style: "medium" },
     };
-  } catch (error) {
-    console.error(chalk.red("❌ Error generating FOM Excel report:"), error);
-    throw error;
-  }
-}
+  });
+  currentRow += 2;
 
-export { processFomQuarterlyReport, generateFomExcelReport };
+  // =======================
+  // CPS / MAILING COST BOX
+  // =======================
+  const cpsStartRow = currentRow;
+  worksheet.mergeCells(`A${cpsStartRow}:B${cpsStartRow}`);
+  worksheet.getCell(`A${cpsStartRow}`).value = "CPS / MAILING COSTS";
+  worksheet.getCell(`A${cpsStartRow}`).font = { bold: true, size: 12 };
+  worksheet.getCell(`A${cpsStartRow}`).alignment = { horizontal: "center" };
+
+  ["Q1", "Q2", "Q3", "Q4", "TOTAL COST"].forEach((header, i) => {
+    const col = String.fromCharCode(67 + i);
+    const cell = worksheet.getCell(`${col}${cpsStartRow}`);
+    cell.value = header;
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: "center" };
+  });
+
+  const cpsLabels = [
+    "CPS Send Domestic",
+    "Mailing Cost Domestic",
+    "CPS Send Foreign",
+    "Mailing Cost Foreign",
+  ];
+
+  cpsLabels.forEach((label, i) => {
+    const row = cpsStartRow + 1 + i;
+    worksheet.mergeCells(`A${row}:B${row}`);
+    worksheet.getCell(`A${row}`).value = label;
+
+    ["C", "D", "E", "F"].forEach((col) => {
+      worksheet.getCell(`${col}${row}`).value = "";
+      worksheet.getCell(`${col}${row}`).alignment = { horizontal: "center" };
+    });
+
+    worksheet.getCell(`G${row}`).value = { formula: `=SUM(C${row}:F${row})` };
+  });
+
+  const cpsEndRow = cpsStartRow + cpsLabels.length;
+
+  // Apply thick border (dark outline) around the entire CPS / MAILING COST block
+  for (let r = cpsStartRow; r <= cpsEndRow; r++) {
+    for (let c = 1; c <= 7; c++) {
+      const cell = worksheet.getRow(r).getCell(c);
+      cell.border = {
+        top: { style: r === cpsStartRow ? "medium" : "thin" },
+        bottom: { style: r === cpsEndRow ? "medium" : "thin" },
+        left: { style: c === 1 ? "medium" : "thin" },
+        right: { style: c === 7 ? "medium" : "thin" },
+      };
+    }
+  }
+
+  currentRow = cpsEndRow + 2;
+
+  // =======================
+  // TOTAL DONATION / SPENT / BALANCE
+  // =======================
+  worksheet.getCell(`F${currentRow}`).value = "Total Donation";
+  worksheet.getCell(`G${currentRow}`).value =
+    reportData.quarterlyData.totals.yearTotal.amount;
+
+  worksheet.getCell(`F${currentRow + 1}`).value = "Total Spent";
+  worksheet.getCell(`G${currentRow + 1}`).value = {
+    formula: `=SUM(G${cpsStartRow + 1}:G${cpsEndRow})`,
+  };
+
+  worksheet.getCell(`F${currentRow + 2}`).value = "Balance";
+  worksheet.getCell(`G${currentRow + 2}`).value = {
+    formula: `=G${currentRow}-G${currentRow + 1}`,
+  };
+
+  ["F", "G"].forEach((col) => {
+    [currentRow, currentRow + 1, currentRow + 2].forEach((r) => {
+      const cell = worksheet.getCell(`${col}${r}`);
+      cell.font = { bold: true };
+      cell.alignment = { horizontal: "center" };
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "thin" },
+        left: { style: "thin" },
+        right: { style: "thin" },
+      };
+
+      // ✅ Apply number formatting for G-column values
+      if (col === "G") {
+        cell.numFmt = "#,##0.00";
+      }
+    });
+  });
+
+  // =======================
+  // SAVE FILE
+  // =======================
+  await workbook.xlsx.writeFile(savePath);
+  console.log(chalk.green(`✅ Excel report generated: ${savePath}`));
+  return savePath;
+};
+
+export default processFomQuarterlyReport;
