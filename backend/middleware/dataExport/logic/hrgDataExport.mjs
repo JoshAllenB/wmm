@@ -371,6 +371,16 @@ async function generateHrgExcelReport(reportData, outputPath) {
       if (f25) f25.value = `NEW MEMBER (${yearA5})`;
       const f31 = worksheet.getCell("F31");
       if (f31) f31.value = `NEW MEMBER (${yearB6})`;
+      const f36 = worksheet.getCell("F36");
+      if (f36) {
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        f36.value = `TOTAL INCOME AS OF ${formattedDate}`;
+      }
       const f38 = worksheet.getCell("F38");
       if (f38)
         f38.value = `TOTAL NET PROFIT (for campaign ${yearA5}-${yearB6}) ----------------------------------- `;
