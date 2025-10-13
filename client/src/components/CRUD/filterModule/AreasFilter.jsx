@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 const AreasFilter = ({
   filterData,
@@ -11,11 +11,20 @@ const AreasFilter = ({
   local,
   foreign,
 }) => {
+  // ✅ Add temporary area entry for filtering (only if not already in local)
+  const extendedLocal = useMemo(() => {
+    const tempAreas = [...local];
+    if (!tempAreas.some((area) => area._id === "VM")) {
+      tempAreas.push({ _id: "VM", name: "VM (Legacy)" });
+    }
+    return tempAreas;
+  }, [local]);
+
   // Memoize the local areas grid
   const localAreasGrid = useMemo(() => {
     return (
       <div className="grid grid-cols-2">
-        {local.map((area) => (
+        {extendedLocal.map((area) => (
           <div key={area._id} className="flex items-center">
             <input
               type="checkbox"
@@ -27,7 +36,7 @@ const AreasFilter = ({
             <label
               htmlFor={`area-${area._id}`}
               className="ml-2 text-lg font-medium truncate"
-              title={area._id}
+              title={area.name || area._id}
             >
               {area._id}
             </label>
@@ -35,7 +44,7 @@ const AreasFilter = ({
         ))}
       </div>
     );
-  }, [local, filterData.areas, handleAreaChange]);
+  }, [extendedLocal, filterData.areas, handleAreaChange]);
 
   // Memoize the foreign areas grid
   const foreignAreasGrid = useMemo(() => {
@@ -77,7 +86,7 @@ const AreasFilter = ({
         <div className="max-h-[350px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
           {/* Local Areas */}
           <div className="mb-2">
-            <h3 className="text-xl font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+            <h3 className="text-xl font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
               <span>Local Areas</span>
               <div className="flex items-center">
                 <input
@@ -100,7 +109,7 @@ const AreasFilter = ({
 
           {/* Foreign Areas */}
           <div>
-            <h3 className="text-xl font-semibold text-bold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+            <h3 className="text-xl font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
               <span>Foreign Areas</span>
               <div className="flex items-center">
                 <input
@@ -126,4 +135,4 @@ const AreasFilter = ({
   );
 };
 
-export default AreasFilter; 
+export default AreasFilter;
