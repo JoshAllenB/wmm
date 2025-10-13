@@ -12,8 +12,7 @@ const DataExport = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const [exportType, setExportType] = useState("");
-  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
-  const [downloadFilename, setDownloadFilename] = useState("");
+  // Removed custom download dialog and filename state
   const [isDownloading, setIsDownloading] = useState(false);
 
   // FOM-specific state
@@ -100,10 +99,7 @@ const DataExport = () => {
       setIsGenerating(status.inProgress);
       setError(status.error);
 
-      // Set default filename when export completes
-      if (status.filename && !status.inProgress) {
-        setDownloadFilename(status.filename.replace(".xlsx", ""));
-      }
+      // No longer setting download filename for dialog
     };
 
     if (userData?.id) {
@@ -141,8 +137,7 @@ const DataExport = () => {
       setIsGenerating(true);
       setError(null);
       setIsDownloading(false);
-      setShowDownloadDialog(false);
-      setDownloadFilename("");
+      // Removed dialog and filename reset
 
       if (exportType === "FOM") {
         await dataExportService.generateFomQuarterlyReport(
@@ -176,7 +171,7 @@ const DataExport = () => {
       setIsDownloading(true);
       setError(null);
       await dataExportService.downloadFile(exportStatus.filename, exportType);
-      setShowDownloadDialog(false);
+      // Removed dialog close
     } catch (err) {
       console.error("Download error:", err);
       setError(err.message || "Failed to download file. Please try again.");
@@ -185,39 +180,7 @@ const DataExport = () => {
     }
   };
 
-  const handleDownloadWithCustomName = async () => {
-    if (!exportStatus.filename) {
-      setError("No file available for download");
-      return;
-    }
-
-    if (!downloadFilename.trim()) {
-      setError("Please enter a filename");
-      return;
-    }
-
-    try {
-      setIsDownloading(true);
-      setError(null);
-
-      const customFilename = downloadFilename.endsWith(".xlsx")
-        ? downloadFilename
-        : `${downloadFilename}.xlsx`;
-
-      // Use the service method for consistent download handling
-      await dataExportService.downloadFileWithCustomName(
-        exportStatus.filename,
-        exportType,
-        customFilename
-      );
-
-      setShowDownloadDialog(false);
-    } catch (err) {
-      setError(err.message || "Failed to download file");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  // Removed unused handleDownloadWithCustomName function
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-md">
@@ -226,7 +189,6 @@ const DataExport = () => {
           ? "FOM Quarterly Report Export"
           : "Monthly Report Export"}
       </h2>
-
       <div className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {availableExportTypes.length > 1 && (
@@ -312,7 +274,7 @@ const DataExport = () => {
             <div className="col-span-3">
               <div className="p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md">
                 <p>
-                  You don't have access to any report types. Please contact your
+                  You can&apos;t access any report types. Please contact your
                   administrator to get the necessary permissions.
                 </p>
               </div>
@@ -336,7 +298,6 @@ const DataExport = () => {
           )}
         </div>
       </div>
-
       {/* Progress indicator */}
       {exportStatus.inProgress && (
         <div className="mb-6">
@@ -355,14 +316,12 @@ const DataExport = () => {
           <p className="mt-2 text-sm text-gray-600">{exportStatus.message}</p>
         </div>
       )}
-
       {/* Error message */}
       {error && (
         <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
           <p>{error}</p>
         </div>
       )}
-
       {/* Success message */}
       {exportStatus.message &&
         exportStatus.message.includes("completed successfully") &&
@@ -375,114 +334,15 @@ const DataExport = () => {
             </p>
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => setShowDownloadDialog(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium"
-                disabled={isDownloading}
-              >
-                📥 Download Report
-              </button>
-              <button
                 onClick={handleDownload}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium"
                 disabled={isDownloading}
-              >
-                {isDownloading ? "Downloading..." : "Quick Download"}
-              </button>
-            </div>
-            <div className="mt-2 text-xs text-gray-500">
-              If download doesn't start, try the "Download Report" button or
-              check your browser's download settings.
-            </div>
-            {exportStatus.filename && (
-              <div className="mt-3 flex justify-center">
-                <button
-                  onClick={() => {
-                    const downloadUrl = `${
-                      import.meta.env.VITE_IP_ADDRESS
-                        ? `http://${import.meta.env.VITE_IP_ADDRESS}:3001`
-                        : "http://localhost:3001"
-                    }/data-export/${
-                      exportType === "HRG"
-                        ? "download-hrg"
-                        : exportType === "FOM"
-                        ? "download-fom-quarterly"
-                        : "download"
-                    }/${exportStatus.filename}`;
-                    window.open(downloadUrl, "_blank");
-                  }}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 transition-colors"
-                >
-                  Manual Download
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-      {/* Download Dialog Modal */}
-      {showDownloadDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">Download Report</h3>
-
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filename (without extension)
-              </label>
-              <input
-                type="text"
-                value={downloadFilename}
-                onChange={(e) => setDownloadFilename(e.target.value)}
-                placeholder={
-                  exportStatus.filename
-                    ? exportStatus.filename.replace(".xlsx", "")
-                    : ""
-                }
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isDownloading}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Default:{" "}
-                {exportStatus.filename
-                  ? exportStatus.filename.replace(".xlsx", "")
-                  : "report"}
-              </p>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600">
-                The file will be downloaded to your default download location.
-                You can choose where to save it when the download dialog
-                appears.
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => {
-                  setShowDownloadDialog(false);
-                  setDownloadFilename("");
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-                disabled={isDownloading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDownloadWithCustomName}
-                disabled={isDownloading || !downloadFilename.trim()}
-                className={`px-4 py-2 rounded-md text-white font-medium ${
-                  isDownloading || !downloadFilename.trim()
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
               >
                 {isDownloading ? "Downloading..." : "Download"}
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };
