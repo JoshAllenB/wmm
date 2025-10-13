@@ -105,155 +105,128 @@ function createDatePipeline(dateField, subscriptionType = "WMM") {
     },
   ];
 
-  // Add date conversion based on subscription type
-  const modelName = getSubscriptionModelName(subscriptionType);
-  if (modelName === "PromoModel") {
-    // Handle Promo date format (M/D/YYYY HH:mm:ss)
-    pipeline.push({
-      $addFields: {
-        normalizedDate: {
-          $let: {
-            vars: {
-              // First get just the date part if there's a space
-              datePart: {
-                $cond: {
-                  if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
-                  then: {
-                    $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0],
-                  },
-                  else: `$${dateField}`,
+  // Always robust date normalization for adddate: supports YYYY-MM-DD and MM/DD/YYYY (optionally with time), treats as UTC
+  pipeline.push({
+    $addFields: {
+      normalizedDate: {
+        $let: {
+          vars: {
+            datePart: {
+              $cond: {
+                if: { $regexMatch: { input: `$${dateField}`, regex: " " } },
+                then: {
+                  $arrayElemAt: [{ $split: [`$${dateField}`, " "] }, 0],
                 },
+                else: `$${dateField}`,
               },
             },
-            in: {
-              $cond: {
-                if: { $regexMatch: { input: "$$datePart", regex: "/" } },
-                then: {
-                  $let: {
-                    vars: {
-                      parts: { $split: ["$$datePart", "/"] },
-                      year: {
-                        $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2],
-                      },
-                      month: {
-                        $toString: {
-                          $cond: {
-                            if: {
-                              $lt: [
-                                {
-                                  $strLenBytes: {
-                                    $arrayElemAt: [
-                                      { $split: ["$$datePart", "/"] },
-                                      0,
-                                    ],
-                                  },
-                                },
-                                2,
-                              ],
-                            },
-                            then: {
-                              $concat: [
-                                "0",
-                                {
+          },
+          in: {
+            $cond: {
+              if: { $regexMatch: { input: "$$datePart", regex: "/" } },
+              then: {
+                $let: {
+                  vars: {
+                    parts: { $split: ["$$datePart", "/"] },
+                    year: {
+                      $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 2],
+                    },
+                    month: {
+                      $toString: {
+                        $cond: {
+                          if: {
+                            $lt: [
+                              {
+                                $strLenBytes: {
                                   $arrayElemAt: [
                                     { $split: ["$$datePart", "/"] },
                                     0,
                                   ],
                                 },
-                              ],
-                            },
-                            else: {
-                              $arrayElemAt: [
-                                { $split: ["$$datePart", "/"] },
-                                0,
-                              ],
-                            },
+                              },
+                              2,
+                            ],
+                          },
+                          then: {
+                            $concat: [
+                              "0",
+                              {
+                                $arrayElemAt: [
+                                  { $split: ["$$datePart", "/"] },
+                                  0,
+                                ],
+                              },
+                            ],
+                          },
+                          else: {
+                            $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 0],
                           },
                         },
                       },
-                      day: {
-                        $toString: {
-                          $cond: {
-                            if: {
-                              $lt: [
-                                {
-                                  $strLenBytes: {
-                                    $arrayElemAt: [
-                                      { $split: ["$$datePart", "/"] },
-                                      1,
-                                    ],
-                                  },
-                                },
-                                2,
-                              ],
-                            },
-                            then: {
-                              $concat: [
-                                "0",
-                                {
+                    },
+                    day: {
+                      $toString: {
+                        $cond: {
+                          if: {
+                            $lt: [
+                              {
+                                $strLenBytes: {
                                   $arrayElemAt: [
                                     { $split: ["$$datePart", "/"] },
                                     1,
                                   ],
                                 },
-                              ],
-                            },
-                            else: {
-                              $arrayElemAt: [
-                                { $split: ["$$datePart", "/"] },
-                                1,
-                              ],
-                            },
+                              },
+                              2,
+                            ],
+                          },
+                          then: {
+                            $concat: [
+                              "0",
+                              {
+                                $arrayElemAt: [
+                                  { $split: ["$$datePart", "/"] },
+                                  1,
+                                ],
+                              },
+                            ],
+                          },
+                          else: {
+                            $arrayElemAt: [{ $split: ["$$datePart", "/"] }, 1],
                           },
                         },
                       },
                     },
-                    in: {
-                      $dateFromString: {
-                        dateString: {
-                          $concat: ["$$year", "-", "$$month", "-", "$$day"],
-                        },
-                        format: "%Y-%m-%d",
-                        timezone: "UTC",
-                        onError: null,
-                        onNull: null,
+                  },
+                  in: {
+                    $dateFromString: {
+                      dateString: {
+                        $concat: ["$$year", "-", "$$month", "-", "$$day"],
                       },
+                      format: "%Y-%m-%d",
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null,
                     },
                   },
                 },
-                else: {
-                  $dateFromString: {
-                    dateString: "$$datePart",
-                    format: "%Y-%m-%d",
-                    timezone: "UTC",
-                    onError: null,
-                    onNull: null,
-                  },
+              },
+              else: {
+                $dateFromString: {
+                  dateString: "$$datePart",
+                  format: "%Y-%m-%d",
+                  timezone: "UTC",
+                  onError: null,
+                  onNull: null,
                 },
               },
             },
           },
         },
       },
-    });
-  } else {
-    // Handle WMM and Complimentary date format (YYYY-MM-DD)
-    pipeline.push({
-      $addFields: {
-        normalizedDate: {
-          $dateFromString: {
-            dateString: `$${dateField}`,
-            format: "%Y-%m-%d",
-            timezone: "UTC",
-            onError: null,
-            onNull: null,
-          },
-        },
-      },
-    });
-  }
+    },
+  });
 
-  // Filter out invalid dates
   pipeline.push({
     $match: {
       normalizedDate: { $ne: null },
