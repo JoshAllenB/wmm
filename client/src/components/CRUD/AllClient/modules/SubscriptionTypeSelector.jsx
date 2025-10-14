@@ -11,7 +11,7 @@ const SubscriptionTypeSelector = ({
 
   return (
     <div>
-      <div className="flex justify-center w-full gap-2 bg-gray-100 rounded-lg p-2">
+      <div className="flex justify-center w-full gap-2 bg-gray-100 rounded-lg p-1">
         {options.map(({ label, value, color }) => {
           const isActive = subscriptionType === value;
           return (
@@ -19,7 +19,7 @@ const SubscriptionTypeSelector = ({
               key={value}
               type="button"
               onClick={() => setSubscriptionType(value)}
-              className={`flex-1 text-base font-medium rounded-md px-3 py-2 transition-all duration-200 
+              className={`flex-1 text-base font-bold rounded-md py-1 transition-all duration-200 
                 ${
                   isActive
                     ? `bg-${color}-600 text-white shadow-sm`

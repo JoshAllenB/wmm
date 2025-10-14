@@ -1020,7 +1020,7 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
   };
 
   return (
-    <div className="relative flex items-center gap-4">
+    <div className="flex items-center gap-4">
       <div className="flex-1">
         <div className="relative">
           <input
@@ -1086,42 +1086,42 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
             ))}
           </div>
         </div>
-      </div>
-      <div className="flex gap-2">
-        <Button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.nativeEvent.stopImmediatePropagation();
-            setShowClientModal(true);
-            return false;
-          }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="bg-green-600 text-white hover:opacity-90 transition-opacity duration-200"
-        >
-          <span>Add From Clients</span>
-        </Button>
-        <Button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.nativeEvent.stopImmediatePropagation();
-            // Return false to ensure no further propagation
-            openModal();
-            return false;
-          }}
-          onMouseDown={(e) => {
-            // Prevent any mousedown events from propagating
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          className="bg-blue-600 text-white hover:opacity-90 transition-opacity duration-200"
-        >
-          <span>Add New Donor</span>
-        </Button>
+        <div className="flex gap-2 mt-2">
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.nativeEvent.stopImmediatePropagation();
+              setShowClientModal(true);
+              return false;
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="bg-green-600 text-white hover:opacity-90 transition-opacity duration-200"
+          >
+            <span>Add From Clients</span>
+          </Button>
+          <Button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.nativeEvent.stopImmediatePropagation();
+              // Return false to ensure no further propagation
+              openModal();
+              return false;
+            }}
+            onMouseDown={(e) => {
+              // Prevent any mousedown events from propagating
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            className="bg-blue-600 text-white hover:opacity-90 transition-opacity duration-200"
+          >
+            <span>Add New Donor</span>
+          </Button>
+        </div>
       </div>
 
       {/* Modal for selecting existing client */}

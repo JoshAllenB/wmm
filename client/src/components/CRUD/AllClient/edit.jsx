@@ -3664,16 +3664,26 @@ const Edit = ({
         ...areaData,
       };
 
-      // Compute client diff against initial snapshot to only show changed fields
-      const initialSnapshot = initialClientSnapshotRef.current || rowData || {};
-      const clientDataWithClears = computeClientDiff(
-        initialSnapshot,
-        baseClientData
-      );
-      setPreviewClientDiff(clientDataWithClears);
+      // For "Add New" subscription mode, show subscription data but don't show client diff (no changes to client)
+      if (subscriptionMode === "add") {
+        // We're adding a new subscription to existing client, show empty diff for client data
+        setPreviewClientDiff({});
+      } else {
+        // Compute client diff against initial snapshot to only show changed fields
+        const initialSnapshot =
+          initialClientSnapshotRef.current || rowData || {};
+        const clientDataWithClears = computeClientDiff(
+          initialSnapshot,
+          baseClientData
+        );
+        setPreviewClientDiff(clientDataWithClears);
+      }
 
       // Check if there are any meaningful changes
-      const hasClientChanges = Object.keys(clientDataWithClears).length > 0;
+      const hasClientChanges =
+        subscriptionMode === "add"
+          ? false
+          : Object.keys(previewClientDiff || {}).length > 0;
 
       // Validate subscription data if applicable
       let hasSubscriptionChanges = false;
@@ -3710,8 +3720,20 @@ const Edit = ({
       }
 
       // Check if there are any changes to save
-      if (!hasClientChanges && !hasSubscriptionChanges) {
-        // No changes detected, show a message and return
+      // For "Add New" subscription mode, we should always show confirmation if subscription data is valid
+      if (subscriptionMode === "add") {
+        // In add subscription mode, we're adding a new subscription, so show confirmation if valid
+        if (!hasSubscriptionChanges) {
+          toast({
+            title: "Incomplete Subscription Data",
+            description:
+              "Please complete the subscription fields before submitting.",
+            variant: "default",
+          });
+          return;
+        }
+      } else if (!hasClientChanges && !hasSubscriptionChanges) {
+        // No changes detected in edit existing mode, show a message and return
         toast({
           title: "No Changes",
           description: "No changes were detected. Nothing to save.",
@@ -4800,7 +4822,7 @@ const Edit = ({
 
             {/* WMM Subscription Information - Only show if user has WMM role */}
             {hasRole("WMM") && (
-              <div className="p-4 border rounded-lg shadow-sm col-span-2">
+              <div className="p-4 border rounded-lg shadow-sm col-span-3">
                 {/* Subscription Type Selector */}
                 <SubscriptionTypeSelector
                   subscriptionType={formData.subscriptionType}
@@ -4829,8 +4851,8 @@ const Edit = ({
                     </h2>
 
                     {/* Mode toggle - Edit existing or Add new */}
-                    <div className="mb-4">
-                      <div className="flex gap-2 mb-2">
+                    <div className="mb-2">
+                      <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => handleSubscriptionModeChange("edit")}
@@ -4939,38 +4961,40 @@ const Edit = ({
                         )}
                     </div>
 
-                    {/* Common subscription fields */}
-                    <CommonSubscriptionFields
-                      formData={formData}
-                      roleSpecificData={roleSpecificData}
-                      handleChange={handleChange}
-                      handleRoleSpecificChange={handleRoleSpecificChange}
-                      months={months}
-                    />
-                    {/* Subscription Type Specific Fields */}
-                    {formData.subscriptionType === "WMM" && (
-                      <WMMModule
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Common subscription fields */}
+                      <CommonSubscriptionFields
                         formData={formData}
                         roleSpecificData={roleSpecificData}
                         handleChange={handleChange}
                         handleRoleSpecificChange={handleRoleSpecificChange}
-                        handleNewDonorAdded={handleNewDonorAdded}
-                        subclasses={subclasses}
                         months={months}
-                        subscriptionType={formData.subscriptionType}
                       />
-                    )}
+                      {/* Subscription Type Specific Fields */}
+                      {formData.subscriptionType === "WMM" && (
+                        <WMMModule
+                          formData={formData}
+                          roleSpecificData={roleSpecificData}
+                          handleChange={handleChange}
+                          handleRoleSpecificChange={handleRoleSpecificChange}
+                          handleNewDonorAdded={handleNewDonorAdded}
+                          subclasses={subclasses}
+                          months={months}
+                          subscriptionType={formData.subscriptionType}
+                        />
+                      )}
 
-                    {formData.subscriptionType === "Promo" && (
-                      <PromoModule
-                        formData={formData}
-                        handleChange={handleChange}
-                      />
-                    )}
+                      {formData.subscriptionType === "Promo" && (
+                        <PromoModule
+                          formData={formData}
+                          handleChange={handleChange}
+                        />
+                      )}
 
-                    {formData.subscriptionType === "Complimentary" && (
-                      <ComplimentaryModule />
-                    )}
+                      {formData.subscriptionType === "Complimentary" && (
+                        <ComplimentaryModule />
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -7633,6 +7657,7 @@ const Edit = ({
           subscriptionValidation={subscriptionValidation}
           hasRole={hasRole}
           originalData={rowData}
+          subscriptionMode={subscriptionMode}
         />
       )}
     </>

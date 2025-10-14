@@ -101,10 +101,10 @@ const CommonSubscriptionFields = ({
 
   // Rest of the component remains the same...
   return (
-    <>
+    <div className="flex flex-col">
       {/* Start Date */}
       <div>
-        <label className="block text-lg font-medium mt-1">
+        <label className="block text-lg font-bold mt-1">
           Subscription Start: <span className="text-red-500 ml-1">*</span>
         </label>
         <div className="grid grid-cols-3 gap-1">
@@ -114,7 +114,7 @@ const CommonSubscriptionFields = ({
               name="subStartMonth"
               value={formData.subStartMonth || ""}
               onChange={handleChange}
-              className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Month</option>
               {months.map((month) => (
@@ -131,7 +131,7 @@ const CommonSubscriptionFields = ({
             value={formData.subStartDay || ""}
             onChange={handleChange}
             placeholder="DD"
-            className="w-full px-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="2"
           />
           <input
@@ -141,15 +141,15 @@ const CommonSubscriptionFields = ({
             value={formData.subStartYear || ""}
             onChange={handleChange}
             placeholder="YYYY"
-            className="w-full p-2 text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="4"
           />
         </div>
       </div>
 
       {/* Subscription Duration */}
-      <div className="mb-">
-        <label className="block text-lg font-medium mt-1">
+      <div>
+        <label className="block text-lg font-bold mt-1">
           Subscription Duration: <span className="text-red-500 ml-1">*</span>
         </label>
         <select
@@ -157,7 +157,7 @@ const CommonSubscriptionFields = ({
           name="subscriptionFreq"
           value={formData.subscriptionFreq}
           onChange={handleChange}
-          className="w-full px-2 py-1.5 font-bold text-base border rounded-md border-gray-300 
+          className="w-full font-bold text-base border rounded-md border-gray-300 
                focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
         >
           <option value="">Select Subscription Duration</option>
@@ -170,7 +170,7 @@ const CommonSubscriptionFields = ({
 
       {/* End Date */}
       <div className="mb-2">
-        <label className="block text-lg font-medium mt-1">
+        <label className="block text-lg font-bold mt-1">
           Subscription End: <span className="text-red-500 ml-1">*</span>
         </label>
         <div className="grid grid-cols-3 gap-2">
@@ -180,7 +180,7 @@ const CommonSubscriptionFields = ({
               name="subEndMonth"
               value={formData.subEndMonth || ""}
               onChange={handleChange}
-              className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             >
               <option value="">Month</option>
               {months.map((month) => (
@@ -197,7 +197,7 @@ const CommonSubscriptionFields = ({
             value={formData.subEndDay || ""}
             onChange={handleChange}
             placeholder="DD"
-            className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="2"
           />
           <input
@@ -207,18 +207,16 @@ const CommonSubscriptionFields = ({
             value={formData.subEndYear || ""}
             onChange={handleChange}
             placeholder="YYYY"
-            className="w-full p-2 font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full font-bold text-base border rounded-md border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
             maxLength="4"
           />
         </div>
       </div>
 
       {/* Copies and Calendar */}
-      <div className="flex space-x-4">
+      <div className="flex space-x-2 items-center">
         <div className="flex flex-row items-center justify-center">
-          <label className="block text-lg font-medium text-black">
-            Copies:
-          </label>
+          <label className="block text-lg font-bold mt-1">Copies:</label>
           <input
             id="copies"
             name="copies"
@@ -255,10 +253,10 @@ const CommonSubscriptionFields = ({
           value={roleSpecificData.remarks}
           onChange={handleRoleSpecificChange}
           type="textarea"
-          className="w-full p-2 border rounded-md text-base"
+          className="w-full border rounded-md text-base"
         />
       </div>
-    </>
+    </div>
   );
 };
 
