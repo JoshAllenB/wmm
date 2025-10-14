@@ -344,10 +344,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     });
   }
 
-  // Always enforce user filter for Admin: filter by adduser if userId is set
-  if (advancedFilterData.userId) {
-    baseFilter.push({ adduser: advancedFilterData.userId });
-  }
+// User+adddate combo and general user filter: defer adduser filter to inside subscription aggregation
+// (We push adduser at the aggregation/model pipeline now, not at client query level)
+// NOTE: Only push here if neither adddate_regex nor start/endDate nor adddate filtering is involved.
+const hasAddDateFilter = advancedFilterData.adddate_regex || advancedFilterData.startDate || advancedFilterData.endDate;
+if (advancedFilterData.userId && !hasAddDateFilter) {
+  baseFilter.push({ adduser: advancedFilterData.userId });
+}
   // Add basic text search filter
   if (filter) {
     // Check if it's a payment reference search
