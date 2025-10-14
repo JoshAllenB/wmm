@@ -1798,10 +1798,6 @@ const Edit = ({
         }));
       } else if (field === "acode") {
         dirtyClientFieldsRef.current.add("acode");
-        setFormData((prev) => ({
-          ...prev,
-          acode: safeValue,
-        }));
       }
 
       // Only update combined address for non-city changes
@@ -3693,13 +3689,14 @@ const Edit = ({
         selectedRole === "WMM" &&
         checkSubscriptionData(formData, roleSpecificData)
       ) {
-        const subscriptionData = getSubscriptionData(
-          formData.subscriptionType,
-          formData,
-          {
+const mergedRoleData = {
             ...roleSpecificData,
             subsclass: formData.subsclass || roleSpecificData.subsclass || "",
-          }
+        };
+        const subscriptionData = getSubscriptionData(
+            formData.subscriptionType,
+            formData,
+            mergedRoleData
         );
 
         const validation = validateNewSubscription(
@@ -3723,15 +3720,19 @@ const Edit = ({
       // For "Add New" subscription mode, we should always show confirmation if subscription data is valid
       if (subscriptionMode === "add") {
         // In add subscription mode, we're adding a new subscription, so show confirmation if valid
-        if (!hasSubscriptionChanges) {
-          toast({
-            title: "Incomplete Subscription Data",
-            description:
-              "Please complete the subscription fields before submitting.",
-            variant: "default",
-          });
-          return;
+        // Only run these checks for main subscription types
+        const validSubTypes = ["WMM", "Promo", "Complimentary"];
+        if (validSubTypes.includes(formData.subscriptionType)) {
+          if (!hasSubscriptionChanges) {
+            toast({
+              title: "Incomplete Subscription Data",
+              description: "Please complete the subscription fields before submitting.",
+              variant: "default",
+            });
+            return;
+          }
         }
+        // For any other type, do not block submission or show this toast.
       } else if (!hasClientChanges && !hasSubscriptionChanges) {
         // No changes detected in edit existing mode, show a message and return
         toast({

@@ -1,6 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { useToast } from "./ShadCN/hooks/use-toast";
 
+const validSubTypes = ["WMM", "Promo", "Complimentary"];
 const ConfirmationSummaryDialog = ({
   showConfirmation,
   setShowConfirmation,
@@ -360,58 +361,64 @@ const ConfirmationSummaryDialog = ({
               : "Please review the changes below and confirm the update."
             : "Please review the information below before submitting."}
         </p>
-        
-        {/* Show info banner for "Add New Subscription" mode */}
-        {isEditModeActual && subscriptionMode === "add" && (
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center">
-              <svg
-                className="w-5 h-5 text-blue-600 mr-2"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <h4 className="text-lg font-semibold text-blue-800">
-                Adding New Subscription
-              </h4>
+
+        {/* Show info banner for "Add New Subscription" mode - only for valid subscription types */}
+        {isEditModeActual &&
+          subscriptionMode === "add" &&
+          validSubTypes.includes(subscriptionType) && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 text-blue-600 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <h4 className="text-lg font-semibold text-blue-800">
+                  Adding New Subscription
+                </h4>
+              </div>
+              <p className="text-sm text-blue-700 mt-2">
+                You are about to add a new {subscriptionType} subscription to
+                this existing client. Client information will not be modified.
+              </p>
             </div>
-            <p className="text-sm text-blue-700 mt-2">
-              You are about to add a new {subscriptionType} subscription to this existing client.
-              Client information will not be modified.
-            </p>
-          </div>
-        )}
-        
-        {/* Show info banner for "Edit Existing Subscription" mode */}
-        {isEditModeActual && subscriptionMode === "edit" && Object.keys(previewClientDiff || {}).length === 0 && (
-          <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <div className="flex items-center">
-              <svg
-                className="w-5 h-5 text-amber-600 mr-2"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <h4 className="text-lg font-semibold text-amber-800">
-                Editing Existing Subscription
-              </h4>
+          )}
+
+        {/* Show info banner for "Edit Existing Subscription" mode - only for valid subscription types */}
+        {isEditModeActual &&
+          subscriptionMode === "edit" &&
+          validSubTypes.includes(subscriptionType) &&
+          Object.keys(previewClientDiff || {}).length === 0 && (
+            <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 text-amber-600 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <h4 className="text-lg font-semibold text-amber-800">
+                  Editing Existing Subscription
+                </h4>
+              </div>
+              <p className="text-sm text-amber-700 mt-2">
+                You are modifying an existing {subscriptionType} subscription.
+                The changes shown below will update the current subscription
+                record.
+              </p>
             </div>
-            <p className="text-sm text-amber-700 mt-2">
-              You are modifying an existing {subscriptionType} subscription.
-              The changes shown below will update the current subscription record.
-            </p>
-          </div>
-        )}
+          )}
 
         {/* Warning for no subscription data - only show in edit mode */}
         {isEditModeActual && previewNoSubscriptionIncluded && (
@@ -441,43 +448,46 @@ const ConfirmationSummaryDialog = ({
 
         {/* Update Type Selection for Edit Mode */}
 
-        {/* Subscription Validation Warnings - only show in edit mode */}
-        {isEditModeActual && subscriptionValidation.hasWarnings && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <div className="flex-shrink-0">
-                <svg
-                  className="h-5 w-5 text-yellow-400"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-yellow-800">
-                  Subscription Data Warnings
-                </h3>
-                <div className="mt-2 text-sm text-yellow-700">
-                  <ul className="list-disc list-inside space-y-1">
-                    {Object.entries(subscriptionValidation.warnings).map(
-                      ([field, message]) => (
-                        <li key={field}>{message}</li>
-                      )
-                    )}
-                  </ul>
+        {/* Subscription Validation Warnings - only show in edit mode for valid types */}
+        {isEditModeActual &&
+          validSubTypes.includes(subscriptionType) &&
+          subscriptionValidation.hasWarnings && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-yellow-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Subscription Data Warnings
+                  </h3>
+                  <div className="mt-2 text-sm text-yellow-700">
+                    <ul className="list-disc list-inside space-y-1">
+                      {Object.entries(subscriptionValidation.warnings).map(
+                        ([field, message]) => (
+                          <li key={field}>{message}</li>
+                        )
+                      )}
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Subscription Validation Info - only show in edit mode */}
+        {/* Subscription Validation Info - only show in edit mode for valid types */}
         {isEditModeActual &&
+          validSubTypes.includes(subscriptionType) &&
           !subscriptionValidation.isSubscriptionValid &&
           subscriptionValidation.hasWarnings && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -842,12 +852,14 @@ const ConfirmationSummaryDialog = ({
             roleSpecificData
           ) && (
             <>
-              <SectionHeader 
-                title={`${subscriptionType} Subscription ${subscriptionMode === "add" ? "(New)" : "(Editing)"}`} 
+              <SectionHeader
+                title={`${subscriptionType} Subscription ${
+                  subscriptionMode === "add" ? "(New)" : "(Editing)"
+                }`}
               />
               <FieldDisplay
                 label="Subscription Class"
-                value={formData.subsclass}
+                value={formData.subsclass || roleSpecificData.subsclass || ""}
                 required={subscriptionType === "WMM"}
                 showIfEmpty={false}
               />
