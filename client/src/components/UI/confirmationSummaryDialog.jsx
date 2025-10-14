@@ -29,6 +29,7 @@ const ConfirmationSummaryDialog = ({
   },
   hasRole = () => false,
   originalData = {},
+  subscriptionMode = "edit", // "add" or "edit" - for subscription operations
 }) => {
   const { toast } = useToast();
 
@@ -100,28 +101,26 @@ const ConfirmationSummaryDialog = ({
       return false;
     }
 
-    // For edit mode, use the original strict logic
+    // For edit mode, check if we have subscription start and end dates
+    // This handles both "Edit Existing" and "Add New" subscription scenarios
     const hasStartDate =
       formData.subStartYear && formData.subStartMonth && formData.subStartDay;
     const hasEndDate =
       formData.subEndYear && formData.subEndMonth && formData.subEndDay;
     const hasClass = formData.subsclass && formData.subsclass.trim() !== "";
 
-    // For WMM, also check for meaningful role-specific data
-    if (subscriptionType === "WMM") {
-      const hasCopies = roleSpecificData?.copies && roleSpecificData.copies > 0;
-      const hasPayment =
-        (roleSpecificData?.paymtref &&
-          roleSpecificData.paymtref.trim() !== "") ||
-        (roleSpecificData?.paymtamt &&
-          roleSpecificData.paymtamt.trim() !== "" &&
-          roleSpecificData.paymtamt !== "0");
-      return (
-        hasStartDate && hasEndDate && hasClass && (hasCopies || hasPayment)
-      );
+    // Basic check: if we have dates and class, show the subscription section
+    if (hasStartDate && hasEndDate && hasClass) {
+      return true;
     }
 
-    return hasStartDate && hasEndDate && hasClass;
+    // If subscription type is selected but dates aren't filled, still show section
+    // (this allows showing incomplete data for review)
+    if (subscriptionType && subscriptionType !== "None") {
+      return true;
+    }
+
+    return false;
   };
 
   // Helper function to check if address section has meaningful content
@@ -356,9 +355,63 @@ const ConfirmationSummaryDialog = ({
         </h3>
         <p className="mb-6 text-gray-600">
           {isEditModeActual
-            ? "Please review the information below and select what to update."
+            ? subscriptionMode === "add"
+              ? "Please review the new subscription information below before adding."
+              : "Please review the changes below and confirm the update."
             : "Please review the information below before submitting."}
         </p>
+        
+        {/* Show info banner for "Add New Subscription" mode */}
+        {isEditModeActual && subscriptionMode === "add" && (
+          <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center">
+              <svg
+                className="w-5 h-5 text-blue-600 mr-2"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <h4 className="text-lg font-semibold text-blue-800">
+                Adding New Subscription
+              </h4>
+            </div>
+            <p className="text-sm text-blue-700 mt-2">
+              You are about to add a new {subscriptionType} subscription to this existing client.
+              Client information will not be modified.
+            </p>
+          </div>
+        )}
+        
+        {/* Show info banner for "Edit Existing Subscription" mode */}
+        {isEditModeActual && subscriptionMode === "edit" && Object.keys(previewClientDiff || {}).length === 0 && (
+          <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex items-center">
+              <svg
+                className="w-5 h-5 text-amber-600 mr-2"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <h4 className="text-lg font-semibold text-amber-800">
+                Editing Existing Subscription
+              </h4>
+            </div>
+            <p className="text-sm text-amber-700 mt-2">
+              You are modifying an existing {subscriptionType} subscription.
+              The changes shown below will update the current subscription record.
+            </p>
+          </div>
+        )}
 
         {/* Warning for no subscription data - only show in edit mode */}
         {isEditModeActual && previewNoSubscriptionIncluded && (
@@ -789,7 +842,9 @@ const ConfirmationSummaryDialog = ({
             roleSpecificData
           ) && (
             <>
-              <SectionHeader title={`${subscriptionType} Subscription`} />
+              <SectionHeader 
+                title={`${subscriptionType} Subscription ${subscriptionMode === "add" ? "(New)" : "(Editing)"}`} 
+              />
               <FieldDisplay
                 label="Subscription Class"
                 value={formData.subsclass}
