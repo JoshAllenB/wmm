@@ -154,16 +154,16 @@ async function processMonthlyDistribution(
     // Step 1: Retrieve all required data in parallel
     sendProgressUpdate("Retrieving data from database...");
 
-    const [clients, allSubscriptions, allComplimentary, clientsAddedThisMonth] =
+    const [clients, allSubscriptions, allComplimentary, subscriptionsAddedThisMonth] =
       await Promise.all([
         ClientModel.find({}).lean(),
         WmmModel.find({}).lean(),
         ComplimentaryModel.find({}).lean(),
-        ClientModel.find({ adddate: { $regex: monthRegex } }).lean(),
+        WmmModel.find({ adddate: { $regex: monthRegex } }).lean(),
       ]);
 
     sendProgressUpdate(
-      `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions`
+      `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions, ${subscriptionsAddedThisMonth.length} subscriptions added this month`
     );
 
     // Create client lookup map for faster access
@@ -326,97 +326,59 @@ async function processMonthlyDistribution(
       `✅ Processed ${processedCount} subscriptions (${skippedCount} skipped)`
     );
 
-    // Step 4: Process renewals vs new subscriptions based on adddate
+    // Step 4: Process renewals vs new subscriptions based on adddate and subsclass
     sendProgressUpdate(
-      "Processing new subscribers and renewals based on adddate..."
+      "Processing new subscribers and renewals based on adddate and subsclass..."
     );
 
     sendProgressUpdate(
-      `✅ Found ${clientsAddedThisMonth.length} clients added this month`
+      `✅ Found ${subscriptionsAddedThisMonth.length} subscriptions added this month`
     );
 
-    // More efficient renewal detection using bulk operations
-    const renewals = [];
-    const newSubs = [];
+    // Count NEW and RENEWALS based on subsclass field
+    // NEW: subsclass does NOT contain 'R'
+    // RENEWAL: subsclass contains 'R'
+    let renewalCount = 0;
+    let newSubCount = 0;
 
-    // Get all client IDs with clients added this month
-    const clientIdsAddedThisMonth = clientsAddedThisMonth.map(
-      (client) => client.id
-    );
-
-    // Find all previous subscriptions for these clients in one query
-    const allPreviousSubs = await WmmModel.find({
-      clientid: { $in: clientIdsAddedThisMonth },
-      subsdate: { $lt: startOfMonth },
-    }).lean();
-
-    // Group previous subscriptions by client ID
-    const previousSubsByClient = {};
-    for (const sub of allPreviousSubs) {
-      if (!previousSubsByClient[sub.clientid]) {
-        previousSubsByClient[sub.clientid] = [];
-      }
-      previousSubsByClient[sub.clientid].push(sub);
-    }
-
-    // Determine renewals vs new subscriptions based on clients added this month
-    for (const client of clientsAddedThisMonth) {
+    for (const subscription of subscriptionsAddedThisMonth) {
       try {
-        const clientAddDate = new Date(client.adddate);
-        const prevSubs = previousSubsByClient[client.id] || [];
+        const subsclass = subscription.subsclass || "";
+        const isRenewal = subsclass.includes("R");
 
-        // Debug logging for first few clients
-        if (newSubs.length + renewals.length < 3) {
+        // Debug logging for first few subscriptions
+        if (newSubCount + renewalCount < 5) {
           console.log(
             chalk.cyan(
-              `Processing client ${client.id} (added ${client.adddate}) - ${prevSubs.length} previous subs`
+              `Processing subscription ${subscription.id} (client: ${subscription.clientid}, adddate: ${subscription.adddate}, subsclass: ${subsclass})`
             )
           );
         }
 
-        // Check if any previous subscription ended within 3 months (90 days) of client add date
-        const isRenewal = prevSubs.some((prevSub) => {
-          try {
-            const prevEndDate = new Date(prevSub.enddate);
-            const daysDiff =
-              (clientAddDate - prevEndDate) / (1000 * 60 * 60 * 24);
-            const isWithin90Days = daysDiff <= 90 && daysDiff >= 0;
-
-            // Debug logging for first few clients
-            if (newSubs.length + renewals.length < 3) {
-              console.log(
-                chalk.cyan(
-                  `  Checking previous sub ending ${
-                    prevSub.enddate
-                  } (${daysDiff.toFixed(0)} days before add date)`
-                )
-              );
-            }
-
-            return isWithin90Days;
-          } catch {
-            return false;
-          }
-        });
-
         if (isRenewal) {
-          renewals.push(client);
-          if (renewals.length <= 3) {
-            console.log(chalk.green(`  -> RENEWAL`));
+          renewalCount++;
+          if (renewalCount <= 5) {
+            console.log(chalk.green(`  -> RENEWAL (subsclass contains 'R')`));
           }
         } else {
-          newSubs.push(client);
-          if (newSubs.length <= 3) {
-            console.log(chalk.green(`  -> NEW SUBSCRIBER`));
+          newSubCount++;
+          if (newSubCount <= 5) {
+            console.log(chalk.green(`  -> NEW SUBSCRIBER (subsclass has no 'R')`));
           }
         }
       } catch (error) {
         console.error(
-          chalk.red(`❌ Error analyzing client ${client.id}:`),
+          chalk.red(`❌ Error analyzing subscription ${subscription.id}:`),
           error.message
         );
       }
     }
+
+    console.log(
+      chalk.bold.green(
+        `✅ Totals: ${newSubCount} NEW SUBSCRIBERS, ${renewalCount} RENEWALS`
+      )
+    );
 
     // Step 5: Process complimentary subscriptions
     sendProgressUpdate("Processing complimentary copies...");
@@ -572,8 +534,8 @@ async function processMonthlyDistribution(
       month,
       year,
       paidSubscribers,
-      newSubscribers: newSubs.length,
-      renewals: renewals.length,
+      newSubscribers: newSubCount,
+      renewals: renewalCount,
       complimentary: complimentaryResult,
       // These would be filled in manually or from another source
       consignments: {
