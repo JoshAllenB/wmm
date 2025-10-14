@@ -120,7 +120,7 @@ export const getSubscriptionSpecificData = (
       paymtamt: roleSpecificData.paymtamt || "",
       paymtmasses: roleSpecificData.paymtmasses || "",
       donorid:
-        typeof roleSpecificData.donorid === "object"
+        typeof roleSpecificData.donorid === "object" && roleSpecificData.donorid !== null
           ? roleSpecificData.donorid._id || roleSpecificData.donorid.id
           : roleSpecificData.donorid || "",
     };
