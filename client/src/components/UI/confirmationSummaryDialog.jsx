@@ -362,10 +362,11 @@ const ConfirmationSummaryDialog = ({
             : "Please review the information below before submitting."}
         </p>
 
-        {/* Show info banner for "Add New Subscription" mode - only for valid subscription types */}
+        {/* Show info banner for "Add New Subscription" mode - only for valid subscription types and WMM role */}
         {isEditModeActual &&
           subscriptionMode === "add" &&
-          validSubTypes.includes(subscriptionType) && (
+          validSubTypes.includes(subscriptionType) &&
+          selectedRole === "WMM" && (
             <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center">
                 <svg
@@ -390,10 +391,11 @@ const ConfirmationSummaryDialog = ({
             </div>
           )}
 
-        {/* Show info banner for "Edit Existing Subscription" mode - only for valid subscription types */}
+        {/* Show info banner for "Edit Existing Subscription" mode - only for valid subscription types and WMM role */}
         {isEditModeActual &&
           subscriptionMode === "edit" &&
           validSubTypes.includes(subscriptionType) &&
+          selectedRole === "WMM" &&
           Object.keys(previewClientDiff || {}).length === 0 && (
             <div className="mb-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
               <div className="flex items-center">
@@ -448,9 +450,10 @@ const ConfirmationSummaryDialog = ({
 
         {/* Update Type Selection for Edit Mode */}
 
-        {/* Subscription Validation Warnings - only show in edit mode for valid types */}
+        {/* Subscription Validation Warnings - only show in edit mode for valid types and WMM role */}
         {isEditModeActual &&
           validSubTypes.includes(subscriptionType) &&
+          selectedRole === "WMM" &&
           subscriptionValidation.hasWarnings && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start">
@@ -485,9 +488,10 @@ const ConfirmationSummaryDialog = ({
             </div>
           )}
 
-        {/* Subscription Validation Info - only show in edit mode for valid types */}
+        {/* Subscription Validation Info - only show in edit mode for valid types and WMM role */}
         {isEditModeActual &&
           validSubTypes.includes(subscriptionType) &&
+          selectedRole === "WMM" &&
           !subscriptionValidation.isSubscriptionValid &&
           subscriptionValidation.hasWarnings && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -845,97 +849,99 @@ const ConfirmationSummaryDialog = ({
             </>
           )}
 
-          {/* Subscription Information - Show if subscriptionType exists and has meaningful data */}
-          {hasSubscriptionData(
-            subscriptionType,
-            formData,
-            roleSpecificData
-          ) && (
-            <>
-              <SectionHeader
-                title={`${subscriptionType} Subscription ${
-                  subscriptionMode === "add" ? "(New)" : "(Editing)"
-                }`}
-              />
-              <FieldDisplay
-                label="Subscription Class"
-                value={formData.subsclass || roleSpecificData.subsclass || ""}
-                required={subscriptionType === "WMM"}
-                showIfEmpty={false}
-              />
-              <FieldDisplay
-                label="Start Date"
-                value={startDate}
-                required={true}
-                showIfEmpty={false}
-              />
-              <FieldDisplay
-                label="End Date"
-                value={endDate}
-                required={true}
-                showIfEmpty={false}
-              />
-              <FieldDisplay
-                label="Duration"
-                value={
-                  formData.subscriptionFreq
-                    ? `${formData.subscriptionFreq} months`
-                    : ""
-                }
-                required={true}
-                showIfEmpty={false}
-              />
-              <FieldDisplay
-                label="Copies"
-                value={roleSpecificData.copies}
-                required={true}
-                showIfEmpty={false}
-              />
-
-              {/* WMM Specific Fields - Only show if WMM subscription type and has data */}
-              {subscriptionType === "WMM" && hasRoleData(roleSpecificData) && (
-                <>
-                  <FieldDisplay
-                    label="Payment Reference"
-                    value={roleSpecificData.paymtref}
-                    required={true}
-                    showIfEmpty={false}
-                  />
-                  <FieldDisplay
-                    label="Payment Amount"
-                    value={roleSpecificData.paymtamt}
-                    required={true}
-                    showIfEmpty={false}
-                  />
-                  <FieldDisplay
-                    label="Payment Masses"
-                    value={roleSpecificData.paymtmasses}
-                    showIfEmpty={false}
-                  />
-                  <FieldDisplay
-                    label="Donor ID"
-                    value={roleSpecificData.donorid}
-                    showIfEmpty={false}
-                  />
-                  <FieldDisplay
-                    label="Remarks"
-                    value={roleSpecificData.remarks}
-                    showIfEmpty={false}
-                  />
-                </>
-              )}
-
-              {/* Promo Specific Field */}
-              {subscriptionType === "Promo" && (
+          {/* Subscription Information - Show if subscriptionType exists, has meaningful data, and WMM role is selected */}
+          {selectedRole === "WMM" &&
+            hasSubscriptionData(
+              subscriptionType,
+              formData,
+              roleSpecificData
+            ) && (
+              <>
+                <SectionHeader
+                  title={`${subscriptionType} Subscription ${
+                    subscriptionMode === "add" ? "(New)" : "(Editing)"
+                  }`}
+                />
                 <FieldDisplay
-                  label="Referral ID"
-                  value={formData.referralid}
+                  label="Subscription Class"
+                  value={formData.subsclass || roleSpecificData.subsclass || ""}
+                  required={subscriptionType === "WMM"}
+                  showIfEmpty={false}
+                />
+                <FieldDisplay
+                  label="Start Date"
+                  value={startDate}
                   required={true}
                   showIfEmpty={false}
                 />
-              )}
-            </>
-          )}
+                <FieldDisplay
+                  label="End Date"
+                  value={endDate}
+                  required={true}
+                  showIfEmpty={false}
+                />
+                <FieldDisplay
+                  label="Duration"
+                  value={
+                    formData.subscriptionFreq
+                      ? `${formData.subscriptionFreq} months`
+                      : ""
+                  }
+                  required={true}
+                  showIfEmpty={false}
+                />
+                <FieldDisplay
+                  label="Copies"
+                  value={roleSpecificData.copies}
+                  required={true}
+                  showIfEmpty={false}
+                />
+
+                {/* WMM Specific Fields - Only show if WMM subscription type and has data */}
+                {subscriptionType === "WMM" &&
+                  hasRoleData(roleSpecificData) && (
+                    <>
+                      <FieldDisplay
+                        label="Payment Reference"
+                        value={roleSpecificData.paymtref}
+                        required={true}
+                        showIfEmpty={false}
+                      />
+                      <FieldDisplay
+                        label="Payment Amount"
+                        value={roleSpecificData.paymtamt}
+                        required={true}
+                        showIfEmpty={false}
+                      />
+                      <FieldDisplay
+                        label="Payment Masses"
+                        value={roleSpecificData.paymtmasses}
+                        showIfEmpty={false}
+                      />
+                      <FieldDisplay
+                        label="Donor ID"
+                        value={roleSpecificData.donorid}
+                        showIfEmpty={false}
+                      />
+                      <FieldDisplay
+                        label="Remarks"
+                        value={roleSpecificData.remarks}
+                        showIfEmpty={false}
+                      />
+                    </>
+                  )}
+
+                {/* Promo Specific Field */}
+                {subscriptionType === "Promo" && (
+                  <FieldDisplay
+                    label="Referral ID"
+                    value={formData.referralid}
+                    required={true}
+                    showIfEmpty={false}
+                  />
+                )}
+              </>
+            )}
 
           {/* Role Specific Information - Show only roles that actually have data */}
           {/* HRG Information - Only show if user has HRG role and has meaningful data */}
@@ -944,42 +950,74 @@ const ConfirmationSummaryDialog = ({
               <SectionHeader title="HRG Information" />
               <FieldDisplay
                 label="Received Date"
-                value={hrgData.recvdate}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.recvdate
+                    : hrgData.recvdate
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Campaign Date"
-                value={hrgData.campaigndate}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.campaigndate
+                    : hrgData.campaigndate
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
-                value={hrgData.paymtref}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.paymtref
+                    : hrgData.paymtref
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Amount"
-                value={hrgData.paymtamt}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.paymtamt
+                    : hrgData.paymtamt
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Form"
-                value={hrgData.paymtform}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.paymtform
+                    : hrgData.paymtform
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Unsubscribe"
-                value={hrgData.unsubscribe ? "Yes" : "No"}
+                value={
+                  (
+                    selectedRole === "HRG"
+                      ? roleSpecificData.unsubscribe
+                      : hrgData.unsubscribe
+                  )
+                    ? "Yes"
+                    : "No"
+                }
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Remarks"
-                value={hrgData.remarks}
+                value={
+                  selectedRole === "HRG"
+                    ? roleSpecificData.remarks
+                    : hrgData.remarks
+                }
                 showIfEmpty={false}
               />
             </>
@@ -991,36 +1029,64 @@ const ConfirmationSummaryDialog = ({
               <SectionHeader title="FOM Information" />
               <FieldDisplay
                 label="Received Date"
-                value={fomData.recvdate}
+                value={
+                  selectedRole === "FOM"
+                    ? roleSpecificData.recvdate
+                    : fomData.recvdate
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
-                value={fomData.paymtref}
+                value={
+                  selectedRole === "FOM"
+                    ? roleSpecificData.paymtref
+                    : fomData.paymtref
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Amount"
-                value={fomData.paymtamt}
+                value={
+                  selectedRole === "FOM"
+                    ? roleSpecificData.paymtamt
+                    : fomData.paymtamt
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Form"
-                value={fomData.paymtform}
+                value={
+                  selectedRole === "FOM"
+                    ? roleSpecificData.paymtform
+                    : fomData.paymtform
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Unsubscribe"
-                value={fomData.unsubscribe ? "Yes" : "No"}
+                value={
+                  (
+                    selectedRole === "FOM"
+                      ? roleSpecificData.unsubscribe
+                      : fomData.unsubscribe
+                  )
+                    ? "Yes"
+                    : "No"
+                }
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Remarks"
-                value={fomData.remarks}
+                value={
+                  selectedRole === "FOM"
+                    ? roleSpecificData.remarks
+                    : fomData.remarks
+                }
                 showIfEmpty={false}
               />
             </>
@@ -1032,61 +1098,101 @@ const ConfirmationSummaryDialog = ({
               <SectionHeader title="CAL Information" />
               <FieldDisplay
                 label="Received Date"
-                value={calData.recvdate}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.recvdate
+                    : calData.recvdate
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Type"
-                value={calData.caltype}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.caltype
+                    : calData.caltype
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Quantity"
-                value={calData.calqty}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.calqty
+                    : calData.calqty
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Unit Price"
-                value={calData.calunit}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.calunit
+                    : calData.calunit
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Calendar Total Amount"
-                value={calData.calamt}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.calamt
+                    : calData.calamt
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Reference"
-                value={calData.paymtref}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.paymtref
+                    : calData.paymtref
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Amount"
-                value={calData.paymtamt}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.paymtamt
+                    : calData.paymtamt
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Form"
-                value={calData.paymtform}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.paymtform
+                    : calData.paymtform
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Payment Date"
-                value={calData.paymtdate}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.paymtdate
+                    : calData.paymtdate
+                }
                 required={true}
                 showIfEmpty={false}
               />
               <FieldDisplay
                 label="Remarks"
-                value={calData.remarks}
+                value={
+                  selectedRole === "CAL"
+                    ? roleSpecificData.remarks
+                    : calData.remarks
+                }
                 showIfEmpty={false}
               />
             </>

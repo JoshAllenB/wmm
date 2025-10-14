@@ -1421,6 +1421,32 @@ const Edit = ({
         [name]: fieldValue,
       };
 
+      // Sync subsclass changes to formData as well
+      if (name === "subsclass") {
+        setFormData((prevFormData) => ({
+          ...prevFormData,
+          subsclass: fieldValue,
+        }));
+      }
+
+      // Sync changes to role-specific states based on selected role
+      if (selectedRole === "HRG") {
+        setHrgData((prev) => ({
+          ...prev,
+          [name]: fieldValue,
+        }));
+      } else if (selectedRole === "FOM") {
+        setFomData((prev) => ({
+          ...prev,
+          [name]: fieldValue,
+        }));
+      } else if (selectedRole === "CAL") {
+        setCalData((prev) => ({
+          ...prev,
+          [name]: fieldValue,
+        }));
+      }
+
       // Handle date component changes
       if (
         name === "recvdateMonth" ||
@@ -1434,6 +1460,11 @@ const Edit = ({
         ) {
           // Format as YYYY-MM-DD for database consistency
           newData.recvdate = `${newData.recvdateYear}-${newData.recvdateMonth}-${newData.recvdateDay}`;
+          // Sync combined date to role-specific state
+          if (selectedRole === "HRG" || selectedRole === "FOM" || selectedRole === "CAL") {
+            const updateFunc = selectedRole === "HRG" ? setHrgData : selectedRole === "FOM" ? setFomData : setCalData;
+            updateFunc((prev) => ({ ...prev, recvdate: newData.recvdate }));
+          }
         }
       }
 
@@ -1449,6 +1480,10 @@ const Edit = ({
         ) {
           // Format as YYYY-MM-DD for database consistency
           newData.campaigndate = `${newData.campaigndateYear}-${newData.campaigndateMonth}-${newData.campaigndateDay}`;
+          // Sync combined date to HRG state (only HRG has campaign date)
+          if (selectedRole === "HRG") {
+            setHrgData((prev) => ({ ...prev, campaigndate: newData.campaigndate }));
+          }
         }
       }
 
@@ -1464,6 +1499,11 @@ const Edit = ({
         ) {
           // Format as YYYY-MM-DD for database consistency
           newData.paymtdate = `${newData.paymtdateYear}-${newData.paymtdateMonth}-${newData.paymtdateDay}`;
+          // Sync combined date to role-specific state (FOM and CAL have payment date)
+          if (selectedRole === "FOM" || selectedRole === "CAL") {
+            const updateFunc = selectedRole === "FOM" ? setFomData : setCalData;
+            updateFunc((prev) => ({ ...prev, paymtdate: newData.paymtdate }));
+          }
         }
       }
 
@@ -1475,6 +1515,8 @@ const Edit = ({
           parseFloat(name === "calunit" ? value : newData.calunit) || 0;
         // Ensure unit cost is saved under calamt
         newData.calamt = (parseFloat(newData.calunit) || 0).toString();
+        // Sync calculated calamt to calData state
+        setCalData((prev) => ({ ...prev, calamt: newData.calamt }));
       }
 
       return newData;
@@ -1986,6 +2028,8 @@ const Edit = ({
             paymtdateYear: paymtdateParts.year,
           };
           setHrgData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedHrgRecord.recvdate
@@ -1996,7 +2040,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedHrgRecord.paymtdate
           );
-          setHrgData({
+          const roleData = {
             ...selectedHrgRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
@@ -2007,7 +2051,10 @@ const Edit = ({
             paymtdateMonth: paymtdateParts.month,
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
-          });
+          };
+          setHrgData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         }
       } else {
         // No records available, set up empty form
@@ -2052,6 +2099,8 @@ const Edit = ({
             paymtdateYear: paymtdateParts.year,
           };
           setFomData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedFomRecord.recvdate
@@ -2059,7 +2108,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedFomRecord.paymtdate
           );
-          setFomData({
+          const roleData = {
             ...selectedFomRecord,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
@@ -2067,7 +2116,10 @@ const Edit = ({
             paymtdateMonth: paymtdateParts.month,
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
-          });
+          };
+          setFomData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         }
       } else {
         // No records available, set up empty form
@@ -2099,6 +2151,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
             ...firstRecord,
+            calunit: firstRecord.calunit ?? firstRecord.calamt ?? 0,
             recvdateMonth: recvdateParts.month,
             recvdateDay: recvdateParts.day,
             recvdateYear: recvdateParts.year,
@@ -2107,6 +2160,8 @@ const Edit = ({
             paymtdateYear: paymtdateParts.year,
           };
           setCalData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
             selectedCalRecord.recvdate
@@ -2114,7 +2169,7 @@ const Edit = ({
           const paymtdateParts = parseDateToComponents(
             selectedCalRecord.paymtdate
           );
-          setCalData({
+          const roleData = {
             ...selectedCalRecord,
             calunit: selectedCalRecord.calunit ?? selectedCalRecord.calamt ?? 0,
             recvdateMonth: recvdateParts.month,
@@ -2123,7 +2178,10 @@ const Edit = ({
             paymtdateMonth: paymtdateParts.month,
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
-          });
+          };
+          setCalData(roleData);
+          // Sync to roleSpecificData so the form fields display the data
+          setRoleSpecificData(roleData);
         }
       } else {
         // No records available, set up empty form
@@ -2334,7 +2392,8 @@ const Edit = ({
       setSelectedHrgRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
       const campaigndateParts = parseDateToComponents(firstRecord.campaigndate);
-      setHrgData({
+      const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
+      const roleData = {
         ...firstRecord,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
@@ -2342,7 +2401,13 @@ const Edit = ({
         campaigndateMonth: campaigndateParts.month,
         campaigndateDay: campaigndateParts.day,
         campaigndateYear: campaigndateParts.year,
-      });
+        paymtdateMonth: paymtdateParts.month,
+        paymtdateDay: paymtdateParts.day,
+        paymtdateYear: paymtdateParts.year,
+      };
+      setHrgData(roleData);
+      // Sync to roleSpecificData so the form fields display the data
+      setRoleSpecificData(roleData);
     }
   }, [hrgRecords, selectedRole, selectedHrgRecord]);
 
@@ -2351,12 +2416,19 @@ const Edit = ({
       const firstRecord = fomRecords[0];
       setSelectedFomRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
-      setFomData({
+      const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
+      const roleData = {
         ...firstRecord,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
         recvdateYear: recvdateParts.year,
-      });
+        paymtdateMonth: paymtdateParts.month,
+        paymtdateDay: paymtdateParts.day,
+        paymtdateYear: paymtdateParts.year,
+      };
+      setFomData(roleData);
+      // Sync to roleSpecificData so the form fields display the data
+      setRoleSpecificData(roleData);
     }
   }, [fomRecords, selectedRole, selectedFomRecord]);
 
@@ -2365,13 +2437,20 @@ const Edit = ({
       const firstRecord = calRecords[0];
       setSelectedCalRecord(firstRecord);
       const recvdateParts = parseDateToComponents(firstRecord.recvdate);
-      setCalData({
+      const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
+      const roleData = {
         ...firstRecord,
         calunit: firstRecord.calunit ?? firstRecord.calamt ?? 0,
         recvdateMonth: recvdateParts.month,
         recvdateDay: recvdateParts.day,
         recvdateYear: recvdateParts.year,
-      });
+        paymtdateMonth: paymtdateParts.month,
+        paymtdateDay: paymtdateParts.day,
+        paymtdateYear: paymtdateParts.year,
+      };
+      setCalData(roleData);
+      // Sync to roleSpecificData so the form fields display the data
+      setRoleSpecificData(roleData);
     }
   }, [calRecords, selectedRole, selectedCalRecord]);
 
@@ -3689,14 +3768,14 @@ const Edit = ({
         selectedRole === "WMM" &&
         checkSubscriptionData(formData, roleSpecificData)
       ) {
-const mergedRoleData = {
-            ...roleSpecificData,
-            subsclass: formData.subsclass || roleSpecificData.subsclass || "",
+        const mergedRoleData = {
+          ...roleSpecificData,
+          subsclass: formData.subsclass || roleSpecificData.subsclass || "",
         };
         const subscriptionData = getSubscriptionData(
-            formData.subscriptionType,
-            formData,
-            mergedRoleData
+          formData.subscriptionType,
+          formData,
+          mergedRoleData
         );
 
         const validation = validateNewSubscription(
@@ -3720,19 +3799,23 @@ const mergedRoleData = {
       // For "Add New" subscription mode, we should always show confirmation if subscription data is valid
       if (subscriptionMode === "add") {
         // In add subscription mode, we're adding a new subscription, so show confirmation if valid
-        // Only run these checks for main subscription types
+        // Only run these checks for main subscription types AND when WMM role is selected
         const validSubTypes = ["WMM", "Promo", "Complimentary"];
-        if (validSubTypes.includes(formData.subscriptionType)) {
+        if (
+          validSubTypes.includes(formData.subscriptionType) &&
+          selectedRole === "WMM"
+        ) {
           if (!hasSubscriptionChanges) {
             toast({
               title: "Incomplete Subscription Data",
-              description: "Please complete the subscription fields before submitting.",
+              description:
+                "Please complete the subscription fields before submitting.",
               variant: "default",
             });
             return;
           }
         }
-        // For any other type, do not block submission or show this toast.
+        // For any other type or role (HRG, FOM, CAL), do not block submission or show this toast.
       } else if (!hasClientChanges && !hasSubscriptionChanges) {
         // No changes detected in edit existing mode, show a message and return
         toast({
@@ -5122,6 +5205,9 @@ const mergedRoleData = {
                                   );
                                   const campaigndateParts =
                                     parseDateToComponents(record.campaigndate);
+                                  const paymtdateParts = parseDateToComponents(
+                                    record.paymtdate
+                                  );
 
                                   setRoleSpecificData({
                                     ...record,
@@ -5131,6 +5217,9 @@ const mergedRoleData = {
                                     campaigndateMonth: campaigndateParts.month,
                                     campaigndateDay: campaigndateParts.day,
                                     campaigndateYear: campaigndateParts.year,
+                                    paymtdateMonth: paymtdateParts.month,
+                                    paymtdateDay: paymtdateParts.day,
+                                    paymtdateYear: paymtdateParts.year,
                                   });
                                 }
                               }}
@@ -5208,11 +5297,17 @@ const mergedRoleData = {
                                   const recvdateParts = parseDateToComponents(
                                     record.recvdate
                                   );
+                                  const paymtdateParts = parseDateToComponents(
+                                    record.paymtdate
+                                  );
                                   setRoleSpecificData({
                                     ...record,
                                     recvdateMonth: recvdateParts.month,
                                     recvdateDay: recvdateParts.day,
                                     recvdateYear: recvdateParts.year,
+                                    paymtdateMonth: paymtdateParts.month,
+                                    paymtdateDay: paymtdateParts.day,
+                                    paymtdateYear: paymtdateParts.year,
                                   });
                                 }
                               }}
@@ -5277,7 +5372,11 @@ const mergedRoleData = {
                                 selectedCalRecord
                                   ? selectedCalRecord.id ||
                                     selectedCalRecord._id ||
-                                    ""
+                                    (calRecords.length > 0
+                                      ? calRecords[0].id || calRecords[0]._id
+                                      : "")
+                                  : calRecords.length > 0
+                                  ? calRecords[0].id || calRecords[0]._id
                                   : ""
                               }
                               onChange={(e) => {
@@ -5290,6 +5389,9 @@ const mergedRoleData = {
                                   const recvdateParts = parseDateToComponents(
                                     record.recvdate
                                   );
+                                  const paymtdateParts = parseDateToComponents(
+                                    record.paymtdate
+                                  );
                                   setRoleSpecificData({
                                     ...record,
                                     calunit:
@@ -5297,6 +5399,9 @@ const mergedRoleData = {
                                     recvdateMonth: recvdateParts.month,
                                     recvdateDay: recvdateParts.day,
                                     recvdateYear: recvdateParts.year,
+                                    paymtdateMonth: paymtdateParts.month,
+                                    paymtdateDay: paymtdateParts.day,
+                                    paymtdateYear: paymtdateParts.year,
                                   });
                                 }
                               }}
