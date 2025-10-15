@@ -261,6 +261,78 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("FOM Report");
 
+  worksheet.pageSetup = {
+    paperSize: 1, // US Letter
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    horizontalCentered: true,
+    verticalCentered: false,
+    margins: {
+      left: 0.25,
+      right: 0.25,
+      top: 0.5,
+      bottom: 0.5,
+      header: 0.3,
+      footer: 0.3,
+    },
+  };
+
+  worksheet.columns = [
+    { width: 14 },
+    { width: 6 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 10 },
+    { width: 14 },
+  ];
+
+  // ================================
+  // BORDER HELPERS
+  // ================================
+  const applyThinBorders = (startCell, endCell) => {
+    const borderStyle = { style: "thin", color: { argb: "000000" } };
+    const start = worksheet.getCell(startCell);
+    const end = worksheet.getCell(endCell);
+    for (let r = start.row; r <= end.row; r++) {
+      const row = worksheet.getRow(r);
+      for (let c = start.col; c <= end.col; c++) {
+        const cell = row.getCell(c);
+        cell.border = {
+          top: borderStyle,
+          bottom: borderStyle,
+          left: borderStyle,
+          right: borderStyle,
+        };
+      }
+    }
+  };
+
+  const applyThickOutline = (startCell, endCell) => {
+    const thin = { style: "thin", color: { argb: "000000" } };
+    const thick = { style: "medium", color: { argb: "000000" } };
+    const start = worksheet.getCell(startCell);
+    const end = worksheet.getCell(endCell);
+    for (let r = start.row; r <= end.row; r++) {
+      const row = worksheet.getRow(r);
+      for (let c = start.col; c <= end.col; c++) {
+        const cell = row.getCell(c);
+        const isTop = r === start.row;
+        const isBottom = r === end.row;
+        const isLeft = c === start.col;
+        const isRight = c === end.col;
+        cell.border = {
+          top: isTop ? thick : thin,
+          bottom: isBottom ? thick : thin,
+          left: isLeft ? thick : thin,
+          right: isRight ? thick : thin,
+        };
+      }
+    }
+  };
+
   // ================
   // HEADER SECTION
   // ================
@@ -300,7 +372,6 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   const predefinedAmounts = Object.keys(reportData.quarterlyData.predefined)
     .map(Number)
     .sort((a, b) => a - b);
-
   const val = (n) => (n && n !== 0 ? n : "");
 
   // Predefined amounts
@@ -329,11 +400,9 @@ export const generateFomExcelReport = async (reportData, savePath) => {
     currentRow++;
   });
 
-  // Add an empty spacer row after A11 (before custom amounts)
   worksheet.addRow([]);
   currentRow++;
 
-  // Custom donation amounts
   const customAmounts = Object.keys(reportData.quarterlyData.custom)
     .map(Number)
     .sort((a, b) => a - b);
@@ -363,7 +432,6 @@ export const generateFomExcelReport = async (reportData, savePath) => {
     currentRow++;
   });
 
-  // Totals row
   const totalRow = worksheet.addRow([
     "TOTAL",
     reportData.quarterlyData.totals.yearTotal.qty,
@@ -385,6 +453,10 @@ export const generateFomExcelReport = async (reportData, savePath) => {
       right: { style: "medium" },
     };
   });
+
+  // Apply consistent outline around the whole donation section
+  applyThickOutline("A3", `G${totalRow.number}`);
+
   currentRow += 2;
 
   // =======================
@@ -425,57 +497,55 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   });
 
   const cpsEndRow = cpsStartRow + cpsLabels.length;
-
-  // Apply thick border (dark outline) around the entire CPS / MAILING COST block
-  for (let r = cpsStartRow; r <= cpsEndRow; r++) {
-    for (let c = 1; c <= 7; c++) {
-      const cell = worksheet.getRow(r).getCell(c);
-      cell.border = {
-        top: { style: r === cpsStartRow ? "medium" : "thin" },
-        bottom: { style: r === cpsEndRow ? "medium" : "thin" },
-        left: { style: c === 1 ? "medium" : "thin" },
-        right: { style: c === 7 ? "medium" : "thin" },
-      };
-    }
-  }
+  applyThickOutline(`A${cpsStartRow}`, `G${cpsEndRow}`);
 
   currentRow = cpsEndRow + 2;
+  // =======================
+  // TOTAL DONATION / SPENT / BALANCE BOX
+  // =======================
 
-  // =======================
-  // TOTAL DONATION / SPENT / BALANCE
-  // =======================
-  worksheet.getCell(`F${currentRow}`).value = "Total Donation";
+  // Merge columns E and F for labels
+  worksheet.mergeCells(`E${currentRow}:F${currentRow}`);
+  worksheet.mergeCells(`E${currentRow + 1}:F${currentRow + 1}`);
+  worksheet.mergeCells(`E${currentRow + 2}:F${currentRow + 2}`);
+
+  // Set labels
+  worksheet.getCell(`E${currentRow}`).value = "Total Donation";
+  worksheet.getCell(`E${currentRow + 1}`).value = "Total Spent";
+  worksheet.getCell(`E${currentRow + 2}`).value = "Balance";
+
+  // Set values in G column
   worksheet.getCell(`G${currentRow}`).value =
     reportData.quarterlyData.totals.yearTotal.amount;
-
-  worksheet.getCell(`F${currentRow + 1}`).value = "Total Spent";
   worksheet.getCell(`G${currentRow + 1}`).value = {
     formula: `=SUM(G${cpsStartRow + 1}:G${cpsEndRow})`,
   };
-
-  worksheet.getCell(`F${currentRow + 2}`).value = "Balance";
   worksheet.getCell(`G${currentRow + 2}`).value = {
     formula: `=G${currentRow}-G${currentRow + 1}`,
   };
 
-  ["F", "G"].forEach((col) => {
-    [currentRow, currentRow + 1, currentRow + 2].forEach((r) => {
-      const cell = worksheet.getCell(`${col}${r}`);
-      cell.font = { bold: true };
-      cell.alignment = { horizontal: "center" };
-      cell.border = {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
-        left: { style: "thin" },
-        right: { style: "thin" },
-      };
+  // Style formatting (center, border, bold)
+  for (let i = 0; i < 3; i++) {
+    const labelCell = worksheet.getCell(`E${currentRow + i}`);
+    const valueCell = worksheet.getCell(`G${currentRow + i}`);
 
-      // ✅ Apply number formatting for G-column values
-      if (col === "G") {
-        cell.numFmt = "#,##0.00";
-      }
-    });
-  });
+    // Center horizontally and vertically
+    labelCell.alignment = { horizontal: "center", vertical: "middle" };
+    valueCell.alignment = { horizontal: "center", vertical: "middle" };
+
+    // Add borders
+    labelCell.border = valueCell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+
+    // Bold text for labels
+    labelCell.font = { bold: true };
+  }
+
+  applyThickOutline(`F${currentRow}`, `G${currentRow + 2}`);
 
   // =======================
   // SAVE FILE

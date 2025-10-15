@@ -154,13 +154,22 @@ async function processMonthlyDistribution(
     // Step 1: Retrieve all required data in parallel
     sendProgressUpdate("Retrieving data from database...");
 
-    const [clients, allSubscriptions, allComplimentary, subscriptionsAddedThisMonth] =
-      await Promise.all([
-        ClientModel.find({}).lean(),
-        WmmModel.find({}).lean(),
-        ComplimentaryModel.find({}).lean(),
-        WmmModel.find({ adddate: { $regex: monthRegex } }).lean(),
-      ]);
+    const [
+      clients,
+      allSubscriptions,
+      allComplimentary,
+      subscriptionsAddedThisMonth,
+    ] = await Promise.all([
+      ClientModel.find({}).lean(),
+      WmmModel.find({}).lean(),
+      ComplimentaryModel.find({}).lean(),
+      WmmModel.find({
+        adddate: {
+          $gte: `${year}-${String(month).padStart(2, "0")}-01`,
+          $lte: `${year}-${String(month).padStart(2, "0")}-31`,
+        },
+      }).lean(),
+    ]);
 
     sendProgressUpdate(
       `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions, ${subscriptionsAddedThisMonth.length} subscriptions added this month`
@@ -358,12 +367,18 @@ async function processMonthlyDistribution(
         if (isRenewal) {
           renewalCount++;
           if (renewalCount <= 5) {
-            console.log(chalk.green(`  -> RENEWAL (subsclass contains 'R')`));
+            console.log(
+              renewalCount,
+              chalk.green(`  -> RENEWAL (subsclass contains 'R')`)
+            );
           }
         } else {
           newSubCount++;
           if (newSubCount <= 5) {
-            console.log(chalk.green(`  -> NEW SUBSCRIBER (subsclass has no 'R')`));
+            console.log(
+              newSubCount,
+              chalk.green(`  -> NEW SUBSCRIBER (subsclass has no 'R')`)
+            );
           }
         }
       } catch (error) {
@@ -651,7 +666,7 @@ async function generateExcelReport(reportData, outputPath) {
 
   try {
     // Load the template
-    await workbook.xlsx.readFile("./Template/MonthlyDistributionTemplate.xlsx");
+    await workbook.xlsx.readFile("./Template/MonthlyReportTemplate.xlsx");
     console.log(chalk.green("✅ Template loaded successfully"));
 
     const worksheet = workbook.worksheets[0];
@@ -674,9 +689,9 @@ async function generateExcelReport(reportData, outputPath) {
 
     // Update the issue date (cell A7)
     const monthName = monthNames[reportData.month - 1];
-    worksheet.getCell(
-      "A7"
-    ).value = `For the issue of ${monthName} ${reportData.year}`;
+    // worksheet.getCell(
+    //   "A7"
+    // ).value = `For the issue of ${monthName} ${reportData.year}`;
 
     // Fill in paid subscribers (rows 15-21)
     // Row 15: Priest and Religious
@@ -686,10 +701,12 @@ async function generateExcelReport(reportData, outputPath) {
       TOTAL: 0,
       MASS: 0,
     };
-    worksheet.getCell("F15").value = Number(priestData.MASS || 0);
-    worksheet.getCell("G15").value = Number(priestData.LOCAL || 0);
-    worksheet.getCell("H15").value = Number(priestData.ABROAD || 0);
-    worksheet.getCell("I15").value = Number(priestData.TOTAL || 0);
+    worksheet.getCell("D17").value = `Paid w/ Mass = ${Number(
+      priestData.MASS || 0
+    )}`;
+    worksheet.getCell("E17").value = Number(priestData.LOCAL || 0);
+    worksheet.getCell("F17").value = Number(priestData.ABROAD || 0);
+    worksheet.getCell("G17").value = Number(priestData.TOTAL || 0);
 
     // Row 16: Lay Persons
     const layData = reportData.paidSubscribers["Lay Person"] || {
@@ -698,10 +715,10 @@ async function generateExcelReport(reportData, outputPath) {
       TOTAL: 0,
       MASS: 0,
     };
-    worksheet.getCell("F16").value = Number(layData.MASS || 0);
-    worksheet.getCell("G16").value = Number(layData.LOCAL || 0);
-    worksheet.getCell("H16").value = Number(layData.ABROAD || 0);
-    worksheet.getCell("I16").value = Number(layData.TOTAL || 0);
+    // worksheet.getCell("F16").value = Number(layData.MASS || 0);
+    worksheet.getCell("E18").value = Number(layData.LOCAL || 0);
+    worksheet.getCell("F18").value = Number(layData.ABROAD || 0);
+    worksheet.getCell("G18").value = Number(layData.TOTAL || 0);
 
     // Row 17: Schools/Libraries
     const schoolData = reportData.paidSubscribers["Schools/Libraries"] || {
@@ -709,9 +726,9 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("G17").value = Number(schoolData.LOCAL || 0);
-    worksheet.getCell("H17").value = Number(schoolData.ABROAD || 0);
-    worksheet.getCell("I17").value = Number(schoolData.TOTAL || 0);
+    worksheet.getCell("E19").value = Number(schoolData.LOCAL || 0);
+    worksheet.getCell("F19").value = Number(schoolData.ABROAD || 0);
+    worksheet.getCell("G19").value = Number(schoolData.TOTAL || 0);
 
     // Row 18: Campus Ministries
     const campusData = reportData.paidSubscribers["Campus Ministries"] || {
@@ -719,9 +736,9 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("G18").value = Number(campusData.LOCAL || 0);
-    worksheet.getCell("H18").value = Number(campusData.ABROAD || 0);
-    worksheet.getCell("I18").value = Number(campusData.TOTAL || 0);
+    worksheet.getCell("E20").value = Number(campusData.LOCAL || 0);
+    worksheet.getCell("F20").value = Number(campusData.ABROAD || 0);
+    worksheet.getCell("G20").value = Number(campusData.TOTAL || 0);
 
     // Row 19: Paid by Others (GIFT Subscription)
     const giftData = reportData.paidSubscribers["GIFT Subscription"] || {
@@ -729,137 +746,23 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("G19").value = Number(giftData.LOCAL || 0);
-    worksheet.getCell("H19").value = Number(giftData.ABROAD || 0);
-    worksheet.getCell("I19").value = Number(giftData.TOTAL || 0);
+    worksheet.getCell("E21").value = Number(giftData.LOCAL || 0);
+    worksheet.getCell("F21").value = Number(giftData.ABROAD || 0);
+    worksheet.getCell("G21").value = Number(giftData.TOTAL || 0);
 
     // Row 20: Unencoded MP (placeholder for now)
-    worksheet.getCell("G20").value = 0;
-    worksheet.getCell("H20").value = 0;
-    worksheet.getCell("I20").value = 0;
+    worksheet.getCell("E22").value = 0;
+    worksheet.getCell("F22").value = 0;
+    worksheet.getCell("G22").value = 0;
 
-    // Row 21: Total Paid Subscribers
-    const totalData = reportData.paidSubscribers["TOTAL"] || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-      MASS: 0,
-    };
-    worksheet.getCell("F21").value = Number(totalData.MASS || 0);
-    worksheet.getCell("G21").value = Number(totalData.LOCAL || 0);
-    worksheet.getCell("H21").value = Number(totalData.ABROAD || 0);
-    worksheet.getCell("I21").value = Number(totalData.TOTAL || 0);
+    const newSubscribers = Number(reportData.newSubscribers) || 0;
+    const renewals = Number(reportData.renewals) || 0;
 
-    // Fill in subscriber activity (rows 23-25)
-    // Row 23: NEW SUBSCRIBERS
-    worksheet.getCell("A23").value = `NEW SUBSCRIBERS for the month`;
-    worksheet.getCell("I23").value = Number(reportData.newSubscribers || 0);
+    worksheet.getCell("G25").value = newSubscribers;
+    worksheet.getCell("G25").numFmt = "#,##0";
 
-    // Row 24: RENEWALS
-    worksheet.getCell(
-      "A24"
-    ).value = `RENEWALS during the month of ${monthName.toUpperCase()} ${
-      reportData.year
-    }`;
-    worksheet.getCell("I24").value = Number(reportData.renewals || 0);
-
-    // Row 25: DUE FOR RENEWAL (placeholder for now)
-    worksheet.getCell(
-      "A25"
-    ).value = `DUE FOR RENEWAL for the mo. of ${monthName.toUpperCase()} ${
-      reportData.year
-    }`;
-    worksheet.getCell("I25").value = 0; // This would need to be calculated separately
-
-    // Fill in sales (rows 29-32)
-    // Row 29: CMC
-    const cmcData = reportData.sales.CMC || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
-    worksheet.getCell("G29").value = Number(cmcData.LOCAL || 0);
-    worksheet.getCell("H29").value = Number(cmcData.ABROAD || 0);
-    worksheet.getCell("I29").value = Number(cmcData.TOTAL || 0);
-
-    // Row 30: DCS (MP)
-    const dcsData = reportData.sales.DCS || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
-    worksheet.getCell("G30").value = Number(dcsData.LOCAL || 0);
-    worksheet.getCell("H30").value = Number(dcsData.ABROAD || 0);
-    worksheet.getCell("I30").value = Number(dcsData.TOTAL || 0);
-
-    // Row 31: DELEGATE
-    const delegateData = reportData.sales.DELEGATE || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G31").value = Number(delegateData.LOCAL || 0);
-    worksheet.getCell("H31").value = Number(delegateData.ABROAD || 0);
-    worksheet.getCell("I31").value = Number(delegateData.TOTAL || 0);
-
-    // Row 32: Total Sales
-    const totalSalesData = reportData.sales.TOTAL || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G32").value = Number(totalSalesData.LOCAL || 0);
-    worksheet.getCell("H32").value = Number(totalSalesData.ABROAD || 0);
-    worksheet.getCell("I32").value = Number(totalSalesData.TOTAL || 0);
-
-    // Row 33: TOTAL NUMBER OF COPIES SOLD
-    const totalSoldData = {
-      LOCAL:
-        (reportData.paidSubscribers.TOTAL?.LOCAL || 0) +
-        (totalSalesData.LOCAL || 0),
-      ABROAD:
-        (reportData.paidSubscribers.TOTAL?.ABROAD || 0) +
-        (totalSalesData.ABROAD || 0),
-      TOTAL:
-        (reportData.paidSubscribers.TOTAL?.TOTAL || 0) +
-        (totalSalesData.TOTAL || 0),
-    };
-    worksheet.getCell("G33").value = Number(totalSoldData.LOCAL);
-    worksheet.getCell("H33").value = Number(totalSoldData.ABROAD);
-    worksheet.getCell("I33").value = Number(totalSoldData.TOTAL);
-
-    // Fill in consignments (rows 37-40)
-    // Row 37: Schools
-    const schoolsData = reportData.consignments.Schools || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G37").value = Number(schoolsData.LOCAL || 0);
-    worksheet.getCell("H37").value = Number(schoolsData.ABROAD || 0);
-    worksheet.getCell("I37").value = Number(schoolsData.TOTAL || 0);
-
-    // Row 38: Bookstores
-    const bookstoresData = reportData.consignments.Bookstores || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G38").value = Number(bookstoresData.LOCAL || 0);
-    worksheet.getCell("H38").value = Number(bookstoresData.ABROAD || 0);
-    worksheet.getCell("I38").value = Number(bookstoresData.TOTAL || 0);
-
-    // Row 39: Religious Communities
-    const religiousData = reportData.consignments["Religious Communities"] || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G39").value = Number(religiousData.LOCAL || 0);
-    worksheet.getCell("H39").value = Number(religiousData.ABROAD || 0);
-    worksheet.getCell("I39").value = Number(religiousData.TOTAL || 0);
-
-    // Row 40: Total Consignments
-    const totalConsignmentsData = reportData.consignments.TOTAL || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G40").value = Number(totalConsignmentsData.LOCAL || 0);
-    worksheet.getCell("H40").value = Number(totalConsignmentsData.ABROAD || 0);
-    worksheet.getCell("I40").value = Number(totalConsignmentsData.TOTAL || 0);
+    worksheet.getCell("G26").value = renewals;
+    worksheet.getCell("G26").numFmt = "#,##0";
 
     // Fill in complimentary (rows 44-48)
     // Row 44: Parishes
@@ -868,17 +771,17 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("G44").value = Number(parishesData.LOCAL || 0);
-    worksheet.getCell("H44").value = Number(parishesData.ABROAD || 0);
-    worksheet.getCell("I44").value = Number(parishesData.TOTAL || 0);
+    worksheet.getCell("E45").value = Number(parishesData.LOCAL || 0);
+    worksheet.getCell("F45").value = Number(parishesData.ABROAD || 0);
+    worksheet.getCell("G45").value = Number(parishesData.TOTAL || 0);
 
     // Row 45: Various/Bishop/Religious/Campus M/Library/School
     const variousData = reportData.complimentary[
       "Various/Bishop/Religious/Campus M/Library/School"
     ] || { LOCAL: 0, ABROAD: 0, TOTAL: 0 };
-    worksheet.getCell("G45").value = Number(variousData.LOCAL || 0);
-    worksheet.getCell("H45").value = Number(variousData.ABROAD || 0);
-    worksheet.getCell("I45").value = Number(variousData.TOTAL || 0);
+    worksheet.getCell("E46").value = Number(variousData.LOCAL || 0);
+    worksheet.getCell("F46").value = Number(variousData.ABROAD || 0);
+    worksheet.getCell("G46").value = Number(variousData.TOTAL || 0);
 
     // Row 46: Exchange
     const exchangeData = reportData.complimentary.Exchange || {
@@ -886,33 +789,9 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("G46").value = Number(exchangeData.LOCAL || 0);
-    worksheet.getCell("H46").value = Number(exchangeData.ABROAD || 0);
-    worksheet.getCell("I46").value = Number(exchangeData.TOTAL || 0);
-
-    // Row 47: Gifts (MP/Editor/Administrator)
-    const giftsData = reportData.complimentary.Gifts || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G47").value = Number(giftsData.LOCAL || 0);
-    worksheet.getCell("H47").value = Number(giftsData.ABROAD || 0);
-    worksheet.getCell("I47").value = Number(giftsData.TOTAL || 0);
-
-    // Row 48: Total Complimentary
-    const totalComplimentaryData = reportData.complimentary.TOTAL || {
-      LOCAL: 0,
-      ABROAD: 0,
-      TOTAL: 0,
-    };
-    worksheet.getCell("G48").value = Number(totalComplimentaryData.LOCAL || 0);
-    worksheet.getCell("H48").value = Number(totalComplimentaryData.ABROAD || 0);
-    worksheet.getCell("I48").value = Number(totalComplimentaryData.TOTAL || 0);
-
-    // Fill in final summary (rows 50)
-    // Row 50: IN STOCK
-    worksheet.getCell("I50").value = Number(reportData.inStock.TOTAL || 0);
+    worksheet.getCell("E47").value = Number(exchangeData.LOCAL || 0);
+    worksheet.getCell("F47").value = Number(exchangeData.ABROAD || 0);
+    worksheet.getCell("G47").value = Number(exchangeData.TOTAL || 0);
 
     // Note: Rows 52 and 54 now use Excel formulas in the template
     // Row 52: TOTAL NUMBER OF COPIES RELEASED (calculated by formula)
@@ -928,7 +807,7 @@ async function generateExcelReport(reportData, outputPath) {
       day: "2-digit",
       year: "numeric",
     });
-    worksheet.getCell("A61").value = `Date: ${formattedDate}`;
+    worksheet.getCell("B60").value = `${formattedDate}`;
 
     // Save the workbook with optimization options
     const options = {
