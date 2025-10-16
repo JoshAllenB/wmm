@@ -984,6 +984,9 @@ export async function checkDuplicates({
           calClients,
           promoClients,
           complimentaryClients,
+          wmmEndDates,
+          promoEndDates,
+          complimentaryEndDates,
         ] = await Promise.all([
           WmmModel.distinct("clientid", { clientid: { $in: clientIds } })
             .maxTimeMS(5000)
@@ -1017,7 +1020,132 @@ export async function checkDuplicates({
             .lean()
             .exec()
             .catch(() => []),
+          // Fetch records with dates closest to current time for each service
+          WmmModel.aggregate([
+            { 
+              $match: { 
+                clientid: { $in: clientIds },
+                $or: [
+                  { enddate: { $exists: true, $ne: null, $ne: "" } },
+                  { adddate: { $exists: true, $ne: null, $ne: "" } }
+                ]
+              }
+            },
+            {
+              $addFields: {
+                relevantDate: {
+                  $cond: {
+                    if: { $and: [{ $ne: ["$enddate", null] }, { $ne: ["$enddate", ""] }] },
+                    then: { $dateFromString: { dateString: "$enddate", onError: null } },
+                    else: { $dateFromString: { dateString: "$adddate", onError: null } }
+                  }
+                },
+                service: "WMM"
+              }
+            },
+            { $match: { relevantDate: { $ne: null } } },
+            {
+              $addFields: {
+                timeDiff: { $abs: { $subtract: ["$relevantDate", new Date()] } }
+              }
+            },
+            { $sort: { clientid: 1, timeDiff: 1 } },
+            { 
+              $group: { 
+                _id: "$clientid", 
+                closestRecord: { $first: "$$ROOT" }
+              }
+            }
+          ])
+            .option({ maxTimeMS: 5000, allowDiskUse: true })
+            .exec()
+            .catch(() => []),
+          // Fetch records with dates closest to current time for PROMO
+          PromoModel.aggregate([
+            { 
+              $match: { 
+                clientid: { $in: clientIds },
+                $or: [
+                  { enddate: { $exists: true, $ne: null, $ne: "" } },
+                  { adddate: { $exists: true, $ne: null, $ne: "" } }
+                ]
+              }
+            },
+            {
+              $addFields: {
+                relevantDate: {
+                  $cond: {
+                    if: { $and: [{ $ne: ["$enddate", null] }, { $ne: ["$enddate", ""] }] },
+                    then: { $dateFromString: { dateString: "$enddate", onError: null } },
+                    else: { $dateFromString: { dateString: "$adddate", onError: null } }
+                  }
+                },
+                service: "PROMO"
+              }
+            },
+            { $match: { relevantDate: { $ne: null } } },
+            {
+              $addFields: {
+                timeDiff: { $abs: { $subtract: ["$relevantDate", new Date()] } }
+              }
+            },
+            { $sort: { clientid: 1, timeDiff: 1 } },
+            { 
+              $group: { 
+                _id: "$clientid", 
+                closestRecord: { $first: "$$ROOT" }
+              }
+            }
+          ])
+            .option({ maxTimeMS: 5000, allowDiskUse: true })
+            .exec()
+            .catch(() => []),
+          // Fetch records with dates closest to current time for COMPLIMENTARY
+          ComplimentaryModel.aggregate([
+            { 
+              $match: { 
+                clientid: { $in: clientIds },
+                $or: [
+                  { enddate: { $exists: true, $ne: null, $ne: "" } },
+                  { adddate: { $exists: true, $ne: null, $ne: "" } }
+                ]
+              }
+            },
+            {
+              $addFields: {
+                relevantDate: {
+                  $cond: {
+                    if: { $and: [{ $ne: ["$enddate", null] }, { $ne: ["$enddate", ""] }] },
+                    then: { $dateFromString: { dateString: "$enddate", onError: null } },
+                    else: { $dateFromString: { dateString: "$adddate", onError: null } }
+                  }
+                },
+                service: "COMP"
+              }
+            },
+            { $match: { relevantDate: { $ne: null } } },
+            {
+              $addFields: {
+                timeDiff: { $abs: { $subtract: ["$relevantDate", new Date()] } }
+              }
+            },
+            { $sort: { clientid: 1, timeDiff: 1 } },
+            { 
+              $group: { 
+                _id: "$clientid", 
+                closestRecord: { $first: "$$ROOT" }
+              }
+            }
+          ])
+            .option({ maxTimeMS: 5000, allowDiskUse: true })
+            .exec()
+            .catch(() => []),
         ]);
+
+        // Create maps for quick lookup of records closest to current time
+        const wmmRecordMap = new Map(wmmEndDates.map(item => [item._id, item.closestRecord]));
+        const promoRecordMap = new Map(promoEndDates.map(item => [item._id, item.closestRecord]));
+        const complimentaryRecordMap = new Map(complimentaryEndDates.map(item => [item._id, item.closestRecord]));
 
         clientsWithServices = clients.map((client) => {
           const clientId = parseInt(client.id);
@@ -1032,6 +1160,62 @@ export async function checkDuplicates({
               clientCopy.services.push("PROMO");
             if (complimentaryClients.includes(clientId))
               clientCopy.services.push("COMP");
+
+            // Find the record with date closest to current time across all services
+            const candidateRecords = [];
+            
+            if (wmmRecordMap.has(clientId)) {
+              const record = wmmRecordMap.get(clientId);
+              if (record && record.relevantDate) {
+                candidateRecords.push({
+                  date: record.relevantDate,
+                  service: "WMM",
+                  timeDiff: record.timeDiff,
+                  enddate: record.enddate,
+                  adddate: record.adddate
+                });
+              }
+            }
+            
+            if (promoRecordMap.has(clientId)) {
+              const record = promoRecordMap.get(clientId);
+              if (record && record.relevantDate) {
+                candidateRecords.push({
+                  date: record.relevantDate,
+                  service: "PROMO",
+                  timeDiff: record.timeDiff,
+                  enddate: record.enddate,
+                  adddate: record.adddate
+                });
+              }
+            }
+            
+            if (complimentaryRecordMap.has(clientId)) {
+              const record = complimentaryRecordMap.get(clientId);
+              if (record && record.relevantDate) {
+                candidateRecords.push({
+                  date: record.relevantDate,
+                  service: "COMP",
+                  timeDiff: record.timeDiff,
+                  enddate: record.enddate,
+                  adddate: record.adddate
+                });
+              }
+            }
+
+            // Find the record with the smallest time difference (closest to current time)
+            if (candidateRecords.length > 0) {
+              const closest = candidateRecords.reduce((closest, current) => 
+                current.timeDiff < closest.timeDiff ? current : closest
+              );
+              
+              // Use enddate if available, otherwise use adddate
+              const displayDate = closest.enddate && closest.enddate !== "" ? closest.enddate : closest.adddate;
+              if (displayDate) {
+                clientCopy.latestEndDate = displayDate;
+                clientCopy.latestEndService = closest.service;
+              }
+            }
           }
 
           return clientCopy;

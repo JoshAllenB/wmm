@@ -195,6 +195,24 @@ const DuplicatePanel = ({
                       </div>
                     </div>
 
+                    {/* Display most recent end date from backend */}
+                    {client.latestEndDate && client.latestEndService && (
+                      <div className="mt-1 flex items-center justify-end text-xs">
+                        <span className="">
+                          Expiry {client.latestEndService}:
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-sm font-medium ${
+                            new Date(client.latestEndDate) < new Date()
+                              ? "bg-red-50 text-red-600 border border-red-100"
+                              : "bg-green-50 text-green-600 border border-green-100"
+                          }`}
+                        >
+                          {new Date(client.latestEndDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Match strength indicator */}
                     {client.totalScore !== undefined && (
                       <div className="mt-1.5 flex items-center gap-2">
