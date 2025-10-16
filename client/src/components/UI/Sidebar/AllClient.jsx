@@ -144,13 +144,21 @@ const AllClient = () => {
 
   const handleAddedTodayClick = () => {
     // Prevent rapid clicking
-    if (isAddedTodayLoading) {
+    if (isAddedTodayLoading || isLoading) {
       return;
     }
 
     setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
     setPage(1); // Reset to first page when toggling filter
+
+    // Add a safety timeout to prevent stuck loading state
+    setTimeout(() => {
+      if (isAddedTodayLoading) {
+        console.warn('Added Today loading state stuck - resetting');
+        setIsAddedTodayLoading(false);
+      }
+    }, 10000); // 10 second safety timeout
 
     // The data fetch will be triggered by the useEffect that watches currentFilterSnapshot
     // We don't need to call fetchData here as it will be handled automatically
@@ -329,6 +337,20 @@ const AllClient = () => {
 
         // Show loading state for all requests to provide better UX
         setIsLoading(true);
+        
+        // Add a timeout to prevent indefinite loading
+        const timeoutId = setTimeout(() => {
+          if (currentRequestRef.current?.id === requestId) {
+            console.warn('Request timeout - forcing loading state reset');
+            setIsLoading(false);
+            setIsAddedTodayLoading(false);
+            toast({
+              title: "Request Timeout",
+              description: "The search request took too long. Please try again with different filters.",
+              variant: "destructive",
+            });
+          }
+        }, 30000); // 30 second timeout
         // Clone the filter object to avoid mutations
         let filtersToUse = { ...advancedFilterData };
 
@@ -394,8 +416,9 @@ const AllClient = () => {
           }
         }
 
-        // If a search term is present, do NOT restrict to just Promo/Comp/WMM services (search all)
-        if (filter && filter.trim().length > 0) {
+        // If ANY search term is present (general filter OR fullName), do NOT restrict to just Promo/Comp/WMM services (search all)
+        const hasAnySearchTerm = (filter && filter.trim().length > 0) || filtersToUse.fullName;
+        if (hasAnySearchTerm) {
           // When searching, remove ALL restrictions: don't send services or subscriptionType filter at all
           delete filtersToUse.services;
           delete filtersToUse.subscriptionType;
@@ -440,6 +463,9 @@ const AllClient = () => {
 
         // Check if request was cancelled before making the API call
         if (currentRequestRef.current?.cancel) {
+          clearTimeout(timeoutId);
+          setIsLoading(false);
+          setIsAddedTodayLoading(false);
           return null;
         }
 
@@ -452,18 +478,23 @@ const AllClient = () => {
           currentSubscriptionType
         );
 
+        // Clear the timeout since request completed
+        clearTimeout(timeoutId);
+
         // Check if request was cancelled during the API call
         if (
           currentRequestRef.current?.cancel ||
           currentRequestRef.current?.id !== requestId
         ) {
           setIsLoading(false);
+          setIsAddedTodayLoading(false);
           return null;
         }
 
         // Skip state updates if the request was cancelled (response is null)
         if (!response) {
           setIsLoading(false);
+          setIsAddedTodayLoading(false);
           return null;
         }
 
@@ -503,8 +534,13 @@ const AllClient = () => {
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
 
+        // Clear any existing timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
         // Show specific error messages to user
-        if (error.message === "Request timeout") {
+        if (error.message === "Request timeout" || error.code === 'ECONNABORTED') {
           toast({
             title: "Request Timeout",
             description:
@@ -515,6 +551,12 @@ const AllClient = () => {
           toast({
             title: "Server Error",
             description: "An error occurred on the server. Please try again.",
+            variant: "destructive",
+          });
+        } else if (error.code === 'ERR_NETWORK') {
+          toast({
+            title: "Network Error",
+            description: "Unable to connect to server. Please check your connection.",
             variant: "destructive",
           });
         } else {
@@ -625,12 +667,15 @@ const AllClient = () => {
   // Main data loading effect (runs AFTER role-based services are set)
   useEffect(() => {
     // Skip this effect during initial load when services are being set up
-    if (isLoading) {
+    if (isLoading && initialLoadComplete.current) {
       return;
     }
 
     // Skip if search term is too short (less than 2 characters) unless it's empty
     if (debouncedFiltering && debouncedFiltering.trim().length < 2) {
+      // Reset loading states if search is too short
+      setIsLoading(false);
+      setIsAddedTodayLoading(false);
       return;
     }
 
@@ -656,7 +701,12 @@ const AllClient = () => {
         debouncedFiltering,
         selectedGroup,
         advancedFilterData
-      );
+      ).catch((error) => {
+        console.error('Fetch data error in useEffect:', error);
+        // Ensure loading states are reset even if fetchData throws
+        setIsLoading(false);
+        setIsAddedTodayLoading(false);
+      });
     }, delay);
 
     // Clean up timeout if component unmounts or dependencies change
@@ -690,8 +740,25 @@ const AllClient = () => {
 
   // Handle successful edit
   const handleEditSuccess = () => {
+    // Prevent multiple refresh calls if already loading
+    if (isLoading) {
+      console.log('Edit success - skipping refresh, already loading');
+      return;
+    }
+    
     setFiltering(""); // Reset search input
-    fetchData(page, pageSize, "", selectedGroup, advancedFilterData); // Refresh data
+    
+    // Add a small delay to ensure the search input reset is processed
+    setTimeout(() => {
+      // Only refresh if we're not already in a loading state
+      if (!isLoading) {
+        fetchData(page, pageSize, "", selectedGroup, advancedFilterData)
+          .catch((error) => {
+            console.error('Error refreshing data after edit success:', error);
+            // Don't show user error for this background refresh
+          });
+      }
+    }, 100);
   };
 
   // Update handleSearchChange function

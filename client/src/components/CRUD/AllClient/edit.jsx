@@ -3158,6 +3158,17 @@ const Edit = ({
     }
 
     setIsSubmitting(true);
+    
+    // Add timeout protection to prevent infinite loading
+    const submissionTimeout = setTimeout(() => {
+      console.warn('Edit submission timeout - resetting loading state');
+      setIsSubmitting(false);
+      toast({
+        title: "Submission Timeout",
+        description: "The form submission took too long. Please try again.",
+        variant: "destructive",
+      });
+    }, 30000); // 30 second timeout
 
     // Format birth date if all parts are present
     const formatBdate = () => {
@@ -3237,6 +3248,9 @@ const Edit = ({
           "put"
         );
 
+        // Clear timeout on successful response
+        clearTimeout(submissionTimeout);
+
         if (response.data && response.data.success) {
           toast({
             title: "Client Information Updated Successfully",
@@ -3269,11 +3283,15 @@ const Edit = ({
               subscriptionType: "",
             });
           }
+          setIsSubmitting(false); // Reset loading state
           onClose();
           return;
         }
       } catch (error) {
         console.error("Error updating client information:", error);
+        clearTimeout(submissionTimeout); // Clear timeout on error
+        setIsSubmitting(false); // Reset loading state on error
+        
         const errorMessage =
           error.response?.data?.message ||
           error.response?.data?.error ||
@@ -3287,6 +3305,9 @@ const Edit = ({
           duration: 5000,
         });
         return;
+      } finally {
+        clearTimeout(submissionTimeout); // Ensure timeout is always cleared
+        setIsSubmitting(false); // Ensure loading state is always reset
       }
     }
 

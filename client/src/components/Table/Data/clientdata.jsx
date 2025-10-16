@@ -10,6 +10,11 @@ export const fetchClients = async (
   advancedFilterData = {},
   subscriptionType = "WMM"
 ) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, 30000); // 30 second timeout
+  
   try {
     // Normalize filter parameters
     const normalizedParams = {
@@ -58,8 +63,14 @@ export const fetchClients = async (
       }
     });
 
-    // Make the request
-    const response = await axios.get(`${baseUrl}?${queryParams.toString()}`);
+    // Make the request with timeout protection
+    const response = await axios.get(`${baseUrl}?${queryParams.toString()}`, {
+      signal: controller.signal,
+      timeout: 30000
+    });
+
+    // Clear timeout on successful response
+    clearTimeout(timeoutId);
 
     // Extract all relevant values from the response
     const {
@@ -117,7 +128,24 @@ export const fetchClients = async (
       processingInfo, // Include processing info if available (from automatic batch processing)
     };
   } catch (e) {
+    // Clear timeout in case of error
+    clearTimeout(timeoutId);
+    
     console.error("Error fetching client data:", e);
+    
+    // Handle different types of errors
+    if (e.name === 'AbortError' || e.code === 'ECONNABORTED') {
+      const timeoutError = new Error('Request timeout');
+      timeoutError.code = 'ECONNABORTED';
+      throw timeoutError;
+    }
+    
+    if (e.code === 'ERR_NETWORK') {
+      const networkError = new Error('Network connection failed');
+      networkError.code = 'ERR_NETWORK';
+      throw networkError;
+    }
+    
     throw e;
   }
 };
