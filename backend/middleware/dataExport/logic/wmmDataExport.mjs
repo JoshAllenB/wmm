@@ -183,7 +183,28 @@ async function processMonthlyDistribution(
     const activeSubscriptions = allSubscriptions.filter((sub) => {
       const subDate = new Date(sub.subsdate);
       const endDate = new Date(sub.enddate);
-      return subDate <= endOfMonth && endDate >= startOfMonth;
+      
+      // Check if subscription was active during the month
+      const isActive = subDate <= endOfMonth && endDate >= startOfMonth;
+      
+      // For Paid Subscriptions: Only include records that existed as of the last day of the month
+      // Exclude records that were created after the month's cutoff date
+      if (sub.adddate) {
+        const addDate = new Date(sub.adddate);
+        if (addDate > endOfMonth) {
+          return false; // Exclude if created after the cutoff
+        }
+      }
+      
+      // Exclude records that were edited after the month's cutoff date
+      if (sub.editdate) {
+        const editDate = new Date(sub.editdate);
+        if (editDate > endOfMonth) {
+          return false; // Exclude if edited after the cutoff
+        }
+      }
+      
+      return isActive;
     });
 
     const activeComplimentary = allComplimentary.filter((sub) => {
