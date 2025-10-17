@@ -62,7 +62,6 @@ const TYPE_GROUPS = {
   "Schools/Libraries": ["SCH", "LIB"],
   "Campus Ministries": ["MIN"],
   "GIFT Subscription": ["GIFT"],
-  Others: [],
 };
 
 // Complementary type groups - moved outside function to avoid recreation
@@ -84,7 +83,6 @@ const COMPLIMENTARY_TYPE_GROUPS = {
   Exchange: ["EXC"],
   Promotional: [],
   Gifts: ["MP", "EDITOR", "ADMIN"],
-  Others: [],
 };
 
 // Helper function to create a client ID lookup map
@@ -97,13 +95,23 @@ function createClientLookupMap(clients) {
 }
 
 // Helper function to determine client category
+// For PAID SUBSCRIPTION: unmapped types go to "Lay Person"
+// For COMPLIMENTARY: unmapped types go to "Various/Bishop/Religious/Campus M/Library/School"
 function getClientCategory(clientType, typeGroups) {
   for (const [group, types] of Object.entries(typeGroups)) {
     if (types.includes(clientType)) {
       return group;
     }
   }
-  return "Others";
+  // Default behavior based on which type groups we're using
+  if (typeGroups === TYPE_GROUPS) {
+    // Paid subscription - unmapped goes to Lay Person
+    return "Lay Person";
+  } else if (typeGroups === COMPLIMENTARY_TYPE_GROUPS) {
+    // Complimentary - unmapped goes to Various/Bishop/Religious/Campus M/Library/School
+    return "Various/Bishop/Religious/Campus M/Library/School";
+  }
+  return "Others"; // Fallback
 }
 
 /**
@@ -183,10 +191,10 @@ async function processMonthlyDistribution(
     const activeSubscriptions = allSubscriptions.filter((sub) => {
       const subDate = new Date(sub.subsdate);
       const endDate = new Date(sub.enddate);
-      
+
       // Check if subscription was active during the month
       const isActive = subDate <= endOfMonth && endDate >= startOfMonth;
-      
+
       // For Paid Subscriptions: Only include records that existed as of the last day of the month
       // Exclude records that were created after the month's cutoff date
       if (sub.adddate) {
@@ -195,7 +203,7 @@ async function processMonthlyDistribution(
           return false; // Exclude if created after the cutoff
         }
       }
-      
+
       // Exclude records that were edited after the month's cutoff date
       if (sub.editdate) {
         const editDate = new Date(sub.editdate);
@@ -203,7 +211,7 @@ async function processMonthlyDistribution(
           return false; // Exclude if edited after the cutoff
         }
       }
-      
+
       return isActive;
     });
 
@@ -725,6 +733,8 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("D17").value = `Paid w/ Mass = ${Number(
       priestData.MASS || 0
     )}`;
+    worksheet.getCell("D17").font = { size: 8 };
+    worksheet.getCell("D17").width = 12;
     worksheet.getCell("E17").value = Number(priestData.LOCAL || 0);
     worksheet.getCell("F17").value = Number(priestData.ABROAD || 0);
     worksheet.getCell("G17").value = Number(priestData.TOTAL || 0);
@@ -776,6 +786,48 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("F22").value = 0;
     worksheet.getCell("G22").value = 0;
 
+    // ===== IMPROVED LOGIC FOR ROW 23 TOTALS =====
+    // Auto-total for columns E, F, G (rows 17-22)
+    worksheet.getCell("E23").value = {
+      formula: "SUM(E17:E22)",
+    };
+    worksheet.getCell("F23").value = {
+      formula: "SUM(F17:F22)",
+    };
+    worksheet.getCell("G23").value = {
+      formula: "SUM(G17:G22)",
+    };
+
+    // Format the total cells if needed (bold, borders, etc.)
+    ["E23", "F23", "G23"].forEach((cellAddress) => {
+      const cell = worksheet.getCell(cellAddress);
+      cell.font = { bold: true };
+      cell.border = {
+        top: { style: "thin" },
+        bottom: { style: "double" },
+      };
+    });
+
+    // ===== COLUMN WIDTH AND ALIGNMENT IMPROVEMENTS =====
+
+    // Set Local column (E) to be wider
+    worksheet.getColumn("E").width = 12;
+
+    // Center align numbers in Local (E) and Abroad (F) columns for rows 17-23
+    for (let row = 17; row <= 23; row++) {
+      // Local column (E)
+      const localCell = worksheet.getCell(`E${row}`);
+      localCell.alignment = { horizontal: "center" };
+
+      // Abroad column (F)
+      const abroadCell = worksheet.getCell(`F${row}`);
+      abroadCell.alignment = { horizontal: "center" };
+
+      // Total column (G) - keep as is or also center if desired
+      const totalCell = worksheet.getCell(`G${row}`);
+      totalCell.alignment = { horizontal: "center" };
+    }
+
     const newSubscribers = Number(reportData.newSubscribers) || 0;
     const renewals = Number(reportData.renewals) || 0;
 
@@ -814,12 +866,17 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("F47").value = Number(exchangeData.ABROAD || 0);
     worksheet.getCell("G47").value = Number(exchangeData.TOTAL || 0);
 
-    // Note: Rows 52 and 54 now use Excel formulas in the template
-    // Row 52: TOTAL NUMBER OF COPIES RELEASED (calculated by formula)
-    // Row 54: TOTAL NUMBER OF COPIES AVAILABLE (calculated by formula)
-
-    // Row 11: NUMBER OF COPIES PRINTED
-    worksheet.getCell("F11").value = Number(reportData.printedCopies || 0);
+    // ===== IMPROVED LOGIC FOR ROW 49 TOTALS =====
+    // Auto-total for columns E, F, G (rows 17-22)
+    worksheet.getCell("E49").value = {
+      formula: "SUM(E45:E48)",
+    };
+    worksheet.getCell("F49").value = {
+      formula: "SUM(F45:F48)",
+    };
+    worksheet.getCell("G49").value = {
+      formula: "SUM(G45:G48)",
+    };
 
     // Row 61: Current Date
     const currentDate = new Date();
