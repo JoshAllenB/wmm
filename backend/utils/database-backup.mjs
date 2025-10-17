@@ -1111,18 +1111,18 @@ function startAutosave() {
   }
 
   // Convert Manila time cron to UTC (Manila is UTC+8)
-  const utcSchedule = convertManilaScheduleToUTC(CONFIG.AUTOSAVE_SCHEDULE);
+  const scheduleToUse = CONFIG.AUTOSAVE_SCHEDULE;
 
   log("Scheduling autosave cron job", {
     autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
     autosaveScheduleManilaTime: CONFIG.AUTOSAVE_SCHEDULE,
-    autosaveScheduleUTC: utcSchedule,
+    autosaveScheduleUTC: scheduleToUse,
     scheduledAt: new Date().toISOString(),
     systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
   autosaveJob = cron.schedule(
-    utcSchedule,
+    scheduleToUse,
     async () => {
       // Debug log: cron tick fired
       log("Autosave cron tick fired", {
@@ -1165,13 +1165,12 @@ function startAutosave() {
     },
     {
       scheduled: true,
-      timezone: "UTC",
     }
   );
 
   log("Autosave cron job scheduled successfully", {
     autosaveScheduleManilaTime: CONFIG.AUTOSAVE_SCHEDULE,
-    autosaveScheduleUTC: utcSchedule,
+    autosaveScheduleUTC: scheduleToUse,
   });
 }
 
