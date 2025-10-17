@@ -1044,6 +1044,53 @@ async function createBackupArchiveWithArchiver(backupId, backup, archivePath) {
   });
 }
 
+// Convert Manila time cron schedule to UTC (Manila is UTC+8)
+function convertManilaScheduleToUTC(manilaSchedule) {
+  try {
+    const parts = manilaSchedule.split(' ');
+    if (parts.length !== 5) {
+      log('Invalid cron schedule format, using as-is', { schedule: manilaSchedule });
+      return manilaSchedule;
+    }
+
+    const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+    
+    // Only convert if hour is a number (not * or complex expression)
+    if (hour === '*' || hour.includes('/') || hour.includes('-') || hour.includes(',')) {
+      return manilaSchedule; // Don't convert complex expressions
+    }
+
+    const manilaHour = parseInt(hour);
+    if (isNaN(manilaHour)) {
+      return manilaSchedule;
+    }
+
+    // Convert Manila (UTC+8) to UTC by subtracting 8 hours
+    let utcHour = manilaHour - 8;
+    let newDayOfMonth = dayOfMonth;
+    
+    // Handle day rollover
+    if (utcHour < 0) {
+      utcHour += 24;
+      // If specific day is set, adjust it
+      if (dayOfMonth !== '*' && !dayOfMonth.includes('/') && !dayOfMonth.includes('-')) {
+        const day = parseInt(dayOfMonth);
+        if (!isNaN(day)) {
+          newDayOfMonth = day > 1 ? String(day - 1) : '*'; // Can't reliably calculate previous day
+        }
+      }
+    }
+
+    return `${minute} ${utcHour} ${newDayOfMonth} ${month} ${dayOfWeek}`;
+  } catch (error) {
+    log('Error converting schedule to UTC, using original', { 
+      schedule: manilaSchedule, 
+      error: error.message 
+    });
+    return manilaSchedule;
+  }
+}
+
 // Autosave functionality
 let autosaveJob = null;
 
@@ -1052,7 +1099,6 @@ function startAutosave() {
     log("Autosave is disabled; not starting cron job", {
       autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
       autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-      timezone: "Asia/Manila",
     });
     return;
   }
@@ -1060,25 +1106,27 @@ function startAutosave() {
   if (autosaveJob) {
     log("Autosave cron job already running; skipping new schedule", {
       autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-      timezone: "Asia/Manila",
     });
     return;
   }
 
+  // Convert Manila time cron to UTC (Manila is UTC+8)
+  const utcSchedule = convertManilaScheduleToUTC(CONFIG.AUTOSAVE_SCHEDULE);
+
   log("Scheduling autosave cron job", {
     autosaveEnabled: CONFIG.AUTOSAVE_ENABLED,
-    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-    timezone: "Asia/Manila",
+    autosaveScheduleManilaTime: CONFIG.AUTOSAVE_SCHEDULE,
+    autosaveScheduleUTC: utcSchedule,
     scheduledAt: new Date().toISOString(),
+    systemTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 
   autosaveJob = cron.schedule(
-    CONFIG.AUTOSAVE_SCHEDULE,
+    utcSchedule,
     async () => {
       // Debug log: cron tick fired
       log("Autosave cron tick fired", {
         autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-        timezone: "Asia/Manila",
         firedAt: new Date().toISOString(),
       });
       try {
@@ -1117,13 +1165,13 @@ function startAutosave() {
     },
     {
       scheduled: true,
-      timezone: "Asia/Manila",
+      timezone: "UTC",
     }
   );
 
   log("Autosave cron job scheduled successfully", {
-    autosaveSchedule: CONFIG.AUTOSAVE_SCHEDULE,
-    timezone: "Asia/Manila",
+    autosaveScheduleManilaTime: CONFIG.AUTOSAVE_SCHEDULE,
+    autosaveScheduleUTC: utcSchedule,
   });
 }
 
