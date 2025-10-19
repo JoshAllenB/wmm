@@ -98,20 +98,27 @@ function createClientLookupMap(clients) {
 // For PAID SUBSCRIPTION: unmapped types go to "Lay Person"
 // For COMPLIMENTARY: unmapped types go to "Various/Bishop/Religious/Campus M/Library/School"
 function getClientCategory(clientType, typeGroups) {
+  if (!clientType) {
+    // Handle null/undefined types
+    return typeGroups === TYPE_GROUPS
+      ? "Lay Person"
+      : "Various/Bishop/Religious/Campus M/Library/School";
+  }
+
+  const normalizedType = clientType.toUpperCase().trim();
+
   for (const [group, types] of Object.entries(typeGroups)) {
-    if (types.includes(clientType)) {
+    if (types.map((t) => t.toUpperCase()).includes(normalizedType)) {
       return group;
     }
   }
-  // Default behavior based on which type groups we're using
+
+  // Default behavior for unmapped types
   if (typeGroups === TYPE_GROUPS) {
-    // Paid subscription - unmapped goes to Lay Person
-    return "Lay Person";
-  } else if (typeGroups === COMPLIMENTARY_TYPE_GROUPS) {
-    // Complimentary - unmapped goes to Various/Bishop/Religious/Campus M/Library/School
-    return "Various/Bishop/Religious/Campus M/Library/School";
+    return "Lay Person"; // Paid subscribers - unmapped types go to Lay Person
+  } else {
+    return "Various/Bishop/Religious/Campus M/Library/School"; // Complimentary - unmapped types go here
   }
-  return "Others"; // Fallback
 }
 
 /**
@@ -700,27 +707,19 @@ async function generateExcelReport(reportData, outputPath) {
 
     const worksheet = workbook.worksheets[0];
 
-    // Set the report month and year
-    const monthNames = [
-      "JANUARY",
-      "FEBRUARY",
-      "MARCH",
-      "APRIL",
-      "MAY",
-      "JUNE",
-      "JULY",
-      "AUGUST",
-      "SEPTEMBER",
-      "OCTOBER",
-      "NOVEMBER",
-      "DECEMBER",
-    ];
+    // Helper function to set cell value without modifying borders/styles
+    function setCellValue(cellAddress, value) {
+      const cell = worksheet.getCell(cellAddress);
+      const originalBorder = { ...cell.border };
+      const originalFill = { ...cell.fill };
 
-    // Update the issue date (cell A7)
-    const monthName = monthNames[reportData.month - 1];
-    // worksheet.getCell(
-    //   "A7"
-    // ).value = `For the issue of ${monthName} ${reportData.year}`;
+      cell.value = value;
+
+      cell.border = originalBorder;
+      cell.fill = originalFill;
+
+      return cell;
+    }
 
     // Fill in paid subscribers (rows 15-21)
     // Row 15: Priest and Religious
@@ -730,14 +729,14 @@ async function generateExcelReport(reportData, outputPath) {
       TOTAL: 0,
       MASS: 0,
     };
-    worksheet.getCell("D17").value = `Paid w/ Mass = ${Number(
-      priestData.MASS || 0
-    )}`;
-    worksheet.getCell("D17").font = { size: 8 };
-    worksheet.getCell("D17").width = 12;
-    worksheet.getCell("E17").value = Number(priestData.LOCAL || 0);
-    worksheet.getCell("F17").value = Number(priestData.ABROAD || 0);
-    worksheet.getCell("G17").value = Number(priestData.TOTAL || 0);
+    setCellValue("D17", `Paid w/ Mass = ${Number(priestData.MASS || 0)}`);
+
+    worksheet.getCell("D17").font = { size: 9 };
+    worksheet.getColumn("D").width = 16;
+
+    setCellValue("E17").value = Number(priestData.LOCAL);
+    setCellValue("F17").value = Number(priestData.ABROAD);
+    setCellValue("G17").value = Number(priestData.TOTAL);
 
     // Row 16: Lay Persons
     const layData = reportData.paidSubscribers["Lay Person"] || {
@@ -746,10 +745,10 @@ async function generateExcelReport(reportData, outputPath) {
       TOTAL: 0,
       MASS: 0,
     };
-    // worksheet.getCell("F16").value = Number(layData.MASS || 0);
-    worksheet.getCell("E18").value = Number(layData.LOCAL || 0);
-    worksheet.getCell("F18").value = Number(layData.ABROAD || 0);
-    worksheet.getCell("G18").value = Number(layData.TOTAL || 0);
+    // worksheet.getCell("F16").value = Number(layData.MASS );
+    setCellValue("E18").value = Number(layData.LOCAL);
+    setCellValue("F18").value = Number(layData.ABROAD);
+    setCellValue("G18").value = Number(layData.TOTAL);
 
     // Row 17: Schools/Libraries
     const schoolData = reportData.paidSubscribers["Schools/Libraries"] || {
@@ -757,9 +756,9 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("E19").value = Number(schoolData.LOCAL || 0);
-    worksheet.getCell("F19").value = Number(schoolData.ABROAD || 0);
-    worksheet.getCell("G19").value = Number(schoolData.TOTAL || 0);
+    setCellValue("E19").value = Number(schoolData.LOCAL);
+    setCellValue("F19").value = Number(schoolData.ABROAD);
+    setCellValue("G19").value = Number(schoolData.TOTAL);
 
     // Row 18: Campus Ministries
     const campusData = reportData.paidSubscribers["Campus Ministries"] || {
@@ -767,9 +766,9 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("E20").value = Number(campusData.LOCAL || 0);
-    worksheet.getCell("F20").value = Number(campusData.ABROAD || 0);
-    worksheet.getCell("G20").value = Number(campusData.TOTAL || 0);
+    worksheet.getCell("E20").value = Number(campusData.LOCAL);
+    worksheet.getCell("F20").value = Number(campusData.ABROAD);
+    worksheet.getCell("G20").value = Number(campusData.TOTAL);
 
     // Row 19: Paid by Others (GIFT Subscription)
     const giftData = reportData.paidSubscribers["GIFT Subscription"] || {
@@ -777,24 +776,24 @@ async function generateExcelReport(reportData, outputPath) {
       ABROAD: 0,
       TOTAL: 0,
     };
-    worksheet.getCell("E21").value = Number(giftData.LOCAL || 0);
-    worksheet.getCell("F21").value = Number(giftData.ABROAD || 0);
-    worksheet.getCell("G21").value = Number(giftData.TOTAL || 0);
+    setCellValue("E21").value = Number(giftData.LOCAL);
+    setCellValue("F21").value = Number(giftData.ABROAD);
+    setCellValue("G21").value = Number(giftData.TOTAL);
 
     // Row 20: Unencoded MP (placeholder for now)
-    worksheet.getCell("E22").value = 0;
-    worksheet.getCell("F22").value = 0;
-    worksheet.getCell("G22").value = 0;
+    setCellValue("E22").value = 0;
+    setCellValue("F22").value = 0;
+    setCellValue("G22").value = 0;
 
     // ===== IMPROVED LOGIC FOR ROW 23 TOTALS =====
     // Auto-total for columns E, F, G (rows 17-22)
-    worksheet.getCell("E23").value = {
+    setCellValue("E23").value = {
       formula: "SUM(E17:E22)",
     };
-    worksheet.getCell("F23").value = {
+    setCellValue("F23").value = {
       formula: "SUM(F17:F22)",
     };
-    worksheet.getCell("G23").value = {
+    setCellValue("G23").value = {
       formula: "SUM(G17:G22)",
     };
 
@@ -802,10 +801,6 @@ async function generateExcelReport(reportData, outputPath) {
     ["E23", "F23", "G23"].forEach((cellAddress) => {
       const cell = worksheet.getCell(cellAddress);
       cell.font = { bold: true };
-      cell.border = {
-        top: { style: "thin" },
-        bottom: { style: "double" },
-      };
     });
 
     // ===== COLUMN WIDTH AND ALIGNMENT IMPROVEMENTS =====
@@ -837,6 +832,8 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("G26").value = renewals;
     worksheet.getCell("G26").numFmt = "#,##0";
 
+    worksheet.getCell("G34").alignment = { horizontal: "center" };
+
     // Fill in complimentary (rows 44-48)
     // Row 44: Parishes
     const parishesData = reportData.complimentary.Parishes || {
@@ -867,6 +864,12 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("G47").value = Number(exchangeData.TOTAL || 0);
 
     // ===== IMPROVED LOGIC FOR ROW 49 TOTALS =====
+
+    ["E49", "F49", "G49"].forEach((cellAddress) => {
+      const cell = worksheet.getCell(cellAddress);
+      cell.font = { bold: true };
+    });
+
     // Auto-total for columns E, F, G (rows 17-22)
     worksheet.getCell("E49").value = {
       formula: "SUM(E45:E48)",
@@ -877,6 +880,11 @@ async function generateExcelReport(reportData, outputPath) {
     worksheet.getCell("G49").value = {
       formula: "SUM(G45:G48)",
     };
+
+    worksheet.getCell("E52").value = { formula: "SUM(E36,E42,E49,E51)" };
+    worksheet.getCell("F52").value = { formula: "SUM(F51,F49,F36)" };
+    worksheet.getCell("G52").value = { formula: "SUM(G36,G42,G49)+E51" };
+    worksheet.getCell("G54").value = { formula: "G13-G52" };
 
     // Row 61: Current Date
     const currentDate = new Date();
