@@ -19,13 +19,14 @@ import { SocketProvider } from "../utils/Websocket/SocketProvider";
 import Modal from "./modal";
 import { Toaster } from "../components/UI/ShadCN/toaster";
 import { UserProvider } from "../utils/Hooks/userProvider.jsx";
+import axios from "axios";
 
 const App = () => {
   const [isSidebar, setIsSidebar] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
-  const [inactivityTimeout, setInactivityTimeout] = useState(300);
+  const [inactivityTimeout, setInactivityTimeout] = useState(900);
   const [userData, setUserData] = useState(null);
 
   const handleInactivity = useCallback((timeout) => {
@@ -39,6 +40,18 @@ const App = () => {
       if (user) {
         setIsLoggedIn(true);
         setUserData(user);
+        // Fetch user preferences after successful authentication
+        try {
+          const response = await axios.get(
+            `http://${
+              import.meta.env.VITE_IP_ADDRESS
+            }:3001/users/preferences`
+          );
+          setInactivityTimeout(response.data.inactivityTimeout || 900);
+        } catch (err) {
+          console.error("Error fetching user preferences:", err);
+          // Keep default value on error
+        }
       }
       setIsLoading(false);
     };

@@ -29,6 +29,7 @@ const ActivityMonitor = ({
   const [showWarning, setShowWarning] = useState(false);
   const [remainingTime, setRemainingTime] = useState(WARNING_DURATION);
   const [isPaused, setIsPaused] = useState(false);
+  const prevInactivityTimeoutRef = useRef(inactivityTimeout);
 
   // Timer refs to avoid setInterval throttling in background tabs
   const warningTimeoutRef = useRef(null);
@@ -41,6 +42,14 @@ const ActivityMonitor = ({
     setShowWarning(false);
     setRemainingTime(WARNING_DURATION);
   }, []);
+
+  // Reset lastActivity when inactivityTimeout changes to restart the timer from scratch
+  useEffect(() => {
+    if (prevInactivityTimeoutRef.current !== inactivityTimeout) {
+      prevInactivityTimeoutRef.current = inactivityTimeout;
+      resetActivityTimer();
+    }
+  }, [inactivityTimeout, resetActivityTimer]);
 
   // Check token validity on page load/refresh
   useEffect(() => {
@@ -121,11 +130,14 @@ const ActivityMonitor = ({
 
     const now = Date.now();
     const elapsed = now - lastActivity;
-    const totalMs = inactivityTimeout * 1000;
-    const warningAt = Math.max(0, totalMs - WARNING_DURATION - elapsed);
-    const logoutAt = Math.max(0, totalMs - elapsed);
+    // Convert inactivity timeout to milliseconds
+    const totalInactivityMs = inactivityTimeout * 1000;
+    // Calculate when to show warning (WARNING_DURATION before timeout)
+    const timeUntilWarning = Math.max(0, totalInactivityMs - WARNING_DURATION - elapsed);
+    // Calculate when to logout (exactly at the inactivity timeout)
+    const timeUntilLogout = Math.max(0, totalInactivityMs - elapsed);
 
-    // Schedule warning
+    // Schedule warning to appear WARNING_DURATION before logout
     warningTimeoutRef.current = setTimeout(() => {
       setShowWarning(true);
       setIsInactive(true);
@@ -138,9 +150,9 @@ const ActivityMonitor = ({
       countdownIntervalRef.current = setInterval(() => {
         setRemainingTime((prev) => Math.max(0, prev - 1000));
       }, 1000);
-    }, warningAt);
+    }, timeUntilWarning);
 
-    // Schedule logout
+    // Schedule logout to happen exactly at inactivityTimeout milliseconds
     logoutTimeoutRef.current = setTimeout(() => {
       setShowWarning(false);
       setIsInactive(false);
@@ -149,7 +161,7 @@ const ActivityMonitor = ({
       localStorage.setItem("sessionExpired", "true");
       setAuthToken(null);
       redirectToLogin();
-    }, logoutAt);
+    }, timeUntilLogout);
 
     return () => {
       if (warningTimeoutRef.current) {

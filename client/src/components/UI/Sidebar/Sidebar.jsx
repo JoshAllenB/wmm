@@ -20,6 +20,7 @@ import BackupIcon from "@mui/icons-material/Backup";
 import AccountCircleSharpIcon from "@mui/icons-material/AccountCircleSharp";
 import VolunteerActivismIcon from "@mui/icons-material/VolunteerActivism";
 import { useUser } from "../../../utils/Hooks/userProvider";
+import { useUserPreferences } from "../../../utils/Hooks/useUserPreferences";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,10 +46,13 @@ export default function MenuSidebar({
 }) {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
-  const [inactiveTimeout, setInactiveTimeout] = useState(900);
   const { hasRole } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
+  const {
+    inactivityTimeout: inactiveTimeout,
+    updateInactivityTimeout,
+  } = useUserPreferences();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -58,9 +62,9 @@ export default function MenuSidebar({
     setSelected(item);
   };
 
-  const handleTimeout = (timeoutSeconds) => {
-    setInactiveTimeout(timeoutSeconds);
-    if (typeof onInactivityTimeoutChange === "function") {
+  const handleTimeout = async (timeoutSeconds) => {
+    const result = await updateInactivityTimeout(timeoutSeconds);
+    if (result.success && typeof onInactivityTimeoutChange === "function") {
       onInactivityTimeoutChange(timeoutSeconds);
     }
   };

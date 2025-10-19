@@ -190,4 +190,58 @@ router.get("/addusers", verifyToken, async (req, res) => {
   }
 });
 
+// Get user preferences (inactivity timeout)
+router.get("/preferences", verifyToken, async (req, res) => {
+  try {
+    const user = await UserModel.findById(req.user._id).select(
+      "inactivityTimeout"
+    );
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json({
+      inactivityTimeout: user.inactivityTimeout || 900,
+    });
+  } catch (error) {
+    console.error("Error fetching user preferences:", error);
+    res.status(500).json({ error: "Failed to fetch user preferences" });
+  }
+});
+
+// Update user preferences (inactivity timeout)
+router.put("/preferences", verifyToken, async (req, res) => {
+  try {
+    const { inactivityTimeout } = req.body;
+
+    // Validate timeout value
+    if (
+      typeof inactivityTimeout !== "number" ||
+      inactivityTimeout < 300 ||
+      inactivityTimeout > 1800
+    ) {
+      return res.status(400).json({
+        error: "Invalid timeout value. Must be between 300 and 1800 seconds.",
+      });
+    }
+
+    const user = await UserModel.findByIdAndUpdate(
+      req.user._id,
+      { inactivityTimeout },
+      { new: true, runValidators: true }
+    ).select("inactivityTimeout");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      message: "Preferences updated successfully",
+      inactivityTimeout: user.inactivityTimeout,
+    });
+  } catch (error) {
+    console.error("Error updating user preferences:", error);
+    res.status(500).json({ error: "Failed to update user preferences" });
+  }
+});
+
 export default router;
