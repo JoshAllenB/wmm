@@ -30,6 +30,12 @@ const UsersSchema = new mongoose.Schema(
       },
     ],
     lastLoginAt: Date,
+    inactivityTimeout: {
+      type: Number,
+      default: 900, // 15 minutes in seconds
+      min: 300, // 5 minutes minimum
+      max: 1800, // 30 minutes maximum
+    },
     // Status is no longer stored in the database
     // It is determined dynamically from activeSessions
   },
