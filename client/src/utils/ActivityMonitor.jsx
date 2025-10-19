@@ -35,6 +35,7 @@ const ActivityMonitor = ({
   const warningTimeoutRef = useRef(null);
   const logoutTimeoutRef = useRef(null);
   const countdownIntervalRef = useRef(null);
+  const lastRefreshAtRef = useRef(0);
 
   const resetActivityTimer = useCallback(() => {
     setLastActivity(Date.now());
@@ -189,52 +190,53 @@ const ActivityMonitor = ({
       document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
+  // Consolidated token refresh logic
+  const refreshTokenIfNeeded = useCallback(async () => {
+    try {
+      const token = getAccessToken();
+      if (!token) return;
+
+      const { jwtDecode } = await import("jwt-decode");
+      const decoded = jwtDecode(token);
+      if (!decoded?.exp) return;
+
+      const msLeft = decoded.exp * 1000 - Date.now();
+      // If less than 3 minutes left, refresh silently
+      if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
+        const refreshToken =
+          localStorage.getItem("refreshToken") ||
+          sessionStorage.getItem("refreshToken");
+        if (!refreshToken) return;
+
+        // Avoid spamming refresh: only once per minute
+        const now = Date.now();
+        if (now - lastRefreshAtRef.current < 60 * 1000) return;
+
+        lastRefreshAtRef.current = now;
+        const axios = (await import("axios")).default;
+        const { data } = await axios.post(
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/refreshToken`,
+          { token: refreshToken },
+          { _isTokenRefresh: true }
+        );
+        const {
+          token: newToken,
+          refreshToken: newRefresh,
+          tokenExpiresAt,
+        } = data;
+        setTokens(newToken, newRefresh, tokenExpiresAt);
+        setAuthToken(newToken);
+      }
+    } catch (e) {
+      // Ignore refresh errors here; central error handler will manage if needed
+    }
+  }, []);
+
   // Event listeners for user activity
   useEffect(() => {
     const handleActivity = async () => {
       // If token is close to expiring, proactively refresh on real activity
-      try {
-        const token = getAccessToken();
-        if (token) {
-          const { jwtDecode } = await import("jwt-decode");
-          const decoded = jwtDecode(token);
-          if (decoded?.exp) {
-            const msLeft = decoded.exp * 1000 - Date.now();
-            // If less than 3 minutes left, refresh silently
-            if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
-              const refreshToken =
-                localStorage.getItem("refreshToken") ||
-                sessionStorage.getItem("refreshToken");
-              if (refreshToken) {
-                // Avoid spamming refresh: only once per warning period
-                if (
-                  !handleActivity._lastRefreshAt ||
-                  Date.now() - handleActivity._lastRefreshAt > 60 * 1000
-                ) {
-                  handleActivity._lastRefreshAt = Date.now();
-                  const axios = (await import("axios")).default;
-                  const { data } = await axios.post(
-                    `http://${
-                      import.meta.env.VITE_IP_ADDRESS
-                    }:3001/auth/refreshToken`,
-                    { token: refreshToken },
-                    { _isTokenRefresh: true }
-                  );
-                  const {
-                    token: newToken,
-                    refreshToken: newRefresh,
-                    tokenExpiresAt,
-                  } = data;
-                  setTokens(newToken, newRefresh, tokenExpiresAt);
-                  setAuthToken(newToken);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // Ignore refresh errors here; central error handler will manage if needed
-      }
+      await refreshTokenIfNeeded();
       resetActivityTimer();
     };
 
@@ -255,41 +257,12 @@ const ActivityMonitor = ({
   useEffect(() => {
     if (!isLoggedIn) return;
 
-    const intervalId = setInterval(async () => {
-      try {
-        const token = getAccessToken();
-        if (!token) return;
-        const { jwtDecode } = await import("jwt-decode");
-        const decoded = jwtDecode(token);
-        if (!decoded?.exp) return;
-        const msLeft = decoded.exp * 1000 - Date.now();
-        // Refresh if expiring within 3 minutes, but not expired yet
-        if (msLeft > 0 && msLeft < 3 * 60 * 1000) {
-          const refreshToken =
-            localStorage.getItem("refreshToken") ||
-            sessionStorage.getItem("refreshToken");
-          if (!refreshToken) return;
-          const axios = (await import("axios")).default;
-          const { data } = await axios.post(
-            `http://${import.meta.env.VITE_IP_ADDRESS}:3001/auth/refreshToken`,
-            { token: refreshToken },
-            { _isTokenRefresh: true }
-          );
-          const {
-            token: newToken,
-            refreshToken: newRefresh,
-            tokenExpiresAt,
-          } = data;
-          setTokens(newToken, newRefresh, tokenExpiresAt);
-          setAuthToken(newToken);
-        }
-      } catch (e) {
-        // Let central error handling manage any failures
-      }
+    const intervalId = setInterval(() => {
+      refreshTokenIfNeeded();
     }, 30_000); // check every 30s
 
     return () => clearInterval(intervalId);
-  }, [isLoggedIn]);
+  }, [isLoggedIn, refreshTokenIfNeeded]);
 
   const handleClose = () => {
     setShowWarning(false);
