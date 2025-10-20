@@ -65,24 +65,14 @@ const TYPE_GROUPS = {
 };
 
 // Complementary type groups - moved outside function to avoid recreation
+// Logic: Parishes types (PAR, ADMIN) go to Parishes, Exchange types go to Exchange,
+// ALL OTHER types (not in Parishes or Exchange) go to Various/Bishop
 const COMPLIMENTARY_TYPE_GROUPS = {
   Parishes: ["PAR", "ADMIN"],
-  "Various/Bishop/Religious/Campus M/Library/School": [
-    "BP",
-    "CHAP",
-    "REL",
-    "RELMEN",
-    "RELWOMEN",
-    "VAR",
-    "MIN",
-    "SCH",
-    "LIB",
-    "GIFT",
-    "LAY",
-  ],
   Exchange: ["EXC"],
+  "Various/Bishop/Religious/Campus M/Library/School": [], // Catch-all for everything else
   Promotional: [],
-  Gifts: ["MP", "EDITOR", "ADMIN"],
+  Gifts: [],
 };
 
 // Helper function to create a client ID lookup map
