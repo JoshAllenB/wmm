@@ -325,6 +325,8 @@ const AllClient = () => {
       advancedFilterData = {},
       overrideSubscriptionType = null
     ) => {
+      // Declare timeoutId outside try/catch to avoid scope issues on errors
+      let timeoutId = null;
       try {
         // Cancel any existing request
         if (currentRequestRef.current) {
@@ -339,7 +341,7 @@ const AllClient = () => {
         setIsLoading(true);
         
         // Add a timeout to prevent indefinite loading
-        const timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(() => {
           if (currentRequestRef.current?.id === requestId) {
             console.warn('Request timeout - forcing loading state reset');
             setIsLoading(false);
@@ -463,7 +465,7 @@ const AllClient = () => {
 
         // Check if request was cancelled before making the API call
         if (currentRequestRef.current?.cancel) {
-          clearTimeout(timeoutId);
+          if (timeoutId) clearTimeout(timeoutId);
           setIsLoading(false);
           setIsAddedTodayLoading(false);
           return null;
@@ -479,13 +481,14 @@ const AllClient = () => {
         );
 
         // Clear the timeout since request completed
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
 
         // Check if request was cancelled during the API call
         if (
           currentRequestRef.current?.cancel ||
           currentRequestRef.current?.id !== requestId
         ) {
+          if (timeoutId) clearTimeout(timeoutId);
           setIsLoading(false);
           setIsAddedTodayLoading(false);
           return null;
@@ -534,7 +537,7 @@ const AllClient = () => {
       } catch (error) {
         console.error("❌ Error fetching clients:", error);
 
-        // Clear any existing timeout
+        // Clear any existing timeout (guard against scope issues)
         if (timeoutId) {
           clearTimeout(timeoutId);
         }

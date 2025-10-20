@@ -3,7 +3,8 @@ import axios from "axios";
 export const fetchGroups = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
+      { timeout: 15000 }
     );
     return response.data;
   } catch (error) {
@@ -51,7 +52,8 @@ export const fetchTypes = async () => {
 export const fetchUsers = async () => {
   try {
     const response = await axios.get(
-      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`
+      `http://${import.meta.env.VITE_IP_ADDRESS}:3001/users`,
+      { timeout: 15000 }
     );
     return response.data;
   } catch (error) {
@@ -59,7 +61,8 @@ export const fetchUsers = async () => {
     // Try an alternative endpoint if the first one fails
     try {
       const altResponse = await axios.get(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/user`
+        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/user`,
+        { timeout: 15000 }
       );
       return altResponse.data;
     } catch (altError) {
