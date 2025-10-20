@@ -174,7 +174,9 @@ const DataExport = () => {
     try {
       setIsDownloading(true);
       setError(null);
-      await dataExportService.downloadFile(exportStatus.filename, exportType);
+      // Use exportType from exportStatus to ensure correct download endpoint
+      const downloadExportType = exportStatus.exportType || exportType;
+      await dataExportService.downloadFile(exportStatus.filename, downloadExportType);
       // Removed dialog close
     } catch (err) {
       console.error("Download error:", err);
