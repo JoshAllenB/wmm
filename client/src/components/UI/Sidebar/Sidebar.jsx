@@ -49,10 +49,8 @@ export default function MenuSidebar({
   const { hasRole } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    inactivityTimeout: inactiveTimeout,
-    updateInactivityTimeout,
-  } = useUserPreferences();
+  const { inactivityTimeout: inactiveTimeout, updateInactivityTimeout } =
+    useUserPreferences();
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -74,7 +72,9 @@ export default function MenuSidebar({
   };
 
   const hasDataExportAccess = () => {
-    return hasRole("WMM") || hasRole("HRG") || hasRole("CAL");
+    return (
+      hasRole("WMM") || hasRole("HRG") || hasRole("CAL") || hasRole("Admin")
+    );
   };
 
   const hasBackupAccess = () => {
@@ -238,7 +238,7 @@ export default function MenuSidebar({
             )}
 
             {hasDataExportAccess() && (
-              <MenuItem
+              <MenuItem 
                 icon={<DownloadIcon />}
                 component={<Link to="/data-export" />}
                 onClick={() => handleSelect("Data Export")}

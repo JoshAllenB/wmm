@@ -20,6 +20,10 @@ const DataExport = () => {
 
   // Determine available export types based on user roles
   const availableExportTypes = React.useMemo(() => {
+    if (hasRole("Admin")) {
+      return ["WMM", "HRG", "FOM"];
+    }
+    
     const types = [];
     if (hasRole("WMM")) {
       types.push("WMM");
