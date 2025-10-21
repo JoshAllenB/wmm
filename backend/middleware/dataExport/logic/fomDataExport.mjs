@@ -333,6 +333,30 @@ export const generateFomExcelReport = async (reportData, savePath) => {
     }
   };
 
+  const applyDottedInsideBorders = (startCell, endCell) => {
+    const dotted = { style: "hair", color: { argb: "000000" } };
+    const start = worksheet.getCell(startCell);
+    const end = worksheet.getCell(endCell);
+    for (let r = start.row; r <= end.row; r++) {
+      const row = worksheet.getRow(r);
+      for (let c = start.col; c <= end.col; c++) {
+        const cell = row.getCell(c);
+        const isTop = r === start.row;
+        const isBottom = r === end.row;
+        const isLeft = c === start.col;
+        const isRight = c === end.col;
+        
+        // Preserve existing border or set undefined for outer edges
+        cell.border = {
+          top: !isTop ? dotted : cell.border?.top,
+          bottom: !isBottom ? dotted : cell.border?.bottom,
+          left: !isLeft ? dotted : cell.border?.left,
+          right: !isRight ? dotted : cell.border?.right,
+        };
+      }
+    }
+  };
+
   // ================
   // HEADER SECTION
   // ================
@@ -342,13 +366,14 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   worksheet.getCell("A1").font = { bold: true, size: 14 };
 
   worksheet.mergeCells("A2:G2");
-  worksheet.getCell(
-    "A2"
-  ).value = `REPORT AS OF (${new Date().toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })})`;
+  worksheet.getCell("A2").value = `REPORT AS OF ${new Date().toLocaleDateString(
+    "en-US",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  )}`;
   worksheet.getCell("A2").alignment = { horizontal: "center" };
   worksheet.getCell("A2").font = { italic: true, size: 11 };
 
@@ -390,6 +415,9 @@ export const generateFomExcelReport = async (reportData, savePath) => {
       cell.alignment = { horizontal: "center" };
       if (colNumber >= 3 && colNumber <= 7 && cell.value !== "")
         cell.numFmt = "#,##0.00";
+
+      if (colNumber === 2 && cell.value !== "") cell.numFmt = "#,##0";
+
       cell.border = {
         top: { style: "thin" },
         bottom: { style: "thin" },
@@ -422,6 +450,9 @@ export const generateFomExcelReport = async (reportData, savePath) => {
       cell.alignment = { horizontal: "center" };
       if (colNumber >= 3 && colNumber <= 7 && cell.value !== "")
         cell.numFmt = "#,##0.00";
+
+      if (colNumber === 2 && cell.value !== "") cell.numFmt = "#,##0";
+
       cell.border = {
         top: { style: "thin" },
         bottom: { style: "thin" },
@@ -443,9 +474,16 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   ]);
 
   totalRow.font = { bold: true };
-  totalRow.eachCell((cell) => {
+  totalRow.eachCell((cell, colNumber) => {
     cell.alignment = { horizontal: "center" };
-    if (typeof cell.value === "number") cell.numFmt = "#,##0.00";
+    // Exclude QTY (col 2) from decimal format
+    if (colNumber !== 2 && typeof cell.value === "number")
+      cell.numFmt = "#,##0.00";
+
+    // Keep QTY as whole number
+    if (colNumber === 2 && typeof cell.value === "number")
+      cell.numFmt = "#,##0";
+
     cell.border = {
       top: { style: "medium" },
       bottom: { style: "medium" },
@@ -456,6 +494,9 @@ export const generateFomExcelReport = async (reportData, savePath) => {
 
   // Apply consistent outline around the whole donation section
   applyThickOutline("A3", `G${totalRow.number}`);
+
+  // Apply dotted inside borders to cells A4:G22
+  applyDottedInsideBorders("A4", "G22");
 
   currentRow += 2;
 
@@ -489,15 +530,22 @@ export const generateFomExcelReport = async (reportData, savePath) => {
     worksheet.getCell(`A${row}`).value = label;
 
     ["C", "D", "E", "F"].forEach((col) => {
-      worksheet.getCell(`${col}${row}`).value = "";
-      worksheet.getCell(`${col}${row}`).alignment = { horizontal: "center" };
+      const cell = worksheet.getCell(`${col}${row}`);
+      cell.value = "";
+      cell.alignment = { horizontal: "center" };
+      cell.numFmt = "#,##0.00";
     });
 
     worksheet.getCell(`G${row}`).value = { formula: `=SUM(C${row}:F${row})` };
+    worksheet.getCell(`G${row}`).alignment = { horizontal: "center" };
+    worksheet.getCell(`G${row}`).numFmt = "#,##0.00";
   });
 
   const cpsEndRow = cpsStartRow + cpsLabels.length;
   applyThickOutline(`A${cpsStartRow}`, `G${cpsEndRow}`);
+
+  // Apply dotted inside borders to cells A25:G28
+  applyDottedInsideBorders("A25", "G28");
 
   currentRow = cpsEndRow + 2;
   // =======================
@@ -510,7 +558,7 @@ export const generateFomExcelReport = async (reportData, savePath) => {
   worksheet.mergeCells(`E${currentRow + 2}:F${currentRow + 2}`);
 
   // Set labels
-  worksheet.getCell(`E${currentRow}`).value = "Total Donation";
+  worksheet.getCell(`E${currentRow}`).value = "Total Donations";
   worksheet.getCell(`E${currentRow + 1}`).value = "Total Spent";
   worksheet.getCell(`E${currentRow + 2}`).value = "Balance";
 
@@ -543,6 +591,7 @@ export const generateFomExcelReport = async (reportData, savePath) => {
 
     // Bold text for labels
     labelCell.font = { bold: true };
+    valueCell.numFmt = "#,##0.00";
   }
 
   applyThickOutline(`F${currentRow}`, `G${currentRow + 2}`);
