@@ -953,7 +953,15 @@ export const printWithJsPrintManager = async (
   }
 
   // Convert array to Uint8Array for binary commands
-  cpj.binaryPrinterCommands = new Uint8Array(rawCommands);
+  const commandsArray = new Uint8Array(rawCommands);
+  cpj.binaryPrinterCommands = commandsArray;
+
+  // For network printers, ensure we're using RAW printing mode
+  // This is critical for ESC/P commands to reach the printer correctly
+  if (cpj.clientPrinter) {
+    cpj.clientPrinter.printAsFile = false; // Don't spool as file
+    cpj.clientPrinter.printToFileOnly = false; // Actually print, don't save to file
+  }
 
   // Set up status tracking with more detailed logging
   cpj.onUpdated = function (status) {
@@ -991,14 +999,30 @@ export const printWithJsPrintManager = async (
     }
   };
 
+  // Validate printer is ready before sending
+  if (callbacks.addPrinterEvent) {
+    callbacks.addPrinterEvent("Validating printer", {
+      printer: useDefaultPrinter ? "Default Printer" : printerName,
+      commandsLength: rawCommands.length,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   // Send print job to printer with enhanced error handling
   try {
     if (callbacks.addPrinterEvent) {
       callbacks.addPrinterEvent("Starting print job", {
         printer: useDefaultPrinter ? "Default Printer" : printerName,
         commandsLength: rawCommands.length,
+        binaryCommandsSet: cpj.binaryPrinterCommands ? true : false,
+        printerType: cpj.clientPrinter ? cpj.clientPrinter.constructor.name : 'unknown',
         timestamp: new Date().toISOString(),
       });
+    }
+
+    // Verify binary commands are set
+    if (!cpj.binaryPrinterCommands || cpj.binaryPrinterCommands.length === 0) {
+      throw new Error("No binary commands to send to printer");
     }
 
     // Add timeout to prevent hanging
@@ -1012,7 +1036,22 @@ export const printWithJsPrintManager = async (
       );
     });
 
-    const printPromise = cpj.sendToClient();
+    // Send to client with explicit promise handling
+    const printPromise = new Promise((resolve, reject) => {
+      try {
+        const result = cpj.sendToClient();
+        // If sendToClient returns a promise, wait for it
+        if (result && typeof result.then === 'function') {
+          result.then(resolve).catch(reject);
+        } else {
+          // If it doesn't return a promise, resolve immediately
+          // The onUpdated callback will track the actual status
+          setTimeout(() => resolve(), 1000);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    });
 
     // Wait for either completion or timeout
     await Promise.race([printPromise, timeoutPromise]);
