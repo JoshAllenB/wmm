@@ -17,6 +17,8 @@ const FomSchema = new mongoose.Schema(
     unsubscribe: Boolean,
     adddate: String,
     adduser: String,
+    editdate: Date,
+    edituser: String,
   },
   {
     versionKey: false,

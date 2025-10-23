@@ -614,18 +614,8 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     // Update base client data
     const updatedClientData = {
       ...clientData,
-      editedBy: user.username,
-      editedAt: new Date()
-        .toLocaleString("en-US", {
-          month: "numeric",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        })
-        .replace(",", ""),
+      editdate: new Date(),
+      edituser: user.username,
     };
 
     // Handle RTS count update if RTS checkbox is being changed

@@ -22,6 +22,8 @@ const CalSchema = new mongoose.Schema({
   remarks: String,
   adddate: String,
   adduser: String,
+  editdate: Date,
+  edituser: String,
 }, {
   versionKey: false,
   collection: "cal",
