@@ -749,53 +749,25 @@ const AllClient = () => {
       return;
     }
     
-    // Clear search input and enable "Added Today" filter
-    setFiltering(""); 
-    setPage(1); // Reset to first page
+    // Preserve all current filters - trigger a refresh by clearing lastFilterRef
+    // This will cause the useEffect to re-run with the same filters
+    console.log('Edit success - preserving filters and triggering refresh');
     
-    // Enable the "Added Today" filter if it's not already enabled
-    if (!addedToday) {
-      console.log('Edit success - activating Added Today filter');
-      setAddedToday(true);
-      setIsAddedTodayLoading(true);
-      
-      // Add a safety timeout to prevent stuck loading state
-      setTimeout(() => {
-        if (isAddedTodayLoading) {
-          console.warn('Added Today loading state stuck after edit - resetting');
-          setIsAddedTodayLoading(false);
-        }
-      }, 10000); // 10 second safety timeout
-    } else {
-      // If "Added Today" is already active, just refresh the data
-      console.log('Edit success - Added Today already active, refreshing data');
-      
-      const safetyTimeoutId = setTimeout(() => {
-        console.warn('Edit success refresh taking too long - resetting loading state');
+    // Clear the lastFilterRef to force useEffect to refresh
+    lastFilterRef.current = null;
+    
+    // Force a re-render by updating a state (we can use a minimal state update)
+    // Since all filters are already in their desired state, the useEffect will pick them up
+    setIsLoading(true);
+    
+    // Add a safety timeout to prevent stuck loading state
+    setTimeout(() => {
+      if (isLoading) {
+        console.warn('Edit success loading state stuck - resetting');
         setIsLoading(false);
         setIsAddedTodayLoading(false);
-      }, 10000);
-      
-      setTimeout(() => {
-        if (!isLoading) {
-          fetchData(page, pageSize, "", selectedGroup, advancedFilterData)
-            .then(() => {
-              clearTimeout(safetyTimeoutId);
-            })
-            .catch((error) => {
-              console.error('Error refreshing data after edit success:', error);
-              clearTimeout(safetyTimeoutId);
-              setIsLoading(false);
-              setIsAddedTodayLoading(false);
-            });
-        } else {
-          clearTimeout(safetyTimeoutId);
-        }
-      }, 100);
-    }
-    
-    // The useEffect watching currentFilterSnapshot will automatically trigger data fetch
-    // when addedToday changes from false to true
+      }
+    }, 10000); // 10 second safety timeout
   };
 
   // Update handleSearchChange function
