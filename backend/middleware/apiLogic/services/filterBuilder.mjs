@@ -3117,10 +3117,78 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         return basePipeline;
       };
 
-      const pipelines = modelsToQuery.map(({ model, type }) => ({
-        model,
-        pipeline: createDateRangePipeline("adddate", type),
-      }));
+      // Create pipeline for editdate filtering (similar to adddate)
+      const createEditDateRangePipeline = (subscriptionType = "WMM") => {
+        const pipeline = [
+          {
+            $match: {
+              editdate: { $exists: true, $ne: null },
+            },
+          },
+        ];
+
+        // Add user filter if specified
+        if (advancedFilterData.userId) {
+          const username = advancedFilterData.userId;
+          pipeline.push({ $match: { edituser: username } });
+        }
+
+        // Add date range filtering for editdate
+        const dateConditions = {};
+        if (dateRange.startDate && dateRange.endDate) {
+          dateConditions.editdate = {
+            $gte: dateRange.startDate,
+            $lte: dateRange.endDate,
+          };
+        } else if (dateRange.startDate) {
+          dateConditions.editdate = {
+            $gte: dateRange.startDate,
+          };
+        } else if (dateRange.endDate) {
+          dateConditions.editdate = {
+            $lte: dateRange.endDate,
+          };
+        }
+
+        if (Object.keys(dateConditions).length > 0) {
+          pipeline.push({ $match: dateConditions });
+        }
+
+        // Add grouping to get client IDs
+        const groupStage = {
+          $group: {
+            _id: "$clientid",
+          },
+        };
+
+        // Add subclass field if it exists and we're filtering WMM
+        if (subscriptionType === "WMM" && advancedFilterData.subsclass) {
+          groupStage.$group.latestSubsclass = { $first: "$subsclass" };
+        }
+
+        pipeline.push(groupStage);
+
+        // Add subclass filter if specified and we're filtering WMM
+        if (subscriptionType === "WMM" && advancedFilterData.subsclass) {
+          pipeline.push({
+            $match: { latestSubsclass: advancedFilterData.subsclass },
+          });
+        }
+
+        return pipeline;
+      };
+
+      // Create pipelines for both adddate and editdate
+      const pipelines = modelsToQuery.flatMap(({ model, type }) => [
+        {
+          model,
+          pipeline: createDateRangePipeline("adddate", type),
+        },
+        {
+          model,
+          pipeline: createEditDateRangePipeline(type),
+        },
+      ]);
 
       // Execute all aggregations in parallel
       const aggregationResults = await Promise.all(

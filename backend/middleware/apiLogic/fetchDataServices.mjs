@@ -776,56 +776,65 @@ async function fetchDataServices(
         const HrgModelInstance = await getModel("HrgModel");
         const CalModelInstance = await getModel("CalModel");
 
-        // Define all date fields to check for each model
+        // Define all date fields to check for each model (including editdate)
         const serviceDateFields = {
-          WmmModel: ["adddate"],
-          PromoModel: ["adddate"],
-          ComplimentaryModel: ["adddate"],
-          FomModel: ["adddate"],
-          HrgModel: ["adddate"],
-          CalModel: ["adddate"],
+          WmmModel: ["adddate", "editdate"],
+          PromoModel: ["adddate", "editdate"],
+          ComplimentaryModel: ["adddate", "editdate"],
+          FomModel: ["adddate", "editdate"],
+          HrgModel: ["adddate", "editdate"],
+          CalModel: ["adddate", "editdate"],
         };
 
         // Create a set of client IDs that match the filter
         const clientIdsSet = new Set();
 
+        // Parse the today pattern to create Date range for editdate field
+        // todayPattern is typically in format YYYY-MM-DD
+        const dateMatch = todayPattern.match(/(\d{4})-(\d{2})-(\d{2})/);
+        let todayStart = null;
+        let todayEnd = null;
+        if (dateMatch) {
+          todayStart = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}T00:00:00.000Z`);
+          todayEnd = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}T23:59:59.999Z`);
+        }
+
+        // Helper function to create query based on field type
+        const createFieldQuery = (field) => {
+          if (field === "editdate" && todayStart && todayEnd) {
+            // editdate is a Date type, use date range comparison
+            return { [field]: { $gte: todayStart, $lte: todayEnd } };
+          } else {
+            // adddate is a string, use regex
+            return { [field]: { $regex: todayPattern, $options: "i" } };
+          }
+        };
+
         // For each model, find clients with ANY date field matching today
         const modelQueriesPromises = [
           // WMM model date fields
           ...serviceDateFields.WmmModel.map((field) =>
-            WmmModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            WmmModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
           // PROMO model date fields
           ...serviceDateFields.PromoModel.map((field) =>
-            PromoModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            PromoModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
           // COMPLIMENTARY model date fields
           ...serviceDateFields.ComplimentaryModel.map((field) =>
-            ComplimentaryModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            ComplimentaryModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
           // FOM model date fields
           ...serviceDateFields.FomModel.map((field) =>
-            FomModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            FomModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
           // HRG model date fields
           ...serviceDateFields.HrgModel.map((field) =>
-            HrgModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            HrgModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
           // CAL model date fields
           ...serviceDateFields.CalModel.map((field) =>
-            CalModelInstance.find({
-              [field]: { $regex: todayPattern, $options: "i" },
-            }).distinct("clientid")
+            CalModelInstance.find(createFieldQuery(field)).distinct("clientid")
           ),
         ];
 
