@@ -586,6 +586,30 @@ const ConfirmationSummaryDialog = ({
                   oldValue={originalData.company}
                 />
               )}
+              {previewClientDiff.spack !== undefined && (
+                <FieldDisplay
+                  label="Special Package (SPACK)"
+                  value={previewClientDiff.spack ? "Yes" : "No"}
+                  isChanged={true}
+                  oldValue={originalData.spack ? "Yes" : "No"}
+                />
+              )}
+              {previewClientDiff.rts !== undefined && (
+                <FieldDisplay
+                  label="Return to Sender (RTS)"
+                  value={previewClientDiff.rts ? "Yes" : "No"}
+                  isChanged={true}
+                  oldValue={originalData.rts ? "Yes" : "No"}
+                />
+              )}
+              {previewClientDiff.rtsCount !== undefined && (
+                <FieldDisplay
+                  label="RTS Count"
+                  value={previewClientDiff.rtsCount}
+                  isChanged={true}
+                  oldValue={originalData.rtsCount}
+                />
+              )}
               {previewClientDiff.type !== undefined && (
                 <FieldDisplay
                   label="Type"
@@ -639,6 +663,23 @@ const ConfirmationSummaryDialog = ({
                 value={formData.company}
                 showIfEmpty={false}
               />
+              <FieldDisplay
+                label="Special Package (SPACK)"
+                value={formData.spack ? "Yes" : "No"}
+                showIfEmpty={false}
+              />
+              <FieldDisplay
+                label="Return to Sender (RTS)"
+                value={formData.rts ? "Yes" : "No"}
+                showIfEmpty={false}
+              />
+              {formData.rtsCount > 0 && (
+                <FieldDisplay
+                  label="RTS Count"
+                  value={formData.rtsCount}
+                  showIfEmpty={false}
+                />
+              )}
               <FieldDisplay
                 label="Type"
                 value={formData.type}
