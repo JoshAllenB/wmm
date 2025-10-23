@@ -3053,9 +3053,9 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           : null,
       };
 
-      // Adjust end date to end of day if it exists
+      // Adjust end date to end of day if it exists (use UTC to match pipeline)
       if (dateRange.endDate) {
-        dateRange.endDate.setHours(23, 59, 59, 999);
+        dateRange.endDate.setUTCHours(23, 59, 59, 999);
       }
 
       // Create pipelines for all models with date range filtering
