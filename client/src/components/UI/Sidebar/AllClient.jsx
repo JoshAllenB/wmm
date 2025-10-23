@@ -749,19 +749,53 @@ const AllClient = () => {
       return;
     }
     
-    setFiltering(""); // Reset search input
+    // Clear search input and enable "Added Today" filter
+    setFiltering(""); 
+    setPage(1); // Reset to first page
     
-    // Add a small delay to ensure the search input reset is processed
-    setTimeout(() => {
-      // Only refresh if we're not already in a loading state
-      if (!isLoading) {
-        fetchData(page, pageSize, "", selectedGroup, advancedFilterData)
-          .catch((error) => {
-            console.error('Error refreshing data after edit success:', error);
-            // Don't show user error for this background refresh
-          });
-      }
-    }, 100);
+    // Enable the "Added Today" filter if it's not already enabled
+    if (!addedToday) {
+      console.log('Edit success - activating Added Today filter');
+      setAddedToday(true);
+      setIsAddedTodayLoading(true);
+      
+      // Add a safety timeout to prevent stuck loading state
+      setTimeout(() => {
+        if (isAddedTodayLoading) {
+          console.warn('Added Today loading state stuck after edit - resetting');
+          setIsAddedTodayLoading(false);
+        }
+      }, 10000); // 10 second safety timeout
+    } else {
+      // If "Added Today" is already active, just refresh the data
+      console.log('Edit success - Added Today already active, refreshing data');
+      
+      const safetyTimeoutId = setTimeout(() => {
+        console.warn('Edit success refresh taking too long - resetting loading state');
+        setIsLoading(false);
+        setIsAddedTodayLoading(false);
+      }, 10000);
+      
+      setTimeout(() => {
+        if (!isLoading) {
+          fetchData(page, pageSize, "", selectedGroup, advancedFilterData)
+            .then(() => {
+              clearTimeout(safetyTimeoutId);
+            })
+            .catch((error) => {
+              console.error('Error refreshing data after edit success:', error);
+              clearTimeout(safetyTimeoutId);
+              setIsLoading(false);
+              setIsAddedTodayLoading(false);
+            });
+        } else {
+          clearTimeout(safetyTimeoutId);
+        }
+      }, 100);
+    }
+    
+    // The useEffect watching currentFilterSnapshot will automatically trigger data fetch
+    // when addedToday changes from false to true
   };
 
   // Update handleSearchChange function
