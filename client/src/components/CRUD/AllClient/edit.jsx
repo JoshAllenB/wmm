@@ -1278,7 +1278,12 @@ const Edit = ({
   // Update handleChange to ensure values are never undefined
   const handleChange = async (e) => {
     const { name, value } = e.target;
-    const safeValue = value ?? ""; // Ensure value is never undefined
+    
+    // Handle checkbox fields specially (spack, rts, rtsMaxReached, rtsCount)
+    const checkboxFields = ["spack", "rts", "rtsMaxReached"];
+    const isCheckboxField = checkboxFields.includes(name);
+    const safeValue = isCheckboxField ? value : (value ?? ""); // For checkboxes, keep boolean; otherwise ensure string
+    
     // Mark field as dirty
     dirtyClientFieldsRef.current.add(name);
     // Track subscription-related field touches
@@ -1840,6 +1845,10 @@ const Edit = ({
         }));
       } else if (field === "acode") {
         dirtyClientFieldsRef.current.add("acode");
+        setFormData((prev) => ({
+          ...prev,
+          acode: safeValue,
+        }));
       }
 
       // Only update combined address for non-city changes
@@ -3168,7 +3177,7 @@ const Edit = ({
         description: "The form submission took too long. Please try again.",
         variant: "destructive",
       });
-    }, 30000); // 30 second timeout
+    }, 60000); // 60 second timeout
 
     // Format birth date if all parts are present
     const formatBdate = () => {
@@ -3201,6 +3210,9 @@ const Edit = ({
       bdate: formatBdate(),
       address: combinedAddress,
       ...areaData,
+      // Add edit metadata for tracking
+      editdate: new Date().toISOString(),
+      edituser: user?.username || user?.name || 'Unknown',
     };
 
     // Use the already computed client diff from handleSubmit
@@ -3250,6 +3262,7 @@ const Edit = ({
 
         // Clear timeout on successful response
         clearTimeout(submissionTimeout);
+        setIsSubmitting(false); // Reset loading state immediately
 
         if (response.data && response.data.success) {
           toast({
@@ -3361,7 +3374,11 @@ const Edit = ({
       // Include recordId if we're editing an existing subscription
       const submission = {
         roleType: modelType,
-        roleData: subscriptionData,
+        roleData: {
+          ...subscriptionData,
+          editdate: new Date().toISOString(),
+          edituser: user?.username || user?.name || 'Unknown',
+        },
       };
 
       // If we're in edit mode and have a selected subscription, include the recordId
@@ -3426,6 +3443,8 @@ const Edit = ({
         paymtform: dataSource.paymtform || "",
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Include recordId if we're editing an existing HRG record
@@ -3495,6 +3514,8 @@ const Edit = ({
         ),
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Include recordId if we're editing an existing FOM record
@@ -3575,6 +3596,8 @@ const Edit = ({
           dataSource.paymtdateYear
         ),
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Remove empty fields to avoid persisting unset payment fields
@@ -3640,6 +3663,10 @@ const Edit = ({
         method
       );
 
+      // Clear timeout before processing response
+      clearTimeout(submissionTimeout);
+      setIsSubmitting(false);
+
       if (response.data && response.data.success) {
         // Show success toast with appropriate message
         toast({
@@ -3703,6 +3730,9 @@ const Edit = ({
         error
       );
 
+      // Clear timeout on error
+      clearTimeout(submissionTimeout);
+
       // Show detailed error toast
       const errorMessage =
         error.response?.data?.message ||
@@ -3719,6 +3749,7 @@ const Edit = ({
         duration: 5000,
       });
     } finally {
+      clearTimeout(submissionTimeout);
       setIsSubmitting(false);
     }
   };
@@ -3760,26 +3791,18 @@ const Edit = ({
         ...areaData,
       };
 
-      // For "Add New" subscription mode, show subscription data but don't show client diff (no changes to client)
-      if (subscriptionMode === "add") {
-        // We're adding a new subscription to existing client, show empty diff for client data
-        setPreviewClientDiff({});
-      } else {
-        // Compute client diff against initial snapshot to only show changed fields
-        const initialSnapshot =
-          initialClientSnapshotRef.current || rowData || {};
-        const clientDataWithClears = computeClientDiff(
-          initialSnapshot,
-          baseClientData
-        );
-        setPreviewClientDiff(clientDataWithClears);
-      }
+      // Compute client diff against initial snapshot to only show changed fields
+      // This applies regardless of subscription mode
+      const initialSnapshot =
+        initialClientSnapshotRef.current || rowData || {};
+      const clientDataWithClears = computeClientDiff(
+        initialSnapshot,
+        baseClientData
+      );
+      setPreviewClientDiff(clientDataWithClears);
 
       // Check if there are any meaningful changes
-      const hasClientChanges =
-        subscriptionMode === "add"
-          ? false
-          : Object.keys(previewClientDiff || {}).length > 0;
+      const hasClientChanges = Object.keys(clientDataWithClears || {}).length > 0;
 
       // Validate subscription data if applicable
       let hasSubscriptionChanges = false;
@@ -3826,17 +3849,26 @@ const Edit = ({
           validSubTypes.includes(formData.subscriptionType) &&
           selectedRole === "WMM"
         ) {
-          if (!hasSubscriptionChanges) {
+          // If no subscription changes but has client changes, allow it (will ignore subscription data)
+          if (!hasSubscriptionChanges && !hasClientChanges) {
             toast({
-              title: "Incomplete Subscription Data",
-              description:
-                "Please complete the subscription fields before submitting.",
+              title: "No Changes",
+              description: "No changes were detected. Nothing to save.",
               variant: "default",
             });
             return;
           }
+          // If no subscription changes but has client changes, just proceed (subscription will be ignored)
         }
-        // For any other type or role (HRG, FOM, CAL), do not block submission or show this toast.
+        // For any other type or role (HRG, FOM, CAL), allow if there are client changes
+        if (!hasClientChanges) {
+          toast({
+            title: "No Changes",
+            description: "No changes were detected. Nothing to save.",
+            variant: "default",
+          });
+          return;
+        }
       } else if (!hasClientChanges && !hasSubscriptionChanges) {
         // No changes detected in edit existing mode, show a message and return
         toast({
@@ -3874,9 +3906,13 @@ const Edit = ({
         dirtySubscriptionFieldsRef.current || []
       ).some((f) => requiredTouchFields.has(f));
 
+      // Only validate subscription if user is in WMM role, has selected a subscription type,
+      // AND has actually touched subscription fields
+      // This allows users to submit client-only changes without filling subscription data
       if (
         userCanSubmitSubscription &&
         subscriptionSelected &&
+        selectedRole === "WMM" &&
         anyRequiredTouched
       ) {
         // Use existing data presence check
@@ -4071,6 +4107,9 @@ const Edit = ({
       bdate: formatBdate(),
       address: combinedAddress,
       ...areaData,
+      // Add edit metadata for tracking
+      editdate: new Date().toISOString(),
+      edituser: user?.username || user?.name || 'Unknown',
     };
 
     // Clean the client data by removing empty fields, then add explicit nulls for cleared fields
@@ -4128,7 +4167,11 @@ const Edit = ({
       // Include recordId if we're editing an existing subscription
       const submission = {
         roleType: modelType,
-        roleData: subscriptionData,
+        roleData: {
+          ...subscriptionData,
+          editdate: new Date().toISOString(),
+          edituser: user?.username || user?.name || 'Unknown',
+        },
       };
 
       // If we're in edit mode and have a selected subscription, include the recordId
@@ -4193,6 +4236,8 @@ const Edit = ({
         paymtform: dataSource.paymtform || "",
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Include recordId if we're editing an existing HRG record
@@ -4262,6 +4307,8 @@ const Edit = ({
         ),
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Include recordId if we're editing an existing FOM record
@@ -4340,6 +4387,8 @@ const Edit = ({
           dataSource.paymtdateYear
         ),
         remarks: dataSource.remarks || "",
+        editdate: new Date().toISOString(),
+        edituser: user?.username || user?.name || 'Unknown',
       };
 
       // Include recordId if we're editing an existing CAL record
@@ -4430,22 +4479,27 @@ const Edit = ({
           duration: 5000,
         });
 
-        // Backend already emits the WebSocket event, so we don't need to emit it again
-        if (onEditSuccess) {
-          onEditSuccess({
-            id: mode === "edit" ? rowData.id : response.data.id,
-            ...clientDataWithClears,
-            services: [getServiceFromRoleSubmissions()],
-            subscriptionType: formData.subscriptionType,
-            wmmData: response.data.wmmData || [],
-            hrgData: response.data.hrgData || [],
-            fomData: response.data.fomData || [],
-            calData: response.data.calData || [],
-            promoData: response.data.promoData || [],
-            complimentaryData: response.data.complimentaryData || [],
-          });
-        }
+        // Close first, then trigger refresh to prevent race conditions
         onClose();
+        
+        // Backend already emits the WebSocket event, so we don't need to emit it again
+        // Call onEditSuccess after a brief delay to ensure modal is closed first
+        if (onEditSuccess) {
+          setTimeout(() => {
+            onEditSuccess({
+              id: mode === "edit" ? rowData.id : response.data.id,
+              ...clientDataWithClears,
+              services: [getServiceFromRoleSubmissions()],
+              subscriptionType: formData.subscriptionType,
+              wmmData: response.data.wmmData || [],
+              hrgData: response.data.hrgData || [],
+              fomData: response.data.fomData || [],
+              calData: response.data.calData || [],
+              promoData: response.data.promoData || [],
+              complimentaryData: response.data.complimentaryData || [],
+            });
+          }, 50);
+        }
       } else {
         // Handle case where API returns success: false
         toast({
@@ -4507,6 +4561,14 @@ const Edit = ({
       });
     } finally {
       setIsSubmitting(false);
+      // Ensure modal closes even if there's an error during callback execution
+      // Add a safety timeout to prevent modal from staying open
+      setTimeout(() => {
+        if (isSubmitting) {
+          console.warn('Modal submission stuck - forcing close');
+          onClose();
+        }
+      }, 1000);
     }
   };
 
