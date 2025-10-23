@@ -1010,28 +1010,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
 
     // WebSocket updates
     if (req.io) {
-      // Get all subscription data for this client
-      const [wmmData, hrgData, fomData, calData, promoData, complimentaryData] =
-        await Promise.all([
-          WmmModel.find({ clientid: parseInt(id) })
-            .sort({ subsdate: -1 })
-            .lean(),
-          HrgModel.find({ clientid: parseInt(id) })
-            .sort({ recvdate: -1 })
-            .lean(),
-          FomModel.find({ clientid: parseInt(id) })
-            .sort({ recvdate: -1 })
-            .lean(),
-          CalModel.find({ clientid: parseInt(id) })
-            .sort({ recvdate: -1 })
-            .lean(),
-          PromoModel.find({ clientid: parseInt(id) })
-            .sort({ subsdate: -1 })
-            .lean(),
-          ComplimentaryModel.find({ clientid: parseInt(id) })
-            .sort({ subsdate: -1 })
-            .lean(),
-        ]);
+      // Reuse already fetched data - no need to query again
 
       // Get services from roleResults
       const services = roleResults.map((result) => result.roleType);
