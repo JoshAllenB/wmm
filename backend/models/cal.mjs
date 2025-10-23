@@ -27,6 +27,10 @@ const CalSchema = new mongoose.Schema({
   collection: "cal",
 });
 
+// Add index on clientid for faster lookups
+CalSchema.index({ clientid: 1 });
+CalSchema.index({ recvdate: -1 });
+
 const CalModel = calConnection.model("cal", CalSchema);
 
 export default CalModel;

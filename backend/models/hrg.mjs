@@ -28,6 +28,10 @@ const HrgSchema = new mongoose.Schema(
   }
 );
 
+// Add index on clientid for faster lookups
+HrgSchema.index({ clientid: 1 });
+HrgSchema.index({ recvdate: -1 });
+
 const HRGModel = hrgConnection.model("HRG", HrgSchema);
 
 export default HRGModel;

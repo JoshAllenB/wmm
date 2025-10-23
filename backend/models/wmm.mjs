@@ -35,6 +35,10 @@ const WmmSchema = new mongoose.Schema(
   }
 );
 
+// Add index on clientid for faster lookups
+WmmSchema.index({ clientid: 1 });
+WmmSchema.index({ subsdate: -1 });
+
 const WmmModel = wmmConnection.model("wmm", WmmSchema);
 
 export default WmmModel;

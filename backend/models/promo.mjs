@@ -28,6 +28,10 @@ const PromoSchema = new mongoose.Schema(
   }
 );
 
+// Add index on clientid for faster lookups
+PromoSchema.index({ clientid: 1 });
+PromoSchema.index({ subsdate: -1 });
+
 const PromoModel = promoConnection.model("Promo", PromoSchema, "promo");
 
 export default PromoModel;

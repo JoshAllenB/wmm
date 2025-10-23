@@ -30,6 +30,10 @@ const ComplimentarySchema = new mongoose.Schema(
   }
 );
 
+// Add index on clientid for faster lookups
+ComplimentarySchema.index({ clientid: 1 });
+ComplimentarySchema.index({ subsdate: -1 });
+
 const ComplimentaryModel = complimentaryConnection.model(
   "Complimentary",
   ComplimentarySchema,

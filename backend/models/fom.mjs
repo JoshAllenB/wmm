@@ -24,6 +24,10 @@ const FomSchema = new mongoose.Schema(
   }
 );
 
+// Add index on clientid for faster lookups
+FomSchema.index({ clientid: 1 });
+FomSchema.index({ recvdate: -1 });
+
 const FomModel = fomConnection.model("fom", FomSchema);
 
 export default FomModel;
