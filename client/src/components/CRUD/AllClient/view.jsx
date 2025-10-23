@@ -891,6 +891,36 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {record.remarks}
                   </div>
                 )}
+                <div className="flex">
+                  {record.adddate && (
+                    <div className="mt-1 text-sm">
+                      <span className="font-semibold">Added:</span>{" "}
+                      <span>{formatDate(record.adddate)}</span>
+                      {record.adduser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">{record.adduser}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {(record.editdate || record.edituser) && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Edited:</span>{" "}
+                      <span>{formatDate(record.editdate)}</span>
+                      {record.edituser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">
+                            {record.edituser}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -980,6 +1010,36 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {record.remarks}
                   </div>
                 )}
+                <div className="flex">
+                  {record.adddate && (
+                    <div className="mt-1 text-sm">
+                      <span className="font-semibold">Added:</span>{" "}
+                      <span>{formatDate(record.adddate)}</span>
+                      {record.adduser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">{record.adduser}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {(record.editdate || record.edituser) && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Edited:</span>{" "}
+                      <span>{formatDate(record.editdate)}</span>
+                      {record.edituser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">
+                            {record.edituser}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -1038,6 +1098,36 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                     {record.remarks}
                   </div>
                 )}
+                <div className="flex">
+                  {record.adddate && (
+                    <div className="mt-1 text-sm">
+                      <span className="font-semibold">Added:</span>{" "}
+                      <span>{formatDate(record.adddate)}</span>
+                      {record.adduser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">{record.adduser}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {(record.editdate || record.edituser) && (
+                    <div className="mt-1 pl-4 text-sm">
+                      <span className="font-semibold">Edited:</span>{" "}
+                      <span>{formatDate(record.editdate)}</span>
+                      {record.edituser && (
+                        <span>
+                          {" "}
+                          by{" "}
+                          <span className="font-semibold">
+                            {record.edituser}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -1063,27 +1153,36 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                   <h2 className="text-2xl font-bold text-black">
                     Client Information ID: {formData.id}
                   </h2>
-                  <h2 className="flex flex-col text-xl font-bold text-black">
-                    Added Date: {formatDate(formData.adddate)}
-                  </h2>
-                  {(formData.editedAt ||
-                    formData.editdate ||
-                    formData.editedBy ||
-                    formData.edituser) && (
-                    <h2 className="flex flex-col text-xl font-bold text-black">
-                      Last Edited:{" "}
-                      {formatDate(formData.editedAt || formData.editdate)}
-                      {(formData.editedBy || formData.edituser) && (
-                        <span>
-                          {" "}
-                          by{" "}
-                          <span className="font-semibold">
-                            {formData.editedBy || formData.edituser}
+                  <div className="flex gap-4 text-base mt-2">
+                    {formData.adddate && (
+                      <div>
+                        <span className="font-semibold">Added:</span>{" "}
+                        <span>{formatDate(formData.adddate)}</span>
+                        {formData.adduser && (
+                          <span>
+                            {" "}
+                            by{" "}
+                            <span className="font-semibold">{formData.adduser}</span>
                           </span>
-                        </span>
-                      )}
-                    </h2>
-                  )}
+                        )}
+                      </div>
+                    )}
+                    {(formData.editdate || formData.edituser) && (
+                      <div>
+                        <span className="font-semibold">Edited:</span>{" "}
+                        <span>{formatDate(formData.editdate)}</span>
+                        {formData.edituser && (
+                          <span>
+                            {" "}
+                            by{" "}
+                            <span className="font-semibold">
+                              {formData.edituser}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="mb-2 flex items-center gap-2">
                   {typeof formData.rtsCount !== "undefined" && (
