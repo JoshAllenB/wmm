@@ -23,6 +23,7 @@ export const TableComponent = function TableComponent({
   statsLoading = false,
   containerWidth = 0,
   subscriptionType = "WMM",
+  addedToday = false,
 }) {
   const [showPerPage, setShowPerPage] = useState(false);
   const [visibleMetrics, setVisibleMetrics] = useState({
@@ -787,14 +788,21 @@ export const TableComponent = function TableComponent({
                   stats.clientCount.total !== stats.clientCount.page;
               }
 
+              // Check if this is the first row (most recent when sorted)
+              const isFirstRow = rowIndex === 0;
               const rowColors = getRowColors();
+              const isMostRecentRow = addedToday && isFirstRow;
 
               return (
                 <TableRow
                   key={`${row.id}-${rowIndex}`}
-                  className={`${rowColors.even} ${rowColors.odd} ${
-                    rowColors.hover
-                  } cursor-pointer border-b border-gray-200 last:border-none transition-all duration-300 ease-in-out text-xs sm:text-sm md:text-base ${
+                  className={`${
+                    isMostRecentRow
+                      ? "bg-green-100"
+                      : `${rowColors.even} ${rowColors.odd}`
+                  } ${
+                    isMostRecentRow ? "hover:bg-green-200" : rowColors.hover
+                  } cursor-pointer border-b border-gray-200 last:border-none transition-all duration-300 ease-in-out ${getTextSizeClass()} ${
                     animationComplete
                       ? "opacity-100 translate-y-0"
                       : "opacity-0 translate-y-2"

@@ -39,6 +39,7 @@ export default function DataTable({
   columnVisibility,
   setColumnVisibility,
   stats,
+  addedToday = false,
 }) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
@@ -729,6 +730,7 @@ export default function DataTable({
             stats={stats}
             containerWidth={tableWidth}
             subscriptionType={advancedFilterData?.subscriptionType || "WMM"} // Pass subscription type from advancedFilterData
+            addedToday={addedToday}
           />
           <ScrollBar orientation="vertical" />
           <ScrollBar orientation="horizontal" />
