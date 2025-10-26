@@ -143,30 +143,16 @@ const AllClient = () => {
   };
 
   const handleAddedTodayClick = () => {
-    // Prevent rapid clicking
-    if (isAddedTodayLoading || isLoading) {
-      return;
-    }
-
+    // Toggle the Added/Updated Today filter (only control that changes it)
+    if (isAddedTodayLoading || isLoading) return;
     setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
-    setPage(1); // Reset to first page when toggling filter
-
-    // Add a safety timeout to prevent stuck loading state
-    setTimeout(() => {
-      if (isAddedTodayLoading) {
-        console.warn('Added Today loading state stuck - resetting');
-        setIsAddedTodayLoading(false);
-      }
-    }, 10000); // 10 second safety timeout
-
-    // The data fetch will be triggered by the useEffect that watches currentFilterSnapshot
-    // We don't need to call fetchData here as it will be handled automatically
+    setPage(1);
   };
 
   const handleClearAllFilters = () => {
+    // Clear search input only; do not change Added/Updated Today state
     setFiltering("");
-    setAddedToday(false);
 
     // Get role-based services
     const roleBasedServices = [];
@@ -191,17 +177,17 @@ const AllClient = () => {
     const newFilter = {
       services: roleBasedServices,
       group: selectedGroup || "",
-      subscriptionType, // Preserve the subscription type
+      subscriptionType,
     };
 
-    // Create a snapshot of what the filter will be
+    // Create a snapshot of what the filter will be (preserve current addedToday state)
     const filterSnapshot = JSON.stringify({
       services: roleBasedServices,
       page,
       filtering: "",
       group: selectedGroup,
-      addedToday: false,
-      subscriptionType, // Include subscription type in snapshot
+      addedToday,
+      subscriptionType,
     });
 
     // Update last filter ref to prevent bounce
@@ -219,11 +205,12 @@ const AllClient = () => {
   const initialLoadComplete = useRef(false);
   const lastFilterRef = useRef(null);
   const currentRequestRef = useRef(null); // Add this to track current request
+  const skipNextFetchRef = useRef(false); // Track when to skip fetch after clearing search
 
   // Create a dependency value that will change when services changes
-  const servicesDependency = Array.isArray(advancedFilterData.services)
-    ? advancedFilterData.services.join(",")
-    : "";
+  // const servicesDependency = Array.isArray(advancedFilterData.services)
+  //   ? advancedFilterData.services.join(",")
+  //   : "";
 
   // Memoize the current filter snapshot to prevent unnecessary re-renders
   const currentFilterSnapshot = useMemo(() => {
@@ -315,6 +302,27 @@ const AllClient = () => {
     };
   }, []);
 
+  // Determine active search and advanced filters (excluding services/subscriptionType/group)
+  const isSearchActive = useMemo(() => {
+    return !!(debouncedFiltering && debouncedFiltering.trim().length >= 2);
+  }, [debouncedFiltering]);
+
+  const hasNonServiceAdvancedFilters = useMemo(() => {
+    const f = advancedFilterData || {};
+    return Object.entries(f).some(([key, value]) => {
+      if (
+        ["services", "subscriptionType", "group", "adddate_regex"].includes(key)
+      )
+        return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === "string") return value.trim() !== "";
+      return value === true || (typeof value === "number" && !isNaN(value));
+    });
+  }, [advancedFilterData]);
+
+  const effectiveAddedToday =
+    addedToday && !isSearchActive && !hasNonServiceAdvancedFilters;
+
   // Modified fetchData to handle tagged search and client counts - use memoized version
   const fetchData = useCallback(
     async (
@@ -339,16 +347,17 @@ const AllClient = () => {
 
         // Show loading state for all requests to provide better UX
         setIsLoading(true);
-        
+
         // Add a timeout to prevent indefinite loading
         timeoutId = setTimeout(() => {
           if (currentRequestRef.current?.id === requestId) {
-            console.warn('Request timeout - forcing loading state reset');
+            console.warn("Request timeout - forcing loading state reset");
             setIsLoading(false);
             setIsAddedTodayLoading(false);
             toast({
               title: "Request Timeout",
-              description: "The search request took too long. Please try again with different filters.",
+              description:
+                "The search request took too long. Please try again with different filters.",
               variant: "destructive",
             });
           }
@@ -418,10 +427,13 @@ const AllClient = () => {
           }
         }
 
-        // If ANY search term is present (general filter OR fullName), do NOT restrict to just Promo/Comp/WMM services (search all)
-        const hasAnySearchTerm = (filter && filter.trim().length > 0) || filtersToUse.fullName;
+        // If ANY search term is present (general filter OR fullName OR clientId), show ALL services without restriction
+        const hasAnySearchTerm =
+          (filter && filter.trim().length > 0) ||
+          filtersToUse.fullName ||
+          filtersToUse.clientId;
         if (hasAnySearchTerm) {
-          // When searching, remove ALL restrictions: don't send services or subscriptionType filter at all
+          // When searching by name or ID, remove ALL restrictions to show all services (WMM, PROMO, COMP, HRG, FOM, CAL)
           delete filtersToUse.services;
           delete filtersToUse.subscriptionType;
         } else if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
@@ -433,8 +445,31 @@ const AllClient = () => {
           filtersToUse.services = [];
         }
 
-        // Add addedToday filter if enabled - always use state value
-        if (addedToday) {
+        // Determine if advanced filters (other than services/subscriptionType/group) are active
+        const hasAdvancedFiltersActive = Object.entries(filtersToUse).some(
+          ([key, value]) => {
+            if (
+              [
+                "services",
+                "subscriptionType",
+                "group",
+                "adddate_regex",
+              ].includes(key)
+            )
+              return false;
+            if (Array.isArray(value)) return value.length > 0;
+            if (typeof value === "string") return value.trim() !== "";
+            return (
+              value === true || (typeof value === "number" && !isNaN(value))
+            );
+          }
+        );
+
+        // Disable Added/Updated Today when searching or when any advanced filter is active
+        const applyAddedTodayFilter =
+          addedToday && !(hasAnySearchTerm || hasAdvancedFiltersActive);
+
+        if (applyAddedTodayFilter) {
           try {
             const today = new Date();
             // Create date pattern to match the beginning of the string
@@ -459,7 +494,7 @@ const AllClient = () => {
             delete filtersToUse.adddate_regex;
           }
         } else {
-          // Explicitly remove adddate filter when addedToday is false
+          // Explicitly remove adddate filter when not applied
           delete filtersToUse.adddate_regex;
         }
 
@@ -501,19 +536,31 @@ const AllClient = () => {
           return null;
         }
 
-        // When Added Today filter is active, ensure Client ID is arranged newest to oldest
+        // When Added Today filter is applied, sort by adddate timestamp (newest first)
         const pageData = Array.isArray(response.data) ? response.data : [];
-        const sortedPageData = addedToday
+        const applyAddedTodaySorting = applyAddedTodayFilter; // same condition as filter application
+        const sortedPageData = applyAddedTodaySorting
           ? [...pageData].sort((a, b) => {
-              const aId = Number(a?.id);
-              const bId = Number(b?.id);
-              if (Number.isFinite(aId) && Number.isFinite(bId)) {
-                return bId - aId;
+              // Get adddate values
+              const aDate = a?.adddate;
+              const bDate = b?.adddate;
+
+              // Handle missing dates - put them at the end
+              if (!aDate && !bDate) return 0;
+              if (!aDate) return 1;
+              if (!bDate) return -1;
+
+              // Parse dates and compare (newest first = descending order)
+              const aTime = new Date(aDate).getTime();
+              const bTime = new Date(bDate).getTime();
+
+              // If both dates are valid, sort by time
+              if (!isNaN(aTime) && !isNaN(bTime)) {
+                return bTime - aTime; // Descending order (newest first)
               }
-              // Fallback: string compare descending
-              const aStr = String(a?.id ?? "");
-              const bStr = String(b?.id ?? "");
-              return bStr.localeCompare(aStr);
+
+              // Fallback: string comparison descending
+              return String(bDate).localeCompare(String(aDate));
             })
           : pageData;
 
@@ -543,7 +590,10 @@ const AllClient = () => {
         }
 
         // Show specific error messages to user
-        if (error.message === "Request timeout" || error.code === 'ECONNABORTED') {
+        if (
+          error.message === "Request timeout" ||
+          error.code === "ECONNABORTED"
+        ) {
           toast({
             title: "Request Timeout",
             description:
@@ -556,10 +606,11 @@ const AllClient = () => {
             description: "An error occurred on the server. Please try again.",
             variant: "destructive",
           });
-        } else if (error.code === 'ERR_NETWORK') {
+        } else if (error.code === "ERR_NETWORK") {
           toast({
             title: "Network Error",
-            description: "Unable to connect to server. Please check your connection.",
+            description:
+              "Unable to connect to server. Please check your connection.",
             variant: "destructive",
           });
         } else {
@@ -674,6 +725,12 @@ const AllClient = () => {
       return;
     }
 
+    // Skip if we intentionally cleared search to keep results
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+
     // Skip if search term is too short (less than 2 characters) unless it's empty
     if (debouncedFiltering && debouncedFiltering.trim().length < 2) {
       // Reset loading states if search is too short
@@ -705,7 +762,7 @@ const AllClient = () => {
         selectedGroup,
         advancedFilterData
       ).catch((error) => {
-        console.error('Fetch data error in useEffect:', error);
+        console.error("Fetch data error in useEffect:", error);
         // Ensure loading states are reset even if fetchData throws
         setIsLoading(false);
         setIsAddedTodayLoading(false);
@@ -742,35 +799,11 @@ const AllClient = () => {
   };
 
   // Handle successful edit
-  const handleEditSuccess = () => {
-    // Prevent multiple refresh calls if already loading
-    if (isLoading) {
-      console.log('Edit success - skipping refresh, already loading');
-      return;
-    }
-    
-    // Preserve all current filters - trigger a refresh by clearing lastFilterRef
-    // This will cause the useEffect to re-run with the same filters
-    console.log('Edit success - preserving filters and triggering refresh');
-    
-    // Clear the lastFilterRef to force useEffect to refresh
-    lastFilterRef.current = null;
-    
-    // Force a re-render by updating a state (we can use a minimal state update)
-    // Since all filters are already in their desired state, the useEffect will pick them up
-    setIsLoading(true);
-    
-    // Add a safety timeout to prevent stuck loading state
-    setTimeout(() => {
-      if (isLoading) {
-        console.warn('Edit success loading state stuck - resetting');
-        setIsLoading(false);
-        setIsAddedTodayLoading(false);
-      }
-    }, 10000); // 10 second safety timeout
-  };
-
-  // Update handleSearchChange function
+  const handleEditSuccess = useCallback(() => {
+    // Keep search input and results persistent after edit
+    if (isLoading) return;
+    // No-op to preserve current filters and search results
+  }, [isLoading]);
   const handleSearchChange = (e) => {
     const value = e.target.value;
 
@@ -778,11 +811,23 @@ const AllClient = () => {
     if (value !== filtering) {
       setFiltering(value);
       setPage(1);
+      // Do not auto-disable 'Added/Updated Today' when searching
+    }
+  };
 
-      // Auto-disable Added Today filter when search is used
-      if (value.trim() !== "" && addedToday) {
-        setAddedToday(false);
-      }
+  // Auto-select all text in search when focused or when clicking while already focused
+  const handleSearchFocus = (e) => {
+    if (e.target.value) {
+      e.target.select();
+    }
+  };
+
+  const handleSearchMouseDown = (e) => {
+    const input = e.target;
+    if (input.value && document.activeElement === input) {
+      // Prevent caret move and select all instead when clicking an already-focused input
+      e.preventDefault();
+      input.select();
     }
   };
 
@@ -841,20 +886,18 @@ const AllClient = () => {
       areas: areas,
     };
 
-    // Auto-disable Added Today filter when advanced filter is applied
+    // Keep 'Added/Updated Today' persistent even when applying advanced filters
     // Check if any filter other than services (which are auto-populated) is set
-    const hasNonServiceFilters = Object.entries(formattedFilterData).some(
-      ([key, value]) => {
-        if (key === "services") return false;
-        if (Array.isArray(value)) return value.length > 0;
-        if (typeof value === "string") return value.trim() !== "";
-        return !!value;
-      }
-    );
+    // const hasNonServiceFilters = Object.entries(formattedFilterData).some(
+    //   ([key, value]) => {
+    //     if (key === "services") return false;
+    //     if (Array.isArray(value)) return value.length > 0;
+    //     if (typeof value === "string") return value.trim() !== "";
+    //     return !!value;
+    //   }
+    // );
 
-    if (hasNonServiceFilters) {
-      setAddedToday(false);
-    }
+    // Do not change the Added/Updated Today state when applying advanced filters
 
     // Create a snapshot of what the filter will be
     const filterSnapshot = JSON.stringify({
@@ -862,7 +905,7 @@ const AllClient = () => {
       page: 1, // Always reset to page 1 when applying filters
       filtering: debouncedFiltering,
       group: selectedGroup,
-      addedToday: hasNonServiceFilters ? false : addedToday, // Update based on filtered status
+      addedToday,
     });
 
     // Update last filter ref to prevent bounce
@@ -877,27 +920,27 @@ const AllClient = () => {
   const getActiveFilters = () => {
     const filters = [];
 
-    // Helper function to safely format dates
-    const formatSafeDate = (dateStr) => {
-      if (!dateStr) return "";
+    // // Helper function to safely format dates
+    // const formatSafeDate = (dateStr) => {
+    //   if (!dateStr) return "";
 
-      try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) {
-          // If invalid date, return the string as is
-          return dateStr;
-        }
+    //   try {
+    //     const date = new Date(dateStr);
+    //     if (isNaN(date.getTime())) {
+    //       // If invalid date, return the string as is
+    //       return dateStr;
+    //     }
 
-        // Format as MM/DD/YYYY
-        const month = date.getMonth() + 1;
-        const day = date.getDate();
-        const year = date.getFullYear();
-        return `${month}/${day}/${year}`;
-      } catch (error) {
-        console.error("Error formatting date:", error);
-        return dateStr; // Return original string on error
-      }
-    };
+    //     // Format as MM/DD/YYYY
+    //     const month = date.getMonth() + 1;
+    //     const day = date.getDate();
+    //     const year = date.getFullYear();
+    //     return `${month}/${day}/${year}`;
+    //   } catch (error) {
+    //     console.error("Error formatting date:", error);
+    //     return dateStr; // Return original string on error
+    //   }
+    // };
 
     // Helper function to format dates with month names
     const formatDateWithMonthName = (dateStr) => {
@@ -994,7 +1037,7 @@ const AllClient = () => {
 
     // Check each filter and add readable description if it's active
     if (selectedGroup) filters.push(`Group: ${selectedGroup}`);
-    if (addedToday) filters.push("Added/Updated Today");
+    if (effectiveAddedToday) filters.push("Added/Updated Today");
 
     // Check advanced filters
     if (advancedFilterData.lname)
@@ -1591,6 +1634,8 @@ const AllClient = () => {
             placeholder="Search by full name, company, ID, or payment ref (e.g., 'rodrigo remedios', 'MS 001234', or ref:MS 001234)"
             value={filtering}
             onChange={handleSearchChange}
+            onFocus={handleSearchFocus}
+            onMouseDown={handleSearchMouseDown}
             className="max-w-sm"
           />
           {isLoading && filtering && (
@@ -1701,6 +1746,7 @@ const AllClient = () => {
         columnVisibility={columnVisibility}
         setColumnVisibility={setColumnVisibility}
         isLoading={isLoading}
+        addedToday={effectiveAddedToday}
       />
       {showViewModal && (
         <View
