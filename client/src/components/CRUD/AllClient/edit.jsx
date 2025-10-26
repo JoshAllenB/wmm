@@ -1278,12 +1278,12 @@ const Edit = ({
   // Update handleChange to ensure values are never undefined
   const handleChange = async (e) => {
     const { name, value } = e.target;
-    
+
     // Handle checkbox fields specially (spack, rts, rtsMaxReached, rtsCount)
     const checkboxFields = ["spack", "rts", "rtsMaxReached"];
     const isCheckboxField = checkboxFields.includes(name);
-    const safeValue = isCheckboxField ? value : (value ?? ""); // For checkboxes, keep boolean; otherwise ensure string
-    
+    const safeValue = isCheckboxField ? value : value ?? ""; // For checkboxes, keep boolean; otherwise ensure string
+
     // Mark field as dirty
     dirtyClientFieldsRef.current.add(name);
     // Track subscription-related field touches
@@ -1466,8 +1466,17 @@ const Edit = ({
           // Format as YYYY-MM-DD for database consistency
           newData.recvdate = `${newData.recvdateYear}-${newData.recvdateMonth}-${newData.recvdateDay}`;
           // Sync combined date to role-specific state
-          if (selectedRole === "HRG" || selectedRole === "FOM" || selectedRole === "CAL") {
-            const updateFunc = selectedRole === "HRG" ? setHrgData : selectedRole === "FOM" ? setFomData : setCalData;
+          if (
+            selectedRole === "HRG" ||
+            selectedRole === "FOM" ||
+            selectedRole === "CAL"
+          ) {
+            const updateFunc =
+              selectedRole === "HRG"
+                ? setHrgData
+                : selectedRole === "FOM"
+                ? setFomData
+                : setCalData;
             updateFunc((prev) => ({ ...prev, recvdate: newData.recvdate }));
           }
         }
@@ -1487,7 +1496,10 @@ const Edit = ({
           newData.campaigndate = `${newData.campaigndateYear}-${newData.campaigndateMonth}-${newData.campaigndateDay}`;
           // Sync combined date to HRG state (only HRG has campaign date)
           if (selectedRole === "HRG") {
-            setHrgData((prev) => ({ ...prev, campaigndate: newData.campaigndate }));
+            setHrgData((prev) => ({
+              ...prev,
+              campaigndate: newData.campaigndate,
+            }));
           }
         }
       }
@@ -3167,10 +3179,10 @@ const Edit = ({
     }
 
     setIsSubmitting(true);
-    
+
     // Add timeout protection to prevent infinite loading
     const submissionTimeout = setTimeout(() => {
-      console.warn('Edit submission timeout - resetting loading state');
+      console.warn("Edit submission timeout - resetting loading state");
       setIsSubmitting(false);
       toast({
         title: "Submission Timeout",
@@ -3212,7 +3224,7 @@ const Edit = ({
       ...areaData,
       // Add edit metadata for tracking
       editdate: new Date().toISOString(),
-      edituser: user?.username || user?.name || 'Unknown',
+      edituser: user?.username || user?.name,
     };
 
     // Use the already computed client diff from handleSubmit
@@ -3304,7 +3316,7 @@ const Edit = ({
         console.error("Error updating client information:", error);
         clearTimeout(submissionTimeout); // Clear timeout on error
         setIsSubmitting(false); // Reset loading state on error
-        
+
         const errorMessage =
           error.response?.data?.message ||
           error.response?.data?.error ||
@@ -3377,7 +3389,7 @@ const Edit = ({
         roleData: {
           ...subscriptionData,
           editdate: new Date().toISOString(),
-          edituser: user?.username || user?.name || 'Unknown',
+          edituser: user?.username || user?.name,
         },
       };
 
@@ -3444,7 +3456,7 @@ const Edit = ({
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Include recordId if we're editing an existing HRG record
@@ -3515,7 +3527,7 @@ const Edit = ({
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Include recordId if we're editing an existing FOM record
@@ -3597,7 +3609,7 @@ const Edit = ({
         ),
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Remove empty fields to avoid persisting unset payment fields
@@ -3668,7 +3680,10 @@ const Edit = ({
       setIsSubmitting(false);
 
       if (response.data && response.data.success) {
-        // Show success toast with appropriate message
+        // Clear timeout and reset loading state immediately
+        clearTimeout(submissionTimeout);
+        setIsSubmitting(false);
+
         toast({
           title:
             mode === "edit"
@@ -3711,18 +3726,9 @@ const Edit = ({
             complimentaryData: response.data.complimentaryData || [],
           });
         }
+
         onClose();
-      } else {
-        // Handle case where API returns success: false
-        toast({
-          title: mode === "edit" ? "Update Failed" : "Add Failed",
-          description:
-            response.data?.message ||
-            (mode === "edit"
-              ? "Failed to update client. Please try again."
-              : "Failed to add client. Please try again."),
-          variant: "destructive",
-        });
+        return;
       }
     } catch (error) {
       console.error(
@@ -3793,8 +3799,7 @@ const Edit = ({
 
       // Compute client diff against initial snapshot to only show changed fields
       // This applies regardless of subscription mode
-      const initialSnapshot =
-        initialClientSnapshotRef.current || rowData || {};
+      const initialSnapshot = initialClientSnapshotRef.current || rowData || {};
       const clientDataWithClears = computeClientDiff(
         initialSnapshot,
         baseClientData
@@ -3802,7 +3807,8 @@ const Edit = ({
       setPreviewClientDiff(clientDataWithClears);
 
       // Check if there are any meaningful changes
-      const hasClientChanges = Object.keys(clientDataWithClears || {}).length > 0;
+      const hasClientChanges =
+        Object.keys(clientDataWithClears || {}).length > 0;
 
       // Validate subscription data if applicable
       let hasSubscriptionChanges = false;
@@ -3948,14 +3954,21 @@ const Edit = ({
         }
 
         // Additional required fields: Start, End, Duration, Subclass
+        // In edit mode, check if fields are present considering both form data and existing data
         const startPresent = Boolean(
           (formData?.subscriptionStart &&
             String(formData.subscriptionStart).trim() !== "") ||
+            (formData?.subStartMonth &&
+              formData?.subStartDay &&
+              formData?.subStartYear) ||
             (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
         );
         const endPresent = Boolean(
           (formData?.subscriptionEnd &&
             String(formData.subscriptionEnd).trim() !== "") ||
+            (formData?.subEndMonth &&
+              formData?.subEndDay &&
+              formData?.subEndYear) ||
             (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
         );
         const durationPresent = Boolean(
@@ -3970,16 +3983,24 @@ const Edit = ({
               String(dataSource.subsclass).trim() !== "")
         );
 
-        if (
-          !startPresent ||
-          !endPresent ||
-          !durationPresent ||
-          !subclassPresent
-        ) {
-          setValidationError(
-            "Subscription Start, End, Duration, and Subclass are required."
-          );
-          return;
+        // In edit mode (when subscriptionMode is "edit"), only validate that we have enough data
+        // Allow partial updates - don't require all fields if editing existing subscription
+        const isEditingExistingSubscription =
+          subscriptionMode === "edit" && selectedSubscription;
+
+        if (!isEditingExistingSubscription) {
+          // For new subscriptions, require all fields
+          if (
+            !startPresent ||
+            !endPresent ||
+            !durationPresent ||
+            !subclassPresent
+          ) {
+            setValidationError(
+              "Subscription Start, End, Duration, and Subclass are required."
+            );
+            return;
+          }
         }
       }
 
@@ -4052,11 +4073,17 @@ const Edit = ({
       const startPresent = Boolean(
         (formData?.subscriptionStart &&
           String(formData.subscriptionStart).trim() !== "") ||
+          (formData?.subStartMonth &&
+            formData?.subStartDay &&
+            formData?.subStartYear) ||
           (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
       );
       const endPresent = Boolean(
         (formData?.subscriptionEnd &&
           String(formData.subscriptionEnd).trim() !== "") ||
+          (formData?.subEndMonth &&
+            formData?.subEndDay &&
+            formData?.subEndYear) ||
           (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
       );
       const durationPresent = Boolean(
@@ -4069,17 +4096,25 @@ const Edit = ({
         (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
           (dataSource?.subsclass && String(dataSource.subsclass).trim() !== "")
       );
-      if (
-        !startPresent ||
-        !endPresent ||
-        !durationPresent ||
-        !subclassPresent
-      ) {
-        setValidationError(
-          "Subscription Start, End, Duration, and Subclass are required."
-        );
-        setIsSubmitting(false);
-        return;
+
+      // In edit mode (when subscriptionMode is "edit"), allow partial updates
+      const isEditingExistingSubscription =
+        subscriptionMode === "edit" && selectedSubscription;
+
+      if (!isEditingExistingSubscription) {
+        // For new subscriptions, require all fields
+        if (
+          !startPresent ||
+          !endPresent ||
+          !durationPresent ||
+          !subclassPresent
+        ) {
+          setValidationError(
+            "Subscription Start, End, Duration, and Subclass are required."
+          );
+          setIsSubmitting(false);
+          return;
+        }
       }
     }
     // Prevent multiple submissions
@@ -4109,7 +4144,7 @@ const Edit = ({
       ...areaData,
       // Add edit metadata for tracking
       editdate: new Date().toISOString(),
-      edituser: user?.username || user?.name || 'Unknown',
+      edituser: user?.username || user?.name,
     };
 
     // Clean the client data by removing empty fields, then add explicit nulls for cleared fields
@@ -4170,7 +4205,7 @@ const Edit = ({
         roleData: {
           ...subscriptionData,
           editdate: new Date().toISOString(),
-          edituser: user?.username || user?.name || 'Unknown',
+          edituser: user?.username || user?.name,
         },
       };
 
@@ -4237,7 +4272,7 @@ const Edit = ({
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Include recordId if we're editing an existing HRG record
@@ -4308,7 +4343,7 @@ const Edit = ({
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Include recordId if we're editing an existing FOM record
@@ -4388,7 +4423,7 @@ const Edit = ({
         ),
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
-        edituser: user?.username || user?.name || 'Unknown',
+        edituser: user?.username || user?.name,
       };
 
       // Include recordId if we're editing an existing CAL record
@@ -4451,6 +4486,9 @@ const Edit = ({
       );
 
       if (response.data && response.data.success) {
+        // Reset loading state FIRST before any async operations
+        setIsSubmitting(false);
+
         // Show success toast with appropriate message
         toast({
           title:
@@ -4479,27 +4517,24 @@ const Edit = ({
           duration: 5000,
         });
 
-        // Close first, then trigger refresh to prevent race conditions
-        onClose();
-        
         // Backend already emits the WebSocket event, so we don't need to emit it again
-        // Call onEditSuccess after a brief delay to ensure modal is closed first
         if (onEditSuccess) {
-          setTimeout(() => {
-            onEditSuccess({
-              id: mode === "edit" ? rowData.id : response.data.id,
-              ...clientDataWithClears,
-              services: [getServiceFromRoleSubmissions()],
-              subscriptionType: formData.subscriptionType,
-              wmmData: response.data.wmmData || [],
-              hrgData: response.data.hrgData || [],
-              fomData: response.data.fomData || [],
-              calData: response.data.calData || [],
-              promoData: response.data.promoData || [],
-              complimentaryData: response.data.complimentaryData || [],
-            });
-          }, 50);
+          onEditSuccess({
+            id: mode === "edit" ? rowData.id : response.data.id,
+            ...clientDataWithClears,
+            services: [getServiceFromRoleSubmissions()],
+            subscriptionType: formData.subscriptionType,
+            wmmData: response.data.wmmData || [],
+            hrgData: response.data.hrgData || [],
+            fomData: response.data.fomData || [],
+            calData: response.data.calData || [],
+            promoData: response.data.promoData || [],
+            complimentaryData: response.data.complimentaryData || [],
+          });
         }
+
+        // Close modal last
+        onClose();
       } else {
         // Handle case where API returns success: false
         toast({
@@ -4546,29 +4581,14 @@ const Edit = ({
                 Status: {error.response.status}
               </p>
             )}
-            {process.env.NODE_ENV === "development" && (
-              <div className="text-xs text-gray-500 mt-1">
-                {error.response?.data?.details && (
-                  <p>Details: {error.response.data.details}</p>
-                )}
-                <p>Check console for full error details</p>
-              </div>
-            )}
           </div>
         ),
         variant: "destructive",
         duration: 10000,
       });
     } finally {
+      // Ensure loading state is always reset
       setIsSubmitting(false);
-      // Ensure modal closes even if there's an error during callback execution
-      // Add a safety timeout to prevent modal from staying open
-      setTimeout(() => {
-        if (isSubmitting) {
-          console.warn('Modal submission stuck - forcing close');
-          onClose();
-        }
-      }, 1000);
     }
   };
 
