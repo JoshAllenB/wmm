@@ -792,34 +792,34 @@ const Mailing = ({
   };
 
   // Check if data contains special characters that need CP850 encoding
-  const checkForSpecialCharacters = (rows) => {
-    const specialChars = [
-      "Ñ",
-      "ñ",
-      "Á",
-      "á",
-      "É",
-      "é",
-      "Í",
-      "í",
-      "Ó",
-      "ó",
-      "Ú",
-      "ú",
-      "Ü",
-      "ü",
-      "¡",
-      "¿",
-    ];
-    return rows.some((row) => {
-      const data = row.original;
-      const fullName = data.fname + " " + data.lname;
-      const company = data.company || "";
-      const address = data.address || "";
-      const allText = fullName + company + address;
-      return specialChars.some((char) => allText.includes(char));
-    });
-  };
+  // const checkForSpecialCharacters = (rows) => {
+  //   const specialChars = [
+  //     "Ñ",
+  //     "ñ",
+  //     "Á",
+  //     "á",
+  //     "É",
+  //     "é",
+  //     "Í",
+  //     "í",
+  //     "Ó",
+  //     "ó",
+  //     "Ú",
+  //     "ú",
+  //     "Ü",
+  //     "ü",
+  //     "¡",
+  //     "¿",
+  //   ];
+  //   return rows.some((row) => {
+  //     const data = row.original;
+  //     const fullName = data.fname + " " + data.lname;
+  //     const company = data.company || "";
+  //     const address = data.address || "";
+  //     const allText = fullName + company + address;
+  //     return specialChars.some((char) => allText.includes(char));
+  //   });
+  // };
 
   // Removed legacy HTML preview printing in favor of CP850/JSPM raw printing
 
@@ -1767,7 +1767,7 @@ const Mailing = ({
                   </div>
 
                   {/* Configuration Toggle and Action Buttons */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                     <Button
                       onClick={toggleShowInputs}
                       variant="outline"
@@ -1788,15 +1788,6 @@ const Mailing = ({
                       className="w-full"
                     >
                       Print Checklist
-                    </Button>
-                    <Button
-                      onClick={() => setShowPrintQueue(!showPrintQueue)}
-                      variant={showPrintQueue ? "default" : "outline"}
-                      className={`w-full ${
-                        showPrintQueue ? "bg-blue-600 text-white" : ""
-                      }`}
-                    >
-                      {showPrintQueue ? "Hide Print Queue" : "Show Print Queue"}
                     </Button>
                   </div>
 
@@ -2121,31 +2112,6 @@ const Mailing = ({
                     </div>
                   )}
 
-                  {/* Print Queue UI - Only show for label mode */}
-                  {showPrintQueue && currentAction === "label" && (
-                    <div className="mb-6">
-                      <PrintQueueUI
-                        printQueueManager={printQueueManager}
-                        onPrintCallback={handleQueuePrintCallback}
-                        availableRows={effectiveRows}
-                        selectedTemplate={selectedTemplate}
-                        userRole={userRole}
-                        subscriptionType={subscriptionType}
-                        selectedFields={selectedFields}
-                        labelAdjustments={labelAdjustments}
-                        selectedPrinter={
-                          selectedTemplate?.selectedPrinter || selectedPrinter
-                        }
-                        startClientId={startClientId}
-                        endClientId={endClientId}
-                        startPosition={startPosition}
-                        afterSpecifiedStart={afterSpecifiedStart}
-                        rowsPerPage={rowsPerPage}
-                        columnsPerPage={columnsPerPage}
-                      />
-                    </div>
-                  )}
-
                   {/* Template Selector */}
                   <div className="mb-6">
                     <TemplateSelector
@@ -2282,7 +2248,7 @@ const Mailing = ({
               margin.
               <br />
               <strong>Add to Print Queue:</strong> Adds to the managed print
-              queue for batch printing.
+              queue for batch printing (skips top margin).
             </p>
             <div className="flex flex-col gap-2">
               <Button
@@ -2298,15 +2264,6 @@ const Mailing = ({
                 onClick={async () => {
                   setIsPrintModeModalOpen(false);
                   await handleCp850PrintWithRange(false, true);
-                }}
-                className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                Print Now (Skip Top Margin)
-              </Button>
-              <Button
-                onClick={async () => {
-                  setIsPrintModeModalOpen(false);
-                  await handleCp850PrintWithRange(true);
                 }}
                 variant="secondary"
                 className="w-full bg-blue-600 text-white hover:bg-blue-700"
