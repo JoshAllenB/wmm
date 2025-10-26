@@ -51,6 +51,7 @@ export default function DataTable({
   const [animationComplete, setAnimationComplete] = useState(false);
   const [tableHeight, setTableHeight] = useState("700px");
   const [tableWidth, setTableWidth] = useState(0);
+  const [screenSize, setScreenSize] = useState("desktop");
   const containerRef = useRef(null);
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -178,7 +179,7 @@ export default function DataTable({
     [advancedFilterData, searchTerm, selectedGroup]
   );
 
-  // Enhanced responsive height adjustment based on viewport and container width
+  // Enhanced responsive height and width adjustment based on viewport and container
   useEffect(() => {
     const updateTableDimensions = () => {
       if (!containerRef.current) return;
@@ -187,32 +188,51 @@ export default function DataTable({
       const viewportWidth = window.innerWidth;
       const containerWidth = containerRef.current.offsetWidth;
 
-      // Base height calculation from viewport
-      const reservedSpace = 300; // Space for header, footer, etc.
-      let calculatedHeight = Math.max(400, viewportHeight - reservedSpace);
-
-      // Adjust height based on width to maintain aspect ratio
-      // Use different ratios for different screen sizes
+      // Determine screen size category
+      let size = "desktop";
       if (viewportWidth < 640) {
-        // mobile
-        calculatedHeight = Math.min(calculatedHeight, containerWidth * 1.2); // taller ratio for mobile
+        size = "mobile";
       } else if (viewportWidth < 1024) {
-        // tablet
-        calculatedHeight = Math.min(calculatedHeight, containerWidth * 0.8); // balanced ratio for tablet
-      } else {
-        // desktop
-        calculatedHeight = Math.min(calculatedHeight, containerWidth * 0.6); // wider ratio for desktop
+        size = "tablet";
+      } else if (viewportWidth < 1440) {
+        size = "laptop";
       }
+      setScreenSize(size);
 
-      // Ensure minimum height
-      calculatedHeight = Math.max(400, calculatedHeight);
+      // Calculate the offset from the top of the viewport to the table container
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const containerTop = Math.max(0, containerRect.top);
 
-      setTableHeight(`${calculatedHeight}px`);
+      // Reserve space for pagination and other elements below the table
+      // Add some extra margin for safety
+      const bottomReservedSpace = usePagination ? 100 : 30;
+
+      // Calculate available height: viewport height - top offset - bottom space
+      let calculatedHeight =
+        viewportHeight - containerTop - bottomReservedSpace;
+
+      // Adjust minimum height based on screen size
+      let minHeight = 400;
+      if (size === "mobile") minHeight = 250;
+      else if (size === "tablet") minHeight = 350;
+
+      // Use more of the available height - limit to 90% instead of 85%
+      const maxHeight = viewportHeight * 0.9;
+
+      // Ensure we use as much space as possible while respecting min/max
+      calculatedHeight = Math.max(
+        minHeight,
+        Math.min(calculatedHeight, maxHeight)
+      );
+
+      setTableHeight(`${Math.floor(calculatedHeight)}px`);
       setTableWidth(containerWidth);
     };
 
-    // Initial calculation
-    updateTableDimensions();
+    // Initial calculation - use requestAnimationFrame for better timing
+    const rafId = requestAnimationFrame(() => {
+      updateTableDimensions();
+    });
 
     // Add event listeners for resize and orientation change
     window.addEventListener("resize", updateTableDimensions);
@@ -220,10 +240,11 @@ export default function DataTable({
 
     // Cleanup
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("resize", updateTableDimensions);
       window.removeEventListener("orientationchange", updateTableDimensions);
     };
-  }, []);
+  }, [usePagination]);
 
   const { table } = useTableLogic(
     localData,
@@ -235,7 +256,9 @@ export default function DataTable({
     setRowSelection,
     userRole,
     columnVisibility,
-    setColumnVisibility
+    setColumnVisibility,
+    screenSize,
+    tableWidth
   );
 
   // Add helper function for safe date formatting

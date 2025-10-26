@@ -64,7 +64,7 @@ export const useColumns = () => {
         // Get the first row's subscription type for consistent header styling
         const firstRow = table.getRowModel().rows[0]?.original;
         return (
-          <div className="flex">
+          <div className="flex justify-center">
             <Checkbox
               checked={
                 table.getIsAllPageRowsSelected() ||
@@ -80,7 +80,7 @@ export const useColumns = () => {
         );
       },
       cell: ({ row }) => (
-        <div className="flex px-4">
+        <div className="flex justify-center">
           <Checkbox
             checked={row.getIsSelected()}
             onCheckedChange={(value) => {
@@ -93,9 +93,18 @@ export const useColumns = () => {
       ),
       enableSorting: false,
       enableHiding: false,
-      size: 40,
+      size: 50,
+      minSize: 45,
+      maxSize: 60,
     },
-    { id: "ID", Header: "ID", accessorFn: (row) => row.id, size: 40 },
+    {
+      id: "ID",
+      Header: "ID",
+      accessorFn: (row) => row.id,
+      size: 70,
+      minSize: 60,
+      maxSize: 85,
+    },
     {
       id: "Client Name",
       Header: "Client Name",
@@ -156,7 +165,9 @@ export const useColumns = () => {
 
         return displayParts.join("<br>");
       },
-      size: 200,
+      size: 250,
+      minSize: 180,
+      maxSize: 300,
       // Sort by last name, then first name; if last is missing, fall back to company; if both missing, use first name
       sortingFn: (rowA, rowB) => {
         const normalize = (val) => (val || "").toString().trim().toLowerCase();
@@ -201,7 +212,9 @@ export const useColumns = () => {
 
         return `${addressParts}${acode}`;
       },
-      size: 200,
+      size: 220,
+      minSize: 150,
+      maxSize: 250,
     },
     {
       id: "Contact Info",
@@ -215,7 +228,9 @@ export const useColumns = () => {
         ]
           .filter(Boolean)
           .join(", "),
-      size: 180,
+      size: 200,
+      minSize: 140,
+      maxSize: 280,
     },
     {
       id: "Services",
@@ -228,7 +243,9 @@ export const useColumns = () => {
         const services = getValue();
         return services.join(", ");
       },
-      size: 20,
+      size: 10,
+      minSize: 30,
+      maxSize: 50,
     },
   ];
 
@@ -450,7 +467,9 @@ export const useColumns = () => {
                 </div>
               );
             },
-            size: 250,
+            size: 300,
+            minSize: 220,
+            maxSize: 450,
           },
           // Added Info column - only show for WMM role but not for HRG FOM CAL combined role
           ...(userRole !== "HRG FOM CAL"
@@ -509,7 +528,9 @@ export const useColumns = () => {
                       }`;
                     }
                   },
-                  size: 150,
+                  size: 160,
+                  minSize: 120,
+                  maxSize: 200,
                 },
               ]
             : []),
@@ -666,7 +687,9 @@ export const useColumns = () => {
                 </div>
               );
             },
-            size: 220,
+            size: 240,
+            minSize: 180,
+            maxSize: 320,
           },
         ]
       : []),
@@ -870,7 +893,9 @@ export const useColumns = () => {
                 </div>
               );
             },
-            size: 220,
+            size: 240,
+            minSize: 180,
+            maxSize: 320,
           },
         ]
       : []),
@@ -1032,7 +1057,9 @@ export const useColumns = () => {
                 </div>
               );
             },
-            size: 300,
+            size: 320,
+            minSize: 240,
+            maxSize: 420,
           },
         ]
       : []),
@@ -1093,7 +1120,9 @@ export const useColumns = () => {
                 }`;
               }
             },
-            size: 150,
+            size: 160,
+            minSize: 120,
+            maxSize: 200,
           },
         ]
       : []),
