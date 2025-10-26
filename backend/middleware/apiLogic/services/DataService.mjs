@@ -187,25 +187,33 @@ class DataService {
         subscriptionType,
       };
 
-      // Only include the relevant subscription data based on type
-      switch (subscriptionType) {
-        case "Promo":
-          enrichedClient.promoData = client.promoData || null;
-          delete enrichedClient.wmmData;
-          delete enrichedClient.compData;
-          break;
-        case "Complimentary":
-          enrichedClient.compData = client.compData || null;
-          delete enrichedClient.wmmData;
-          delete enrichedClient.promoData;
-          break;
-        default: // WMM
-          enrichedClient.wmmData = client.wmmData || null;
-          delete enrichedClient.promoData;
-          delete enrichedClient.compData;
+      // If this is a search query (no subscription type), keep ALL subscription data
+      if (!subscriptionType || subscriptionType === "undefined" || isSearchQuery) {
+        // Keep all subscription data for search queries
+        if (client.wmmData) enrichedClient.wmmData = client.wmmData;
+        if (client.promoData) enrichedClient.promoData = client.promoData;
+        if (client.compData) enrichedClient.compData = client.compData;
+      } else {
+        // Only include the relevant subscription data based on type
+        switch (subscriptionType) {
+          case "Promo":
+            enrichedClient.promoData = client.promoData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.compData;
+            break;
+          case "Complimentary":
+            enrichedClient.compData = client.compData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.promoData;
+            break;
+          default: // WMM
+            enrichedClient.wmmData = client.wmmData || null;
+            delete enrichedClient.promoData;
+            delete enrichedClient.compData;
+        }
       }
 
-      // Keep other service data
+      // Always keep other service data (HRG, FOM, CAL)
       if (client.hrgData) enrichedClient.hrgData = client.hrgData;
       if (client.fomData) enrichedClient.fomData = client.fomData;
       if (client.calData) enrichedClient.calData = client.calData;
@@ -644,25 +652,33 @@ class DataService {
         subscriptionType,
       };
 
-      // Only include the relevant subscription data based on type
-      switch (subscriptionType) {
-        case "Promo":
-          enrichedClient.promoData = client.promoData || null;
-          delete enrichedClient.wmmData;
-          delete enrichedClient.compData;
-          break;
-        case "Complimentary":
-          enrichedClient.compData = client.compData || null;
-          delete enrichedClient.wmmData;
-          delete enrichedClient.promoData;
-          break;
-        default: // WMM
-          enrichedClient.wmmData = client.wmmData || null;
-          delete enrichedClient.promoData;
-          delete enrichedClient.compData;
+      // If no subscription type specified (search query), keep ALL subscription data
+      if (!subscriptionType || subscriptionType === "undefined") {
+        // Keep all subscription data for search queries
+        if (client.wmmData) enrichedClient.wmmData = client.wmmData;
+        if (client.promoData) enrichedClient.promoData = client.promoData;
+        if (client.compData) enrichedClient.compData = client.compData;
+      } else {
+        // Only include the relevant subscription data based on type
+        switch (subscriptionType) {
+          case "Promo":
+            enrichedClient.promoData = client.promoData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.compData;
+            break;
+          case "Complimentary":
+            enrichedClient.compData = client.compData || null;
+            delete enrichedClient.wmmData;
+            delete enrichedClient.promoData;
+            break;
+          default: // WMM
+            enrichedClient.wmmData = client.wmmData || null;
+            delete enrichedClient.promoData;
+            delete enrichedClient.compData;
+        }
       }
 
-      // Keep other service data
+      // Always keep other service data (HRG, FOM, CAL)
       if (client.hrgData) enrichedClient.hrgData = client.hrgData;
       if (client.fomData) enrichedClient.fomData = client.fomData;
       if (client.calData) enrichedClient.calData = client.calData;

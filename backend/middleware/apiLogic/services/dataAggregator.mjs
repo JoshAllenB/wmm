@@ -224,27 +224,50 @@ export async function aggregateClientData(
   );
   if (wmmIndex !== -1) {
     adjustedModelNames = [...modelNames];
-    const replacement =
-      subscriptionType === "Promo"
-        ? "PromoModel"
-        : subscriptionType === "Complimentary"
-        ? "ComplimentaryModel"
-        : "WmmModel";
-    adjustedModelNames.splice(wmmIndex, 1, replacement);
+    // If no subscriptionType is provided (search query), include ALL subscription models + other services
+    if (!advancedFilterData.subscriptionType) {
+      // Remove the WmmModel placeholder and add all subscription models + other services
+      adjustedModelNames.splice(wmmIndex, 1, "WmmModel", "PromoModel", "ComplimentaryModel");
+      // Ensure HRG, FOM, CAL are also included if not already present
+      const otherServices = ["HrgModel", "FomModel", "CalModel"];
+      otherServices.forEach(model => {
+        if (!adjustedModelNames.some(name => String(name).toLowerCase() === model.toLowerCase())) {
+          adjustedModelNames.push(model);
+        }
+      });
+    } else {
+      const replacement =
+        subscriptionType === "Promo"
+          ? "PromoModel"
+          : subscriptionType === "Complimentary"
+          ? "ComplimentaryModel"
+          : "WmmModel";
+      adjustedModelNames.splice(wmmIndex, 1, replacement);
+    }
   } else {
     // If no WmmModel placeholder exists, ensure correct subscription model is present
-    const desired =
-      subscriptionType === "Promo"
-        ? "PromoModel"
-        : subscriptionType === "Complimentary"
-        ? "ComplimentaryModel"
-        : "WmmModel";
-    if (
-      !modelNames.some(
-        (name) => String(name).toLowerCase() === desired.toLowerCase()
-      )
-    ) {
-      adjustedModelNames = [...modelNames, desired];
+    if (!advancedFilterData.subscriptionType) {
+      // No subscription type specified - add all subscription models + other services if not already present
+      const allServiceModels = ["WmmModel", "PromoModel", "ComplimentaryModel", "HrgModel", "FomModel", "CalModel"];
+      allServiceModels.forEach(model => {
+        if (!modelNames.some(name => String(name).toLowerCase() === model.toLowerCase())) {
+          adjustedModelNames.push(model);
+        }
+      });
+    } else {
+      const desired =
+        subscriptionType === "Promo"
+          ? "PromoModel"
+          : subscriptionType === "Complimentary"
+          ? "ComplimentaryModel"
+          : "WmmModel";
+      if (
+        !modelNames.some(
+          (name) => String(name).toLowerCase() === desired.toLowerCase()
+        )
+      ) {
+        adjustedModelNames = [...modelNames, desired];
+      }
     }
   }
 
