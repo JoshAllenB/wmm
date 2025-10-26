@@ -42,6 +42,22 @@ export const TableComponent = function TableComponent({
   // Calculate responsive dimensions
   const isMobile = containerWidth > 0 && containerWidth < 640;
   const isTablet = containerWidth >= 640 && containerWidth < 1024;
+  const isLaptop = containerWidth >= 1024 && containerWidth < 1440;
+
+  // Get responsive text size class
+  const getTextSizeClass = () => {
+    if (isMobile) return "text-xs font-medium";
+    if (isTablet) return "text-sm font-medium";
+    if (isLaptop) return "text-base font-medium";
+    return "text-base";
+  };
+
+  // Get responsive padding class
+  const getPaddingClass = () => {
+    if (isMobile) return "px-1 py-0.5";
+    if (isTablet) return "px-2 py-1";
+    return "px-4 py-2";
+  };
 
   // Adjust max heights for scrollable areas based on container width
   const getMaxHeight = () => {
@@ -737,10 +753,10 @@ export const TableComponent = function TableComponent({
                     e.preventDefault();
                     header.column.toggleSorting();
                   }}
-                  className={`${getHeaderBackgroundColor()} text-white font-bold text-base sm:text-lg sticky top-0 whitespace-nowrap cursor-pointer`}
+                  className={`${getHeaderBackgroundColor()} text-white font-bold ${getTextSizeClass()} sticky top-0 whitespace-nowrap cursor-pointer ${getPaddingClass()}`}
                   style={{
                     position: "relative",
-                    height: isMobile ? "40px" : isTablet ? "48px" : "56px",
+                    height: isMobile ? "36px" : isTablet ? "44px" : "50px",
                   }}
                 >
                   <div className="flex items-center justify-between">
@@ -785,7 +801,7 @@ export const TableComponent = function TableComponent({
                   }`}
                   style={{
                     transitionDelay: `${rowIndex * 40}ms`,
-                    minHeight: isMobile ? "40px" : isTablet ? "48px" : "56px",
+                    minHeight: isMobile ? "36px" : isTablet ? "44px" : "50px",
                   }}
                 >
                   {row.getVisibleCells().map((cell) => {
@@ -795,21 +811,29 @@ export const TableComponent = function TableComponent({
                         key={`${cell.id}-${rowIndex}`}
                         style={{
                           width: cellWidth,
-                          maxWidth: cellWidth ? `${cellWidth}px` : "auto",
-                          minWidth: cellWidth ? `${cellWidth}px` : "auto",
+                          maxWidth: cell.column.columnDef.maxSize
+                            ? `${cell.column.columnDef.maxSize}px`
+                            : cellWidth
+                            ? `${cellWidth}px`
+                            : "auto",
+                          minWidth: cell.column.columnDef.minSize
+                            ? `${cell.column.columnDef.minSize}px`
+                            : cellWidth
+                            ? `${cellWidth * 0.7}px`
+                            : "auto",
                           whiteSpace: "normal",
                           wordBreak: "break-word",
                           minHeight: isMobile
-                            ? "40px"
+                            ? "36px"
                             : isTablet
-                            ? "48px"
-                            : "56px",
+                            ? "44px"
+                            : "52px",
                         }}
                         className={`${
                           cell.column.id === "select"
                             ? "p-0"
-                            : "px-2 sm:px-4 py-1 sm:py-2"
-                        } overflow-visible text-xs sm:text-sm md:text-base`}
+                            : getPaddingClass()
+                        } overflow-visible`}
                         onClick={(event) => handleCellClick(event, row, cell)}
                       >
                         {cell.column.id === "Client Name" ? (
@@ -1197,9 +1221,9 @@ export const TableComponent = function TableComponent({
             <TableRow>
               <TableCell
                 colSpan={table.getVisibleLeafColumns().length}
-                className="text-center text-xl sm:text-2xl bg-white"
+                className={`text-center ${getTextSizeClass()} bg-white`}
                 style={{
-                  height: isMobile ? "40px" : isTablet ? "48px" : "56px",
+                  height: isMobile ? "36px" : isTablet ? "44px" : "52px",
                 }}
               >
                 No data
@@ -1211,14 +1235,14 @@ export const TableComponent = function TableComponent({
           <TableRow>
             <TableCell
               colSpan={table.getVisibleLeafColumns().length}
-              className={`sticky bottom-0 bg-white text-xs sm:text-sm font-bold transition-opacity duration-300 ease-in-out ${
+              className={`sticky bottom-0 bg-white ${getTextSizeClass()} font-bold transition-opacity duration-300 ease-in-out ${
                 animationComplete ? "opacity-100" : "opacity-0"
               }`}
               style={{
                 transitionDelay: `${
                   table.getRowModel().rows.length * 40 + 100
                 }ms`,
-                height: isMobile ? "30px" : isTablet ? "35px" : "40px",
+                height: isMobile ? "28px" : isTablet ? "32px" : "38px",
               }}
             >
               {totalLabel}
