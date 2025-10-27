@@ -2717,6 +2717,18 @@ const Edit = ({
     const subsdateParts = parseDateToComponents(subscription.subsdate);
     const enddateParts = parseDateToComponents(subscription.enddate);
 
+    // Store initial subscription snapshot for change detection
+    const subscriptionSnapshot = {
+      ...subscription,
+      subsdateMonth: subsdateParts.month,
+      subsdateDay: subsdateParts.day,
+      subsdateYear: subsdateParts.year,
+      enddateMonth: enddateParts.month,
+      enddateDay: enddateParts.day,
+      enddateYear: enddateParts.year,
+    };
+    initialSubscriptionSnapshotRef.current = subscriptionSnapshot;
+
     // Update roleSpecificData with all subscription fields
     setRoleSpecificData((prev) => ({
       ...prev,
@@ -2751,18 +2763,8 @@ const Edit = ({
           : "",
     }));
 
-    // Mark core subscription keys as dirty on explicit selection
-    [
-      "subscriptionStart",
-      "subscriptionEnd",
-      "subStartMonth",
-      "subStartDay",
-      "subStartYear",
-      "subEndMonth",
-      "subEndDay",
-      "subEndYear",
-      "subsclass",
-    ].forEach((k) => dirtySubscriptionFieldsRef.current.add(k));
+    // Clear dirty subscription fields when loading a subscription for editing
+    dirtySubscriptionFieldsRef.current.clear();
 
     // Calculate and set subscription frequency if dates are valid
     if (subscription.subsdate && subscription.enddate) {
@@ -2882,6 +2884,31 @@ const Edit = ({
         } else {
           diff[key] = currVal;
         }
+      }
+    });
+    return diff;
+  };
+
+  // Compute shallow diff for subscription/role-specific data
+  const computeSubscriptionDiff = (previousData, currentData) => {
+    if (!previousData) return { ...currentData };
+    const diff = {};
+    const allKeys = new Set([
+      ...Object.keys(previousData || {}),
+      ...Object.keys(currentData || {}),
+    ]);
+    allKeys.forEach((key) => {
+      const prevVal = previousData[key];
+      const currVal = currentData[key];
+      // Treat empty string/undefined/null as empty for comparison except booleans and numbers
+      const normalizedPrev = prevVal === undefined || prevVal === "" ? null : prevVal;
+      const normalizedCurr = currVal === undefined || currVal === "" ? null : currVal;
+      const changed =
+        typeof normalizedPrev === "object" || typeof normalizedCurr === "object"
+          ? JSON.stringify(normalizedPrev) !== JSON.stringify(normalizedCurr)
+          : normalizedPrev !== normalizedCurr;
+      if (changed) {
+        diff[key] = currVal;
       }
     });
     return diff;
@@ -3340,6 +3367,17 @@ const Edit = ({
     const hasSubscriptionData = () => {
       const dataSource =
         roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+      const touched = dirtySubscriptionFieldsRef.current.size > 0;
+      
+      // When editing an existing subscription, allow partial updates
+      // User can change just the start date, or just duration, or just end date
+      if (subscriptionMode === "edit" && selectedSubscription && touched) {
+        // For edit mode, we just need to have touched fields
+        // The existing subscription already has all required data
+        return true;
+      }
+      
+      // For new subscriptions (add mode), require complete data
       const subsdateValid =
         !!dataSource.subsdate ||
         (formData.subStartMonth &&
@@ -3350,7 +3388,7 @@ const Edit = ({
         (formData.subEndMonth && formData.subEndDay && formData.subEndYear);
       const subclassValid = !!(formData.subsclass || dataSource.subsclass);
       const minimalValid = subsdateValid && enddateValid && subclassValid;
-      const touched = dirtySubscriptionFieldsRef.current.size > 0;
+      
       return (
         touched &&
         minimalValid &&
@@ -3363,8 +3401,7 @@ const Edit = ({
       (updateType === "all" || updateType === "subscriptionOnly") &&
       hasRole("WMM") &&
       selectedRole === "WMM" &&
-      hasSubscriptionData() &&
-      subscriptionValidation.isSubscriptionValid
+      hasSubscriptionData()
     ) {
       // Use modular subscription-specific data function
       const getSubscriptionSpecificData = () => {
@@ -3810,13 +3847,58 @@ const Edit = ({
       const hasClientChanges =
         Object.keys(clientDataWithClears || {}).length > 0;
 
+      // Check if there are subscription-specific field changes by comparing with initial snapshot
+      const hasSubscriptionFieldChanges = (() => {
+        if (dirtySubscriptionFieldsRef.current.size === 0) return false;
+        
+        // If in edit mode and we have an initial snapshot, check for actual changes
+        if (subscriptionMode === "edit" && initialSubscriptionSnapshotRef.current) {
+          const initialData = initialSubscriptionSnapshotRef.current;
+          const currentData = {
+            ...roleSpecificData,
+            subStartMonth: formData.subStartMonth,
+            subStartDay: formData.subStartDay,
+            subStartYear: formData.subStartYear,
+            subEndMonth: formData.subEndMonth,
+            subEndDay: formData.subEndDay,
+            subEndYear: formData.subEndYear,
+            subscriptionStart: formData.subscriptionStart,
+            subscriptionEnd: formData.subscriptionEnd,
+            subscriptionFreq: formData.subscriptionFreq,
+            subsclass: formData.subsclass,
+          };
+          
+          // Check if any tracked field actually changed
+          for (const field of dirtySubscriptionFieldsRef.current) {
+            const initialVal = initialData[field];
+            const currentVal = currentData[field];
+            // Normalize for comparison
+            const normalizedInitial = initialVal === undefined || initialVal === "" ? null : String(initialVal);
+            const normalizedCurrent = currentVal === undefined || currentVal === "" ? null : String(currentVal);
+            if (normalizedInitial !== normalizedCurrent) {
+              return true; // Found a real change
+            }
+          }
+          return false; // No actual changes detected
+        }
+        
+        // In add mode or no snapshot, any dirty field counts as a change
+        return true;
+      })();
+
+      // Check if there are role-specific field changes (HRG, FOM, CAL)
+      const hasRoleSpecificChanges = 
+        (selectedRole === "HRG" && hrgRecords.length > 0) ||
+        (selectedRole === "FOM" && fomRecords.length > 0) ||
+        (selectedRole === "CAL" && calRecords.length > 0);
+
       // Validate subscription data if applicable
       let hasSubscriptionChanges = false;
       if (
         (updateType === "all" || updateType === "subscriptionOnly") &&
         hasRole("WMM") &&
         selectedRole === "WMM" &&
-        checkSubscriptionData(formData, roleSpecificData)
+        (checkSubscriptionData(formData, roleSpecificData) || hasSubscriptionFieldChanges)
       ) {
         const mergedRoleData = {
           ...roleSpecificData,
@@ -3875,7 +3957,7 @@ const Edit = ({
           });
           return;
         }
-      } else if (!hasClientChanges && !hasSubscriptionChanges) {
+      } else if (!hasClientChanges && !hasSubscriptionChanges && !hasSubscriptionFieldChanges && !hasRoleSpecificChanges) {
         // No changes detected in edit existing mode, show a message and return
         toast({
           title: "No Changes",
@@ -3921,74 +4003,73 @@ const Edit = ({
         selectedRole === "WMM" &&
         anyRequiredTouched
       ) {
-        // Use existing data presence check
-        const hasAnySubscriptionData = checkSubscriptionData(
-          formData,
-          roleSpecificData
-        );
-
-        if (!hasAnySubscriptionData) {
-          setValidationError(
-            "Please complete the required subscription fields before submitting."
-          );
-          return;
-        }
-
-        const dataSource =
-          roleRecordMode === "edit" ? roleSpecificData : newRoleData;
-
-        const hasAmount = Boolean(
-          dataSource?.paymtamt !== undefined &&
-            String(dataSource.paymtamt).trim() !== ""
-        );
-        const hasMasses = Boolean(
-          dataSource?.paymtmasses !== undefined &&
-            String(dataSource.paymtmasses).trim() !== ""
-        );
-
-        if (!hasAmount && !hasMasses) {
-          setValidationError(
-            "Please provide either Payment Amount or Masses for the subscription."
-          );
-          return;
-        }
-
-        // Additional required fields: Start, End, Duration, Subclass
-        // In edit mode, check if fields are present considering both form data and existing data
-        const startPresent = Boolean(
-          (formData?.subscriptionStart &&
-            String(formData.subscriptionStart).trim() !== "") ||
-            (formData?.subStartMonth &&
-              formData?.subStartDay &&
-              formData?.subStartYear) ||
-            (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
-        );
-        const endPresent = Boolean(
-          (formData?.subscriptionEnd &&
-            String(formData.subscriptionEnd).trim() !== "") ||
-            (formData?.subEndMonth &&
-              formData?.subEndDay &&
-              formData?.subEndYear) ||
-            (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
-        );
-        const durationPresent = Boolean(
-          (formData?.subscriptionFreq &&
-            String(formData.subscriptionFreq).trim() !== "") ||
-            (dataSource?.subsyear !== undefined &&
-              String(dataSource.subsyear).trim() !== "")
-        );
-        const subclassPresent = Boolean(
-          (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
-            (dataSource?.subsclass &&
-              String(dataSource.subsclass).trim() !== "")
-        );
-
-        // In edit mode (when subscriptionMode is "edit"), only validate that we have enough data
-        // Allow partial updates - don't require all fields if editing existing subscription
+        // Check if editing existing subscription - if yes, skip strict validation
         const isEditingExistingSubscription =
           subscriptionMode === "edit" && selectedSubscription;
 
         if (!isEditingExistingSubscription) {
+          // Only validate for NEW subscriptions
+          // Use existing data presence check
+          const hasAnySubscriptionData = checkSubscriptionData(
+            formData,
+            roleSpecificData
+          );
+
+          if (!hasAnySubscriptionData) {
+            setValidationError(
+              "Please complete the required subscription fields before submitting."
+            );
+            return;
+          }
+
+          const dataSource =
+            roleRecordMode === "edit" ? roleSpecificData : newRoleData;
+
+          const hasAmount = Boolean(
+            dataSource?.paymtamt !== undefined &&
+              String(dataSource.paymtamt).trim() !== ""
+          );
+          const hasMasses = Boolean(
+            dataSource?.paymtmasses !== undefined &&
+              String(dataSource.paymtmasses).trim() !== ""
+          );
+
+          if (!hasAmount && !hasMasses) {
+            setValidationError(
+              "Please provide either Payment Amount or Masses for the subscription."
+            );
+            return;
+          }
+
+          // Additional required fields: Start, End, Duration, Subclass
+          const startPresent = Boolean(
+            (formData?.subscriptionStart &&
+              String(formData.subscriptionStart).trim() !== "") ||
+              (formData?.subStartMonth &&
+                formData?.subStartDay &&
+                formData?.subStartYear) ||
+              (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
+          );
+          const endPresent = Boolean(
+            (formData?.subscriptionEnd &&
+              String(formData.subscriptionEnd).trim() !== "") ||
+              (formData?.subEndMonth &&
+                formData?.subEndDay &&
+                formData?.subEndYear) ||
+              (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
+          );
+          const durationPresent = Boolean(
+            (formData?.subscriptionFreq &&
+              String(formData.subscriptionFreq).trim() !== "") ||
+              (dataSource?.subsyear !== undefined &&
+                String(dataSource.subsyear).trim() !== "")
+          );
+          const subclassPresent = Boolean(
+            (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
+              (dataSource?.subsclass &&
+                String(dataSource.subsclass).trim() !== "")
+          );
+
           // For new subscriptions, require all fields
           if (
             !startPresent ||
@@ -4002,6 +4083,7 @@ const Edit = ({
             return;
           }
         }
+        // If editing existing subscription, skip all validation - allow partial updates
       }
 
       setShowConfirmation(true);
@@ -4593,7 +4675,7 @@ const Edit = ({
   };
 
   // Handle new donor added
-  const handleDeleteRoleRecord = async (record, roleType) => {
+  const handleDeleteRoleRecord = (record, roleType) => {
     if (!record || (!record.id && !record._id)) {
       toast({
         title: "Error",
@@ -4603,6 +4685,27 @@ const Edit = ({
       return;
     }
 
+    // Prepare confirmation modal data
+    const recordDate = record?.recvdate || record?.subsdate;
+    const recordAmount = record?.paymtamt;
+    const recordRef = record?.paymtref;
+    const recordDetails = [
+      recordDate ? `Date: ${formatDateToMonthYear(parseDate(recordDate))}` : null,
+      recordAmount ? `Amount: ₱${recordAmount}` : null,
+      recordRef ? `Reference: ${recordRef}` : null,
+    ].filter(Boolean).join(', ');
+    
+    setDeleteConfirmationData({
+      type: 'role',
+      item: record,
+      roleType: roleType,
+      title: `Delete ${roleType} Record`,
+      message: `Are you sure you want to delete this ${roleType} record${recordDetails ? ` (${recordDetails})` : ''}? This action cannot be undone.`,
+    });
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteRoleRecord = async (record, roleType) => {
     // Use the id field (integer) for deletion, fallback to _id if needed
     const recordId = record.id || record._id;
 

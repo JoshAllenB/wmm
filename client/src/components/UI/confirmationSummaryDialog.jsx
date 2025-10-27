@@ -450,79 +450,40 @@ const ConfirmationSummaryDialog = ({
 
         {/* Update Type Selection for Edit Mode */}
 
-        {/* Subscription Validation Warnings - only show in edit mode for valid types and WMM role */}
-        {isEditModeActual &&
-          validSubTypes.includes(subscriptionType) &&
-          selectedRole === "WMM" &&
-          subscriptionValidation.hasWarnings && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-yellow-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Subscription Data Warnings
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <ul className="list-disc list-inside space-y-1">
-                      {Object.entries(subscriptionValidation.warnings).map(
-                        ([field, message]) => (
-                          <li key={field}>{message}</li>
-                        )
-                      )}
-                    </ul>
-                  </div>
+        {/* Subscription Validation Warnings - only show when there are actual warnings */}
+        {subscriptionValidation.hasWarnings && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">
+                  Subscription Data Warnings
+                </h3>
+                <div className="mt-2 text-sm text-yellow-700">
+                  <ul className="list-disc list-inside space-y-1">
+                    {Object.entries(subscriptionValidation.warnings).map(
+                      ([field, message]) => (
+                        <li key={field}>{message}</li>
+                      )
+                    )}
+                  </ul>
                 </div>
               </div>
             </div>
-          )}
-
-        {/* Subscription Validation Info - only show in edit mode for valid types and WMM role */}
-        {isEditModeActual &&
-          validSubTypes.includes(subscriptionType) &&
-          selectedRole === "WMM" &&
-          !subscriptionValidation.isSubscriptionValid &&
-          subscriptionValidation.hasWarnings && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg
-                    className="h-5 w-5 text-blue-400"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
-                    Subscription Data Notice
-                  </h3>
-                  <div className="mt-2 text-sm text-blue-700">
-                    <p>
-                      Incomplete subscription data will not be saved. Only valid
-                      client information changes will be submitted.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
+        )}
 
         <div className="space-y-4">
           {/* Personal Information */}
@@ -903,40 +864,93 @@ const ConfirmationSummaryDialog = ({
                     subscriptionMode === "add" ? "(New)" : "(Editing)"
                   }`}
                 />
-                <FieldDisplay
-                  label="Subscription Class"
-                  value={formData.subsclass || roleSpecificData.subsclass || ""}
-                  required={subscriptionType === "WMM"}
-                  showIfEmpty={false}
-                />
-                <FieldDisplay
-                  label="Start Date"
-                  value={startDate}
-                  required={true}
-                  showIfEmpty={false}
-                />
-                <FieldDisplay
-                  label="End Date"
-                  value={endDate}
-                  required={true}
-                  showIfEmpty={false}
-                />
-                <FieldDisplay
-                  label="Duration"
-                  value={
-                    formData.subscriptionFreq
-                      ? `${formData.subscriptionFreq} months`
-                      : ""
-                  }
-                  required={true}
-                  showIfEmpty={false}
-                />
-                <FieldDisplay
-                  label="Copies"
-                  value={roleSpecificData.copies}
-                  required={true}
-                  showIfEmpty={false}
-                />
+                {/* Show comparison if editing and we have original data */}
+                {isEditModeActual && subscriptionMode === "edit" && originalData ? (
+                  <>
+                    <FieldDisplay
+                      label="Subscription Class"
+                      value={formData.subsclass || roleSpecificData.subsclass || ""}
+                      required={subscriptionType === "WMM"}
+                      isChanged={originalData.subsclass !== (formData.subsclass || roleSpecificData.subsclass)}
+                      oldValue={originalData.subsclass}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Start Date"
+                      value={startDate}
+                      required={true}
+                      isChanged={originalData.subscriptionStart !== formData.subscriptionStart}
+                      oldValue={originalData.subscriptionStart}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="End Date"
+                      value={endDate}
+                      required={true}
+                      isChanged={originalData.subscriptionEnd !== formData.subscriptionEnd}
+                      oldValue={originalData.subscriptionEnd}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Duration"
+                      value={
+                        formData.subscriptionFreq
+                          ? `${formData.subscriptionFreq} months`
+                          : ""
+                      }
+                      required={true}
+                      isChanged={originalData.subscriptionFreq !== formData.subscriptionFreq}
+                      oldValue={originalData.subscriptionFreq ? `${originalData.subscriptionFreq} months` : ""}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Copies"
+                      value={roleSpecificData.copies}
+                      required={true}
+                      isChanged={originalData.copies !== roleSpecificData.copies}
+                      oldValue={originalData.copies}
+                      showIfEmpty={false}
+                    />
+                  </>
+                ) : (
+                  // Regular display for add mode
+                  <>
+                    <FieldDisplay
+                      label="Subscription Class"
+                      value={formData.subsclass || roleSpecificData.subsclass || ""}
+                      required={subscriptionType === "WMM"}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Start Date"
+                      value={startDate}
+                      required={true}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="End Date"
+                      value={endDate}
+                      required={true}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Duration"
+                      value={
+                        formData.subscriptionFreq
+                          ? `${formData.subscriptionFreq} months`
+                          : ""
+                      }
+                      required={true}
+                      showIfEmpty={false}
+                    />
+                    <FieldDisplay
+                      label="Copies"
+                      value={roleSpecificData.copies}
+                      required={true}
+                      showIfEmpty={false}
+                    />
+                  </>
+                )}
 
                 {/* WMM Specific Fields - Only show if WMM subscription type and has data */}
                 {subscriptionType === "WMM" &&
