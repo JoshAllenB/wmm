@@ -3,6 +3,7 @@ import { SocketContext } from "./SocketContext";
 import { webSocketService } from "../../services/WebSocketService";
 import { useUser } from "../Hooks/userProvider";
 import backupNotificationService from "../../services/BackupNotificationService.jsx";
+import buildUpdateService from "../../services/BuildUpdateService.jsx";
 
 export const SocketProvider = ({ children }) => {
   const [socketData, setSocketData] = useState(null);
@@ -99,15 +100,17 @@ export const SocketProvider = ({ children }) => {
         webSocketService.subscribe(event, handleSocketData);
       });
 
-      // Initialize backup notification service
+      // Initialize notification services
       backupNotificationService.initialize(webSocketService);
+      buildUpdateService.initialize(webSocketService);
 
       return () => {
         events.forEach((event) => {
           webSocketService.unsubscribe(event, handleSocketData);
         });
-        // Cleanup backup notification service
+        // Cleanup notification services
         backupNotificationService.destroy();
+        // buildUpdateService has no destroy requirement currently
       };
     }
   }, [connectionStatus.connected]);

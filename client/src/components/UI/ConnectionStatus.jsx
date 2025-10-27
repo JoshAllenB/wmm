@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSocket } from "../../utils/Websocket/useSocket";
 import { Link2, Link2Off } from "lucide-react";
+import buildUpdateService from "../../services/BuildUpdateService.jsx";
 
 const ConnectionStatus = ({ showDetails = false }) => {
   const {
@@ -15,6 +16,7 @@ const ConnectionStatus = ({ showDetails = false }) => {
 
   const [versionData, setVersionData] = useState(null);
   const [isLoadingVersion, setIsLoadingVersion] = useState(true);
+  const [updateState, setUpdateState] = useState({ checking: false, available: false, server: null, client: null });
 
   useEffect(() => {
     const loadVersionData = async () => {
@@ -84,6 +86,24 @@ const ConnectionStatus = ({ showDetails = false }) => {
   }
 
   // Expanded version - more detailed and informative
+  const handleCheckUpdates = async () => {
+    setUpdateState((s) => ({ ...s, checking: true }));
+    const result = await buildUpdateService.checkForUpdate({ silent: true });
+    setUpdateState({
+      checking: false,
+      available: !!result.updateAvailable,
+      server: result.server || null,
+      client: result.client || versionData?.version || null,
+    });
+    if (!result.updateAvailable) {
+      // Show small toast
+      await buildUpdateService.checkForUpdate({ silent: false });
+    } else {
+      // Also surface a toast with reload action
+      buildUpdateService.notifyUpdateAvailable(result.server, { fromManualCheck: true });
+    }
+  };
+
   return (
     <div className={`p-3 rounded-lg border border-opacity-20`}>
       <div className="flex items-center justify-between mb-2">
@@ -172,11 +192,28 @@ const ConnectionStatus = ({ showDetails = false }) => {
           </div>
         )}
         {!isLoadingVersion && versionData && (
-          <div className="flex justify-between">
-            <span>Version:</span>
-            <span className="font-bold text-xs">
-              v{versionData.version} {versionData.commit}
-            </span>
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-1">
+              <span>Version:</span>
+              <span className="font-bold text-xs">v{versionData.version} {versionData.commit}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCheckUpdates}
+                className="px-2 py-1 text-xs rounded-md border border-gray-300 hover:bg-gray-100"
+                disabled={updateState.checking}
+              >
+                {updateState.checking ? "Checking..." : "Check updates"}
+              </button>
+              {updateState.available && (
+                <button
+                  onClick={() => buildUpdateService.forceReload(updateState.server)}
+                  className="px-2 py-1 text-xs rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Update to v{updateState.server}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

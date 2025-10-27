@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
 import userAuthRouter from "./userAuth/userAuth.mjs";
 import initWebSocket from "./websocket.mjs";
 import userRoutes from "./middleware/users/Users.mjs";
@@ -30,6 +31,17 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load build version info
+const versionFilePath = path.join(__dirname, "./version.json");
+let buildInfo = { version: "dev", builtAt: new Date().toISOString(), commit: "dev" };
+try {
+  const raw = fs.readFileSync(versionFilePath, "utf-8");
+  buildInfo = JSON.parse(raw);
+} catch (e) {
+  console.warn("Version file not found or invalid, using fallback build info.");
+}
+const buildVersion = buildInfo.version;
 
 const app = express();
 app.use(express.json());
@@ -61,6 +73,24 @@ mongoose.set("debug", false);
 
 initWebSocket(io);
 
+// Build notification helper
+function notifyClientsOfNewBuild() {
+  try {
+    // Reload version info from disk in case it changed
+    const raw = fs.readFileSync(versionFilePath, "utf-8");
+    buildInfo = JSON.parse(raw);
+  } catch (e) {
+    // Keep previous buildInfo on error
+  }
+  io.emit("new-build-available", {
+    version: buildInfo.version,
+    builtAt: buildInfo.builtAt,
+    commit: buildInfo.commit,
+    timestamp: Date.now(),
+  });
+  console.log(`Notified ${io.engine.clientsCount} clients of new build ${buildInfo.version}`);
+}
+
 const attachIO = (req, res, next) => {
   req.io = io;
   next();
@@ -88,15 +118,48 @@ app.use("/api/backup", attachIO, backupRoutes);
 
 app.use(
   express.static(path.join(__dirname, "../client/dist"), {
-    maxAge: "1y", // Cache immutable hashed assets
-    immutable: true,
+    // Different cache strategies for different file types
+    setHeaders: (res, filePath) => {
+      const isStaticAsset =
+        /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(filePath);
+      const isHtml = /\.html?$/.test(filePath);
+
+      if (isStaticAsset) {
+        // Cache hashed assets for 1 year (immutable)
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      } else if (isHtml) {
+        // Never cache HTML
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+      } else {
+        // Default cache for other files
+        res.setHeader("Cache-Control", "public, max-age=86400");
+      }
+      res.setHeader("X-Build-Version", buildVersion);
+    },
   })
 );
+
+// Expose build info for clients and CI
+app.get("/api/build", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.json({ ...buildInfo, serverTime: new Date().toISOString() });
+});
+
+// Endpoint to notify clients of new build (hook this into your deploy pipeline)
+app.post("/api/notify-build", (req, res) => {
+  notifyClientsOfNewBuild();
+  res.json({ success: true, clientsNotified: io.engine.clientsCount, version: buildInfo.version });
+});
 
 app.get("/*", (req, res) => {
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
+  res.setHeader("X-Build-Version", buildVersion); // Optional: for debugging
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
