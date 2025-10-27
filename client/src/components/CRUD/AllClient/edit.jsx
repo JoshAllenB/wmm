@@ -6,6 +6,7 @@ import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import ConfirmationSummaryDialog from "../../UI/confirmationSummaryDialog";
+import ConfirmationModal from "../../UI/ConfirmationModal";
 import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import {
@@ -190,6 +191,8 @@ const Edit = ({
   const hasClientDataInitializedRef = useRef(false);
   // Hold the initial snapshot of client data for diffing on submit
   const initialClientSnapshotRef = useRef(null);
+  // Hold the initial snapshot of subscription data for diffing on submit
+  const initialSubscriptionSnapshotRef = useRef(null);
   // Track which client fields the user has modified (for potential future use)
   const dirtyClientFieldsRef = useRef(new Set());
   // Track subscription/role fields touched to avoid saving untouched defaults
@@ -479,6 +482,16 @@ const Edit = ({
 
   // Always use "all" mode with smart filtering - no user choice needed
   const [updateType] = useState("all"); // Smart filtering handles what gets updated
+
+  // Delete confirmation modal state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deleteConfirmationData, setDeleteConfirmationData] = useState({
+    type: '', // 'subscription' or 'role'
+    item: null,
+    roleType: '', // 'HRG', 'FOM', 'CAL'
+    title: '',
+    message: '',
+  });
 
   // Helper function to check if subscription data exists
   const hasSubscriptionData = (data, type) => {
@@ -4877,7 +4890,7 @@ const Edit = ({
     }
   };
 
-  const handleDeleteSubscription = async (subscription) => {
+  const handleDeleteSubscription = (subscription) => {
     if (!subscription || (!subscription.id && !subscription._id)) {
       toast({
         title: "Error",
@@ -4887,6 +4900,23 @@ const Edit = ({
       return;
     }
 
+    // Prepare confirmation modal data
+    const subscriptionType = formData.subscriptionType;
+    const dateRange = subscription?.subsdate || subscription?.enddate
+      ? ` (${subscription?.subsdate || 'N/A'} to ${subscription?.enddate || 'N/A'})`
+      : '';
+    
+    setDeleteConfirmationData({
+      type: 'subscription',
+      item: subscription,
+      roleType: '',
+      title: `Delete ${subscriptionType} Subscription`,
+      message: `Are you sure you want to delete this ${subscriptionType} subscription${dateRange}? This action cannot be undone.`,
+    });
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteSubscription = async (subscription) => {
     // Use the id field (integer) for deletion, fallback to _id if needed
     const subscriptionId = subscription.id || subscription._id;
     const subscriptionType = formData.subscriptionType;
@@ -5011,6 +5041,17 @@ const Edit = ({
           "An error occurred while deleting the subscription.",
         variant: "destructive",
       });
+    }
+  };
+
+  // Handle confirmation modal confirm action
+  const handleConfirmDelete = () => {
+    const { type, item, roleType } = deleteConfirmationData;
+    
+    if (type === 'subscription') {
+      confirmDeleteSubscription(item);
+    } else if (type === 'role') {
+      confirmDeleteRoleRecord(item, roleType);
     }
   };
 
@@ -7972,6 +8013,18 @@ const Edit = ({
           subscriptionMode={subscriptionMode}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
+        onConfirm={handleConfirmDelete}
+        title={deleteConfirmationData.title}
+        message={deleteConfirmationData.message}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-600 hover:bg-red-700 text-white"
+      />
     </>
   );
 };
