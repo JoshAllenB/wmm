@@ -121,9 +121,12 @@ export const TableComponent = function TableComponent({
 
   // Simplified HRG FOM CAL display with clickable labels
   const renderHrgFomCalDisplay = () => {
+    // Check if container is narrow (smaller desktop)
+    const isNarrowDesktop = containerWidth > 0 && containerWidth < 1200;
+    
     return (
-      <div>
-        <div className="flex flex-wrap items-center gap-x-4 bg-white ">
+      <div className="overflow-x-auto">
+        <div className={`flex items-center gap-x-2 ${isNarrowDesktop ? 'gap-y-1 text-xs' : 'gap-x-4 text-sm'} bg-white min-w-max`}>
           {/* Clients Count - Always visible with per-page tooltip */}
           <div className="flex items-center">
             <Tooltip
@@ -141,7 +144,7 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* HRG Section - Conditionally visible */}
-          <div className="flex items-center border-l border-gray-300 pl-4">
+          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
             <Tooltip
               title={`Page: ${Number(
                 stats?.serviceClientCounts?.hrgOnly?.page || 0
@@ -178,7 +181,7 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* FOM Section - Conditionally visible */}
-          <div className="flex items-center border-l border-gray-300 pl-4">
+          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
             <Tooltip
               title={`Page: ${Number(
                 stats?.serviceClientCounts?.fomOnly?.page || 0
@@ -215,7 +218,7 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* CAL Section - Conditionally visible */}
-          <div className="flex items-center border-l border-gray-300 pl-4">
+          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
             <Tooltip
               title={`Calendar Type: ${
                 findMetric("CAL")?.currentCalType || "N/A"
@@ -339,9 +342,10 @@ export const TableComponent = function TableComponent({
 
     // Admin: show a compact grid of per-page and total for all services
     if (userRole === "Admin") {
+      const isNarrowDesktop = containerWidth > 0 && containerWidth < 1200;
       return (
-        <div className="px-2 py-1 text-xs">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-1.5 bg-white border border-gray-200">
+        <div className={`px-2 py-1 ${isNarrowDesktop ? 'text-xs' : 'text-sm'} overflow-x-auto`}>
+          <div className={`flex items-center ${isNarrowDesktop ? 'gap-x-2' : 'gap-x-4'} gap-y-2 p-1.5 bg-white border border-gray-200 min-w-max`}>
             {/* Clients Count */}
             <div className="flex items-center">
               <span className="font-medium text-gray-700">
