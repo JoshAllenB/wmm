@@ -88,14 +88,15 @@ app.use("/api/backup", attachIO, backupRoutes);
 
 app.use(
   express.static(path.join(__dirname, "../client/dist"), {
-    maxAge: "1y", // cache hashed assets for 1 year
-    etag: false, // optional: disable etag for perf
-    index: false, // don't auto-serve index.html here
+    maxAge: "1y", // Cache immutable hashed assets
+    immutable: true,
   })
 );
 
-app.get("*", (req, res) => {
-  res.setHeader("Cache-Control", "no-store"); // disables caching
+app.get("/*", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.sendFile(path.join(__dirname, "../client/dist", "index.html"));
 });
 
