@@ -21,7 +21,7 @@ const ConnectionStatus = ({ showDetails = false }) => {
   useEffect(() => {
     const loadVersionData = async () => {
       try {
-        const response = await fetch("/version.json");
+        const response = await fetch(`/version.json?_=${Date.now()}`, { cache: "no-store" });
         if (response.ok) {
           const data = await response.json();
           setVersionData(data);
@@ -102,6 +102,12 @@ const ConnectionStatus = ({ showDetails = false }) => {
       // Also surface a toast with reload action
       buildUpdateService.notifyUpdateAvailable(result.server, { fromManualCheck: true });
     }
+
+    // Refresh sidebar version display with a cache-busted fetch
+    try {
+      const latestClient = await buildUpdateService.loadClientVersion();
+      if (latestClient) setVersionData(latestClient);
+    } catch (_) {}
   };
 
   return (
