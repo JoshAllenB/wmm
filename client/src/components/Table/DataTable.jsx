@@ -50,9 +50,10 @@ export default function DataTable({
   const { socket, socketData } = useSocket();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [animationComplete, setAnimationComplete] = useState(false);
-  const [tableHeight, setTableHeight] = useState("700px");
+  const [tableHeight, setTableHeight] = useState("600px");
   const [tableWidth, setTableWidth] = useState(0);
   const [screenSize, setScreenSize] = useState("desktop");
+  const [isSmallHeight, setIsSmallHeight] = useState(false);
   const containerRef = useRef(null);
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -189,6 +190,10 @@ export default function DataTable({
       const viewportWidth = window.innerWidth;
       const containerWidth = containerRef.current.offsetWidth;
 
+      // Check if screen height is below 720px
+      const smallHeight = viewportHeight < 720;
+      setIsSmallHeight(smallHeight);
+
       // Determine screen size category
       let size = "desktop";
       if (viewportWidth < 640) {
@@ -205,16 +210,17 @@ export default function DataTable({
       const containerTop = Math.max(0, containerRect.top);
 
       // Reserve space for pagination and other elements below the table
-      // Add some extra margin for safety
-      const bottomReservedSpace = usePagination ? 100 : 30;
+      // Reduce bottom space on small height screens
+      const bottomReservedSpace = usePagination ? (smallHeight ? 60 : 100) : 30;
 
       // Calculate available height: viewport height - top offset - bottom space
       let calculatedHeight =
         viewportHeight - containerTop - bottomReservedSpace;
 
-      // Adjust minimum height based on screen size
+      // Adjust minimum height based on screen size and height
       let minHeight = 400;
-      if (size === "mobile") minHeight = 250;
+      if (smallHeight) minHeight = 200;
+      else if (size === "mobile") minHeight = 250;
       else if (size === "tablet") minHeight = 350;
 
       // Use more of the available height - limit to 90% instead of 85%
@@ -718,8 +724,8 @@ export default function DataTable({
         }`}
       >
         <ScrollArea
-          className="rounded-md border w-full"
-          style={{ height: tableHeight }}
+          className="rounded-md border w-full overflow-hidden"
+          style={{ height: tableHeight, overflowY: 'auto' }}
         >
           <TableComponent
             table={table}
@@ -731,6 +737,7 @@ export default function DataTable({
             containerWidth={tableWidth}
             subscriptionType={advancedFilterData?.subscriptionType || "WMM"} // Pass subscription type from advancedFilterData
             addedToday={addedToday}
+            isSmallHeight={isSmallHeight}
           />
           <ScrollBar orientation="vertical" />
           <ScrollBar orientation="horizontal" />

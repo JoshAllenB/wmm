@@ -24,6 +24,7 @@ export const TableComponent = function TableComponent({
   containerWidth = 0,
   subscriptionType = "WMM",
   addedToday = false,
+  isSmallHeight = false,
 }) {
   const [showPerPage, setShowPerPage] = useState(false);
   const [visibleMetrics, setVisibleMetrics] = useState({
@@ -60,8 +61,9 @@ export const TableComponent = function TableComponent({
     return "px-4 py-2";
   };
 
-  // Adjust max heights for scrollable areas based on container width
+  // Adjust max heights for scrollable areas based on container width and screen height
   const getMaxHeight = () => {
+    if (isSmallHeight) return 60;
     if (isMobile) return 100;
     if (isTablet) return 120;
     return 150;
@@ -976,8 +978,8 @@ export const TableComponent = function TableComponent({
                         ) : cell.column.id === "Subscription" &&
                           Array.isArray(cell.getValue()) ? (
                           <ul
-                            className="max-w-[450px] overflow-y-auto scrollbar-hide text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px` }}
+                            className={`max-w-[450px] ${isSmallHeight ? 'overflow-y-auto' : 'overflow-y-auto'} scrollbar-hide text-xs sm:text-sm md:text-base`}
+                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
                           >
                             {cell.getValue().length > 0 ? (
                               cell.getValue().map((sub, index) => {
@@ -1053,7 +1055,7 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px` }}
+                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
@@ -1111,7 +1113,7 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px` }}
+                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
@@ -1166,7 +1168,7 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px` }}
+                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
