@@ -25,8 +25,8 @@ const PaymentTypeFilter = ({ filterData, handleChange }) => {
   };
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+    <div className="p-2 border rounded-lg shadow-sm">
+      <h2 className="text-black text-lg font-bold mb-4 border-b">
         Payment Type
       </h2>
       <div className="flex gap-5">
@@ -37,7 +37,7 @@ const PaymentTypeFilter = ({ filterData, handleChange }) => {
             id="massPaid"
             checked={filterData.massPaid}
             onChange={handlePaymentTypeChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label htmlFor="massPaid" className="ml-2 text-lg text-black">
             Mass Paid
@@ -51,7 +51,7 @@ const PaymentTypeFilter = ({ filterData, handleChange }) => {
             id="cashPaid"
             checked={filterData.cashPaid}
             onChange={handlePaymentTypeChange}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
           />
           <label htmlFor="cashPaid" className="ml-2 text-lg text-black">
             Cash Paid

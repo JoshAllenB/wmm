@@ -12,7 +12,7 @@ const SubclassFilter = ({ filterData, handleChange, subclasses }) => {
   }, [subclasses]);
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
+    <div className="p-2 border rounded-lg shadow-sm">
       <div>
         <label className="block text-xl font-medium text-black mb-1">
           Subclass

@@ -1,10 +1,10 @@
 const CalendarFilter = ({ filterData, handleChange }) => {
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+    <div className="p-2 border rounded-lg shadow-sm">
+      <h2 className="text-black text-lg font-bold mb-2 border-b">
         Calendar Status
       </h2>
-      <div className="space-y-4">
+      <div className="space-y-2">
         {/* Calendar Received/Not Received Status */}
         <div className="flex gap-5">
           <div className="flex items-center">
@@ -21,7 +21,7 @@ const CalendarFilter = ({ filterData, handleChange }) => {
                   },
                 })
               }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label
               htmlFor="calendarReceived"
@@ -44,7 +44,7 @@ const CalendarFilter = ({ filterData, handleChange }) => {
                   },
                 })
               }
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label
               htmlFor="calendarNotReceived"
@@ -56,11 +56,11 @@ const CalendarFilter = ({ filterData, handleChange }) => {
         </div>
 
         {/* Calendar Entitlement Filter */}
-        <div className="border-t pt-4">
-          <h3 className="text-black text-md font-semibold mb-3">
+        <div className="border-t pt-2">
+          <h3 className="text-black text-md font-semibold mb-2">
             Calendar Entitlement
           </h3>
-          <div className="space-y-2">
+          <div>
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -68,11 +68,11 @@ const CalendarFilter = ({ filterData, handleChange }) => {
                 name="calendarEntitledOnly"
                 checked={filterData.calendarEntitledOnly || false}
                 onChange={handleChange}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label
                 htmlFor="calendarEntitledOnly"
-                className="ml-2 text-sm font-medium text-gray-700"
+                className="ml-2 text-sm text-black"
               >
                 Only clients entitled for Calendar (subscription ends on/beyond
                 December)

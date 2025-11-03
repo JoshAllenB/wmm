@@ -6,9 +6,6 @@ const UserFilter = ({
   users,
   addUsers,
   currentUser,
-  hasOnlyNonWMMRoles,
-  hasRole,
-  subscriptionType,
 }) => {
   // Memoize the user options to prevent unnecessary re-renders
   const userOptions = useMemo(() => {
@@ -95,11 +92,8 @@ const UserFilter = ({
   }, [addUsers, currentUser, users]);
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-        User Filter
-      </h2>
-      <div className="space-y-2">
+    <div className="p-2 border rounded-lg shadow-sm">
+      <div>
         <label className="block text-lg font-medium text-black">
           Filter by User
         </label>

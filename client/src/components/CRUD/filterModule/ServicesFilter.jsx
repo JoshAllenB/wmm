@@ -48,14 +48,14 @@ const ServicesFilter = ({
   }, [hasRole, subscriptionType]);
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-      <h2 className="text-gray-800 text-xl font-semibold mb-4">
+    <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-200">
+      <h2 className="text-gray-800 text-xl font-semibold mb-2">
         Filter Options
       </h2>
 
       {/* Services Section */}
-      <div className="mb-6">
-        <h3 className="text-gray-700 font-medium mb-3">Services</h3>
+      <div className="mb-2">
+        <h3 className="text-gray-700 font-medium mb-2">Services</h3>
         <div className="flex flex-wrap gap-4 text-base">
           {/* Show services based on role */}
           {!hasRole("WMM") && hasRole("HRG") && (
@@ -64,7 +64,7 @@ const ServicesFilter = ({
                 type="checkbox"
                 checked={filterData.services.includes("HRG")}
                 onChange={() => handleServiceChange("HRG")}
-                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <span className="ml-2 text-black">HRG</span>
             </label>
@@ -75,7 +75,7 @@ const ServicesFilter = ({
                 type="checkbox"
                 checked={filterData.services.includes("FOM")}
                 onChange={() => handleServiceChange("FOM")}
-                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <span className="ml-2 text-black">FOM</span>
             </label>
@@ -86,7 +86,7 @@ const ServicesFilter = ({
                 type="checkbox"
                 checked={filterData.services.includes("CAL")}
                 onChange={() => handleServiceChange("CAL")}
-                className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <span className="ml-2 text-black">CAL</span>
             </label>
@@ -99,7 +99,7 @@ const ServicesFilter = ({
                   type="checkbox"
                   checked={filterData.services.includes("WMM")}
                   onChange={() => handleServiceChange("WMM")}
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-black">WMM</span>
               </label>
@@ -108,7 +108,7 @@ const ServicesFilter = ({
                   type="checkbox"
                   checked={filterData.services.includes("HRG")}
                   onChange={() => handleServiceChange("HRG")}
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-black">HRG</span>
               </label>
@@ -117,7 +117,7 @@ const ServicesFilter = ({
                   type="checkbox"
                   checked={filterData.services.includes("FOM")}
                   onChange={() => handleServiceChange("FOM")}
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-black">FOM</span>
               </label>
@@ -126,7 +126,7 @@ const ServicesFilter = ({
                   type="checkbox"
                   checked={filterData.services.includes("CAL")}
                   onChange={() => handleServiceChange("CAL")}
-                  className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <span className="ml-2 text-black">CAL</span>
               </label>
@@ -136,96 +136,99 @@ const ServicesFilter = ({
       </div>
 
       {/* Client ID Filter Section */}
-      <div className="mt-6 pt-6 border-t border-gray-200">
-        <h3 className="text-gray-700 font-medium mb-3">Client ID Filter</h3>
+      <div className="pt-2 border-t border-gray-200">
+        <h3 className="text-gray-700 font-medium mb-2 borde">
+          Client ID Filter
+        </h3>
 
-        {/* Include Client IDs */}
-        <div className="mb-4">
-          <label className="inline-flex items-center mb-2">
-            <input
-              type="checkbox"
-              checked={
-                filterData.clientIdFilterType === "include" ||
-                filterData.clientIdFilterType === "both"
-              }
-              onChange={(e) => {
-                if (e.target.checked) {
-                  handleClientIdFilterTypeChange(
-                    filterData.clientIdFilterType === "exclude"
-                      ? "both"
-                      : "include"
-                  );
-                } else {
-                  handleClientIdFilterTypeChange(
-                    filterData.clientIdFilterType === "both"
-                      ? "exclude"
-                      : "none"
-                  );
+        <div className="flex gap-2">
+          {/* Include Client IDs */}
+          <div className="mb-2">
+            <label className="inline-flex items-center mb-2">
+              <input
+                type="checkbox"
+                checked={
+                  filterData.clientIdFilterType === "include" ||
+                  filterData.clientIdFilterType === "both"
                 }
-              }}
-              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-black font-medium">
-              Include Client IDs
-            </span>
-          </label>
-          {(filterData.clientIdFilterType === "include" ||
-            filterData.clientIdFilterType === "both") && (
-            <textarea
-              name="clientIncludeIds"
-              value={filterData.clientIncludeIds}
-              onChange={handleChange}
-              placeholder="Enter client IDs to include (comma or space separated)"
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              rows="3"
-            />
-          )}
-        </div>
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    handleClientIdFilterTypeChange(
+                      filterData.clientIdFilterType === "exclude"
+                        ? "both"
+                        : "include"
+                    );
+                  } else {
+                    handleClientIdFilterTypeChange(
+                      filterData.clientIdFilterType === "both"
+                        ? "exclude"
+                        : "none"
+                    );
+                  }
+                }}
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-black font-medium">
+                Include Client IDs
+              </span>
+            </label>
+            {(filterData.clientIdFilterType === "include" ||
+              filterData.clientIdFilterType === "both") && (
+              <textarea
+                name="clientIncludeIds"
+                value={filterData.clientIncludeIds}
+                onChange={handleChange}
+                placeholder="Enter client IDs to include (comma or space separated)"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                rows="3"
+              />
+            )}
+          </div>
 
-        {/* Exclude Client IDs */}
-        <div className="mb-4">
-          <label className="inline-flex items-center mb-2">
-            <input
-              type="checkbox"
-              checked={
-                filterData.clientIdFilterType === "exclude" ||
-                filterData.clientIdFilterType === "both"
-              }
-              onChange={(e) => {
-                if (e.target.checked) {
-                  handleClientIdFilterTypeChange(
-                    filterData.clientIdFilterType === "include"
-                      ? "both"
-                      : "exclude"
-                  );
-                } else {
-                  handleClientIdFilterTypeChange(
-                    filterData.clientIdFilterType === "both"
-                      ? "include"
-                      : "none"
-                  );
+          {/* Exclude Client IDs */}
+          <div>
+            <label className="inline-flex items-center mb-2">
+              <input
+                type="checkbox"
+                checked={
+                  filterData.clientIdFilterType === "exclude" ||
+                  filterData.clientIdFilterType === "both"
                 }
-              }}
-              className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-black font-medium">
-              Exclude Client IDs
-            </span>
-          </label>
-          {(filterData.clientIdFilterType === "exclude" ||
-            filterData.clientIdFilterType === "both") && (
-            <textarea
-              name="clientExcludeIds"
-              value={filterData.clientExcludeIds}
-              onChange={handleChange}
-              placeholder="Enter client IDs to exclude (comma or space separated)"
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              rows="3"
-            />
-          )}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    handleClientIdFilterTypeChange(
+                      filterData.clientIdFilterType === "include"
+                        ? "both"
+                        : "exclude"
+                    );
+                  } else {
+                    handleClientIdFilterTypeChange(
+                      filterData.clientIdFilterType === "both"
+                        ? "include"
+                        : "none"
+                    );
+                  }
+                }}
+                className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <span className="ml-2 text-black font-medium">
+                Exclude Client IDs
+              </span>
+            </label>
+            {(filterData.clientIdFilterType === "exclude" ||
+              filterData.clientIdFilterType === "both") && (
+              <textarea
+                name="clientExcludeIds"
+                value={filterData.clientExcludeIds}
+                onChange={handleChange}
+                placeholder="Enter client IDs to exclude (comma or space separated)"
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                rows="3"
+              />
+            )}
+          </div>
         </div>
-
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="text-sm text-gray-500">
           You can use both include and exclude filters simultaneously. Separate
           multiple IDs with commas or spaces.
         </p>

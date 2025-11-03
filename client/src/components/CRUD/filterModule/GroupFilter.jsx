@@ -16,10 +16,10 @@ const GroupFilter = ({ filterData, handleChange, groups, hasRole }) => {
   };
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <div className="space-y-4">
+    <div className="p-2 border rounded-lg shadow-sm">
+      <div className="space-y-2">
         <div>
-          <label className="block text-xl font-medium text-black mb-1">
+          <label className="block text-xl font-medium text-black mb-2">
             Group
           </label>
           <select
@@ -49,7 +49,7 @@ const GroupFilter = ({ filterData, handleChange, groups, hasRole }) => {
                 },
               })
             }
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             disabled={!hasExcludeAccess()}
           />
           <label
@@ -78,7 +78,7 @@ const GroupFilter = ({ filterData, handleChange, groups, hasRole }) => {
                 },
               })
             }
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             disabled={!hasExcludeAccess()}
           />
           <label

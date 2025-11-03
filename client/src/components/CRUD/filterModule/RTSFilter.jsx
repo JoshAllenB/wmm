@@ -1,71 +1,64 @@
-import React from "react";
-
 const RTSFilter = ({ filterData, handleChange }) => {
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
+    <div className="p-2 border rounded-lg shadow-sm">
+      <h2 className="text-black text-lg font-bold mb-4 border-b">
         RTS (Return to Sender) Status
       </h2>
-      <div className="flex flex-col gap-4">
-        <div className="flex gap-5">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="rtsMaxReached"
-              id="rtsMaxReached"
-              checked={filterData.rtsMaxReached}
-              onChange={handleChange}
-              className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-            />
-            <label htmlFor="rtsMaxReached" className="ml-2 text-lg text-black">
-              Max RTS Reached (3+)
-            </label>
-          </div>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="rtsActive"
-              id="rtsActive"
-              checked={filterData.rtsActive}
-              onChange={handleChange}
-              className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-            />
-            <label htmlFor="rtsActive" className="ml-2 text-lg text-black">
-              Active RTS (1-2)
-            </label>
-          </div>
-        </div>
+      <div className="grid grid-cols-2 gap-1">
+        {/* Max RTS */}
+        <label htmlFor="rtsMaxReached" className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="rtsMaxReached"
+            id="rtsMaxReached"
+            checked={filterData.rtsMaxReached}
+            onChange={handleChange}
+            className="h-6 w-6 text-red-600 border-gray-300 rounded"
+          />
+          <span className="text-black leading-tight">Max RTS Reached (3+)</span>
+        </label>
 
-        <div className="flex gap-5">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="rtsNone"
-              id="rtsNone"
-              checked={filterData.rtsNone}
-              onChange={handleChange}
-              className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-            />
-            <label htmlFor="rtsNone" className="ml-2 text-lg text-black">
-              No RTS (0)
-            </label>
-          </div>
+        {/* Active RTS */}
+        <label htmlFor="rtsActive" className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="rtsActive"
+            id="rtsActive"
+            checked={filterData.rtsActive}
+            onChange={handleChange}
+            className="h-6 w-6 text-yellow-600 border-gray-300 rounded"
+          />
+          <span className="text-black leading-tight">Active RTS (1–2)</span>
+        </label>
 
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="excludeRTSMax"
-              id="excludeRTSMax"
-              checked={filterData.excludeRTSMax}
-              onChange={handleChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="excludeRTSMax" className="ml-2 text-lg text-black">
-              Exclude Max RTS Clients
-            </label>
-          </div>
-        </div>
+        {/* No RTS */}
+        <label htmlFor="rtsNone" className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="rtsNone"
+            id="rtsNone"
+            checked={filterData.rtsNone}
+            onChange={handleChange}
+            className="h-6 w-6 text-green-600 border-gray-300 rounded"
+          />
+          <span className="text-black leading-tight">No RTS (0)</span>
+        </label>
+
+        {/* Exclude Max */}
+        <label htmlFor="excludeRTSMax" className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="excludeRTSMax"
+            id="excludeRTSMax"
+            checked={filterData.excludeRTSMax}
+            onChange={handleChange}
+            className="h-6 w-6 text-blue-600 border-gray-300 rounded"
+          />
+          <span className="text-black leading-tight">
+            Exclude Max RTS Clients
+          </span>
+        </label>
       </div>
     </div>
   );

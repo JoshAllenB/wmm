@@ -1,10 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-const TypesFilter = ({
-  filterData,
-  handleChange,
-  types,
-}) => {
+const TypesFilter = ({ filterData, handleChange, types }) => {
   // Memoize the types options
   const typeOptions = useMemo(() => {
     if (!Array.isArray(types)) return [];
@@ -16,9 +12,9 @@ const TypesFilter = ({
   }, [types]);
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
+    <div className="p-2 border rounded-lg shadow-sm">
       <div>
-        <label className="block text-xl font-medium text-black mb-1">
+        <label className="block text-xl font-medium text-black mb-2">
           Type
         </label>
         <select
@@ -37,4 +33,4 @@ const TypesFilter = ({
   );
 };
 
-export default TypesFilter; 
+export default TypesFilter;

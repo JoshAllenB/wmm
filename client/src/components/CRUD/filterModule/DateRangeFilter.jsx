@@ -21,15 +21,13 @@ const DateRangeFilter = ({
   // Memoize the date encoded section
   const dateEncodedSection = useMemo(
     () => (
-      <div className="p-4 bg-white rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="p-2 bg-white rounded-lg border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Date Encoded/Added
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div>
-            <label className="block text-gray-700 text-sm font-medium mb-2">
-              From:
-            </label>
+            <label className="block text-lg font-medium">From:</label>
             <div className="grid grid-cols-3 gap-2">
               <div className="relative">
                 <select
@@ -67,9 +65,7 @@ const DateRangeFilter = ({
           </div>
 
           <div>
-            <label className="block text-gray-700 text-sm font-medium mb-2">
-              To:
-            </label>
+            <label className="block text-lg font-medium">To:</label>
             <div className="grid grid-cols-3 gap-2">
               <div className="relative">
                 <select
@@ -123,13 +119,13 @@ const DateRangeFilter = ({
   // Memoize the active subscriptions section
   const activeSubscriptionsSection = useMemo(
     () => (
-      <div className="p-4 bg-white rounded-lg border border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="p-2 bg-white rounded-lg border border-blue-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Active Subscriptions
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div>
-            <label className="block text-gray-900 text-base font-bold mb-2">
+            <label className="block text-gray-900 text-base font-bold">
               From:
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -168,7 +164,7 @@ const DateRangeFilter = ({
             </div>
           </div>
           <div>
-            <label className="block text-gray-900 text-base font-bold mb-2">
+            <label className="block text-gray-900 text-base font-bold">
               To:
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -224,9 +220,9 @@ const DateRangeFilter = ({
   // Memoize the copies section
   const copiesSection = useMemo(
     () => (
-      <div className="p-4 bg-white rounded-lg border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Copies</h3>
-        <div className="space-y-2">
+      <div className="p-2 bg-white rounded-lg border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Copies</h3>
+        <div>
           <select
             name="copiesRange"
             value={filterData.copiesRange}
@@ -273,13 +269,13 @@ const DateRangeFilter = ({
   // Memoize the expiring subscriptions section
   const expiringSubscriptionsSection = useMemo(
     () => (
-      <div className="p-4 bg-white rounded-lg border border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <div className="p-2 bg-white rounded-lg border border-blue-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
           Expiring Subscriptions
         </h3>
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div>
-            <label className="block text-gray-900 text-base font-bold mb-2">
+            <label className="block text-gray-900 text-base font-bold">
               From:
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -318,7 +314,7 @@ const DateRangeFilter = ({
             </div>
           </div>
           <div>
-            <label className="block text-gray-900 text-base font-bold mb-2">
+            <label className="block text-gray-900 text-base font-bold">
               To:
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -978,9 +974,9 @@ const DateRangeFilter = ({
   }, [hasRole, filterData.selectedDateFilterRole, handleChange]);
 
   return (
-    <div className="p-4 bg-gray-50 rounded-lg shadow-sm">
-      <h2 className="text-xl font-bold text-gray-900 mb-6">Date Ranges</h2>
-      <div className="space-y-6">
+    <div className="p-2 bg-gray-50 rounded-lg shadow-sm">
+      <h2 className="text-xl font-bold text-gray-900 mb-2">Date Ranges</h2>
+      <div className="space-y-2">
         {/* Role Selector */}
         {roleSelectorSection}
 

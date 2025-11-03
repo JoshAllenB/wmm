@@ -1742,7 +1742,7 @@ const AdvancedFilter = ({
     <div>
       <Button
         onClick={openModal}
-        className="bg-blue-600 text-white hover:bg-blue-700 rounded-md flex items-center gap-2"
+        className="bg-blue-600 text-white hover:bg-blue-700 rounded-md flex items-center "
       >
         <span>Advanced Filter</span>
       </Button>
@@ -1755,20 +1755,20 @@ const AdvancedFilter = ({
         >
           <form
             onSubmit={handleSubmit}
-            className="max-h-[90vh] overflow-y-auto p-4"
+            className="max-h-[90vh] overflow-y-auto p-2"
           >
-            <div className="p-2 mb-4 border-b bg-blue-500 text-white">
-              <h1 className="text-white text-4xl font-bold">Advanced Filter</h1>
+            <div className="p-2 mb-2 border-b bg-blue-500 text-white">
+              <h1 className="text-white text-xl font-bold">Advanced Filter</h1>
               <p className="text-white text-sm">
                 Use filters to narrow down results
               </p>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-1">
               {/* Most Frequently Used Filters */}
               <div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-1">
+                  <div className="space-y-1">
                     <DateRangeFilter
                       filterData={filterData}
                       handleChange={handleChange}
@@ -1777,7 +1777,18 @@ const AdvancedFilter = ({
                       hasRole={hasRole}
                     />
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-1">
+                    <AreasFilter
+                      filterData={filterData}
+                      handleAreaChange={handleAreaChange}
+                      handleSelectAllLocal={handleSelectAllLocal}
+                      handleSelectAllForeign={handleSelectAllForeign}
+                      areas={areas}
+                      areAllLocalSelected={areAllLocalSelected}
+                      areAllForeignSelected={areAllForeignSelected}
+                      local={local}
+                      foreign={foreign}
+                    />
                     {!hasHRGFOMCALRole() && (
                       <CalendarFilter
                         filterData={filterData}
@@ -1800,17 +1811,6 @@ const AdvancedFilter = ({
                         handleChange={handleChange}
                       />
                     )}
-                    <AreasFilter
-                      filterData={filterData}
-                      handleAreaChange={handleAreaChange}
-                      handleSelectAllLocal={handleSelectAllLocal}
-                      handleSelectAllForeign={handleSelectAllForeign}
-                      areas={areas}
-                      areAllLocalSelected={areAllLocalSelected}
-                      areAllForeignSelected={areAllForeignSelected}
-                      local={local}
-                      foreign={foreign}
-                    />
                   </div>
                   <div className="space-y-4">
                     <GroupFilter
@@ -1910,23 +1910,51 @@ const AdvancedFilter = ({
               </div>
 
               {/* Client Information */}
-              <div className="border rounded-md bg-white">
+              <div className="border rounded-md bg-white shadow-sm">
                 <button
                   type="button"
                   onClick={() => setIsClientInfoOpen((prev) => !prev)}
-                  className="w-full flex items-center justify-between px-4 py-3"
+                  className="
+      w-full flex items-center justify-between px-4 py-3
+      hover:bg-gray-50 transition-colors
+      focus:outline-none focus:ring-2 focus:ring-blue-500
+    "
                   aria-expanded={isClientInfoOpen}
                   aria-controls="client-info-content"
                 >
-                  <span className="text-xl font-semibold text-gray-700">
+                  <span className="text-xl font-semibold flex items-center gap-3">
+                    {/* Icon (static) */}
+                    <svg
+                      className="w-5 h-5 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16.5 9.5l-4.5 4.5-4.5-4.5"
+                      />
+                    </svg>
                     Client Information Filter
                   </span>
-                  <span className="text-gray-500">
-                    {isClientInfoOpen ? "▾" : "▸"}
+
+                  {/* Dynamic arrow */}
+                  <span
+                    className={`transform text-gray-600 transition-transform ${
+                      isClientInfoOpen ? "rotate-180" : "rotate-0"
+                    }`}
+                  >
+                    ▼
                   </span>
                 </button>
+
                 {isClientInfoOpen && (
-                  <div id="client-info-content" className="px-4 pb-4">
+                  <div
+                    id="client-info-content"
+                    className="px-4 pb-4 pt-2 border-t"
+                  >
                     <ClientInfoFilter
                       filterData={filterData}
                       handleChange={handleChange}

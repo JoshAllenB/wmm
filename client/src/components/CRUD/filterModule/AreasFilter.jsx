@@ -23,7 +23,7 @@ const AreasFilter = ({
   // Memoize the local areas grid
   const localAreasGrid = useMemo(() => {
     return (
-      <div className="grid grid-cols-2">
+      <div className="grid grid-cols-4">
         {extendedLocal.map((area) => (
           <div key={area._id} className="flex items-center">
             <input
@@ -31,7 +31,7 @@ const AreasFilter = ({
               id={`area-${area._id}`}
               checked={filterData.areas.includes(area._id)}
               onChange={() => handleAreaChange(area._id)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label
               htmlFor={`area-${area._id}`}
@@ -57,7 +57,7 @@ const AreasFilter = ({
               id={`area-${area._id}`}
               checked={filterData.areas.includes(area._id)}
               onChange={() => handleAreaChange(area._id)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
             <label
               htmlFor={`area-${area._id}`}
@@ -73,12 +73,9 @@ const AreasFilter = ({
   }, [foreign, filterData.areas, handleAreaChange]);
 
   return (
-    <div className="p-4 border rounded-lg shadow-sm">
-      <h2 className="text-black text-lg font-bold mb-4 border-b pb-2">
-        Areas Filter
-      </h2>
+    <div className="p-2 border rounded-lg shadow-sm">
       <div>
-        <label className="block text-xl font-medium">Areas</label>
+        <label className="block text-xl font-bold">Area Filter</label>
         <p className="text-base text-blue-500">
           {filterData.areas.length} areas selected
         </p>
@@ -86,7 +83,7 @@ const AreasFilter = ({
         <div className="max-h-[350px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
           {/* Local Areas */}
           <div className="mb-2">
-            <h3 className="text-xl font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+            <h3 className="text-lg font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
               <span>Local Areas</span>
               <div className="flex items-center">
                 <input
@@ -94,7 +91,7 @@ const AreasFilter = ({
                   id="select-all-local"
                   checked={areAllLocalSelected}
                   onChange={handleSelectAllLocal}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label
                   htmlFor="select-all-local"
@@ -109,7 +106,7 @@ const AreasFilter = ({
 
           {/* Foreign Areas */}
           <div>
-            <h3 className="text-xl font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
+            <h3 className="text-lg font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">
               <span>Foreign Areas</span>
               <div className="flex items-center">
                 <input
@@ -117,7 +114,7 @@ const AreasFilter = ({
                   id="select-all-foreign"
                   checked={areAllForeignSelected}
                   onChange={handleSelectAllForeign}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-6 w-6 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label
                   htmlFor="select-all-foreign"
