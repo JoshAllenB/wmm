@@ -711,6 +711,31 @@ async function generateExcelReport(reportData, outputPath) {
       return cell;
     }
 
+    // ===== ADDED: Set cell A9 with month and year =====
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+
+    const monthName = monthNames[reportData.month - 1]; // month is 1-12, array is 0-11
+    const year = reportData.year;
+
+    setCellValue("A9", `For the issue of ${monthName} ${year}`);
+    worksheet.getCell("A9").font = { bold: true, size: 14 };
+    console.log(
+      chalk.green(`✅ Set cell A9 to: "For the issue of ${monthName} ${year}"`)
+    );
+
     // Fill in paid subscribers (rows 15-21)
     // Row 15: Priest and Religious
     const priestData = reportData.paidSubscribers["Priest and Religious"] || {
