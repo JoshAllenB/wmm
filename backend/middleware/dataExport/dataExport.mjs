@@ -148,7 +148,9 @@ router.post("/generate", async (req, res) => {
     cleanupOldFiles();
 
     // Generate the Excel report
-    const filename = `Monthly_Report_${month}_${year}.xlsx`;
+    // Special case: for May (month 5), use "April-May" in the filename
+    const monthLabel = month === 5 ? "April-May" : month;
+    const filename = `Monthly_Report_${monthLabel}_${year}.xlsx`;
     const dataExportDir = getDataExportPath();
     const outputPath = path.join(dataExportDir, filename);
 

@@ -727,13 +727,19 @@ async function generateExcelReport(reportData, outputPath) {
       "December",
     ];
 
-    const monthName = monthNames[reportData.month - 1]; // month is 1-12, array is 0-11
-    const year = reportData.year;
+    const monthNum = parseInt(reportData.month, 10); // Ensure month is a number, 1-12
+    const yearNum = parseInt(reportData.year, 10); // Ensure year is a number
+    const monthName = monthNames[monthNum - 1]; // month is 1-12, array is 0-11
 
-    setCellValue("A9", `For the issue of ${monthName} ${year}`);
+    // Special case: for May (month 5), use "April/May" as the month label in the Excel sheet
+    const monthLabel = monthNum === 5 ? "April/May" : monthName;
+
+    setCellValue("A9", `For the issue of ${monthLabel} ${yearNum}`);
     worksheet.getCell("A9").font = { bold: true, size: 14 };
     console.log(
-      chalk.green(`✅ Set cell A9 to: "For the issue of ${monthName} ${year}"`)
+      chalk.green(
+        `✅ Set cell A9 to: "For the issue of ${monthLabel} ${yearNum}"`
+      )
     );
 
     // Fill in paid subscribers (rows 15-21)
