@@ -22,6 +22,7 @@ import {
   SpackFilter,
   RTSFilter,
   PaymentTypeFilter,
+  NewRenewalFilter,
 } from "./filterModule";
 
 // Utility function to format date to "MM/DD/YY"
@@ -233,6 +234,7 @@ const AdvancedFilter = ({
     calendarEntitledOnly: false,
     massPaid: false,
     cashPaid: false,
+    newRenewalFilter: "all", // New filter for New vs Renewal subscriptions
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -460,6 +462,7 @@ const AdvancedFilter = ({
       calendarEntitledOnly: false,
       massPaid: false,
       cashPaid: false,
+      newRenewalFilter: "all",
     });
   };
 
@@ -876,6 +879,11 @@ const AdvancedFilter = ({
       // Payment type filters
       ...(filterData.massPaid && { massPaid: true }),
       ...(filterData.cashPaid && { cashPaid: true }),
+
+      // New and Renewal filter
+      ...(filterData.newRenewalFilter !== "all" && {
+        newRenewalFilter: filterData.newRenewalFilter,
+      }),
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
@@ -1829,6 +1837,12 @@ const AdvancedFilter = ({
                         filterData={filterData}
                         handleChange={handleChange}
                         subclasses={subclasses}
+                      />
+                    )}
+                    {!hasHRGFOMCALRole() && (
+                      <NewRenewalFilter
+                        filterData={filterData}
+                        handleChange={handleChange}
                       />
                     )}
 

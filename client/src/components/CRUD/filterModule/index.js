@@ -10,3 +10,4 @@ export { default as UserFilter } from "./UserFilter";
 export { default as SpackFilter } from "./SpackFilter";
 export { default as RTSFilter } from "./RTSFilter";
 export { default as PaymentTypeFilter } from "./PaymentTypeFilter";
+export { default as NewRenewalFilter } from "./NewRenewalFilter";

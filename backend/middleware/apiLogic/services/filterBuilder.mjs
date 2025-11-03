@@ -3769,6 +3769,91 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       baseFilter.push({ id: -1 });
     }
   }
+
+  // Handle New/Renewal subscription filter based on subsclass field
+  // NEW: subsclass does NOT contain 'R'
+  // RENEWAL: subsclass contains 'R'
+  if (advancedFilterData.newRenewalFilter && advancedFilterData.newRenewalFilter !== "all") {
+    try {
+      // Only apply to WMM subscription type
+      const subscriptionType = advancedFilterData.subscriptionType || "WMM";
+      
+      if (subscriptionType === "WMM") {
+        const WmmModel = await getModelInstance("WmmModel");
+        
+        // Create aggregation pipeline to filter by subsclass based on newRenewalFilter
+        // We need to get the most recent subscription for each client and check its subsclass
+        const pipeline = [
+          // First, ensure we have a valid subsclass field
+          {
+            $match: {
+              subsclass: { $exists: true, $ne: null, $ne: "" },
+            },
+          },
+          
+          // Sort by adddate to get the most recent
+          {
+            $sort: {
+              clientid: 1,
+              adddate: -1,
+            },
+          },
+          
+          // Group by client ID and get the most recent subsclass
+          {
+            $group: {
+              _id: "$clientid",
+              latestSubsclass: { $first: "$subsclass" },
+            },
+          },
+          
+          // Now filter based on the newRenewalFilter value using the latest subsclass
+          ...(advancedFilterData.newRenewalFilter === "new"
+            ? [
+                {
+                  $match: {
+                    latestSubsclass: { $not: { $regex: "R", $options: "i" } }, // subsclass doesn't contain 'R'
+                  },
+                },
+              ]
+            : advancedFilterData.newRenewalFilter === "renewal"
+            ? [
+                {
+                  $match: {
+                    latestSubsclass: { $regex: "R", $options: "i" }, // subsclass contains 'R'
+                  },
+                },
+              ]
+            : []),
+          
+          // Project only the client ID
+          {
+            $project: {
+              _id: 1,
+            },
+          },
+        ];
+        
+        const clientsWithNewRenewal = await WmmModel.aggregate(pipeline);
+        
+        const validClientIds = clientsWithNewRenewal
+          .map((c) => parseInt(c._id))
+          .filter((id) => !isNaN(id));
+        
+        if (validClientIds.length > 0) {
+          baseFilter.push({ id: { $in: validClientIds } });
+        } else {
+          baseFilter.push({ id: -1 }); // No matches
+        }
+      } else {
+        // For non-WMM subscription types, we can't filter by subsclass
+        // Just continue without this filter
+      }
+    } catch (error) {
+      console.error("Error in New/Renewal subscription filtering:", error);
+      baseFilter.push({ id: -1 });
+    }
+  }
 }
 
 function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
