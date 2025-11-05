@@ -366,7 +366,8 @@ const ConfirmationSummaryDialog = ({
         {isEditModeActual &&
           subscriptionMode === "add" &&
           validSubTypes.includes(subscriptionType) &&
-          selectedRole === "WMM" && (
+          selectedRole === "WMM" &&
+          !subscriptionValidation.hasWarnings && (
             <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center">
                 <svg
@@ -448,6 +449,39 @@ const ConfirmationSummaryDialog = ({
           </div>
         )}
 
+        {/* Context-specific notification for Client Information Only Update (edit mode) */}
+        {isEditModeActual &&
+          previewClientDiff &&
+          Object.keys(previewClientDiff).length > 0 &&
+          !hasSubscriptionData(
+            subscriptionType,
+            formData,
+            roleSpecificData
+          ) && (
+            <div className="mb-6 p-4 bg-cyan-50 rounded-lg border border-cyan-200">
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 text-cyan-600 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <h4 className="text-lg font-semibold text-cyan-800">
+                  Updating Client Information Only
+                </h4>
+              </div>
+              <p className="text-sm text-cyan-700 mt-2">
+                Only the client&apos;s personal and contact details will be
+                updated. Existing subscriptions will remain unchanged.
+              </p>
+            </div>
+        )}
+
         {/* Update Type Selection for Edit Mode */}
 
         {/* Subscription Validation Warnings - only show when there are actual warnings */}
@@ -487,108 +521,130 @@ const ConfirmationSummaryDialog = ({
 
         <div className="space-y-4">
           {/* Personal Information */}
-          <SectionHeader title="Personal Information" />
           {isEditModeActual && previewClientDiff ? (
             // Show only changed fields when we have a diff (edit mode)
-            <>
-              {previewClientDiff.title !== undefined && (
-                <FieldDisplay
-                  label="Title"
-                  value={previewClientDiff.title}
-                  isChanged={true}
-                  oldValue={originalData.title}
-                />
-              )}
-              {previewClientDiff.fname !== undefined && (
-                <FieldDisplay
-                  label="First Name"
-                  value={previewClientDiff.fname}
-                  isChanged={true}
-                  oldValue={originalData.fname}
-                />
-              )}
-              {previewClientDiff.mname !== undefined && (
-                <FieldDisplay
-                  label="Middle Name"
-                  value={previewClientDiff.mname}
-                  isChanged={true}
-                  oldValue={originalData.mname}
-                />
-              )}
-              {previewClientDiff.lname !== undefined && (
-                <FieldDisplay
-                  label="Last Name"
-                  value={previewClientDiff.lname}
-                  isChanged={true}
-                  oldValue={originalData.lname}
-                />
-              )}
-              {previewClientDiff.sname !== undefined && (
-                <FieldDisplay
-                  label="Suffix"
-                  value={previewClientDiff.sname}
-                  isChanged={true}
-                  oldValue={originalData.sname}
-                />
-              )}
-              {previewClientDiff.bdate !== undefined && (
-                <FieldDisplay
-                  label="Birth Date"
-                  value={previewClientDiff.bdate}
-                  isChanged={true}
-                  oldValue={originalData.bdate}
-                />
-              )}
-              {previewClientDiff.company !== undefined && (
-                <FieldDisplay
-                  label="Company"
-                  value={previewClientDiff.company}
-                  isChanged={true}
-                  oldValue={originalData.company}
-                />
-              )}
-              {previewClientDiff.spack !== undefined && (
-                <FieldDisplay
-                  label="Special Package (SPACK)"
-                  value={previewClientDiff.spack ? "Yes" : "No"}
-                  isChanged={true}
-                  oldValue={originalData.spack ? "Yes" : "No"}
-                />
-              )}
-              {previewClientDiff.rts !== undefined && (
-                <FieldDisplay
-                  label="Return to Sender (RTS)"
-                  value={previewClientDiff.rts ? "Yes" : "No"}
-                  isChanged={true}
-                  oldValue={originalData.rts ? "Yes" : "No"}
-                />
-              )}
-              {previewClientDiff.rtsCount !== undefined && (
-                <FieldDisplay
-                  label="RTS Count"
-                  value={previewClientDiff.rtsCount}
-                  isChanged={true}
-                  oldValue={originalData.rtsCount}
-                />
-              )}
-              {previewClientDiff.type !== undefined && (
-                <FieldDisplay
-                  label="Type"
-                  value={previewClientDiff.type}
-                  isChanged={true}
-                />
-              )}
-              {previewClientDiff.group !== undefined && (
-                <FieldDisplay
-                  label="Group"
-                  value={previewClientDiff.group}
-                  isChanged={true}
-                />
-              )}
-            </>
+            (
+              (() => {
+                const hasPersonalChanges = [
+                  "title",
+                  "fname",
+                  "mname",
+                  "lname",
+                  "sname",
+                  "bdate",
+                  "company",
+                  "spack",
+                  "rts",
+                  "rtsCount",
+                  "type",
+                  "group",
+                ].some((f) => previewClientDiff[f] !== undefined);
+                if (!hasPersonalChanges) return null;
+                return (
+                  <>
+                    <SectionHeader title="Personal Information" />
+                    {previewClientDiff.title !== undefined && (
+                      <FieldDisplay
+                        label="Title"
+                        value={previewClientDiff.title}
+                        isChanged={true}
+                        oldValue={originalData.title}
+                      />
+                    )}
+                    {previewClientDiff.fname !== undefined && (
+                      <FieldDisplay
+                        label="First Name"
+                        value={previewClientDiff.fname}
+                        isChanged={true}
+                        oldValue={originalData.fname}
+                      />
+                    )}
+                    {previewClientDiff.mname !== undefined && (
+                      <FieldDisplay
+                        label="Middle Name"
+                        value={previewClientDiff.mname}
+                        isChanged={true}
+                        oldValue={originalData.mname}
+                      />
+                    )}
+                    {previewClientDiff.lname !== undefined && (
+                      <FieldDisplay
+                        label="Last Name"
+                        value={previewClientDiff.lname}
+                        isChanged={true}
+                        oldValue={originalData.lname}
+                      />
+                    )}
+                    {previewClientDiff.sname !== undefined && (
+                      <FieldDisplay
+                        label="Suffix"
+                        value={previewClientDiff.sname}
+                        isChanged={true}
+                        oldValue={originalData.sname}
+                      />
+                    )}
+                    {previewClientDiff.bdate !== undefined && (
+                      <FieldDisplay
+                        label="Birth Date"
+                        value={previewClientDiff.bdate}
+                        isChanged={true}
+                        oldValue={originalData.bdate}
+                      />
+                    )}
+                    {previewClientDiff.company !== undefined && (
+                      <FieldDisplay
+                        label="Company"
+                        value={previewClientDiff.company}
+                        isChanged={true}
+                        oldValue={originalData.company}
+                      />
+                    )}
+                    {previewClientDiff.spack !== undefined && (
+                      <FieldDisplay
+                        label="Special Package (SPACK)"
+                        value={previewClientDiff.spack ? "Yes" : "No"}
+                        isChanged={true}
+                        oldValue={originalData.spack ? "Yes" : "No"}
+                      />
+                    )}
+                    {previewClientDiff.rts !== undefined && (
+                      <FieldDisplay
+                        label="Return to Sender (RTS)"
+                        value={previewClientDiff.rts ? "Yes" : "No"}
+                        isChanged={true}
+                        oldValue={originalData.rts ? "Yes" : "No"}
+                      />
+                    )}
+                    {previewClientDiff.rtsCount !== undefined && (
+                      <FieldDisplay
+                        label="RTS Count"
+                        value={previewClientDiff.rtsCount}
+                        isChanged={true}
+                        oldValue={originalData.rtsCount}
+                      />
+                    )}
+                    {previewClientDiff.type !== undefined && (
+                      <FieldDisplay
+                        label="Type"
+                        value={previewClientDiff.type}
+                        isChanged={true}
+                      />
+                    )}
+                    {previewClientDiff.group !== undefined && (
+                      <FieldDisplay
+                        label="Group"
+                        value={previewClientDiff.group}
+                        isChanged={true}
+                      />
+                    )}
+                  </>
+                );
+              })()
+            )
           ) : (
             // Show all available fields (add mode or edit mode without diff)
             <>
+              <SectionHeader title="Personal Information" />
               <FieldDisplay
                 label="Title"
                 value={formData.title}
@@ -655,54 +711,67 @@ const ConfirmationSummaryDialog = ({
           )}
 
           {/* Contact Information */}
-          <SectionHeader title="Contact Information" />
           {isEditModeActual && previewClientDiff ? (
             // Show only changed fields when we have a diff (edit mode)
-            <>
-              {previewClientDiff.contactnos !== undefined && (
-                <FieldDisplay
-                  label="Contact Numbers"
-                  value={previewClientDiff.contactnos}
-                  isChanged={true}
-                  oldValue={originalData.contactnos}
-                />
-              )}
-              {previewClientDiff.cellno !== undefined && (
-                <FieldDisplay
-                  label="Cell Number"
-                  value={previewClientDiff.cellno}
-                  isChanged={true}
-                  oldValue={originalData.cellno}
-                />
-              )}
-              {previewClientDiff.ofcno !== undefined && (
-                <FieldDisplay
-                  label="Office Number"
-                  value={previewClientDiff.ofcno}
-                  isChanged={true}
-                  oldValue={originalData.ofcno}
-                />
-              )}
-              {previewClientDiff.email !== undefined && (
-                <FieldDisplay
-                  label="Email"
-                  value={previewClientDiff.email}
-                  isChanged={true}
-                  oldValue={originalData.email}
-                />
-              )}
-              {previewClientDiff.remarks !== undefined && (
-                <FieldDisplay
-                  label="Remarks"
-                  value={previewClientDiff.remarks}
-                  isChanged={true}
-                  oldValue={originalData.remarks}
-                />
-              )}
-            </>
+            (() => {
+              const hasContactChanges = [
+                "contactnos",
+                "cellno",
+                "ofcno",
+                "email",
+                "remarks",
+              ].some((f) => previewClientDiff[f] !== undefined);
+              if (!hasContactChanges) return null;
+              return (
+                <>
+                  <SectionHeader title="Contact Information" />
+                  {previewClientDiff.contactnos !== undefined && (
+                    <FieldDisplay
+                      label="Contact Numbers"
+                      value={previewClientDiff.contactnos}
+                      isChanged={true}
+                      oldValue={originalData.contactnos}
+                    />
+                  )}
+                  {previewClientDiff.cellno !== undefined && (
+                    <FieldDisplay
+                      label="Cell Number"
+                      value={previewClientDiff.cellno}
+                      isChanged={true}
+                      oldValue={originalData.cellno}
+                    />
+                  )}
+                  {previewClientDiff.ofcno !== undefined && (
+                    <FieldDisplay
+                      label="Office Number"
+                      value={previewClientDiff.ofcno}
+                      isChanged={true}
+                      oldValue={originalData.ofcno}
+                    />
+                  )}
+                  {previewClientDiff.email !== undefined && (
+                    <FieldDisplay
+                      label="Email"
+                      value={previewClientDiff.email}
+                      isChanged={true}
+                      oldValue={originalData.email}
+                    />
+                  )}
+                  {previewClientDiff.remarks !== undefined && (
+                    <FieldDisplay
+                      label="Remarks"
+                      value={previewClientDiff.remarks}
+                      isChanged={true}
+                      oldValue={originalData.remarks}
+                    />
+                  )}
+                </>
+              );
+            })()
           ) : (
             // Show all available fields (add mode or edit mode without diff)
             <>
+              <SectionHeader title="Contact Information" />
               <FieldDisplay
                 label="Contact Numbers"
                 value={formData.contactnos}
@@ -857,7 +926,8 @@ const ConfirmationSummaryDialog = ({
               subscriptionType,
               formData,
               roleSpecificData
-            ) && (
+            ) &&
+            !(isEditModeActual && subscriptionMode === "add" && subscriptionValidation.hasWarnings) && (
               <>
                 <SectionHeader
                   title={`${subscriptionType} Subscription ${
@@ -865,13 +935,20 @@ const ConfirmationSummaryDialog = ({
                   }`}
                 />
                 {/* Show comparison if editing and we have original data */}
-                {isEditModeActual && subscriptionMode === "edit" && originalData ? (
+                {isEditModeActual &&
+                subscriptionMode === "edit" &&
+                originalData ? (
                   <>
                     <FieldDisplay
                       label="Subscription Class"
-                      value={formData.subsclass || roleSpecificData.subsclass || ""}
+                      value={
+                        formData.subsclass || roleSpecificData.subsclass || ""
+                      }
                       required={subscriptionType === "WMM"}
-                      isChanged={originalData.subsclass !== (formData.subsclass || roleSpecificData.subsclass)}
+                      isChanged={
+                        originalData.subsclass !==
+                        (formData.subsclass || roleSpecificData.subsclass)
+                      }
                       oldValue={originalData.subsclass}
                       showIfEmpty={false}
                     />
@@ -879,7 +956,10 @@ const ConfirmationSummaryDialog = ({
                       label="Start Date"
                       value={startDate}
                       required={true}
-                      isChanged={originalData.subscriptionStart !== formData.subscriptionStart}
+                      isChanged={
+                        originalData.subscriptionStart !==
+                        formData.subscriptionStart
+                      }
                       oldValue={originalData.subscriptionStart}
                       showIfEmpty={false}
                     />
@@ -887,7 +967,10 @@ const ConfirmationSummaryDialog = ({
                       label="End Date"
                       value={endDate}
                       required={true}
-                      isChanged={originalData.subscriptionEnd !== formData.subscriptionEnd}
+                      isChanged={
+                        originalData.subscriptionEnd !==
+                        formData.subscriptionEnd
+                      }
                       oldValue={originalData.subscriptionEnd}
                       showIfEmpty={false}
                     />
@@ -899,15 +982,24 @@ const ConfirmationSummaryDialog = ({
                           : ""
                       }
                       required={true}
-                      isChanged={originalData.subscriptionFreq !== formData.subscriptionFreq}
-                      oldValue={originalData.subscriptionFreq ? `${originalData.subscriptionFreq} months` : ""}
+                      isChanged={
+                        originalData.subscriptionFreq !==
+                        formData.subscriptionFreq
+                      }
+                      oldValue={
+                        originalData.subscriptionFreq
+                          ? `${originalData.subscriptionFreq} months`
+                          : ""
+                      }
                       showIfEmpty={false}
                     />
                     <FieldDisplay
                       label="Copies"
                       value={roleSpecificData.copies}
                       required={true}
-                      isChanged={originalData.copies !== roleSpecificData.copies}
+                      isChanged={
+                        originalData.copies !== roleSpecificData.copies
+                      }
                       oldValue={originalData.copies}
                       showIfEmpty={false}
                     />
@@ -917,7 +1009,9 @@ const ConfirmationSummaryDialog = ({
                   <>
                     <FieldDisplay
                       label="Subscription Class"
-                      value={formData.subsclass || roleSpecificData.subsclass || ""}
+                      value={
+                        formData.subsclass || roleSpecificData.subsclass || ""
+                      }
                       required={subscriptionType === "WMM"}
                       showIfEmpty={false}
                     />
