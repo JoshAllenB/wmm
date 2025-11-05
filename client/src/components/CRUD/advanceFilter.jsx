@@ -1798,13 +1798,13 @@ const AdvancedFilter = ({
                       foreign={foreign}
                     />
                     {!hasHRGFOMCALRole() && (
-                      <CalendarFilter
+                      <SpackFilter
                         filterData={filterData}
                         handleChange={handleChange}
                       />
                     )}
                     {!hasHRGFOMCALRole() && (
-                      <SpackFilter
+                      <CalendarFilter
                         filterData={filterData}
                         handleChange={handleChange}
                       />
