@@ -19,6 +19,7 @@ const EditArea = ({
   });
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState(null);
 
   useEffect(() => {
     if (initialData) {
@@ -50,10 +51,21 @@ const EditArea = ({
   };
 
   const removeLocation = (index) => {
-    setFormData((prev) => ({
-      ...prev,
-      locations: prev.locations.filter((_, i) => i !== index),
-    }));
+    setLocationToDelete(index);
+  };
+
+  const confirmRemoveLocation = () => {
+    if (locationToDelete !== null) {
+      setFormData((prev) => ({
+        ...prev,
+        locations: prev.locations.filter((_, i) => i !== locationToDelete),
+      }));
+      setLocationToDelete(null);
+    }
+  };
+
+  const cancelRemoveLocation = () => {
+    setLocationToDelete(null);
   };
 
   const handleSubmit = async (e) => {
@@ -138,12 +150,13 @@ const EditArea = ({
     setShowModal(false);
     setShowDeleteConfirm(false);
     setIsDeleting(false);
+    setLocationToDelete(null);
     onClose();
   };
 
   return (
     <Modal isOpen={showModal} onClose={closeModal}>
-      <div className="bg-white p-6 rounded-2xl shadow-lg max-w-3xl max-h-[85vh] overflow-y-auto scroll-smooth custom-scrollbar">
+      <div className="bg-white p-6 rounded-2xl shadow-lg max-w-7xl max-h-[85vh] overflow-y-auto scroll-smooth custom-scrollbar">
         {/* Header */}
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Edit Area: <span className="text-blue-700">{formData._id}</span>
@@ -191,23 +204,23 @@ const EditArea = ({
         {/* Locations Section */}
         <h3 className="text-lg font-semibold text-gray-800 mb-2">Locations</h3>
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {formData.locations.map((location, index) => (
             <div
               key={index}
               className="bg-gray-50 border border-gray-200 rounded-lg p-4 transition hover:shadow-sm"
             >
               <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium text-gray-700">
+                <h4 className="font-medium text-white bg-blue-500 p-1">
                   #{index + 1} Location
                 </h4>
                 <button
                   type="button"
                   onClick={() => removeLocation(index)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-xs bg-red-500 text-white hover:bg-red-700 p-1"
                   title="Remove location"
                 >
-                  🗑
+                  Remove
                 </button>
               </div>
 
@@ -256,7 +269,42 @@ const EditArea = ({
               ? "Confirm Delete"
               : "Delete Area"}
           </Button>
+          {showDeleteConfirm && (
+            <p className="text-red-600 text-sm mt-2 font-medium">
+              ⚠️ Warning: This will permanently delete the entire area and all its locations. Click again to confirm.
+            </p>
+          )}
         </div>
+
+        {/* Location Delete Confirmation Modal */}
+        {locationToDelete !== null && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md mx-4 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                ⚠️ Delete Location?
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Are you sure you want to delete <strong>{formData.locations[locationToDelete]?.name || `Location #${locationToDelete + 1}`}</strong>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  type="button"
+                  onClick={cancelRemoveLocation}
+                  className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-lg"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={confirmRemoveLocation}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Modal>
   );
