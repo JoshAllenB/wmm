@@ -69,10 +69,9 @@ const AddArea = ({ fetchAreas }) => {
       return;
     }
 
-    // Filter out empty locations
+    // Keep only locations that have a name to satisfy backend validation
     const validLocations = formData.locations.filter(
-      (location) =>
-        location.name.trim() || location.zipcode || location.description.trim()
+      (location) => location.name && location.name.trim()
     );
 
     const submitData = {
@@ -157,6 +156,23 @@ const AddArea = ({ fetchAreas }) => {
                 <h1 className="text-xl font-bold text-gray-900">
                   Add New Area
                 </h1>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-900" role="alert">
+              <div className="flex">
+                <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                </svg>
+                <div>
+                  <p className="font-medium">How to add an Area</p>
+                  <ul className="list-disc ml-5 text-sm mt-1 space-y-1">
+                    <li>Enter an Area Code (e.g., LZN). This is required.</li>
+                    <li>Add at least one Location and fill the Location Name. Zip Code and Description are optional.</li>
+                    <li>Only locations with a name will be saved.</li>
+                    <li>Use "Add Another Location" to add more locations.</li>
+                  </ul>
+                </div>
               </div>
             </div>
 
