@@ -1769,7 +1769,7 @@ const Add = ({
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {/* Personal Information Card */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="col-start-1 row-start-1 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                       <h3 className="text-lg font-semibold text-gray-800 mb-2 border-b border-gray-200">
                         Personal Information
                       </h3>
@@ -1994,8 +1994,69 @@ const Add = ({
                       </div>
                     </div>
 
+                    {/* Contact Information Card */}
+                    <div className="col-start-1 row-start-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+                        Contact Information
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <InputField
+                            label="Contact Numbers"
+                            id="contactnos"
+                            name="contactnos"
+                            value={formData.contactnos}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+
+                          <InputField
+                            label="Cell Number"
+                            id="cellno"
+                            name="cellno"
+                            value={formData.cellno}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <InputField
+                            label="Office Number"
+                            id="ofcno"
+                            name="ofcno"
+                            value={formData.ofcno}
+                            onChange={handleChange}
+                            className="text-sm"
+                          />
+
+                          <InputField
+                            label="Email"
+                            id="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            type="email"
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-6">
+                        <label className="block font-bold mb-1">Remarks</label>
+                        <InputField
+                          id="remarks"
+                          name="remarks"
+                          value={formData.remarks}
+                          onChange={handleChange}
+                          type="textarea"
+                          className="w-full h-32 px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
+                        />
+                      </div>
+                    </div>
+
                     {/* Address Information Card */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="col-start-2 row-start-1 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                       <h3 className="text-lg font-semibold text-gray-800 mb-2 border-b border-gray-200">
                         Address Information
                       </h3>
@@ -2067,67 +2128,7 @@ const Add = ({
                       </div>
                     </div>
 
-                    {/* Contact Information Card */}
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                        Contact Information
-                      </h3>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <InputField
-                            label="Contact Numbers"
-                            id="contactnos"
-                            name="contactnos"
-                            value={formData.contactnos}
-                            onChange={handleChange}
-                            className="text-sm"
-                          />
-
-                          <InputField
-                            label="Cell Number"
-                            id="cellno"
-                            name="cellno"
-                            value={formData.cellno}
-                            onChange={handleChange}
-                            className="text-sm"
-                          />
-                        </div>
-
-                        <div className="space-y-4">
-                          <InputField
-                            label="Office Number"
-                            id="ofcno"
-                            name="ofcno"
-                            value={formData.ofcno}
-                            onChange={handleChange}
-                            className="text-sm"
-                          />
-
-                          <InputField
-                            label="Email"
-                            id="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            type="email"
-                            className="text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-6">
-                        <label className="block font-bold mb-1">Remarks</label>
-                        <InputField
-                          id="remarks"
-                          name="remarks"
-                          value={formData.remarks}
-                          onChange={handleChange}
-                          type="textarea"
-                          className="w-full h-32 px-2 py-1 text-sm font-bold border-2 border-gray-300 rounded-md focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 focus:outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-                    <div>
+                    <div className="col-start-2 row-start-2">
                       {/* Role-Specific Information Card */}
                       {hasRole("HRG") && hasRole("FOM") && hasRole("CAL") && (
                         <div className="p-4 border rounded-lg shadow-sm">
