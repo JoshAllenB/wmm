@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useMemo } from "react";
 import { fetchAreas } from "../../Table/Data/utilData";
 import { areaColumns } from "../../Table/Structure/areaColumn";
 import DataTable from "../../Table/DataTable";
@@ -11,6 +11,7 @@ const Area = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchAndSetAreas = useCallback(async () => {
     try {
@@ -39,6 +40,18 @@ const Area = () => {
   useEffect(() => {
     fetchAndSetAreas();
   }, [fetchAndSetAreas]);
+
+  const filteredAreas = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return areas;
+    return areas.filter((area) => {
+      const byCode = (area.areaCode ?? "").toString().toLowerCase().includes(q);
+      const byLocation = (area.locations || []).some((loc) =>
+        (loc.name || "").toLowerCase().includes(q)
+      );
+      return byCode || byLocation;
+    });
+  }, [areas, searchTerm]);
 
   const handleRowClick = (event, row) => {
     setSelectedRow(row.original);
@@ -72,8 +85,8 @@ const Area = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="max-w-7xl mx-auto w-full px-6 py-8 flex flex-col flex-1">
+    <div className="bg-gray-50 flex flex-col">
+      <div className="max-w-7xl mx-auto w-full px-6 py-8 flex flex-col flex-1 min-h-0">
         {/* Header Section */}
         <header className="flex items-center justify-between mb-8">
           <div>
@@ -88,27 +101,36 @@ const Area = () => {
         </header>
 
         {/* Data Section */}
-        <section className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col flex-1">
+        <section className="bg-white border border-gray-200 rounded-2xl shadow-sm flex flex-col">
           {/* Section Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 gap-4">
             <h2 className="text-lg font-semibold text-gray-900">
               Areas Overview
             </h2>
-            <div className="text-sm text-gray-500 space-x-2">
-              <span>Total Areas: {areas.length}</span>
-              <span>•</span>
-              <span>
-                Locations:{" "}
-                {areas.reduce(
-                  (total, area) => total + (area.locations?.length || 0),
-                  0
-                )}
-              </span>
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-500 space-x-2">
+                <span>Total Areas: {filteredAreas.length}</span>
+                <span>•</span>
+                <span>
+                  Locations:{" "}
+                  {filteredAreas.reduce(
+                    (total, area) => total + (area.locations?.length || 0),
+                    0
+                  )}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search Acode or Location"
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-56"
+              />
             </div>
           </div>
 
           {/* Main Content */}
-          <div className="p-6 overflow-y-auto flex-1">
+          <div className="h-[760px] p-2 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12 text-gray-500">
                 <div className="animate-spin h-6 w-6 border-b-2 border-blue-500 rounded-full mr-3"></div>
@@ -119,9 +141,16 @@ const Area = () => {
                 <p className="text-lg font-medium">No areas found</p>
                 <p className="text-sm mt-1">Add a new area to get started.</p>
               </div>
+            ) : filteredAreas.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p className="text-lg font-medium">No matching results</p>
+                <p className="text-sm mt-1">
+                  Try a different area code or location name.
+                </p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {areas.map((area, idx) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {filteredAreas.map((area, idx) => (
                   <div
                     key={area._id || idx}
                     className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all"
