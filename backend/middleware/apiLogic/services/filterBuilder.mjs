@@ -1407,8 +1407,8 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
     .map((id) => Number(id))
     .filter((id) => !isNaN(id) && isFinite(id));
 
-  if (hasIncludedIds && !hasExplicitServices) {
-    // Handle include logic
+  if (hasIncludedIds) {
+    // Handle include logic (always additive)
     if (validExcludeIds.length > 0) {
       // Apply exclude to included IDs
       const filteredIncludedIds = includedIds.filter(
@@ -1451,11 +1451,7 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
         filterQuery = { id: { $in: includedIds } };
       }
     }
-  } else if (
-    !hasIncludedIds &&
-    validExcludeIds.length > 0 &&
-    !hasExplicitServices
-  ) {
+  } else if (!hasIncludedIds && validExcludeIds.length > 0) {
     // Only exclude logic
     if (hasOtherFilters) {
       // Exclude + Other filters: apply other filters first, then exclude
@@ -1467,56 +1463,8 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
       filterQuery = { id: { $nin: validExcludeIds } };
     }
   } else {
-    // No include/exclude OR services are selected (clientID filtering is handled within service filtering)
-    if (validExcludeIds.length > 0 && !hasExplicitServices) {
-      if (hasOtherFilters) {
-        // Other filters + exclude: we need to use aggregation to apply filters first, then exclude
-        // This requires a different approach - we'll need to modify the query to use aggregation
-        // For now, let's create a special case for this scenario
-        try {
-          const ClientModel = await getModelInstance("ClientModel");
-
-          // First, apply the other filters to get the matching client IDs
-          const otherFilters = baseFilter.filter(
-            (filter) => !filter.id || !filter.id.$nin
-          );
-          const matchQuery =
-            otherFilters.length > 0 ? { $and: otherFilters } : {};
-
-          // Get all clients that match the other filters
-          const matchingClients = await ClientModel.find(matchQuery).distinct(
-            "id"
-          );
-          const matchingClientIds = matchingClients
-            .map((id) => Number(id))
-            .filter((id) => !isNaN(id));
-
-          // Then exclude the specified IDs from the results
-          const finalClientIds = matchingClientIds.filter(
-            (id) => !validExcludeIds.includes(id)
-          );
-
-          if (finalClientIds.length > 0) {
-            filterQuery = { id: { $in: finalClientIds } };
-          } else {
-            filterQuery = { id: -1 }; // No matches after exclusion
-          }
-        } catch (error) {
-          console.error(
-            "Error in exclude filtering with other filters:",
-            error
-          );
-          // Fallback to simple $and approach
-          baseFilter.push({ id: { $nin: validExcludeIds } });
-          filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
-        }
-      } else {
-        // Exclude only: global exclude
-        filterQuery = { id: { $nin: validExcludeIds } };
-      }
-    } else {
-      filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
-    }
+    // No include/exclude: just use other filters
+    filterQuery = baseFilter.length > 0 ? { $and: baseFilter } : {};
   }
 
   // Create a simplified version of the query for logging
