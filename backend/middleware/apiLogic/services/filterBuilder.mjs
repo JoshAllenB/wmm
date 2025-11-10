@@ -258,20 +258,31 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     advancedFilterData.services.length > 0;
 
   // Handle client ID inclusion first (but defer processing if services are selected)
-  if (advancedFilterData.includeClientIds) {
-    // Convert to array if it's a single value
-    const includeIds = Array.isArray(advancedFilterData.includeClientIds)
-      ? advancedFilterData.includeClientIds
-      : [advancedFilterData.includeClientIds];
+  // Collect included IDs from includeClientIds and clientId (treat both as additive)
+  {
+    const includeIdsRaw = [];
 
-    includedIds = includeIds
+    if (advancedFilterData.includeClientIds) {
+      // Convert to array if it's a single value
+      const includeIds = Array.isArray(advancedFilterData.includeClientIds)
+        ? advancedFilterData.includeClientIds
+        : [advancedFilterData.includeClientIds];
+      includeIdsRaw.push(...includeIds);
+    }
+
+    if (advancedFilterData.clientId) {
+      includeIdsRaw.push(advancedFilterData.clientId);
+    }
+
+    includedIds = includeIdsRaw
       .map((id) => Number(id))
       .filter((id) => !isNaN(id) && isFinite(id));
 
+    // De-duplicate
+    includedIds = [...new Set(includedIds)];
+
     if (includedIds.length > 0) {
       hasIncludedIds = true;
-    } else {
-      return { id: -1 }; // No matches if invalid IDs
     }
   }
 
@@ -561,13 +572,6 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
     }
   }
 
-  // Add client ID filters
-  if (advancedFilterData.clientId) {
-    const clientId = parseInt(advancedFilterData.clientId);
-    if (!isNaN(clientId)) {
-      baseFilter.push({ id: clientId });
-    }
-  }
 
   // Add service-specific filters (bypass if this is a search query)
   // Only apply service filters if this is NOT a search query
@@ -1315,19 +1319,9 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
         .map(Number)
         .filter((id) => !isNaN(id));
 
-      // Handle clientID filtering when HRG/FOM subscription status is selected
+      // Add HRG/FOM subscription status clients directly; include/exclude is handled once at the end
       if (finalClients.length > 0) {
-        // Apply clientID filtering to HRG/FOM subscription status results
-        const filteredClients = applyClientIdFiltering(
-          finalClients,
-          advancedFilterData
-        );
-
-        if (filteredClients.length > 0) {
-          baseFilter.push({ id: { $in: filteredClients } });
-        } else {
-          baseFilter.push({ id: -1 }); // No matches after clientID filtering
-        }
+        baseFilter.push({ id: { $in: finalClients } });
       } else {
         baseFilter.push({ id: -1 }); // No matches
       }
@@ -1361,19 +1355,9 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
       .map((id) => parseInt(id))
       .filter((id) => !isNaN(id));
 
-    // Handle clientID filtering when HRG/FOM active subscription is selected
+    // Add HRG/FOM active subscription clients directly; include/exclude is handled once at the end
     if (activeClientIds.length > 0) {
-      // Apply clientID filtering to HRG/FOM active subscription results
-      const filteredClients = applyClientIdFiltering(
-        activeClientIds,
-        advancedFilterData
-      );
-
-      if (filteredClients.length > 0) {
-        baseFilter.push({ id: { $in: filteredClients } });
-      } else {
-        baseFilter.push({ id: -1 }); // No matches after clientID filtering
-      }
+      baseFilter.push({ id: { $in: activeClientIds } });
     } else {
       baseFilter.push({ id: -1 });
     }
@@ -1917,19 +1901,9 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         .map(Number)
         .filter((id) => !isNaN(id));
 
-      // Handle clientID filtering when services are selected
+      // Add service-selected clients directly; include/exclude is handled once at the end
       if (finalClients.length > 0) {
-        // Apply clientID filtering to service results
-        const filteredClients = applyClientIdFiltering(
-          finalClients,
-          advancedFilterData
-        );
-
-        if (filteredClients.length > 0) {
-          baseFilter.push({ id: { $in: filteredClients } });
-        } else {
-          baseFilter.push({ id: -1 }); // No matches after clientID filtering
-        }
+        baseFilter.push({ id: { $in: finalClients } });
       } else if (services.length > 0) {
         baseFilter.push({ id: -1 }); // No matches if services were selected but no clients found
       }
