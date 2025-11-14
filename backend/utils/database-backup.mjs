@@ -242,7 +242,8 @@ function fixMongoDBURI(uri) {
 // Test MongoDB connection
 async function testMongoDBConnection(uri, database) {
   try {
-    const testCommand = `mongosh --quiet --eval "db.runCommand('ping')" "${uri}/${database}"`;
+    const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
+    const testCommand = `mongosh --quiet --eval "db.runCommand('ping')" "${uriNoTrailingSlash}/${database}"`;
     const { stdout, stderr } = await execAsync(testCommand, { timeout: 10000 });
 
     if (stdout.includes("ok") || stdout.includes("1")) {
@@ -1357,12 +1358,33 @@ function initializeBackupService() {
   });
 }
 
+// Determine if backup data is gzipped by inspecting files in a directory
+function detectGzipInBackupDir(dir) {
+  try {
+    if (!fs.existsSync(dir)) return false;
+    const items = fs.readdirSync(dir);
+    for (const item of items) {
+      const p = path.join(dir, item);
+      const st = fs.statSync(p);
+      if (st.isDirectory()) {
+        // Recurse once level deep to find any .gz (collections may be in subfolders)
+        const subItems = fs.readdirSync(p);
+        if (subItems.some((f) => f.endsWith('.gz'))) return true;
+      } else if (item.endsWith('.gz')) {
+        return true;
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
 // Execute mongorestore command
 async function executeMongorestore(database, backupPath, options = {}) {
   const {
     drop = false,
     excludeCollections = [],
     includeCollections = [],
+    compression, // optional override: true -> --gzip, false -> no --gzip
   } = options;
 
   // Get MongoDB URI options (primary and fallback)
@@ -1370,6 +1392,9 @@ async function executeMongorestore(database, backupPath, options = {}) {
 
   // Try primary URI first, then fallback if it fails
   const urisToTry = [uriOptions.primary, uriOptions.fallback];
+
+  // Auto-detect gzip if not explicitly provided
+  const useGzip = typeof compression === 'boolean' ? compression : detectGzipInBackupDir(backupPath);
 
   for (let i = 0; i < urisToTry.length; i++) {
     const uri = urisToTry[i];
@@ -1391,10 +1416,10 @@ async function executeMongorestore(database, backupPath, options = {}) {
     }
 
     const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
-    let command = `mongorestore --uri="${uriNoTrailingSlash}/${database}" "${backupPath}" --quiet`;
+    let command = `mongorestore --uri="${uriNoTrailingSlash}/${database}" "${backupPath}"`;
 
     // Add gzip option if backup files are compressed
-    if (CONFIG.COMPRESSION) {
+    if (useGzip) {
       command += " --gzip";
     }
 
@@ -1416,17 +1441,39 @@ async function executeMongorestore(database, backupPath, options = {}) {
       });
     }
 
+    // Log restore command context (sanitized)
+    log("Executing mongorestore", {
+      database,
+      uri: uriNoTrailingSlash.replace(/\/\/.*@/, "//***@"),
+      sourcePath: backupPath,
+      useGzip,
+      drop,
+      fallback: isFallback,
+    });
+
     // Execute mongorestore command
     try {
       const { stdout, stderr } = await execAsync(command, {
         maxBuffer: 1024 * 1024 * 50, // 50MB buffer
         timeout: 300000, // 5 minutes timeout
       });
+
+      // Log command output (trimmed) for debugging
+      try {
+        const trim = (s) => (s || "").toString().slice(0, 4000);
+        log("mongorestore output", {
+          database,
+          stdout: trim(stdout),
+          stderr: trim(stderr),
+        });
+      } catch (_) {}
+
       return {
         success: true,
         stdout,
         stderr,
         uri: uri.replace(/\/\/.*@/, "//***@"),
+        usedGzip: useGzip,
       };
     } catch (error) {
       // If this is the last attempt, throw the error
@@ -1506,17 +1553,21 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
     includeCollections = [],
   } = options;
 
+  // Prepare variables used in catch scope
+  let backup = null;
+  let actualBackupPath = null;
+  let isExtracted = false;
+
   try {
     // Find the backup
     const backups = listBackups();
-    const backup = backups.find((b) => b.id === backupId);
+    backup = backups.find((b) => b.id === backupId);
 
     if (!backup) {
       throw new Error(`Backup ${backupId} not found`);
     }
 
-    let actualBackupPath = backup.path;
-    let isExtracted = false;
+    actualBackupPath = backup.path;
 
     // Check if this is an uploaded backup (ZIP file)
     if (backup.uploaded && backup.filePath) {
@@ -1563,9 +1614,28 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
     }
 
     // Check if backup contains the specified database
-    const databasePath = path.join(basePath, database);
+    let databasePath = path.join(basePath, database);
+
+    // Fallback: some uploaded zips may contain the DB contents directly (no DB folder)
     if (!fs.existsSync(databasePath)) {
-      throw new Error(`Database ${database} not found in backup ${backupId}`);
+      const looksLikeDbRoot = (() => {
+        try {
+          const items = fs.readdirSync(basePath);
+          return items.some((f) => f.endsWith('.bson') || f.endsWith('.bson.gz'));
+        } catch (_) {
+          return false;
+        }
+      })();
+      if (looksLikeDbRoot) {
+        databasePath = basePath;
+        log(`Database folder not found; using base path as database root`, {
+          backupId,
+          database,
+          basePath,
+        });
+      } else {
+        throw new Error(`Database ${database} not found in backup ${backupId}`);
+      }
     }
 
     // Emit restore start event
@@ -1583,6 +1653,47 @@ async function restoreDatabaseFromBackup(backupId, database, options = {}) {
       excludeCollections,
       includeCollections,
     });
+
+    // Verify restore by checking collection count
+    let postInfo = null;
+    try {
+      postInfo = await getDatabaseInfo(database);
+      log(`Post-restore database info`, {
+        database,
+        collections: postInfo.collections,
+        success: postInfo.success,
+      });
+      // If we see BSON files at source but collections are still 0, treat as a failure
+      if (
+        postInfo &&
+        postInfo.success === true &&
+        Number(postInfo.collections) === 0
+      ) {
+        const hasBson = (() => {
+          try {
+            const items = fs.readdirSync(databasePath);
+            return items.some((f) => f.endsWith('.bson') || f.endsWith('.bson.gz'));
+          } catch (_) {
+            return false;
+          }
+        })();
+        if (hasBson) {
+          const diag = {
+            database,
+            source: databasePath,
+            usedGzip: result ? result.usedGzip : undefined,
+            stderr: result && result.stderr ? String(result.stderr).slice(0, 500) : undefined,
+            stdout: result && result.stdout ? String(result.stdout).slice(0, 200) : undefined,
+          };
+          throw new Error(
+            `Restore reported success but no collections were created | diag=${JSON.stringify(diag)}`
+          );
+        }
+      }
+    } catch (verificationError) {
+      // Bubble up verification issues to caller
+      throw verificationError;
+    }
 
     // Clean up extracted files if this was an uploaded backup
     if (isExtracted) {
@@ -1665,17 +1776,21 @@ async function restoreFullBackup(backupId, options = {}) {
     includeCollections = [],
   } = options;
 
+  // Prepare variables used in catch scope
+  let backup = null;
+  let actualBackupPath = null;
+  let isExtracted = false;
+
   try {
     // Find the backup
     const backups = listBackups();
-    const backup = backups.find((b) => b.id === backupId);
+    backup = backups.find((b) => b.id === backupId);
 
     if (!backup) {
       throw new Error(`Backup ${backupId} not found`);
     }
 
-    let actualBackupPath = backup.path;
-    let isExtracted = false;
+    actualBackupPath = backup.path;
 
     // Check if this is an uploaded backup (ZIP file)
     if (backup.uploaded && backup.filePath) {
@@ -1750,14 +1865,30 @@ async function restoreFullBackup(backupId, options = {}) {
 
     for (const database of databasesToRestore) {
       try {
-        const databasePath = path.join(basePath, database);
+        let databasePath = path.join(basePath, database);
         if (!fs.existsSync(databasePath)) {
-          results.push({
+          const looksLikeDbRoot = (() => {
+            try {
+              const items = fs.readdirSync(basePath);
+              return items.some((f) => f.endsWith('.bson') || f.endsWith('.bson.gz'));
+            } catch (_) {
+              return false;
+            }
+          })();
+          if (!looksLikeDbRoot) {
+            results.push({
+              database,
+              success: false,
+              error: `Database ${database} not found in backup`,
+            });
+            continue;
+          }
+          databasePath = basePath;
+          log(`Database folder not found; using base path as database root`, {
+            backupId,
             database,
-            success: false,
-            error: `Database ${database} not found in backup`,
+            basePath,
           });
-          continue;
         }
 
         const result = await executeMongorestore(database, databasePath, {
@@ -1766,12 +1897,43 @@ async function restoreFullBackup(backupId, options = {}) {
           includeCollections,
         });
 
-        results.push({
+        // Fetch post-restore info for reporting
+        let postInfo = null;
+        try {
+          postInfo = await getDatabaseInfo(database);
+        } catch (_) {}
+
+        let entry = {
           database,
           success: true,
           result,
-        });
-        successCount++;
+          collections: postInfo ? postInfo.collections : undefined,
+          sourcePath: databasePath,
+        };
+
+        // If still zero collections but there are BSON files at source, flag as failure
+        try {
+          const hasBson = (() => {
+            try {
+              const items = fs.readdirSync(databasePath);
+              return items.some((f) => f.endsWith('.bson') || f.endsWith('.bson.gz'));
+            } catch (_) {
+              return false;
+            }
+          })();
+          if (
+            postInfo &&
+            postInfo.success === true &&
+            Number(postInfo.collections) === 0 &&
+            hasBson
+          ) {
+            entry.success = false;
+            entry.error = 'Restore reported success but no collections were created';
+          }
+        } catch (_) {}
+
+        results.push(entry);
+        if (entry.success) successCount++;
       } catch (error) {
         results.push({
           database,
@@ -1779,6 +1941,30 @@ async function restoreFullBackup(backupId, options = {}) {
           error: error.message,
         });
       }
+    }
+
+    // If none of the databases actually restored data, treat as failure
+    if (successCount === 0) {
+      // Build concise diagnostics string
+      const diag = (() => {
+        try {
+          const compact = results.map((r) => ({
+            db: r.database,
+            ok: r.success,
+            collections: r.collections,
+            usedGzip: r.result ? r.result.usedGzip : undefined,
+            source: r.sourcePath,
+            stderr: r.result && r.result.stderr ? String(r.result.stderr).slice(0, 500) : undefined,
+            stdout: r.result && r.result.stdout ? String(r.result.stdout).slice(0, 200) : undefined,
+          }));
+          return JSON.stringify(compact);
+        } catch (_) {
+          return "[]";
+        }
+      })();
+      throw new Error(
+        `Restore completed but no collections were created in any database | diag=${diag}`
+      );
     }
 
     log(`Full backup restore completed`, {
@@ -1860,7 +2046,8 @@ async function isDatabaseEmpty(database) {
     const uriOptions = fixMongoDBURI(CONFIG.MONGODB_URI);
     const uri = uriOptions.primary;
 
-    const command = `mongosh --quiet --eval "db.stats().collections" "${uri}/${database}"`;
+    const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
+    const command = `mongosh --quiet --eval "db.stats().collections" "${uriNoTrailingSlash}/${database}"`;
     const { stdout, stderr } = await execAsync(command, { timeout: 10000 });
 
     // If collections count is 0, database is empty
@@ -1878,8 +2065,9 @@ async function getDatabaseInfo(database) {
     const uriOptions = fixMongoDBURI(CONFIG.MONGODB_URI);
     const uri = uriOptions.primary;
 
-    // Get collection count and list of collections
-    const command = `mongosh --quiet --eval "JSON.stringify({collections: db.stats().collections, collectionNames: db.getCollectionNames()})" "${uri}/${database}"`;
+    const uriNoTrailingSlash = String(uri).replace(/\/+$/, "");
+    // Get collection names in a version-tolerant way
+    const command = `mongosh --quiet --eval "try { const names = (typeof db.getCollectionNames === 'function') ? db.getCollectionNames() : db.getCollectionInfos().map(ci => ci.name); JSON.stringify({collections: names.length, collectionNames: names}) } catch (e) { JSON.stringify({error: e.message, collections: 0, collectionNames: []}) }" "${uriNoTrailingSlash}/${database}"`;
     const { stdout, stderr } = await execAsync(command, { timeout: 10000 });
 
     try {
@@ -1893,7 +2081,7 @@ async function getDatabaseInfo(database) {
       let lastModified = null;
       if (collectionNames.length > 0) {
         try {
-          const lastModCommand = `mongosh --quiet --eval "try { const stats = db.${collectionNames[0]}.stats(); JSON.stringify({lastMod: stats.lastMod}) } catch(e) { JSON.stringify({error: e.message}) }" "${uri}/${database}"`;
+          const lastModCommand = `mongosh --quiet --eval "try { const stats = db.${collectionNames[0]}.stats(); JSON.stringify({lastMod: stats.lastMod}) } catch(e) { JSON.stringify({error: e.message}) }" "${uriNoTrailingSlash}/${database}"`;
           const { stdout: lastModStdout } = await execAsync(lastModCommand, {
             timeout: 5000,
           });
