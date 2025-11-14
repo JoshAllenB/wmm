@@ -183,6 +183,11 @@ export default function DataTable({
 
   // Enhanced responsive height and width adjustment based on viewport and container
   useEffect(() => {
+    // Only try to measure when the actual table is rendered, not while showing the loader
+    if (isLoading || localLoading) {
+      return;
+    }
+
     const updateTableDimensions = () => {
       if (!containerRef.current) return;
 
@@ -241,6 +246,15 @@ export default function DataTable({
       updateTableDimensions();
     });
 
+    // Also respond to container size changes (not just window resizes)
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        updateTableDimensions();
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+
     // Add event listeners for resize and orientation change
     window.addEventListener("resize", updateTableDimensions);
     window.addEventListener("orientationchange", updateTableDimensions);
@@ -250,8 +264,11 @@ export default function DataTable({
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", updateTableDimensions);
       window.removeEventListener("orientationchange", updateTableDimensions);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
     };
-  }, [usePagination]);
+  }, [usePagination, isLoading, localLoading]);
 
   const { table } = useTableLogic(
     localData,
