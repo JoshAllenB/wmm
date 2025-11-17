@@ -20,6 +20,7 @@ const LocationSchema = new mongoose.Schema(
 const AreaSchema = new mongoose.Schema(
   {
     _id: String, // This will store the `acode` (e.g., "LZN", "LZN 1")
+    name: { type: String, required: false }, // Optional human-friendly area name
     locations: { type: [LocationSchema], required: true }, // Array of locations under this acode
   },
   {

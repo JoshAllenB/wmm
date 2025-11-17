@@ -22,6 +22,7 @@ const Area = () => {
       const formattedAreas = areasData.map((area) => ({
         _id: area._id, // Use _id to match backend
         areaCode: area._id, // Keep areaCode for display purposes
+        name: area.name || "",
         locations: area.locations.map((loc) => ({
           name: loc.name || "",
           zipcode: loc.zipcode || "",
@@ -46,10 +47,11 @@ const Area = () => {
     if (!q) return areas;
     return areas.filter((area) => {
       const byCode = (area.areaCode ?? "").toString().toLowerCase().includes(q);
+      const byName = (area.name ?? "").toString().toLowerCase().includes(q);
       const byLocation = (area.locations || []).some((loc) =>
         (loc.name || "").toLowerCase().includes(q)
       );
-      return byCode || byLocation;
+      return byCode || byName || byLocation;
     });
   }, [areas, searchTerm]);
 
@@ -71,6 +73,7 @@ const Area = () => {
               ...area,
               _id: updatedData._id, // Update with new area code
               areaCode: updatedData._id, // Update areaCode for display
+              name: updatedData.name ?? area.name,
               locations: updatedData.locations,
             }
           : area
@@ -169,10 +172,13 @@ const Area = () => {
                         {/* Area Info */}
                         <div>
                           <h3 className="text-gray-800 font-semibold">
-                            Area Code: {area.areaCode}
+                            {area.name || `Area Code: ${area.areaCode}`}
                           </h3>
                           <p className="text-sm text-gray-500">
-                            {area.locations.length} Locations
+                            Code: {area.areaCode}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Locations: {area.locations.length}
                           </p>
                         </div>
                       </div>

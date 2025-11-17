@@ -103,6 +103,7 @@ router.get("/areas", async (req, res) => {
       {
         $project: {
           _id: 1,
+          name: 1,
           locations: {
             $map: {
               input: {
@@ -212,7 +213,7 @@ router.delete("/subclass-delete/:id", verifyToken, async (req, res) => {
 // Create area
 router.post("/areas-add", verifyToken, async (req, res) => {
   try {
-    const { _id, locations } = req.body;
+    const { _id, name, locations } = req.body;
 
     // Validate _id
     if (!_id || !_id.trim()) {
@@ -220,12 +221,12 @@ router.post("/areas-add", verifyToken, async (req, res) => {
     }
 
     // Validate that each location has a name
-    if (!locations.every((location) => location.name)) {
+    if (!Array.isArray(locations) || !locations.every((location) => location.name)) {
       return res.status(400).json({ error: "Each location must have a name" });
     }
 
     // Ensure _id is set when creating the document
-    const newArea = new AreaModel({ _id, locations });
+    const newArea = new AreaModel({ _id, name, locations });
     await newArea.save();
 
     res.status(201).json(newArea);
@@ -239,42 +240,49 @@ router.post("/areas-add", verifyToken, async (req, res) => {
 router.put("/areas/:id", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { _id: newAreaCode, locations } = req.body;
+    const { _id: newAreaCode, name, locations } = req.body;
 
     // Validate that each location has a name
-    if (!locations.every((location) => location.name)) {
+    if (!Array.isArray(locations) || !locations.every((location) => location.name)) {
       return res.status(400).json({ error: "Each location must have a name" });
     }
 
     // Check if area code is being changed
     if (newAreaCode && newAreaCode !== id) {
       // Check if the new area code already exists
-      const existingArea = await AreaModel.findOne({ _id: newAreaCode });
-      if (existingArea) {
+      const existingAreaWithNewCode = await AreaModel.findOne({ _id: newAreaCode });
+      if (existingAreaWithNewCode) {
         return res.status(400).json({ error: "Area code already exists" });
       }
 
-      // Update the area with new code and locations
-      const updatedArea = await AreaModel.findOneAndUpdate(
-        { _id: id },
-        { _id: newAreaCode, locations, updatedAt: new Date() },
-        { new: true }
-      );
-
-      if (!updatedArea) {
+      // Find the existing area by current id
+      const existingArea = await AreaModel.findOne({ _id: id });
+      if (!existingArea) {
         return res.status(404).json({ error: "Area not found" });
       }
 
+      // Create a new document with the new _id (MongoDB _id is immutable)
+      const newAreaDoc = new AreaModel({
+        _id: newAreaCode,
+        name: typeof name === "string" ? name : existingArea.name,
+        locations,
+        updatedAt: new Date(),
+      });
+      await newAreaDoc.save();
+
+      // Remove the old document
+      await AreaModel.deleteOne({ _id: id });
+
       res.json({
         success: true,
-        data: updatedArea,
+        data: newAreaDoc,
         message: "Area code and locations updated successfully",
       });
     } else {
-      // Just update locations if area code didn't change
+      // Just update name/locations if area code didn't change
       const updatedArea = await AreaModel.findOneAndUpdate(
         { _id: id },
-        { locations, updatedAt: new Date() },
+        { name, locations, updatedAt: new Date() },
         { new: true }
       );
 

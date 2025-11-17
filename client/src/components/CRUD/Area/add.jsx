@@ -3,11 +3,14 @@ import axios from "axios";
 import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import InputField from "../input";
+import { useToast } from "../../UI/ShadCN/hooks/use-toast";
 
 const AddArea = ({ fetchAreas }) => {
   const [showModal, setShowModal] = useState(false);
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     _id: "", // This will store the `acode`
+    name: "", // Optional human-friendly area name
     locations: [{ name: "", zipcode: "", description: "" }], // Array of location objects
   });
 
@@ -17,6 +20,7 @@ const AddArea = ({ fetchAreas }) => {
     // Reset form data when closing
     setFormData({
       _id: "",
+      name: "",
       locations: [{ name: "", zipcode: "", description: "" }],
     });
   };
@@ -79,8 +83,6 @@ const AddArea = ({ fetchAreas }) => {
       locations: validLocations,
     };
 
-    console.log("Submitting area data:", submitData);
-
     try {
       const response = await axios.post(
         `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/areas-add`,
@@ -93,17 +95,24 @@ const AddArea = ({ fetchAreas }) => {
       );
 
       if (response.status === 201) {
-        console.log("Area created successfully:", response.data);
         fetchAreas();
         closeModal();
       }
     } catch (error) {
       console.error("Error adding area:", error);
-      if (error.response?.data?.error) {
-        alert(`Error: ${error.response.data.error}`);
-      } else {
-        alert("Failed to create area. Please try again.");
+      const status = error.response?.status;
+      let description =
+        error.response?.data?.error || "Failed to create area. Please try again.";
+
+      if (status === 401 || status === 403) {
+        description += " Please refresh to reconnect to server.";
       }
+
+      toast({
+        title: "Error",
+        description,
+        variant: "destructive",
+      });
     }
   };
 
@@ -206,6 +215,16 @@ const AddArea = ({ fetchAreas }) => {
                   }
                   required
                   placeholder="e.g., LZN, LZN 1"
+                />
+                <InputField
+                  label="Area Name (optional)"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  placeholder="e.g., Luzon Region"
                 />
               </div>
 
