@@ -711,66 +711,36 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
     validCalTypes.find((t) => t.includes(String(currentYear))) ||
     `WALL CALENDAR ${currentYear}`;
 
-  // Base pipeline stages for getting most recent records per client
-  const basePipeline = [
-    {
-      $match: {
-        caltype: currentCalType,
-        clientid: { $exists: true },
+  const addFieldsStage = {
+    $addFields: {
+      paymtDateObj: {
+        $dateFromString: {
+          dateString: "$paymtdate",
+          format: "%m/%d/%Y %H:%M:%S",
+          onError: null,
+          onNull: null,
+        },
       },
-    },
-    {
-      $addFields: {
-        paymtDateObj: {
-          $dateFromString: {
-            dateString: "$paymtdate",
-            format: "%m/%d/%Y %H:%M:%S",
-            onError: null,
-            onNull: null,
+      convertedQty: { $toInt: "$calqty" },
+      convertedUnitAmt: {
+        $cond: [
+          { $eq: [{ $type: "$calamt" }, "string"] },
+          {
+            $toDouble: {
+              $replaceOne: { input: "$calamt", find: ",", replacement: "" },
+            },
           },
-        },
-        convertedQty: { $toInt: "$calqty" },
-        convertedUnitAmt: {
-          $cond: [
-            { $eq: [{ $type: "$calamt" }, "string"] },
-            {
-              $toDouble: {
-                $replaceOne: { input: "$calamt", find: ",", replacement: "" },
-              },
-            },
-            { $toDouble: "$calamt" },
-          ],
-        },
-        isNonNumericPayment: {
-          $and: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            { $ne: ["$paymtamt", "N/A"] },
-            {
-              $eq: [
-                {
-                  $type: {
-                    $toDouble: {
-                      $replaceOne: {
-                        input: "$paymtamt",
-                        find: ",",
-                        replacement: "",
-                      },
-                    },
-                  },
-                },
-                "double",
-              ],
-            },
-          ],
-        },
-        convertedPaymtAmt: {
-          $cond: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            {
-              $cond: [
-                { $eq: ["$paymtamt", "N/A"] },
-                0,
-                {
+          { $toDouble: "$calamt" },
+        ],
+      },
+      isNonNumericPayment: {
+        $and: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          { $ne: ["$paymtamt", "N/A"] },
+          {
+            $eq: [
+              {
+                $type: {
                   $toDouble: {
                     $replaceOne: {
                       input: "$paymtamt",
@@ -779,30 +749,37 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
                     },
                   },
                 },
-              ],
-            },
-            { $toDouble: "$paymtamt" },
-          ],
-        },
+              },
+              "double",
+            ],
+          },
+        ],
+      },
+      convertedPaymtAmt: {
+        $cond: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          {
+            $cond: [
+              { $eq: ["$paymtamt", "N/A"] },
+              0,
+              {
+                $toDouble: {
+                  $replaceOne: {
+                    input: "$paymtamt",
+                    find: ",",
+                    replacement: "",
+                  },
+                },
+              },
+            ],
+          },
+          { $toDouble: "$paymtamt" },
+        ],
       },
     },
-    {
-      $sort: {
-        clientid: 1,
-        paymtDateObj: -1,
-      },
-    },
-    {
-      $group: {
-        _id: "$clientid",
-        qty: { $first: "$convertedQty" },
-        amt: { $first: { $multiply: ["$convertedQty", "$convertedUnitAmt"] } },
-        paymtAmt: { $first: "$convertedPaymtAmt" },
-      },
-    },
-  ];
+  };
 
-  // For total calulcation (all clients)
+  // TOTALS: sum over ALL CAL records for the filtered clients (legacy ASP behavior)
   const totalPipeline = [
     {
       $match: {
@@ -810,24 +787,29 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
         clientid: { $in: allFilteredClientIds },
       },
     },
-    ...basePipeline,
+    addFieldsStage,
     {
       $group: {
         _id: null,
-        totalQty: {
-          $sum: {
-            $convert: { input: "$qty", to: "double", onError: 0, onNull: 0 },
-          },
+        totalQty: { $sum: "$convertedQty" },
+        totalAmt: {
+          $sum: { $multiply: ["$convertedQty", "$convertedUnitAmt"] },
         },
-        totalAmt: { $sum: "$amt" },
-        totalPaymtAmt: { $sum: "$paymtAmt" },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } },
-        clientCount: { $sum: 1 }, // Count unique clients
+        totalPaymtAmt: { $sum: "$convertedPaymtAmt" },
+        nonNumericCount: {
+          $sum: { $cond: ["$isNonNumericPayment", 1, 0] },
+        },
+        clientIds: { $addToSet: "$clientid" },
+      },
+    },
+    {
+      $addFields: {
+        clientCount: { $size: "$clientIds" },
       },
     },
   ];
 
-  // For page-specific calculation (filtered Clients)
+  // PAGE TOTALS: sum over ALL CAL records for page clients
   const pagePipeline = [
     {
       $match: {
@@ -835,19 +817,24 @@ async function calculateCalStats(allFilteredClientIds, pageClientIds) {
         clientid: { $in: pageClientIds },
       },
     },
-    ...basePipeline,
+    addFieldsStage,
     {
       $group: {
         _id: null,
-        totalQty: {
-          $sum: {
-            $convert: { input: "$qty", to: "double", onError: 0, onNull: 0 },
-          },
+        totalQty: { $sum: "$convertedQty" },
+        totalAmt: {
+          $sum: { $multiply: ["$convertedQty", "$convertedUnitAmt"] },
         },
-        totalAmt: { $sum: "$amt" },
-        totalPaymtAmt: { $sum: "$paymtAmt" },
-        nonNumericCount: { $sum: { $cond: ["$isNonNumericPayment", 1, 0] } },
-        clientCount: { $sum: 1 }, // Count unique clients
+        totalPaymtAmt: { $sum: "$convertedPaymtAmt" },
+        nonNumericCount: {
+          $sum: { $cond: ["$isNonNumericPayment", 1, 0] },
+        },
+        clientIds: { $addToSet: "$clientid" },
+      },
+    },
+    {
+      $addFields: {
+        clientCount: { $size: "$clientIds" },
       },
     },
   ];
@@ -919,17 +906,6 @@ async function calculateHrgStats(
     toDate = advancedFilterData.endDate || null;
   }
 
-  // Determine date format based on the actual data format, not just the field name
-  let dateFormat;
-  if (dateField === "adddate") {
-    dateFormat = "%Y-%m-%d";
-  } else if (dateField === "recvdate" || dateField === "campaigndate") {
-    // These fields can have mixed formats, so we'll try both
-    dateFormat = "%m/%d/%Y %H:%M:%S";
-  } else {
-    dateFormat = "%m/%d/%Y %H:%M:%S";
-  }
-
   const dateObjField =
     dateField === "recvdate"
       ? "recvDateObj"
@@ -937,64 +913,85 @@ async function calculateHrgStats(
       ? "campaignDateObj"
       : "addDateObj";
 
-  const basePipeline = [
-    {
-      $match: {
-        clientid: { $exists: true },
-      },
-    },
-    {
-      $addFields: {
-        [dateObjField]: {
-          $let: {
-            vars: {
-              // Try multiple date formats for recvdate and campaigndate
-              date1: {
-                $dateFromString: {
-                  dateString: `$${dateField}`,
-                  format: "%m/%d/%Y %H:%M:%S",
-                  onError: null,
-                  onNull: null,
-                },
-              },
-              date2: {
-                $dateFromString: {
-                  dateString: `$${dateField}`,
-                  format: "%Y-%m-%d",
-                  onError: null,
-                  onNull: null,
-                },
+  // Base pipeline that converts dates and payment amounts
+  const baseAddFieldsStage = {
+    $addFields: {
+      [dateObjField]: {
+        $let: {
+          vars: {
+            // Try multiple date formats for recvdate and campaigndate
+            date1: {
+              $dateFromString: {
+                dateString: `$${dateField}`,
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
               },
             },
-            in: {
-              $cond: [{ $ne: ["$$date1", null] }, "$$date1", "$$date2"],
+            date2: {
+              $dateFromString: {
+                dateString: `$${dateField}`,
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
             },
           },
-        },
-        convertedPaymtAmt: {
-          $cond: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            {
-              $cond: [
-                { $eq: ["$paymtamt", "N/A"] },
-                0,
-                {
-                  $toDouble: {
-                    $replaceOne: {
-                      input: "$paymtamt",
-                      find: ",",
-                      replacement: "",
-                    },
-                  },
-                },
-              ],
-            },
-            { $toDouble: "$paymtamt" },
-          ],
+          in: {
+            $cond: [{ $ne: ["$$date1", null] }, "$$date1", "$$date2"],
+          },
         },
       },
+      convertedPaymtAmt: {
+        $cond: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          {
+            $cond: [
+              { $eq: ["$paymtamt", "N/A"] },
+              0,
+              {
+                $toDouble: {
+                  $replaceOne: {
+                    input: "$paymtamt",
+                    find: ",",
+                    replacement: "",
+                  },
+                },
+              },
+            ],
+          },
+          { $toDouble: "$paymtamt" },
+        ],
+      },
     },
-    // Only include records where date conversion succeeded
+  };
+
+  const baseMatchStage = {
+    $match: {
+      clientid: { $exists: true },
+    },
+  };
+
+  const dateRangeMatchStage = {
+    $match: {
+      [dateObjField]: {
+        $ne: null,
+        ...(fromDate ? { $gte: new Date(fromDate) } : {}),
+        ...(toDate
+          ? {
+              $lte: new Date(
+                new Date(toDate).setHours(23, 59, 59, 999)
+              ),
+            }
+          : {}),
+      },
+    },
+  };
+
+  // Membership pipelines (latest record per client, unsubscribe check)
+  const membershipBasePipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
     {
       $match: {
         [dateObjField]: { $ne: null },
@@ -1033,19 +1030,17 @@ async function calculateHrgStats(
       : []),
   ];
 
-  // For total calculation
-  const totalPipeline = [
+  const membershipTotalPipeline = [
     {
       $match: {
         clientid: { $in: allFilteredClientIds },
       },
     },
-    ...basePipeline,
+    ...membershipBasePipeline,
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
-        clientCount: {
+        memberCount: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
@@ -1058,19 +1053,17 @@ async function calculateHrgStats(
     },
   ];
 
-  // For page-specific calculation
-  const pagePipeline = [
+  const membershipPagePipeline = [
     {
       $match: {
         clientid: { $in: pageClientIds },
       },
     },
-    ...basePipeline,
+    ...membershipBasePipeline,
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
-        clientCount: {
+        memberCount: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
@@ -1083,68 +1076,84 @@ async function calculateHrgStats(
     },
   ];
 
-  const [totalResult, pageResult] = await Promise.all([
-    HrgModel.aggregate(totalPipeline),
-    HrgModel.aggregate(pagePipeline),
-  ]);
+  // Amount pipelines (sum ALL records, not just latest per client)
+  const amountTotalPipeline = [
+    {
+      $match: {
+        clientid: { $in: allFilteredClientIds },
+      },
+    },
+    baseMatchStage,
+    baseAddFieldsStage,
+    dateRangeMatchStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+      },
+    },
+  ];
+
+  const amountPagePipeline = [
+    {
+      $match: {
+        clientid: { $in: pageClientIds },
+      },
+    },
+    baseMatchStage,
+    baseAddFieldsStage,
+    dateRangeMatchStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+      },
+    },
+  ];
+
+  const [membershipTotalResult, membershipPageResult, amountTotalResult, amountPageResult] =
+    await Promise.all([
+      HrgModel.aggregate(membershipTotalPipeline),
+      HrgModel.aggregate(membershipPagePipeline),
+      HrgModel.aggregate(amountTotalPipeline),
+      HrgModel.aggregate(amountPagePipeline),
+    ]);
 
   return {
-    totalAmt: totalResult[0]?.totalAmt || 0,
-    pageSpecificAmt: pageResult[0]?.totalAmt || 0,
-    totalClients: totalResult[0]?.clientCount || 0,
-    pageClients: pageResult[0]?.clientCount || 0,
+    totalAmt: amountTotalResult[0]?.totalAmt || 0,
+    pageSpecificAmt: amountPageResult[0]?.totalAmt || 0,
+    totalClients: membershipTotalResult[0]?.memberCount || 0,
+    pageClients: membershipPageResult[0]?.memberCount || 0,
     nonNumericCount: 0,
     pageNonNumericCount: 0,
   };
 }
 
 async function calculateFomStats(allFilteredClientIds, pageClientIds) {
-  const basePipeline = [
-    {
-      $match: {
-        clientid: { $exists: true },
-      },
+  const baseMatchStage = {
+    $match: {
+      clientid: { $exists: true },
     },
-    {
-      $addFields: {
-        paymtDateObj: {
-          $dateFromString: {
-            dateString: "$recvdate",
-            format: "%m/%d/%Y %H:%M:%S",
-            onError: null,
-            onNull: null,
-          },
+  };
+
+  const baseAddFieldsStage = {
+    $addFields: {
+      paymtDateObj: {
+        $dateFromString: {
+          dateString: "$recvdate",
+          format: "%m/%d/%Y %H:%M:%S",
+          onError: null,
+          onNull: null,
         },
-        isNonNumericPayment: {
-          $and: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            { $ne: ["$paymtamt", "N/A"] },
-            {
-              $eq: [
-                {
-                  $type: {
-                    $toDouble: {
-                      $replaceOne: {
-                        input: "$paymtamt",
-                        find: ",",
-                        replacement: "",
-                      },
-                    },
-                  },
-                },
-                "double",
-              ],
-            },
-          ],
-        },
-        convertedPaymtAmt: {
-          $cond: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            {
-              $cond: [
-                { $eq: ["$paymtamt", "N/A"] },
-                0,
-                {
+      },
+      isNonNumericPayment: {
+        $and: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          { $ne: ["$paymtamt", "N/A"] },
+          {
+            $eq: [
+              {
+                $type: {
                   $toDouble: {
                     $replaceOne: {
                       input: "$paymtamt",
@@ -1153,13 +1162,40 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
                     },
                   },
                 },
-              ],
-            },
-            { $toDouble: "$paymtamt" },
-          ],
-        },
+              },
+              "double",
+            ],
+          },
+        ],
+      },
+      convertedPaymtAmt: {
+        $cond: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          {
+            $cond: [
+              { $eq: ["$paymtamt", "N/A"] },
+              0,
+              {
+                $toDouble: {
+                  $replaceOne: {
+                    input: "$paymtamt",
+                    find: ",",
+                    replacement: "",
+                  },
+                },
+              },
+            ],
+          },
+          { $toDouble: "$paymtamt" },
+        ],
       },
     },
+  };
+
+  // Membership pipelines (latest record per client, unsubscribe check)
+  const membershipBasePipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
     {
       $sort: {
         clientid: 1,
@@ -1174,22 +1210,17 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
     },
   ];
 
-  // For total calculation
-  const totalPipeline = [
+  const membershipTotalPipeline = [
     {
       $match: {
         clientid: { $in: allFilteredClientIds },
       },
     },
-    ...basePipeline,
+    ...membershipBasePipeline,
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
-        nonNumericCount: {
-          $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
-        },
-        clientCount: {
+        memberCount: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
@@ -1198,26 +1229,24 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
             ],
           },
         },
+        nonNumericCount: {
+          $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
+        },
       },
     },
   ];
 
-  // For page-specific calculation
-  const pagePipeline = [
+  const membershipPagePipeline = [
     {
       $match: {
         clientid: { $in: pageClientIds },
       },
     },
-    ...basePipeline,
+    ...membershipBasePipeline,
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
-        nonNumericCount: {
-          $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
-        },
-        clientCount: {
+        memberCount: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
@@ -1226,22 +1255,65 @@ async function calculateFomStats(allFilteredClientIds, pageClientIds) {
             ],
           },
         },
+        nonNumericCount: {
+          $sum: { $cond: ["$latestPayment.isNonNumericPayment", 1, 0] },
+        },
       },
     },
   ];
 
-  const [totalResult, pageResult] = await Promise.all([
-    FomModel.aggregate(totalPipeline),
-    FomModel.aggregate(pagePipeline),
+  // Amount pipelines (sum ALL records, not just latest per client)
+  const amountTotalPipeline = [
+    {
+      $match: {
+        clientid: { $in: allFilteredClientIds },
+      },
+    },
+    baseMatchStage,
+    baseAddFieldsStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+      },
+    },
+  ];
+
+  const amountPagePipeline = [
+    {
+      $match: {
+        clientid: { $in: pageClientIds },
+      },
+    },
+    baseMatchStage,
+    baseAddFieldsStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+      },
+    },
+  ];
+
+  const [
+    membershipTotalResult,
+    membershipPageResult,
+    amountTotalResult,
+    amountPageResult,
+  ] = await Promise.all([
+    FomModel.aggregate(membershipTotalPipeline),
+    FomModel.aggregate(membershipPagePipeline),
+    FomModel.aggregate(amountTotalPipeline),
+    FomModel.aggregate(amountPagePipeline),
   ]);
 
   return {
-    totalAmt: totalResult[0]?.totalAmt || 0,
-    pageSpecificAmt: pageResult[0]?.totalAmt || 0,
-    totalClients: totalResult[0]?.clientCount || 0,
-    pageClients: pageResult[0]?.clientCount || 0,
-    nonNumericCount: totalResult[0]?.nonNumericCount || 0,
-    pageNonNumericCount: pageResult[0]?.nonNumericCount || 0,
+    totalAmt: amountTotalResult[0]?.totalAmt || 0,
+    pageSpecificAmt: amountPageResult[0]?.totalAmt || 0,
+    totalClients: membershipTotalResult[0]?.memberCount || 0,
+    pageClients: membershipPageResult[0]?.memberCount || 0,
+    nonNumericCount: membershipTotalResult[0]?.nonNumericCount || 0,
+    pageNonNumericCount: membershipPageResult[0]?.nonNumericCount || 0,
   };
 }
 
@@ -1594,57 +1666,42 @@ function calculateCalStatsFromData(combinedData, pageClientIds) {
 
   combinedData.forEach((client) => {
     const calData = client.calData;
-    if (calData && calData.records) {
-      // Use filtered records if available, otherwise use regular records
-      const records = calData.filteredRecords || calData.records;
+    if (calData && (calData.filteredRecords || calData.records)) {
+      const records = calData.filteredRecords || calData.records || [];
+      if (records.length === 0) return;
 
-      if (records.length > 0) {
-        // Get the most recent record
-        const latestRecord = records[0];
-        const qty = parseInt(latestRecord.calqty) || 0;
-        const unitAmt = parseNumeric(latestRecord.calunit);
+      // Any CAL record makes this client counted once, matching ASP "totids" client logic
+      totalClients++;
+      if (pageClientIds.includes(client.id)) {
+        pageClients++;
+      }
+
+      records.forEach((r) => {
+        const qty = parseInt(r.calqty) || 0;
+        const unitAmt = parseNumeric(r.calunit ?? r.calamt);
         const amt = qty * unitAmt;
-
-        // Calculate payment amount
-        const paymtAmt = parseNumeric(latestRecord.paymtamt);
-
-        // Check for non-numeric payments
-        if (
-          typeof latestRecord.paymtamt === "string" &&
-          latestRecord.paymtamt !== "N/A"
-        ) {
-          const numericValue = parseFloat(
-            latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-          );
-          if (isNaN(numericValue)) {
-            nonNumericCount++;
-          }
-        }
+        const paymtAmt = parseNumeric(r.paymtamt);
 
         totalQty += qty;
         totalAmt += amt;
         totalPaymtAmt += paymtAmt;
-        totalClients++;
 
         if (pageClientIds.includes(client.id)) {
           pageSpecificQty += qty;
           pageSpecificAmt += amt;
           pageSpecificPaymtAmt += paymtAmt;
-          pageClients++;
+        }
 
-          if (
-            typeof latestRecord.paymtamt === "string" &&
-            latestRecord.paymtamt !== "N/A"
-          ) {
-            const numericValue = parseFloat(
-              latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-            );
-            if (isNaN(numericValue)) {
+        if (typeof r.paymtamt === "string" && r.paymtamt !== "N/A") {
+          const numericValue = parseFloat(r.paymtamt.replace(/[^\d.-]/g, ""));
+          if (isNaN(numericValue)) {
+            nonNumericCount++;
+            if (pageClientIds.includes(client.id)) {
               pageNonNumericCount++;
             }
           }
         }
-      }
+      });
     }
   });
 
@@ -1675,54 +1732,40 @@ function calculateHrgStatsFromData(combinedData, pageClientIds) {
 
   combinedData.forEach((client) => {
     const hrgData = client.hrgData;
-    if (hrgData && hrgData.records) {
-      // Use filtered records if available, otherwise use regular records
-      const records = hrgData.filteredRecords || hrgData.records;
+    if (hrgData && (hrgData.filteredRecords || hrgData.records)) {
+      const records = hrgData.filteredRecords || hrgData.records || [];
+      if (records.length === 0) return;
 
-      if (records.length > 0) {
-        // Get the most recent record
-        const latestRecord = records[0];
-        const paymtAmt = parseNumeric(latestRecord.paymtamt);
+      // Latest record determines membership, matching ASP logic
+      const latestRecord = records[0];
+      const latestUnsub =
+        latestRecord.unsubscribe === 1 || latestRecord.unsubscribe === true;
 
-        // Check for non-numeric payments
-        if (
-          typeof latestRecord.paymtamt === "string" &&
-          latestRecord.paymtamt !== "N/A"
-        ) {
-          const numericValue = parseFloat(
-            latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-          );
-          if (isNaN(numericValue)) {
-            nonNumericCount++;
-          }
+      if (!latestUnsub) {
+        totalClients++;
+        if (pageClientIds.includes(client.id)) {
+          pageClients++;
+        }
+      }
+
+      // Amount: sum ALL records, not just latest
+      records.forEach((r) => {
+        const paymtAmt = parseNumeric(r.paymtamt);
+        totalAmt += paymtAmt;
+        if (pageClientIds.includes(client.id)) {
+          pageSpecificAmt += paymtAmt;
         }
 
-        // Only count if not unsubscribed
-        if (
-          latestRecord.unsubscribe !== 1 &&
-          latestRecord.unsubscribe !== true
-        ) {
-          totalAmt += paymtAmt;
-          totalClients++;
-
-          if (pageClientIds.includes(client.id)) {
-            pageSpecificAmt += paymtAmt;
-            pageClients++;
-
-            if (
-              typeof latestRecord.paymtamt === "string" &&
-              latestRecord.paymtamt !== "N/A"
-            ) {
-              const numericValue = parseFloat(
-                latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-              );
-              if (isNaN(numericValue)) {
-                pageNonNumericCount++;
-              }
+        if (typeof r.paymtamt === "string" && r.paymtamt !== "N/A") {
+          const numericValue = parseFloat(r.paymtamt.replace(/[^\d.-]/g, ""));
+          if (isNaN(numericValue)) {
+            nonNumericCount++;
+            if (pageClientIds.includes(client.id)) {
+              pageNonNumericCount++;
             }
           }
         }
-      }
+      });
     }
   });
 
@@ -1746,59 +1789,40 @@ function calculateFomStatsFromData(combinedData, pageClientIds) {
 
   combinedData.forEach((client) => {
     const fomData = client.fomData;
-    if (fomData && fomData.records) {
-      // Use filtered records if available, otherwise use regular records
-      const records = fomData.filteredRecords || fomData.records;
+    if (fomData && (fomData.filteredRecords || fomData.records)) {
+      const records = fomData.filteredRecords || fomData.records || [];
+      if (records.length === 0) return;
 
-      if (records.length > 0) {
-        // Get the most recent record
-        const latestRecord = records[0];
-        const paymtAmt = parseNumeric(latestRecord.paymtamt);
+      // Latest record determines membership, matching ASP logic
+      const latestRecord = records[0];
+      const latestUnsub =
+        latestRecord.unsubscribe === 1 || latestRecord.unsubscribe === true;
 
-        // Check for non-numeric payments
-        if (
-          typeof latestRecord.paymtamt === "string" &&
-          latestRecord.paymtamt !== "N/A"
-        ) {
-          const numericValue = parseFloat(
-            latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-          );
-          if (isNaN(numericValue)) {
-            nonNumericCount++;
-          }
+      if (!latestUnsub) {
+        totalClients++;
+        if (pageClientIds.includes(client.id)) {
+          pageClients++;
         }
+      }
 
-        // Always include amount; member count only if not unsubscribed
+      // Amount: sum ALL records, not just latest
+      records.forEach((r) => {
+        const paymtAmt = parseNumeric(r.paymtamt);
         totalAmt += paymtAmt;
-        if (
-          latestRecord.unsubscribe !== true &&
-          latestRecord.unsubscribe !== 1
-        ) {
-          totalClients++;
-        }
-
         if (pageClientIds.includes(client.id)) {
           pageSpecificAmt += paymtAmt;
-          if (
-            latestRecord.unsubscribe !== true &&
-            latestRecord.unsubscribe !== 1
-          ) {
-            pageClients++;
-          }
+        }
 
-          if (
-            typeof latestRecord.paymtamt === "string" &&
-            latestRecord.paymtamt !== "N/A"
-          ) {
-            const numericValue = parseFloat(
-              latestRecord.paymtamt.replace(/[^\d.-]/g, "")
-            );
-            if (isNaN(numericValue)) {
+        if (typeof r.paymtamt === "string" && r.paymtamt !== "N/A") {
+          const numericValue = parseFloat(r.paymtamt.replace(/[^\d.-]/g, ""));
+          if (isNaN(numericValue)) {
+            nonNumericCount++;
+            if (pageClientIds.includes(client.id)) {
               pageNonNumericCount++;
             }
           }
         }
-      }
+      });
     }
   });
 
@@ -2202,6 +2226,7 @@ async function calculateCalStatsOptimized(filterQuery, pageClientIds) {
       $match: {
         caltype: currentCalType,
         clientid: { $exists: true },
+        ...filterQuery,
       },
     },
     {
@@ -2250,44 +2275,57 @@ async function calculateCalStatsOptimized(filterQuery, pageClientIds) {
       },
     },
     {
-      $sort: {
-        clientid: 1,
-        paymtDateObj: -1,
-      },
-    },
-    {
-      $group: {
-        _id: "$clientid",
-        qty: { $first: "$convertedQty" },
-        amt: { $first: { $multiply: ["$convertedQty", "$convertedUnitAmt"] } },
-        paymtAmt: { $first: "$convertedPaymtAmt" },
-      },
-    },
-    {
       $group: {
         _id: null,
-        totalQty: { $sum: "$qty" },
-        totalAmt: { $sum: "$amt" },
-        totalPaymtAmt: { $sum: "$paymtAmt" },
-        totalClients: { $sum: 1 },
+        totalQty: { $sum: "$convertedQty" },
+        totalAmt: {
+          $sum: { $multiply: ["$convertedQty", "$convertedUnitAmt"] },
+        },
+        totalPaymtAmt: { $sum: "$convertedPaymtAmt" },
+        totalClients: { $addToSet: "$clientid" },
         pageSpecificQty: {
           $sum: {
-            $cond: [{ $in: ["$_id", pageClientIds] }, "$qty", 0],
+            $cond: [{ $in: ["$clientid", pageClientIds] }, "$convertedQty", 0],
           },
         },
         pageSpecificAmt: {
           $sum: {
-            $cond: [{ $in: ["$_id", pageClientIds] }, "$amt", 0],
+            $cond: [
+              { $in: ["$clientid", pageClientIds] },
+              { $multiply: ["$convertedQty", "$convertedUnitAmt"] },
+              0,
+            ],
           },
         },
         pageSpecificPaymtAmt: {
           $sum: {
-            $cond: [{ $in: ["$_id", pageClientIds] }, "$paymtAmt", 0],
+            $cond: [
+              { $in: ["$clientid", pageClientIds] },
+              "$convertedPaymtAmt",
+              0,
+            ],
           },
         },
         pageClients: {
-          $sum: {
-            $cond: [{ $in: ["$_id", pageClientIds] }, 1, 0],
+          $addToSet: {
+            $cond: [
+              { $in: ["$clientid", pageClientIds] },
+              "$clientid",
+              "$REMOVE$",
+            ],
+          },
+        },
+      },
+    },
+    {
+      $addFields: {
+        totalClients: { $size: "$totalClients" },
+        pageClients: {
+          $size: {
+            $setDifference: [
+              "$pageClients",
+              ["$REMOVE$"],
+            ],
           },
         },
       },
@@ -2316,7 +2354,7 @@ async function calculateCalStatsOptimized(filterQuery, pageClientIds) {
     pageSpecificAmt: data.pageSpecificAmt,
     pageSpecificPaymtAmt: data.pageSpecificPaymtAmt,
     pageSpecificBalance: data.pageSpecificAmt - data.pageSpecificPaymtAmt,
-    nonNumericCount: 0, // Would need additional pipeline stage to calculate this
+    nonNumericCount: 0, // Still 0 in optimized path; would need extra stages for this
     pageNonNumericCount: 0,
     totalClients: data.totalClients,
     pageClients: data.pageClients,
@@ -2363,81 +2401,85 @@ async function calculateHrgStatsOptimized(
       ? "campaignDateObj"
       : "addDateObj";
 
-  const pipeline = [
-    {
-      $match: {
-        clientid: { $exists: true },
-      },
+  const baseMatchStage = {
+    $match: {
+      clientid: { $exists: true },
+      ...filterQuery,
     },
-    {
-      $addFields: {
-        [dateObjField]: {
-          $let: {
-            vars: {
-              date1: {
-                $dateFromString: {
-                  dateString: `$${dateField}`,
-                  format: "%m/%d/%Y %H:%M:%S",
-                  onError: null,
-                  onNull: null,
-                },
-              },
-              date2: {
-                $dateFromString: {
-                  dateString: `$${dateField}`,
-                  format: "%Y-%m-%d",
-                  onError: null,
-                  onNull: null,
-                },
+  };
+
+  const baseAddFieldsStage = {
+    $addFields: {
+      [dateObjField]: {
+        $let: {
+          vars: {
+            date1: {
+              $dateFromString: {
+                dateString: `$${dateField}`,
+                format: "%m/%d/%Y %H:%M:%S",
+                onError: null,
+                onNull: null,
               },
             },
-            in: {
-              $cond: [{ $ne: ["$$date1", null] }, "$$date1", "$$date2"],
+            date2: {
+              $dateFromString: {
+                dateString: `$${dateField}`,
+                format: "%Y-%m-%d",
+                onError: null,
+                onNull: null,
+              },
             },
           },
-        },
-        convertedPaymtAmt: {
-          $cond: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            {
-              $cond: [
-                { $eq: ["$paymtamt", "N/A"] },
-                0,
-                {
-                  $toDouble: {
-                    $replaceOne: {
-                      input: "$paymtamt",
-                      find: ",",
-                      replacement: "",
-                    },
-                  },
-                },
-              ],
-            },
-            { $toDouble: "$paymtamt" },
-          ],
+          in: {
+            $cond: [{ $ne: ["$$date1", null] }, "$$date1", "$$date2"],
+          },
         },
       },
-    },
-    {
-      $match: {
-        [dateObjField]: { $ne: null },
-        ...(fromDate || toDate
-          ? {
-              [dateObjField]: {
-                ...(fromDate ? { $gte: new Date(fromDate) } : {}),
-                ...(toDate
-                  ? {
-                      $lte: new Date(
-                        new Date(toDate).setHours(23, 59, 59, 999)
-                      ),
-                    }
-                  : {}),
+      convertedPaymtAmt: {
+        $cond: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          {
+            $cond: [
+              { $eq: ["$paymtamt", "N/A"] },
+              0,
+              {
+                $toDouble: {
+                  $replaceOne: {
+                    input: "$paymtamt",
+                    find: ",",
+                    replacement: "",
+                  },
+                },
               },
+            ],
+          },
+          { $toDouble: "$paymtamt" },
+        ],
+      },
+    },
+  };
+
+  const dateRangeMatchStage = {
+    $match: {
+      [dateObjField]: {
+        $ne: null,
+        ...(fromDate ? { $gte: new Date(fromDate) } : {}),
+        ...(toDate
+          ? {
+              $lte: new Date(
+                new Date(toDate).setHours(23, 59, 59, 999)
+              ),
             }
           : {}),
       },
     },
+  };
+
+  // Membership pipeline: latest record per client, check unsubscribe
+  const membershipPipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
+    dateRangeMatchStage,
     {
       $sort: {
         clientid: 1,
@@ -2453,21 +2495,11 @@ async function calculateHrgStatsOptimized(
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestRecord.convertedPaymtAmt" },
         totalClients: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestRecord.unsubscribe", [true, 1]] }] },
               1,
-              0,
-            ],
-          },
-        },
-        pageSpecificAmt: {
-          $sum: {
-            $cond: [
-              { $in: ["$_id", pageClientIds] },
-              "$latestRecord.convertedPaymtAmt",
               0,
             ],
           },
@@ -2490,62 +2522,101 @@ async function calculateHrgStatsOptimized(
     },
   ];
 
-  const result = await HrgModel.aggregate(pipeline);
-  return (
-    result[0] || {
-      totalAmt: 0,
-      pageSpecificAmt: 0,
-      totalClients: 0,
-      pageClients: 0,
-      nonNumericCount: 0,
-      pageNonNumericCount: 0,
-    }
-  );
+  // Amount pipeline: sum ALL records that match, not just latest per client
+  const amountPipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
+    dateRangeMatchStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+        pageSpecificAmt: {
+          $sum: {
+            $cond: [
+              { $in: ["$clientid", pageClientIds] },
+              "$convertedPaymtAmt",
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ];
+
+  const [membershipResult, amountResult] = await Promise.all([
+    HrgModel.aggregate(membershipPipeline),
+    HrgModel.aggregate(amountPipeline),
+  ]);
+
+  const m = membershipResult[0] || {
+    totalClients: 0,
+    pageClients: 0,
+  };
+  const a = amountResult[0] || {
+    totalAmt: 0,
+    pageSpecificAmt: 0,
+  };
+
+  return {
+    totalAmt: a.totalAmt,
+    pageSpecificAmt: a.pageSpecificAmt,
+    totalClients: m.totalClients,
+    pageClients: m.pageClients,
+    nonNumericCount: 0,
+    pageNonNumericCount: 0,
+  };
 }
 
 /**
  * Optimized FOM statistics calculation using direct aggregation
  */
 async function calculateFomStatsOptimized(filterQuery, pageClientIds) {
-  const pipeline = [
-    {
-      $match: {
-        clientid: { $exists: true },
-      },
+  const baseMatchStage = {
+    $match: {
+      clientid: { $exists: true },
+      ...filterQuery,
     },
-    {
-      $addFields: {
-        paymtDateObj: {
-          $dateFromString: {
-            dateString: "$recvdate",
-            format: "%m/%d/%Y %H:%M:%S",
-            onError: null,
-            onNull: null,
-          },
+  };
+
+  const baseAddFieldsStage = {
+    $addFields: {
+      paymtDateObj: {
+        $dateFromString: {
+          dateString: "$recvdate",
+          format: "%m/%d/%Y %H:%M:%S",
+          onError: null,
+          onNull: null,
         },
-        convertedPaymtAmt: {
-          $cond: [
-            { $eq: [{ $type: "$paymtamt" }, "string"] },
-            {
-              $cond: [
-                { $eq: ["$paymtamt", "N/A"] },
-                0,
-                {
-                  $toDouble: {
-                    $replaceOne: {
-                      input: "$paymtamt",
-                      find: ",",
-                      replacement: "",
-                    },
+      },
+      convertedPaymtAmt: {
+        $cond: [
+          { $eq: [{ $type: "$paymtamt" }, "string"] },
+          {
+            $cond: [
+              { $eq: ["$paymtamt", "N/A"] },
+              0,
+              {
+                $toDouble: {
+                  $replaceOne: {
+                    input: "$paymtamt",
+                    find: ",",
+                    replacement: "",
                   },
                 },
-              ],
-            },
-            { $toDouble: "$paymtamt" },
-          ],
-        },
+              },
+            ],
+          },
+          { $toDouble: "$paymtamt" },
+        ],
       },
     },
+  };
+
+  // Membership: latest payment per client, unsubscribe check
+  const membershipPipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
     {
       $sort: {
         clientid: 1,
@@ -2561,21 +2632,11 @@ async function calculateFomStatsOptimized(filterQuery, pageClientIds) {
     {
       $group: {
         _id: null,
-        totalAmt: { $sum: "$latestPayment.convertedPaymtAmt" },
         totalClients: {
           $sum: {
             $cond: [
               { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
               1,
-              0,
-            ],
-          },
-        },
-        pageSpecificAmt: {
-          $sum: {
-            $cond: [
-              { $in: ["$_id", pageClientIds] },
-              "$latestPayment.convertedPaymtAmt",
               0,
             ],
           },
@@ -2586,9 +2647,7 @@ async function calculateFomStatsOptimized(filterQuery, pageClientIds) {
               {
                 $and: [
                   { $in: ["$_id", pageClientIds] },
-                  {
-                    $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }],
-                  },
+                  { $not: [{ $in: ["$latestPayment.unsubscribe", [true, 1]] }] },
                 ],
               },
               1,
@@ -2600,17 +2659,49 @@ async function calculateFomStatsOptimized(filterQuery, pageClientIds) {
     },
   ];
 
-  const result = await FomModel.aggregate(pipeline);
-  return (
-    result[0] || {
-      totalAmt: 0,
-      pageSpecificAmt: 0,
-      totalClients: 0,
-      pageClients: 0,
-      nonNumericCount: 0,
-      pageNonNumericCount: 0,
-    }
-  );
+  // Amount: sum ALL records that match filterQuery, not just latest per client
+  const amountPipeline = [
+    baseMatchStage,
+    baseAddFieldsStage,
+    {
+      $group: {
+        _id: null,
+        totalAmt: { $sum: "$convertedPaymtAmt" },
+        pageSpecificAmt: {
+          $sum: {
+            $cond: [
+              { $in: ["$clientid", pageClientIds] },
+              "$convertedPaymtAmt",
+              0,
+            ],
+          },
+        },
+      },
+    },
+  ];
+
+  const [membershipResult, amountResult] = await Promise.all([
+    FomModel.aggregate(membershipPipeline),
+    FomModel.aggregate(amountPipeline),
+  ]);
+
+  const m = membershipResult[0] || {
+    totalClients: 0,
+    pageClients: 0,
+  };
+  const a = amountResult[0] || {
+    totalAmt: 0,
+    pageSpecificAmt: 0,
+  };
+
+  return {
+    totalAmt: a.totalAmt,
+    pageSpecificAmt: a.pageSpecificAmt,
+    totalClients: m.totalClients,
+    pageClients: m.pageClients,
+    nonNumericCount: 0,
+    pageNonNumericCount: 0,
+  };
 }
 
 /**

@@ -167,9 +167,15 @@ export const TableComponent = function TableComponent({
               </span>
             </Tooltip>
             {visibleMetrics.HRG && (
-              <span className="ml-1">
-                •{" "}
-                <Tooltip title={findMetric("HRG")?.tooltip} arrow>
+              <span className="ml-1 flex items-center gap-2">
+                <Tooltip
+                  title={`${findMetric("HRG")?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Page: ${Number(
+                    stats?.dataQuality?.hrg?.nonNumericPayments?.page || 0
+                  ).toLocaleString()} | Total: ${Number(
+                    stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0
+                  ).toLocaleString()}`}
+                  arrow
+                >
                   <span className="text-blue-700">
                     {Number(findMetric("HRG")?.total || 0).toLocaleString(
                       undefined,
@@ -204,9 +210,15 @@ export const TableComponent = function TableComponent({
               </span>
             </Tooltip>
             {visibleMetrics.FOM && (
-              <span className="ml-1">
-                •{" "}
-                <Tooltip title={findMetric("FOM")?.tooltip} arrow>
+              <span className="ml-1 flex items-center gap-2">
+                <Tooltip
+                  title={`${findMetric("FOM")?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Page: ${Number(
+                    stats?.dataQuality?.fom?.nonNumericPayments?.page || 0
+                  ).toLocaleString()} | Total: ${Number(
+                    stats?.dataQuality?.fom?.nonNumericPayments?.total || 0
+                  ).toLocaleString()}`}
+                  arrow
+                >
                   <span className="text-green-700">
                     {Number(findMetric("FOM")?.total || 0).toLocaleString(
                       undefined,
@@ -221,23 +233,11 @@ export const TableComponent = function TableComponent({
 
           {/* CAL Section - Conditionally visible */}
           <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
-            <Tooltip
-              title={`Calendar Type: ${
-                findMetric("CAL")?.currentCalType || "N/A"
-              }`}
-              arrow
-            >
-              <span>
-                {" "}
-                {/* Wrap with a span that can hold ref */}
-                <MetricLabel metric="CAL" color="text-amber-700">
-                  CAL: {findMetric("CAL")?.currentCalType}
-                </MetricLabel>
-              </span>
-            </Tooltip>
+            <MetricLabel metric="CAL" color="text-amber-700">
+              CAL
+            </MetricLabel>
             {visibleMetrics.CAL && (
-              <span className="ml-1 text-amber-700">
-                •{" "}
+              <span className="ml-2 text-amber-700 flex items-center gap-3">
                 <Tooltip
                   title={`Page: ${Number(
                     findMetric("CAL")?.metrics?.[0]?.page || 0
@@ -247,12 +247,12 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span>
+                    Qty: {" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[0]?.total || 0
                     ).toLocaleString()}
                   </span>
-                </Tooltip>{" "}
-                • Sold:{" "}
+                </Tooltip>
                 <Tooltip
                   title={`Page: ${Number(
                     findMetric("CAL")?.metrics?.[1]?.page || 0
@@ -264,6 +264,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span>
+                    Sold: {" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[1]?.total || 0
                     ).toLocaleString(undefined, {
@@ -271,8 +272,7 @@ export const TableComponent = function TableComponent({
                     })}{" "}
                     {findMetric("CAL")?.metrics?.[1]?.unit}
                   </span>
-                </Tooltip>{" "}
-                •{" "}
+                </Tooltip>
                 <Tooltip
                   title={`Page: ${Number(
                     findMetric("CAL")?.metrics?.[2]?.page || 0
@@ -282,11 +282,15 @@ export const TableComponent = function TableComponent({
                     findMetric("CAL")?.metrics?.[2]?.total || 0
                   ).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
-                  })} - Total Amount Paid`}
+                  })} - Total Amount Paid. Non-numeric payments (invalid amounts) - Page: ${Number(
+                    findMetric("CAL")?.metrics?.[4]?.page || 0
+                  ).toLocaleString()} | Total: ${Number(
+                    findMetric("CAL")?.metrics?.[4]?.total || 0
+                  ).toLocaleString()}`}
                   arrow
                 >
                   <span className="text-amber-700">
-                    Paid:{" "}
+                    Paid: {" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[2]?.total || 0
                     ).toLocaleString(undefined, {
@@ -295,7 +299,6 @@ export const TableComponent = function TableComponent({
                     {findMetric("CAL")?.metrics?.[2]?.unit}
                   </span>
                 </Tooltip>
-                <span> • </span>
                 <Tooltip
                   title={`Page: ${Number(
                     findMetric("CAL")?.metrics?.[3]?.page || 0
@@ -309,7 +312,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span className="text-red-600">
-                    Balance:{" "}
+                    Balance: {" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[3]?.total || 0
                     ).toLocaleString(undefined, {
@@ -398,7 +401,7 @@ export const TableComponent = function TableComponent({
             {/* CAL Section */}
             <div className="flex items-center border-l border-gray-300 pl-4">
               <span className="font-medium text-amber-700">
-                CAL: {findMetric("CAL")?.currentCalType} •{" "}
+                CAL: {" "}
                 {Number(
                   findMetric("CAL")?.metrics?.[0]?.total || 0
                 ).toLocaleString()}{" "}
@@ -516,12 +519,6 @@ export const TableComponent = function TableComponent({
                 </span>
               </span>
               <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
-                Calendar Type:{" "}
-                <span className="font-bold">
-                  {findMetric("CAL")?.currentCalType || "N/A"}
-                </span>
-              </span>
-              <span className="mr-2 sm:mr-4 text-gray-800 font-medium">
                 Qty:{" "}
                 <span className="font-bold">
                   {Number(qtyMetric?.total || 0).toLocaleString()}
@@ -539,7 +536,12 @@ export const TableComponent = function TableComponent({
               </span>
               <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
                 Paid:{" "}
-                <Tooltip title="Total Amount Paid" arrow>
+                <Tooltip
+                  title={`Total Amount Paid. Non-numeric payments (invalid amounts) - Total: ${Number(
+                    nonNumericMetric?.total || 0
+                  ).toLocaleString()}`}
+                  arrow
+                >
                   <span className="font-bold">
                     {Number(paymtMetric?.total || 0).toLocaleString()}
                   </span>
@@ -554,14 +556,6 @@ export const TableComponent = function TableComponent({
                   </span>
                 </Tooltip>{" "}
                 {balanceMetric?.unit}
-              </span>
-              <span className="ml-2 sm:ml-4 text-gray-800 font-medium">
-                Non-numeric:{" "}
-                <Tooltip title={nonNumericMetric?.tooltip} arrow>
-                  <span className="font-bold text-amber-600">
-                    {Number(nonNumericMetric?.total || 0).toLocaleString()}
-                  </span>
-                </Tooltip>
               </span>
             </span>
           </div>
@@ -585,24 +579,17 @@ export const TableComponent = function TableComponent({
               </span>
               <span className="mx-4"></span>
               HRG Payment:{" "}
-              <Tooltip title={hrgMetric?.tooltip} arrow>
+              <Tooltip
+                title={`${hrgMetric?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Total: ${Number(
+                  stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0
+                ).toLocaleString()}`}
+                arrow
+              >
                 <span className="font-bold">
                   {Number(hrgMetric?.total || 0).toLocaleString()}
                 </span>
               </Tooltip>{" "}
               {hrgMetric?.unit}
-              <span className="mx-4"></span>
-              Non-numeric:{" "}
-              <Tooltip
-                title="Number of records with non-numeric payment amounts"
-                arrow
-              >
-                <span className="font-bold text-amber-600">
-                  {Number(
-                    stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0
-                  ).toLocaleString()}
-                </span>
-              </Tooltip>
             </span>
           </div>
         );
@@ -625,24 +612,17 @@ export const TableComponent = function TableComponent({
               </span>
               <span className="mx-4"></span>
               FOM Payment:{" "}
-              <Tooltip title={fomMetric?.tooltip} arrow>
+              <Tooltip
+                title={`${fomMetric?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Total: ${Number(
+                  stats?.dataQuality?.fom?.nonNumericPayments?.total || 0
+                ).toLocaleString()}`}
+                arrow
+              >
                 <span className="font-bold">
                   {Number(fomMetric?.total || 0).toLocaleString()}
                 </span>
               </Tooltip>{" "}
               {fomMetric?.unit}
-              <span className="mx-4"></span>
-              Non-numeric:{" "}
-              <Tooltip
-                title="Number of records with non-numeric payment amounts"
-                arrow
-              >
-                <span className="font-bold text-amber-600">
-                  {Number(
-                    stats?.dataQuality?.fom?.nonNumericPayments?.total || 0
-                  ).toLocaleString()}
-                </span>
-              </Tooltip>
             </span>
           </div>
         );
