@@ -478,7 +478,24 @@ const Add = ({
     setRenewalType("current");
 
     // Reset role-specific data
-    setRoleSpecificData({});
+    if (hasRole("WMM")) {
+      setRoleSpecificData({
+        subsdate: "",
+        enddate: "",
+        renewdate: "",
+        subsyear: 0,
+        copies: 1,
+        paymtamt: "",
+        paymtmasses: "",
+        calendar: false,
+        subsclass: "",
+        donorid: "",
+        paymtref: "",
+        remarks: "",
+      });
+    } else {
+      setRoleSpecificData({});
+    }
   };
 
   // Close modal and reset form
@@ -2104,7 +2121,7 @@ const Add = ({
                         {areas && (
                           <AreaForm
                             ref={areaFormRef}
-                            onAreaChange={memoizedOnAreaChange}
+                            onAreaChange={handleAreaFormChange}
                             initialAreaData={initialAreaData}
                             areas={areas}
                           />
