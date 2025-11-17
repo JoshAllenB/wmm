@@ -51,6 +51,7 @@ const cleanDateInput = (value) => {
 const Add = ({
   fetchClients,
   subscriptionType: initialSubscriptionType = "None",
+  onAfterDuplicateEditSuccess,
 }) => {
   const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
 
@@ -1419,6 +1420,14 @@ const Add = ({
 
     setSelectedDuplicate(formattedData);
     fetchClients(); // Refresh client list
+
+    // If provided, notify parent that a duplicate edit has completed
+    if (typeof onAfterDuplicateEditSuccess === "function") {
+      onAfterDuplicateEditSuccess();
+    }
+
+    // Close the Add Client modal after successful duplicate edit
+    closeModal();
   };
 
   // Handle new donor added

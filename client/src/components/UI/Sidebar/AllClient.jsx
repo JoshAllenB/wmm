@@ -536,30 +536,39 @@ const AllClient = () => {
           return null;
         }
 
-        // When Added Today filter is applied, sort by adddate timestamp (newest first)
+        // When Added Today filter is applied, sort by effective added date timestamp (newest first)
         const pageData = Array.isArray(response.data) ? response.data : [];
         const applyAddedTodaySorting = applyAddedTodayFilter; // same condition as filter application
         const sortedPageData = applyAddedTodaySorting
           ? [...pageData].sort((a, b) => {
-              // Get adddate values
-              const aDate = a?.adddate;
-              const bDate = b?.adddate;
+              // Prefer explicit adddate, then addedAt, then updatedAt so we
+              // consistently use the most relevant timestamp for sorting
+              const getEffectiveDateValue = (row) =>
+                row?.adddate || row?.addedAt || row?.updatedAt || null;
+
+              const aDate = getEffectiveDateValue(a);
+              const bDate = getEffectiveDateValue(b);
 
               // Handle missing dates - put them at the end
               if (!aDate && !bDate) return 0;
               if (!aDate) return 1;
               if (!bDate) return -1;
 
-              // Parse dates and compare (newest first = descending order)
-              const aTime = new Date(aDate).getTime();
-              const bTime = new Date(bDate).getTime();
+              const aTime = Date.parse(aDate);
+              const bTime = Date.parse(bDate);
+              const aValid = !isNaN(aTime);
+              const bValid = !isNaN(bTime);
 
-              // If both dates are valid, sort by time
-              if (!isNaN(aTime) && !isNaN(bTime)) {
-                return bTime - aTime; // Descending order (newest first)
+              // If both dates are valid, sort by time (newest first)
+              if (aValid && bValid) {
+                return bTime - aTime;
               }
 
-              // Fallback: string comparison descending
+              // If only one is valid, treat the valid date as more recent
+              if (aValid && !bValid) return -1;
+              if (!aValid && bValid) return 1;
+
+              // Fallback: string comparison descending to keep order deterministic
               return String(bDate).localeCompare(String(aDate));
             })
           : pageData;
@@ -780,12 +789,26 @@ const AllClient = () => {
 
   const handleDeleteSuccess = useCallback(
     (deletedId) => {
+      // Optimistically remove the client from the current page
       setClientData((prevData) =>
         prevData.filter((client) => client.id !== deletedId)
       );
-      fetchClients((data) => setClientData(data), page, pageSize);
+
+      // Refresh data using the current filters (including Added/Updated Today)
+      fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
+        (error) => {
+          console.error("Error refreshing clients after delete:", error);
+        }
+      );
     },
-    [page, pageSize]
+    [
+      page,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      advancedFilterData,
+      fetchData,
+    ]
   );
 
   const handleRowClick = (event, row) => {
@@ -800,10 +823,25 @@ const AllClient = () => {
 
   // Handle successful edit
   const handleEditSuccess = useCallback(() => {
-    // Keep search input and results persistent after edit
+    // Avoid stacking multiple refreshes if a request is already in-flight
     if (isLoading) return;
-    // No-op to preserve current filters and search results
-  }, [isLoading]);
+
+    // Re-fetch using the current filters so newly edited clients appear
+    // without requiring an Added/Updated Today toggle
+    fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
+      (error) => {
+        console.error("Error refreshing clients after edit:", error);
+      }
+    );
+  }, [
+    isLoading,
+    page,
+    pageSize,
+    debouncedFiltering,
+    selectedGroup,
+    advancedFilterData,
+    fetchData,
+  ]);
   const handleSearchChange = (e) => {
     const value = e.target.value;
 
@@ -1484,8 +1522,27 @@ const AllClient = () => {
     <div className="mr-[10px] ml-[10px] mt-[10px]">
       <div className="flex justify-between items-center mb-4">
         <Add
-          fetchClients={() => fetchClients(setClientData)}
+          // Use the same fetchData pipeline so new/duplicate clients
+          // respect the current filters and Added/Updated Today state
+          fetchClients={() =>
+            fetchData(
+              page,
+              pageSize,
+              debouncedFiltering,
+              selectedGroup,
+              advancedFilterData
+            )
+          }
           subscriptionType={subscriptionType}
+          onAfterDuplicateEditSuccess={() => {
+            // After editing a duplicate via Add, ensure the main view
+            // defaults back to the "Added/Updated Today" filter
+            if (!addedToday && !isAddedTodayLoading && !isLoading) {
+              setIsAddedTodayLoading(true);
+              setAddedToday(true);
+              setPage(1);
+            }
+          }}
         />
 
         {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
