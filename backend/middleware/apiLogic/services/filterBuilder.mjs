@@ -1364,22 +1364,70 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
   }
 
   // At the end, before returning the query:
-  // Check if there are other filters besides include/exclude
+  // Check if there are other *user-visible* filters besides include/exclude/clientId.
+  // System/context fields like subscriptionType or userId should NOT count here so that
+  // "Include Client Ids only" behaves like a direct client ID search.
+  const userFilterKeys = [
+    "group",
+    "excludeCMCClients",
+    "excludeDCSClients",
+    "adddate_regex",
+    "startDate",
+    "endDate",
+    "fullName",
+    "subsclass",
+    "copiesRange",
+    "customCopies",
+    "nameCombination",
+    "areaCombination",
+    "hrgFomSubscriptionStatus",
+    "hrgPaymentFromDate",
+    "hrgPaymentToDate",
+    "hrgCampaignFromDate",
+    "hrgCampaignToDate",
+    "fomPaymentFromDate",
+    "fomPaymentToDate",
+    "hrgFomActiveSubscription",
+    "calendarReceived",
+    "calendarNotReceived",
+    "calendarEntitledOnly",
+    "wmmExpiringFromDate",
+    "wmmExpiringToDate",
+    "spackReceived",
+    "spackNotReceived",
+    "rtsMaxReached",
+    "rtsActive",
+    "rtsNone",
+    "excludeRTSMax",
+    "massPaid",
+    "cashPaid",
+    "wmmActiveFromDate",
+    "wmmActiveToDate",
+    "paymentRef",
+    // NOTE: we intentionally do NOT include "services" here so that
+    // role-based/default services combined only with Include Client Ids
+    // are treated as "include-only" rather than additive.
+    "subscriptionStatus",
+  ];
+
+  const hasUserFilterKeys = Object.keys(advancedFilterData).some(
+    (key) =>
+      userFilterKeys.includes(key) &&
+      key !== "includeClientIds" &&
+      key !== "excludeClientIds" &&
+      key !== "clientId" &&
+      advancedFilterData[key] !== undefined &&
+      advancedFilterData[key] !== null &&
+      advancedFilterData[key] !== ""
+  );
+
   const hasOtherFilters =
-    baseFilter.length > 0 ||
     (filter && filter.trim() !== "") ||
     advancedFilterData.group ||
     group ||
-    hasExplicitServices ||
-    Object.keys(advancedFilterData).some(
-      (key) =>
-        key !== "includeClientIds" &&
-        key !== "excludeClientIds" &&
-        key !== "clientId" &&
-        advancedFilterData[key] !== undefined &&
-        advancedFilterData[key] !== null &&
-        advancedFilterData[key] !== ""
-    );
+    // Services by themselves (often role-based defaults) should not force
+    // includeClientIds to be additive; only count true user filters.
+    hasUserFilterKeys;
 
   // Get exclude IDs if present
   const excludeIds = advancedFilterData.excludeClientIds
