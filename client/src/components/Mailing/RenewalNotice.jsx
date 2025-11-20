@@ -252,6 +252,13 @@ const RenewalNoticeDataOverlay = forwardRef(
       // If we get here, the record is valid
       const formattedId = formatClientId(original.id);
       const idWithType = `${formattedId}`;
+      // Handle zipcode as string or int32
+      let zipcode = original.zipcode;
+      if (typeof zipcode === "number") {
+        zipcode = zipcode.toString();
+      } else if (zipcode && typeof zipcode !== "string") {
+        zipcode = String(zipcode);
+      }
       return {
         skipped: false,
         id: idWithType,
@@ -265,6 +272,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         address2: original.address2 || "",
         address3: original.address3 || "",
         address4: original.address4 || "",
+        zipcode: zipcode || "",
         hasPersonalName: !!(original.fname || original.lname || original.title),
         hasCompany: !!original.company,
         expiryDate: formatDate(enddate), // Use enddate directly
