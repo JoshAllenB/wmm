@@ -148,6 +148,9 @@ const AllClient = () => {
     setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
     setPage(1);
+    
+    // Reset last filter ref to ensure fetch happens
+    lastFilterRef.current = null;
   };
 
   const handleClearAllFilters = () => {
@@ -794,10 +797,16 @@ const AllClient = () => {
         prevData.filter((client) => client.id !== deletedId)
       );
 
+      // Reset last filter ref to ensure fetch happens
+      lastFilterRef.current = null;
+
       // Refresh data using the current filters (including Added/Updated Today)
       fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
         (error) => {
           console.error("Error refreshing clients after delete:", error);
+          // Ensure loading states are reset on error
+          setIsLoading(false);
+          setIsAddedTodayLoading(false);
         }
       );
     },
@@ -826,15 +835,28 @@ const AllClient = () => {
     // Avoid stacking multiple refreshes if a request is already in-flight
     if (isLoading) return;
 
+    // Ensure Added/Updated Today is enabled after edit (if not already)
+    if (!addedToday && !isAddedTodayLoading) {
+      setIsAddedTodayLoading(true);
+      setAddedToday(true);
+      setPage(1);
+      // Reset lastFilterRef to ensure fetch happens
+      lastFilterRef.current = null;
+    }
+
     // Re-fetch using the current filters so newly edited clients appear
-    // without requiring an Added/Updated Today toggle
     fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
       (error) => {
         console.error("Error refreshing clients after edit:", error);
+        // Ensure loading states are reset on error
+        setIsLoading(false);
+        setIsAddedTodayLoading(false);
       }
     );
   }, [
     isLoading,
+    addedToday,
+    isAddedTodayLoading,
     page,
     pageSize,
     debouncedFiltering,
@@ -1534,13 +1556,15 @@ const AllClient = () => {
             )
           }
           subscriptionType={subscriptionType}
-          onAfterDuplicateEditSuccess={() => {
+onAfterDuplicateEditSuccess={() => {
             // After editing a duplicate via Add, ensure the main view
             // defaults back to the "Added/Updated Today" filter
             if (!addedToday && !isAddedTodayLoading && !isLoading) {
               setIsAddedTodayLoading(true);
               setAddedToday(true);
               setPage(1);
+              // Reset lastFilterRef to ensure fetch happens
+              lastFilterRef.current = null;
             }
           }}
         />

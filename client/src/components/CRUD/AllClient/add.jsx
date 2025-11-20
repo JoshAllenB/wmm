@@ -1301,6 +1301,13 @@ const Add = ({
         fetchClients();
         // Don't close modal here - let the confirmation dialog handle it
         // The confirmation dialog will close itself and show success toast
+        
+        // After successfully adding a new client, notify parent to show Added/Updated Today
+        if (typeof onAfterDuplicateEditSuccess === "function") {
+          setTimeout(() => {
+            onAfterDuplicateEditSuccess();
+          }, 100);
+        }
       }
     } catch (error) {
       console.error("Error submitting form:", error);
