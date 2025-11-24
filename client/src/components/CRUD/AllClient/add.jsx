@@ -339,7 +339,10 @@ const Add = ({
     addressData.housestreet,
     addressData.subdivision,
     addressData.barangay,
+    addressData.city,
     areaData.zipcode,
+    areaData.city,
+    areaData.province,
     formData.area,
     isEditingCombinedAddress,
   ]);
@@ -657,41 +660,48 @@ const Add = ({
   const formatAddressLines = (addressData, area, areaData) => {
     const lines = [];
 
-    // Line 1: House/Building Number and Street name
-    if (addressData.housestreet) {
-      lines.push(addressData.housestreet.trim());
+    // Push primary address lines only if they exist (they will collapse upward when missing)
+    if (
+      addressData.housestreet &&
+      String(addressData.housestreet).trim() !== ""
+    ) {
+      lines.push(String(addressData.housestreet).trim());
+    }
+    if (
+      addressData.subdivision &&
+      String(addressData.subdivision).trim() !== ""
+    ) {
+      lines.push(String(addressData.subdivision).trim());
+    }
+    if (addressData.barangay && String(addressData.barangay).trim() !== "") {
+      lines.push(String(addressData.barangay).trim());
     }
 
-    // Line 2: Subdivision
-    if (addressData.subdivision) {
-      lines.push(addressData.subdivision.trim());
+    // Compose the zipcode + city line from the best available sources
+    const zipcode = (areaData && areaData.zipcode) || addressData.zipcode || "";
+    const rawCity =
+      area || (areaData && areaData.city) || addressData.city || "";
+    const cleanedCity = String(rawCity)
+      .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, "")
+      .trim();
+
+    // Build single last line: "ZIPCODE CITY | PROVINCE | COUNTRY"
+    // Choose one location part to display after zipcode: prefer city, then province, then country
+    const primaryLocation =
+      cleanedCity ||
+      (areaData && areaData.province) ||
+      (areaData && areaData.country) ||
+      "";
+
+    let lastLine = "";
+    if (zipcode && String(zipcode).trim() !== "") {
+      lastLine = String(zipcode).trim();
+      if (primaryLocation) lastLine += " " + String(primaryLocation).trim();
+    } else if (primaryLocation) {
+      lastLine = String(primaryLocation).trim();
     }
 
-    // Line 3: Barangay
-    if (addressData.barangay) {
-      lines.push(addressData.barangay.trim());
-    }
-
-    // Line 4: Zipcode and City/Municipality
-    const line4Parts = [];
-    if (areaData.zipcode) {
-      line4Parts.push(areaData.zipcode.trim());
-    }
-    if (area) {
-      // Remove 'CITY OF' or 'MUNICIPALITY OF' if present
-      const cleanedArea = area
-        .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, "")
-        .trim();
-      line4Parts.push(cleanedArea);
-    }
-    if (line4Parts.length > 0) {
-      lines.push(line4Parts.join(" "));
-    }
-
-    // Line 5: Province (if exists)
-    if (areaData.province) {
-      lines.push(areaData.province.trim());
-    }
+    if (lastLine) lines.push(lastLine);
 
     return lines.join("\n");
   };
@@ -1301,7 +1311,7 @@ const Add = ({
         fetchClients();
         // Don't close modal here - let the confirmation dialog handle it
         // The confirmation dialog will close itself and show success toast
-        
+
         // After successfully adding a new client, notify parent to show Added/Updated Today
         if (typeof onAfterDuplicateEditSuccess === "function") {
           setTimeout(() => {
@@ -2036,15 +2046,6 @@ const Add = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <InputField
-                            label="Contact Numbers"
-                            id="contactnos"
-                            name="contactnos"
-                            value={formData.contactnos}
-                            onChange={handleChange}
-                            className="text-sm"
-                          />
-
-                          <InputField
                             label="Cell Number"
                             id="cellno"
                             name="cellno"
@@ -2052,18 +2053,17 @@ const Add = ({
                             onChange={handleChange}
                             className="text-sm"
                           />
-                        </div>
-
-                        <div className="space-y-4">
                           <InputField
-                            label="Office Number"
-                            id="ofcno"
-                            name="ofcno"
-                            value={formData.ofcno}
+                            label="Contact Numbers"
+                            id="contactnos"
+                            name="contactnos"
+                            value={formData.contactnos}
                             onChange={handleChange}
                             className="text-sm"
                           />
+                        </div>
 
+                        <div className="space-y-4">
                           <InputField
                             label="Email"
                             id="email"
@@ -2071,6 +2071,14 @@ const Add = ({
                             value={formData.email}
                             onChange={handleChange}
                             type="email"
+                            className="text-sm"
+                          />
+                          <InputField
+                            label="Office Number"
+                            id="ofcno"
+                            name="ofcno"
+                            value={formData.ofcno}
+                            onChange={handleChange}
                             className="text-sm"
                           />
                         </div>

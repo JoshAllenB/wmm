@@ -414,30 +414,30 @@ const AreaForm = forwardRef(
 
     useEffect(() => {
       if (initialAreaData) {
-        // Only update if the values are different and not explicitly cleared by user
+        // Only update if the values are different and the current field is empty
         if (
           initialAreaData.acode !== undefined &&
           initialAreaData.acode !== acode &&
-          !acode.trim() === ""
+          acode.trim() === ""
         ) {
           setAcode(initialAreaData.acode);
         }
         if (
           initialAreaData.zipcode !== undefined &&
           String(initialAreaData.zipcode) !== zipcode &&
-          !zipcode.trim() === ""
+          zipcode.trim() === ""
         ) {
           setZipcode(String(initialAreaData.zipcode));
         }
         if (
           initialAreaData.city !== undefined &&
           initialAreaData.city !== city &&
-          !city.trim() === ""
+          city.trim() === ""
         ) {
           setCity(initialAreaData.city);
         }
       }
-    }, [initialAreaData]);
+    }, [initialAreaData, acode, zipcode, city]);
 
     // Validate area code is required
     const validateAreaCode = useCallback(() => {

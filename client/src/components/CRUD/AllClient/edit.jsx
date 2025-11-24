@@ -486,11 +486,11 @@ const Edit = ({
   // Delete confirmation modal state
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationData, setDeleteConfirmationData] = useState({
-    type: '', // 'subscription' or 'role'
+    type: "", // 'subscription' or 'role'
     item: null,
-    roleType: '', // 'HRG', 'FOM', 'CAL'
-    title: '',
-    message: '',
+    roleType: "", // 'HRG', 'FOM', 'CAL'
+    title: "",
+    message: "",
   });
 
   // Helper function to check if subscription data exists
@@ -1743,26 +1743,45 @@ const Edit = ({
   const formatAddressLines = (addressData, area, areaData) => {
     const lines = [];
 
-    // Line 1: House/Building Number and Street name
-    if (addressData.housestreet) lines.push(addressData.housestreet.trim());
+    if (
+      addressData.housestreet &&
+      String(addressData.housestreet).trim() !== ""
+    ) {
+      lines.push(String(addressData.housestreet).trim());
+    }
+    if (
+      addressData.subdivision &&
+      String(addressData.subdivision).trim() !== ""
+    ) {
+      lines.push(String(addressData.subdivision).trim());
+    }
+    if (addressData.barangay && String(addressData.barangay).trim() !== "") {
+      lines.push(String(addressData.barangay).trim());
+    }
 
-    // Line 2: Subdivision/Compound Name
-    if (addressData.subdivision) lines.push(addressData.subdivision.trim());
-
-    // Line 3: Barangay
-    if (addressData.barangay) lines.push(addressData.barangay.trim());
-
-    // Line 4: Zipcode and City (no comma for last line)
-    const zipcode = areaData.zipcode || addressData.zipcode;
-    const cityName = area || "";
-    // Ensure we use the complete city name
-    const lastLine = [
-      zipcode,
-      cityName.length > 0 ? cityName.toUpperCase() : "",
-    ]
-      .filter(Boolean)
-      .join(" ")
+    // Build zipcode + city line using areaData, area param, or addressData
+    const zipcode = (areaData && areaData.zipcode) || addressData.zipcode || "";
+    const rawCity =
+      area || (areaData && areaData.city) || addressData.city || "";
+    const cleanedCity = String(rawCity)
+      .replace(/^(CITY OF|MUNICIPALITY OF)\s+/i, "")
       .trim();
+
+    // Choose a single location part (city OR province OR country). Prefer city, then province, then country.
+    const primaryLocation =
+      cleanedCity ||
+      (areaData && areaData.province) ||
+      (areaData && areaData.country) ||
+      "";
+
+    let lastLine = "";
+    if (zipcode && String(zipcode).trim() !== "") {
+      lastLine = String(zipcode).trim();
+      if (primaryLocation)
+        lastLine += " " + String(primaryLocation).trim().toUpperCase();
+    } else if (primaryLocation) {
+      lastLine = String(primaryLocation).trim().toUpperCase();
+    }
 
     if (lastLine) lines.push(lastLine);
 
@@ -2914,8 +2933,10 @@ const Edit = ({
       const prevVal = previousData[key];
       const currVal = currentData[key];
       // Treat empty string/undefined/null as empty for comparison except booleans and numbers
-      const normalizedPrev = prevVal === undefined || prevVal === "" ? null : prevVal;
-      const normalizedCurr = currVal === undefined || currVal === "" ? null : currVal;
+      const normalizedPrev =
+        prevVal === undefined || prevVal === "" ? null : prevVal;
+      const normalizedCurr =
+        currVal === undefined || currVal === "" ? null : currVal;
       const changed =
         typeof normalizedPrev === "object" || typeof normalizedCurr === "object"
           ? JSON.stringify(normalizedPrev) !== JSON.stringify(normalizedCurr)
@@ -3381,7 +3402,7 @@ const Edit = ({
       const dataSource =
         roleRecordMode === "edit" ? roleSpecificData : newRoleData;
       const touched = dirtySubscriptionFieldsRef.current.size > 0;
-      
+
       // When editing an existing subscription, allow partial updates
       // User can change just the start date, or just duration, or just end date
       if (subscriptionMode === "edit" && selectedSubscription && touched) {
@@ -3389,7 +3410,7 @@ const Edit = ({
         // The existing subscription already has all required data
         return true;
       }
-      
+
       // For new subscriptions (add mode), require complete data
       const subsdateValid =
         !!dataSource.subsdate ||
@@ -3401,7 +3422,7 @@ const Edit = ({
         (formData.subEndMonth && formData.subEndDay && formData.subEndYear);
       const subclassValid = !!(formData.subsclass || dataSource.subsclass);
       const minimalValid = subsdateValid && enddateValid && subclassValid;
-      
+
       return (
         touched &&
         minimalValid &&
@@ -3863,9 +3884,12 @@ const Edit = ({
       // Check if there are subscription-specific field changes by comparing with initial snapshot
       const hasSubscriptionFieldChanges = (() => {
         if (dirtySubscriptionFieldsRef.current.size === 0) return false;
-        
+
         // If in edit mode and we have an initial snapshot, check for actual changes
-        if (subscriptionMode === "edit" && initialSubscriptionSnapshotRef.current) {
+        if (
+          subscriptionMode === "edit" &&
+          initialSubscriptionSnapshotRef.current
+        ) {
           const initialData = initialSubscriptionSnapshotRef.current;
           const currentData = {
             ...roleSpecificData,
@@ -3880,27 +3904,33 @@ const Edit = ({
             subscriptionFreq: formData.subscriptionFreq,
             subsclass: formData.subsclass,
           };
-          
+
           // Check if any tracked field actually changed
           for (const field of dirtySubscriptionFieldsRef.current) {
             const initialVal = initialData[field];
             const currentVal = currentData[field];
             // Normalize for comparison
-            const normalizedInitial = initialVal === undefined || initialVal === "" ? null : String(initialVal);
-            const normalizedCurrent = currentVal === undefined || currentVal === "" ? null : String(currentVal);
+            const normalizedInitial =
+              initialVal === undefined || initialVal === ""
+                ? null
+                : String(initialVal);
+            const normalizedCurrent =
+              currentVal === undefined || currentVal === ""
+                ? null
+                : String(currentVal);
             if (normalizedInitial !== normalizedCurrent) {
               return true; // Found a real change
             }
           }
           return false; // No actual changes detected
         }
-        
+
         // In add mode or no snapshot, any dirty field counts as a change
         return true;
       })();
 
       // Check if there are role-specific field changes (HRG, FOM, CAL)
-      const hasRoleSpecificChanges = 
+      const hasRoleSpecificChanges =
         (selectedRole === "HRG" && hrgRecords.length > 0) ||
         (selectedRole === "FOM" && fomRecords.length > 0) ||
         (selectedRole === "CAL" && calRecords.length > 0);
@@ -3911,7 +3941,8 @@ const Edit = ({
         (updateType === "all" || updateType === "subscriptionOnly") &&
         hasRole("WMM") &&
         selectedRole === "WMM" &&
-        (checkSubscriptionData(formData, roleSpecificData) || hasSubscriptionFieldChanges)
+        (checkSubscriptionData(formData, roleSpecificData) ||
+          hasSubscriptionFieldChanges)
       ) {
         const mergedRoleData = {
           ...roleSpecificData,
@@ -3970,7 +4001,12 @@ const Edit = ({
           });
           return;
         }
-      } else if (!hasClientChanges && !hasSubscriptionChanges && !hasSubscriptionFieldChanges && !hasRoleSpecificChanges) {
+      } else if (
+        !hasClientChanges &&
+        !hasSubscriptionChanges &&
+        !hasSubscriptionFieldChanges &&
+        !hasRoleSpecificChanges
+      ) {
         // No changes detected in edit existing mode, show a message and return
         toast({
           title: "No Changes",
@@ -4061,7 +4097,8 @@ const Edit = ({
               (formData?.subStartMonth &&
                 formData?.subStartDay &&
                 formData?.subStartYear) ||
-              (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
+              (dataSource?.subsdate &&
+                String(dataSource.subsdate).trim() !== "")
           );
           const endPresent = Boolean(
             (formData?.subscriptionEnd &&
@@ -4703,17 +4740,23 @@ const Edit = ({
     const recordAmount = record?.paymtamt;
     const recordRef = record?.paymtref;
     const recordDetails = [
-      recordDate ? `Date: ${formatDateToMonthYear(parseDate(recordDate))}` : null,
+      recordDate
+        ? `Date: ${formatDateToMonthYear(parseDate(recordDate))}`
+        : null,
       recordAmount ? `Amount: ₱${recordAmount}` : null,
       recordRef ? `Reference: ${recordRef}` : null,
-    ].filter(Boolean).join(', ');
-    
+    ]
+      .filter(Boolean)
+      .join(", ");
+
     setDeleteConfirmationData({
-      type: 'role',
+      type: "role",
       item: record,
       roleType: roleType,
       title: `Delete ${roleType} Record`,
-      message: `Are you sure you want to delete this ${roleType} record${recordDetails ? ` (${recordDetails})` : ''}? This action cannot be undone.`,
+      message: `Are you sure you want to delete this ${roleType} record${
+        recordDetails ? ` (${recordDetails})` : ""
+      }? This action cannot be undone.`,
     });
     setShowDeleteConfirmation(true);
   };
@@ -4902,14 +4945,17 @@ const Edit = ({
 
     // Prepare confirmation modal data
     const subscriptionType = formData.subscriptionType;
-    const dateRange = subscription?.subsdate || subscription?.enddate
-      ? ` (${subscription?.subsdate || 'N/A'} to ${subscription?.enddate || 'N/A'})`
-      : '';
-    
+    const dateRange =
+      subscription?.subsdate || subscription?.enddate
+        ? ` (${subscription?.subsdate || "N/A"} to ${
+            subscription?.enddate || "N/A"
+          })`
+        : "";
+
     setDeleteConfirmationData({
-      type: 'subscription',
+      type: "subscription",
       item: subscription,
-      roleType: '',
+      roleType: "",
       title: `Delete ${subscriptionType} Subscription`,
       message: `Are you sure you want to delete this ${subscriptionType} subscription${dateRange}? This action cannot be undone.`,
     });
@@ -5047,10 +5093,10 @@ const Edit = ({
   // Handle confirmation modal confirm action
   const handleConfirmDelete = () => {
     const { type, item, roleType } = deleteConfirmationData;
-    
-    if (type === 'subscription') {
+
+    if (type === "subscription") {
       confirmDeleteSubscription(item);
-    } else if (type === 'role') {
+    } else if (type === "role") {
       confirmDeleteRoleRecord(item, roleType);
     }
   };
