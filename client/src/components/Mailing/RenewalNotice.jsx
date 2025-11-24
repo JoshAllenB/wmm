@@ -32,6 +32,7 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [showConfig, setShowConfig] = useState(false);
     // Note: we only use the setter; prefix the state name to avoid unused variable warnings
     const [_skippedRecords, setSkippedRecords] = useState([]);
+    const [reminderMonth, setReminderMonth] = useState(
       new Date().toLocaleString("default", { month: "long" })
     );
     const [reminderYear, setReminderYear] = useState(
@@ -708,9 +709,16 @@ const RenewalNoticeDataOverlay = forwardRef(
         positions.group2.width
       }in; line-height: 1.2;">
               ${
-                (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title)
-                  ? `${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}`.trim() + (sampleSubscriber.company ? `<br>${sampleSubscriber.company}<br>` : "<br>")
-                  : (sampleSubscriber.company ? `${sampleSubscriber.company}<br>` : "")
+                sampleSubscriber.firstName ||
+                sampleSubscriber.lastName ||
+                sampleSubscriber.title
+                  ? `${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}`.trim() +
+                    (sampleSubscriber.company
+                      ? `<br>${sampleSubscriber.company}<br>`
+                      : "<br>")
+                  : sampleSubscriber.company
+                  ? `${sampleSubscriber.company}<br>`
+                  : ""
               }
               ${
                 sampleSubscriber.address

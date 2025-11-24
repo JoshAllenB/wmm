@@ -125,10 +125,14 @@ export const TableComponent = function TableComponent({
   const renderHrgFomCalDisplay = () => {
     // Check if container is narrow (smaller desktop)
     const isNarrowDesktop = containerWidth > 0 && containerWidth < 1200;
-    
+
     return (
       <div className="overflow-x-auto">
-        <div className={`flex items-center gap-x-2 ${isNarrowDesktop ? 'gap-y-1 text-xs' : 'gap-x-4 text-sm'} bg-white min-w-max`}>
+        <div
+          className={`flex items-center gap-x-2 ${
+            isNarrowDesktop ? "gap-y-1 text-xs" : "gap-x-4 text-sm"
+          } bg-white min-w-max`}
+        >
           {/* Clients Count - Always visible with per-page tooltip */}
           <div className="flex items-center">
             <Tooltip
@@ -146,7 +150,11 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* HRG Section - Conditionally visible */}
-          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
+          <div
+            className={`flex items-center border-l border-gray-300 ${
+              isNarrowDesktop ? "pl-2" : "pl-4"
+            }`}
+          >
             <Tooltip
               title={`Page: ${Number(
                 stats?.serviceClientCounts?.hrgOnly?.page || 0
@@ -169,7 +177,10 @@ export const TableComponent = function TableComponent({
             {visibleMetrics.HRG && (
               <span className="ml-1 flex items-center gap-2">
                 <Tooltip
-                  title={`${findMetric("HRG")?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Page: ${Number(
+                  title={`${
+                    findMetric("HRG")?.tooltip ||
+                    "Totals from most recent records based on receive date"
+                  }\nNon-numeric payments (invalid amounts) - Page: ${Number(
                     stats?.dataQuality?.hrg?.nonNumericPayments?.page || 0
                   ).toLocaleString()} | Total: ${Number(
                     stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0
@@ -189,7 +200,11 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* FOM Section - Conditionally visible */}
-          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
+          <div
+            className={`flex items-center border-l border-gray-300 ${
+              isNarrowDesktop ? "pl-2" : "pl-4"
+            }`}
+          >
             <Tooltip
               title={`Page: ${Number(
                 stats?.serviceClientCounts?.fomOnly?.page || 0
@@ -212,7 +227,10 @@ export const TableComponent = function TableComponent({
             {visibleMetrics.FOM && (
               <span className="ml-1 flex items-center gap-2">
                 <Tooltip
-                  title={`${findMetric("FOM")?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Page: ${Number(
+                  title={`${
+                    findMetric("FOM")?.tooltip ||
+                    "Totals from most recent records based on receive date"
+                  }\nNon-numeric payments (invalid amounts) - Page: ${Number(
                     stats?.dataQuality?.fom?.nonNumericPayments?.page || 0
                   ).toLocaleString()} | Total: ${Number(
                     stats?.dataQuality?.fom?.nonNumericPayments?.total || 0
@@ -232,7 +250,11 @@ export const TableComponent = function TableComponent({
           </div>
 
           {/* CAL Section - Conditionally visible */}
-          <div className={`flex items-center border-l border-gray-300 ${isNarrowDesktop ? 'pl-2' : 'pl-4'}`}>
+          <div
+            className={`flex items-center border-l border-gray-300 ${
+              isNarrowDesktop ? "pl-2" : "pl-4"
+            }`}
+          >
             <MetricLabel metric="CAL" color="text-amber-700">
               CAL
             </MetricLabel>
@@ -247,7 +269,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span>
-                    Qty: {" "}
+                    Qty:{" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[0]?.total || 0
                     ).toLocaleString()}
@@ -264,7 +286,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span>
-                    Sold: {" "}
+                    Sold:{" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[1]?.total || 0
                     ).toLocaleString(undefined, {
@@ -290,7 +312,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span className="text-amber-700">
-                    Paid: {" "}
+                    Paid:{" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[2]?.total || 0
                     ).toLocaleString(undefined, {
@@ -312,7 +334,7 @@ export const TableComponent = function TableComponent({
                   arrow
                 >
                   <span className="text-red-600">
-                    Balance: {" "}
+                    Balance:{" "}
                     {Number(
                       findMetric("CAL")?.metrics?.[3]?.total || 0
                     ).toLocaleString(undefined, {
@@ -349,8 +371,16 @@ export const TableComponent = function TableComponent({
     if (userRole === "Admin") {
       const isNarrowDesktop = containerWidth > 0 && containerWidth < 1200;
       return (
-        <div className={`px-2 py-1 ${isNarrowDesktop ? 'text-xs' : 'text-sm'} overflow-x-auto`}>
-          <div className={`flex items-center ${isNarrowDesktop ? 'gap-x-2' : 'gap-x-4'} gap-y-2 p-1.5 bg-white border border-gray-200 min-w-max`}>
+        <div
+          className={`px-2 py-1 ${
+            isNarrowDesktop ? "text-xs" : "text-sm"
+          } overflow-x-auto`}
+        >
+          <div
+            className={`flex items-center ${
+              isNarrowDesktop ? "gap-x-2" : "gap-x-4"
+            } gap-y-2 p-1.5 bg-white border border-gray-200 min-w-max`}
+          >
             {/* Clients Count */}
             <div className="flex items-center">
               <span className="font-medium text-gray-700">
@@ -401,7 +431,7 @@ export const TableComponent = function TableComponent({
             {/* CAL Section */}
             <div className="flex items-center border-l border-gray-300 pl-4">
               <span className="font-medium text-amber-700">
-                CAL: {" "}
+                CAL:{" "}
                 {Number(
                   findMetric("CAL")?.metrics?.[0]?.total || 0
                 ).toLocaleString()}{" "}
@@ -580,7 +610,10 @@ export const TableComponent = function TableComponent({
               <span className="mx-4"></span>
               HRG Payment:{" "}
               <Tooltip
-                title={`${hrgMetric?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Total: ${Number(
+                title={`${
+                  hrgMetric?.tooltip ||
+                  "Totals from most recent records based on receive date"
+                }\nNon-numeric payments (invalid amounts) - Total: ${Number(
                   stats?.dataQuality?.hrg?.nonNumericPayments?.total || 0
                 ).toLocaleString()}`}
                 arrow
@@ -613,7 +646,10 @@ export const TableComponent = function TableComponent({
               <span className="mx-4"></span>
               FOM Payment:{" "}
               <Tooltip
-                title={`${fomMetric?.tooltip || "Totals from most recent records based on receive date"}\nNon-numeric payments (invalid amounts) - Total: ${Number(
+                title={`${
+                  fomMetric?.tooltip ||
+                  "Totals from most recent records based on receive date"
+                }\nNon-numeric payments (invalid amounts) - Total: ${Number(
                   stats?.dataQuality?.fom?.nonNumericPayments?.total || 0
                 ).toLocaleString()}`}
                 arrow
@@ -792,10 +828,15 @@ export const TableComponent = function TableComponent({
                     if (!Array.isArray(records)) continue;
                     for (const rec of records) {
                       const add =
-                        rec?.adddate || rec?.addedAt || rec?.updatedAt || rec?.subsdate;
+                        rec?.adddate ||
+                        rec?.addedAt ||
+                        rec?.updatedAt ||
+                        rec?.subsdate;
                       if (!add) continue;
                       const addDatePart =
-                        typeof add === "string" ? add.split(" ")[0] : new Date(add).toISOString().slice(0, 10);
+                        typeof add === "string"
+                          ? add.split(" ")[0]
+                          : new Date(add).toISOString().slice(0, 10);
                       if (addDatePart === todayIso) return true;
                     }
                   }
@@ -987,8 +1028,15 @@ export const TableComponent = function TableComponent({
                         ) : cell.column.id === "Subscription" &&
                           Array.isArray(cell.getValue()) ? (
                           <ul
-                            className={`max-w-[450px] ${isSmallHeight ? 'overflow-y-auto' : 'overflow-y-auto'} scrollbar-hide text-xs sm:text-sm md:text-base`}
-                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
+                            className={`max-w-[450px] ${
+                              isSmallHeight
+                                ? "overflow-y-auto"
+                                : "overflow-y-auto"
+                            } scrollbar-hide text-xs sm:text-sm md:text-base`}
+                            style={{
+                              maxHeight: `${getMaxHeight()}px`,
+                              overflowY: "auto",
+                            }}
                           >
                             {cell.getValue().length > 0 ? (
                               cell.getValue().map((sub, index) => {
@@ -999,69 +1047,70 @@ export const TableComponent = function TableComponent({
                                     : sub.status === "expiring-soon"
                                     ? "text-amber-600 font-bold"
                                     : sub.status === "active"
-                                    const isSubAddedToday = (() => {
-                                      try {
-                                        if (!sub?.adddate) return false;
-                                        const addPart = String(sub.adddate).split(" ")[0];
-                                        return addPart === todayIso;
-                                      } catch (e) {
-                                        return false;
-                                      }
-                                    })();
+                                    ? "text-green-600 font-medium"
+                                    : "text-gray-700";
 
-                                    return (
-                                      <li
-                                        key={index}
-                                        className={`mb-1 ${
-                                          isSubAddedToday && addedToday
-                                            ? "bg-green-50 border border-green-200 rounded p-1"
-                                            : ""
-                                        }`}
-                                      >
-                                        <div className="flex flex-col">
-                                          <div className="flex items-center justify-between">
-                                            <span className={statusClass}>
-                                              {statusIndicator}
-                                              <strong>{sub.subsclass}</strong>: {sub.subsdate} - {sub.enddate}, Cps: {sub.copies}
-                                            </span>
-                                            {isSubAddedToday && addedToday && (
-                                              <span className="text-xs ml-2 text-green-800 font-semibold">New</span>
-                                            )}
-                                          </div>
-                                          {(sub.paymtref || sub.paymtamt) && (
-                                            <div className="text-xs ml-4 text-gray-600">
-                                              {sub.paymtref && (
-                                                <span>Ref: {sub.paymtref}</span>
-                                              )}
-                                              {sub.paymtref && sub.paymtamt && (
-                                                <span> • </span>
-                                              )}
-                                              {sub.paymtamt && (
-                                                <span>Amt: {sub.paymtamt}</span>
-                                              )}
-                                            </div>
+                                const statusIndicator =
+                                  sub.status === "active"
+                                    ? "🟢 "
+                                    : sub.status === "expired"
+                                    ? "🔴 "
+                                    : "⚠️ ";
+
+                                const isSubAddedToday = (() => {
+                                  try {
+                                    if (!sub?.adddate) return false;
+                                    const addPart = String(sub.adddate).split(
+                                      " "
+                                    )[0];
+                                    return addPart === todayIso;
+                                  } catch (e) {
+                                    return false;
+                                  }
+                                })();
+
+                                return (
+                                  <li
+                                    key={index}
+                                    className={`mb-1 ${
+                                      isSubAddedToday && addedToday
+                                        ? "bg-green-50 border border-green-200 rounded p-1"
+                                        : ""
+                                    }`}
+                                  >
+                                    <div className="flex flex-col">
+                                      <div className="flex items-center justify-between">
+                                        <span className={statusClass}>
+                                          {statusIndicator}
+                                          <strong>{sub.subsclass}</strong>:{" "}
+                                          {sub.subsdate} - {sub.enddate}, Cps:{" "}
+                                          {sub.copies}
+                                        </span>
+                                        {isSubAddedToday && addedToday && (
+                                          <span className="text-xs ml-2 text-green-800 font-semibold">
+                                            New
+                                          </span>
+                                        )}
+                                      </div>
+                                      {(sub.paymtref || sub.paymtamt) && (
+                                        <div className="text-xs ml-4 text-gray-600">
+                                          {sub.paymtref && (
+                                            <span>Ref: {sub.paymtref}</span>
                                           )}
-                                          {index === 0 && (
-                                            <div className="text-xs ml-4 mt-1 flex items-center gap-2">
-                                              {sub.calendar ? (
-                                                <span className="text-white bg-orange-400 p-1 rounded-md font-medium">
-                                                  Calendar ✓
-                                                </span>
-                                              ) : (
-                                                <span className="text-gray-500 bg-gray-100 p-1 rounded-md">
-                                                  No Calendar
-                                                </span>
-                                              )}
-                                              {sub.referralid && (
-                                                <span className="text-sky-900 bg-sky-200 p-1 rounded-md font-medium">
-                                                  Referral ID: {sub.referralid}
-                                                </span>
-                                              )}
-                                            </div>
+                                          {sub.paymtref && sub.paymtamt && (
+                                            <span> • </span>
+                                          )}
+                                          {sub.paymtamt && (
+                                            <span>Amt: {sub.paymtamt}</span>
                                           )}
                                         </div>
-                                      </li>
-                                    );
+                                      )}
+                                      {index === 0 && (
+                                        <div className="text-xs ml-4 mt-1 flex items-center gap-2">
+                                          {sub.calendar ? (
+                                            <span className="text-white bg-orange-400 p-1 rounded-md font-medium">
+                                              Calendar ✓
+                                            </span>
                                           ) : (
                                             <span className="text-gray-500 bg-gray-100 p-1 rounded-md">
                                               No Calendar
@@ -1086,7 +1135,10 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
+                            style={{
+                              maxHeight: `${getMaxHeight()}px`,
+                              overflowY: "auto",
+                            }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
@@ -1144,7 +1196,10 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
+                            style={{
+                              maxHeight: `${getMaxHeight()}px`,
+                              overflowY: "auto",
+                            }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
@@ -1199,7 +1254,10 @@ export const TableComponent = function TableComponent({
                           Array.isArray(cell.getValue()) ? (
                           <div
                             className="w-full overflow-y-auto text-xs sm:text-sm md:text-base"
-                            style={{ maxHeight: `${getMaxHeight()}px`, overflowY: 'auto' }}
+                            style={{
+                              maxHeight: `${getMaxHeight()}px`,
+                              overflowY: "auto",
+                            }}
                           >
                             {cell.getValue().length > 0 ? (
                               <>
