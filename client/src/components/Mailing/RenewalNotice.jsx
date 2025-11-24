@@ -18,7 +18,6 @@ const RenewalNoticeDataOverlay = forwardRef(
       startId,
       endId,
       availableRows,
-      parentPrintAlignmentTest = null,
       parentPrintDataOverlay = null,
       // Add shared configuration props
       useSharedConfig = false,
@@ -31,8 +30,8 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [filteredSubscribers, setFilteredSubscribers] = useState([]);
     const [subscriberCount, setSubscriberCount] = useState(0);
     const [showConfig, setShowConfig] = useState(false);
-    const [skippedRecords, setSkippedRecords] = useState([]);
-    const [reminderMonth, setReminderMonth] = useState(
+    // Note: we only use the setter; prefix the state name to avoid unused variable warnings
+    const [_skippedRecords, setSkippedRecords] = useState([]);
       new Date().toLocaleString("default", { month: "long" })
     );
     const [reminderYear, setReminderYear] = useState(
@@ -152,7 +151,8 @@ const RenewalNoticeDataOverlay = forwardRef(
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [pendingTemplatePayload, setPendingTemplatePayload] = useState(null);
-    const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+    // only the setter is used; prefix to avoid unused variable lint warnings
+    const [_isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
     const [showDuplicateModal, setShowDuplicateModal] = useState(false);
     const [duplicateTemplate, setDuplicateTemplate] = useState(null);
 
@@ -707,13 +707,10 @@ const RenewalNoticeDataOverlay = forwardRef(
             }in; left: 0.2in; width: ${
         positions.group2.width
       }in; line-height: 1.2;">
-              ${sampleSubscriber.title} ${sampleSubscriber.firstName} ${
-        sampleSubscriber.middleName
-      } ${sampleSubscriber.lastName}<br>
               ${
-                sampleSubscriber.company
-                  ? `${sampleSubscriber.company}<br>`
-                  : ""
+                (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title)
+                  ? `${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}`.trim() + (sampleSubscriber.company ? `<br>${sampleSubscriber.company}<br>` : "<br>")
+                  : (sampleSubscriber.company ? `${sampleSubscriber.company}<br>` : "")
               }
               ${
                 sampleSubscriber.address
@@ -980,24 +977,24 @@ const RenewalNoticeDataOverlay = forwardRef(
           </div>
       `;
 
-        // Add personal name if it exists
+        // Add personal name or company-as-name according to availability
         if (subscriber.hasPersonalName) {
           overlayHTML += `
           <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
             ${displayName}
           </div>
         `;
-        }
 
-        // Add company if it exists (and wasn't already used as the name)
-        if (subscriber.hasCompany && subscriber.hasPersonalName) {
-          overlayHTML += `
+          // If company also exists, print it on the next line
+          if (subscriber.hasCompany) {
+            overlayHTML += `
           <div class="data-field group2-field" style="top: ${companyPosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
             ${subscriber.company}
           </div>
         `;
-        } else if (subscriber.hasCompany && !subscriber.hasPersonalName) {
-          // Company being used as the name
+          }
+        } else if (subscriber.hasCompany) {
+          // No personal name; use company as the name-line
           overlayHTML += `
           <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
             ${subscriber.company}

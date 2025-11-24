@@ -695,29 +695,38 @@ const ThankYouLetterDataOverlay = forwardRef(
             </div>
             
             <!-- Name and address block -->
-            <div class="data-field" style="top: ${
-              0.2 + positions.group2.lineSpacing
-            }in; left: 0.2in; width: ${
-        positions.group2.width
-      }in; line-height: 1.2; white-space: pre-wrap;">
-              ${sampleSubscriber.title} ${sampleSubscriber.firstName} ${
-        sampleSubscriber.middleName
-      } ${sampleSubscriber.lastName}<br>
-              ${
-                sampleSubscriber.company
-                  ? `${sampleSubscriber.company}<br>`
-                  : ""
+            ${(() => {
+              const namePos = positions.group2.top + positions.group2.lineSpacing;
+              const companyPos = positions.group2.top + positions.group2.lineSpacing * 2;
+              const addrStart = (() => {
+                if (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title) {
+                  return sampleSubscriber.company ? positions.group2.top + positions.group2.lineSpacing * 3 : positions.group2.top + positions.group2.lineSpacing * 2;
+                }
+                return positions.group2.top + positions.group2.lineSpacing * 2;
+              })();
+
+              let html = "";
+              // Personal name exists
+              if (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title) {
+                html += `<div class="data-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}</div>`;
+                if (sampleSubscriber.company) {
+                  html += `<div class="data-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.company}</div>`;
+                }
+              } else if (sampleSubscriber.company) {
+                // No personal name; use company as name-line
+                html += `<div class="data-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.company}</div>`;
               }
-              ${
-                sampleSubscriber.address
-                  ? sampleSubscriber.address
-                      .split("\n")
-                      .map((line) => line.trim())
-                      .filter((line) => line.length > 0)
-                      .join("<br>")
-                  : ""
+
+              // Address lines
+              if (sampleSubscriber.address) {
+                const addressLines = sampleSubscriber.address.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+                addressLines.forEach((line, idx) => {
+                  html += `<div class="data-field" style="top: ${addrStart + positions.group2.lineSpacing * idx}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${line}</div>`;
+                });
               }
-            </div>
+
+              return html;
+            })()}
           </div>
           
           <!-- Group 3: Greeting -->
@@ -946,25 +955,35 @@ const ThankYouLetterDataOverlay = forwardRef(
             ${subscriber.accountCode}
           </div>
           
-          <div class="data-field group2-field" style="top: ${
-            positions.group2.top + positions.group2.lineSpacing
-          }in; left: ${positions.group2.left}in; width: ${
-          positions.group2.width
-        }in;">
-            ${subscriber.title} ${subscriber.firstName} ${
-          subscriber.middleName
-        } ${subscriber.lastName}
-            ${subscriber.company ? `<br>${subscriber.company}` : ""}
-            ${
-              subscriber.address
-                ? `<br>${subscriber.address
-                    .split("\n")
-                    .map((line) => line.trim())
-                    .filter((line) => line.length > 0)
-                    .join("<br>")}`
-                : ""
+          ${(() => {
+            const namePos = positions.group2.top + positions.group2.lineSpacing;
+            const companyPos = positions.group2.top + positions.group2.lineSpacing * 2;
+            const addrStart = (() => {
+              if (subscriber.firstName || subscriber.lastName || subscriber.title) {
+                return subscriber.company ? positions.group2.top + positions.group2.lineSpacing * 3 : positions.group2.top + positions.group2.lineSpacing * 2;
+              }
+              return positions.group2.top + positions.group2.lineSpacing * 2;
+            })();
+
+            let html = "";
+            if (subscriber.firstName || subscriber.lastName || subscriber.title) {
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}</div>`;
+              if (subscriber.company) {
+                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.company}</div>`;
+              }
+            } else if (subscriber.company) {
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.company}</div>`;
             }
-          </div>
+
+            if (subscriber.address) {
+              const addressLines = subscriber.address.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+              addressLines.forEach((line, idx) => {
+                html += `<div class="data-field group2-field" style="top: ${addrStart + positions.group2.lineSpacing * idx}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${line}</div>`;
+              });
+            }
+
+            return html;
+          })()}
           
           <!-- Group 3: Greeting -->
           <div class="data-field group3-field" style="top: ${
