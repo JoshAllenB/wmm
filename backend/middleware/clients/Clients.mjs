@@ -910,22 +910,31 @@ router.put("/update/:id", verifyToken, async (req, res) => {
                 updatedRoleData[key] = value;
               }
             }
+            // Only add metadata and perform update if there are actual changes
+            if (Object.keys(updatedRoleData).length > 0) {
+              updatedRoleData.editdate = new Date();
+              updatedRoleData.edituser = user.username;
 
-            // Add metadata for the update
-            updatedRoleData.editdate = new Date();
-            updatedRoleData.edituser = user.username;
-
-            // Update role-specific data
-            const roleSpecificClient = await RoleModel.findOneAndUpdate(
-              { clientid: parseInt(id) },
-              updatedRoleData,
-              { new: true }
-            );
-            roleResults.push({
-              roleType,
-              success: true,
-              data: roleSpecificClient,
-            });
+              // Update role-specific data
+              const roleSpecificClient = await RoleModel.findOneAndUpdate(
+                { clientid: parseInt(id) },
+                updatedRoleData,
+                { new: true }
+              );
+              roleResults.push({
+                roleType,
+                success: true,
+                data: roleSpecificClient,
+              });
+            } else {
+              // No changes detected; don't write edit metadata
+              roleResults.push({
+                roleType,
+                success: false,
+                message: "No changes",
+                data: existingRoleData,
+              });
+            }
           } else {
             // If role-specific data doesn't exist, create it
             // Format adddate for all subscription types as YYYY-MM-DD HH:MM:SS

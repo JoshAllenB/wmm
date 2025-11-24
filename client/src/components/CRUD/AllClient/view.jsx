@@ -513,6 +513,58 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     }
   };
 
+  // Format date+time in Philippines timezone (Asia/Manila)
+  const formatDateTime = (date) => {
+    if (!date) return "N/A";
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return String(date);
+      return dateObj.toLocaleString("en-US", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+    } catch (err) {
+      console.warn("Error formatting datetime:", err);
+      return String(date);
+    }
+  };
+
+  // Determine whether to show edited metadata: require an edit user and an edit date
+  // and ensure the edit date is meaningfully different from the add date (not the same moment)
+  const shouldShowEdit = (adddate, editdate, edituser) => {
+    if (!edituser || !editdate) return false;
+
+    try {
+      const edit = new Date(editdate);
+      if (isNaN(edit.getTime())) return true; // If editdate isn't parseable, show it if edituser exists
+
+      if (!adddate) return true; // No adddate to compare -> show
+
+      const added = new Date(adddate);
+      if (isNaN(added.getTime())) {
+        // If adddate is probably a YYYY-MM-DD string, parse as that day start
+        const parts = String(adddate).split(" ")[0];
+        const d = new Date(parts);
+        if (!isNaN(d.getTime())) {
+          // if edit is later than the start of add date, show
+          return edit.getTime() > d.getTime();
+        }
+        return true;
+      }
+
+      // Consider it an edit only if timestamps differ by more than 1 second
+      return Math.abs(edit.getTime() - added.getTime()) > 1000;
+    } catch (err) {
+      return true;
+    }
+  };
+
   // Function to determine subscription status based on enddate
   const getSubscriptionStatus = (enddate) => {
     if (!enddate) return "unknown";
@@ -780,10 +832,14 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       )}
                     </div>
                   )}
-                  {(subscription.editdate || subscription.edituser) && (
+                  {shouldShowEdit(
+                    subscription.adddate,
+                    subscription.editdate,
+                    subscription.edituser
+                  ) && (
                     <div className="mt-1 pl-4 text-sm">
                       <span className="font-semibold">Edited:</span>{" "}
-                      <span>{formatDate(subscription.editdate)}</span>
+                      <span>{formatDateTime(subscription.editdate)}</span>
                       {subscription.edituser && (
                         <span>
                           {" "}
@@ -900,15 +956,21 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         <span>
                           {" "}
                           by{" "}
-                          <span className="font-semibold">{record.adduser}</span>
+                          <span className="font-semibold">
+                            {record.adduser}
+                          </span>
                         </span>
                       )}
                     </div>
                   )}
-                  {(record.editdate || record.edituser) && (
+                  {shouldShowEdit(
+                    record.adddate,
+                    record.editdate,
+                    record.edituser
+                  ) && (
                     <div className="mt-1 pl-4 text-sm">
                       <span className="font-semibold">Edited:</span>{" "}
-                      <span>{formatDate(record.editdate)}</span>
+                      <span>{formatDateTime(record.editdate)}</span>
                       {record.edituser && (
                         <span>
                           {" "}
@@ -1019,15 +1081,21 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         <span>
                           {" "}
                           by{" "}
-                          <span className="font-semibold">{record.adduser}</span>
+                          <span className="font-semibold">
+                            {record.adduser}
+                          </span>
                         </span>
                       )}
                     </div>
                   )}
-                  {(record.editdate || record.edituser) && (
+                  {shouldShowEdit(
+                    record.adddate,
+                    record.editdate,
+                    record.edituser
+                  ) && (
                     <div className="mt-1 pl-4 text-sm">
                       <span className="font-semibold">Edited:</span>{" "}
-                      <span>{formatDate(record.editdate)}</span>
+                      <span>{formatDateTime(record.editdate)}</span>
                       {record.edituser && (
                         <span>
                           {" "}
@@ -1107,7 +1175,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                         <span>
                           {" "}
                           by{" "}
-                          <span className="font-semibold">{record.adduser}</span>
+                          <span className="font-semibold">
+                            {record.adduser}
+                          </span>
                         </span>
                       )}
                     </div>
@@ -1162,15 +1232,21 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                           <span>
                             {" "}
                             by{" "}
-                            <span className="font-semibold">{formData.adduser}</span>
+                            <span className="font-semibold">
+                              {formData.adduser}
+                            </span>
                           </span>
                         )}
                       </div>
                     )}
-                    {(formData.editdate || formData.edituser) && (
+                    {shouldShowEdit(
+                      formData.adddate,
+                      formData.editdate,
+                      formData.edituser
+                    ) && (
                       <div>
                         <span className="font-semibold">Edited:</span>{" "}
-                        <span>{formatDate(formData.editdate)}</span>
+                        <span>{formatDateTime(formData.editdate)}</span>
                         {formData.edituser && (
                           <span>
                             {" "}
