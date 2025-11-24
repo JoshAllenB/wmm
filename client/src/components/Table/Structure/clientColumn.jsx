@@ -353,6 +353,13 @@ export const useColumns = () => {
                     subsclass,
                     subsdate,
                     enddate,
+                    // Preserve the original adddate (or related timestamps) so the UI
+                    // can detect records added/updated today without relying on client-level dates
+                    adddate:
+                      subscription.adddate ||
+                      subscription.addedAt ||
+                      subscription.updatedAt ||
+                      null,
                     copies: `${copies || "N/A"}`,
                     paymtref: paymtref || null,
                     paymtamt: formattedPayment,

@@ -148,7 +148,7 @@ const AllClient = () => {
     setIsAddedTodayLoading(true);
     setAddedToday((prev) => !prev);
     setPage(1);
-    
+
     // Reset last filter ref to ensure fetch happens
     lastFilterRef.current = null;
   };
@@ -544,10 +544,43 @@ const AllClient = () => {
         const applyAddedTodaySorting = applyAddedTodayFilter; // same condition as filter application
         const sortedPageData = applyAddedTodaySorting
           ? [...pageData].sort((a, b) => {
-              // Prefer explicit adddate, then addedAt, then updatedAt so we
-              // consistently use the most relevant timestamp for sorting
-              const getEffectiveDateValue = (row) =>
-                row?.adddate || row?.addedAt || row?.updatedAt || null;
+              // Prefer subscription-level adddate (most recent subscription record)
+              // then fall back to client-level adddate/addedAt/updatedAt.
+              const getEffectiveDateValue = (row) => {
+                try {
+                  // Check common subscription containers for records
+                  const subsKeys = ["wmmData", "promoData", "compData"];
+                  let latest = null;
+                  for (const key of subsKeys) {
+                    const sdata = row?.[key];
+                    if (!sdata) continue;
+                    const records =
+                      sdata.filteredRecords ||
+                      sdata.matchedRecords ||
+                      sdata.records ||
+                      [];
+                    if (!Array.isArray(records) || records.length === 0)
+                      continue;
+                    for (const rec of records) {
+                      const cand =
+                        rec?.adddate ||
+                        rec?.addedAt ||
+                        rec?.updatedAt ||
+                        rec?.subsdate ||
+                        null;
+                      if (!cand) continue;
+                      const candTime = Date.parse(cand);
+                      if (isNaN(candTime)) continue;
+                      if (!latest || candTime > latest) latest = candTime;
+                    }
+                  }
+                  if (latest) return new Date(latest).toISOString();
+                } catch (e) {
+                  // ignore and fallback
+                }
+
+                return row?.adddate || row?.addedAt || row?.updatedAt || null;
+              };
 
               const aDate = getEffectiveDateValue(a);
               const bDate = getEffectiveDateValue(b);
@@ -801,14 +834,18 @@ const AllClient = () => {
       lastFilterRef.current = null;
 
       // Refresh data using the current filters (including Added/Updated Today)
-      fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
-        (error) => {
-          console.error("Error refreshing clients after delete:", error);
-          // Ensure loading states are reset on error
-          setIsLoading(false);
-          setIsAddedTodayLoading(false);
-        }
-      );
+      fetchData(
+        page,
+        pageSize,
+        debouncedFiltering,
+        selectedGroup,
+        advancedFilterData
+      ).catch((error) => {
+        console.error("Error refreshing clients after delete:", error);
+        // Ensure loading states are reset on error
+        setIsLoading(false);
+        setIsAddedTodayLoading(false);
+      });
     },
     [
       page,
@@ -845,14 +882,18 @@ const AllClient = () => {
     }
 
     // Re-fetch using the current filters so newly edited clients appear
-    fetchData(page, pageSize, debouncedFiltering, selectedGroup, advancedFilterData).catch(
-      (error) => {
-        console.error("Error refreshing clients after edit:", error);
-        // Ensure loading states are reset on error
-        setIsLoading(false);
-        setIsAddedTodayLoading(false);
-      }
-    );
+    fetchData(
+      page,
+      pageSize,
+      debouncedFiltering,
+      selectedGroup,
+      advancedFilterData
+    ).catch((error) => {
+      console.error("Error refreshing clients after edit:", error);
+      // Ensure loading states are reset on error
+      setIsLoading(false);
+      setIsAddedTodayLoading(false);
+    });
   }, [
     isLoading,
     addedToday,
@@ -1556,7 +1597,7 @@ const AllClient = () => {
             )
           }
           subscriptionType={subscriptionType}
-onAfterDuplicateEditSuccess={() => {
+          onAfterDuplicateEditSuccess={() => {
             // After editing a duplicate via Add, ensure the main view
             // defaults back to the "Added/Updated Today" filter
             if (!addedToday && !isAddedTodayLoading && !isLoading) {

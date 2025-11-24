@@ -774,10 +774,39 @@ export const TableComponent = function TableComponent({
                   stats.clientCount.total !== stats.clientCount.page;
               }
 
-              // Check if this is the first row (most recent when sorted)
-              const isFirstRow = rowIndex === 0;
+              // Determine if this row contains any subscription record that was
+              // added/updated today. We check the common subscription containers
+              // (wmmData, promoData, compData) and look for adddate/addedAt/updatedAt
+              const todayIso = new Date().toISOString().slice(0, 10);
+              const hasTodaySubscription = (() => {
+                try {
+                  const subsKeys = ["wmmData", "promoData", "compData"];
+                  for (const key of subsKeys) {
+                    const sdata = row.original?.[key];
+                    if (!sdata) continue;
+                    const records =
+                      sdata.filteredRecords ||
+                      sdata.matchedRecords ||
+                      sdata.records ||
+                      [];
+                    if (!Array.isArray(records)) continue;
+                    for (const rec of records) {
+                      const add =
+                        rec?.adddate || rec?.addedAt || rec?.updatedAt || rec?.subsdate;
+                      if (!add) continue;
+                      const addDatePart =
+                        typeof add === "string" ? add.split(" ")[0] : new Date(add).toISOString().slice(0, 10);
+                      if (addDatePart === todayIso) return true;
+                    }
+                  }
+                } catch (e) {
+                  // Ignore any parsing errors and treat as not today
+                }
+                return false;
+              })();
+
               const rowColors = getRowColors();
-              const isMostRecentRow = addedToday && isFirstRow;
+              const isMostRecentRow = addedToday && hasTodaySubscription;
 
               return (
                 <TableRow
@@ -970,47 +999,69 @@ export const TableComponent = function TableComponent({
                                     : sub.status === "expiring-soon"
                                     ? "text-amber-600 font-bold"
                                     : sub.status === "active"
-                                    ? "text-green-600"
-                                    : "";
+                                    const isSubAddedToday = (() => {
+                                      try {
+                                        if (!sub?.adddate) return false;
+                                        const addPart = String(sub.adddate).split(" ")[0];
+                                        return addPart === todayIso;
+                                      } catch (e) {
+                                        return false;
+                                      }
+                                    })();
 
-                                // Get status indicator
-                                const statusIndicator =
-                                  sub.status === "expired"
-                                    ? "🔴 "
-                                    : sub.status === "expiring-soon"
-                                    ? "🟡 "
-                                    : sub.status === "active"
-                                    ? "🟢 "
-                                    : "";
-
-                                return (
-                                  <li key={index} className="mb-1">
-                                    <div className="flex flex-col">
-                                      <span className={statusClass}>
-                                        {statusIndicator}
-                                        <strong>{sub.subsclass}</strong>:{" "}
-                                        {sub.subsdate} - {sub.enddate}, Cps:{" "}
-                                        {sub.copies}
-                                      </span>
-                                      {(sub.paymtref || sub.paymtamt) && (
-                                        <div className="text-xs ml-4 text-gray-600">
-                                          {sub.paymtref && (
-                                            <span>Ref: {sub.paymtref}</span>
+                                    return (
+                                      <li
+                                        key={index}
+                                        className={`mb-1 ${
+                                          isSubAddedToday && addedToday
+                                            ? "bg-green-50 border border-green-200 rounded p-1"
+                                            : ""
+                                        }`}
+                                      >
+                                        <div className="flex flex-col">
+                                          <div className="flex items-center justify-between">
+                                            <span className={statusClass}>
+                                              {statusIndicator}
+                                              <strong>{sub.subsclass}</strong>: {sub.subsdate} - {sub.enddate}, Cps: {sub.copies}
+                                            </span>
+                                            {isSubAddedToday && addedToday && (
+                                              <span className="text-xs ml-2 text-green-800 font-semibold">New</span>
+                                            )}
+                                          </div>
+                                          {(sub.paymtref || sub.paymtamt) && (
+                                            <div className="text-xs ml-4 text-gray-600">
+                                              {sub.paymtref && (
+                                                <span>Ref: {sub.paymtref}</span>
+                                              )}
+                                              {sub.paymtref && sub.paymtamt && (
+                                                <span> • </span>
+                                              )}
+                                              {sub.paymtamt && (
+                                                <span>Amt: {sub.paymtamt}</span>
+                                              )}
+                                            </div>
                                           )}
-                                          {sub.paymtref && sub.paymtamt && (
-                                            <span> • </span>
-                                          )}
-                                          {sub.paymtamt && (
-                                            <span>Amt: {sub.paymtamt}</span>
+                                          {index === 0 && (
+                                            <div className="text-xs ml-4 mt-1 flex items-center gap-2">
+                                              {sub.calendar ? (
+                                                <span className="text-white bg-orange-400 p-1 rounded-md font-medium">
+                                                  Calendar ✓
+                                                </span>
+                                              ) : (
+                                                <span className="text-gray-500 bg-gray-100 p-1 rounded-md">
+                                                  No Calendar
+                                                </span>
+                                              )}
+                                              {sub.referralid && (
+                                                <span className="text-sky-900 bg-sky-200 p-1 rounded-md font-medium">
+                                                  Referral ID: {sub.referralid}
+                                                </span>
+                                              )}
+                                            </div>
                                           )}
                                         </div>
-                                      )}
-                                      {index === 0 && (
-                                        <div className="text-xs ml-4 mt-1 flex items-center gap-2">
-                                          {sub.calendar ? (
-                                            <span className="text-white bg-orange-400 p-1 rounded-md font-medium">
-                                              Calendar ✓
-                                            </span>
+                                      </li>
+                                    );
                                           ) : (
                                             <span className="text-gray-500 bg-gray-100 p-1 rounded-md">
                                               No Calendar
