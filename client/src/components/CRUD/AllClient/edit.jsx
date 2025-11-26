@@ -596,18 +596,59 @@ const Edit = ({
           .map((line) => line.trim())
           .filter((line) => line);
 
+        // Normalize common cases based on number of lines so fields don't shift
         if (addressLines.length >= 1) {
           housestreet = addressLines[0];
         }
-        if (addressLines.length >= 2) {
-          subdivision = addressLines[1];
-        }
-        if (addressLines.length >= 3) {
-          barangay = addressLines[2];
-        }
-        if (addressLines.length >= 4) {
-          // The last line typically contains zipcode and city
-          const lastLine = addressLines[3];
+
+        if (addressLines.length === 2) {
+          // Likely: [housestreet, zipcode+city]
+          const lastLine = addressLines[1];
+          const zipMatch = lastLine.match(/^(\d+)/);
+          if (zipMatch) {
+            zipcode = zipMatch[1];
+            city = lastLine.replace(zipMatch[1], "").trim();
+          } else {
+            city = lastLine;
+          }
+        } else if (addressLines.length === 3) {
+          // Common formats:
+          // - [housestreet, barangay, zipcode+city]
+          // - [housestreet, subdivision, zipcode+city]
+          // Use a small heuristic: if second line contains barangay keywords, treat as barangay
+          const second = addressLines[1] || "";
+          const secondUpper = String(second).toUpperCase();
+          const barangayKeywords = ["BARANGAY", "BRGY", "POBLACION", "SITIO"];
+          const looksLikeBarangay = barangayKeywords.some((k) =>
+            secondUpper.includes(k)
+          );
+
+          if (looksLikeBarangay) {
+            barangay = addressLines[1];
+          } else {
+            // If caller provided subdivision earlier (rowData.subdivision), prefer it
+            if (rowData.subdivision) {
+              subdivision = rowData.subdivision;
+              barangay = addressLines[1];
+            } else {
+              // Default to interpreting second line as barangay when subdivision is missing
+              barangay = addressLines[1];
+            }
+          }
+
+          const lastLine = addressLines[2];
+          const zipMatch = lastLine.match(/^(\d+)/);
+          if (zipMatch) {
+            zipcode = zipMatch[1];
+            city = lastLine.replace(zipMatch[1], "").trim();
+          } else {
+            city = lastLine;
+          }
+        } else if (addressLines.length >= 4) {
+          // Standard 4+ line: housestreet, subdivision, barangay, zipcode+city
+          subdivision = addressLines[1] || "";
+          barangay = addressLines[2] || "";
+          const lastLine = addressLines[addressLines.length - 1] || "";
           const zipMatch = lastLine.match(/^(\d+)/);
           if (zipMatch) {
             zipcode = zipMatch[1];
@@ -1823,31 +1864,20 @@ const Edit = ({
 
   // Update handleAreaChange to ensure values are never undefined
   const handleAreaChange = (field, value) => {
-    // Allow empty string values to persist
     const safeValue = value === undefined ? "" : value;
 
-    // Validate area code to prevent zipcode input
+    // Validate area code format (do not block clearing - validate on submit)
     if (field === "acode" && safeValue && /^\d+$/.test(safeValue)) {
       console.warn("Area code must contain letters (e.g., NCR, CAR, R01)");
       setValidationError(
         "Area code must contain letters (e.g., NCR, CAR, R01)"
       );
-      return;
-    }
-
-    // Validate area code is required
-    if (field === "acode" && (!safeValue || safeValue.trim() === "")) {
-      setValidationError("Area code is required");
-      return;
-    }
-
-    // Clear validation error if area code is valid
-    if (
-      field === "acode" &&
-      (validationError.includes("Area code must contain letters") ||
-        validationError.includes("Area code is required"))
-    ) {
-      setValidationError("");
+      // keep going so the UI reflects the typed value, but don't abort
+    } else if (field === "acode") {
+      // clear format-related validation when user types a non-numeric acode
+      if (validationError && validationError.includes("Area code")) {
+        setValidationError("");
+      }
     }
 
     setAreaData((prevData) => {
@@ -1856,67 +1886,58 @@ const Edit = ({
         [field]: safeValue,
       };
 
-      // Update address data and form data based on field
-      if (field === "zipcode") {
-        setAddressData((prev) => ({
-          ...prev,
-          zipcode: safeValue,
-        }));
+      // Determine values to use for formatting (prefer freshly updated values)
+      const zipcodeForFormat =
+        field === "zipcode"
+          ? safeValue
+          : newAreaData.zipcode || addressData.zipcode || "";
 
-        dirtyClientFieldsRef.current.add("zipcode");
-        setFormData((prev) => ({
-          ...prev,
-          zipcode: safeValue ? parseInt(safeValue) : "", // Allow empty string
-        }));
-      } else if (field === "city") {
-        // Ensure we store the complete city name
-        const upperValue = safeValue.toUpperCase();
-        dirtyClientFieldsRef.current.add("area");
-        setFormData((prev) => ({
-          ...prev,
-          area: upperValue,
-        }));
-        // Update the combined address immediately for city changes
-        const formattedAddress = formatAddressLines(addressData, upperValue, {
+      const cityForFormat =
+        field === "city"
+          ? typeof safeValue === "string"
+            ? safeValue.toUpperCase()
+            : safeValue
+          : formData.area || newAreaData.city || addressData.city || "";
+
+      // Build merged address data for formatting
+      const mergedAddressData = {
+        ...addressData,
+        zipcode: zipcodeForFormat,
+      };
+
+      const formattedAddress = formatAddressLines(
+        mergedAddressData,
+        cityForFormat,
+        {
           ...newAreaData,
-          zipcode: addressData.zipcode || newAreaData.zipcode,
-        });
-        setCombinedAddress(formattedAddress || "");
-        setFormData((prev) => ({
-          ...prev,
-          area: upperValue,
-          address: formattedAddress,
-        }));
-      } else if (field === "acode") {
-        dirtyClientFieldsRef.current.add("acode");
-        setFormData((prev) => ({
-          ...prev,
-          acode: safeValue,
-        }));
+          zipcode: zipcodeForFormat,
+        }
+      );
+
+      // Update dependent states in a predictable way
+      setCombinedAddress(formattedAddress || "");
+
+      // Update addressData.zipcode if needed
+      if (field === "zipcode") {
+        setAddressData((prev) => ({ ...prev, zipcode: safeValue }));
+        dirtyClientFieldsRef.current.add("zipcode");
       }
 
-      // Only update combined address for non-city changes
-      if (field !== "city") {
-        const updatedAddressData = {
-          ...addressData,
-          zipcode: field === "zipcode" ? safeValue : addressData.zipcode,
-        };
+      // Mark which client fields changed and update formData once
+      if (field === "city") dirtyClientFieldsRef.current.add("area");
+      if (field === "acode") dirtyClientFieldsRef.current.add("acode");
 
-        const formattedAddress = formatAddressLines(
-          updatedAddressData,
-          formData.area,
-          {
-            ...newAreaData,
-            zipcode: field === "zipcode" ? safeValue : newAreaData.zipcode,
-          }
-        );
-
-        setCombinedAddress(formattedAddress || "");
-        setFormData((prev) => ({
-          ...prev,
-          address: formattedAddress,
-        }));
-      }
+      setFormData((prev) => ({
+        ...prev,
+        zipcode: zipcodeForFormat
+          ? isNaN(zipcodeForFormat)
+            ? zipcodeForFormat
+            : parseInt(zipcodeForFormat)
+          : "",
+        area: cityForFormat,
+        address: formattedAddress,
+        acode: field === "acode" ? safeValue : prev.acode,
+      }));
 
       return newAreaData;
     });
