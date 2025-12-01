@@ -870,7 +870,6 @@ const AllClient = () => {
   // Handle successful edit
   const handleEditSuccess = useCallback(() => {
     // Avoid stacking multiple refreshes if a request is already in-flight
-    if (isLoading) return;
 
     // Ensure Added/Updated Today is enabled after edit (if not already)
     if (!addedToday && !isAddedTodayLoading) {
@@ -895,7 +894,6 @@ const AllClient = () => {
       setIsAddedTodayLoading(false);
     });
   }, [
-    isLoading,
     addedToday,
     isAddedTodayLoading,
     page,
