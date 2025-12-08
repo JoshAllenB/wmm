@@ -787,6 +787,9 @@ const RenewalNoticeDataOverlay = forwardRef(
           .data-field {
             position: absolute;
             z-index: 1000;
+            word-break: break-word;
+            overflow: hidden;
+            line-height: 1.2;
           }
           .group1-field {
             font-family: ${
@@ -972,7 +975,7 @@ const RenewalNoticeDataOverlay = forwardRef(
             positions.group2.top
           }in; left: ${positions.group2.left}in; width: ${
           positions.group2.width
-        }in;">
+        }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${
               subscriber.id +
               "/Exp:" +
@@ -988,7 +991,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         // Add personal name or company-as-name according to availability
         if (subscriber.hasPersonalName) {
           overlayHTML += `
-          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
+          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${displayName}
           </div>
         `;
@@ -996,7 +999,7 @@ const RenewalNoticeDataOverlay = forwardRef(
           // If company also exists, print it on the next line
           if (subscriber.hasCompany) {
             overlayHTML += `
-          <div class="data-field group2-field" style="top: ${companyPosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
+          <div class="data-field group2-field" style="top: ${companyPosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${subscriber.company}
           </div>
         `;
@@ -1004,7 +1007,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         } else if (subscriber.hasCompany) {
           // No personal name; use company as the name-line
           overlayHTML += `
-          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">
+          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${subscriber.company}
           </div>
         `;
@@ -1017,7 +1020,7 @@ const RenewalNoticeDataOverlay = forwardRef(
             addressStartPosition + positions.group2.lineSpacing * index
           }in; left: ${positions.group2.left}in; width: ${
             positions.group2.width
-          }in;">
+          }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${line}
           </div>
         `;
@@ -2769,5 +2772,7 @@ const RenewalNoticeDataOverlay = forwardRef(
     );
   }
 );
+
+RenewalNoticeDataOverlay.displayName = 'RenewalNoticeDataOverlay';
 
 export default RenewalNoticeDataOverlay;

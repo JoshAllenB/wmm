@@ -696,18 +696,30 @@ const ThankYouLetterDataOverlay = forwardRef(
             
             <!-- Name and address block -->
             ${(() => {
-              const namePos = positions.group2.top + positions.group2.lineSpacing;
-              const companyPos = positions.group2.top + positions.group2.lineSpacing * 2;
+              const namePos =
+                positions.group2.top + positions.group2.lineSpacing;
+              const companyPos =
+                positions.group2.top + positions.group2.lineSpacing * 2;
               const addrStart = (() => {
-                if (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title) {
-                  return sampleSubscriber.company ? positions.group2.top + positions.group2.lineSpacing * 3 : positions.group2.top + positions.group2.lineSpacing * 2;
+                if (
+                  sampleSubscriber.firstName ||
+                  sampleSubscriber.lastName ||
+                  sampleSubscriber.title
+                ) {
+                  return sampleSubscriber.company
+                    ? positions.group2.top + positions.group2.lineSpacing * 3
+                    : positions.group2.top + positions.group2.lineSpacing * 2;
                 }
                 return positions.group2.top + positions.group2.lineSpacing * 2;
               })();
 
               let html = "";
               // Personal name exists
-              if (sampleSubscriber.firstName || sampleSubscriber.lastName || sampleSubscriber.title) {
+              if (
+                sampleSubscriber.firstName ||
+                sampleSubscriber.lastName ||
+                sampleSubscriber.title
+              ) {
                 html += `<div class="data-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}</div>`;
                 if (sampleSubscriber.company) {
                   html += `<div class="data-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.company}</div>`;
@@ -719,9 +731,16 @@ const ThankYouLetterDataOverlay = forwardRef(
 
               // Address lines
               if (sampleSubscriber.address) {
-                const addressLines = sampleSubscriber.address.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+                const addressLines = sampleSubscriber.address
+                  .split("\n")
+                  .map((l) => l.trim())
+                  .filter((l) => l.length > 0);
                 addressLines.forEach((line, idx) => {
-                  html += `<div class="data-field" style="top: ${addrStart + positions.group2.lineSpacing * idx}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${line}</div>`;
+                  html += `<div class="data-field" style="top: ${
+                    addrStart + positions.group2.lineSpacing * idx
+                  }in; left: ${positions.group2.left}in; width: ${
+                    positions.group2.width
+                  }in;">${line}</div>`;
                 });
               }
 
@@ -809,6 +828,9 @@ const ThankYouLetterDataOverlay = forwardRef(
           .data-field {
             position: absolute;
             z-index: 1000;
+            word-break: break-word;
+            overflow: hidden;
+            line-height: 1.2;
           }
           .group1-field {
             font-family: ${
@@ -951,34 +973,52 @@ const ThankYouLetterDataOverlay = forwardRef(
             positions.group2.top
           }in; left: ${positions.group2.left}in; width: ${
           positions.group2.width
-        }in;">
+        }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
             ${subscriber.accountCode}
           </div>
           
           ${(() => {
             const namePos = positions.group2.top + positions.group2.lineSpacing;
-            const companyPos = positions.group2.top + positions.group2.lineSpacing * 2;
+            const companyPos =
+              positions.group2.top + positions.group2.lineSpacing * 2;
             const addrStart = (() => {
-              if (subscriber.firstName || subscriber.lastName || subscriber.title) {
-                return subscriber.company ? positions.group2.top + positions.group2.lineSpacing * 3 : positions.group2.top + positions.group2.lineSpacing * 2;
+              if (
+                subscriber.firstName ||
+                subscriber.lastName ||
+                subscriber.title
+              ) {
+                return subscriber.company
+                  ? positions.group2.top + positions.group2.lineSpacing * 3
+                  : positions.group2.top + positions.group2.lineSpacing * 2;
               }
               return positions.group2.top + positions.group2.lineSpacing * 2;
             })();
 
             let html = "";
-            if (subscriber.firstName || subscriber.lastName || subscriber.title) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}</div>`;
+            if (
+              subscriber.firstName ||
+              subscriber.lastName ||
+              subscriber.title
+            ) {
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}</div>`;
               if (subscriber.company) {
-                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.company}</div>`;
+                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.company}</div>`;
               }
             } else if (subscriber.company) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${subscriber.company}</div>`;
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.company}</div>`;
             }
 
             if (subscriber.address) {
-              const addressLines = subscriber.address.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+              const addressLines = subscriber.address
+                .split("\n")
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0);
               addressLines.forEach((line, idx) => {
-                html += `<div class="data-field group2-field" style="top: ${addrStart + positions.group2.lineSpacing * idx}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${line}</div>`;
+                html += `<div class="data-field group2-field" style="top: ${
+                  addrStart + positions.group2.lineSpacing * idx
+                }in; left: ${positions.group2.left}in; width: ${
+                  positions.group2.width
+                }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${line}</div>`;
               });
             }
 
