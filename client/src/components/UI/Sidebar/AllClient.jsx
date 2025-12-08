@@ -869,18 +869,12 @@ const AllClient = () => {
 
   // Handle successful edit
   const handleEditSuccess = useCallback(() => {
-    // Avoid stacking multiple refreshes if a request is already in-flight
+    // Reset last filter ref so the next fetch isn't skipped as a "duplicate"
+    // This ensures we always re-fetch, even when filters themselves didn't change
+    lastFilterRef.current = null;
 
-    // Ensure Added/Updated Today is enabled after edit (if not already)
-    if (!addedToday && !isAddedTodayLoading) {
-      setIsAddedTodayLoading(true);
-      setAddedToday(true);
-      setPage(1);
-      // Reset lastFilterRef to ensure fetch happens
-      lastFilterRef.current = null;
-    }
-
-    // Re-fetch using the current filters so newly edited clients appear
+    // Re-fetch using the current filters (search + advanced filters + Added Today state)
+    // without forcing any filter changes. This keeps the user's view consistent.
     fetchData(
       page,
       pageSize,
@@ -894,8 +888,6 @@ const AllClient = () => {
       setIsAddedTodayLoading(false);
     });
   }, [
-    addedToday,
-    isAddedTodayLoading,
     page,
     pageSize,
     debouncedFiltering,
