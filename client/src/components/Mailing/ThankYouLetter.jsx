@@ -217,7 +217,7 @@ const ThankYouLetterDataOverlay = forwardRef(
             name:
               `${original.title || ""} ${original.fname || ""} ${
                 original.lname || ""
-              }`.trim() ||
+              } ${original.sname || ""}`.trim() ||
               original.company ||
               "N/A",
             reason: "Invalid expiry date",
@@ -232,7 +232,7 @@ const ThankYouLetterDataOverlay = forwardRef(
           name:
             `${original.title || ""} ${original.fname || ""} ${
               original.lname || ""
-            }`.trim() ||
+            } ${original.sname || ""}`.trim() ||
             original.company ||
             "N/A",
           reason: `Missing required fields: ${missingFields.join(", ")}`,
@@ -256,6 +256,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         firstName: original.fname || "",
         middleName: original.mname || "",
         lastName: original.lname || "",
+        suffixName: original.suffix || "",
         company: original.company || "",
         address: original.address || original.address1 || "",
         address1: original.address1 || original.address || "",
@@ -263,7 +264,12 @@ const ThankYouLetterDataOverlay = forwardRef(
         address3: original.address3 || "",
         address4: original.address4 || "",
         zipcode: zipcode || "",
-        hasPersonalName: !!(original.fname || original.lname || original.title),
+        hasPersonalName: !!(
+          original.fname ||
+          original.lname ||
+          original.sname ||
+          original.title
+        ),
         hasCompany: !!original.company,
         expiryDate: formatDate(enddate), // Use enddate directly
         copies,
@@ -338,7 +344,7 @@ const ThankYouLetterDataOverlay = forwardRef(
               id: clientId,
               name: `${row.original.title || ""} ${row.original.fname || ""} ${
                 row.original.lname || ""
-              }`.trim(),
+              } ${row.original.sname || ""}`.trim(),
               company: row.original.company,
               reason: "Invalid ID format",
             });
@@ -359,7 +365,7 @@ const ThankYouLetterDataOverlay = forwardRef(
               id: clientId,
               name: `${row.original.title || ""} ${row.original.fname || ""} ${
                 row.original.lname || ""
-              }`.trim(),
+              } ${row.original.sname || ""}`.trim(),
               company: row.original.company,
               reason: "Outside selected ID range",
             });
@@ -588,6 +594,8 @@ const ThankYouLetterDataOverlay = forwardRef(
       }
 
       // For the greeting
+      const hasOnlyCompany =
+        !sampleSubscriber.hasPersonalName && sampleSubscriber.hasCompany;
       const greetingName = sampleSubscriber.hasPersonalName
         ? `${sampleSubscriber.title} ${sampleSubscriber.lastName}`
         : sampleSubscriber.hasCompany
@@ -704,6 +712,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                 if (
                   sampleSubscriber.firstName ||
                   sampleSubscriber.lastName ||
+                  sampleSubscriber.suffixName ||
                   sampleSubscriber.title
                 ) {
                   return sampleSubscriber.company
@@ -718,9 +727,10 @@ const ThankYouLetterDataOverlay = forwardRef(
               if (
                 sampleSubscriber.firstName ||
                 sampleSubscriber.lastName ||
+                sampleSubscriber.suffixName ||
                 sampleSubscriber.title
               ) {
-                html += `<div class="data-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}</div>`;
+                html += `<div class="data-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName} ${sampleSubscriber.suffixName}</div>`;
                 if (sampleSubscriber.company) {
                   html += `<div class="data-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in;">${sampleSubscriber.company}</div>`;
                 }
@@ -771,7 +781,11 @@ const ThankYouLetterDataOverlay = forwardRef(
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group3.width
             }in;">
-              Dear ${greetingName},
+              ${
+                hasOnlyCompany
+                  ? "Friend/s " + greetingName + ","
+                  : "Dear " + greetingName + ","
+              }
             </div>
           </div>
         </div>
@@ -951,8 +965,9 @@ const ThankYouLetterDataOverlay = forwardRef(
         if (!subscriber) return;
 
         // For the greeting
+        const hasOnlyCompany = !subscriber.hasPersonalName && subscriber.hasCompany;
         const greetingName = subscriber.hasPersonalName
-          ? `${subscriber.title} ${subscriber.lastName}`
+          ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
           : subscriber.hasCompany
           ? subscriber.company
           : "Customer";
@@ -985,6 +1000,7 @@ const ThankYouLetterDataOverlay = forwardRef(
               if (
                 subscriber.firstName ||
                 subscriber.lastName ||
+                subscriber.suffixName ||
                 subscriber.title
               ) {
                 return subscriber.company
@@ -998,14 +1014,29 @@ const ThankYouLetterDataOverlay = forwardRef(
             if (
               subscriber.firstName ||
               subscriber.lastName ||
+              subscriber.suffixName ||
               subscriber.title
             ) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}</div>`;
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${
+                positions.group2.left
+              }in; width: ${positions.group2.width}in; max-height: ${
+                positions.group2.lineSpacing * 0.9
+              }in;">${subscriber.title} ${subscriber.firstName} ${
+                subscriber.middleName
+              } ${subscriber.lastName}</div>`;
               if (subscriber.company) {
-                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.company}</div>`;
+                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${
+                  positions.group2.left
+                }in; width: ${positions.group2.width}in; max-height: ${
+                  positions.group2.lineSpacing * 0.9
+                }in;">${subscriber.company}</div>`;
               }
             } else if (subscriber.company) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${subscriber.company}</div>`;
+              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${
+                positions.group2.left
+              }in; width: ${positions.group2.width}in; max-height: ${
+                positions.group2.lineSpacing * 0.9
+              }in;">${subscriber.company}</div>`;
             }
 
             if (subscriber.address) {
@@ -1018,7 +1049,9 @@ const ThankYouLetterDataOverlay = forwardRef(
                   addrStart + positions.group2.lineSpacing * idx
                 }in; left: ${positions.group2.left}in; width: ${
                   positions.group2.width
-                }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">${line}</div>`;
+                }in; max-height: ${
+                  positions.group2.lineSpacing * 0.9
+                }in;">${line}</div>`;
               });
             }
 
@@ -1031,7 +1064,11 @@ const ThankYouLetterDataOverlay = forwardRef(
           }in; left: ${positions.group3.left}in; width: ${
           positions.group3.width
         }in;">
-            Dear ${greetingName},
+            ${
+              hasOnlyCompany
+                ? "Friend/s " + greetingName + ","
+                : "Dear " + greetingName + ","
+            }
           </div>
         </div>
       `;
@@ -2010,8 +2047,10 @@ const ThankYouLetterDataOverlay = forwardRef(
                             const scaleY = 750 / 11; // pixels per inch vertically
 
                             // For the greeting
+                            const hasOnlyCompany =
+                              !subscriber.hasPersonalName && subscriber.hasCompany;
                             const greetingName = subscriber.hasPersonalName
-                              ? `${subscriber.title} ${subscriber.lastName}`
+                              ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
                               : subscriber.hasCompany
                               ? subscriber.company
                               : "Customer";
@@ -2087,6 +2126,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                     {subscriber.title} {subscriber.firstName}{" "}
                                     {subscriber.middleName}{" "}
                                     {subscriber.lastName}
+                                    {subscriber.suffixName || ""}
                                     {subscriber.company
                                       ? `\n${subscriber.company}`
                                       : ""}
@@ -2120,7 +2160,9 @@ const ThankYouLetterDataOverlay = forwardRef(
                                   <div className="absolute text-xs text-purple-500 font-mono -top-4 -left-1">
                                     Group 3
                                   </div>
-                                  Dear {greetingName},
+                                  {hasOnlyCompany
+                                    ? `Friend/s ${greetingName},`
+                                    : `Dear ${greetingName},`}
                                 </div>
 
                                 {/* Page guides */}

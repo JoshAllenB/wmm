@@ -3,7 +3,6 @@ import React, {
   useEffect,
   forwardRef,
   useImperativeHandle,
-  useCallback,
 } from "react";
 import { Button } from "../UI/ShadCN/button";
 import axios from "axios";
@@ -189,8 +188,7 @@ const RenewalNoticeDataOverlay = forwardRef(
       if (userRole) fetchTemplates();
     }, [userRole]);
 
-    // Memoize the processSubscriberData function
-    const processSubscriberData = useCallback((row) => {
+    const processSubscriberData = (row) => {
       if (!row) {
         return { skipped: true, reason: "Invalid row data" };
       }
@@ -221,6 +219,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         missingFields.push("Expiry Date");
       } else {
         const expiryDate = new Date(enddate);
+        // eslint-disable-next-line no-restricted-globals
         if (isNaN(expiryDate.getTime())) {
           return {
             skipped: true,
@@ -228,7 +227,7 @@ const RenewalNoticeDataOverlay = forwardRef(
             name:
               `${original.title || ""} ${original.fname || ""} ${
                 original.lname || ""
-              }`.trim() ||
+              } ${original.sname || ""}`.trim() ||
               original.company ||
               "N/A",
             reason: "Invalid expiry date",
@@ -243,7 +242,7 @@ const RenewalNoticeDataOverlay = forwardRef(
           name:
             `${original.title || ""} ${original.fname || ""} ${
               original.lname || ""
-            }`.trim() ||
+            } ${original.sname || ""}`.trim() ||
             original.company ||
             "N/A",
           reason: `Missing required fields: ${missingFields.join(", ")}`,
@@ -267,6 +266,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         firstName: original.fname || "",
         middleName: original.mname || "",
         lastName: original.lname || "",
+        suffixName: original.sname || "",
         company: original.company || "",
         address: original.address || original.address1 || "",
         address1: original.address1 || original.address || "",
@@ -274,14 +274,19 @@ const RenewalNoticeDataOverlay = forwardRef(
         address3: original.address3 || "",
         address4: original.address4 || "",
         zipcode: zipcode || "",
-        hasPersonalName: !!(original.fname || original.lname || original.title),
+        hasPersonalName: !!(
+          original.fname ||
+          original.lname ||
+          original.title ||
+          original.sname
+        ),
         hasCompany: !!original.company,
         expiryDate: formatDate(enddate), // Use enddate directly
         copies,
         acode,
         lastIssue: getLastIssue(enddate), // Use enddate directly
       };
-    }, []);
+    };
 
     // Local range state to enable in-component RangeSelector
     const [localStartId, setLocalStartId] = useState("");
@@ -295,98 +300,94 @@ const RenewalNoticeDataOverlay = forwardRef(
     const effectiveEndId = (localEndId || "").trim() || (endId || "").trim();
 
     // Helper to compute min client id from available rows
-    const getMinClientId = useCallback(() => {
+    const getMinClientId = () => {
       if (!availableRows?.length) return null;
       const ids = availableRows
         .map((r) => parseInt((r?.original?.id ?? "").toString(), 10))
         .filter((n) => !isNaN(n));
       if (ids.length === 0) return null;
       return Math.min(...ids);
-    }, [availableRows]);
+    };
 
-    // Memoize the filtering function
-    const filterSubscribers = useCallback(
-      (rows) => {
-        if (!rows) return { filtered: [], skipped: [] };
+    const filterSubscribers = (rows) => {
+      if (!rows) return { filtered: [], skipped: [] };
 
-        const filtered = [];
-        const skipped = [];
+      const filtered = [];
+      const skipped = [];
 
-        rows.forEach((row) => {
-          const clientId = row?.original?.id?.toString();
-          if (!clientId) {
-            skipped.push({
-              id: "N/A",
-              reason: "Missing client ID",
-            });
-            return;
-          }
+      rows.forEach((row) => {
+        const clientId = row?.original?.id?.toString();
+        if (!clientId) {
+          skipped.push({
+            id: "N/A",
+            reason: "Missing client ID",
+          });
+          return;
+        }
 
-          const trimmedStartId = effectiveStartId || "";
-          const trimmedEndId = effectiveEndId || "";
+        const trimmedStartId = effectiveStartId || "";
+        const trimmedEndId = effectiveEndId || "";
 
-          // Convert to numbers for comparison
-          const numericClientId = parseInt(clientId, 10);
-          // If only end ID provided and no start ID, default start to minimum available ID
-          let numericStartId = null;
-          if (trimmedStartId) {
-            numericStartId = parseInt(trimmedStartId, 10);
-          } else if (trimmedEndId) {
-            const minId = getMinClientId();
-            numericStartId = minId !== null ? minId : null;
-          }
-          const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
+        // Convert to numbers for comparison
+        const numericClientId = parseInt(clientId, 10);
+        // If only end ID provided and no start ID, default start to minimum available ID
+        let numericStartId = null;
+        if (trimmedStartId) {
+          numericStartId = parseInt(trimmedStartId, 10);
+        } else if (trimmedEndId) {
+          const minId = getMinClientId();
+          numericStartId = minId !== null ? minId : null;
+        }
+        const numericEndId = trimmedEndId ? parseInt(trimmedEndId, 10) : null;
 
-          // Check if any conversion resulted in NaN
-          if (
-            isNaN(numericClientId) ||
-            (numericStartId && isNaN(numericStartId)) ||
-            (numericEndId && isNaN(numericEndId))
-          ) {
-            skipped.push({
-              id: clientId,
-              name: `${row.original.title || ""} ${row.original.fname || ""} ${
-                row.original.lname || ""
-              }`.trim(),
-              company: row.original.company,
-              reason: "Invalid ID format",
-            });
-            return;
-          }
+        // Check if any conversion resulted in NaN
+        if (
+          isNaN(numericClientId) ||
+          (numericStartId && isNaN(numericStartId)) ||
+          (numericEndId && isNaN(numericEndId))
+        ) {
+          skipped.push({
+            id: clientId,
+            name: `${row.original.title || ""} ${row.original.fname || ""} ${
+              row.original.lname || ""
+            } ${row.origina.sname || ""}`.trim(),
+            company: row.original.company,
+            reason: "Invalid ID format",
+          });
+          return;
+        }
 
-          const isAfterStart = numericStartId
-            ? afterSpecifiedStart
-              ? numericClientId > numericStartId
-              : numericClientId >= numericStartId
-            : true;
-          const isBeforeEnd = numericEndId
-            ? numericClientId <= numericEndId
-            : true;
+        const isAfterStart = numericStartId
+          ? afterSpecifiedStart
+            ? numericClientId > numericStartId
+            : numericClientId >= numericStartId
+          : true;
+        const isBeforeEnd = numericEndId
+          ? numericClientId <= numericEndId
+          : true;
 
-          if (!isAfterStart || !isBeforeEnd) {
-            skipped.push({
-              id: clientId,
-              name: `${row.original.title || ""} ${row.original.fname || ""} ${
-                row.original.lname || ""
-              }`.trim(),
-              company: row.original.company,
-              reason: "Outside selected ID range",
-            });
-            return;
-          }
+        if (!isAfterStart || !isBeforeEnd) {
+          skipped.push({
+            id: clientId,
+            name: `${row.original.title || ""} ${row.original.fname || ""} ${
+              row.original.lname || ""
+            } ${row.original.sname || ""}`.trim(),
+            company: row.original.company,
+            reason: "Outside selected ID range",
+          });
+          return;
+        }
 
-          const processedData = processSubscriberData(row);
-          if (processedData.skipped) {
-            skipped.push(processedData);
-          } else {
-            filtered.push(row);
-          }
-        });
+        const processedData = processSubscriberData(row);
+        if (processedData.skipped) {
+          skipped.push(processedData);
+        } else {
+          filtered.push(row);
+        }
+      });
 
-        return { filtered, skipped };
-      },
-      [effectiveStartId, effectiveEndId, processSubscriberData, getMinClientId]
-    );
+      return { filtered, skipped };
+    };
 
     // Update filtered subscribers and skipped records when dependencies change
     useEffect(() => {
@@ -415,7 +416,13 @@ const RenewalNoticeDataOverlay = forwardRef(
 
       // Cleanup timeout on unmount or when dependencies change
       return () => clearTimeout(timeoutId);
-    }, [availableRows, effectiveStartId, effectiveEndId, filterSubscribers]); // Remove onSkippedDataUpdate from dependencies
+    }, [
+      availableRows,
+      effectiveStartId,
+      effectiveEndId,
+      afterSpecifiedStart,
+      onSkippedDataUpdate,
+    ]);
 
     // Format date as human-readable MM/DD/YYYY
     const formatDate = (dateInput) => {
@@ -711,8 +718,9 @@ const RenewalNoticeDataOverlay = forwardRef(
               ${
                 sampleSubscriber.firstName ||
                 sampleSubscriber.lastName ||
+                sampleSubscriber.suffixName ||
                 sampleSubscriber.title
-                  ? `${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName}`.trim() +
+                  ? `${sampleSubscriber.title} ${sampleSubscriber.firstName} ${sampleSubscriber.middleName} ${sampleSubscriber.lastName} ${sampleSubscriber.suffixName}`.trim() +
                     (sampleSubscriber.company
                       ? `<br>${sampleSubscriber.company}<br>`
                       : "<br>")
@@ -788,7 +796,8 @@ const RenewalNoticeDataOverlay = forwardRef(
             position: absolute;
             z-index: 1000;
             word-break: break-word;
-            overflow: hidden;
+            white-space: normal;
+            overflow: visible;
             line-height: 1.2;
           }
           .group1-field {
@@ -904,37 +913,15 @@ const RenewalNoticeDataOverlay = forwardRef(
         </div>
     `;
 
-      // Generate positioned data for each subscriber
+      // Generate positioned data for each subscriber (group-based containers with wrapping)
       filteredSubscribers.forEach((row) => {
         const subscriber = processSubscriberData(row);
         if (!subscriber) return;
 
-        // Calculate scale factors to convert inches to pixels in our preview
-        // For a standard 8.5x11 inch page in our container
-        const scaleX = 650 / 8.5; // pixels per inch horizontally
-        const scaleY = 750 / 11; // pixels per inch vertically
-
-        // Determine if we need to adjust positions based on missing fields
-        let namePosition = positions.group2.top + positions.group2.lineSpacing;
-        let companyPosition =
-          positions.group2.top + positions.group2.lineSpacing * 2;
-        let addressStartPosition =
-          positions.group2.top + positions.group2.lineSpacing * 3;
-
-        // If company exists but no personal name, use company as the name
+        // Build display name
         const displayName = subscriber.hasPersonalName
-          ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim()
+          ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName} ${subscriber.suffixName}`.trim()
           : "";
-
-        // Adjust positions based on what fields are present
-        if (!subscriber.hasPersonalName && subscriber.hasCompany) {
-          namePosition = positions.group2.top + positions.group2.lineSpacing;
-          addressStartPosition =
-            positions.group2.top + positions.group2.lineSpacing * 2;
-        } else if (!subscriber.hasCompany) {
-          addressStartPosition =
-            positions.group2.top + positions.group2.lineSpacing * 2;
-        }
 
         // Process address using PrintGenerator pattern
         const addressLines = subscriber.address
@@ -944,29 +931,46 @@ const RenewalNoticeDataOverlay = forwardRef(
               .filter((line) => line.length > 0)
           : [];
 
-        // Adjust addressStartPosition based on number of display lines
-        const addressLinePositions = addressLines.map((_, index) => ({
-          top: addressStartPosition + positions.group2.lineSpacing * index,
-        }));
+        // Header line: ID / Exp / copies / acode
+        const headerLine =
+          subscriber.id +
+          "/Exp:" +
+          subscriber.expiryDate +
+          "/" +
+          subscriber.copies +
+          "cps" +
+          (subscriber.acode ? "/" + subscriber.acode : "");
 
+        // Build Group 2 content with natural flow and wrapping
+        let group2Content = headerLine;
+
+        if (displayName) {
+          group2Content += `<br>${displayName}`;
+        } else if (!displayName && subscriber.hasCompany) {
+          // No personal name; use company as main name line
+          group2Content += `<br>${subscriber.company}`;
+        }
+
+        // If we have both personal name and company, add company on its own line
+        if (displayName && subscriber.hasCompany) {
+          group2Content += `<br>${subscriber.company}`;
+        }
+
+        if (addressLines.length > 0) {
+          group2Content += "<br>" + addressLines.join("<br>");
+        }
+
+        // Group-based containers; text wraps within each group's width
         overlayHTML += `
         <div class="data-overlay">
           <!-- Group 1: ID, Expiry, Last Issue (Right side) -->
           <div class="data-field group1-field" style="top: ${
             positions.group1.top
-          }in; left: ${positions.group1.left}in;">
-            <strong>${subscriber.id}</strong>
-          </div>
-          
-          <div class="data-field group1-field" style="top: ${
-            positions.group1.top + positions.group1.lineSpacing
-          }in; left: ${positions.group1.left}in;">
-            <strong>${subscriber.expiryDate}</strong>
-          </div>
-          
-          <div class="data-field group1-field" style="top: ${
-            positions.group1.top + positions.group1.lineSpacing * 2
-          }in; left: ${positions.group1.left}in;">
+          }in; left: ${positions.group1.left}in; width: ${
+          positions.group1.width
+        }in;">
+            <strong>${subscriber.id}</strong><br>
+            <strong>${subscriber.expiryDate}</strong><br>
             <strong>${getLastIssue(subscriber.expiryDate)}</strong>
           </div>
           
@@ -975,77 +979,20 @@ const RenewalNoticeDataOverlay = forwardRef(
             positions.group2.top
           }in; left: ${positions.group2.left}in; width: ${
           positions.group2.width
-        }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${
-              subscriber.id +
-              "/Exp:" +
-              subscriber.expiryDate +
-              "/" +
-              subscriber.copies +
-              "cps" +
-              (subscriber.acode ? "/" + subscriber.acode : "")
-            }
+        }in;">
+            ${group2Content}
           </div>
-      `;
 
-        // Add personal name or company-as-name according to availability
-        if (subscriber.hasPersonalName) {
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${displayName}
-          </div>
-        `;
-
-          // If company also exists, print it on the next line
-          if (subscriber.hasCompany) {
-            overlayHTML += `
-          <div class="data-field group2-field" style="top: ${companyPosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${subscriber.company}
-          </div>
-        `;
-          }
-        } else if (subscriber.hasCompany) {
-          // No personal name; use company as the name-line
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${namePosition}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${subscriber.company}
-          </div>
-        `;
-        }
-
-        // Add address fields with adjusted positions
-        addressLines.forEach((line, index) => {
-          overlayHTML += `
-          <div class="data-field group2-field" style="top: ${
-            addressStartPosition + positions.group2.lineSpacing * index
-          }in; left: ${positions.group2.left}in; width: ${
-            positions.group2.width
-          }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${line}
-          </div>
-        `;
-        });
-
-        // Add Group 3: Sucat Reminder Text
-        overlayHTML += `
-      <div class="data-field group3-field" style="top: ${
-        positions.group3.top
-      }in; left: ${positions.group3.left}in; width: ${
+          <!-- Group 3: Sucat Reminder Text -->
+          <div class="data-field group3-field" style="top: ${
+            positions.group3.top
+          }in; left: ${positions.group3.left}in; width: ${
           positions.group3.width
         }in;">
-        Sucat - ${reminderMonth} ${reminderYear}
-      </div>
-
-      <div class="data-field group3-field" style="top: ${
-        positions.group3.top + positions.group3.lineSpacing
-      }in; left: ${positions.group3.left}in; width: ${
-          positions.group3.width
-        }in;">
-        (Friendly Reminder - ${locationType})
-      </div>
-      `;
-
-        overlayHTML += `</div>`;
+            Sucat - ${reminderMonth} ${reminderYear}<br>
+            (Friendly Reminder - ${locationType})
+          </div>
+        </div>`;
       });
 
       overlayHTML += `
@@ -1401,8 +1348,6 @@ const RenewalNoticeDataOverlay = forwardRef(
                     size="sm"
                     onClick={() => {
                       // refresh list
-                      // simple re-run by toggling role dependency
-                      const r = userRole; // no-op to satisfy linter
                       (async () => {
                         try {
                           const res = await axios.get(
@@ -2083,9 +2028,8 @@ const RenewalNoticeDataOverlay = forwardRef(
 
                             // If company exists but no personal name, use company as the name
                             const displayName = subscriber.hasPersonalName
-                              ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName}`.trim()
+                              ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName} ${subscriber.suffixName}`.trim()
                               : "";
-
                             // Adjust positions based on what fields are present
                             if (
                               !subscriber.hasPersonalName &&
@@ -2773,6 +2717,6 @@ const RenewalNoticeDataOverlay = forwardRef(
   }
 );
 
-RenewalNoticeDataOverlay.displayName = 'RenewalNoticeDataOverlay';
+RenewalNoticeDataOverlay.displayName = "RenewalNoticeDataOverlay";
 
 export default RenewalNoticeDataOverlay;
