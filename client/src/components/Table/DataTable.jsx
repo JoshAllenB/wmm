@@ -377,7 +377,13 @@ export default function DataTable({
           advancedFilterData
         );
 
-        if (result === null || controller.signal.aborted) return;
+        if (result === null || controller.signal.aborted) {
+          // Ensure local loading state is cleared even when upstream cancels/returns null
+          setIsTransitioning(false);
+          setAnimationComplete(true);
+          setLocalLoading(false);
+          return;
+        }
 
         // Store the result in ref for comparison
         currentDataRef.current = result;

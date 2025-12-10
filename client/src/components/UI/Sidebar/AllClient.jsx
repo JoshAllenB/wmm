@@ -439,6 +439,8 @@ const AllClient = () => {
           // When searching by name or ID, remove ALL restrictions to show all services (WMM, PROMO, COMP, HRG, FOM, CAL)
           delete filtersToUse.services;
           delete filtersToUse.subscriptionType;
+          // Signal the transport not to send standalone subscriptionType param
+          filtersToUse.ignoreSubscriptionParam = true;
         } else if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
           filtersToUse.services = roleBasedServices;
         }
@@ -1588,14 +1590,36 @@ const AllClient = () => {
           }
           subscriptionType={subscriptionType}
           onAfterDuplicateEditSuccess={() => {
-            // After editing a duplicate via Add, ensure the main view
-            // defaults back to the "Added/Updated Today" filter
+            // Preserve Search or Advanced filters; only force "Added/Updated Today" when none are active
+            const searchActive = !!(
+              debouncedFiltering && debouncedFiltering.trim().length >= 2
+            );
+            const advancedActive = hasNonServiceAdvancedFilters;
+
+            // Ensure next fetch isn't skipped as duplicate
+            lastFilterRef.current = null;
+
+            if (searchActive || advancedActive) {
+              // Proactively refetch with current filters to avoid any stale state from the add flow
+              fetchData(
+                page,
+                pageSize,
+                debouncedFiltering,
+                selectedGroup,
+                advancedFilterData
+              ).catch(() => {
+                // Ensure loading flags clear even if refetch throws
+                setIsLoading(false);
+                setIsAddedTodayLoading(false);
+              });
+              return;
+            }
+
+            // No search or advanced filters -> default back to Added/Updated Today
             if (!addedToday && !isAddedTodayLoading && !isLoading) {
               setIsAddedTodayLoading(true);
               setAddedToday(true);
               setPage(1);
-              // Reset lastFilterRef to ensure fetch happens
-              lastFilterRef.current = null;
             }
           }}
         />

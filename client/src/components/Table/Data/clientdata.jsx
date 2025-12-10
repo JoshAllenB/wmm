@@ -22,11 +22,21 @@ export const fetchClients = async (
       pageSize: Number(pageSize) || 20,
       filter: filter || "",
       group: group || "",
-      subscriptionType: subscriptionType || "WMM", // Add subscription type as standalone parameter
+      // subscriptionType appended conditionally below based on processedAdvancedData.ignoreSubscriptionParam
     };
 
     // Process advanced filter data to ensure proper types
     const processedAdvancedData = { ...advancedFilterData };
+
+    // Respect instruction to suppress standalone subscriptionType query param when searching/tagged search
+    const suppressSubscriptionParam = processedAdvancedData.ignoreSubscriptionParam === true;
+    if (!suppressSubscriptionParam) {
+      normalizedParams.subscriptionType = subscriptionType || "WMM";
+    }
+    // Clean the helper flag so it isn't sent to the backend
+    if (processedAdvancedData.ignoreSubscriptionParam !== undefined) {
+      delete processedAdvancedData.ignoreSubscriptionParam;
+    }
 
     // Ensure services is always an array
     if (processedAdvancedData.services) {
