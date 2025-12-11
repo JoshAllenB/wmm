@@ -264,13 +264,12 @@ const ThankYouLetterDataOverlay = forwardRef(
         address3: original.address3 || "",
         address4: original.address4 || "",
         zipcode: zipcode || "",
+        // "Personal name" = actual first/last name, not just title/suffix/spouse
         hasPersonalName: !!(
-          original.fname ||
-          original.lname ||
-          original.sname ||
-          original.title
+          (original.fname && String(original.fname).trim()) ||
+          (original.lname && String(original.lname).trim())
         ),
-        hasCompany: !!original.company,
+        hasCompany: !!(original.company && String(original.company).trim()),
         expiryDate: formatDate(enddate), // Use enddate directly
         copies,
         acode,
@@ -597,7 +596,11 @@ const ThankYouLetterDataOverlay = forwardRef(
       const hasOnlyCompany =
         !sampleSubscriber.hasPersonalName && sampleSubscriber.hasCompany;
       const greetingName = sampleSubscriber.hasPersonalName
-        ? `${sampleSubscriber.title} ${sampleSubscriber.lastName}`
+        ? `${sampleSubscriber.title} ${sampleSubscriber.lastName} ${
+            sampleSubscriber.suffixName || ""
+          }`
+            .replace(/\s+/g, " ")
+            .trim()
         : sampleSubscriber.hasCompany
         ? sampleSubscriber.company
         : "Customer";
@@ -965,7 +968,8 @@ const ThankYouLetterDataOverlay = forwardRef(
         if (!subscriber) return;
 
         // For the greeting
-        const hasOnlyCompany = !subscriber.hasPersonalName && subscriber.hasCompany;
+        const hasOnlyCompany =
+          !subscriber.hasPersonalName && subscriber.hasCompany;
         const greetingName = subscriber.hasPersonalName
           ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
           : subscriber.hasCompany
@@ -2048,7 +2052,8 @@ const ThankYouLetterDataOverlay = forwardRef(
 
                             // For the greeting
                             const hasOnlyCompany =
-                              !subscriber.hasPersonalName && subscriber.hasCompany;
+                              !subscriber.hasPersonalName &&
+                              subscriber.hasCompany;
                             const greetingName = subscriber.hasPersonalName
                               ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
                               : subscriber.hasCompany
