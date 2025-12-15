@@ -313,14 +313,19 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       subscriptionTypes.push("Promo");
     }
     
+    const updatedComplimentary =
+      updatedData.complimentaryData || updatedData.compData;
+
     if (
-      updatedData.compData &&
-      ((updatedData.compData.records &&
-        updatedData.compData.records.length > 0) ||
-        (Array.isArray(updatedData.compData) &&
-          updatedData.compData.length > 0) ||
-        (typeof updatedData.compData === "object" &&
-          Object.keys(updatedData.compData).length > 0))
+      updatedComplimentary &&
+      ((updatedComplimentary.records &&
+        Array.isArray(updatedComplimentary.records) &&
+        updatedComplimentary.records.length > 0) ||
+        (Array.isArray(updatedComplimentary) &&
+          updatedComplimentary.length > 0) ||
+        (typeof updatedComplimentary === "object" &&
+          !Array.isArray(updatedComplimentary) &&
+          Object.keys(updatedComplimentary).length > 0))
     ) {
       subscriptionTypes.push("Complimentary");
     }

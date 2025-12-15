@@ -318,7 +318,14 @@ const Edit = ({
     const warnings = {};
 
     // Check if subscription data is complete enough to be valid
-    const hasMinimalData = data.subsdate && data.enddate && data.subsclass;
+    // For WMM we require subclass as well; for Promo/Complimentary we only require dates
+    let hasMinimalData = false;
+    if (subscriptionType === "WMM") {
+      hasMinimalData = data.subsdate && data.enddate && data.subsclass;
+    } else {
+      // Promo and Complimentary do not require subsclass
+      hasMinimalData = data.subsdate && data.enddate;
+    }
 
     if (!hasMinimalData) {
       // If no minimal data, show warning but don't block submission
@@ -3423,6 +3430,7 @@ const Edit = ({
       const dataSource =
         roleRecordMode === "edit" ? roleSpecificData : newRoleData;
       const touched = dirtySubscriptionFieldsRef.current.size > 0;
+      const currentType = formData.subscriptionType || "WMM";
 
       // When editing an existing subscription, allow partial updates
       // User can change just the start date, or just duration, or just end date
@@ -3441,7 +3449,13 @@ const Edit = ({
       const enddateValid =
         !!dataSource.enddate ||
         (formData.subEndMonth && formData.subEndDay && formData.subEndYear);
-      const subclassValid = !!(formData.subsclass || dataSource.subsclass);
+
+      // Only require subclass for WMM subscriptions; Promo/Complimentary do not need it
+      const subclassRequired = currentType === "WMM";
+      const subclassValid = !subclassRequired
+        ? true
+        : !!(formData.subsclass || dataSource.subsclass);
+
       const minimalValid = subsdateValid && enddateValid && subclassValid;
 
       return (
@@ -3451,11 +3465,14 @@ const Edit = ({
       );
     };
 
-    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it AND subscription data is valid
+    const validSubscriptionTypes = ["WMM", "Promo", "Complimentary"];
+
+    // Only create WMM/Promo/Complimentary subscription submission if user has WMM role,
+    // the current subscription type is valid, update type allows it, and subscription data is valid
     if (
       (updateType === "all" || updateType === "subscriptionOnly") &&
       hasRole("WMM") &&
-      selectedRole === "WMM" &&
+      validSubscriptionTypes.includes(formData.subscriptionType) &&
       hasSubscriptionData()
     ) {
       // Use modular subscription-specific data function
@@ -3958,10 +3975,11 @@ const Edit = ({
 
       // Validate subscription data if applicable
       let hasSubscriptionChanges = false;
+      const validSubscriptionTypes = ["WMM", "Promo", "Complimentary"];
       if (
         (updateType === "all" || updateType === "subscriptionOnly") &&
         hasRole("WMM") &&
-        selectedRole === "WMM" &&
+        validSubscriptionTypes.includes(formData.subscriptionType) &&
         (checkSubscriptionData(formData, roleSpecificData) ||
           hasSubscriptionFieldChanges)
       ) {
@@ -4150,12 +4168,12 @@ const Edit = ({
           if (!startPresent) requiredFields.push("Start");
           if (!endPresent) requiredFields.push("End");
           if (!durationPresent) requiredFields.push("Duration");
-          
+
           // Only require Subclass for WMM subscriptions, not for Promo and Complimentary
           if (formData.subscriptionType === "WMM" && !subclassPresent) {
             requiredFields.push("Subclass");
           }
-          
+
           if (requiredFields.length > 0) {
             setValidationError(
               `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
@@ -4273,12 +4291,12 @@ const Edit = ({
         if (!startPresent) requiredFields.push("Start");
         if (!endPresent) requiredFields.push("End");
         if (!durationPresent) requiredFields.push("Duration");
-        
+
         // Only require Subclass for WMM subscriptions, not for Promo and Complimentary
         if (formData.subscriptionType === "WMM" && !subclassPresent) {
           requiredFields.push("Subclass");
         }
-        
+
         if (requiredFields.length > 0) {
           setValidationError(
             `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
@@ -4346,11 +4364,14 @@ const Edit = ({
       return result;
     };
 
-    // Only create WMM submission if user has WMM role AND is currently in WMM mode AND update type allows it
+    const validSubscriptionTypesForSubmit = ["WMM", "Promo", "Complimentary"];
+
+    // Only create WMM/Promo/Complimentary submission if user has WMM role and
+    // the current subscription type is valid for subscription saving
     if (
       (updateType === "all" || updateType === "subscriptionOnly") &&
       hasRole("WMM") &&
-      selectedRole === "WMM" &&
+      validSubscriptionTypesForSubmit.includes(formData.subscriptionType) &&
       hasSubscriptionData()
     ) {
       // Use modular subscription-specific data function
