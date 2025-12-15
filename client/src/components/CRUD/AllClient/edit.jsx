@@ -4145,15 +4145,20 @@ const Edit = ({
                 String(dataSource.subsclass).trim() !== "")
           );
 
-          // For new subscriptions, require all fields
-          if (
-            !startPresent ||
-            !endPresent ||
-            !durationPresent ||
-            !subclassPresent
-          ) {
+          // For new subscriptions, check required fields based on type
+          const requiredFields = [];
+          if (!startPresent) requiredFields.push("Start");
+          if (!endPresent) requiredFields.push("End");
+          if (!durationPresent) requiredFields.push("Duration");
+          
+          // Only require Subclass for WMM subscriptions, not for Promo and Complimentary
+          if (formData.subscriptionType === "WMM" && !subclassPresent) {
+            requiredFields.push("Subclass");
+          }
+          
+          if (requiredFields.length > 0) {
             setValidationError(
-              "Subscription Start, End, Duration, and Subclass are required."
+              `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
             );
             return;
           }
@@ -4263,15 +4268,20 @@ const Edit = ({
         subscriptionMode === "edit" && selectedSubscription;
 
       if (!isEditingExistingSubscription) {
-        // For new subscriptions, require all fields
-        if (
-          !startPresent ||
-          !endPresent ||
-          !durationPresent ||
-          !subclassPresent
-        ) {
+        // For new subscriptions, check required fields based on type
+        const requiredFields = [];
+        if (!startPresent) requiredFields.push("Start");
+        if (!endPresent) requiredFields.push("End");
+        if (!durationPresent) requiredFields.push("Duration");
+        
+        // Only require Subclass for WMM subscriptions, not for Promo and Complimentary
+        if (formData.subscriptionType === "WMM" && !subclassPresent) {
+          requiredFields.push("Subclass");
+        }
+        
+        if (requiredFields.length > 0) {
           setValidationError(
-            "Subscription Start, End, Duration, and Subclass are required."
+            `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
           );
           setIsSubmitting(false);
           return;
