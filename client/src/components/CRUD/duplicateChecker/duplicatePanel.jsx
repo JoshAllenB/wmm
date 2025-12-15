@@ -553,7 +553,12 @@ const DuplicatePanel = ({
 
                   <div className="mt-3 flex justify-end">
                     <button
-                      onClick={() => handleViewDuplicate(client.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleViewDuplicate(client.id);
+                      }}
                       className="px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition-colors shadow-sm"
                     >
                       View Details
