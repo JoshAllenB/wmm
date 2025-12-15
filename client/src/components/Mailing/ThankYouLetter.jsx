@@ -786,7 +786,7 @@ const ThankYouLetterDataOverlay = forwardRef(
             }in;">
               ${
                 hasOnlyCompany
-                  ? "Friend/s " + greetingName + ","
+                  ? "Dear Friend/s,"
                   : "Dear " + greetingName + ","
               }
             </div>
@@ -1070,7 +1070,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         }in;">
             ${
               hasOnlyCompany
-                ? "Friend/s " + greetingName + ","
+                ? "Dear Friend/s,"
                 : "Dear " + greetingName + ","
             }
           </div>
@@ -2166,7 +2166,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                     Group 3
                                   </div>
                                   {hasOnlyCompany
-                                    ? `Friend/s ${greetingName},`
+                                    ? `Dear Friend/s,`
                                     : `Dear ${greetingName},`}
                                 </div>
 
