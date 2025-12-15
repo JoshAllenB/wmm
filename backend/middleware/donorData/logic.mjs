@@ -167,7 +167,7 @@ export async function getDonorRecipientData({
   // Build search conditions - use isDonor flag instead of complex aggregation
   let searchConditions = [{ donorid: { $ne: 0 } }];
 
-  // Add search functionality for donor name/company
+  // Add search functionality for donor ID / name / company
   if (searchTerm && searchTerm.trim()) {
     const trimmedSearchTerm = searchTerm.trim();
 
@@ -180,15 +180,49 @@ export async function getDonorRecipientData({
 
     if (isNumeric) {
       // If numeric, search for exact ID match
-      donorSearchConditions.push({ id: parseInt(trimmedSearchTerm) });
+      donorSearchConditions.push({ id: parseInt(trimmedSearchTerm, 10) });
     }
 
-    // Always search in string fields (name and company)
-    donorSearchConditions.push(
-      { fname: { $regex: trimmedSearchTerm, $options: "i" } },
-      { lname: { $regex: trimmedSearchTerm, $options: "i" } },
-      { company: { $regex: trimmedSearchTerm, $options: "i" } }
-    );
+    const hasSpaces = trimmedSearchTerm.includes(" ");
+    const parts = trimmedSearchTerm.split(/\s+/).filter(Boolean);
+
+    if (hasSpaces && parts.length > 1) {
+      const [first, second] = parts;
+
+      // Match full name "first last" or "last first"
+      donorSearchConditions.push(
+        {
+          $and: [
+            { fname: { $regex: first, $options: "i" } },
+            { lname: { $regex: second, $options: "i" } },
+          ],
+        },
+        {
+          $and: [
+            { lname: { $regex: first, $options: "i" } },
+            { fname: { $regex: second, $options: "i" } },
+          ],
+        },
+        // Company names that contain the full search string
+        { company: { $regex: trimmedSearchTerm, $options: "i" } }
+      );
+
+      // Also allow each individual part to match separately in name/company
+      parts.forEach((part) => {
+        donorSearchConditions.push(
+          { fname: { $regex: part, $options: "i" } },
+          { lname: { $regex: part, $options: "i" } },
+          { company: { $regex: part, $options: "i" } }
+        );
+      });
+    } else {
+      // Single-word search: match against fname/lname/company
+      donorSearchConditions.push(
+        { fname: { $regex: trimmedSearchTerm, $options: "i" } },
+        { lname: { $regex: trimmedSearchTerm, $options: "i" } },
+        { company: { $regex: trimmedSearchTerm, $options: "i" } }
+      );
+    }
 
     // Get donor IDs that match the search term and are donors
     const matchingDonors = await ClientModel.find(

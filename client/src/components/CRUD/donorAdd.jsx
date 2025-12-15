@@ -9,6 +9,7 @@ import InputField from "./input";
 import { fetchTypes, fetchAreas } from "../Table/Data/utilData";
 import { useToast } from "../UI/ShadCN/hooks/use-toast";
 import useDuplicateChecker from "./duplicateChecker/duplicateLogic";
+import useDebounce from "../../utils/Hooks/useDebounce";
 import { debounce } from "lodash";
 
 const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
@@ -136,6 +137,7 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
   const [donors, setDonors] = useState([]);
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedDonorSearchTerm = useDebounce(searchTerm, 300);
   const [filteredDonors, setFilteredDonors] = useState([]);
   const [isDonorAddActive, setIsDonorAddActive] = useState(false);
   const [isRefreshingDonors, setIsRefreshingDonors] = useState(false);
@@ -247,19 +249,19 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
   };
 
   useEffect(() => {
-    if (!searchTerm.trim()) {
+    if (!debouncedDonorSearchTerm.trim()) {
       setFilteredDonors(donors);
       return;
     }
 
-    const searchTermLower = searchTerm.toLowerCase();
+    const searchTermLower = debouncedDonorSearchTerm.toLowerCase();
     const filtered = donors.filter((donor) => {
       const idMatch = donor.id.toString().includes(searchTermLower);
       const nameMatch = donor.name.toLowerCase().includes(searchTermLower);
       return idMatch || nameMatch;
     });
     setFilteredDonors(filtered);
-  }, [searchTerm, donors]);
+  }, [debouncedDonorSearchTerm, donors]);
 
   // Array of month names for the dropdown
   const months = [
@@ -1557,7 +1559,7 @@ const DonorAdd = ({ selectedDonorId, onDonorSelect, onNewDonorAdded }) => {
 
             {/* Duplicate Panel - takes up 1/3 of width on large screens */}
             <div className="hidden lg:block lg:w-1/3 pl-4">
-              <div className="sticky top-4 h-[calc(80vh-2rem)] w-[500px] overflow-y-auto">
+              <div className="sticky top-4 h-[calc(80vh-2rem)] w-[600px] overflow-y-auto">
                 <DuplicatePanel
                   potentialDuplicates={potentialDuplicates}
                   isCheckingDuplicates={isCheckingDuplicates}
