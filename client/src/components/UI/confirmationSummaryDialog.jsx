@@ -47,16 +47,23 @@ const ConfirmationSummaryDialog = ({
     return `${month}/${day}/${year}`;
   };
 
-  // Format subscription dates
-  const startDate = formatDateFromParts(
+  // Format subscription dates with fallbacks to roleSpecificData/formData string values
+  const chooseDate = (m, d, y, fallback) => {
+    if (m && d && y) return `${m}/${d}/${y}`;
+    if (fallback && String(fallback).trim() !== "") return fallback;
+    return "Not specified";
+  };
+  const startDate = chooseDate(
     formData.subStartMonth,
     formData.subStartDay,
-    formData.subStartYear
+    formData.subStartYear,
+    roleSpecificData.subsdate || formData.subscriptionStart
   );
-  const endDate = formatDateFromParts(
+  const endDate = chooseDate(
     formData.subEndMonth,
     formData.subEndDay,
-    formData.subEndYear
+    formData.subEndYear,
+    roleSpecificData.enddate || formData.subscriptionEnd
   );
   const birthDate = formatDateFromParts(
     formData.bdateMonth,
@@ -920,13 +927,12 @@ const ConfirmationSummaryDialog = ({
             </>
           )}
 
-          {/* Subscription Information - Show if subscriptionType exists, has meaningful data, and WMM role is selected */}
-          {selectedRole === "WMM" &&
-            hasSubscriptionData(
-              subscriptionType,
-              formData,
-              roleSpecificData
-            ) &&
+          {/* Subscription Information - Show if subscriptionType exists and has meaningful data */}
+          {hasSubscriptionData(
+            subscriptionType,
+            formData,
+            roleSpecificData
+          ) &&
             !(isEditModeActual && subscriptionMode === "add" && subscriptionValidation.hasWarnings) && (
               <>
                 <SectionHeader
@@ -939,19 +945,22 @@ const ConfirmationSummaryDialog = ({
                 subscriptionMode === "edit" &&
                 originalData ? (
                   <>
-                    <FieldDisplay
-                      label="Subscription Class"
-                      value={
-                        formData.subsclass || roleSpecificData.subsclass || ""
-                      }
-                      required={subscriptionType === "WMM"}
-                      isChanged={
-                        originalData.subsclass !==
-                        (formData.subsclass || roleSpecificData.subsclass)
-                      }
-                      oldValue={originalData.subsclass}
-                      showIfEmpty={false}
-                    />
+                    {/* Only show Subscription Class for WMM, not for Promo/Complimentary */}
+                    {subscriptionType === "WMM" && (
+                      <FieldDisplay
+                        label="Subscription Class"
+                        value={
+                          formData.subsclass || roleSpecificData.subsclass || ""
+                        }
+                        required={subscriptionType === "WMM"}
+                        isChanged={
+                          originalData.subsclass !==
+                          (formData.subsclass || roleSpecificData.subsclass)
+                        }
+                        oldValue={originalData.subsclass}
+                        showIfEmpty={false}
+                      />
+                    )}
                     <FieldDisplay
                       label="Start Date"
                       value={startDate}
@@ -1003,18 +1012,35 @@ const ConfirmationSummaryDialog = ({
                       oldValue={originalData.copies}
                       showIfEmpty={false}
                     />
+                    {/* Show Promo-specific fields */}
+                    {subscriptionType === "Promo" && (
+                      <FieldDisplay
+                        label="Referral ID"
+                        value={formData.referralid || roleSpecificData.referralid}
+                        required={true}
+                        isChanged={
+                          originalData.referralid !==
+                          (formData.referralid || roleSpecificData.referralid)
+                        }
+                        oldValue={originalData.referralid}
+                        showIfEmpty={false}
+                      />
+                    )}
                   </>
                 ) : (
                   // Regular display for add mode
                   <>
-                    <FieldDisplay
-                      label="Subscription Class"
-                      value={
-                        formData.subsclass || roleSpecificData.subsclass || ""
-                      }
-                      required={subscriptionType === "WMM"}
-                      showIfEmpty={false}
-                    />
+                    {/* Only show Subscription Class for WMM, not for Promo/Complimentary */}
+                    {subscriptionType === "WMM" && (
+                      <FieldDisplay
+                        label="Subscription Class"
+                        value={
+                          formData.subsclass || roleSpecificData.subsclass || ""
+                        }
+                        required={subscriptionType === "WMM"}
+                        showIfEmpty={false}
+                      />
+                    )}
                     <FieldDisplay
                       label="Start Date"
                       value={startDate}
@@ -1043,6 +1069,15 @@ const ConfirmationSummaryDialog = ({
                       required={true}
                       showIfEmpty={false}
                     />
+                    {/* Show Promo-specific fields */}
+                    {subscriptionType === "Promo" && (
+                      <FieldDisplay
+                        label="Referral ID"
+                        value={formData.referralid || roleSpecificData.referralid}
+                        required={true}
+                        showIfEmpty={false}
+                      />
+                    )}
                   </>
                 )}
 
@@ -1079,16 +1114,6 @@ const ConfirmationSummaryDialog = ({
                       />
                     </>
                   )}
-
-                {/* Promo Specific Field */}
-                {subscriptionType === "Promo" && (
-                  <FieldDisplay
-                    label="Referral ID"
-                    value={formData.referralid}
-                    required={true}
-                    showIfEmpty={false}
-                  />
-                )}
               </>
             )}
 
