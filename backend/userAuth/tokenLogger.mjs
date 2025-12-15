@@ -23,6 +23,16 @@ const actionColor = {
   RESTORE_SESSION: COLORS.fgMagenta,
 };
 
+// Only log high-value actions to reduce noise
+// We keep lifecycle and error events, skip routine VERIFY_OK, RESTORE_SESSION, etc.
+const LOGGED_ACTIONS = new Set([
+  "ISSUE",
+  "REFRESH",
+  "REVOKE",
+  "VERIFY_EXPIRED",
+  "VERIFY_INVALID",
+]);
+
 const maskToken = (token) => {
   if (!token || typeof token !== "string") return "<no-token>";
   const prefix = token.slice(0, 10);
@@ -77,6 +87,11 @@ export const logTokenEvent = ({
   token,
   meta = {},
 }) => {
+  // Short-circuit if this action is not in our whitelist
+  if (!LOGGED_ACTIONS.has(action)) {
+    return;
+  }
+
   const color = actionColor[action] || COLORS.dim;
   const masked = maskToken(token);
   const { jti, exp } = safeDecode(token);

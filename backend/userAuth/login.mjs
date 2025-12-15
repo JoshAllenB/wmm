@@ -13,6 +13,11 @@ const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes in milliseconds
 const activeSessions = new Map();
 // const SESSION_TIMEOUT = 1 * 60 * 60 * 1000; // Removed: No periodic purge
 
+// Consider a user "active" if we've seen any activity within this window
+const ACTIVE_SESSION_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+// Consider a session stale if idle for significantly longer; used for cleanup
+const STALE_SESSION_MS = ACTIVE_SESSION_WINDOW_MS * 4;
+
 const generateToken = (userId, roles) => {
   // Add more claims to the token for better security
   const sessionId = crypto.randomUUID();
@@ -33,16 +38,26 @@ const generateToken = (userId, roles) => {
 };
 
 /**
- * Checks if a user is currently active based on active sessions
+ * Checks if a user is currently active based on recent session activity.
+ * A user is considered active if they have at least one session whose
+ * lastActivity (or loginTime) is within ACTIVE_SESSION_WINDOW_MS.
  * @param {string} userId - The user ID to check
  * @returns {boolean} - Whether the user is currently active
  */
 const isUserActive = (userId) => {
   if (!userId) return false;
 
-  // Check if user has any active sessions
+  const now = Date.now();
+  const target = userId.toString();
+
   for (const session of activeSessions.values()) {
-    if (session.userId === userId.toString()) {
+    if (session.userId !== target) continue;
+
+    const last =
+      (session.lastActivity && session.lastActivity.getTime?.()) ||
+      (session.loginTime && session.loginTime.getTime?.());
+
+    if (last && now - last <= ACTIVE_SESSION_WINDOW_MS) {
       return true;
     }
   }
@@ -168,6 +183,20 @@ const resetActiveUsersStatus = async () => {
     console.error("Error during startup session cleanup:", error);
   }
 };
+
+// Periodically clean up very stale sessions to keep memory bounded
+setInterval(() => {
+  const now = Date.now();
+  for (const [jti, session] of activeSessions.entries()) {
+    const last =
+      (session.lastActivity && session.lastActivity.getTime?.()) ||
+      (session.loginTime && session.loginTime.getTime?.());
+
+    if (!last || now - last > STALE_SESSION_MS) {
+      activeSessions.delete(jti);
+    }
+  }
+}, ACTIVE_SESSION_WINDOW_MS);
 
 // Export the active sessions map and the reset function
 export { activeSessions, resetActiveUsersStatus, isUserActive, generateToken };
