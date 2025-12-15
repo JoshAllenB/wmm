@@ -448,15 +448,8 @@ function processModelDataResults(
         serviceType = normalizeServiceType(modelName);
       }
 
-      // Only set the data for the current subscription type
-      if (
-        (subscriptionType === "WMM" && serviceType === "wmmData") ||
-        (subscriptionType === "Promo" && serviceType === "promoData") ||
-        (subscriptionType === "Complimentary" && serviceType === "compData") ||
-        !["wmmData", "promoData", "compData"].includes(serviceType)
-      ) {
-        modelDataMap.get(clientId)[serviceType] = dataObject;
-      }
+      // Always set the data for all subscription types to ensure the frontend has access to complete history
+      modelDataMap.get(clientId)[serviceType] = dataObject;
     });
   });
 }
