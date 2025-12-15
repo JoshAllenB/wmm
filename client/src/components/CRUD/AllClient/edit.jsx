@@ -330,7 +330,7 @@ const Edit = ({
         if (!data.copies || data.copies < 1) {
           warnings.copies = "Number of copies should be specified";
         }
-        if (!data.paymtref && !data.paymtamt) {
+        if (!data.paymtref && !data.paymtamt && !data.paymtmasses) {
           warnings.payment = "Payment information is recommended";
         }
       }
@@ -4095,20 +4095,24 @@ const Edit = ({
           const dataSource =
             roleRecordMode === "edit" ? roleSpecificData : newRoleData;
 
-          const hasAmount = Boolean(
-            dataSource?.paymtamt !== undefined &&
-              String(dataSource.paymtamt).trim() !== ""
-          );
-          const hasMasses = Boolean(
-            dataSource?.paymtmasses !== undefined &&
-              String(dataSource.paymtmasses).trim() !== ""
-          );
-
-          if (!hasAmount && !hasMasses) {
-            setValidationError(
-              "Please provide either Payment Amount or Masses for the subscription."
+          // Only validate payment information for WMM subscriptions
+          // Complimentary and Promo subscriptions don't require payment
+          if (formData.subscriptionType === "WMM") {
+            const hasAmount = Boolean(
+              dataSource?.paymtamt !== undefined &&
+                String(dataSource.paymtamt).trim() !== ""
             );
-            return;
+            const hasMasses = Boolean(
+              dataSource?.paymtmasses !== undefined &&
+                String(dataSource.paymtmasses).trim() !== ""
+            );
+
+            if (!hasAmount && !hasMasses) {
+              setValidationError(
+                "Please provide either Payment Amount or Masses for the WMM subscription."
+              );
+              return;
+            }
           }
 
           // Additional required fields: Start, End, Duration, Subclass
@@ -4207,20 +4211,24 @@ const Edit = ({
 
       const dataSource =
         roleRecordMode === "edit" ? roleSpecificData : newRoleData;
-      const hasAmount = Boolean(
-        dataSource?.paymtamt !== undefined &&
-          String(dataSource.paymtamt).trim() !== ""
-      );
-      const hasMasses = Boolean(
-        dataSource?.paymtmasses !== undefined &&
-          String(dataSource.paymtmasses).trim() !== ""
-      );
-      if (!hasAmount && !hasMasses) {
-        setValidationError(
-          "Please provide either Payment Amount or Masses for the subscription."
+      // Only validate payment information for WMM subscriptions
+      // Complimentary and Promo subscriptions don't require payment
+      if (formData.subscriptionType === "WMM") {
+        const hasAmount = Boolean(
+          dataSource?.paymtamt !== undefined &&
+            String(dataSource.paymtamt).trim() !== ""
         );
-        setIsSubmitting(false);
-        return;
+        const hasMasses = Boolean(
+          dataSource?.paymtmasses !== undefined &&
+            String(dataSource.paymtmasses).trim() !== ""
+        );
+        if (!hasAmount && !hasMasses) {
+          setValidationError(
+            "Please provide either Payment Amount or Masses for the WMM subscription."
+          );
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       const startPresent = Boolean(
