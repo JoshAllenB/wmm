@@ -25,8 +25,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
 
   useEffect(() => {
     if (rowData) {
-      // Determine the correct subscription type based on available data
+      // Determine the primary subscription type based on priority and available data
       let subscriptionType = "None"; // Default to None when no data exists
+      const subscriptionTypes = [];
 
       // Check which subscription data exists and has records
       if (
@@ -36,29 +37,43 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
           (typeof rowData.promoData === "object" &&
             Object.keys(rowData.promoData).length > 0))
       ) {
-        subscriptionType = "Promo";
-      } else if (
+        subscriptionTypes.push("Promo");
+      }
+      
+      if (
         rowData.compData &&
         ((rowData.compData.records && rowData.compData.records.length > 0) ||
           (Array.isArray(rowData.compData) && rowData.compData.length > 0) ||
           (typeof rowData.compData === "object" &&
             Object.keys(rowData.compData).length > 0))
       ) {
-        subscriptionType = "Complimentary";
-      } else if (
+        subscriptionTypes.push("Complimentary");
+      }
+      
+      if (
         rowData.wmmData &&
         ((rowData.wmmData.records && rowData.wmmData.records.length > 0) ||
           (Array.isArray(rowData.wmmData) && rowData.wmmData.length > 0) ||
           (typeof rowData.wmmData === "object" &&
             Object.keys(rowData.wmmData).length > 0))
       ) {
-        subscriptionType = "WMM";
+        subscriptionTypes.push("WMM");
       }
 
-      // Set formData with the correct subscription type
+      // Set primary subscription type with priority: WMM > Complimentary > Promo
+      if (subscriptionTypes.includes("WMM")) {
+        subscriptionType = "WMM";
+      } else if (subscriptionTypes.includes("Complimentary")) {
+        subscriptionType = "Complimentary";
+      } else if (subscriptionTypes.includes("Promo")) {
+        subscriptionType = "Promo";
+      }
+
+      // Set formData with the correct subscription type and all available subscription types
       setFormData({
         ...rowData,
         subscriptionType: subscriptionType,
+        allSubscriptionTypes: subscriptionTypes, // Store all found subscription types
       });
       setShowModal(true);
 
@@ -234,22 +249,35 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditClick = () => {
-    // Determine the correct subscription type based on available data
+    // Determine the primary subscription type based on priority and available data
     let subscriptionType = "None"; // Default to None when no data exists
+    const subscriptionTypes = [];
 
     // Check which subscription data exists and has records
     if (promoData && promoData.records && promoData.records.length > 0) {
-      subscriptionType = "Promo";
-    } else if (compData && compData.records && compData.records.length > 0) {
-      subscriptionType = "Complimentary";
-    } else if (wmmData && wmmData.records && wmmData.records.length > 0) {
+      subscriptionTypes.push("Promo");
+    }
+    if (compData && compData.records && compData.records.length > 0) {
+      subscriptionTypes.push("Complimentary");
+    }
+    if (wmmData && wmmData.records && wmmData.records.length > 0) {
+      subscriptionTypes.push("WMM");
+    }
+
+    // Set primary subscription type with priority: WMM > Complimentary > Promo
+    if (subscriptionTypes.includes("WMM")) {
       subscriptionType = "WMM";
+    } else if (subscriptionTypes.includes("Complimentary")) {
+      subscriptionType = "Complimentary";
+    } else if (subscriptionTypes.includes("Promo")) {
+      subscriptionType = "Promo";
     }
 
     // Ensure subscription data is properly structured before passing to edit
     const editData = {
       ...formData,
       subscriptionType: subscriptionType, // Set the correct subscription type
+      allSubscriptionTypes: subscriptionTypes, // Include all found subscription types
       wmmData: wmmData,
       promoData: promoData,
       complimentaryData: compData,
@@ -268,8 +296,9 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
   };
 
   const handleEditSuccess = (updatedData) => {
-    // Determine the correct subscription type based on available data
+    // Determine the primary subscription type based on priority and available data
     let subscriptionType = "None"; // Default to None when no data exists
+    const subscriptionTypes = [];
 
     // Check which subscription data exists and has records
     if (
@@ -281,8 +310,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         (typeof updatedData.promoData === "object" &&
           Object.keys(updatedData.promoData).length > 0))
     ) {
-      subscriptionType = "Promo";
-    } else if (
+      subscriptionTypes.push("Promo");
+    }
+    
+    if (
       updatedData.compData &&
       ((updatedData.compData.records &&
         updatedData.compData.records.length > 0) ||
@@ -291,8 +322,10 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         (typeof updatedData.compData === "object" &&
           Object.keys(updatedData.compData).length > 0))
     ) {
-      subscriptionType = "Complimentary";
-    } else if (
+      subscriptionTypes.push("Complimentary");
+    }
+    
+    if (
       updatedData.wmmData &&
       ((updatedData.wmmData.records &&
         updatedData.wmmData.records.length > 0) ||
@@ -301,13 +334,23 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
         (typeof updatedData.wmmData === "object" &&
           Object.keys(updatedData.wmmData).length > 0))
     ) {
+      subscriptionTypes.push("WMM");
+    }
+
+    // Set primary subscription type with priority: WMM > Complimentary > Promo
+    if (subscriptionTypes.includes("WMM")) {
       subscriptionType = "WMM";
+    } else if (subscriptionTypes.includes("Complimentary")) {
+      subscriptionType = "Complimentary";
+    } else if (subscriptionTypes.includes("Promo")) {
+      subscriptionType = "Promo";
     }
 
     // Update formData with the base client data and correct subscription type
     setFormData({
       ...updatedData,
       subscriptionType: subscriptionType,
+      allSubscriptionTypes: subscriptionTypes, // Store all found subscription types
     });
 
     // Determine which services this client actually has
