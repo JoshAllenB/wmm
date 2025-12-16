@@ -438,7 +438,7 @@ const AllClient = () => {
         if (hasAnySearchTerm) {
           // When searching by name or ID, remove ALL restrictions to show all services (WMM, PROMO, COMP, HRG, FOM, CAL)
           delete filtersToUse.services;
-          delete filtersToUse.subscriptionType;
+          // delete filtersToUse.subscriptionType;
           // Signal the transport not to send standalone subscriptionType param
           filtersToUse.ignoreSubscriptionParam = true;
         } else if (shouldUseRoleBasedServices && roleBasedServices.length > 0) {
