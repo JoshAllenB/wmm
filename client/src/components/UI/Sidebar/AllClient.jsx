@@ -1533,12 +1533,85 @@ const AllClient = () => {
     return roles.length > 0 ? roles.join(" ") : "default";
   }, [hasRole]); // Only recalculate when hasRole changes
 
-  // Ref for scrolling to bottom
-  const bottomRef = useRef(null);
+  // Ref for scrolling the DataTable to bottom
+  const dataTableRef = useRef(null);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
 
-  const handleScrollToBottom = () => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  const handleScrollToggle = () => {
+    // If we have a DataTable ref, scroll it to bottom or top based on current state
+    if (dataTableRef.current) {
+      const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
+                              dataTableRef.current;
+      
+      // Check if we're near the bottom (within 100px of the bottom)
+      const { scrollHeight, scrollTop, clientHeight } = scrollableElement;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      
+      if (isAtBottom) {
+        // Scroll to top
+        scrollableElement.scrollTo({ top: 0, behavior: "smooth" });
+        setIsScrolledToBottom(false);
+      } else {
+        // Scroll to bottom
+        scrollableElement.scrollTo({ top: scrollHeight, behavior: "smooth" });
+        setIsScrolledToBottom(true);
+      }
+    }
   };
+  
+  // Add scroll listener to track if user scrolls manually
+  useEffect(() => {
+    // Set up a mutation observer to detect when the DataTable is rendered
+    const observer = new MutationObserver(() => {
+      if (dataTableRef.current) {
+        const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
+                                 dataTableRef.current.querySelector('.overflow-y-auto') ||
+                                 dataTableRef.current;
+        
+        // Check if we already have this element set up
+        if (!scrollableElement.getAttribute('data-scroll-listener')) {
+          // Mark this element so we don't attach duplicate listeners
+          scrollableElement.setAttribute('data-scroll-listener', 'true');
+          
+          const handleScroll = () => {
+            const { scrollHeight, scrollTop, clientHeight } = scrollableElement;
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setIsScrolledToBottom(isAtBottom);
+          };
+          
+          // Initial check
+          handleScroll();
+          
+          scrollableElement.addEventListener('scroll', handleScroll, { passive: true });
+          
+          // Clean up function
+          return () => {
+            scrollableElement.removeEventListener('scroll', handleScroll);
+            scrollableElement.removeAttribute('data-scroll-listener');
+          };
+        }
+      }
+    });
+
+    // Start observing the document for changes to find the DataTable
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Clean up
+    return () => {
+      observer.disconnect();
+      if (dataTableRef.current) {
+        const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
+                                 dataTableRef.current.querySelector('.overflow-y-auto') ||
+                                 dataTableRef.current;
+        if (scrollableElement) {
+          scrollableElement.removeEventListener('scroll', () => {});
+        }
+      }
+    };
+  }, []);
 
   const [showMailingModal, setShowMailingModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -1826,12 +1899,16 @@ const AllClient = () => {
           serviceFilters={advancedFilterData.services || []}
         />
         <Button
-          onClick={handleScrollToBottom}
-          title="Go to Bottom"
+          onClick={handleScrollToggle}
+          title={isScrolledToBottom ? "Scroll Table to Top" : "Scroll Table to Bottom"}
           className="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors duration-200 font-medium flex items-center gap-1"
         >
-          <ArrowDown className="h-4 w-4" />
-          <span>Go Bottom</span>
+          {isScrolledToBottom ? (
+            <ArrowDown className="h-4 w-4 rotate-180" />
+          ) : (
+            <ArrowDown className="h-4 w-4" />
+          )}
+          <span>{isScrolledToBottom ? "Scroll Top" : "Scroll Bottom"}</span>
         </Button>
       </div>
 
@@ -1861,6 +1938,7 @@ const AllClient = () => {
       </div>
 
       <DataTable
+        ref={dataTableRef}
         columns={columns}
         data={clientData}
         fetchFunction={fetchData}
@@ -1893,8 +1971,7 @@ const AllClient = () => {
         />
       )}
 
-      {/* Reference element for scrolling to bottom */}
-      <div ref={bottomRef} />
+      {/* DataTable ref handles scrolling to bottom - no need for this element */}
     </div>
   );
 };
