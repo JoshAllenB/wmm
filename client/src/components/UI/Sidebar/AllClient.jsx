@@ -200,7 +200,7 @@ const AllClient = () => {
     setAdvancedFilterData(newFilter);
 
     // Fetch with the role-based services and preserved subscription type
-    fetchData(page, pageSize, "", selectedGroup, newFilter);
+    fetchData(page, pageSize, "", selectedGroup, newFilter, undefined, { showLoading: true });
   };
 
   const [isLoading, setIsLoading] = useState(true);
@@ -334,7 +334,8 @@ const AllClient = () => {
       filter = "",
       group = "",
       advancedFilterData = {},
-      overrideSubscriptionType = null
+      overrideSubscriptionType = null,
+      options = { showLoading: true }
     ) => {
       // Declare timeoutId outside try/catch to avoid scope issues on errors
       let timeoutId = null;
@@ -348,15 +349,19 @@ const AllClient = () => {
         const requestId = Date.now();
         currentRequestRef.current = { id: requestId, cancel: false };
 
-        // Show loading state for all requests to provide better UX
-        setIsLoading(true);
+        // Only show loading state if requested
+        if (options.showLoading) {
+          setIsLoading(true);
+        }
 
-        // Add a timeout to prevent indefinite loading
+    // Add a timeout to prevent indefinite loading
         timeoutId = setTimeout(() => {
           if (currentRequestRef.current?.id === requestId) {
             console.warn("Request timeout - forcing loading state reset");
-            setIsLoading(false);
-            setIsAddedTodayLoading(false);
+            if (options.showLoading) {
+              setIsLoading(false);
+              setIsAddedTodayLoading(false);
+            }
             toast({
               title: "Request Timeout",
               description:
@@ -529,15 +534,19 @@ const AllClient = () => {
           currentRequestRef.current?.id !== requestId
         ) {
           if (timeoutId) clearTimeout(timeoutId);
-          setIsLoading(false);
-          setIsAddedTodayLoading(false);
+          if (options.showLoading) {
+            setIsLoading(false);
+            setIsAddedTodayLoading(false);
+          }
           return null;
         }
 
         // Skip state updates if the request was cancelled (response is null)
         if (!response) {
-          setIsLoading(false);
-          setIsAddedTodayLoading(false);
+          if (options.showLoading) {
+            setIsLoading(false);
+            setIsAddedTodayLoading(false);
+          }
           return null;
         }
 
@@ -623,9 +632,11 @@ const AllClient = () => {
           }
         );
 
-        // Always remove loading state when done
-        setIsLoading(false);
-        setIsAddedTodayLoading(false);
+        // Always remove loading state when done if it was shown
+        if (options.showLoading) {
+          setIsLoading(false);
+          setIsAddedTodayLoading(false);
+        }
 
         return response;
       } catch (error) {
@@ -668,9 +679,11 @@ const AllClient = () => {
           });
         }
 
-        // Ensure loading state is cleared even on error
-        setIsLoading(false);
-        setIsAddedTodayLoading(false);
+        // Ensure loading state is cleared even on error if it was shown
+        if (options.showLoading) {
+          setIsLoading(false);
+          setIsAddedTodayLoading(false);
+        }
         return null;
       }
     },
@@ -807,7 +820,9 @@ const AllClient = () => {
         pageSize,
         debouncedFiltering,
         selectedGroup,
-        advancedFilterData
+        advancedFilterData,
+        undefined,
+        { showLoading: true }
       ).catch((error) => {
         console.error("Fetch data error in useEffect:", error);
         // Ensure loading states are reset even if fetchData throws
@@ -841,7 +856,9 @@ const AllClient = () => {
         pageSize,
         debouncedFiltering,
         selectedGroup,
-        advancedFilterData
+        advancedFilterData,
+        undefined,
+        { showLoading: true }
       ).catch((error) => {
         console.error("Error refreshing clients after delete:", error);
         // Ensure loading states are reset on error
@@ -882,7 +899,9 @@ const AllClient = () => {
       pageSize,
       debouncedFiltering,
       selectedGroup,
-      advancedFilterData
+      advancedFilterData,
+      undefined,
+      { showLoading: true }
     ).catch((error) => {
       console.error("Error refreshing clients after edit:", error);
       // Ensure loading states are reset on error

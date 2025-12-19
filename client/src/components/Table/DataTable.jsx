@@ -1,10 +1,18 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { ScrollArea, ScrollBar } from "../UI/ShadCN/scroll-area";
 import { useTheme } from "@mui/material";
 import { PaginationComponent } from "./Features/Pagination";
 import { useTableLogic } from "./TableLogic";
 import { TableComponent } from "./TableComponent";
 import { useSocket } from "../../utils/Websocket/useSocket";
+import { useToast } from "../UI/ShadCN/hooks/use-toast";
 import {
   handlePreviousPage,
   handleNextPage,
@@ -14,33 +22,36 @@ import {
 } from "./Features/PaginationUtils";
 import { LinearProgress } from "@mui/material";
 
-export default function DataTable({
-  columns,
-  data,
-  fetchFunction,
-  initialPageSize = 20,
-  initialPage = 1,
-  totalPages: initialTotalPages,
-  rowSelection,
-  setRowSelection,
-  usePagination = false,
-  useHoverCard = false,
-  enableEdit = false,
-  ViewComponent = null,
-  EditComponent = null,
-  onDelete = null,
-  userRole,
-  searchTerm,
-  selectedGroup,
-  handleRowClick,
-  setTableInstance,
-  advancedFilterData,
-  isLoading = false,
-  columnVisibility,
-  setColumnVisibility,
-  stats,
-  addedToday = false,
-}) {
+export default forwardRef(function DataTable(
+  {
+    columns,
+    data,
+    fetchFunction,
+    initialPageSize = 20,
+    initialPage = 1,
+    totalPages: initialTotalPages,
+    rowSelection,
+    setRowSelection,
+    usePagination = false,
+    useHoverCard = false,
+    enableEdit = false,
+    ViewComponent = null,
+    EditComponent = null,
+    onDelete = null,
+    userRole,
+    searchTerm,
+    selectedGroup,
+    handleRowClick,
+    setTableInstance,
+    advancedFilterData,
+    isLoading = false,
+    columnVisibility,
+    setColumnVisibility,
+    stats,
+    addedToday = false,
+  },
+  forwardedRef
+) {
   const theme = useTheme();
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(initialPageSize);
@@ -55,6 +66,8 @@ export default function DataTable({
   const [screenSize, setScreenSize] = useState("desktop");
   const [isSmallHeight, setIsSmallHeight] = useState(false);
   const containerRef = useRef(null);
+  useImperativeHandle(forwardedRef, () => containerRef.current, []);
+  const passedRef = forwardedRef || containerRef;
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [localLoading, setLocalLoading] = useState(true);
@@ -69,13 +82,24 @@ export default function DataTable({
   // Helper function to check if a client matches current filter criteria
   const checkClientVisibility = useCallback(
     (client) => {
-      // If no advanced filter data, client is visible
+      // If no advanced filter data and no other filters, client is visible
       if (!advancedFilterData || Object.keys(advancedFilterData).length === 0) {
+        // Only check addedToday if no advanced filter data
+        if (addedToday) {
+          const today = new Date();
+          const clientDate = new Date(
+            client.adddate || client.addedAt || client.updatedAt
+          );
+          const isToday = clientDate.toDateString() === today.toDateString();
+          if (!isToday) {
+            return false;
+          }
+        }
         return true;
       }
 
-      // Check "Added/Updated Today" filter
-      if (advancedFilterData.addedToday) {
+      // Check "Added/Updated Today" filter (either from prop or advancedFilterData)
+      if (addedToday || advancedFilterData.addedToday) {
         const today = new Date();
         const clientDate = new Date(
           client.adddate || client.addedAt || client.updatedAt
@@ -178,7 +202,7 @@ export default function DataTable({
 
       return true;
     },
-    [advancedFilterData, searchTerm, selectedGroup]
+    [advancedFilterData, searchTerm, selectedGroup, addedToday]
   );
 
   // Enhanced responsive height and width adjustment based on viewport and container
@@ -347,7 +371,12 @@ export default function DataTable({
   };
 
   const fetchData = useCallback(
-    async (isSync = false, preservePage = null, preservePageSize = null) => {
+    async (
+      isSync = false,
+      preservePage = null,
+      preservePageSize = null,
+      options = {}
+    ) => {
       if (!fetchFunction) return;
 
       // Cancel previous request if it exists
@@ -357,7 +386,7 @@ export default function DataTable({
       const controller = new AbortController();
       abortControllerRef.current = controller;
 
-      if (!isSync) {
+      if (!isSync && !options.skipLoading) {
         setIsTransitioning(true);
         setAnimationComplete(false);
         setLocalLoading(true);
@@ -378,10 +407,12 @@ export default function DataTable({
         );
 
         if (result === null || controller.signal.aborted) {
-          // Ensure local loading state is cleared even when upstream cancels/returns null
-          setIsTransitioning(false);
-          setAnimationComplete(true);
-          setLocalLoading(false);
+          // Ensure local loading state is cleared if this is not marked as a sync request
+          if (!isSync && !options.skipLoading) {
+            setIsTransitioning(false);
+            setAnimationComplete(true);
+            setLocalLoading(false);
+          }
           return;
         }
 
@@ -440,13 +471,20 @@ export default function DataTable({
         // Add a small delay before completing the transition
         setTimeout(() => {
           if (!controller.signal.aborted) {
-            setIsTransitioning(false);
-            setTimeout(() => {
-              if (!controller.signal.aborted) {
+            if (!isSync && !options.skipLoading) {
+              setIsTransitioning(false);
+              setTimeout(() => {
+                if (!controller.signal.aborted) {
+                  setAnimationComplete(true);
+                  setLocalLoading(false);
+                }
+              }, 100);
+            } else {
+              // For sync or skipLoading requests, just update animation state
+              if (!options.skipAnimation) {
                 setAnimationComplete(true);
-                setLocalLoading(false);
               }
-            }, 100);
+            }
           }
         }, 300);
       } catch (error) {
@@ -455,7 +493,9 @@ export default function DataTable({
           setError(error.message);
           setLocalData([]);
           setTotalPages(1);
-          setLocalLoading(false);
+          if (!isSync && !options.skipLoading) {
+            setLocalLoading(false);
+          }
         }
       } finally {
         abortControllerRef.current = null;
@@ -639,8 +679,10 @@ export default function DataTable({
       // This will maintain the current filters and pagination
       setTimeout(() => {
         // Call fetchData with the preserved pagination
-        fetchData(false, currentPage, currentPageSize);
-
+        fetchData(false, currentPage, currentPageSize, {
+          skipLoading: true,
+          skipAnimation: false,
+        });
         // Reset the flag after a short delay
         setTimeout(() => {
           isWebSocketRefetchRef.current = false;
@@ -741,14 +783,14 @@ export default function DataTable({
   return (
     <>
       <div
-        ref={containerRef}
+        ref={passedRef}
         className={`transition-opacity duration-300 ease-in-out ${
           isTransitioning ? "opacity-0" : "opacity-100"
         }`}
       >
         <ScrollArea
           className="rounded-md border w-full overflow-hidden"
-          style={{ height: tableHeight, overflowY: 'auto' }}
+          style={{ height: tableHeight, overflowY: "auto" }}
         >
           <TableComponent
             table={table}
@@ -861,4 +903,4 @@ export default function DataTable({
       </div>
     </>
   );
-}
+});
