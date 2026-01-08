@@ -120,7 +120,8 @@ export const getSubscriptionSpecificData = (
       paymtamt: roleSpecificData.paymtamt || "",
       paymtmasses: roleSpecificData.paymtmasses || "",
       donorid:
-        typeof roleSpecificData.donorid === "object" && roleSpecificData.donorid !== null
+        typeof roleSpecificData.donorid === "object" &&
+        roleSpecificData.donorid !== null
           ? roleSpecificData.donorid._id || roleSpecificData.donorid.id
           : roleSpecificData.donorid || "",
     };
@@ -151,10 +152,15 @@ export const hasSubscriptionData = (formData, roleSpecificData) => {
     formData.subscriptionFreq && formData.subscriptionFreq !== "";
   const hasCopies = roleSpecificData.copies && roleSpecificData.copies > 1;
   const hasPaymentInfo =
-    (roleSpecificData.paymtref && roleSpecificData.paymtref.trim() !== "") ||
-    (roleSpecificData.paymtamt && roleSpecificData.paymtamt.trim() !== "") ||
-    (roleSpecificData.paymtmasses &&
-      roleSpecificData.paymtmasses.trim() !== "");
+    (roleSpecificData.paymtref !== undefined &&
+      String(roleSpecificData.paymtref).trim() !== "") ||
+    (roleSpecificData.paymtamt !== undefined &&
+      roleSpecificData.paymtamt !== null &&
+      String(roleSpecificData.paymtamt).trim() !== "") ||
+    (roleSpecificData.paymtmasses !== undefined &&
+      roleSpecificData.paymtmasses !== null &&
+      String(roleSpecificData.paymtmasses).trim() !== "");
+
   const hasDonorId =
     roleSpecificData.donorid && String(roleSpecificData.donorid).trim() !== "";
   const hasReferralId =
