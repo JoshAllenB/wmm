@@ -177,7 +177,7 @@ async function processMonthlyDistribution(
     ]);
 
     sendProgressUpdate(
-      `✅ Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions, ${subscriptionsAddedThisMonth.length} subscriptions added this month`
+      `Retrieved ${clients.length} clients, ${allSubscriptions.length} subscriptions, ${allComplimentary.length} complimentary subscriptions, ${subscriptionsAddedThisMonth.length} subscriptions added this month`
     );
 
     // Create client lookup map for faster access
@@ -201,13 +201,13 @@ async function processMonthlyDistribution(
         }
       }
 
-      // Exclude records that were edited after the month's cutoff date
-      if (sub.editdate) {
-        const editDate = new Date(sub.editdate);
-        if (editDate > endOfMonth) {
-          return false; // Exclude if edited after the cutoff
-        }
-      }
+      // // Exclude records that were edited after the month's cutoff date
+      // if (sub.editdate) {
+      //   const editDate = new Date(sub.editdate);
+      //   if (editDate > endOfMonth) {
+      //     return false; // Exclude if edited after the cutoff
+      //   }
+      // }
 
       return isActive;
     });
@@ -219,8 +219,55 @@ async function processMonthlyDistribution(
     });
 
     sendProgressUpdate(
-      `✅ Found ${activeSubscriptions.length} active subscriptions and ${activeComplimentary.length} complimentary subscriptions for the month`
+      `Found ${activeSubscriptions.length} active subscriptions and ${activeComplimentary.length} complimentary subscriptions for the month`
     );
+
+    // === Export ungrouped client list to CSV (clientid, subsdate, enddate, copies) ===
+    try {
+      const rows = [];
+
+      // From paid subscriptions
+      for (const sub of activeSubscriptions) {
+        const clientid = sub.clientid != null ? sub.clientid : "";
+        const subsdate = sub.subsdate || "";
+        const enddate = sub.enddate || "";
+        const copies = sub.copies != null ? sub.copies : "";
+        rows.push([clientid, subsdate, enddate, copies]);
+      }
+
+      // Add a blank separator row between paid subscriptions and complimentary entries
+      rows.push(["", "", "", ""]);
+
+      // From complimentary docs
+      for (const doc of activeComplimentary) {
+        const clientIdField =
+          doc.clientId || doc.clientid || doc.client_id || "";
+        const subsdate = doc.subsdate || "";
+        const enddate = doc.enddate || "";
+        const copies = doc.copies != null ? doc.copies : "";
+        rows.push([clientIdField, subsdate, enddate, copies]);
+      }
+
+      const header =
+        ["clientid", "subsdate", "enddate", "copies"].join(",") + "\n";
+      const csvBody = rows
+        .map((r) =>
+          r.map((v) => (v === null || v === undefined ? "" : `${v}`)).join(",")
+        )
+        .join("\n");
+      const csvContent = header + csvBody + "\n";
+
+      const outDir = "C:\\Users\\Josh\\Documents\\WMM Reports\\";
+      if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+      const outPath = path.join(outDir, `AllClients_${month}_${year}.csv`);
+      fs.writeFileSync(outPath, csvContent);
+      sendProgressUpdate(`Ungrouped clients CSV saved to ${outPath}`);
+    } catch (csvErr) {
+      console.error(
+        chalk.red("❌ Error writing ungrouped clients CSV:"),
+        csvErr.message
+      );
+    }
 
     // Group clients by type - more efficient approach
     const clientsByType = {};
