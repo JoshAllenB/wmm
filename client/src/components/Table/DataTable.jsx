@@ -66,8 +66,15 @@ export default forwardRef(function DataTable(
   const [screenSize, setScreenSize] = useState("desktop");
   const [isSmallHeight, setIsSmallHeight] = useState(false);
   const containerRef = useRef(null);
-  useImperativeHandle(forwardedRef, () => containerRef.current, []);
-  const passedRef = forwardedRef || containerRef;
+  // Keep the forwarded ref in sync with the internal DOM ref value
+  useImperativeHandle(
+    forwardedRef,
+    () => containerRef.current,
+    // Re-run when the actual DOM node changes so parent ref stays current
+    [containerRef.current]
+  );
+  // Always attach DOM ref to `containerRef`. If a forwarded ref exists,
+  // `useImperativeHandle` above exposes `containerRef.current` to the parent.
   const currentDataRef = useRef(null);
   const abortControllerRef = useRef(null);
   const [localLoading, setLocalLoading] = useState(true);
@@ -207,90 +214,63 @@ export default forwardRef(function DataTable(
 
   // Enhanced responsive height and width adjustment based on viewport and container
   useEffect(() => {
-    // Only try to measure when the actual table is rendered, not while showing the loader
-    if (isLoading || localLoading) {
-      return;
-    }
+    if (isLoading || localLoading) return;
 
     const updateTableDimensions = () => {
-      if (!containerRef.current) return;
+      const container = containerRef.current;
+      if (!container) return;
 
       const viewportHeight = window.innerHeight;
-      const viewportWidth = window.innerWidth;
-      const containerWidth = containerRef.current.offsetWidth;
+      const containerRect = container.getBoundingClientRect();
+      const containerTop = Math.max(containerRect.top, 0);
+      const containerWidth = container.offsetWidth;
 
-      // Check if screen height is below 720px
-      const smallHeight = viewportHeight < 720;
-      setIsSmallHeight(smallHeight);
+      // Footer / pagination height (single source of truth)
+      const footerHeight = usePagination ? 72 : 32;
 
-      // Determine screen size category
-      let size = "desktop";
-      if (viewportWidth < 640) {
-        size = "mobile";
-      } else if (viewportWidth < 1024) {
-        size = "tablet";
-      } else if (viewportWidth < 1440) {
-        size = "laptop";
-      }
-      setScreenSize(size);
+      // Available vertical space
+      const availableHeight = viewportHeight - containerTop - footerHeight;
 
-      // Calculate the offset from the top of the viewport to the table container
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const containerTop = Math.max(0, containerRect.top);
+      // Responsive constraints (CSS-pixel based)
+      const minHeight =
+        viewportHeight < 700 ? 180 : viewportHeight < 850 ? 240 : 320;
 
-      // Reserve space for pagination and other elements below the table
-      // Reduce bottom space on small height screens
-      const bottomReservedSpace = usePagination ? (smallHeight ? 60 : 100) : 30;
+      const maxHeight = Math.min(viewportHeight * 0.9, viewportHeight - 16);
 
-      // Calculate available height: viewport height - top offset - bottom space
-      let calculatedHeight =
-        viewportHeight - containerTop - bottomReservedSpace;
-
-      // Adjust minimum height based on screen size and height
-      let minHeight = 400;
-      if (smallHeight) minHeight = 200;
-      else if (size === "mobile") minHeight = 250;
-      else if (size === "tablet") minHeight = 350;
-
-      // Use more of the available height - limit to 90% instead of 85%
-      const maxHeight = viewportHeight * 0.9;
-
-      // Ensure we use as much space as possible while respecting min/max
-      calculatedHeight = Math.max(
+      // Clamp height safely
+      const finalHeight = Math.max(
         minHeight,
-        Math.min(calculatedHeight, maxHeight)
+        Math.min(availableHeight, maxHeight)
       );
 
-      setTableHeight(`${Math.floor(calculatedHeight)}px`);
+      setTableHeight(`${Math.floor(finalHeight)}px`);
       setTableWidth(containerWidth);
     };
 
-    // Initial calculation - use requestAnimationFrame for better timing
-    const rafId = requestAnimationFrame(() => {
-      updateTableDimensions();
-    });
+    const raf = requestAnimationFrame(updateTableDimensions);
 
-    // Also respond to container size changes (not just window resizes)
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
-      resizeObserver = new ResizeObserver(() => {
-        updateTableDimensions();
-      });
-      resizeObserver.observe(containerRef.current);
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateTableDimensions)
+        : null;
+
+    // Start observing the container so resize events are tracked.
+    if (resizeObserver) {
+      try {
+        resizeObserver.observe(container);
+      } catch (e) {
+        // Defensive: some environments may throw if observe is called
+        // with an unexpected element; ignore and continue.
+        console.warn("ResizeObserver.observe failed:", e);
+      }
     }
 
-    // Add event listeners for resize and orientation change
     window.addEventListener("resize", updateTableDimensions);
-    window.addEventListener("orientationchange", updateTableDimensions);
 
-    // Cleanup
     return () => {
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(raf);
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", updateTableDimensions);
-      window.removeEventListener("orientationchange", updateTableDimensions);
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-      }
     };
   }, [usePagination, isLoading, localLoading]);
 
@@ -783,7 +763,7 @@ export default forwardRef(function DataTable(
   return (
     <>
       <div
-        ref={passedRef}
+        ref={containerRef}
         className={`transition-opacity duration-300 ease-in-out ${
           isTransitioning ? "opacity-0" : "opacity-100"
         }`}
