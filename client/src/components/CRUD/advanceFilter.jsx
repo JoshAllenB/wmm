@@ -231,6 +231,7 @@ const AdvancedFilter = ({
     rtsMinCount: "",
     rtsMaxCount: "",
     expiryDateRangeOnly: false,
+    renewedOnly: false,
     calendarEntitledOnly: false,
     massPaid: false,
     cashPaid: false,
@@ -459,6 +460,7 @@ const AdvancedFilter = ({
       rtsMinCount: "",
       rtsMaxCount: "",
       expiryDateRangeOnly: false,
+      renewedOnly: false,
       calendarEntitledOnly: false,
       massPaid: false,
       cashPaid: false,
@@ -873,6 +875,8 @@ const AdvancedFilter = ({
       }),
       // Expiry date range only filter
       ...(filterData.expiryDateRangeOnly && { expiryDateRangeOnly: true }),
+      // Renewed only filter
+      ...(filterData.renewedOnly && { renewedOnly: true }),
       // Calendar entitlement filters
       ...(filterData.calendarEntitledOnly && { calendarEntitledOnly: true }),
 
@@ -1617,6 +1621,9 @@ const AdvancedFilter = ({
           break;
         case "expiryDateRangeOnly":
           updates.expiryDateRangeOnly = false;
+          break;
+        case "renewdOnly":
+          updates.newRenewalFilter = false;
           break;
         case "calendarEntitledOnly":
           updates.calendarEntitledOnly = false;

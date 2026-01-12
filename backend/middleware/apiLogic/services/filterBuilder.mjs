@@ -355,13 +355,16 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     });
   }
 
-// User+adddate combo and general user filter: defer adduser filter to inside subscription aggregation
-// (We push adduser at the aggregation/model pipeline now, not at client query level)
-// NOTE: Only push here if neither adddate_regex nor start/endDate nor adddate filtering is involved.
-const hasAddDateFilter = advancedFilterData.adddate_regex || advancedFilterData.startDate || advancedFilterData.endDate;
-if (advancedFilterData.userId && !hasAddDateFilter) {
-  baseFilter.push({ adduser: advancedFilterData.userId });
-}
+  // User+adddate combo and general user filter: defer adduser filter to inside subscription aggregation
+  // (We push adduser at the aggregation/model pipeline now, not at client query level)
+  // NOTE: Only push here if neither adddate_regex nor start/endDate nor adddate filtering is involved.
+  const hasAddDateFilter =
+    advancedFilterData.adddate_regex ||
+    advancedFilterData.startDate ||
+    advancedFilterData.endDate;
+  if (advancedFilterData.userId && !hasAddDateFilter) {
+    baseFilter.push({ adduser: advancedFilterData.userId });
+  }
   // Add basic text search filter
   if (filter) {
     // Check if it's a payment reference search
@@ -571,7 +574,6 @@ if (advancedFilterData.userId && !hasAddDateFilter) {
       filterQuery.__addScoring = nameParts;
     }
   }
-
 
   // Add service-specific filters (bypass if this is a search query)
   // Only apply service filters if this is NOT a search query
@@ -3349,6 +3351,51 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         }
       }
 
+      // New filter to get clients who renewed AFTER the expiry date
+      if (advancedFilterData.renewedOnly && validClientIds.length > 0) {
+        // Use the maximum date from the filter range as the cutoff point
+        const renewalCutoffDate = toDate || fromDate;
+
+        if (renewalCutoffDate) {
+          // Find clients who have ANY subscription renewal AFTER the cutoff date
+          const renewedClientsPipeline = [
+            ...createDatePipeline(
+              "subsdate",
+              advancedFilterData.subscriptionType || "WMM"
+            ),
+            {
+              $match: {
+                $expr: {
+                  $gt: ["$normalizedDate", renewalCutoffDate],
+                },
+                clientid: { $in: validClientIds },
+              },
+            },
+            {
+              $group: {
+                _id: "$clientid",
+                // Optionally get the earliest renewal date after cutoff
+                earliestRenewalDate: { $min: "$normalizedDate" },
+                // Optionally get the latest renewal date after cutoff
+                latestRenewalDate: { $max: "$normalizedDate" },
+                // Count how many renewals after cutoff
+                renewalCount: { $sum: 1 },
+              },
+            },
+          ];
+
+          const renewedClients = await Model.aggregate(renewedClientsPipeline);
+          const renewedClientIds = renewedClients
+            .map((c) => Number(c._id))
+            .filter((id) => !isNaN(id));
+
+          // Keep ONLY clients who have renewed after the cutoff date
+          validClientIds = validClientIds.filter((id) =>
+            renewedClientIds.includes(id)
+          );
+        }
+      }
+
       if (validClientIds.length > 0) {
         baseFilter.push({ id: { $in: validClientIds } });
       } else {
@@ -3743,14 +3790,17 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   // Handle New/Renewal subscription filter based on subsclass field
   // NEW: subsclass does NOT contain 'R'
   // RENEWAL: subsclass contains 'R'
-  if (advancedFilterData.newRenewalFilter && advancedFilterData.newRenewalFilter !== "all") {
+  if (
+    advancedFilterData.newRenewalFilter &&
+    advancedFilterData.newRenewalFilter !== "all"
+  ) {
     try {
       // Only apply to WMM subscription type
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
-      
+
       if (subscriptionType === "WMM") {
         const WmmModel = await getModelInstance("WmmModel");
-        
+
         // Create aggregation pipeline to filter by subsclass based on newRenewalFilter
         // We need to get the most recent subscription for each client and check its subsclass
         const pipeline = [
@@ -3760,7 +3810,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               subsclass: { $exists: true, $ne: null, $ne: "" },
             },
           },
-          
+
           // Sort by adddate to get the most recent
           {
             $sort: {
@@ -3768,7 +3818,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               adddate: -1,
             },
           },
-          
+
           // Group by client ID and get the most recent subsclass
           {
             $group: {
@@ -3776,7 +3826,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
               latestSubsclass: { $first: "$subsclass" },
             },
           },
-          
+
           // Now filter based on the newRenewalFilter value using the latest subsclass
           ...(advancedFilterData.newRenewalFilter === "new"
             ? [
@@ -3795,7 +3845,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                 },
               ]
             : []),
-          
+
           // Project only the client ID
           {
             $project: {
@@ -3803,13 +3853,13 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             },
           },
         ];
-        
+
         const clientsWithNewRenewal = await WmmModel.aggregate(pipeline);
-        
+
         const validClientIds = clientsWithNewRenewal
           .map((c) => parseInt(c._id))
           .filter((id) => !isNaN(id));
-        
+
         if (validClientIds.length > 0) {
           baseFilter.push({ id: { $in: validClientIds } });
         } else {

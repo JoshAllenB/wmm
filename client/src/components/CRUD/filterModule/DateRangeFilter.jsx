@@ -369,6 +369,22 @@ const DateRangeFilter = ({
               Only show clients who haven't renewed beyond expiry date
             </label>
           </div>
+          <div className="flex items-center space-x-2 mb-4">
+            <input
+              type="checkbox"
+              id="renewedOnly"
+              name="renewedOnly"
+              checked={filterData.renewedOnly || false}
+              onChange={handleChange}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label
+              htmlFor="renewedOnly"
+              className="text-sm font-medium text-gray-900"
+            >
+              Only show renewed clients
+            </label>
+          </div>
         </div>
       </div>
     ),
@@ -380,6 +396,7 @@ const DateRangeFilter = ({
       filterData.wmmExpiringToDay,
       filterData.wmmExpiringToYear,
       filterData.expiryDateRangeOnly,
+      filterData.renewedOnly,
       handleChange,
       monthOptions,
     ]
