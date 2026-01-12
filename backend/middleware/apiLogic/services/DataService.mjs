@@ -35,11 +35,42 @@ class DataService {
       // Ensure subscription type is set
       const subscriptionType = advancedFilterData.subscriptionType || "WMM";
 
-      // Check if this is a search query
-      const isSearchQuery = filter && filter.trim() !== "";
+      // Check if this is a search query. Consider both the raw `filter`
+      // string and any parsed fields placed into `advancedFilterData`
+      // (clientId, paymentRef, fullName) so tagged searches are detected.
+      const hasFilterString = filter && filter.trim() !== "";
+      const hasParsedClientId =
+        advancedFilterData.clientId !== undefined &&
+        advancedFilterData.clientId !== null &&
+        advancedFilterData.clientId !== "";
+      const hasParsedPaymentRef =
+        advancedFilterData.paymentRef !== undefined &&
+        advancedFilterData.paymentRef !== null &&
+        advancedFilterData.paymentRef !== "";
+      const hasParsedFullName =
+        advancedFilterData.fullName !== undefined &&
+        advancedFilterData.fullName !== null &&
+        advancedFilterData.fullName !== "";
+
+      const isSearchQuery =
+        hasFilterString ||
+        hasParsedClientId ||
+        hasParsedPaymentRef ||
+        hasParsedFullName;
       const isPaymentRefSearch =
-        isSearchQuery && filter.toLowerCase().startsWith("ref:");
-      const isClientIdSearch = isSearchQuery && !isNaN(Number(filter));
+        (hasFilterString && filter.toLowerCase().startsWith("ref:")) ||
+        hasParsedPaymentRef;
+
+      // Determine client ID search either from raw numeric filter or parsed clientId
+      const numericFilter =
+        hasFilterString && !isNaN(Number(filter)) ? Number(filter) : null;
+      const parsedClientIdNum = hasParsedClientId
+        ? Number(advancedFilterData.clientId)
+        : null;
+      const isClientIdSearch =
+        (numericFilter !== null && !isNaN(numericFilter)) ||
+        (parsedClientIdNum !== null && !isNaN(parsedClientIdNum));
+
       const isNameSearch =
         isSearchQuery && !isPaymentRefSearch && !isClientIdSearch;
 
@@ -188,7 +219,11 @@ class DataService {
       };
 
       // If this is a search query (no subscription type), keep ALL subscription data
-      if (!subscriptionType || subscriptionType === "undefined" || isSearchQuery) {
+      if (
+        !subscriptionType ||
+        subscriptionType === "undefined" ||
+        isSearchQuery
+      ) {
         // Keep all subscription data for search queries
         if (client.wmmData) enrichedClient.wmmData = client.wmmData;
         if (client.promoData) enrichedClient.promoData = client.promoData;
