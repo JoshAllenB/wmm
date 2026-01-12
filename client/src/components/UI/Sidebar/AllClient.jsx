@@ -9,7 +9,6 @@ import { useColumns } from "../../Table/Structure/clientColumn";
 import View from "../../CRUD/AllClient/view";
 import { useUser } from "../../../utils/Hooks/userProvider";
 import useDebounce from "../../../utils/Hooks/useDebounce";
-import FilterDropdown from "../../filterDropdown";
 import { Button } from "../ShadCN/button";
 import AdvancedFilter from "../../CRUD/advanceFilter";
 import { ColumnToggle } from "../../Table/ColumnToggle";
@@ -24,16 +23,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "../ShadCN/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "../ShadCN/dialog";
-import { RadioGroup, RadioGroupItem } from "../ShadCN/radio-group";
-import { Label } from "../ShadCN/label";
 import CalendarUpdate from "../../Calendar";
 import SpackUpdate from "../../SpackUpdate";
 import RTSUpdate from "../../RTSUpdate";
@@ -200,7 +189,9 @@ const AllClient = () => {
     setAdvancedFilterData(newFilter);
 
     // Fetch with the role-based services and preserved subscription type
-    fetchData(page, pageSize, "", selectedGroup, newFilter, undefined, { showLoading: true });
+    fetchData(page, pageSize, "", selectedGroup, newFilter, undefined, {
+      showLoading: true,
+    });
   };
 
   const [isLoading, setIsLoading] = useState(true);
@@ -354,7 +345,7 @@ const AllClient = () => {
           setIsLoading(true);
         }
 
-    // Add a timeout to prevent indefinite loading
+        // Add a timeout to prevent indefinite loading
         timeoutId = setTimeout(() => {
           if (currentRequestRef.current?.id === requestId) {
             console.warn("Request timeout - forcing loading state reset");
@@ -1559,13 +1550,15 @@ const AllClient = () => {
   const handleScrollToggle = () => {
     // If we have a DataTable ref, scroll it to bottom or top based on current state
     if (dataTableRef.current) {
-      const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
-                              dataTableRef.current;
-      
+      const scrollableElement =
+        dataTableRef.current.querySelector(
+          "[data-radix-scroll-area-viewport]"
+        ) || dataTableRef.current;
+
       // Check if we're near the bottom (within 100px of the bottom)
       const { scrollHeight, scrollTop, clientHeight } = scrollableElement;
       const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
-      
+
       if (isAtBottom) {
         // Scroll to top
         scrollableElement.scrollTo({ top: 0, behavior: "smooth" });
@@ -1577,36 +1570,41 @@ const AllClient = () => {
       }
     }
   };
-  
+
   // Add scroll listener to track if user scrolls manually
   useEffect(() => {
     // Set up a mutation observer to detect when the DataTable is rendered
     const observer = new MutationObserver(() => {
       if (dataTableRef.current) {
-        const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
-                                 dataTableRef.current.querySelector('.overflow-y-auto') ||
-                                 dataTableRef.current;
-        
+        const scrollableElement =
+          dataTableRef.current.querySelector(
+            "[data-radix-scroll-area-viewport]"
+          ) ||
+          dataTableRef.current.querySelector(".overflow-y-auto") ||
+          dataTableRef.current;
+
         // Check if we already have this element set up
-        if (!scrollableElement.getAttribute('data-scroll-listener')) {
+        if (!scrollableElement.getAttribute("data-scroll-listener")) {
           // Mark this element so we don't attach duplicate listeners
-          scrollableElement.setAttribute('data-scroll-listener', 'true');
-          
+          scrollableElement.setAttribute("data-scroll-listener", "true");
+
           const handleScroll = () => {
             const { scrollHeight, scrollTop, clientHeight } = scrollableElement;
             const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
             setIsScrolledToBottom(isAtBottom);
           };
-          
+
           // Initial check
           handleScroll();
-          
-          scrollableElement.addEventListener('scroll', handleScroll, { passive: true });
-          
+
+          scrollableElement.addEventListener("scroll", handleScroll, {
+            passive: true,
+          });
+
           // Clean up function
           return () => {
-            scrollableElement.removeEventListener('scroll', handleScroll);
-            scrollableElement.removeAttribute('data-scroll-listener');
+            scrollableElement.removeEventListener("scroll", handleScroll);
+            scrollableElement.removeAttribute("data-scroll-listener");
           };
         }
       }
@@ -1615,18 +1613,21 @@ const AllClient = () => {
     // Start observing the document for changes to find the DataTable
     observer.observe(document.body, {
       childList: true,
-      subtree: true
+      subtree: true,
     });
-    
+
     // Clean up
     return () => {
       observer.disconnect();
       if (dataTableRef.current) {
-        const scrollableElement = dataTableRef.current.querySelector('[data-radix-scroll-area-viewport]') || 
-                                 dataTableRef.current.querySelector('.overflow-y-auto') ||
-                                 dataTableRef.current;
+        const scrollableElement =
+          dataTableRef.current.querySelector(
+            "[data-radix-scroll-area-viewport]"
+          ) ||
+          dataTableRef.current.querySelector(".overflow-y-auto") ||
+          dataTableRef.current;
         if (scrollableElement) {
-          scrollableElement.removeEventListener('scroll', () => {});
+          scrollableElement.removeEventListener("scroll", () => {});
         }
       }
     };
@@ -1715,7 +1716,6 @@ const AllClient = () => {
             }
           }}
         />
-
         {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
         {(hasRole("WMM") || hasRole("Admin")) && (
           <div className="flex items-center gap-2">
@@ -1753,51 +1753,76 @@ const AllClient = () => {
             </div>
           </div>
         )}
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
-              <Settings2 className="h-4 w-4 mr-2" />
-              Client Actions
+            <Button className="text-base px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
+              <Settings2 className="h-5 w-5 mr-3" />
+              <span className="font-medium">Client Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-[340px] p-3">
+            {/* Mailing Options Section */}
             <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Mail className="h-4 w-4 mr-2" />
-                Mailing Options
+              <DropdownMenuSubTrigger className="text-base px-4 py-3.5 hover:bg-blue-400 rounded-lg">
+                <Mail className="h-6 w-6 mr-4" />
+                <span className="font-semibold">Mailing Options</span>
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                <DropdownMenuItem onSelect={() => handleMailingAction("label")}>
-                  <Mail className="h-4 w-4 mr-2" />
-                  Print Mailing Label
+              <DropdownMenuSubContent className="w-[300px] ml-2 p-2">
+                <DropdownMenuItem
+                  className="text-base px-4 py-3 hover:bg-gray-50 rounded-lg"
+                  onSelect={() => handleMailingAction("label")}
+                >
+                  <Mail className="h-6 w-6 mr-4 text-gray-600" />
+                  <span>Print Mailing Label</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  className="text-base px-4 py-3 hover:bg-blue-400 rounded-lg"
                   onSelect={() => handleMailingAction("document")}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Print Documents
+                  <FileText className="h-6 w-6 mr-4 text-gray-600" />
+                  <span>Print Documents</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => handleMailingAction("csv")}>
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                  Export CSV
+                <DropdownMenuItem
+                  className="text-base px-4 py-3 hover:bg-gray-50 rounded-lg"
+                  onSelect={() => handleMailingAction("csv")}
+                >
+                  <FileSpreadsheet className="h-6 w-6 mr-4 text-gray-600" />
+                  <span>Export CSV</span>
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem onSelect={() => setShowCalendarModal(true)}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Update Calendar Status
+
+            {/* Divider for separation */}
+            <div className="h-px bg-gray-200 my-3"></div>
+
+            {/* Individual Actions */}
+            <DropdownMenuItem
+              className="text-base px-4 py-3.5 hover:bg-gray-50 rounded-lg"
+              onSelect={() => setShowCalendarModal(true)}
+            >
+              <Calendar className="h-6 w-6 mr-4 text-gray-600" />
+              <span>Update Calendar Status</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setShowSpackModal(true)}>
-              <Package className="h-4 w-4 mr-2" />
-              Update Spack Status
+
+            <DropdownMenuItem
+              className="text-base px-4 py-3.5 hover:bg-gray-50 rounded-lg"
+              onSelect={() => setShowSpackModal(true)}
+            >
+              <Package className="h-6 w-6 mr-4 text-gray-600" />
+              <span>Update Spack Status</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setShowRTSModal(true)}>
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Manage RTS
+
+            <DropdownMenuItem
+              className="text-base px-4 py-3.5 hover:bg-red-50 rounded-lg text-red-700 hover:text-red-800"
+              onSelect={() => setShowRTSModal(true)}
+            >
+              <AlertTriangle className="h-6 w-6 mr-4" />
+              <span className="font-semibold">
+                Manage RTS (Return to Sender)
+              </span>
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>{" "}
       </div>
 
       {/* Render modals */}
@@ -1919,7 +1944,11 @@ const AllClient = () => {
         />
         <Button
           onClick={handleScrollToggle}
-          title={isScrolledToBottom ? "Scroll Table to Top" : "Scroll Table to Bottom"}
+          title={
+            isScrolledToBottom
+              ? "Scroll Table to Top"
+              : "Scroll Table to Bottom"
+          }
           className="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors duration-200 font-medium flex items-center gap-1"
         >
           {isScrolledToBottom ? (
