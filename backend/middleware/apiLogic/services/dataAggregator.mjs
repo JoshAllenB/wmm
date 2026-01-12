@@ -183,7 +183,50 @@ function createFilteredRecords(records, advancedFilterData, modelType) {
 
   if (!hasDateFilters) return null;
 
-  // Filter records based on date filters
+  // Special-case: when the requester asked for "renewedOnly" together with
+  // an expiry range (wmmExpiringFromDate / wmmExpiringToDate), we should
+  // show renewal/subscription records (subsdate after the expiry cutoff)
+  // instead of the expiry records. This makes the table show the renewed
+  // dates (newer subsdate) as the user expects.
+  if (
+    advancedFilterData &&
+    advancedFilterData.renewedOnly &&
+    (advancedFilterData.wmmExpiringFromDate ||
+      advancedFilterData.wmmExpiringToDate) &&
+    modelType &&
+    modelType.toLowerCase().includes("wmm")
+  ) {
+    // Use the maximum date from the provided range as cutoff (toDate || fromDate)
+    const parseDate = (d) => {
+      try {
+        if (!d) return null;
+        const dt = new Date(d);
+        return isNaN(dt.getTime()) ? null : dt;
+      } catch (e) {
+        return null;
+      }
+    };
+
+    const from = parseDate(advancedFilterData.wmmExpiringFromDate);
+    const to = parseDate(advancedFilterData.wmmExpiringToDate);
+    const cutoff = to || from;
+
+    if (cutoff) {
+      // Make cutoff inclusive to end of day
+      cutoff.setHours(23, 59, 59, 999);
+
+      const renewedRecords = records.filter((record) => {
+        if (!record.subsdate) return false;
+        const sd = parseDate(record.subsdate);
+        if (!sd) return false;
+        return sd > cutoff; // renewal occurred after expiry cutoff
+      });
+
+      return renewedRecords.length > 0 ? renewedRecords : null;
+    }
+  }
+
+  // Default behaviour: filter records based on the various date filters
   const filteredRecords = records.filter((record) =>
     recordMatchesDateFilters(record, advancedFilterData, modelType)
   );
@@ -227,11 +270,21 @@ export async function aggregateClientData(
     // If no subscriptionType is provided (search query), include ALL subscription models + other services
     if (!advancedFilterData.subscriptionType) {
       // Remove the WmmModel placeholder and add all subscription models + other services
-      adjustedModelNames.splice(wmmIndex, 1, "WmmModel", "PromoModel", "ComplimentaryModel");
+      adjustedModelNames.splice(
+        wmmIndex,
+        1,
+        "WmmModel",
+        "PromoModel",
+        "ComplimentaryModel"
+      );
       // Ensure HRG, FOM, CAL are also included if not already present
       const otherServices = ["HrgModel", "FomModel", "CalModel"];
-      otherServices.forEach(model => {
-        if (!adjustedModelNames.some(name => String(name).toLowerCase() === model.toLowerCase())) {
+      otherServices.forEach((model) => {
+        if (
+          !adjustedModelNames.some(
+            (name) => String(name).toLowerCase() === model.toLowerCase()
+          )
+        ) {
           adjustedModelNames.push(model);
         }
       });
@@ -248,9 +301,20 @@ export async function aggregateClientData(
     // If no WmmModel placeholder exists, ensure correct subscription model is present
     if (!advancedFilterData.subscriptionType) {
       // No subscription type specified - add all subscription models + other services if not already present
-      const allServiceModels = ["WmmModel", "PromoModel", "ComplimentaryModel", "HrgModel", "FomModel", "CalModel"];
-      allServiceModels.forEach(model => {
-        if (!modelNames.some(name => String(name).toLowerCase() === model.toLowerCase())) {
+      const allServiceModels = [
+        "WmmModel",
+        "PromoModel",
+        "ComplimentaryModel",
+        "HrgModel",
+        "FomModel",
+        "CalModel",
+      ];
+      allServiceModels.forEach((model) => {
+        if (
+          !modelNames.some(
+            (name) => String(name).toLowerCase() === model.toLowerCase()
+          )
+        ) {
           adjustedModelNames.push(model);
         }
       });
@@ -513,12 +577,48 @@ function buildOptimizedAggregationPipeline(
 
     return [
       { $match: baseMatch },
-      { $sort: { clientid: 1, subsdate: -1 } },
+      // Normalize subsdate to a proper Date so sorting is reliable across formats
       {
         $addFields: {
+          normalizedSubsdate: {
+            $cond: [
+              { $regexMatch: { input: "$subsdate", regex: "/" } },
+              {
+                $let: {
+                  vars: {
+                    parts: { $split: ["$subsdate", "/"] },
+                    year: { $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 2] },
+                    month: {
+                      $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 0],
+                    },
+                    day: { $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 1] },
+                  },
+                  in: {
+                    $dateFromString: {
+                      dateString: {
+                        $concat: ["$$year", "-", "$$month", "-", "$$day"],
+                      },
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null,
+                    },
+                  },
+                },
+              },
+              {
+                $dateFromString: {
+                  dateString: "$subsdate",
+                  timezone: "UTC",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            ],
+          },
           modelType: modelName.replace(/model/i, "").toUpperCase(),
         },
       },
+      { $sort: { clientid: 1, normalizedSubsdate: -1 } },
       {
         $group: {
           _id: "$clientid",
@@ -687,12 +787,48 @@ function buildAggregationPipeline(modelName, clientIds, advancedFilterData) {
 
     return [
       { $match: baseMatch },
-      { $sort: { clientid: 1, subsdate: -1 } },
+      // Normalize subsdate so grouping picks truly latest subscription by date
       {
         $addFields: {
+          normalizedSubsdate: {
+            $cond: [
+              { $regexMatch: { input: "$subsdate", regex: "/" } },
+              {
+                $let: {
+                  vars: {
+                    parts: { $split: ["$subsdate", "/"] },
+                    year: { $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 2] },
+                    month: {
+                      $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 0],
+                    },
+                    day: { $arrayElemAt: [{ $split: ["$subsdate", "/"] }, 1] },
+                  },
+                  in: {
+                    $dateFromString: {
+                      dateString: {
+                        $concat: ["$$year", "-", "$$month", "-", "$$day"],
+                      },
+                      timezone: "UTC",
+                      onError: null,
+                      onNull: null,
+                    },
+                  },
+                },
+              },
+              {
+                $dateFromString: {
+                  dateString: "$subsdate",
+                  timezone: "UTC",
+                  onError: null,
+                  onNull: null,
+                },
+              },
+            ],
+          },
           modelType: modelName.replace(/model/i, "").toUpperCase(),
         },
       },
+      { $sort: { clientid: 1, normalizedSubsdate: -1 } },
       {
         $group: {
           _id: "$clientid",
