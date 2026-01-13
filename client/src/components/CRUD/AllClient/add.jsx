@@ -1338,6 +1338,14 @@ const Add = ({
         // Backend already emits the WebSocket event, so we don't need to emit it again.
         // Rely on the parent's `onAfterDuplicateEditSuccess` to refresh silently,
         // avoiding visible loading for other users.
+        // Also proactively refresh the parent list immediately so Added/Updated
+        // Today reflects the new record without waiting for other signals.
+        try {
+          if (typeof fetchClients === "function") fetchClients();
+        } catch (err) {
+          console.warn("fetchClients call failed:", err);
+        }
+
         if (typeof onAfterDuplicateEditSuccess === "function") {
           setTimeout(() => {
             onAfterDuplicateEditSuccess();
