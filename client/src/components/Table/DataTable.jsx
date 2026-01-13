@@ -646,35 +646,12 @@ export default forwardRef(function DataTable(
       return;
     }
 
-    // For individual client updates (add, update, delete), trigger a refetch with current filters
+    // For individual client updates (add, update, delete), decide whether to refetch
     if (["add", "update", "delete"].includes(updateType)) {
-      // Store current pagination state
       const currentPage = page;
       const currentPageSize = pageSize;
 
-      // Set flag to prevent automatic refetch from useEffect
-      isWebSocketRefetchRef.current = true;
-
-      // Trigger a refetch with the current filter state and pagination
-      // This will maintain the current filters and pagination
-      setTimeout(() => {
-        // Call fetchData with the preserved pagination
-        fetchData(false, currentPage, currentPageSize, {
-          skipLoading: true,
-          skipAnimation: false,
-        });
-        // Reset the flag after a short delay
-        setTimeout(() => {
-          isWebSocketRefetchRef.current = false;
-        }, 200);
-      }, 100); // Small delay to ensure the backend has processed the update
-
-      return;
-    }
-
-    // For filter-update, handle it differently
-    if (updateType === "filter-update") {
-      // Check if this is a legitimate filter update or just noise from client updates
+      // If there are active advanced filters/search/group, avoid replacing the whole dataset
       const hasActiveFilters =
         advancedFilterData &&
         (advancedFilterData.addedToday ||
@@ -684,27 +661,77 @@ export default forwardRef(function DataTable(
             (key) => advancedFilterData[key] && key !== "services"
           ));
 
-      // If we have active filters and this filter-update doesn't contain filtered data,
-      // skip it to maintain the current filtered view
-      if (hasActiveFilters && localData.length > 0) {
-        // Check if the update data actually contains filtered results
-        const updateDataArray = Array.isArray(updateData)
-          ? updateData
-          : updateData.combinedData && Array.isArray(updateData.combinedData)
-          ? updateData.combinedData
-          : null;
-
-        if (!updateDataArray || updateDataArray.length === 0) {
-          return;
-        }
-
-        // If the update contains all data instead of filtered data, skip it
-        if (updateDataArray.length > localData.length * 2) {
+      // Deleted client: if the deleted client isn't visible in current filtered view, skip refetch
+      if (updateType === "delete") {
+        const deletedId =
+          updateData.id ||
+          updateData.clientid ||
+          updateData.deletedClientId ||
+          updateData.deletedClientId;
+        if (
+          hasActiveFilters &&
+          deletedId &&
+          !localData.some((c) => c.id === deletedId)
+        ) {
           return;
         }
       }
 
-      // If we reach here, it's a legitimate filter update
+      // Added client: only refetch if the new client would match current filters
+      if (updateType === "add") {
+        if (hasActiveFilters) {
+          if (!checkClientVisibility(updateData)) {
+            return;
+          }
+        }
+      }
+
+      // Updated client: if it's not in the current filtered set and wouldn't match filters, skip
+      if (updateType === "update") {
+        const existsLocally = localData.some(
+          (c) => c.id === (updateData.id || updateData.clientid)
+        );
+        if (
+          hasActiveFilters &&
+          !existsLocally &&
+          !checkClientVisibility(updateData)
+        ) {
+          return;
+        }
+      }
+
+      // At this point, we need to refetch to reflect the change while preserving filters/pagination
+      isWebSocketRefetchRef.current = true;
+      setTimeout(() => {
+        fetchData(false, currentPage, currentPageSize, {
+          skipLoading: true,
+          skipAnimation: false,
+        });
+        setTimeout(() => {
+          isWebSocketRefetchRef.current = false;
+        }, 200);
+      }, 100);
+
+      return;
+    }
+
+    // For filter-update, handle it differently
+    if (updateType === "filter-update") {
+      // If we have any active local filters/search/group, ignore global filter-update broadcasts
+      const hasActiveFilters =
+        advancedFilterData &&
+        (advancedFilterData.addedToday ||
+          searchTerm ||
+          selectedGroup ||
+          Object.keys(advancedFilterData).some(
+            (key) => advancedFilterData[key] && key !== "services"
+          ));
+
+      if (hasActiveFilters) {
+        return;
+      }
+
+      // Apply the incoming filtered data when no local advanced filters are active
       setLocalData((prevData) => {
         if (Array.isArray(updateData)) {
           return updateData;

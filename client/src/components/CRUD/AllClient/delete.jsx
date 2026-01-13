@@ -3,7 +3,12 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import axios from "axios";
 
-const Delete = ({ client, onClose, onDeleteSuccess }) => {
+const Delete = ({
+  client,
+  onClose,
+  onDeleteSuccess,
+  currentFetchParams = null,
+}) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState(null);
@@ -12,11 +17,40 @@ const Delete = ({ client, onClose, onDeleteSuccess }) => {
     setIsDeleting(true);
     setError(null);
     try {
-      const response = await axios.delete(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/delete/${
-          client.id
-        }`
-      );
+      // Build query string from currentFetchParams if provided
+      const params = new URLSearchParams();
+      if (currentFetchParams) {
+        const {
+          page,
+          pageSize,
+          filter,
+          group,
+          advancedFilterData,
+          subscriptionType,
+          addedToday,
+        } = currentFetchParams;
+        if (page) params.append("page", page);
+        if (pageSize) params.append("pageSize", pageSize);
+        if (filter) params.append("filter", filter);
+        if (group) params.append("group", group);
+        if (subscriptionType)
+          params.append("subscriptionType", subscriptionType);
+        if (addedToday) params.append("addedToday", addedToday);
+        if (advancedFilterData) {
+          Object.entries(advancedFilterData).forEach(([k, v]) => {
+            if (Array.isArray(v)) v.forEach((item) => params.append(k, item));
+            else if (v !== undefined && v !== null) params.append(k, v);
+          });
+        }
+      }
+
+      const url = `http://${
+        import.meta.env.VITE_IP_ADDRESS
+      }:3001/clients/delete/${client.id}${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+
+      const response = await axios.delete(url);
       if (response.status === 200) {
         onDeleteSuccess(client.id);
         onClose();

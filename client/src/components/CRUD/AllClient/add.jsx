@@ -52,6 +52,7 @@ const Add = ({
   fetchClients,
   subscriptionType: initialSubscriptionType = "None",
   onAfterDuplicateEditSuccess,
+  currentFetchParams = null,
 }) => {
   const { user, hasRole } = useUser(); // Ensure this hook is correctly implemented
 
@@ -1301,18 +1302,42 @@ const Add = ({
     };
 
     try {
-      const response = await axios.post(
-        `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add`,
-        submissionData
-      );
-      if (response.data.success) {
-        // Backend already emits the WebSocket event, so we don't need to emit it again
-        // Just refresh the client list
-        fetchClients();
-        // Don't close modal here - let the confirmation dialog handle it
-        // The confirmation dialog will close itself and show success toast
+      // Attach current fetch/query params so the backend can re-run filters if needed
+      const params = new URLSearchParams();
+      if (currentFetchParams) {
+        const {
+          page,
+          pageSize,
+          filter,
+          group,
+          advancedFilterData,
+          subscriptionType,
+          addedToday,
+        } = currentFetchParams;
+        if (page) params.append("page", page);
+        if (pageSize) params.append("pageSize", pageSize);
+        if (filter) params.append("filter", filter);
+        if (group) params.append("group", group);
+        if (subscriptionType)
+          params.append("subscriptionType", subscriptionType);
+        if (addedToday) params.append("addedToday", addedToday);
+        if (advancedFilterData) {
+          Object.entries(advancedFilterData).forEach(([k, v]) => {
+            if (Array.isArray(v)) v.forEach((item) => params.append(k, item));
+            else if (v !== undefined && v !== null) params.append(k, v);
+          });
+        }
+      }
 
-        // After successfully adding a new client, notify parent to show Added/Updated Today
+      const url = `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/add${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
+
+      const response = await axios.post(url, submissionData);
+      if (response.data.success) {
+        // Backend already emits the WebSocket event, so we don't need to emit it again.
+        // Rely on the parent's `onAfterDuplicateEditSuccess` to refresh silently,
+        // avoiding visible loading for other users.
         if (typeof onAfterDuplicateEditSuccess === "function") {
           setTimeout(() => {
             onAfterDuplicateEditSuccess();

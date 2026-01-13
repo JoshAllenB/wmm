@@ -1715,6 +1715,15 @@ const AllClient = () => {
               setPage(1);
             }
           }}
+          currentFetchParams={{
+            page,
+            pageSize,
+            filter: debouncedFiltering,
+            group: selectedGroup,
+            advancedFilterData,
+            subscriptionType,
+            addedToday: effectiveAddedToday,
+          }}
         />
         {/* Subscription Type Toggle - Only show for WMM and Admin roles */}
         {(hasRole("WMM") || hasRole("Admin")) && (
@@ -2016,6 +2025,15 @@ const AllClient = () => {
           onClose={handleViewClose}
           onDeleteSuccess={handleDeleteSuccess}
           onEditSuccess={handleEditSuccess}
+          currentFetchParams={{
+            page,
+            pageSize,
+            filter: debouncedFiltering,
+            group: selectedGroup,
+            advancedFilterData,
+            subscriptionType,
+            addedToday: effectiveAddedToday,
+          }}
         />
       )}
 

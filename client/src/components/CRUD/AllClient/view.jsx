@@ -7,7 +7,13 @@ import { useUser } from "../../../utils/Hooks/userProvider";
 import { roleConfigs } from "../../../utils/roleConfigs";
 import Edit from "./edit"; // Import the existing Edit component
 
-const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
+const View = ({
+  rowData,
+  onDeleteSuccess,
+  onClose,
+  onEditSuccess,
+  currentFetchParams = null,
+}) => {
   const { user, hasRole, hasPermission } = useUser();
   const [formData, setFormData] = useState({});
   const [wmmData, setWmmData] = useState({ records: [] });
@@ -39,7 +45,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       ) {
         subscriptionTypes.push("Promo");
       }
-      
+
       if (
         rowData.compData &&
         ((rowData.compData.records && rowData.compData.records.length > 0) ||
@@ -49,7 +55,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
       ) {
         subscriptionTypes.push("Complimentary");
       }
-      
+
       if (
         rowData.wmmData &&
         ((rowData.wmmData.records && rowData.wmmData.records.length > 0) ||
@@ -312,7 +318,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     ) {
       subscriptionTypes.push("Promo");
     }
-    
+
     const updatedComplimentary =
       updatedData.complimentaryData || updatedData.compData;
 
@@ -329,7 +335,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
     ) {
       subscriptionTypes.push("Complimentary");
     }
-    
+
     if (
       updatedData.wmmData &&
       ((updatedData.wmmData.records &&
@@ -1516,6 +1522,7 @@ const View = ({ rowData, onDeleteSuccess, onClose, onEditSuccess }) => {
                       client={rowData}
                       onClose={closeModal}
                       onDeleteSuccess={onDeleteSuccess}
+                      currentFetchParams={currentFetchParams}
                     />
                   )}
                 </div>
