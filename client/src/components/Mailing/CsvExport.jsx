@@ -261,6 +261,45 @@ const CsvExport = ({
     };
   };
 
+  // Helper: choose the latest record from a service records array by checking common date fields
+  const getLatestRecord = (records = []) => {
+    if (!Array.isArray(records) || records.length === 0) return null;
+
+    const dateKeys = [
+      "paymtdate",
+      "recvdate",
+      "campaigndate",
+      "created",
+      "createdAt",
+      "date",
+    ];
+
+    const getRecordDate = (rec) => {
+      if (!rec) return null;
+      for (const key of dateKeys) {
+        const val = rec[key];
+        if (val) {
+          const d = new Date(val);
+          if (!isNaN(d.getTime())) return d;
+        }
+      }
+      return null;
+    };
+
+    let latest = records[0];
+    let latestDate = getRecordDate(latest) || new Date(0);
+
+    for (const r of records) {
+      const d = getRecordDate(r);
+      if (d && d > latestDate) {
+        latest = r;
+        latestDate = d;
+      }
+    }
+
+    return latest;
+  };
+
   // Update generateCSV function to handle different subscription types
   const generateCSV = () => {
     // Filter rows based on start/end Client IDs
@@ -549,7 +588,7 @@ const CsvExport = ({
           );
         }
         if (csvIncludeFields.includes("calData") && fieldsWithData.calData) {
-          const calRecord = subscriber.calData?.records?.[0] || {};
+          const calRecord = getLatestRecord(subscriber.calData?.records) || {};
           rowData.push(
             `"${calRecord.caltype || ""}"`,
             `"${calRecord.calqty || ""}"`,
@@ -620,8 +659,10 @@ const CsvExport = ({
         ? filename
         : `${filename}.csv`;
 
-      // Create a Blob for better memory management
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      // Create a Blob for better memory management and include a UTF-8 BOM
+      // so programs like Excel on Windows correctly recognise characters like Ñ
+      const bom = "\uFEFF";
+      const blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
 
       // Create a temporary link element
