@@ -417,24 +417,76 @@ async function processMonthlyDistribution(
       `✅ Found ${subscriptionsAddedThisMonth.length} subscriptions added this month`
     );
 
-    // Count NEW and RENEWALS based on subsclass field
-    // NEW: subsclass does NOT contain 'R'
-    // RENEWAL: subsclass contains 'R'
+    // Count NEW and RENEWALS by checking for any previous subscription
+    // If the client's previous subscription `enddate` is within 3 months
+    // of the new subscription date, treat it as a RENEWAL; otherwise NEW.
     let renewalCount = 0;
     let newSubCount = 0;
 
+    // Helper: days difference between two dates
+    const daysBetween = (d1, d2) => {
+      return Math.floor((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+    };
+
     for (const subscription of subscriptionsAddedThisMonth) {
       try {
-        const subsclass = subscription.subsclass || "";
-        const isRenewal = subsclass.includes("R");
+        const clientId = subscription.clientid;
+
+        // Determine the reference date for the "newest subscription"
+        const newestDate = subscription.subsdate
+          ? new Date(subscription.subsdate)
+          : subscription.adddate
+          ? new Date(subscription.adddate)
+          : null;
 
         // Debug logging for first few subscriptions
         if (newSubCount + renewalCount < 5) {
           console.log(
             chalk.cyan(
-              `Processing subscription ${subscription.id} (client: ${subscription.clientid}, adddate: ${subscription.adddate}, subsclass: ${subsclass})`
+              `Processing subscription ${
+                subscription.id
+              } (client: ${clientId}, newestDate: ${
+                subscription.subsdate || subscription.adddate
+              })`
             )
           );
+        }
+
+        // If no client or no date, classify as NEW (safe fallback)
+        if (!clientId || !newestDate || isNaN(newestDate.getTime())) {
+          newSubCount++;
+          if (newSubCount <= 5) {
+            console.log(
+              newSubCount,
+              chalk.green(`  -> NEW SUBSCRIBER (missing client/date)`)
+            );
+          }
+          continue;
+        }
+
+        // Find previous subscriptions for this client (exclude current record)
+        const previousSubs = allSubscriptions.filter(
+          (s) =>
+            s.clientid === clientId && s.id !== subscription.id && s.enddate
+        );
+
+        // Find the latest enddate among previous subscriptions
+        let latestEnd = null;
+        for (const ps of previousSubs) {
+          const ed = new Date(ps.enddate);
+          if (!isNaN(ed.getTime())) {
+            if (!latestEnd || ed > latestEnd) latestEnd = ed;
+          }
+        }
+
+        let isRenewal = false;
+
+        if (latestEnd) {
+          // If the previous enddate is within 92 days (~3 months) of the newest subscription
+          const diffDays = daysBetween(newestDate, latestEnd);
+          if (diffDays <= 92) {
+            isRenewal = true;
+          }
         }
 
         if (isRenewal) {
@@ -442,16 +494,13 @@ async function processMonthlyDistribution(
           if (renewalCount <= 5) {
             console.log(
               renewalCount,
-              chalk.green(`  -> RENEWAL (subsclass contains 'R')`)
+              chalk.green(`  -> RENEWAL (previous enddate within 3 months)`)
             );
           }
         } else {
           newSubCount++;
           if (newSubCount <= 5) {
-            console.log(
-              newSubCount,
-              chalk.green(`  -> NEW SUBSCRIBER (subsclass has no 'R')`)
-            );
+            console.log(newSubCount, chalk.green(`  -> NEW SUBSCRIBER`));
           }
         }
       } catch (error) {
