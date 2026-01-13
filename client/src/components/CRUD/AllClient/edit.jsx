@@ -1299,37 +1299,56 @@ const Edit = ({
   const formatDateToMonthYear = (date) => {
     if (!date) return "";
 
-    let d;
+    let d = null;
     try {
-      // Try to create a new date from the input
-      d = new Date(date);
-
-      // Check if date is valid
-      if (isNaN(d.getTime())) {
-        // Try parsing MM/DD/YY format
-        const parts = date.split("/");
-        if (parts.length === 3) {
-          const month = parseInt(parts[0]) - 1;
-          const day = parseInt(parts[1]);
-          let year = parseInt(parts[2]);
-          // Adjust two-digit year
-          if (year < 100) {
-            year = year < 50 ? 2000 + year : 1900 + year;
+      // If it's already a Date instance, clone it
+      if (date instanceof Date) {
+        d = new Date(date.getTime());
+      } else if (typeof date === "string") {
+        // Try native parsing first
+        d = new Date(date);
+        // If invalid, try MM/DD/YY or MM/DD/YYYY
+        if (isNaN(d.getTime())) {
+          const parts = date.split("/");
+          if (parts.length === 3) {
+            const month = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            let year = parseInt(parts[2], 10);
+            if (year < 100) {
+              year = year < 50 ? 2000 + year : 1900 + year;
+            }
+            d = new Date(year, month, day);
           }
-          d = new Date(year, month, day);
         }
+      } else if (typeof date === "object" && date !== null) {
+        // Accept objects with year/month/day keys
+        if (
+          ("year" in date || "Year" in date) &&
+          ("month" in date || "Month" in date) &&
+          ("day" in date || "Day" in date)
+        ) {
+          const y = Number(date.year ?? date.Year);
+          const m = Number(date.month ?? date.Month) - 1;
+          const da = Number(date.day ?? date.Day);
+          d = new Date(y, m, da);
+        } else {
+          // Fallback to Date constructor for other objects
+          d = new Date(date);
+        }
+      } else {
+        // Fallback for numbers or other primitive types
+        d = new Date(date);
       }
 
-      // Check if date is now valid
-      if (isNaN(d.getTime())) {
-        return date; // Return original string if cannot parse
+      if (!d || isNaN(d.getTime())) {
+        // If it's a string, return it back to avoid losing data; otherwise return empty
+        return typeof date === "string" ? date : "";
       }
     } catch (error) {
       console.error("Error parsing date:", error);
-      return date; // Return original string if error
+      return typeof date === "string" ? date : "";
     }
 
-    // Format the date
     const month = d.toLocaleString("en-US", { month: "short" });
     const day = d.getDate();
     const year = d.getFullYear();
@@ -4176,7 +4195,9 @@ const Edit = ({
 
           if (requiredFields.length > 0) {
             setValidationError(
-              `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
+              `${requiredFields.join(", ")} ${
+                requiredFields.length > 1 ? "are" : "is"
+              } required for ${formData.subscriptionType} subscription.`
             );
             return;
           }
@@ -4299,7 +4320,9 @@ const Edit = ({
 
         if (requiredFields.length > 0) {
           setValidationError(
-            `${requiredFields.join(", ")} ${requiredFields.length > 1 ? "are" : "is"} required for ${formData.subscriptionType} subscription.`
+            `${requiredFields.join(", ")} ${
+              requiredFields.length > 1 ? "are" : "is"
+            } required for ${formData.subscriptionType} subscription.`
           );
           setIsSubmitting(false);
           return;
