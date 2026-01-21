@@ -12,6 +12,8 @@ const FomSchema = new mongoose.Schema(
     id: Number,
     clientid: Number,
     recvdate: String,
+    paymtref: String,
+    paymtform: String,
     remarks: String,
     paymtamt: Number,
     unsubscribe: Boolean,
@@ -23,7 +25,7 @@ const FomSchema = new mongoose.Schema(
   {
     versionKey: false,
     collection: "fom",
-  }
+  },
 );
 
 // Add index on clientid for faster lookups
