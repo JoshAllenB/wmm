@@ -511,8 +511,8 @@ const Edit = ({
           const records = Array.isArray(data.wmmData)
             ? data.wmmData
             : Array.isArray(data.wmmData.records)
-            ? data.wmmData.records
-            : [];
+              ? data.wmmData.records
+              : [];
           return records.length > 0;
         }
       case "Promo":
@@ -521,8 +521,8 @@ const Edit = ({
           const records = Array.isArray(data.promoData)
             ? data.promoData
             : Array.isArray(data.promoData.records)
-            ? data.promoData.records
-            : [];
+              ? data.promoData.records
+              : [];
           return records.length > 0;
         }
       case "Complimentary":
@@ -531,8 +531,8 @@ const Edit = ({
           const records = Array.isArray(data.complimentaryData)
             ? data.complimentaryData
             : Array.isArray(data.complimentaryData.records)
-            ? data.complimentaryData.records
-            : [];
+              ? data.complimentaryData.records
+              : [];
           return records.length > 0;
         }
       default:
@@ -627,7 +627,7 @@ const Edit = ({
           const secondUpper = String(second).toUpperCase();
           const barangayKeywords = ["BARANGAY", "BRGY", "POBLACION", "SITIO"];
           const looksLikeBarangay = barangayKeywords.some((k) =>
-            secondUpper.includes(k)
+            secondUpper.includes(k),
           );
 
           if (looksLikeBarangay) {
@@ -674,7 +674,7 @@ const Edit = ({
         const hasPromoData = hasSubscriptionData(rowData, "Promo");
         const hasComplimentaryData = hasSubscriptionData(
           rowData,
-          "Complimentary"
+          "Complimentary",
         );
 
         // Only use rowData.subscriptionType if it has actual data
@@ -793,7 +793,7 @@ const Edit = ({
           setHrgRecords(rowData.hrgData);
         } else if (typeof rowData.hrgData === "object") {
           const filteredRecords = [rowData.hrgData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setHrgRecords(filteredRecords);
         }
@@ -805,7 +805,7 @@ const Edit = ({
           setFomRecords(rowData.fomData);
         } else if (typeof rowData.fomData === "object") {
           const filteredRecords = [rowData.fomData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setFomRecords(filteredRecords);
         }
@@ -817,7 +817,7 @@ const Edit = ({
           setCalRecords(rowData.calData);
         } else if (typeof rowData.calData === "object") {
           const filteredRecords = [rowData.calData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setCalRecords(filteredRecords);
         }
@@ -839,7 +839,7 @@ const Edit = ({
           }
         } else if (typeof rowData.wmmData === "object") {
           const filteredRecords = [rowData.wmmData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setWmmRecords(filteredRecords);
           // Auto-select WMM role if WMM data is available and user has WMM role
@@ -860,7 +860,7 @@ const Edit = ({
           setPromoRecords(rowData.promoData);
         } else if (typeof rowData.promoData === "object") {
           const filteredRecords = [rowData.promoData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setPromoRecords(filteredRecords);
         }
@@ -877,7 +877,7 @@ const Edit = ({
           setComplimentaryRecords(rowData.complimentaryData);
         } else if (typeof rowData.complimentaryData === "object") {
           const filteredRecords = [rowData.complimentaryData].filter(
-            (item) => Object.keys(item).length > 0
+            (item) => Object.keys(item).length > 0,
           );
           setComplimentaryRecords(filteredRecords);
         }
@@ -1154,7 +1154,7 @@ const Edit = ({
       // Also convert subsclass in selectedSubscription if it exists
       if (selectedSubscription && selectedSubscription.subsclass) {
         const subclass = subclasses.find(
-          (s) => s.name === selectedSubscription.subsclass
+          (s) => s.name === selectedSubscription.subsclass,
         );
         if (subclass) {
           setSelectedSubscription((prev) => ({
@@ -1237,7 +1237,7 @@ const Edit = ({
     const fetchGroups = async () => {
       try {
         const response = await axios.get(
-          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`
+          `http://${import.meta.env.VITE_IP_ADDRESS}:3001/util/groups`,
         );
         setGroups(response.data);
       } catch (error) {
@@ -1362,7 +1362,7 @@ const Edit = ({
     // Handle checkbox fields specially (spack, rts, rtsMaxReached, rtsCount)
     const checkboxFields = ["spack", "rts", "rtsMaxReached"];
     const isCheckboxField = checkboxFields.includes(name);
-    const safeValue = isCheckboxField ? value : value ?? ""; // For checkboxes, keep boolean; otherwise ensure string
+    const safeValue = isCheckboxField ? value : (value ?? ""); // For checkboxes, keep boolean; otherwise ensure string
 
     // Mark field as dirty
     dirtyClientFieldsRef.current.add(name);
@@ -1469,7 +1469,7 @@ const Edit = ({
   // Update handleRoleSpecificChange to ensure values are never undefined
   const handleRoleSpecificChange = (e) => {
     const { name, value, type, checked } = e.target;
-    const safeValue = type === "checkbox" ? checked : value ?? "";
+    const safeValue = type === "checkbox" ? checked : (value ?? "");
     // Track that user touched subscription/role fields
     dirtySubscriptionFieldsRef.current.add(name);
 
@@ -1555,8 +1555,8 @@ const Edit = ({
               selectedRole === "HRG"
                 ? setHrgData
                 : selectedRole === "FOM"
-                ? setFomData
-                : setCalData;
+                  ? setFomData
+                  : setCalData;
             updateFunc((prev) => ({ ...prev, recvdate: newData.recvdate }));
           }
         }
@@ -1871,7 +1871,7 @@ const Edit = ({
       const formattedAddress = formatAddressLines(
         newAddressData,
         formData.area || "",
-        areaData
+        areaData,
       );
       setCombinedAddress(formattedAddress || "");
 
@@ -1896,7 +1896,7 @@ const Edit = ({
     if (field === "acode" && safeValue && /^\d+$/.test(safeValue)) {
       console.warn("Area code must contain letters (e.g., NCR, CAR, R01)");
       setValidationError(
-        "Area code must contain letters (e.g., NCR, CAR, R01)"
+        "Area code must contain letters (e.g., NCR, CAR, R01)",
       );
       // keep going so the UI reflects the typed value, but don't abort
     } else if (field === "acode") {
@@ -1937,7 +1937,7 @@ const Edit = ({
         {
           ...newAreaData,
           zipcode: zipcodeForFormat,
-        }
+        },
       );
 
       // Update dependent states in a predictable way
@@ -2042,7 +2042,7 @@ const Edit = ({
     const formattedAddress = formatAddressLines(
       addressData,
       formData.area || "",
-      areaData
+      areaData,
     );
     setCombinedAddress(formattedAddress || "");
   };
@@ -2112,7 +2112,7 @@ const Edit = ({
           setSelectedHrgRecord(firstRecord);
           const recvdateParts = parseDateToComponents(firstRecord.recvdate);
           const campaigndateParts = parseDateToComponents(
-            firstRecord.campaigndate
+            firstRecord.campaigndate,
           );
           const paymtdateParts = parseDateToComponents(firstRecord.paymtdate);
           const roleData = {
@@ -2132,13 +2132,13 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
-            selectedHrgRecord.recvdate
+            selectedHrgRecord.recvdate,
           );
           const campaigndateParts = parseDateToComponents(
-            selectedHrgRecord.campaigndate
+            selectedHrgRecord.campaigndate,
           );
           const paymtdateParts = parseDateToComponents(
-            selectedHrgRecord.paymtdate
+            selectedHrgRecord.paymtdate,
           );
           const roleData = {
             ...selectedHrgRecord,
@@ -2203,10 +2203,10 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
-            selectedFomRecord.recvdate
+            selectedFomRecord.recvdate,
           );
           const paymtdateParts = parseDateToComponents(
-            selectedFomRecord.paymtdate
+            selectedFomRecord.paymtdate,
           );
           const roleData = {
             ...selectedFomRecord,
@@ -2264,10 +2264,10 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const recvdateParts = parseDateToComponents(
-            selectedCalRecord.recvdate
+            selectedCalRecord.recvdate,
           );
           const paymtdateParts = parseDateToComponents(
-            selectedCalRecord.paymtdate
+            selectedCalRecord.paymtdate,
           );
           const roleData = {
             ...selectedCalRecord,
@@ -2326,7 +2326,7 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const subsdateParts = parseDateToComponents(
-            selectedWmmRecord.subsdate
+            selectedWmmRecord.subsdate,
           );
           const enddateParts = parseDateToComponents(selectedWmmRecord.enddate);
           setRoleSpecificData({
@@ -2383,10 +2383,10 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const subsdateParts = parseDateToComponents(
-            selectedPromoRecord.subsdate
+            selectedPromoRecord.subsdate,
           );
           const enddateParts = parseDateToComponents(
-            selectedPromoRecord.enddate
+            selectedPromoRecord.enddate,
           );
           setRoleSpecificData({
             ...selectedPromoRecord,
@@ -2443,10 +2443,10 @@ const Edit = ({
           setRoleSpecificData(roleData);
         } else {
           const subsdateParts = parseDateToComponents(
-            selectedComplimentaryRecord.subsdate
+            selectedComplimentaryRecord.subsdate,
           );
           const enddateParts = parseDateToComponents(
-            selectedComplimentaryRecord.enddate
+            selectedComplimentaryRecord.enddate,
           );
           setRoleSpecificData({
             ...selectedComplimentaryRecord,
@@ -3238,7 +3238,7 @@ const Edit = ({
   const handleSubmissionWithErrorHandling = async (
     submissionData,
     endpoint,
-    method
+    method,
   ) => {
     // Validate data before submission
     try {
@@ -3335,8 +3335,28 @@ const Edit = ({
       edituser: user?.username || user?.name,
     };
 
-    // Use the already computed client diff from handleSubmit
-    const clientDataWithClears = previewClientDiff || {};
+    // Recompute client diff at confirmation time to ensure latest address
+    // and area fields (which may be edited in separate subcomponents)
+    const latestBaseClientData = {
+      ...formData,
+      bdate: (() => {
+        if (formData.bdateMonth && formData.bdateDay && formData.bdateYear) {
+          const month = cleanDateInput(formData.bdateMonth);
+          const day = cleanDateInput(formData.bdateDay);
+          const year = cleanDateInput(formData.bdateYear);
+          if (month && day && year) return `${month}/${day}/${year}`;
+        }
+        return formData.bdate || "";
+      })(),
+      address: combinedAddress,
+      ...areaData,
+      // keep edit metadata local to confirmed submission
+    };
+
+    const clientDataWithClears = computeClientDiff(
+      initialClientSnapshotRef.current || rowData || {},
+      latestBaseClientData,
+    );
 
     // Determine the API endpoint based on mode
     const endpoint =
@@ -3377,7 +3397,7 @@ const Edit = ({
           `http://${import.meta.env.VITE_IP_ADDRESS}:3001/clients/update/${
             rowData.id
           }`,
-          "put"
+          "put",
         );
 
         // Clear timeout on successful response
@@ -3571,12 +3591,12 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateMonth,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         campaigndate: formatDate(
           dataSource.campaigndateMonth,
           dataSource.campaigndateDay,
-          dataSource.campaigndateYear
+          dataSource.campaigndateYear,
         ),
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
@@ -3642,7 +3662,7 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateDay,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
@@ -3650,7 +3670,7 @@ const Edit = ({
         paymtdate: formatDate(
           dataSource.paymtdateMonth,
           dataSource.paymtdateDay,
-          dataSource.paymtdateYear
+          dataSource.paymtdateYear,
         ),
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
@@ -3719,7 +3739,7 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateDay,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         caltype: dataSource.caltype || "",
         calqty: dataSource.calqty || 0,
@@ -3733,7 +3753,7 @@ const Edit = ({
         paymtdate: formatDate(
           dataSource.paymtdateMonth,
           dataSource.paymtdateDay,
-          dataSource.paymtdateYear
+          dataSource.paymtdateYear,
         ),
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
@@ -3777,7 +3797,7 @@ const Edit = ({
     };
 
     const willSaveSubscription = roleSubmissions.some((r) =>
-      ["WMM", "PROMO", "COMP"].includes(r.roleType)
+      ["WMM", "PROMO", "COMP"].includes(r.roleType),
     );
     setPreviewNoSubscriptionIncluded(!willSaveSubscription);
     const submissionData = {
@@ -3800,7 +3820,7 @@ const Edit = ({
       const response = await handleSubmissionWithErrorHandling(
         submissionData,
         endpoint,
-        method
+        method,
       );
 
       // Clear timeout before processing response
@@ -3861,7 +3881,7 @@ const Edit = ({
     } catch (error) {
       console.error(
         `Error ${mode === "edit" ? "updating" : "adding"} client:`,
-        error
+        error,
       );
 
       // Clear timeout on error
@@ -3930,7 +3950,7 @@ const Edit = ({
       const initialSnapshot = initialClientSnapshotRef.current || rowData || {};
       const clientDataWithClears = computeClientDiff(
         initialSnapshot,
-        baseClientData
+        baseClientData,
       );
       setPreviewClientDiff(clientDataWithClears);
 
@@ -4009,12 +4029,12 @@ const Edit = ({
         const subscriptionData = getSubscriptionData(
           formData.subscriptionType,
           formData,
-          mergedRoleData
+          mergedRoleData,
         );
 
         const validation = validateNewSubscription(
           subscriptionData,
-          formData.subscriptionType
+          formData.subscriptionType,
         );
         setSubscriptionValidation(validation);
         hasSubscriptionChanges = validation.isSubscriptionValid;
@@ -4098,7 +4118,7 @@ const Edit = ({
         "paymtmasses",
       ]);
       const anyRequiredTouched = Array.from(
-        dirtySubscriptionFieldsRef.current || []
+        dirtySubscriptionFieldsRef.current || [],
       ).some((f) => requiredTouchFields.has(f));
 
       // Only validate subscription if user is in WMM role, has selected a subscription type,
@@ -4119,12 +4139,12 @@ const Edit = ({
           // Use existing data presence check
           const hasAnySubscriptionData = checkSubscriptionData(
             formData,
-            roleSpecificData
+            roleSpecificData,
           );
 
           if (!hasAnySubscriptionData) {
             setValidationError(
-              "Please complete the required subscription fields before submitting."
+              "Please complete the required subscription fields before submitting.",
             );
             return;
           }
@@ -4137,16 +4157,16 @@ const Edit = ({
           if (formData.subscriptionType === "WMM") {
             const hasAmount = Boolean(
               dataSource?.paymtamt !== undefined &&
-                String(dataSource.paymtamt).trim() !== ""
+              String(dataSource.paymtamt).trim() !== "",
             );
             const hasMasses = Boolean(
               dataSource?.paymtmasses !== undefined &&
-                String(dataSource.paymtmasses).trim() !== ""
+              String(dataSource.paymtmasses).trim() !== "",
             );
 
             if (!hasAmount && !hasMasses) {
               setValidationError(
-                "Please provide either Payment Amount or Masses for the WMM subscription."
+                "Please provide either Payment Amount or Masses for the WMM subscription.",
               );
               return;
             }
@@ -4156,30 +4176,29 @@ const Edit = ({
           const startPresent = Boolean(
             (formData?.subscriptionStart &&
               String(formData.subscriptionStart).trim() !== "") ||
-              (formData?.subStartMonth &&
-                formData?.subStartDay &&
-                formData?.subStartYear) ||
-              (dataSource?.subsdate &&
-                String(dataSource.subsdate).trim() !== "")
+            (formData?.subStartMonth &&
+              formData?.subStartDay &&
+              formData?.subStartYear) ||
+            (dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""),
           );
           const endPresent = Boolean(
             (formData?.subscriptionEnd &&
               String(formData.subscriptionEnd).trim() !== "") ||
-              (formData?.subEndMonth &&
-                formData?.subEndDay &&
-                formData?.subEndYear) ||
-              (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
+            (formData?.subEndMonth &&
+              formData?.subEndDay &&
+              formData?.subEndYear) ||
+            (dataSource?.enddate && String(dataSource.enddate).trim() !== ""),
           );
           const durationPresent = Boolean(
             (formData?.subscriptionFreq &&
               String(formData.subscriptionFreq).trim() !== "") ||
-              (dataSource?.subsyear !== undefined &&
-                String(dataSource.subsyear).trim() !== "")
+            (dataSource?.subsyear !== undefined &&
+              String(dataSource.subsyear).trim() !== ""),
           );
           const subclassPresent = Boolean(
             (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
-              (dataSource?.subsclass &&
-                String(dataSource.subsclass).trim() !== "")
+            (dataSource?.subsclass &&
+              String(dataSource.subsclass).trim() !== ""),
           );
 
           // For new subscriptions, check required fields based on type
@@ -4197,7 +4216,7 @@ const Edit = ({
             setValidationError(
               `${requiredFields.join(", ")} ${
                 requiredFields.length > 1 ? "are" : "is"
-              } required for ${formData.subscriptionType} subscription.`
+              } required for ${formData.subscriptionType} subscription.`,
             );
             return;
           }
@@ -4232,7 +4251,7 @@ const Edit = ({
       "paymtmasses",
     ]);
     const anyRequiredTouched = Array.from(
-      dirtySubscriptionFieldsRef.current || []
+      dirtySubscriptionFieldsRef.current || [],
     ).some((f) => requiredTouchFields.has(f));
 
     if (
@@ -4242,12 +4261,12 @@ const Edit = ({
     ) {
       const hasAnySubscriptionData = checkSubscriptionData(
         formData,
-        roleSpecificData
+        roleSpecificData,
       );
 
       if (!hasAnySubscriptionData) {
         setValidationError(
-          "Please complete the required subscription fields before submitting."
+          "Please complete the required subscription fields before submitting.",
         );
         setIsSubmitting(false);
         return;
@@ -4260,15 +4279,15 @@ const Edit = ({
       if (formData.subscriptionType === "WMM") {
         const hasAmount = Boolean(
           dataSource?.paymtamt !== undefined &&
-            String(dataSource.paymtamt).trim() !== ""
+          String(dataSource.paymtamt).trim() !== "",
         );
         const hasMasses = Boolean(
           dataSource?.paymtmasses !== undefined &&
-            String(dataSource.paymtmasses).trim() !== ""
+          String(dataSource.paymtmasses).trim() !== "",
         );
         if (!hasAmount && !hasMasses) {
           setValidationError(
-            "Please provide either Payment Amount or Masses for the WMM subscription."
+            "Please provide either Payment Amount or Masses for the WMM subscription.",
           );
           setIsSubmitting(false);
           return;
@@ -4278,28 +4297,28 @@ const Edit = ({
       const startPresent = Boolean(
         (formData?.subscriptionStart &&
           String(formData.subscriptionStart).trim() !== "") ||
-          (formData?.subStartMonth &&
-            formData?.subStartDay &&
-            formData?.subStartYear) ||
-          (dataSource?.subsdate && String(dataSource.subsdate).trim() !== "")
+        (formData?.subStartMonth &&
+          formData?.subStartDay &&
+          formData?.subStartYear) ||
+        (dataSource?.subsdate && String(dataSource.subsdate).trim() !== ""),
       );
       const endPresent = Boolean(
         (formData?.subscriptionEnd &&
           String(formData.subscriptionEnd).trim() !== "") ||
-          (formData?.subEndMonth &&
-            formData?.subEndDay &&
-            formData?.subEndYear) ||
-          (dataSource?.enddate && String(dataSource.enddate).trim() !== "")
+        (formData?.subEndMonth &&
+          formData?.subEndDay &&
+          formData?.subEndYear) ||
+        (dataSource?.enddate && String(dataSource.enddate).trim() !== ""),
       );
       const durationPresent = Boolean(
         (formData?.subscriptionFreq &&
           String(formData.subscriptionFreq).trim() !== "") ||
-          (dataSource?.subsyear !== undefined &&
-            String(dataSource.subsyear).trim() !== "")
+        (dataSource?.subsyear !== undefined &&
+          String(dataSource.subsyear).trim() !== ""),
       );
       const subclassPresent = Boolean(
         (formData?.subsclass && String(formData.subsclass).trim() !== "") ||
-          (dataSource?.subsclass && String(dataSource.subsclass).trim() !== "")
+        (dataSource?.subsclass && String(dataSource.subsclass).trim() !== ""),
       );
 
       // In edit mode (when subscriptionMode is "edit"), allow partial updates
@@ -4322,7 +4341,7 @@ const Edit = ({
           setValidationError(
             `${requiredFields.join(", ")} ${
               requiredFields.length > 1 ? "are" : "is"
-            } required for ${formData.subscriptionType} subscription.`
+            } required for ${formData.subscriptionType} subscription.`,
           );
           setIsSubmitting(false);
           return;
@@ -4474,12 +4493,12 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateDay,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         campaigndate: formatDate(
           dataSource.campaigndateMonth,
           dataSource.campaigndateDay,
-          dataSource.campaigndateYear
+          dataSource.campaigndateYear,
         ),
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
@@ -4545,7 +4564,7 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateDay,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         paymtref: dataSource.paymtref || "",
         paymtamt: dataSource.paymtamt || 0,
@@ -4553,7 +4572,7 @@ const Edit = ({
         paymtdate: formatDate(
           dataSource.paymtdateMonth,
           dataSource.paymtdateDay,
-          dataSource.paymtdateYear
+          dataSource.paymtdateYear,
         ),
         unsubscribe: dataSource.unsubscribe || false,
         remarks: dataSource.remarks || "",
@@ -4622,7 +4641,7 @@ const Edit = ({
         recvdate: formatDate(
           dataSource.recvdateMonth,
           dataSource.recvdateDay,
-          dataSource.recvdateYear
+          dataSource.recvdateYear,
         ),
         caltype: dataSource.caltype || "",
         calqty: dataSource.calqty || 0,
@@ -4634,7 +4653,7 @@ const Edit = ({
         paymtdate: formatDate(
           dataSource.paymtdateMonth,
           dataSource.paymtdateDay,
-          dataSource.paymtdateYear
+          dataSource.paymtdateYear,
         ),
         remarks: dataSource.remarks || "",
         editdate: new Date().toISOString(),
@@ -4675,7 +4694,7 @@ const Edit = ({
     };
 
     const willSaveSubscription = roleSubmissions.some((r) =>
-      ["WMM", "PROMO", "COMP"].includes(r.roleType)
+      ["WMM", "PROMO", "COMP"].includes(r.roleType),
     );
     const submissionData = {
       clientData: {
@@ -4697,7 +4716,7 @@ const Edit = ({
       const response = await handleSubmissionWithErrorHandling(
         submissionData,
         endpoint,
-        method
+        method,
       );
 
       if (response.data && response.data.success) {
@@ -4765,7 +4784,7 @@ const Edit = ({
     } catch (error) {
       console.error(
         `Error ${mode === "edit" ? "updating" : "adding"} client:`,
-        error
+        error,
       );
 
       // Enhanced error logging
@@ -4886,7 +4905,7 @@ const Edit = ({
               prev.filter((r) => {
                 const rId = r.id || r._id;
                 return String(rId) !== String(recordId);
-              })
+              }),
             );
             if (
               selectedHrgRecord &&
@@ -4897,7 +4916,7 @@ const Edit = ({
               // Reset role-specific data
               const today = new Date();
               const todayParts = parseDateToComponents(
-                formatDateToMMDDYY(today)
+                formatDateToMMDDYY(today),
               );
               setHrgData({
                 recvdate: formatDateToMMDDYY(today),
@@ -4920,7 +4939,7 @@ const Edit = ({
               prev.filter((r) => {
                 const rId = r.id || r._id;
                 return String(rId) !== String(recordId);
-              })
+              }),
             );
             if (
               selectedFomRecord &&
@@ -4931,7 +4950,7 @@ const Edit = ({
               // Reset role-specific data
               const today = new Date();
               const todayParts = parseDateToComponents(
-                formatDateToMMDDYY(today)
+                formatDateToMMDDYY(today),
               );
               setFomData({
                 recvdate: formatDateToMMDDYY(today),
@@ -4951,7 +4970,7 @@ const Edit = ({
               prev.filter((r) => {
                 const rId = r.id || r._id;
                 return String(rId) !== String(recordId);
-              })
+              }),
             );
             if (
               selectedCalRecord &&
@@ -4962,7 +4981,7 @@ const Edit = ({
               // Reset role-specific data
               const today = new Date();
               const todayParts = parseDateToComponents(
-                formatDateToMMDDYY(today)
+                formatDateToMMDDYY(today),
               );
               setCalData({
                 recvdate: formatDateToMMDDYY(today),
@@ -4992,8 +5011,8 @@ const Edit = ({
           roleType === "HRG"
             ? hrgRecords
             : roleType === "FOM"
-            ? fomRecords
-            : calRecords;
+              ? fomRecords
+              : calRecords;
         if (recordsArray.length <= 1) {
           setRoleRecordMode("add");
         }
@@ -5086,7 +5105,7 @@ const Edit = ({
           prev.filter((sub) => {
             const subId = sub.id || sub._id;
             return String(subId) !== String(subscriptionId);
-          })
+          }),
         );
 
         // Clear the selected subscription if it was the deleted one
@@ -5365,7 +5384,7 @@ const Edit = ({
                                   } else {
                                     console.error(
                                       "No subscription found for value:",
-                                      e.target.value
+                                      e.target.value,
                                     );
                                   }
                                 }}
@@ -5379,13 +5398,13 @@ const Edit = ({
                                   >
                                     {sub.subsdate
                                       ? formatDateToMonthYear(
-                                          parseDate(sub.subsdate)
+                                          parseDate(sub.subsdate),
                                         )
                                       : "Unknown"}{" "}
                                     to{" "}
                                     {sub.enddate
                                       ? formatDateToMonthYear(
-                                          parseDate(sub.enddate)
+                                          parseDate(sub.enddate),
                                         )
                                       : "Unknown"}{" "}
                                     - {sub.subsclass || "No Class"}
@@ -5398,7 +5417,7 @@ const Edit = ({
                                   type="button"
                                   onClick={() =>
                                     handleDeleteSubscription(
-                                      selectedSubscription
+                                      selectedSubscription,
                                     )
                                   }
                                   className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
@@ -5518,7 +5537,7 @@ const Edit = ({
                 <div className="mb-4">
                   <h2
                     className={`${getRoleHeaderClasses(
-                      selectedRole
+                      selectedRole,
                     )} p-2 font-bold text-center text-xl md:text-2xl rounded`}
                   >
                     {getRoleFullName(selectedRole)}
@@ -5572,17 +5591,17 @@ const Edit = ({
                               onChange={(e) => {
                                 const record = hrgRecords.find(
                                   (r) =>
-                                    String(r.id || r._id) === e.target.value
+                                    String(r.id || r._id) === e.target.value,
                                 );
                                 if (record) {
                                   setSelectedHrgRecord(record);
                                   const recvdateParts = parseDateToComponents(
-                                    record.recvdate
+                                    record.recvdate,
                                   );
                                   const campaigndateParts =
                                     parseDateToComponents(record.campaigndate);
                                   const paymtdateParts = parseDateToComponents(
-                                    record.paymtdate
+                                    record.paymtdate,
                                   );
 
                                   setRoleSpecificData({
@@ -5609,7 +5628,7 @@ const Edit = ({
                                 >
                                   {record.recvdate
                                     ? formatDateToMonthYear(
-                                        parseDate(record.recvdate)
+                                        parseDate(record.recvdate),
                                       )
                                     : "Unknown"}
                                   {record.paymtamt
@@ -5627,7 +5646,7 @@ const Edit = ({
                                 onClick={() =>
                                   handleDeleteRoleRecord(
                                     selectedHrgRecord,
-                                    "HRG"
+                                    "HRG",
                                   )
                                 }
                                 className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
@@ -5666,15 +5685,15 @@ const Edit = ({
                               onChange={(e) => {
                                 const record = fomRecords.find(
                                   (r) =>
-                                    String(r.id || r._id) === e.target.value
+                                    String(r.id || r._id) === e.target.value,
                                 );
                                 if (record) {
                                   setSelectedFomRecord(record);
                                   const recvdateParts = parseDateToComponents(
-                                    record.recvdate
+                                    record.recvdate,
                                   );
                                   const paymtdateParts = parseDateToComponents(
-                                    record.paymtdate
+                                    record.paymtdate,
                                   );
                                   setRoleSpecificData({
                                     ...record,
@@ -5697,7 +5716,7 @@ const Edit = ({
                                 >
                                   {record.recvdate
                                     ? formatDateToMonthYear(
-                                        parseDate(record.recvdate)
+                                        parseDate(record.recvdate),
                                       )
                                     : "Unknown"}
                                   {record.paymtamt
@@ -5715,7 +5734,7 @@ const Edit = ({
                                 onClick={() =>
                                   handleDeleteRoleRecord(
                                     selectedFomRecord,
-                                    "FOM"
+                                    "FOM",
                                   )
                                 }
                                 className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
@@ -5752,21 +5771,21 @@ const Edit = ({
                                       ? calRecords[0].id || calRecords[0]._id
                                       : "")
                                   : calRecords.length > 0
-                                  ? calRecords[0].id || calRecords[0]._id
-                                  : ""
+                                    ? calRecords[0].id || calRecords[0]._id
+                                    : ""
                               }
                               onChange={(e) => {
                                 const record = calRecords.find(
                                   (r) =>
-                                    String(r.id || r._id) === e.target.value
+                                    String(r.id || r._id) === e.target.value,
                                 );
                                 if (record) {
                                   setSelectedCalRecord(record);
                                   const recvdateParts = parseDateToComponents(
-                                    record.recvdate
+                                    record.recvdate,
                                   );
                                   const paymtdateParts = parseDateToComponents(
-                                    record.paymtdate
+                                    record.paymtdate,
                                   );
                                   setRoleSpecificData({
                                     ...record,
@@ -5791,7 +5810,7 @@ const Edit = ({
                                 >
                                   {record.recvdate
                                     ? formatDateToMonthYear(
-                                        parseDate(record.recvdate)
+                                        parseDate(record.recvdate),
                                       )
                                     : "Unknown"}
                                   {record.caltype ? ` - ${record.caltype}` : ""}
@@ -5806,7 +5825,7 @@ const Edit = ({
                                 onClick={() =>
                                   handleDeleteRoleRecord(
                                     selectedCalRecord,
-                                    "CAL"
+                                    "CAL",
                                   )
                                 }
                                 className="px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md text-sm"
@@ -5843,15 +5862,15 @@ const Edit = ({
                             }
                             onChange={(e) => {
                               const record = wmmRecords.find(
-                                (r) => String(r.id || r._id) === e.target.value
+                                (r) => String(r.id || r._id) === e.target.value,
                               );
                               if (record) {
                                 setSelectedWmmRecord(record);
                                 const subsdateParts = parseDateToComponents(
-                                  record.subsdate
+                                  record.subsdate,
                                 );
                                 const enddateParts = parseDateToComponents(
-                                  record.enddate
+                                  record.enddate,
                                 );
                                 setRoleSpecificData({
                                   ...record,
@@ -5874,7 +5893,7 @@ const Edit = ({
                               >
                                 {record.subsdate
                                   ? formatDateToMonthYear(
-                                      parseDate(record.subsdate)
+                                      parseDate(record.subsdate),
                                     )
                                   : "Unknown"}
                                 {record.paymtamt
@@ -5904,15 +5923,15 @@ const Edit = ({
                             }
                             onChange={(e) => {
                               const record = promoRecords.find(
-                                (r) => String(r.id || r._id) === e.target.value
+                                (r) => String(r.id || r._id) === e.target.value,
                               );
                               if (record) {
                                 setSelectedPromoRecord(record);
                                 const subsdateParts = parseDateToComponents(
-                                  record.subsdate
+                                  record.subsdate,
                                 );
                                 const enddateParts = parseDateToComponents(
-                                  record.enddate
+                                  record.enddate,
                                 );
                                 setRoleSpecificData({
                                   ...record,
@@ -5935,7 +5954,7 @@ const Edit = ({
                               >
                                 {record.subsdate
                                   ? formatDateToMonthYear(
-                                      parseDate(record.subsdate)
+                                      parseDate(record.subsdate),
                                     )
                                   : "Unknown"}
                                 {record.paymtamt
@@ -5967,15 +5986,15 @@ const Edit = ({
                               onChange={(e) => {
                                 const record = complimentaryRecords.find(
                                   (r) =>
-                                    String(r.id || r._id) === e.target.value
+                                    String(r.id || r._id) === e.target.value,
                                 );
                                 if (record) {
                                   setSelectedComplimentaryRecord(record);
                                   const subsdateParts = parseDateToComponents(
-                                    record.subsdate
+                                    record.subsdate,
                                   );
                                   const enddateParts = parseDateToComponents(
-                                    record.enddate
+                                    record.enddate,
                                   );
                                   setRoleSpecificData({
                                     ...record,
@@ -6000,7 +6019,7 @@ const Edit = ({
                                 >
                                   {record.subsdate
                                     ? formatDateToMonthYear(
-                                        parseDate(record.subsdate)
+                                        parseDate(record.subsdate),
                                       )
                                     : "Unknown"}
                                   {record.paymtamt
@@ -6039,7 +6058,7 @@ const Edit = ({
                                   : (e) =>
                                       handleNewRoleDataChange(
                                         "recvdateMonth",
-                                        e.target.value
+                                        e.target.value,
                                       )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -6067,7 +6086,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "recvdateDay",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="DD"
@@ -6089,7 +6108,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "recvdateYear",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="YYYY"
@@ -6119,7 +6138,7 @@ const Edit = ({
                                   : (e) =>
                                       handleNewRoleDataChange(
                                         "campaigndateMonth",
-                                        e.target.value
+                                        e.target.value,
                                       )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -6147,7 +6166,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "campaigndateDay",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="DD"
@@ -6169,7 +6188,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "campaigndateYear",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="YYYY"
@@ -6327,7 +6346,7 @@ const Edit = ({
                                   : (e) =>
                                       handleNewRoleDataChange(
                                         "recvdateMonth",
-                                        e.target.value
+                                        e.target.value,
                                       )
                               }
                               className="w-full p-2 text-base border rounded-md border-gray-300"
@@ -6355,7 +6374,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "recvdateDay",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="DD"
@@ -6377,7 +6396,7 @@ const Edit = ({
                                 : (e) =>
                                     handleNewRoleDataChange(
                                       "recvdateYear",
-                                      e.target.value
+                                      e.target.value,
                                     )
                             }
                             placeholder="YYYY"
