@@ -1705,9 +1705,14 @@ const Edit = ({
     const newValue = type === "checkbox" ? checked : value;
 
     setFomData((prev) => {
+      const valueToSet =
+        name === "remarks" && typeof newValue === "string"
+          ? newValue.toUpperCase()
+          : newValue;
+
       const updated = {
         ...prev,
-        [name]: newValue,
+        [name]: valueToSet,
       };
 
       // Handle date component changes
@@ -2198,7 +2203,10 @@ const Edit = ({
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
           };
-          setFomData(roleData);
+          setFomData({
+            ...roleData,
+            remarks: (roleData.remarks || "").toUpperCase(),
+          });
           // Sync to roleSpecificData so the form fields display the data
           setRoleSpecificData(roleData);
         } else {
@@ -2217,7 +2225,10 @@ const Edit = ({
             paymtdateDay: paymtdateParts.day,
             paymtdateYear: paymtdateParts.year,
           };
-          setFomData(roleData);
+          setFomData({
+            ...roleData,
+            remarks: (roleData.remarks || "").toUpperCase(),
+          });
           // Sync to roleSpecificData so the form fields display the data
           setRoleSpecificData(roleData);
         }
@@ -2526,7 +2537,10 @@ const Edit = ({
         paymtdateDay: paymtdateParts.day,
         paymtdateYear: paymtdateParts.year,
       };
-      setFomData(roleData);
+      setFomData({
+        ...roleData,
+        remarks: (roleData.remarks || "").toUpperCase(),
+      });
       // Sync to roleSpecificData so the form fields display the data
       setRoleSpecificData(roleData);
     }
