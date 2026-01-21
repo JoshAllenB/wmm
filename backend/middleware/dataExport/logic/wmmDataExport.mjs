@@ -222,45 +222,93 @@ async function processMonthlyDistribution(
       `Found ${activeSubscriptions.length} active subscriptions and ${activeComplimentary.length} complimentary subscriptions for the month`
     );
 
-    // === Export ungrouped client list to CSV (clientid, subsdate, enddate, copies) ===
     try {
       const rows = [];
 
       // From paid subscriptions
       for (const sub of activeSubscriptions) {
         const clientid = sub.clientid != null ? sub.clientid : "";
-        const subsdate = sub.subsdate || "";
-        const enddate = sub.enddate || "";
-        const copies = sub.copies != null ? sub.copies : "";
-        rows.push([clientid, subsdate, enddate, copies]);
+        const client = clientMap.get(clientid);
+
+        rows.push([
+          clientid,
+          client ? client.lname || "" : "",
+          client ? client.fname || "" : "",
+          client ? client.mname || "" : "",
+          client ? client.company || "" : "",
+          sub.subsdate || "",
+          sub.enddate || "",
+          sub.copies != null ? sub.copies : "",
+        ]);
       }
 
-      // Add a blank separator row between paid subscriptions and complimentary entries
-      rows.push(["", "", "", ""]);
+      // Add a blank separator row
+      rows.push(["", "", "", "", "", "", "", ""]);
+      rows.push(["Complimentary Subscriptions", "", "", "", "", "", "", ""]);
 
       // From complimentary docs
       for (const doc of activeComplimentary) {
         const clientIdField =
           doc.clientId || doc.clientid || doc.client_id || "";
-        const subsdate = doc.subsdate || "";
-        const enddate = doc.enddate || "";
-        const copies = doc.copies != null ? doc.copies : "";
-        rows.push([clientIdField, subsdate, enddate, copies]);
+        const clientInfo = clientMap.get(clientIdField);
+
+        rows.push([
+          clientIdField,
+          clientInfo ? clientInfo.lname || "" : "",
+          clientInfo ? clientInfo.fname || "" : "",
+          clientInfo ? clientInfo.mname || "" : "",
+          clientInfo ? clientInfo.company || "" : "",
+          doc.subsdate || "",
+          doc.enddate || "",
+          doc.copies != null ? doc.copies : "",
+        ]);
       }
 
       const header =
-        ["clientid", "subsdate", "enddate", "copies"].join(",") + "\n";
+        [
+          "clientid",
+          "lname",
+          "fname",
+          "mname",
+          "company",
+          "subsdate",
+          "enddate",
+          "copies",
+        ].join(",") + "\n";
+
       const csvBody = rows
         .map((r) =>
-          r.map((v) => (v === null || v === undefined ? "" : `${v}`)).join(",")
+          r
+            .map((v) => {
+              if (v === null || v === undefined) return "";
+              const str = `${v}`;
+              // Escape special characters for CSV
+              // If contains commas, quotes, or newlines, wrap in quotes
+              if (
+                str.includes(",") ||
+                str.includes('"') ||
+                str.includes("\n") ||
+                str.includes("\r")
+              ) {
+                // Escape double quotes by doubling them
+                return `"${str.replace(/"/g, '""')}"`;
+              }
+              return str;
+            })
+            .join(",")
         )
         .join("\n");
-      const csvContent = header + csvBody + "\n";
+
+      // Create CSV content with UTF-8 BOM for Excel compatibility
+      const csvContent = "\uFEFF" + header + csvBody; // \uFEFF is the UTF-8 BOM
 
       const outDir = "C:\\Users\\Josh\\Documents\\WMM Reports\\";
       if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
       const outPath = path.join(outDir, `AllClients_${month}_${year}.csv`);
-      fs.writeFileSync(outPath, csvContent);
+
+      // Write with UTF-8 encoding (default in Node.js is UTF-8)
+      fs.writeFileSync(outPath, csvContent, "utf8");
+
       sendProgressUpdate(`Ungrouped clients CSV saved to ${outPath}`);
     } catch (csvErr) {
       console.error(
@@ -268,7 +316,6 @@ async function processMonthlyDistribution(
         csvErr.message
       );
     }
-
     // Group clients by type - more efficient approach
     const clientsByType = {};
     for (const category of Object.keys(TYPE_GROUPS)) {
@@ -423,6 +470,10 @@ async function processMonthlyDistribution(
     let renewalCount = 0;
     let newSubCount = 0;
 
+    // Collect rows for NEW vs RENEWAL grouping CSV
+    const newRows = [];
+    const renewalRows = [];
+
     // Helper: days difference between two dates
     const daysBetween = (d1, d2) => {
       return Math.floor((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
@@ -497,11 +548,37 @@ async function processMonthlyDistribution(
               chalk.green(`  -> RENEWAL (previous enddate within 3 months)`)
             );
           }
+
+          // Add to renewal rows for grouped CSV
+          const clientInfoForRow = clientMap.get(clientId) || {};
+          renewalRows.push([
+            clientId,
+            clientInfoForRow.lname || "",
+            clientInfoForRow.fname || "",
+            clientInfoForRow.mname || "",
+            clientInfoForRow.company || "",
+            subscription.subsdate || subscription.adddate || "",
+            subscription.enddate || "",
+            subscription.copies != null ? subscription.copies : "",
+          ]);
         } else {
           newSubCount++;
           if (newSubCount <= 5) {
             console.log(newSubCount, chalk.green(`  -> NEW SUBSCRIBER`));
           }
+
+          // Add to new subscriber rows for grouped CSV
+          const clientInfoForRow = clientMap.get(clientId) || {};
+          newRows.push([
+            clientId,
+            clientInfoForRow.lname || "",
+            clientInfoForRow.fname || "",
+            clientInfoForRow.mname || "",
+            clientInfoForRow.company || "",
+            subscription.subsdate || subscription.adddate || "",
+            subscription.enddate || "",
+            subscription.copies != null ? subscription.copies : "",
+          ]);
         }
       } catch (error) {
         console.error(
@@ -516,6 +593,64 @@ async function processMonthlyDistribution(
         `✅ Totals: ${newSubCount} NEW SUBSCRIBERS, ${renewalCount} RENEWALS`
       )
     );
+
+    // Write grouped CSV for NEW vs RENEWAL subscribers (subscriptions added this month)
+    try {
+      const sectionHeader = [
+        "clientid",
+        "lname",
+        "fname",
+        "mname",
+        "company",
+        "subsdate",
+        "enddate",
+        "copies",
+      ];
+
+      const buildCsvSection = (title, rows) => {
+        const headerLine = title + "\n" + sectionHeader.join(",") + "\n";
+        const body = rows
+          .map((r) =>
+            r
+              .map((v) => {
+                if (v === null || v === undefined) return "";
+                const str = `${v}`;
+                if (
+                  str.includes(",") ||
+                  str.includes('"') ||
+                  str.includes("\n") ||
+                  str.includes("\r")
+                ) {
+                  return `"${str.replace(/"/g, '""')}"`;
+                }
+                return str;
+              })
+              .join(",")
+          )
+          .join("\n");
+
+        return headerLine + body + "\n\n";
+      };
+
+      let groupedCsv = "\uFEFF"; // BOM
+      groupedCsv += buildCsvSection("NEW SUBSCRIBERS", newRows);
+      groupedCsv += buildCsvSection("RENEWALS", renewalRows);
+
+      if (!fs.existsSync(reportConfig.outputDirectory)) {
+        fs.mkdirSync(reportConfig.outputDirectory, { recursive: true });
+      }
+      const groupedPath = path.join(
+        reportConfig.outputDirectory,
+        `NewVsRenewal_${month}_${year}.csv`
+      );
+      fs.writeFileSync(groupedPath, groupedCsv, "utf8");
+      sendProgressUpdate(`Grouped NEW/RENEWAL CSV saved to ${groupedPath}`);
+    } catch (err) {
+      console.error(
+        chalk.red("❌ Error writing grouped NEW/RENEWAL CSV:"),
+        err.message
+      );
+    }
 
     // Step 5: Process complimentary subscriptions
     sendProgressUpdate("Processing complimentary copies...");
