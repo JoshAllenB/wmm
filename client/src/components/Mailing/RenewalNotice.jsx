@@ -23,7 +23,7 @@ const RenewalNoticeDataOverlay = forwardRef(
       sharedConfig = null,
       onSkippedDataUpdate = null, // Add callback for skipped data
     },
-    ref
+    ref,
   ) => {
     const [isLoading, setIsLoading] = useState(false);
     const [filteredSubscribers, setFilteredSubscribers] = useState([]);
@@ -32,10 +32,10 @@ const RenewalNoticeDataOverlay = forwardRef(
     // Note: we only use the setter; prefix the state name to avoid unused variable warnings
     const [_skippedRecords, setSkippedRecords] = useState([]);
     const [reminderMonth, setReminderMonth] = useState(
-      new Date().toLocaleString("default", { month: "long" })
+      new Date().toLocaleString("default", { month: "long" }),
     );
     const [reminderYear, setReminderYear] = useState(
-      new Date().getFullYear().toString()
+      new Date().getFullYear().toString(),
     );
     const [locationType, setLocationType] = useState("Local"); // 'Local' or 'Foreign'
 
@@ -166,11 +166,11 @@ const RenewalNoticeDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           const all = Array.isArray(res.data) ? res.data : [];
           const filtered = all.filter(
-            (t) => (t.previewType || "standard") === "renewal"
+            (t) => (t.previewType || "standard") === "renewal",
           );
           setTemplates(filtered);
           // Default to first template if none selected
@@ -493,7 +493,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         [group]: {
           ...prev[group],
           [field]: ["top", "left", "width", "lineSpacing", "fontSize"].includes(
-            field
+            field,
           )
             ? parseFloat(value)
             : value,
@@ -506,7 +506,7 @@ const RenewalNoticeDataOverlay = forwardRef(
       try {
         localStorage.setItem(
           "renewalNoticePositions",
-          JSON.stringify(positions)
+          JSON.stringify(positions),
         );
 
         // If using shared config and there's a callback for updating it
@@ -638,22 +638,22 @@ const RenewalNoticeDataOverlay = forwardRef(
           <div class="group" style="top: ${
             positions.group1.top - 0.2
           }in; left: ${positions.group1.left - 0.2}in; width: ${
-        positions.group1.width + 0.4
-      }in; height: ${positions.group1.lineSpacing * 2 + 0.4}in; font-family: ${
-        positions.group1.fontFamily === "Times New Roman"
-          ? "'Times New Roman', Times, serif"
-          : positions.group1.fontFamily === "Courier New"
-          ? "'Courier New', Courier, monospace"
-          : positions.group1.fontFamily === "Calibri"
-          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-          : positions.group1.fontFamily === "Verdana"
-          ? "Verdana, Geneva, sans-serif"
-          : positions.group1.fontFamily === "Tahoma"
-          ? "Tahoma, Verdana, Segoe, sans-serif"
-          : "Arial, Helvetica, sans-serif"
-      }; font-size: ${positions.group1.fontSize}pt; font-weight: ${
-        positions.group1.fontWeight
-      };">
+            positions.group1.width + 0.4
+          }in; height: ${positions.group1.lineSpacing * 2 + 0.4}in; font-family: ${
+            positions.group1.fontFamily === "Times New Roman"
+              ? "'Times New Roman', Times, serif"
+              : positions.group1.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group1.fontFamily === "Calibri"
+                  ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                  : positions.group1.fontFamily === "Verdana"
+                    ? "Verdana, Geneva, sans-serif"
+                    : positions.group1.fontFamily === "Tahoma"
+                      ? "Tahoma, Verdana, Segoe, sans-serif"
+                      : "Arial, Helvetica, sans-serif"
+          }; font-size: ${positions.group1.fontSize}pt; font-weight: ${
+            positions.group1.fontWeight
+          };">
             <!-- Subscriber ID -->
             <div class="data-field" style="top: 0.2in; left: 0.2in;">
               <strong>${sampleSubscriber.id}</strong>
@@ -678,22 +678,22 @@ const RenewalNoticeDataOverlay = forwardRef(
           <div class="group" style="top: ${
             positions.group2.top - 0.2
           }in; left: ${positions.group2.left - 0.2}in; width: ${
-        positions.group2.width + 0.4
-      }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in; font-family: ${
-        positions.group2.fontFamily === "Times New Roman"
-          ? "'Times New Roman', Times, serif"
-          : positions.group2.fontFamily === "Courier New"
-          ? "'Courier New', Courier, monospace"
-          : positions.group2.fontFamily === "Calibri"
-          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-          : positions.group2.fontFamily === "Verdana"
-          ? "Verdana, Geneva, sans-serif"
-          : positions.group2.fontFamily === "Tahoma"
-          ? "Tahoma, Verdana, Segoe, sans-serif"
-          : "Arial, Helvetica, sans-serif"
-      }; font-size: ${positions.group2.fontSize}pt; font-weight: ${
-        positions.group2.fontWeight
-      };">
+            positions.group2.width + 0.4
+          }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in; font-family: ${
+            positions.group2.fontFamily === "Times New Roman"
+              ? "'Times New Roman', Times, serif"
+              : positions.group2.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group2.fontFamily === "Calibri"
+                  ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                  : positions.group2.fontFamily === "Verdana"
+                    ? "Verdana, Geneva, sans-serif"
+                    : positions.group2.fontFamily === "Tahoma"
+                      ? "Tahoma, Verdana, Segoe, sans-serif"
+                      : "Arial, Helvetica, sans-serif"
+          }; font-size: ${positions.group2.fontSize}pt; font-weight: ${
+            positions.group2.fontWeight
+          };">
             <!-- ID header section with ID and status -->
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group2.width
@@ -713,8 +713,8 @@ const RenewalNoticeDataOverlay = forwardRef(
             <div class="data-field" style="top: ${
               0.2 + positions.group2.lineSpacing
             }in; left: 0.2in; width: ${
-        positions.group2.width
-      }in; line-height: 1.2;">
+              positions.group2.width
+            }in; line-height: 1.2;">
               ${
                 sampleSubscriber.firstName ||
                 sampleSubscriber.lastName ||
@@ -725,8 +725,8 @@ const RenewalNoticeDataOverlay = forwardRef(
                       ? `<br>${sampleSubscriber.company}<br>`
                       : "<br>")
                   : sampleSubscriber.company
-                  ? `${sampleSubscriber.company}<br>`
-                  : ""
+                    ? `${sampleSubscriber.company}<br>`
+                    : ""
               }
               ${
                 sampleSubscriber.address
@@ -805,14 +805,14 @@ const RenewalNoticeDataOverlay = forwardRef(
               positions.group1.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group1.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group1.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group1.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group1.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group1.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group1.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group1.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group1.fontSize}pt;
             font-weight: ${positions.group1.fontWeight};
@@ -822,14 +822,14 @@ const RenewalNoticeDataOverlay = forwardRef(
               positions.group2.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group2.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group2.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group2.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group2.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group2.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group2.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group2.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group2.fontSize}pt;
             font-weight: ${positions.group2.fontWeight};
@@ -839,14 +839,14 @@ const RenewalNoticeDataOverlay = forwardRef(
               positions.group3.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group3.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group3.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group3.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group3.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group3.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group3.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group3.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group3.fontSize}pt;
             font-weight: ${positions.group3.fontWeight};
@@ -918,12 +918,12 @@ const RenewalNoticeDataOverlay = forwardRef(
         const subscriber = processSubscriberData(row);
         if (!subscriber) return;
 
-        // Build display name
+        // Build display name (like Thank You Letter)
         const displayName = subscriber.hasPersonalName
           ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName} ${subscriber.suffixName}`.trim()
           : "";
 
-        // Process address using PrintGenerator pattern
+        // Process address
         const addressLines = subscriber.address
           ? subscriber.address
               .split("\n")
@@ -941,21 +941,16 @@ const RenewalNoticeDataOverlay = forwardRef(
           "cps" +
           (subscriber.acode ? "/" + subscriber.acode : "");
 
-        // Build Group 2 content with natural flow and wrapping
+        // Group 2 content: header, name, company, address (all in one div, <br> separated)
         let group2Content = headerLine;
-
         if (displayName) {
           group2Content += `<br>${displayName}`;
         } else if (!displayName && subscriber.hasCompany) {
-          // No personal name; use company as main name line
           group2Content += `<br>${subscriber.company}`;
         }
-
-        // If we have both personal name and company, add company on its own line
         if (displayName && subscriber.hasCompany) {
           group2Content += `<br>${subscriber.company}`;
         }
-
         if (addressLines.length > 0) {
           group2Content += "<br>" + addressLines.join("<br>");
         }
@@ -964,31 +959,17 @@ const RenewalNoticeDataOverlay = forwardRef(
         overlayHTML += `
         <div class="data-overlay">
           <!-- Group 1: ID, Expiry, Last Issue (Right side) -->
-          <div class="data-field group1-field" style="top: ${
-            positions.group1.top
-          }in; left: ${positions.group1.left}in; width: ${
-          positions.group1.width
-        }in;">
+          <div class="data-field group1-field" style="top: ${positions.group1.top}in; left: ${positions.group1.left}in; width: ${positions.group1.width}in;">
             <strong>${subscriber.id}</strong><br>
             <strong>${subscriber.expiryDate}</strong><br>
             <strong>${getLastIssue(subscriber.expiryDate)}</strong>
           </div>
-          
           <!-- Group 2: ID Header, Name & Address (Left side) -->
-          <div class="data-field group2-field" style="top: ${
-            positions.group2.top
-          }in; left: ${positions.group2.left}in; width: ${
-          positions.group2.width
-        }in;">
+          <div class="data-field group2-field" style="top: ${positions.group2.top}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; white-space: normal; overflow: visible;">
             ${group2Content}
           </div>
-
           <!-- Group 3: Sucat Reminder Text -->
-          <div class="data-field group3-field" style="top: ${
-            positions.group3.top
-          }in; left: ${positions.group3.left}in; width: ${
-          positions.group3.width
-        }in;">
+          <div class="data-field group3-field" style="top: ${positions.group3.top}in; left: ${positions.group3.left}in; width: ${positions.group3.width}in;">
             Sucat - ${reminderMonth} ${reminderYear}<br>
             (Friendly Reminder - ${locationType})
           </div>
@@ -1064,7 +1045,7 @@ const RenewalNoticeDataOverlay = forwardRef(
     const handleSaveTemplate = async () => {
       try {
         const selectedTemplate = templates.find(
-          (t) => t._id === selectedTemplateId
+          (t) => t._id === selectedTemplateId,
         );
 
         // For updates, fallback to current template name/desc if inputs are empty
@@ -1096,11 +1077,11 @@ const RenewalNoticeDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           const existing = (res.data || []).find(
             (t) =>
-              t.name === name && (t.previewType || "standard") === "renewal"
+              t.name === name && (t.previewType || "standard") === "renewal",
           );
           return existing || null;
         };
@@ -1146,7 +1127,7 @@ const RenewalNoticeDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           toast.success("Template saved");
           setTemplates((prev) => [res.data, ...prev]);
@@ -1182,13 +1163,13 @@ const RenewalNoticeDataOverlay = forwardRef(
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
-          }
+          },
         );
 
         toast.success("Template deleted");
         // Remove from list and clear selection
         setTemplates((prev) =>
-          prev.filter((t) => t._id !== selectedTemplateId)
+          prev.filter((t) => t._id !== selectedTemplateId),
         );
         setSelectedTemplateId("");
         setTemplateName("");
@@ -1222,11 +1203,11 @@ const RenewalNoticeDataOverlay = forwardRef(
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
-          }
+          },
         );
         toast.success("Template updated");
         setTemplates((prev) =>
-          prev.map((t) => (t._id === selectedTemplateId ? res.data : t))
+          prev.map((t) => (t._id === selectedTemplateId ? res.data : t)),
         );
         setTemplateName("");
         setTemplateDesc("");
@@ -1309,7 +1290,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                     if (!availableRows?.length) return;
                     const ids = availableRows
                       .map((r) =>
-                        parseInt((r?.original?.id ?? "").toString(), 10)
+                        parseInt((r?.original?.id ?? "").toString(), 10),
                       )
                       .filter((n) => !isNaN(n));
                     if (ids.length === 0) return;
@@ -1357,14 +1338,14 @@ const RenewalNoticeDataOverlay = forwardRef(
                             {
                               headers: {
                                 Authorization: `Bearer ${localStorage.getItem(
-                                  "accessToken"
+                                  "accessToken",
                                 )}`,
                               },
-                            }
+                            },
                           );
                           const all = Array.isArray(res.data) ? res.data : [];
                           const filtered = all.filter(
-                            (t) => (t.previewType || "standard") === "renewal"
+                            (t) => (t.previewType || "standard") === "renewal",
                           );
                           setTemplates(filtered);
                           if (!selectedTemplateId && filtered.length > 0) {
@@ -1404,8 +1385,8 @@ const RenewalNoticeDataOverlay = forwardRef(
                       {isSavingTemplate
                         ? "Saving..."
                         : selectedTemplateId
-                        ? "Update Template"
-                        : "Save as Template"}
+                          ? "Update Template"
+                          : "Save as Template"}
                     </Button>
                     {selectedTemplateId && (
                       <Button
@@ -1443,7 +1424,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1461,7 +1442,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1479,7 +1460,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1497,7 +1478,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1523,7 +1504,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1537,7 +1518,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1556,7 +1537,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1591,7 +1572,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1609,7 +1590,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1627,7 +1608,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1645,7 +1626,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1671,7 +1652,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1685,7 +1666,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1704,7 +1685,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1739,7 +1720,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1757,7 +1738,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1775,7 +1756,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1793,7 +1774,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1819,7 +1800,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1833,7 +1814,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1852,7 +1833,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -2006,7 +1987,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                             if (filteredSubscribers.length === 0) return null;
 
                             const subscriber = processSubscriberData(
-                              filteredSubscribers[0]
+                              filteredSubscribers[0],
                             );
                             if (!subscriber) return null;
 
@@ -2061,7 +2042,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                                 top:
                                   addressStartPosition +
                                   positions.group2.lineSpacing * index,
-                              })
+                              }),
                             );
 
                             return (
@@ -2422,26 +2403,27 @@ const RenewalNoticeDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         toast.success("Template updated");
                         setTemplates((prev) =>
                           prev.map((t) =>
-                            t._id === duplicateTemplate._id ? res.data : t
-                          )
+                            t._id === duplicateTemplate._id ? res.data : t,
+                          ),
                         );
                         setSelectedTemplateId(
-                          res.data._id || duplicateTemplate._id
+                          res.data._id || duplicateTemplate._id,
                         );
                         setTemplateName("");
                         setTemplateDesc("");
                       } catch (e) {
                         console.error("Duplicate update error:", e);
                         toast.error(
-                          e.response?.data?.error || "Failed to update template"
+                          e.response?.data?.error ||
+                            "Failed to update template",
                         );
                       } finally {
                         setIsSavingTemplate(false);
@@ -2469,10 +2451,10 @@ const RenewalNoticeDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         const res = await axios.post(
                           `http://${
@@ -2482,16 +2464,16 @@ const RenewalNoticeDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         toast.success("Template replaced");
                         setTemplates((prev) => [
                           res.data,
                           ...prev.filter(
-                            (t) => t._id !== duplicateTemplate._id
+                            (t) => t._id !== duplicateTemplate._id,
                           ),
                         ]);
                         setSelectedTemplateId(res.data._id || "");
@@ -2501,7 +2483,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                         console.error("Duplicate replace error:", e);
                         toast.error(
                           e.response?.data?.error ||
-                            "Failed to replace template"
+                            "Failed to replace template",
                         );
                       } finally {
                         setIsSavingTemplate(false);
@@ -2591,7 +2573,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                   {(() => {
                     const current =
                       templates.find(
-                        (t) => (t._id || "") === selectedTemplateId
+                        (t) => (t._id || "") === selectedTemplateId,
                       ) || {};
                     const nextPayload = pendingTemplatePayload || {
                       name: (templateName || "").trim() || current.name,
@@ -2652,7 +2634,7 @@ const RenewalNoticeDataOverlay = forwardRef(
                     const posDiffs = computeDiffs(
                       currentPositions,
                       nextPositions,
-                      "positions"
+                      "positions",
                     );
                     const allDiffs = [...diffs, ...posDiffs];
 
@@ -2714,7 +2696,7 @@ const RenewalNoticeDataOverlay = forwardRef(
         )}
       </div>
     );
-  }
+  },
 );
 
 RenewalNoticeDataOverlay.displayName = "RenewalNoticeDataOverlay";

@@ -24,7 +24,7 @@ const ThankYouLetterDataOverlay = forwardRef(
       sharedConfig = null,
       onSkippedDataUpdate = null,
     },
-    ref
+    ref,
   ) => {
     const [isLoading, setIsLoading] = useState(false);
     const [filteredSubscribers, setFilteredSubscribers] = useState([]);
@@ -156,11 +156,11 @@ const ThankYouLetterDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           const all = Array.isArray(res.data) ? res.data : [];
           const filtered = all.filter(
-            (t) => (t.previewType || "standard") === "thankyou"
+            (t) => (t.previewType || "standard") === "thankyou",
           );
           setTemplates(filtered);
           // Default to first template if none selected
@@ -274,7 +274,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         copies,
         acode,
         accountCode: `${idWithType}/${copies}-cp(s)/Expiry-${formatDate(
-          enddate
+          enddate,
         )}${acode ? ` / ${acode}` : ""}`,
       };
     }, []);
@@ -381,7 +381,7 @@ const ThankYouLetterDataOverlay = forwardRef(
 
         return { filtered, skipped };
       },
-      [effectiveStartId, effectiveEndId, processSubscriberData, getMinClientId]
+      [effectiveStartId, effectiveEndId, processSubscriberData, getMinClientId],
     );
 
     // Update filtered subscribers and skipped records when dependencies change
@@ -474,7 +474,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         [group]: {
           ...prev[group],
           [field]: ["top", "left", "width", "lineSpacing", "fontSize"].includes(
-            field
+            field,
           )
             ? parseFloat(value)
             : value,
@@ -487,7 +487,7 @@ const ThankYouLetterDataOverlay = forwardRef(
       try {
         localStorage.setItem(
           "thankYouLetterPositions",
-          JSON.stringify(positions)
+          JSON.stringify(positions),
         );
 
         // If using shared config and there's a callback for updating it
@@ -602,8 +602,8 @@ const ThankYouLetterDataOverlay = forwardRef(
             .replace(/\s+/g, " ")
             .trim()
         : sampleSubscriber.hasCompany
-        ? sampleSubscriber.company
-        : "Customer";
+          ? sampleSubscriber.company
+          : "Customer";
 
       // Generate preview HTML for a single subscriber
       const previewContent = `
@@ -655,22 +655,22 @@ const ThankYouLetterDataOverlay = forwardRef(
           <div class="group" style="top: ${
             positions.group1.top - 0.2
           }in; left: ${positions.group1.left - 0.2}in; width: ${
-        positions.group1.width + 0.4
-      }in; height: ${positions.group1.lineSpacing + 0.4}in; font-family: ${
-        positions.group1.fontFamily === "Times New Roman"
-          ? "'Times New Roman', Times, serif"
-          : positions.group1.fontFamily === "Courier New"
-          ? "'Courier New', Courier, monospace"
-          : positions.group1.fontFamily === "Calibri"
-          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-          : positions.group1.fontFamily === "Verdana"
-          ? "Verdana, Geneva, sans-serif"
-          : positions.group1.fontFamily === "Tahoma"
-          ? "Tahoma, Verdana, Segoe, sans-serif"
-          : "Arial, Helvetica, sans-serif"
-      }; font-size: ${positions.group1.fontSize}pt; font-weight: ${
-        positions.group1.fontWeight
-      };">
+            positions.group1.width + 0.4
+          }in; height: ${positions.group1.lineSpacing + 0.4}in; font-family: ${
+            positions.group1.fontFamily === "Times New Roman"
+              ? "'Times New Roman', Times, serif"
+              : positions.group1.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group1.fontFamily === "Calibri"
+                  ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                  : positions.group1.fontFamily === "Verdana"
+                    ? "Verdana, Geneva, sans-serif"
+                    : positions.group1.fontFamily === "Tahoma"
+                      ? "Tahoma, Verdana, Segoe, sans-serif"
+                      : "Arial, Helvetica, sans-serif"
+          }; font-size: ${positions.group1.fontSize}pt; font-weight: ${
+            positions.group1.fontWeight
+          };">
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group1.width
             }in; text-align: center;">
@@ -682,22 +682,22 @@ const ThankYouLetterDataOverlay = forwardRef(
           <div class="group" style="top: ${
             positions.group2.top - 0.2
           }in; left: ${positions.group2.left - 0.2}in; width: ${
-        positions.group2.width + 0.4
-      }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in; font-family: ${
-        positions.group2.fontFamily === "Times New Roman"
-          ? "'Times New Roman', Times, serif"
-          : positions.group2.fontFamily === "Courier New"
-          ? "'Courier New', Courier, monospace"
-          : positions.group2.fontFamily === "Calibri"
-          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-          : positions.group2.fontFamily === "Verdana"
-          ? "Verdana, Geneva, sans-serif"
-          : positions.group2.fontFamily === "Tahoma"
-          ? "Tahoma, Verdana, Segoe, sans-serif"
-          : "Arial, Helvetica, sans-serif"
-      }; font-size: ${positions.group2.fontSize}pt; font-weight: ${
-        positions.group2.fontWeight
-      };">
+            positions.group2.width + 0.4
+          }in; height: ${positions.group2.lineSpacing * 6 + 0.4}in; font-family: ${
+            positions.group2.fontFamily === "Times New Roman"
+              ? "'Times New Roman', Times, serif"
+              : positions.group2.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group2.fontFamily === "Calibri"
+                  ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                  : positions.group2.fontFamily === "Verdana"
+                    ? "Verdana, Geneva, sans-serif"
+                    : positions.group2.fontFamily === "Tahoma"
+                      ? "Tahoma, Verdana, Segoe, sans-serif"
+                      : "Arial, Helvetica, sans-serif"
+          }; font-size: ${positions.group2.fontSize}pt; font-weight: ${
+            positions.group2.fontWeight
+          };">
             <!-- Account Code -->
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group2.width
@@ -765,29 +765,27 @@ const ThankYouLetterDataOverlay = forwardRef(
           <div class="group" style="top: ${
             positions.group3.top - 0.2
           }in; left: ${positions.group3.left - 0.2}in; width: ${
-        positions.group3.width + 0.4
-      }in; height: ${positions.group3.lineSpacing + 0.4}in; font-family: ${
-        positions.group3.fontFamily === "Times New Roman"
-          ? "'Times New Roman', Times, serif"
-          : positions.group3.fontFamily === "Courier New"
-          ? "'Courier New', Courier, monospace"
-          : positions.group3.fontFamily === "Calibri"
-          ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-          : positions.group3.fontFamily === "Verdana"
-          ? "Verdana, Geneva, sans-serif"
-          : positions.group3.fontFamily === "Tahoma"
-          ? "Tahoma, Verdana, Segoe, sans-serif"
-          : "Arial, Helvetica, sans-serif"
-      }; font-size: ${positions.group3.fontSize}pt; font-weight: ${
-        positions.group3.fontWeight
-      };">
+            positions.group3.width + 0.4
+          }in; height: ${positions.group3.lineSpacing + 0.4}in; font-family: ${
+            positions.group3.fontFamily === "Times New Roman"
+              ? "'Times New Roman', Times, serif"
+              : positions.group3.fontFamily === "Courier New"
+                ? "'Courier New', Courier, monospace"
+                : positions.group3.fontFamily === "Calibri"
+                  ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                  : positions.group3.fontFamily === "Verdana"
+                    ? "Verdana, Geneva, sans-serif"
+                    : positions.group3.fontFamily === "Tahoma"
+                      ? "Tahoma, Verdana, Segoe, sans-serif"
+                      : "Arial, Helvetica, sans-serif"
+          }; font-size: ${positions.group3.fontSize}pt; font-weight: ${
+            positions.group3.fontWeight
+          };">
             <div class="data-field" style="top: 0.2in; left: 0.2in; width: ${
               positions.group3.width
             }in;">
               ${
-                hasOnlyCompany
-                  ? "Dear Friend/s,"
-                  : "Dear " + greetingName + ","
+                hasOnlyCompany ? "Dear Friend/s," : "Dear " + greetingName + ","
               }
             </div>
           </div>
@@ -854,14 +852,14 @@ const ThankYouLetterDataOverlay = forwardRef(
               positions.group1.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group1.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group1.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group1.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group1.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group1.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group1.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group1.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group1.fontSize}pt;
             font-weight: ${positions.group1.fontWeight};
@@ -871,14 +869,14 @@ const ThankYouLetterDataOverlay = forwardRef(
               positions.group2.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group2.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group2.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group2.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group2.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group2.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group2.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group2.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group2.fontSize}pt;
             font-weight: ${positions.group2.fontWeight};
@@ -888,14 +886,14 @@ const ThankYouLetterDataOverlay = forwardRef(
               positions.group3.fontFamily === "Times New Roman"
                 ? "'Times New Roman', Times, serif"
                 : positions.group3.fontFamily === "Courier New"
-                ? "'Courier New', Courier, monospace"
-                : positions.group3.fontFamily === "Calibri"
-                ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
-                : positions.group3.fontFamily === "Verdana"
-                ? "Verdana, Geneva, sans-serif"
-                : positions.group3.fontFamily === "Tahoma"
-                ? "Tahoma, Verdana, Segoe, sans-serif"
-                : "Arial, Helvetica, sans-serif"
+                  ? "'Courier New', Courier, monospace"
+                  : positions.group3.fontFamily === "Calibri"
+                    ? "Calibri, Carlito, Arial, Helvetica, sans-serif"
+                    : positions.group3.fontFamily === "Verdana"
+                      ? "Verdana, Geneva, sans-serif"
+                      : positions.group3.fontFamily === "Tahoma"
+                        ? "Tahoma, Verdana, Segoe, sans-serif"
+                        : "Arial, Helvetica, sans-serif"
             };
             font-size: ${positions.group3.fontSize}pt;
             font-weight: ${positions.group3.fontWeight};
@@ -973,106 +971,49 @@ const ThankYouLetterDataOverlay = forwardRef(
         const greetingName = subscriber.hasPersonalName
           ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
           : subscriber.hasCompany
-          ? subscriber.company
-          : "Customer";
+            ? subscriber.company
+            : "Customer";
+
+        // Build display name (like Renewal Notice)
+        const displayName = subscriber.hasPersonalName
+          ? `${subscriber.title} ${subscriber.firstName} ${subscriber.middleName} ${subscriber.lastName} ${subscriber.suffixName}`.trim()
+          : "";
+
+        // Process address
+        const addressLines = subscriber.address
+          ? subscriber.address
+              .split("\n")
+              .map((line) => line.trim())
+              .filter((line) => line.length > 0)
+          : [];
+
+        // Group 2 content: account code, name, company, address (all in one div, <br> separated)
+        let group2Content = subscriber.accountCode;
+        if (displayName) {
+          group2Content += `<br>${displayName}`;
+        } else if (!displayName && subscriber.hasCompany) {
+          group2Content += `<br>${subscriber.company}`;
+        }
+        if (displayName && subscriber.hasCompany) {
+          group2Content += `<br>${subscriber.company}`;
+        }
+        if (addressLines.length > 0) {
+          group2Content += "<br>" + addressLines.join("<br>");
+        }
 
         overlayHTML += `
         <div class="data-overlay">
           <!-- Group 1: Month Year -->
-          <div class="data-field group1-field" style="top: ${
-            positions.group1.top
-          }in; left: ${positions.group1.left}in; width: ${
-          positions.group1.width
-        }in; text-align: center;">
+          <div class="data-field group1-field" style="top: ${positions.group1.top}in; left: ${positions.group1.left}in; width: ${positions.group1.width}in; text-align: center;">
             ${getCurrentMonthYear()}
           </div>
-          
           <!-- Group 2: Address Group (all client data and subscription info) -->
-          <div class="data-field group2-field" style="top: ${
-            positions.group2.top
-          }in; left: ${positions.group2.left}in; width: ${
-          positions.group2.width
-        }in; max-height: ${positions.group2.lineSpacing * 0.9}in;">
-            ${subscriber.accountCode}
+          <div class="data-field group2-field" style="top: ${positions.group2.top}in; left: ${positions.group2.left}in; width: ${positions.group2.width}in; white-space: normal; overflow: visible;">
+            ${group2Content}
           </div>
-          
-          ${(() => {
-            const namePos = positions.group2.top + positions.group2.lineSpacing;
-            const companyPos =
-              positions.group2.top + positions.group2.lineSpacing * 2;
-            const addrStart = (() => {
-              if (
-                subscriber.firstName ||
-                subscriber.lastName ||
-                subscriber.suffixName ||
-                subscriber.title
-              ) {
-                return subscriber.company
-                  ? positions.group2.top + positions.group2.lineSpacing * 3
-                  : positions.group2.top + positions.group2.lineSpacing * 2;
-              }
-              return positions.group2.top + positions.group2.lineSpacing * 2;
-            })();
-
-            let html = "";
-            if (
-              subscriber.firstName ||
-              subscriber.lastName ||
-              subscriber.suffixName ||
-              subscriber.title
-            ) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${
-                positions.group2.left
-              }in; width: ${positions.group2.width}in; max-height: ${
-                positions.group2.lineSpacing * 0.9
-              }in;">${subscriber.title} ${subscriber.firstName} ${
-                subscriber.middleName
-              } ${subscriber.lastName}</div>`;
-              if (subscriber.company) {
-                html += `<div class="data-field group2-field" style="top: ${companyPos}in; left: ${
-                  positions.group2.left
-                }in; width: ${positions.group2.width}in; max-height: ${
-                  positions.group2.lineSpacing * 0.9
-                }in;">${subscriber.company}</div>`;
-              }
-            } else if (subscriber.company) {
-              html += `<div class="data-field group2-field" style="top: ${namePos}in; left: ${
-                positions.group2.left
-              }in; width: ${positions.group2.width}in; max-height: ${
-                positions.group2.lineSpacing * 0.9
-              }in;">${subscriber.company}</div>`;
-            }
-
-            if (subscriber.address) {
-              const addressLines = subscriber.address
-                .split("\n")
-                .map((l) => l.trim())
-                .filter((l) => l.length > 0);
-              addressLines.forEach((line, idx) => {
-                html += `<div class="data-field group2-field" style="top: ${
-                  addrStart + positions.group2.lineSpacing * idx
-                }in; left: ${positions.group2.left}in; width: ${
-                  positions.group2.width
-                }in; max-height: ${
-                  positions.group2.lineSpacing * 0.9
-                }in;">${line}</div>`;
-              });
-            }
-
-            return html;
-          })()}
-          
           <!-- Group 3: Greeting -->
-          <div class="data-field group3-field" style="top: ${
-            positions.group3.top
-          }in; left: ${positions.group3.left}in; width: ${
-          positions.group3.width
-        }in;">
-            ${
-              hasOnlyCompany
-                ? "Dear Friend/s,"
-                : "Dear " + greetingName + ","
-            }
+          <div class="data-field group3-field" style="top: ${positions.group3.top}in; left: ${positions.group3.left}in; width: ${positions.group3.width}in;">
+            ${hasOnlyCompany ? "Dear Friend/s," : "Dear " + greetingName + ","}
           </div>
         </div>
       `;
@@ -1147,7 +1088,7 @@ const ThankYouLetterDataOverlay = forwardRef(
     const handleSaveTemplate = async () => {
       try {
         const selectedTemplate = templates.find(
-          (t) => t._id === selectedTemplateId
+          (t) => t._id === selectedTemplateId,
         );
 
         // For updates, fallback to current template name/desc if inputs are empty
@@ -1179,11 +1120,11 @@ const ThankYouLetterDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           const existing = (res.data || []).find(
             (t) =>
-              t.name === name && (t.previewType || "standard") === "thankyou"
+              t.name === name && (t.previewType || "standard") === "thankyou",
           );
           return existing || null;
         };
@@ -1229,7 +1170,7 @@ const ThankYouLetterDataOverlay = forwardRef(
               headers: {
                 Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
               },
-            }
+            },
           );
           toast.success("Template saved");
           setTemplates((prev) => [res.data, ...prev]);
@@ -1265,13 +1206,13 @@ const ThankYouLetterDataOverlay = forwardRef(
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
-          }
+          },
         );
 
         toast.success("Template deleted");
         // Remove from list and clear selection
         setTemplates((prev) =>
-          prev.filter((t) => t._id !== selectedTemplateId)
+          prev.filter((t) => t._id !== selectedTemplateId),
         );
         setSelectedTemplateId("");
         setTemplateName("");
@@ -1305,11 +1246,11 @@ const ThankYouLetterDataOverlay = forwardRef(
             headers: {
               Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
             },
-          }
+          },
         );
         toast.success("Template updated");
         setTemplates((prev) =>
-          prev.map((t) => (t._id === selectedTemplateId ? res.data : t))
+          prev.map((t) => (t._id === selectedTemplateId ? res.data : t)),
         );
         setTemplateName("");
         setTemplateDesc("");
@@ -1399,7 +1340,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                     if (!availableRows?.length) return;
                     const ids = availableRows
                       .map((r) =>
-                        parseInt((r?.original?.id ?? "").toString(), 10)
+                        parseInt((r?.original?.id ?? "").toString(), 10),
                       )
                       .filter((n) => !isNaN(n));
                     if (ids.length === 0) return;
@@ -1448,14 +1389,14 @@ const ThankYouLetterDataOverlay = forwardRef(
                             {
                               headers: {
                                 Authorization: `Bearer ${localStorage.getItem(
-                                  "accessToken"
+                                  "accessToken",
                                 )}`,
                               },
-                            }
+                            },
                           );
                           const all = Array.isArray(res.data) ? res.data : [];
                           const filtered = all.filter(
-                            (t) => (t.previewType || "standard") === "thankyou"
+                            (t) => (t.previewType || "standard") === "thankyou",
                           );
                           setTemplates(filtered);
                           if (!selectedTemplateId && filtered.length > 0) {
@@ -1495,8 +1436,8 @@ const ThankYouLetterDataOverlay = forwardRef(
                       {isSavingTemplate
                         ? "Saving..."
                         : selectedTemplateId
-                        ? "Update Template"
-                        : "Save as Template"}
+                          ? "Update Template"
+                          : "Save as Template"}
                     </Button>
                     {selectedTemplateId && (
                       <Button
@@ -1534,7 +1475,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1552,7 +1493,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1570,7 +1511,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1588,7 +1529,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group1",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1614,7 +1555,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1628,7 +1569,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1647,7 +1588,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group1",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1682,7 +1623,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1700,7 +1641,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1718,7 +1659,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1736,7 +1677,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group2",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1762,7 +1703,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1776,7 +1717,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1795,7 +1736,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group2",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1830,7 +1771,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "top",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1848,7 +1789,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "left",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1866,7 +1807,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "width",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1884,7 +1825,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                               handleGroupPositionChange(
                                 "group3",
                                 "lineSpacing",
-                                e.target.value
+                                e.target.value,
                               )
                             }
                             className="w-full px-2 py-1 border rounded text-sm"
@@ -1910,7 +1851,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontSize",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1924,7 +1865,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontWeight",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -1943,7 +1884,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                                 handleGroupPositionChange(
                                   "group3",
                                   "fontFamily",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="w-full px-2 py-1 border rounded text-sm"
@@ -2041,7 +1982,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                             if (filteredSubscribers.length === 0) return null;
 
                             const subscriber = processSubscriberData(
-                              filteredSubscribers[0]
+                              filteredSubscribers[0],
                             );
                             if (!subscriber) return null;
 
@@ -2057,8 +1998,8 @@ const ThankYouLetterDataOverlay = forwardRef(
                             const greetingName = subscriber.hasPersonalName
                               ? `${subscriber.title} ${subscriber.lastName} ${subscriber.suffixName}`
                               : subscriber.hasCompany
-                              ? subscriber.company
-                              : "Customer";
+                                ? subscriber.company
+                                : "Customer";
 
                             return (
                               <>
@@ -2313,26 +2254,27 @@ const ThankYouLetterDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         toast.success("Template updated");
                         setTemplates((prev) =>
                           prev.map((t) =>
-                            t._id === duplicateTemplate._id ? res.data : t
-                          )
+                            t._id === duplicateTemplate._id ? res.data : t,
+                          ),
                         );
                         setSelectedTemplateId(
-                          res.data._id || duplicateTemplate._id
+                          res.data._id || duplicateTemplate._id,
                         );
                         setTemplateName("");
                         setTemplateDesc("");
                       } catch (e) {
                         console.error("Duplicate update error:", e);
                         toast.error(
-                          e.response?.data?.error || "Failed to update template"
+                          e.response?.data?.error ||
+                            "Failed to update template",
                         );
                       } finally {
                         setIsSavingTemplate(false);
@@ -2360,10 +2302,10 @@ const ThankYouLetterDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         const res = await axios.post(
                           `http://${
@@ -2373,16 +2315,16 @@ const ThankYouLetterDataOverlay = forwardRef(
                           {
                             headers: {
                               Authorization: `Bearer ${localStorage.getItem(
-                                "accessToken"
+                                "accessToken",
                               )}`,
                             },
-                          }
+                          },
                         );
                         toast.success("Template replaced");
                         setTemplates((prev) => [
                           res.data,
                           ...prev.filter(
-                            (t) => t._id !== duplicateTemplate._id
+                            (t) => t._id !== duplicateTemplate._id,
                           ),
                         ]);
                         setSelectedTemplateId(res.data._id || "");
@@ -2392,7 +2334,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                         console.error("Duplicate replace error:", e);
                         toast.error(
                           e.response?.data?.error ||
-                            "Failed to replace template"
+                            "Failed to replace template",
                         );
                       } finally {
                         setIsSavingTemplate(false);
@@ -2482,7 +2424,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                   {(() => {
                     const current =
                       templates.find(
-                        (t) => (t._id || "") === selectedTemplateId
+                        (t) => (t._id || "") === selectedTemplateId,
                       ) || {};
                     const nextPayload = pendingTemplatePayload || {
                       name: (templateName || "").trim() || current.name,
@@ -2543,7 +2485,7 @@ const ThankYouLetterDataOverlay = forwardRef(
                     const posDiffs = computeDiffs(
                       currentPositions,
                       nextPositions,
-                      "positions"
+                      "positions",
                     );
                     const allDiffs = [...diffs, ...posDiffs];
 
@@ -2605,7 +2547,7 @@ const ThankYouLetterDataOverlay = forwardRef(
         )}
       </div>
     );
-  }
+  },
 );
 
 ThankYouLetterDataOverlay.displayName = "ThankYouLetterDataOverlay";
