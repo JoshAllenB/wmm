@@ -4381,12 +4381,18 @@ const Edit = ({
       return formData.bdate || "";
     };
 
+    // Always merge the latest addressData and areaData into formData before submission
+    const mergedFormData = {
+      ...formData,
+      ...addressData,
+      ...areaData,
+      address: combinedAddress || formData.address || "",
+    };
+
     // Prepare base client data
     const baseClientData = {
-      ...formData,
+      ...mergedFormData,
       bdate: formatBdate(),
-      address: combinedAddress,
-      ...areaData,
       // Add edit metadata for tracking
       editdate: new Date().toISOString(),
       edituser: user?.username || user?.name,

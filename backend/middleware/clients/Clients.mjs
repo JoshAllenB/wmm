@@ -72,10 +72,10 @@ const fetchClientData = async (req, options = {}) => {
     Array.isArray(modelNames) && modelNames.length > 0
       ? modelNames
       : userRoles.includes("Admin") || userRoles.includes("Accounting")
-      ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
-      : userRoles
-          .filter((role) => role !== "Accounting")
-          .map((role) => `${role}Model`);
+        ? ["WmmModel", "HrgModel", "FomModel", "CalModel"]
+        : userRoles
+            .filter((role) => role !== "Accounting")
+            .map((role) => `${role}Model`);
 
   // Ensure we have at least one model to query
   if (validModelNames.length === 0) {
@@ -85,7 +85,7 @@ const fetchClientData = async (req, options = {}) => {
   // Replace WmmModel with appropriate subscription model using helper function
   validModelNames = adjustModelNamesForSubscription(
     validModelNames,
-    subscriptionType
+    subscriptionType,
   );
 
   // Use appropriate data fetching method based on skipPagination
@@ -127,7 +127,7 @@ const fetchClientData = async (req, options = {}) => {
   } = results;
   const processedData = combinedData.map((client) => {
     const clientService = clientServices.find(
-      (service) => service.clientId === client.id
+      (service) => service.clientId === client.id,
     );
     return {
       ...client,
@@ -473,7 +473,7 @@ router.post("/add", verifyToken, async (req, res) => {
           ];
           const sanitizedRoleData = sanitizeNumericFields(
             roleData,
-            numericFields
+            numericFields,
           );
 
           const roleSpecificData = {
@@ -612,8 +612,12 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     }
 
     // Update base client data
+    // Ensure address field is overwritten even if empty string or null
     const updatedClientData = {
       ...clientData,
+      address: clientData.hasOwnProperty("address")
+        ? clientData.address
+        : oldClientData.address,
       editdate: new Date(),
       edituser: user.username,
     };
@@ -643,7 +647,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
     const updatedClient = await ClientModel.findOneAndUpdate(
       { id },
       updatedClientData,
-      { new: true }
+      { new: true },
     );
 
     // Log the client update
@@ -690,7 +694,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             ];
             const sanitizedRoleData = sanitizeNumericFields(
               roleData,
-              numericFields
+              numericFields,
             );
 
             const updatedRoleData = {
@@ -712,7 +716,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             const roleSpecificClient = await RoleModel.findOneAndUpdate(
               query,
               updatedRoleData,
-              { new: true }
+              { new: true },
             );
             roleResults.push({
               roleType,
@@ -753,7 +757,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             ];
             const sanitizedRoleData = sanitizeNumericFields(
               roleData,
-              numericFields
+              numericFields,
             );
 
             const roleSpecificData = {
@@ -812,7 +816,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           ];
           const sanitizedRoleData = sanitizeNumericFields(
             roleData,
-            numericFields
+            numericFields,
           );
 
           const newRoleSpecificData = {
@@ -824,9 +828,8 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           };
 
           // Create new role-specific record
-          const roleSpecificClient = await RoleModel.create(
-            newRoleSpecificData
-          );
+          const roleSpecificClient =
+            await RoleModel.create(newRoleSpecificData);
           roleResults.push({
             roleType,
             success: true,
@@ -849,7 +852,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           ];
           const sanitizedRoleData = sanitizeNumericFields(
             roleData,
-            numericFields
+            numericFields,
           );
 
           const updatedRoleData = {
@@ -871,7 +874,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
           const roleSpecificClient = await RoleModel.findOneAndUpdate(
             query,
             updatedRoleData,
-            { new: true }
+            { new: true },
           );
           roleResults.push({
             roleType,
@@ -900,7 +903,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             ];
             const sanitizedRoleData = sanitizeNumericFields(
               roleData,
-              numericFields
+              numericFields,
             );
 
             // Update only changed fields
@@ -919,7 +922,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
               const roleSpecificClient = await RoleModel.findOneAndUpdate(
                 { clientid: parseInt(id) },
                 updatedRoleData,
-                { new: true }
+                { new: true },
               );
               roleResults.push({
                 roleType,
@@ -962,7 +965,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
             ];
             const sanitizedRoleData = sanitizeNumericFields(
               roleData,
-              numericFields
+              numericFields,
             );
 
             const newRoleSpecificData = {
@@ -971,9 +974,8 @@ router.put("/update/:id", verifyToken, async (req, res) => {
               adduser: user.username,
               adddate: formattedAddDate,
             };
-            const roleSpecificClient = await RoleModel.create(
-              newRoleSpecificData
-            );
+            const roleSpecificClient =
+              await RoleModel.create(newRoleSpecificData);
             roleResults.push({
               roleType,
               success: true,
@@ -1064,7 +1066,7 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       // Merge clientServices into combinedData
       combinedData = combinedData.map((client) => {
         const clientService = clientServices.find(
-          (service) => service.clientId === client.id
+          (service) => service.clientId === client.id,
         );
         return {
           ...client,
@@ -1162,7 +1164,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
     // Count total deleted associated records
     const totalAssociatedDeleted = deleteResults.reduce(
       (sum, result) => sum + result.deletedCount,
-      0
+      0,
     );
 
     // Re-run the filter to get updated filtered data for all clients
@@ -1199,7 +1201,7 @@ router.delete("/delete/:id", verifyToken, async (req, res) => {
       // Merge clientServices into combinedData
       combinedData = combinedData.map((client) => {
         const clientService = clientServices.find(
-          (service) => service.clientId === client.id
+          (service) => service.clientId === client.id,
         );
         return {
           ...client,
@@ -1417,7 +1419,7 @@ router.post(
                       ? subscriber.acode
                       : existingSubscriber.acode,
                 },
-              }
+              },
             );
 
             // Handle service-specific data (WMM)
@@ -1444,7 +1446,7 @@ router.post(
                       subsclass:
                         subscriber.subsclass || wmmSubscription.subsclass,
                     },
-                  }
+                  },
                 );
               } else {
                 // Create new WMM subscription
@@ -1482,7 +1484,7 @@ router.post(
                         subscriber.hrgData.lastPaymentDate ||
                         hrgSubscription.lastPaymentDate,
                     },
-                  }
+                  },
                 );
               } else if (
                 subscriber.hrgData.quantity ||
@@ -1521,7 +1523,7 @@ router.post(
                         subscriber.fomData.lastPaymentDate ||
                         fomSubscription.lastPaymentDate,
                     },
-                  }
+                  },
                 );
               } else if (
                 subscriber.fomData.quantity ||
@@ -1560,7 +1562,7 @@ router.post(
                         subscriber.calData.lastPaymentDate ||
                         calSubscription.lastPaymentDate,
                     },
-                  }
+                  },
                 );
               } else if (
                 subscriber.calData.quantity ||
@@ -1699,7 +1701,7 @@ router.post(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 router.post(
@@ -1714,7 +1716,7 @@ router.post(
       const filterQuery = await buildFilterQuery(
         filter,
         group,
-        advancedFilterData
+        advancedFilterData,
       );
 
       // Get all matching clients
@@ -1741,7 +1743,7 @@ router.post(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 router.post(
@@ -1776,7 +1778,7 @@ router.post(
         const filterQuery = await buildFilterQuery(
           filter,
           group,
-          advancedFilterData
+          advancedFilterData,
         );
         clients = await ClientModel.find(filterQuery).lean();
       }
@@ -1846,7 +1848,7 @@ router.post(
                   editdate: new Date(),
                   edituser: req.user.username,
                 },
-              }
+              },
             );
 
             if (updateResult.modifiedCount > 0) {
@@ -1917,7 +1919,7 @@ router.post(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 router.post(
@@ -1932,7 +1934,7 @@ router.post(
       const filterQuery = await buildFilterQuery(
         filter,
         group,
-        advancedFilterData
+        advancedFilterData,
       );
 
       // Get all matching clients
@@ -1949,7 +1951,7 @@ router.post(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 router.post("/update-spack", verifyToken, attachSocketId, async (req, res) => {
@@ -1979,7 +1981,7 @@ router.post("/update-spack", verifyToken, attachSocketId, async (req, res) => {
       const filterQuery = await buildFilterQuery(
         filter,
         group,
-        advancedFilterData
+        advancedFilterData,
       );
       clients = await ClientModel.find(filterQuery).lean();
     }
@@ -2013,7 +2015,7 @@ router.post("/update-spack", verifyToken, attachSocketId, async (req, res) => {
               editdate: new Date(),
               edituser: req.user.username,
             },
-          }
+          },
         );
 
         if (updateResult.modifiedCount > 0) {
@@ -2098,7 +2100,7 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
       const filterQuery = await buildFilterQuery(
         filter,
         group,
-        advancedFilterData
+        advancedFilterData,
       );
       clients = await ClientModel.find(filterQuery).lean();
     }
@@ -2192,7 +2194,7 @@ router.post("/update-rts", verifyToken, attachSocketId, async (req, res) => {
         // Update the client's RTS status
         const updateResult = await ClientModel.updateOne(
           { id: client.id },
-          { $set: updateData }
+          { $set: updateData },
         );
 
         if (updateResult.modifiedCount > 0) {
@@ -2266,7 +2268,7 @@ router.post("/preview-rts-update", verifyToken, async (req, res) => {
       const filterQuery = await buildFilterQuery(
         filter,
         group,
-        advancedFilterData
+        advancedFilterData,
       );
       clients = await ClientModel.find(filterQuery).lean();
     }
