@@ -1,5 +1,4 @@
 import { useUser } from "../../../utils/Hooks/userProvider";
-import { roleConfigs } from "../../../utils/roleConfigs";
 import { useEffect, useState } from "react";
 import { useRef } from "react";
 import axios from "axios";
@@ -7,42 +6,26 @@ import { Button } from "../../UI/ShadCN/button";
 import Modal from "../../modal";
 import ConfirmationSummaryDialog from "../../UI/confirmationSummaryDialog";
 import ConfirmationModal from "../../UI/ConfirmationModal";
-import AreaForm from "../../../utils/areaform";
 import InputField from "../input";
 import {
   fetchSubclasses,
   fetchTypes,
   fetchAreas,
 } from "../../Table/Data/utilData";
-import { webSocketService } from "../../../services/WebSocketService";
 import { useToast } from "../../UI/ShadCN/hooks/use-toast";
 import {
   WMMModule,
   PromoModule,
   ComplimentaryModule,
-  HRGModule,
-  FOMModule,
-  CALModule,
   CommonSubscriptionFields,
   PersonalInfoModule,
   AddressModule,
   ContactInfoModule,
   GroupInfoModule,
   SubscriptionTypeSelector,
-  RoleToggleModule,
   getSubscriptionSpecificData as getSubscriptionData,
-  getServiceFromSubscriptionType as getServiceType,
   hasSubscriptionData as checkSubscriptionData,
 } from "./modules";
-
-// Utility function to format date to "yyyy-MM-dd"
-const formatDateToInput = (date) => {
-  const d = new Date(date);
-  const month = `${d.getMonth() + 1}`.padStart(2, "0");
-  const day = `${d.getDate()}`.padStart(2, "0");
-  const year = d.getFullYear();
-  return `${year}-${month}-${day}`;
-};
 
 // Utility function to clean trailing spaces from date input values
 const cleanDateInput = (value) => {
@@ -105,13 +88,7 @@ const parseDate = (dateString) => {
   return date;
 };
 
-const Edit = ({
-  rowData,
-  onDeleteSuccess,
-  onClose,
-  onEditSuccess,
-  mode = "edit",
-}) => {
+const Edit = ({ rowData, onClose, onEditSuccess, mode = "edit" }) => {
   const { user, hasRole } = useUser();
   const { toast } = useToast();
 
@@ -238,8 +215,6 @@ const Edit = ({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [validationError, setValidationError] = useState("");
 
-  const [renewalType, setRenewalType] = useState("current");
-  const [lastSubscriptionEnd, setLastSubscriptionEnd] = useState(null);
   const [groups, setGroups] = useState([]);
   const [subclasses, setSubclasses] = useState([]);
   const [types, setTypes] = useState([]);
@@ -359,8 +334,6 @@ const Edit = ({
     };
   };
 
-  // Add state for validation errors
-  const [validationErrors, setValidationErrors] = useState({});
   // Preview state for confirmation dialog
   const [previewClientDiff, setPreviewClientDiff] = useState(null);
   const [previewNoSubscriptionIncluded, setPreviewNoSubscriptionIncluded] =
@@ -782,8 +755,24 @@ const Edit = ({
         city: city || "",
       });
 
-      // Update combined address
-      setCombinedAddress(rowData.address || "");
+      // Update combined address preview using latest addressData and areaData
+      const formattedAddress = formatAddressLines(
+        {
+          housestreet: housestreet || "",
+          subdivision: subdivision || "",
+          barangay: barangay || "",
+          city: city || "",
+          zipcode: zipcode || "",
+        },
+        city || "",
+        {
+          acode: rowData.acode || "",
+          zipcode: zipcode || "",
+          area: city || "",
+          city: city || "",
+        },
+      );
+      setCombinedAddress(formattedAddress || "");
 
       // Load role-specific records
       if (rowData.hrgData) {
