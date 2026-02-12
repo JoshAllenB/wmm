@@ -129,7 +129,7 @@ const needsCp850Conversion = (text) => {
   if (!text) return false;
 
   const foundChars = Object.keys(utf8ToCp850Map).filter((char) =>
-    text.includes(char)
+    text.includes(char),
   );
   return foundChars.length > 0;
 };
@@ -236,7 +236,7 @@ const filterRowsByClientId = (
   rows,
   startClientId,
   endClientId,
-  afterSpecifiedStart = false
+  afterSpecifiedStart = false,
 ) => {
   return rows.filter((row) => {
     const clientId = row?.original?.id?.toString();
@@ -293,7 +293,7 @@ const generateLabelTextContent = (
   data,
   selectedFields = [],
   userRole,
-  subscriptionType
+  subscriptionType,
 ) => {
   if (!data) return "";
 
@@ -323,7 +323,7 @@ const generateLabelTextContent = (
 
   // ID line with expiry and copies logic
   const isSpecialRole = ["HRG", "FOM", "CAL"].some((role) =>
-    userRole?.includes(role)
+    userRole?.includes(role),
   );
   const group = (data.group || "").toUpperCase();
   const isCMCGroup = group === "CMC" || group.includes("CMC");
@@ -338,15 +338,11 @@ const generateLabelTextContent = (
     expiryAndCopies = data.acode ? `/${data.acode}` : "";
   } else {
     const idTypeCode = getSubscriptionTypeCode(
-      data.subscriptionType || subscriptionType
+      data.subscriptionType || subscriptionType,
     );
-    idLine = `${formatClientId(data.id)} - ${idTypeCode}`;
+    idLine = `${formatClientId(data.id)}-${idTypeCode}`;
 
-    const shouldHideExpiryAndCopies =
-      subscriptionType === "Promo" || subscriptionType === "Complimentary";
-    expiryAndCopies = !shouldHideExpiryAndCopies
-      ? ` - ${enddate} - ${copies}cps/${data.acode || ""}`
-      : ` - ${copies}cps/${data.acode || ""}`;
+    expiryAndCopies = `-${enddate}-${copies}cps/${data.acode || ""}`;
   }
 
   // Name and company
@@ -427,7 +423,7 @@ export const generateCp850RawPrintContent = (
   useCp850Encoding = true, // Enable CP850 encoding for special characters
   labelAdjustments, // Optional: { labelWidthIn, topMargin, rowSpacing, col2X }
   afterSpecifiedStart = false,
-  skipInitialTopMargin = false
+  skipInitialTopMargin = false,
 ) => {
   // Filter rows based on start/end Client IDs
   const filteredRows = rows.filter((row) => {
@@ -598,7 +594,7 @@ export const generateCp850RawPrintContent = (
         effectiveLeftLabel.original,
         selectedFields,
         userRole,
-        effectiveLeftLabel.original.subscriptionType || subscriptionType
+        effectiveLeftLabel.original.subscriptionType || subscriptionType,
       );
     }
 
@@ -608,7 +604,7 @@ export const generateCp850RawPrintContent = (
         effectiveRightLabel.original,
         selectedFields,
         userRole,
-        effectiveRightLabel.original.subscriptionType || subscriptionType
+        effectiveRightLabel.original.subscriptionType || subscriptionType,
       );
     }
 
@@ -657,7 +653,7 @@ export const generateCp850RawPrintContent = (
           0x1b,
           0x24,
           effectiveCol2X % 256,
-          Math.floor(effectiveCol2X / 256)
+          Math.floor(effectiveCol2X / 256),
         );
         if (needsConversion && needsCp850Conversion(rightLine)) {
           rawCommands.push(...utf8ToCp850(rightLine));
@@ -719,7 +715,7 @@ export const generateStickerLabelRawPrintContent = (
   leftPosition = 0, // horizontal offset (in dots)
   labelType = "blueLabel", // "blueLabel" | "stickerLabel"
   fineTuneOverride = 0, // manual fine-tune dots for runtime adjustments
-  useCp850Encoding = true
+  useCp850Encoding = true,
 ) => {
   // Validate inputs
   const texts = Array.isArray(rows) ? rows : [];
@@ -804,13 +800,13 @@ export const countLabelsForRange = (
   rows,
   startClientId,
   endClientId,
-  afterSpecifiedStart = false
+  afterSpecifiedStart = false,
 ) => {
   const filtered = filterRowsByClientId(
     Array.isArray(rows) ? rows : [],
     startClientId,
     endClientId,
-    afterSpecifiedStart
+    afterSpecifiedStart,
   );
   return filtered.length;
 };
@@ -818,7 +814,7 @@ export const countLabelsForRange = (
 // Diagnostic function to check printer status and identify issues
 export const diagnosePrinterIssues = async (
   printerName,
-  useDefaultPrinter = false
+  useDefaultPrinter = false,
 ) => {
   const diagnostics = {
     jspmAvailable: false,
@@ -846,7 +842,7 @@ export const diagnosePrinterIssues = async (
         diagnostics.websocketStatus = "disconnected";
         diagnostics.driverIssues.push("JSPrintManager client app not running");
         diagnostics.recommendations.push(
-          "Start JSPrintManager client application"
+          "Start JSPrintManager client application",
         );
       } else if (
         window.JSPM.JSPrintManager.websocket_status ===
@@ -854,10 +850,10 @@ export const diagnosePrinterIssues = async (
       ) {
         diagnostics.websocketStatus = "blocked";
         diagnostics.driverIssues.push(
-          "JSPrintManager has blocked this website"
+          "JSPrintManager has blocked this website",
         );
         diagnostics.recommendations.push(
-          "Allow this website in JSPrintManager settings"
+          "Allow this website in JSPrintManager settings",
         );
       } else {
         diagnostics.websocketStatus = "connecting";
@@ -866,7 +862,7 @@ export const diagnosePrinterIssues = async (
     } else {
       diagnostics.driverIssues.push("JSPrintManager library not loaded");
       diagnostics.recommendations.push(
-        "Ensure JSPrintManager library is properly loaded"
+        "Ensure JSPrintManager library is properly loaded",
       );
     }
 
@@ -888,7 +884,7 @@ export const diagnosePrinterIssues = async (
           if (status === "offline" || status === "error") {
             diagnostics.driverIssues.push(`Printer is ${status}`);
             diagnostics.recommendations.push(
-              "Check printer connection and power"
+              "Check printer connection and power",
             );
           }
         } else {
@@ -904,15 +900,15 @@ export const diagnosePrinterIssues = async (
     // Add general recommendations
     if (diagnostics.driverIssues.length === 0) {
       diagnostics.recommendations.push(
-        "Printer appears to be ready for printing"
+        "Printer appears to be ready for printing",
       );
     } else {
       diagnostics.recommendations.push("Try restarting the printer");
       diagnostics.recommendations.push(
-        "Check Windows printer queue for stuck jobs"
+        "Check Windows printer queue for stuck jobs",
       );
       diagnostics.recommendations.push(
-        "Restart JSPrintManager client application"
+        "Restart JSPrintManager client application",
       );
     }
   } catch (error) {
@@ -928,7 +924,7 @@ export const printWithJsPrintManager = async (
   rawCommands,
   printerName,
   useDefaultPrinter = false,
-  callbacks = {}
+  callbacks = {},
 ) => {
   if (!window.JSPM || !window.JSPM.JSPrintManager) {
     throw new Error("JSPrintManager not available");
@@ -1015,7 +1011,9 @@ export const printWithJsPrintManager = async (
         printer: useDefaultPrinter ? "Default Printer" : printerName,
         commandsLength: rawCommands.length,
         binaryCommandsSet: cpj.binaryPrinterCommands ? true : false,
-        printerType: cpj.clientPrinter ? cpj.clientPrinter.constructor.name : 'unknown',
+        printerType: cpj.clientPrinter
+          ? cpj.clientPrinter.constructor.name
+          : "unknown",
         timestamp: new Date().toISOString(),
       });
     }
@@ -1030,9 +1028,11 @@ export const printWithJsPrintManager = async (
       setTimeout(
         () =>
           reject(
-            new Error("Print job timeout - printer may be busy or driver issue")
+            new Error(
+              "Print job timeout - printer may be busy or driver issue",
+            ),
           ),
-        60000 // Increased to 60 seconds for debugging
+        60000, // Increased to 60 seconds for debugging
       );
     });
 
@@ -1041,7 +1041,7 @@ export const printWithJsPrintManager = async (
       try {
         const result = cpj.sendToClient();
         // If sendToClient returns a promise, wait for it
-        if (result && typeof result.then === 'function') {
+        if (result && typeof result.then === "function") {
           result.then(resolve).catch(reject);
         } else {
           // If it doesn't return a promise, resolve immediately
@@ -1108,7 +1108,7 @@ export const generateChecklistHTML = (
   rowsToUse,
   title = "Mailing Checklist",
   date = null,
-  activeFilters = []
+  activeFilters = [],
 ) => {
   // Use provided date or current date
   const displayDate = date
@@ -1126,8 +1126,8 @@ export const generateChecklistHTML = (
         new Set(
           raw
             .map((s) => (s == null ? "" : String(s).trim().toUpperCase()))
-            .filter(Boolean)
-        )
+            .filter(Boolean),
+        ),
       );
     }
     // If string, split on commas/whitespace/newlines
@@ -1149,7 +1149,7 @@ export const generateChecklistHTML = (
         }
         // also match keys that include the segment, e.g., wmmData
         const found = Object.keys(data).some(
-          (k) => k.toLowerCase().includes(String(key).toLowerCase()) && data[k]
+          (k) => k.toLowerCase().includes(String(key).toLowerCase()) && data[k],
         );
         if (found) {
           inferred.push(label);
@@ -1203,7 +1203,7 @@ export const generateChecklistHTML = (
                   <li key=${index} class="text-left border-b border-gray-500 last:border-none pb-2 mb-2">
                     ${sub.subsclass}: ${sub.subsdate} - ${sub.enddate}, Cps: ${sub.copies}
                   </li>
-                `
+                `,
                   )
                   .join("")}
               </ul>
