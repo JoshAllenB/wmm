@@ -43,6 +43,31 @@ const sanitizeNumericFields = (data, numericFields) => {
   return sanitized;
 };
 
+// Build area string from available components: prefer explicit city/province/country
+const buildAreaStringFrom = (data = {}) => {
+  const getFirst = (keys) => {
+    for (const k of keys) {
+      if (data[k] && typeof data[k] === "string" && data[k].trim() !== "") {
+        return data[k].trim();
+      }
+    }
+    return "";
+  };
+
+  const city = getFirst([
+    "city",
+    "areaCity",
+    "addressCity",
+    "area",
+    "area_name",
+  ]);
+  const province = getFirst(["province", "areaProvince", "state"]);
+  const country = getFirst(["country", "areaCountry", "countryName"]);
+
+  const parts = [city, province, country].filter(Boolean);
+  return parts.length > 0 ? parts.join(" | ") : "";
+};
+
 dotenv.config();
 
 const router = express.Router();
@@ -358,6 +383,11 @@ router.post("/add", verifyToken, async (req, res) => {
   const io = req.io;
   try {
     const { clientData, roleSubmissions } = req.body;
+    // Ensure `area` contains City | Province | Country when possible
+    const constructedArea = buildAreaStringFrom(clientData || {});
+    if (constructedArea) {
+      clientData.area = constructedArea;
+    }
     const isDonor = req.body.isDonor === true || clientData?.isDonor === true;
 
     const user = await UserModel.findById(req.userId).populate("roles.role");
@@ -603,6 +633,14 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       isNewRoleData,
       recordId,
     } = req.body;
+
+    // Ensure `area` contains City | Province | Country when possible on updates
+    if (clientData) {
+      const constructedArea = buildAreaStringFrom(clientData);
+      if (constructedArea) {
+        clientData.area = constructedArea;
+      }
+    }
 
     // Get the old client data before update
     const oldClientData = await ClientModel.findOne({ id }).lean();
