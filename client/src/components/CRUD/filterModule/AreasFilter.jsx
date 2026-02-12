@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 const AreasFilter = ({
   filterData,
@@ -10,8 +10,15 @@ const AreasFilter = ({
   areAllForeignSelected,
   local,
   foreign,
+  onAreaSearch,
+  areaSearch = "",
 }) => {
-  // ✅ Add temporary area entry for filtering (only if not already in local)
+  // Simple search input: just pass value up, do not filter lists locally
+  const handleAreaSearchChange = (e) => {
+    onAreaSearch?.(e.target.value);
+  };
+
+  // Add temporary area entry for filtering (only if not already in local)
   const extendedLocal = useMemo(() => {
     const tempAreas = [...local];
     if (!tempAreas.some((area) => area._id === "VM")) {
@@ -20,7 +27,7 @@ const AreasFilter = ({
     return tempAreas;
   }, [local]);
 
-  // Memoize the local areas grid
+  // Show all local and foreign areas, no filtering
   const localAreasGrid = useMemo(() => {
     return (
       <div className="grid grid-cols-4">
@@ -42,11 +49,13 @@ const AreasFilter = ({
             </label>
           </div>
         ))}
+        {extendedLocal.length === 0 && (
+          <div className="col-span-4 text-gray-500 py-2">No local areas</div>
+        )}
       </div>
     );
   }, [extendedLocal, filterData.areas, handleAreaChange]);
 
-  // Memoize the foreign areas grid
   const foreignAreasGrid = useMemo(() => {
     return (
       <div className="grid grid-cols-2">
@@ -62,16 +71,20 @@ const AreasFilter = ({
             <label
               htmlFor={`area-${area._id}`}
               className="ml-2 text-lg font-medium truncate"
-              title={area._id}
+              title={area.name || area._id}
             >
               {area._id}
             </label>
           </div>
         ))}
+        {foreign.length === 0 && (
+          <div className="col-span-2 text-gray-500 py-2">No foreign areas</div>
+        )}
       </div>
     );
   }, [foreign, filterData.areas, handleAreaChange]);
 
+  // Main component render
   return (
     <div className="p-2 border rounded-lg shadow-sm">
       <div>
@@ -79,7 +92,15 @@ const AreasFilter = ({
         <p className="text-base text-blue-500">
           {filterData.areas.length} areas selected
         </p>
-
+        <div className="mb-2">
+          <input
+            type="text"
+            value={areaSearch}
+            onChange={handleAreaSearchChange}
+            placeholder="Search area..."
+            className="w-full border rounded px-2 py-1 mb-2"
+          />
+        </div>
         <div className="max-h-[350px] overflow-y-auto border rounded-md p-2 custom-scrollbar">
           {/* Local Areas */}
           <div className="mb-2">
@@ -103,7 +124,6 @@ const AreasFilter = ({
             </h3>
             {localAreasGrid}
           </div>
-
           {/* Foreign Areas */}
           <div>
             <h3 className="text-lg font-semibold mb-1 bg-gray-100 p-1 flex justify-between items-center">

@@ -239,6 +239,12 @@ function createDatePipeline(dateField, subscriptionType = "WMM") {
 export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
   // Initialize the filter query
   const baseFilter = [];
+  // Area search: if areaSearch is present, add regex filter for area (case-insensitive)
+  if (advancedFilterData.areaSearch && typeof advancedFilterData.areaSearch === "string" && advancedFilterData.areaSearch.trim() !== "") {
+    baseFilter.push({
+      area: { $regex: advancedFilterData.areaSearch.trim(), $options: "i" },
+    });
+  }
   let hasIncludedIds = false;
   let includedIds = [];
   let filterQuery = {}; // Initialize filterQuery early for scoring
@@ -372,7 +378,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       const paymentRef = filter.substring(4).trim();
       if (paymentRef) {
         try {
-          // Search across ALL subscription models for payment references
           const WmmModel = await getModelInstance("WmmModel");
           const PromoModel = await getModelInstance("PromoModel");
           const ComplimentaryModel =
@@ -380,12 +385,8 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           const FomModel = await getModelInstance("FomModel");
           const HrgModel = await getModelInstance("HrgModel");
           const CalModel = await getModelInstance("CalModel");
-
-          // Use the helper to extract the reference number
           const extractedRef = extractPaymentRefNumber(paymentRef);
           const searchPattern = extractedRef || paymentRef;
-
-          // Search in ALL models for payment reference
           const [
             wmmClients,
             promoClients,
@@ -413,8 +414,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               paymtref: { $regex: searchPattern, $options: "i" },
             }).distinct("clientid"),
           ]);
-
-          // Combine all client IDs from all models
           const allClientIds = [
             ...wmmClients,
             ...promoClients,
@@ -423,54 +422,43 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             ...hrgClients,
             ...calClients,
           ];
-
           if (allClientIds.length > 0) {
             const validClientIds = allClientIds
               .map((id) => parseInt(id))
               .filter((id) => !isNaN(id));
-
             if (validClientIds.length > 0) {
               baseFilter.push({ id: { $in: validClientIds } });
             } else {
-              baseFilter.push({ id: -1 }); // No matches if invalid IDs
+              baseFilter.push({ id: -1 });
             }
           } else {
-            baseFilter.push({ id: -1 }); // No matches if no payment refs found
+            baseFilter.push({ id: -1 });
           }
         } catch (error) {
           console.error("Error in payment reference filtering:", error);
-          baseFilter.push({ id: -1 }); // No matches on error
+          baseFilter.push({ id: -1 });
         }
       }
     } else {
       // Handle regular search (client ID, names, company names)
       const numericFilter = Number(filter);
       const isNumeric = !isNaN(numericFilter);
-
-      // Check if the search term contains spaces (likely a full name or company name)
       const hasSpaces = filter.includes(" ");
-
       if (hasSpaces) {
-        // Handle full names and company names with spaces
         const searchTerms = filter
           .split(/\s+/)
           .filter((term) => term.trim() !== "");
-
         if (searchTerms.length > 0) {
           const searchQueries = [];
-
-          // Add exact full name/company match
           searchQueries.push({
             $or: [
               { company: { $regex: filter, $options: "i" } },
-              // Try to match as full name (first + last name)
               {
                 $and: [
                   { fname: { $regex: searchTerms[0], $options: "i" } },
                   { lname: { $regex: searchTerms[1] || "", $options: "i" } },
                 ],
               },
-              // Try reverse order (last + first name)
               {
                 $and: [
                   { lname: { $regex: searchTerms[0], $options: "i" } },
@@ -479,8 +467,6 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               },
             ],
           });
-
-          // Add partial matches for each search term
           searchQueries.push({
             $or: searchTerms.map((term) => ({
               $or: [
@@ -492,11 +478,9 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               ],
             })),
           });
-
           baseFilter.push({ $or: searchQueries });
         }
       } else {
-        // Handle single word searches (client ID, single names, company names)
         baseFilter.push({
           $or: [
             ...(isNumeric ? [{ id: numericFilter }] : []),

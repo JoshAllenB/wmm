@@ -236,6 +236,7 @@ const AdvancedFilter = ({
     massPaid: false,
     cashPaid: false,
     newRenewalFilter: "all", // New filter for New vs Renewal subscriptions
+    areaSearch: "",
   });
 
   const [subclasses, setSubclasses] = useState([]);
@@ -891,7 +892,11 @@ const AdvancedFilter = ({
     });
 
     // Clean the object to remove any undefined or empty values that might have slipped through
-    const finalFilterData = cleanObject(processedFilterData);
+    // Always include areaSearch in the filter data, even if empty
+    const finalFilterData = {
+      ...cleanObject(processedFilterData),
+      areaSearch: filterData.areaSearch || "",
+    };
 
     // Apply the filter
     onApplyFilter(finalFilterData);
@@ -1824,6 +1829,13 @@ const AdvancedFilter = ({
                       areAllForeignSelected={areAllForeignSelected}
                       local={local}
                       foreign={foreign}
+                      areaSearch={filterData.areaSearch} // Pass the search value
+                      onAreaSearch={(searchValue) => {
+                        setFilterData((prev) => ({
+                          ...prev,
+                          areaSearch: searchValue,
+                        }));
+                      }}
                     />
                     {!hasHRGFOMCALRole() && (
                       <SpackFilter
