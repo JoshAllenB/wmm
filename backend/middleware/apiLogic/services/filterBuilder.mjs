@@ -52,7 +52,7 @@ const applyClientIdFiltering = (clientIds, advancedFilterData) => {
     if (validIncludeIds.length > 0) {
       // Only include clients that are both in the original list AND in the include list
       filteredClients = filteredClients.filter((id) =>
-        validIncludeIds.includes(id)
+        validIncludeIds.includes(id),
       );
     }
   }
@@ -70,7 +70,7 @@ const applyClientIdFiltering = (clientIds, advancedFilterData) => {
     if (validExcludeIds.length > 0) {
       // Remove clients that are in the exclude list
       filteredClients = filteredClients.filter(
-        (id) => !validExcludeIds.includes(id)
+        (id) => !validExcludeIds.includes(id),
       );
     }
   }
@@ -375,9 +375,8 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
           // Search across ALL subscription models for payment references
           const WmmModel = await getModelInstance("WmmModel");
           const PromoModel = await getModelInstance("PromoModel");
-          const ComplimentaryModel = await getModelInstance(
-            "ComplimentaryModel"
-          );
+          const ComplimentaryModel =
+            await getModelInstance("ComplimentaryModel");
           const FomModel = await getModelInstance("FomModel");
           const HrgModel = await getModelInstance("HrgModel");
           const CalModel = await getModelInstance("CalModel");
@@ -888,13 +887,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             const hrgStartDate = advancedFilterData.hrgPaymentFromDate
               ? parseDate(advancedFilterData.hrgPaymentFromDate)
               : advancedFilterData.hrgCampaignFromDate
-              ? parseDate(advancedFilterData.hrgCampaignFromDate)
-              : null;
+                ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                : null;
             const hrgEndDate = advancedFilterData.hrgPaymentToDate
               ? parseDate(advancedFilterData.hrgPaymentToDate)
               : advancedFilterData.hrgCampaignToDate
-              ? parseDate(advancedFilterData.hrgCampaignToDate)
-              : null;
+                ? parseDate(advancedFilterData.hrgCampaignToDate)
+                : null;
 
             if (hrgEndDate) {
               hrgEndDate.setHours(23, 59, 59, 999);
@@ -924,7 +923,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                 unsubscribeValue: "$latestRecord.unsubscribe",
                 adddateValue: "$latestRecord.adddate",
               },
-            }
+            },
           );
 
           queries.push(HrgModel.aggregate(hrgPipeline));
@@ -971,7 +970,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                 unsubscribeValue: "$latestRecord.unsubscribe",
                 adddateValue: "$latestRecord.adddate",
               },
-            }
+            },
           );
 
           queries.push(FomModel.aggregate(fomPipeline));
@@ -987,13 +986,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               const hrgStartDate = advancedFilterData.hrgPaymentFromDate
                 ? parseDate(advancedFilterData.hrgPaymentFromDate)
                 : advancedFilterData.hrgCampaignFromDate
-                ? parseDate(advancedFilterData.hrgCampaignFromDate)
-                : null;
+                  ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                  : null;
               const hrgEndDate = advancedFilterData.hrgPaymentToDate
                 ? parseDate(advancedFilterData.hrgPaymentToDate)
                 : advancedFilterData.hrgCampaignToDate
-                ? parseDate(advancedFilterData.hrgCampaignToDate)
-                : null;
+                  ? parseDate(advancedFilterData.hrgCampaignToDate)
+                  : null;
 
               if (hrgEndDate) {
                 hrgEndDate.setHours(23, 59, 59, 999);
@@ -1026,7 +1025,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                   unsubscribeValue: "$latestRecord.unsubscribe",
                   adddateValue: "$latestRecord.adddate",
                 },
-              }
+              },
             );
 
             queries.push(HrgModel.aggregate(hrgPipeline));
@@ -1077,7 +1076,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                   unsubscribeValue: "$latestRecord.unsubscribe",
                   adddateValue: "$latestRecord.adddate",
                 },
-              }
+              },
             );
 
             queries.push(FomModel.aggregate(fomPipeline));
@@ -1111,13 +1110,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
             const hrgStartDate = advancedFilterData.hrgPaymentFromDate
               ? parseDate(advancedFilterData.hrgPaymentFromDate)
               : advancedFilterData.hrgCampaignFromDate
-              ? parseDate(advancedFilterData.hrgCampaignFromDate)
-              : null;
+                ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                : null;
             const hrgEndDate = advancedFilterData.hrgPaymentToDate
               ? parseDate(advancedFilterData.hrgPaymentToDate)
               : advancedFilterData.hrgCampaignToDate
-              ? parseDate(advancedFilterData.hrgCampaignToDate)
-              : null;
+                ? parseDate(advancedFilterData.hrgCampaignToDate)
+                : null;
 
             if (hrgEndDate) {
               hrgEndDate.setHours(23, 59, 59, 999);
@@ -1147,7 +1146,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                 unsubscribeValue: "$latestRecord.unsubscribe",
                 adddateValue: "$latestRecord.adddate",
               },
-            }
+            },
           );
 
           queries.push(HrgModel.aggregate(hrgPipeline));
@@ -1194,7 +1193,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                 unsubscribeValue: "$latestRecord.unsubscribe",
                 adddateValue: "$latestRecord.adddate",
               },
-            }
+            },
           );
 
           queries.push(FomModel.aggregate(fomPipeline));
@@ -1210,13 +1209,13 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
               const hrgStartDate = advancedFilterData.hrgPaymentFromDate
                 ? parseDate(advancedFilterData.hrgPaymentFromDate)
                 : advancedFilterData.hrgCampaignFromDate
-                ? parseDate(advancedFilterData.hrgCampaignFromDate)
-                : null;
+                  ? parseDate(advancedFilterData.hrgCampaignFromDate)
+                  : null;
               const hrgEndDate = advancedFilterData.hrgPaymentToDate
                 ? parseDate(advancedFilterData.hrgPaymentToDate)
                 : advancedFilterData.hrgCampaignToDate
-                ? parseDate(advancedFilterData.hrgCampaignToDate)
-                : null;
+                  ? parseDate(advancedFilterData.hrgCampaignToDate)
+                  : null;
 
               if (hrgEndDate) {
                 hrgEndDate.setHours(23, 59, 59, 999);
@@ -1249,7 +1248,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                   unsubscribeValue: "$latestRecord.unsubscribe",
                   adddateValue: "$latestRecord.adddate",
                 },
-              }
+              },
             );
 
             queries.push(HrgModel.aggregate(hrgPipeline));
@@ -1300,7 +1299,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
                   unsubscribeValue: "$latestRecord.unsubscribe",
                   adddateValue: "$latestRecord.adddate",
                 },
-              }
+              },
             );
 
             queries.push(FomModel.aggregate(fomPipeline));
@@ -1420,7 +1419,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
       key !== "clientId" &&
       advancedFilterData[key] !== undefined &&
       advancedFilterData[key] !== null &&
-      advancedFilterData[key] !== ""
+      advancedFilterData[key] !== "",
   );
 
   const hasOtherFilters =
@@ -1446,7 +1445,7 @@ export async function buildFilterQuery(filter, group, advancedFilterData = {}) {
     if (validExcludeIds.length > 0) {
       // Apply exclude to included IDs
       const filteredIncludedIds = includedIds.filter(
-        (id) => !validExcludeIds.includes(id)
+        (id) => !validExcludeIds.includes(id),
       );
 
       if (filteredIncludedIds.length > 0) {
@@ -1661,7 +1660,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           ...calClients,
         ]
           .map((id) => Number(id))
-          .filter((id) => !isNaN(id))
+          .filter((id) => !isNaN(id)),
       );
 
       if (allUserClients.size > 0) {
@@ -1691,8 +1690,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
       const services = Array.isArray(advancedFilterData.services)
         ? advancedFilterData.services
         : typeof advancedFilterData.services === "string"
-        ? [advancedFilterData.services]
-        : [];
+          ? [advancedFilterData.services]
+          : [];
 
       const subscriptionStatus = advancedFilterData.subscriptionStatus || "all";
 
@@ -1704,7 +1703,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           key !== "subscriptionType" &&
           advancedFilterData[key] !== undefined &&
           advancedFilterData[key] !== null &&
-          advancedFilterData[key] !== ""
+          advancedFilterData[key] !== "",
       );
 
       // Get clients for each selected service
@@ -1940,7 +1939,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           } else {
             // Intersect with existing clients if we want clients with all services
             targetClients = new Set(
-              [...targetClients].filter((id) => clients.has(id))
+              [...targetClients].filter((id) => clients.has(id)),
             );
           }
         }
@@ -1999,9 +1998,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       // Only proceed if we have a valid query
       if (Object.keys(calendarQuery).length > 0) {
-        const clientsWithCalendarStatus = await WmmModel.find(
-          calendarQuery
-        ).distinct("clientid");
+        const clientsWithCalendarStatus =
+          await WmmModel.find(calendarQuery).distinct("clientid");
         const validClientIds = clientsWithCalendarStatus
           .map((id) => parseInt(id))
           .filter((id) => !isNaN(id));
@@ -2032,7 +2030,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         const d = parseDate(advancedFilterData.wmmExpiringFromDate);
         if (d)
           expiryStart = new Date(
-            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)
+            Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1),
           );
       }
       if (advancedFilterData.wmmExpiringToDate) {
@@ -2046,8 +2044,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
               23,
               59,
               59,
-              999
-            )
+              999,
+            ),
           );
       }
 
@@ -2081,7 +2079,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
             _id: { clientid: "$clientid", year: "$year" },
             maxMonth: { $max: "$month" },
           },
-        }
+        },
       );
 
       const grouped = await Model.aggregate(entitlementPipeline);
@@ -2146,9 +2144,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       // Only proceed if we have a valid query
       if (Object.keys(spackQuery).length > 0) {
-        const clientsWithSpackStatus = await ClientModel.find(
-          spackQuery
-        ).distinct("id");
+        const clientsWithSpackStatus =
+          await ClientModel.find(spackQuery).distinct("id");
         const validClientIds = clientsWithSpackStatus
           .map((id) => parseInt(id))
           .filter((id) => !isNaN(id));
@@ -2272,9 +2269,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
 
       // Only proceed if we have a valid query
       if (Object.keys(rtsQuery).length > 0) {
-        const clientsWithRTSStatus = await ClientModel.find(rtsQuery).distinct(
-          "id"
-        );
+        const clientsWithRTSStatus =
+          await ClientModel.find(rtsQuery).distinct("id");
         const validClientIds = clientsWithRTSStatus
           .map((id) => parseInt(id))
           .filter((id) => !isNaN(id));
@@ -2328,7 +2324,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           activeTo = null;
         if (advancedFilterData.wmmActiveFromDate) {
           activeFrom = getMonthRange(
-            advancedFilterData.wmmActiveFromDate
+            advancedFilterData.wmmActiveFromDate,
           ).start;
         }
         if (advancedFilterData.wmmActiveToDate) {
@@ -2340,7 +2336,7 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
           expiryTo = null;
         if (advancedFilterData.wmmExpiringFromDate) {
           expiryFrom = getMonthRange(
-            advancedFilterData.wmmExpiringFromDate
+            advancedFilterData.wmmExpiringFromDate,
           ).start;
         }
         if (advancedFilterData.wmmExpiringToDate) {
@@ -2622,9 +2618,8 @@ async function addServiceFilters(baseFilter, advancedFilterData) {
         },
       });
 
-      const clientsWithPaymentType = await SubscriptionModel.aggregate(
-        pipeline
-      );
+      const clientsWithPaymentType =
+        await SubscriptionModel.aggregate(pipeline);
 
       const validClientIds = clientsWithPaymentType
         .map((doc) => parseInt(doc._id))
@@ -2745,7 +2740,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             console.error(`Error aggregating ${name} model:`, error);
             return [];
           }
-        })
+        }),
       );
 
       // Combine all client IDs
@@ -2900,7 +2895,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
       // Execute all aggregations in parallel
       const aggregationResults = await Promise.all(
-        pipelines.map(({ model, pipeline }) => model.aggregate(pipeline))
+        pipelines.map(({ model, pipeline }) => model.aggregate(pipeline)),
       );
 
       // Combine and deduplicate client IDs
@@ -2950,7 +2945,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
         expiryTo = null;
       if (advancedFilterData.wmmExpiringFromDate) {
         expiryFrom = getMonthRange(
-          advancedFilterData.wmmExpiringFromDate
+          advancedFilterData.wmmExpiringFromDate,
         ).start;
       }
       if (advancedFilterData.wmmExpiringToDate) {
@@ -3183,7 +3178,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
   ) {
     try {
       const Model = await getSubscriptionModel(
-        advancedFilterData.subscriptionType
+        advancedFilterData.subscriptionType,
       );
 
       let fromDate = null,
@@ -3198,7 +3193,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       const pipeline = [
         ...createDatePipeline(
           "subsdate",
-          advancedFilterData.subscriptionType || "WMM"
+          advancedFilterData.subscriptionType || "WMM",
         ),
       ];
 
@@ -3271,7 +3266,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
       const pipeline = [
         ...createDatePipeline(
           "enddate",
-          advancedFilterData.subscriptionType || "WMM"
+          advancedFilterData.subscriptionType || "WMM",
         ),
       ];
 
@@ -3322,7 +3317,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           const renewedClientsPipeline = [
             ...createDatePipeline(
               "subsdate",
-              advancedFilterData.subscriptionType || "WMM"
+              advancedFilterData.subscriptionType || "WMM",
             ),
             {
               $match: {
@@ -3346,7 +3341,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
           // Remove clients who have renewed beyond the expiry date
           validClientIds = validClientIds.filter(
-            (id) => !renewedClientIds.includes(id)
+            (id) => !renewedClientIds.includes(id),
           );
         }
       }
@@ -3361,7 +3356,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           const renewedClientsPipeline = [
             ...createDatePipeline(
               "subsdate",
-              advancedFilterData.subscriptionType || "WMM"
+              advancedFilterData.subscriptionType || "WMM",
             ),
             {
               $match: {
@@ -3391,7 +3386,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
 
           // Keep ONLY clients who have renewed after the cutoff date
           validClientIds = validClientIds.filter((id) =>
-            renewedClientIds.includes(id)
+            renewedClientIds.includes(id),
           );
         }
       }
@@ -3600,10 +3595,10 @@ async function addDateFilters(baseFilter, advancedFilterData) {
           monthZeroIdx <= 11
         ) {
           const monthStart = new Date(
-            Date.UTC(year, monthZeroIdx, 1, 0, 0, 0, 0)
+            Date.UTC(year, monthZeroIdx, 1, 0, 0, 0, 0),
           );
           const monthEnd = new Date(
-            Date.UTC(year, monthZeroIdx + 1, 0, 23, 59, 59, 999)
+            Date.UTC(year, monthZeroIdx + 1, 0, 23, 59, 59, 999),
           );
           pipeline.push({
             $match: { normalizedDate: { $gte: monthStart, $lte: monthEnd } },
@@ -3624,7 +3619,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             fromMonthZeroIdx <= 11
           ) {
             rangeStart = new Date(
-              Date.UTC(fromYear, fromMonthZeroIdx, 1, 0, 0, 0, 0)
+              Date.UTC(fromYear, fromMonthZeroIdx, 1, 0, 0, 0, 0),
             );
           }
         }
@@ -3640,7 +3635,7 @@ async function addDateFilters(baseFilter, advancedFilterData) {
             toMonthZeroIdx <= 11
           ) {
             rangeEnd = new Date(
-              Date.UTC(toYear, toMonthZeroIdx + 1, 0, 23, 59, 59, 999)
+              Date.UTC(toYear, toMonthZeroIdx + 1, 0, 23, 59, 59, 999),
             );
           }
         }
@@ -3836,15 +3831,15 @@ async function addDateFilters(baseFilter, advancedFilterData) {
                   },
                 },
               ]
-            : advancedFilterData.newRenewalFilter === "renewal"
-            ? [
-                {
-                  $match: {
-                    latestSubsclass: { $regex: "R", $options: "i" }, // subsclass contains 'R'
+            : advancedFilterData.newRenewalFilter === "renewed"
+              ? [
+                  {
+                    $match: {
+                      latestSubsclass: { $regex: "R", $options: "i" }, // subsclass contains 'R'
+                    },
                   },
-                },
-              ]
-            : []),
+                ]
+              : []),
 
           // Project only the client ID
           {
@@ -3901,14 +3896,14 @@ function addAreaAndTypeFilters(baseFilter, advancedFilterData) {
     // Clean the area codes and remove duplicates
     const validAreas = [
       ...new Set(
-        areas.map((area) => area.trim()).filter((area) => area.length > 0)
+        areas.map((area) => area.trim()).filter((area) => area.length > 0),
       ),
     ];
 
     if (validAreas.length > 0) {
       // Create regex patterns for each area code
       const areaPatterns = validAreas.map(
-        (area) => new RegExp(`^${escapeRegex(area)}\\s*$`, "i")
+        (area) => new RegExp(`^${escapeRegex(area)}\\s*$`, "i"),
       );
 
       baseFilter.push({

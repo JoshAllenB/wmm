@@ -658,7 +658,7 @@ const AdvancedFilter = ({
     if (hasRole("WMM")) {
       // Remove any existing WMM/PROMO/COMP services
       services = services.filter(
-        (service) => !["WMM", "PROMO", "COMP"].includes(service)
+        (service) => !["WMM", "PROMO", "COMP"].includes(service),
       );
 
       // Add the correct service based on subscription type
@@ -710,32 +710,32 @@ const AdvancedFilter = ({
       startDate: formatDateComponentsToISO(
         filterData.startDateMonth,
         filterData.startDateDay,
-        filterData.startDateYear
+        filterData.startDateYear,
       ),
       endDate: formatDateComponentsToISO(
         filterData.endDateMonth,
         filterData.endDateDay,
-        filterData.endDateYear
+        filterData.endDateYear,
       ),
       wmmActiveFromDate: formatDateComponentsToISO(
         filterData.wmmActiveFromMonth,
         filterData.wmmActiveFromDay,
-        filterData.wmmActiveFromYear
+        filterData.wmmActiveFromYear,
       ),
       wmmActiveToDate: formatDateComponentsToISO(
         filterData.wmmActiveToMonth,
         filterData.wmmActiveToDay,
-        filterData.wmmActiveToYear
+        filterData.wmmActiveToYear,
       ),
       wmmExpiringFromDate: formatDateComponentsToISO(
         filterData.wmmExpiringFromMonth,
         filterData.wmmExpiringFromDay,
-        filterData.wmmExpiringFromYear
+        filterData.wmmExpiringFromYear,
       ),
       wmmExpiringToDate: formatDateComponentsToISO(
         filterData.wmmExpiringToMonth,
         filterData.wmmExpiringToDay,
-        filterData.wmmExpiringToYear
+        filterData.wmmExpiringToYear,
       ),
 
       // Copies
@@ -793,33 +793,33 @@ const AdvancedFilter = ({
       calReceivedFromDate: formatDateComponentsToISO(
         filterData.calReceivedFromMonth,
         filterData.calReceivedFromDay,
-        filterData.calReceivedFromYear
+        filterData.calReceivedFromYear,
       ),
       calReceivedToDate: formatDateComponentsToISO(
         filterData.calReceivedToMonth,
         filterData.calReceivedToDay,
-        filterData.calReceivedToYear
+        filterData.calReceivedToYear,
       ),
       calPaymentFromDate: formatDateComponentsToISO(
         filterData.calPaymentFromMonth,
         filterData.calPaymentFromDay,
-        filterData.calPaymentFromYear
+        filterData.calPaymentFromYear,
       ),
       calPaymentToDate: formatDateComponentsToISO(
         filterData.calPaymentToMonth,
         filterData.calPaymentToDay,
-        filterData.calPaymentToYear
+        filterData.calPaymentToYear,
       ),
       // HRG Payment Transaction Date
       hrgPaymentFromDate: formatDateComponentsToISO(
         filterData.hrgPaymentFromMonth,
         filterData.hrgPaymentFromDay,
-        filterData.hrgPaymentFromYear
+        filterData.hrgPaymentFromYear,
       ),
       hrgPaymentToDate: formatDateComponentsToISO(
         filterData.hrgPaymentToMonth,
         filterData.hrgPaymentToDay,
-        filterData.hrgPaymentToYear
+        filterData.hrgPaymentToYear,
       ),
       // HRG Campaign Year -> send year number
       ...(filterData.hrgCampaignYear && {
@@ -845,12 +845,12 @@ const AdvancedFilter = ({
       fomPaymentFromDate: formatDateComponentsToISO(
         filterData.fomPaymentFromMonth,
         filterData.fomPaymentFromDay,
-        filterData.fomPaymentFromYear
+        filterData.fomPaymentFromYear,
       ),
       fomPaymentToDate: formatDateComponentsToISO(
         filterData.fomPaymentToMonth,
         filterData.fomPaymentToDay,
-        filterData.fomPaymentToYear
+        filterData.fomPaymentToYear,
       ),
 
       // CAL Calendar Year (caltype-based)
@@ -1077,19 +1077,25 @@ const AdvancedFilter = ({
       const startDisplay = formatDateDisplay(
         filterData.startDateMonth,
         filterData.startDateDay,
-        filterData.startDateYear
+        filterData.startDateYear,
       );
 
       const endDisplay = formatDateDisplay(
         filterData.endDateMonth,
         filterData.endDateDay,
-        filterData.endDateYear
+        filterData.endDateYear,
       );
 
       if (startDisplay && endDisplay) {
+        let value = `${startDisplay} to ${endDisplay}`;
+        if (filterData.newRenewalFilter === "renewed") {
+          value += " (Renewed Only)";
+        } else if (filterData.newRenewalFilter === "new") {
+          value += " (New Only)";
+        }
         active.push({
           label: "Date Range",
-          value: `${startDisplay} to ${endDisplay}`,
+          value,
           key: "dateRange",
         });
       }
@@ -1101,7 +1107,7 @@ const AdvancedFilter = ({
       const startDisplay = formatDateDisplay(
         filterData.startDateMonth,
         filterData.startDateDay,
-        filterData.startDateYear
+        filterData.startDateYear,
       );
 
       if (startDisplay) {
@@ -1119,7 +1125,7 @@ const AdvancedFilter = ({
       const endDisplay = formatDateDisplay(
         filterData.endDateMonth,
         filterData.endDateDay,
-        filterData.endDateYear
+        filterData.endDateYear,
       );
 
       if (endDisplay) {
@@ -1180,13 +1186,13 @@ const AdvancedFilter = ({
         const activeFromDisplay = formatDateDisplay(
           filterData.wmmActiveFromMonth,
           filterData.wmmActiveFromDay,
-          filterData.wmmActiveFromYear
+          filterData.wmmActiveFromYear,
         );
 
         const activeToDisplay = formatDateDisplay(
           filterData.wmmActiveToMonth,
           filterData.wmmActiveToDay,
-          filterData.wmmActiveToYear
+          filterData.wmmActiveToYear,
         );
 
         if (activeFromDisplay && activeToDisplay) {
@@ -1260,13 +1266,13 @@ const AdvancedFilter = ({
         const expiringFromDisplay = formatDateDisplay(
           filterData.wmmExpiringFromMonth,
           filterData.wmmExpiringFromDay,
-          filterData.wmmExpiringFromYear
+          filterData.wmmExpiringFromYear,
         );
 
         const expiringToDisplay = formatDateDisplay(
           filterData.wmmExpiringToMonth,
           filterData.wmmExpiringToDay,
-          filterData.wmmExpiringToYear
+          filterData.wmmExpiringToYear,
         );
 
         if (expiringFromDisplay && expiringToDisplay) {
@@ -1537,6 +1543,7 @@ const AdvancedFilter = ({
           updates.endDateMonth = "";
           updates.endDateDay = "";
           updates.endDateYear = "";
+          updates.newRenewalFilter = "all";
           break;
         case "startDate":
           updates.startDateMonth = "";
@@ -1623,7 +1630,7 @@ const AdvancedFilter = ({
           updates.expiryDateRangeOnly = false;
           break;
         case "renewdOnly":
-          updates.newRenewalFilter = false;
+          updates.newRenewalFilter = "all";
           break;
         case "calendarEntitledOnly":
           updates.calendarEntitledOnly = false;
@@ -1680,7 +1687,7 @@ const AdvancedFilter = ({
       } else {
         // Remove all local area IDs
         updatedAreas = updatedAreas.filter(
-          (areaId) => !local.some((area) => area._id === areaId)
+          (areaId) => !local.some((area) => area._id === areaId),
         );
       }
 
@@ -1704,7 +1711,7 @@ const AdvancedFilter = ({
       } else {
         // Remove all foreign area IDs
         updatedAreas = updatedAreas.filter(
-          (areaId) => !foreign.some((area) => area._id === areaId)
+          (areaId) => !foreign.some((area) => area._id === areaId),
         );
       }
 
@@ -1791,6 +1798,20 @@ const AdvancedFilter = ({
                       hasOnlyNonWMMRoles={hasOnlyNonWMMRoles}
                       hasRole={hasRole}
                     />
+                    <div className="flex items-center gap-2 mt-2">
+                      <label className="font-medium">Subscription Type:</label>
+                      <select
+                        name="newRenewalFilter"
+                        value={filterData.newRenewalFilter || "all"}
+                        onChange={handleChange}
+                        className="border rounded px-2 py-1"
+                        style={{ minWidth: 120 }}
+                      >
+                        <option value="all">All</option>
+                        <option value="renewed">Renewed Only</option>
+                        <option value="new">New Only</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <AreasFilter
