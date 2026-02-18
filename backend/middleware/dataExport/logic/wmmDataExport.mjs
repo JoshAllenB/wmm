@@ -302,7 +302,7 @@ async function processMonthlyDistribution(
       // Create CSV content with UTF-8 BOM for Excel compatibility
       const csvContent = "\uFEFF" + header + csvBody; // \uFEFF is the UTF-8 BOM
 
-      const outDir = "C:\\Users\\Josh\\Documents\\WMM Reports\\";
+      const outDir = reportConfig.outputDirectory;
       if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
       const outPath = path.join(outDir, `AllClients_${month}_${year}.csv`);
 
