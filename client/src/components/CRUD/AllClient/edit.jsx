@@ -1846,7 +1846,16 @@ const Edit = ({ rowData, onClose, onEditSuccess, mode = "edit" }) => {
 
     if (lastLine) lines.push(lastLine);
 
-    return lines.join("\n");
+    // Join lines and remove any accidental '+' characters
+    let combined = lines.join("\n");
+    combined = combined.replace(/\+/g, "");
+    // Also trim each line and the whole string
+    combined = combined
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("\n");
+    return combined;
   };
 
   // Update handleAddressChange to ensure values are never undefined
