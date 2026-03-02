@@ -47,7 +47,7 @@ export default defineConfig(({ mode }) => {
           }
         }
 
-        return `${isGithub ? "/wmm" : ""}/${filename}`;
+        return `${isGithub ? "/wmm/" : "/"}${filename}`;
       },
     },
   };
